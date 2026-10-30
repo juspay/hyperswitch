@@ -1,9 +1,12 @@
-use common_utils::{crypto::Encryptable, errors::CustomResult, id_type};
+use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::ConfigExt, id_type};
 pub use hyperswitch_domain_models::{
     connector_endpoints::Connectors, errors::api_error_response, merchant_connector_account,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Deserialize;
+use subtle::ConstantTimeEq;
+
+use crate::secrets_interface::SecretsManagementError;
 
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
@@ -87,7 +90,82 @@ impl Default for GlobalTenant {
 #[serde(default)]
 pub struct InternalMerchantIdProfileIdAuthSettings {
     pub enabled: bool,
-    pub internal_api_key: Secret<String>,
+    pub internal_api_key: Option<Secret<String>>,
+    pub primary_internal_api_key: Secret<String>,
+    pub key_rotation_enabled: bool,
+    pub use_legacy_key_for_outbound: bool,
+}
+
+#[allow(missing_docs)]
+impl InternalMerchantIdProfileIdAuthSettings {
+    pub async fn decrypt_credentials(
+        self,
+        client: &dyn crate::secrets_interface::SecretManagementInterface,
+    ) -> CustomResult<Self, SecretsManagementError> {
+        let legacy_key_required = self.key_rotation_enabled || self.use_legacy_key_for_outbound;
+        let legacy_key_configured = self
+            .internal_api_key
+            .as_ref()
+            .is_some_and(|key| !key.is_default_or_empty());
+        let primary_internal_api_key = if self.primary_internal_api_key.is_default_or_empty() {
+            if self.enabled || legacy_key_required || legacy_key_configured {
+                return Err(
+                    error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                        .attach_printable(
+                            "Internal authentication requires primary_internal_api_key",
+                        ),
+                );
+            }
+            self.primary_internal_api_key
+        } else {
+            client
+                .get_secret(self.primary_internal_api_key)
+                .await
+                .map_err(|error| {
+                    error.attach_printable(
+                        "internal_merchant_id_profile_id_auth.primary_internal_api_key",
+                    )
+                })?
+        };
+        if legacy_key_required && !legacy_key_configured {
+            return Err(
+                error_stack::Report::new(SecretsManagementError::FetchSecretFailed)
+                    .attach_printable(
+                        "Legacy inbound or outbound authentication requires internal_api_key",
+                    ),
+            );
+        }
+        let internal_api_key = if legacy_key_required {
+            self.internal_api_key
+        } else {
+            None
+        };
+        Ok(Self {
+            primary_internal_api_key,
+            internal_api_key,
+            ..self
+        })
+    }
+
+    pub fn accepts_api_key(&self, candidate: &str) -> bool {
+        let primary_key = &self.primary_internal_api_key;
+        if primary_key.is_default_or_empty() {
+            return false;
+        }
+        let matches = |key: &Secret<String>| {
+            !key.is_default_or_empty()
+                && bool::from(candidate.as_bytes().ct_eq(key.peek().as_bytes()))
+        };
+        matches(primary_key)
+            || (self.key_rotation_enabled && self.internal_api_key.as_ref().is_some_and(matches))
+    }
+
+    pub fn outbound_api_key(&self) -> &Secret<String> {
+        self.internal_api_key
+            .as_ref()
+            .filter(|_| self.use_legacy_key_for_outbound)
+            .unwrap_or(&self.primary_internal_api_key)
+    }
 }
 
 #[allow(missing_docs)]

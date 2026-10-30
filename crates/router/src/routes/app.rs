@@ -32,7 +32,10 @@ use hyperswitch_interfaces::{
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{redis::RedisStore, MockDb};
+use storage_impl::{
+    redis::{cache::Caches, RedisStore},
+    MockDb,
+};
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
@@ -60,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -160,6 +165,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
     }
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant.tenant_id
+    }
     fn get_request_id(&self) -> Option<RequestId> {
         self.request_id.clone()
     }
@@ -234,6 +242,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn start_read_ledger(&mut self, flow: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -242,6 +251,21 @@ pub trait SessionStateInfo {
 }
 
 impl SessionStateInfo for SessionState {
+    /// Begin tracking which records this session reads. Store-labelled ledgers
+    /// share one set, so a record read through two stores is one record.
+    /// Called once where the session begins; background work
+    /// (scheduler, drainer) is not a session and starts none.
+    fn start_read_ledger(&mut self, flow: String) {
+        use common_utils::read_ledger::{ReadLedger, ReadStore};
+
+        let read_ledger = Arc::new(ReadLedger::new(flow));
+        self.accounts_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Accounts)));
+        self.global_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
+        self.store.attach_read_ledger(read_ledger);
+    }
+
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
@@ -362,10 +386,16 @@ pub struct AppState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// In-memory caches, shared with every tenant's store and with the redis subscriber
+    /// that invalidates them.
+    pub caches: Arc<Caches>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
+    }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
     }
 }
 pub trait AppStateInfo {
@@ -452,11 +482,13 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
+        #[allow(clippy::expect_used)]
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
             &*secret_management_client,
         ))
-        .await;
+        .await
+        .expect("Failed to decrypt application configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -499,6 +531,9 @@ impl AppState {
             )
             .await
             .expect("Failed to create store");
+            // One set for the whole process: every tenant store and the single redis
+            // subscriber that invalidates entries must point at the same caches.
+            let caches = Arc::new(Caches::new(&conf.cache));
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,
@@ -508,6 +543,7 @@ impl AppState {
                     conf.global_database_config(),
                     conf.global_database_config(),
                     Arc::clone(&cache_store),
+                    Arc::clone(&caches),
                     testable,
                 ))
                 .await
@@ -521,7 +557,13 @@ impl AppState {
             let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .get_store_interface_maps(
+                    &storage_impl,
+                    &conf,
+                    Arc::clone(&cache_store),
+                    Arc::clone(&caches),
+                    testable,
+                )
                 .await;
 
             #[cfg(feature = "email")]
@@ -564,6 +606,7 @@ impl AppState {
                 infra_components: infra_component_values,
                 enhancement,
                 superposition_service,
+                caches,
             }
         })
         .await
@@ -581,6 +624,7 @@ impl AppState {
         master_config: settings::Database,
         accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
+        caches: Arc<Caches>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
         let km_conf = conf.key_manager.get_inner();
@@ -615,6 +659,7 @@ impl AppState {
                             master_config.clone(),
                             accounts_config.clone(),
                             Arc::clone(&cache_store),
+                            Arc::clone(&caches),
                             testable,
                             key_manager_state,
                         )
@@ -634,6 +679,7 @@ impl AppState {
                         master_config,
                         accounts_config,
                         Arc::clone(&cache_store),
+                        caches,
                         testable,
                         key_manager_state,
                     )
@@ -854,6 +900,7 @@ impl Payments {
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
+            // TODO: Deprecated. Remove this in favour of /v2/recovery
             .service(
                 web::resource("/recovery")
                     .route(web::post().to(payments::recovery_payments_create)),
@@ -982,6 +1029,14 @@ impl Payments {
                     web::resource("/list")
                         .route(web::get().to(payments::payments_list))
                         .route(web::post().to(payments::payments_list_by_filter)),
+                )
+                .service(
+                    web::resource("/platform/list")
+                        .route(web::get().to(payments::payments_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(payments::payments_list_for_platform_filters)),
                 )
                 .service(
                     web::resource("/profile/list")
@@ -2696,58 +2751,35 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            route = route.service(
-                web::scope("/{profile_id}/dynamic_routing")
-                    .service(
-                        web::scope("/success_based")
-                            .service(
+            route =
+                route.service(
+                    web::scope("/{profile_id}/dynamic_routing")
+                        .service(
+                            web::scope("/success_based").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
-                            )
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::success_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::resource("/set_volume_split")
-                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::resource("/get_volume_split")
-                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::scope("/elimination")
-                            .service(
+                            ),
+                        )
+                        .service(
+                            web::resource("/set_volume_split")
+                                .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::resource("/get_volume_split")
+                                .route(web::get().to(routing::get_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::scope("/elimination").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
-                            )
-                            .service(web::resource("config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::elimination_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::scope("/contracts")
-                            .service(web::resource("/toggle").route(
+                            ),
+                        )
+                        .service(web::scope("/contracts").service(
+                            web::resource("/toggle").route(
                                 web::post().to(routing::contract_based_routing_setup_config),
-                            ))
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::contract_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    ),
-            );
+                            ),
+                        )),
+                );
         }
 
         route = route.service(
@@ -2829,6 +2861,20 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{provider}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
@@ -3506,38 +3552,46 @@ impl ProfileAcquirer {
 }
 
 #[cfg(feature = "v2")]
-pub struct RecoveryDataBackfill;
+pub struct RevenueRecovery;
+
 #[cfg(feature = "v2")]
-impl RecoveryDataBackfill {
+impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/recovery/data-backfill")
+        use super::{
+            payments, revenue_recovery, revenue_recovery_data_backfill, revenue_recovery_redis,
+        };
+        web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
             .service(
-                web::resource("").route(
-                    web::post()
-                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
-                ),
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
             )
-            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
-                ),
-            ))
-            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
-                web::get().to(
-                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
-                ),
-            ))
-            .service(web::resource("/update-token").route(
-                web::put().to(
-                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
-                ),
-            ))
-            .service(web::resource("/retry-stats").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
-                ),
-            ))
+            .service(
+                web::scope("/data-backfill")
+                    .service(
+                        web::resource("").route(
+                            web::post()
+                                .to(revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                        ),
+                    )
+                    .service(
+                        web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
+                            web::post().to(
+                                revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                            ),
+                        ),
+                    )
+                    .service(web::resource("/redis-data/{connector_cutomer_id}").route(
+                        web::get().to(revenue_recovery_redis::get_revenue_recovery_redis_data),
+                    ))
+                    .service(web::resource("/update-token").route(web::put().to(
+                        revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                    )))
+                    .service(web::resource("/retry-stats").route(web::post().to(
+                        revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
+                    ))),
+            )
     }
 }
 

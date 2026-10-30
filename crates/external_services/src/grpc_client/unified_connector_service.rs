@@ -262,6 +262,11 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments. Unlike
+    /// VGS's MITM proxy, this is a plain CONNECT-tunnel proxy, so no CA certificate is
+    /// needed here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy_url: Option<Url>,
 }
 
 /// Failure to build the Unified Connector Service client from configuration.
@@ -332,7 +337,7 @@ impl UnifiedConnectorServiceClient {
         };
 
         let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
-            |err: tonic::codegen::http::uri::InvalidUri| {
+            |err: http::uri::InvalidUri| {
                 logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
                 UcsClientBuildError::InvalidUri(err.to_string())
             },
@@ -999,6 +1004,41 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Post Capture Void (Reverse)
+    pub async fn payment_reverse(
+        &self,
+        payment_reverse_request: payments_grpc::PaymentServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceReverseResponse>>
+    {
+        let mut request = tonic::Request::new(payment_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.payment_service_client
+            .clone()
+            .reverse(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_reverse",
+                    connector_name=?connector_name,
+                    "UCS payment reverse gRPC call failed"
+                )
+            })
+    }
+
     /// Incoming webhook handle
     pub async fn incoming_webhook_handle_event(
         &self,
@@ -1581,9 +1621,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.frm_service_client
-            .clone()
-            .pre_risk_check(request)
+        Box::pin(self.frm_service_client.clone().pre_risk_check(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1696,6 +1734,8 @@ fn build_grpc_headers_internal(
         shadow_mode,
         proxy_name,
         config_override,
+        payment_method,
+        payment_method_type,
     } = grpc_headers;
 
     let mut metadata = MetadataMap::new();
@@ -1790,6 +1830,26 @@ fn build_grpc_headers_internal(
             parse(
                 consts::UCS_HEADER_RESOURCE_ID,
                 resource_id.get_string_repr(),
+            )?,
+        );
+    };
+
+    if let Some(payment_method) = payment_method {
+        metadata.append(
+            common_utils_consts::X_PAYMENT_METHOD,
+            parse(
+                common_utils_consts::X_PAYMENT_METHOD,
+                &payment_method.to_string(),
+            )?,
+        );
+    };
+
+    if let Some(payment_method_type) = payment_method_type {
+        metadata.append(
+            common_utils_consts::X_PAYMENT_METHOD_TYPE,
+            parse(
+                common_utils_consts::X_PAYMENT_METHOD_TYPE,
+                &payment_method_type.to_string(),
             )?,
         );
     };

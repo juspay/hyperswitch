@@ -9,7 +9,7 @@ use router_env::{instrument, tracing};
 use crate::{
     errors::StorageError,
     kv_router_store::KVRouterStore,
-    redis::cache::{self, CacheKind, CONFIG_CACHE},
+    redis::cache::{self, CacheKind},
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
@@ -89,12 +89,12 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
-        cache::get_or_populate_in_memory(
+        Box::pin(cache::get_or_populate_in_memory_redis(
             self,
             CARD_ISSUERS_LIST_CACHE_KEY,
-            fetch_func,
-            &CONFIG_CACHE,
-        )
+            fetch_func(),
+            cache::CacheId::Config,
+        ))
         .await
     }
 

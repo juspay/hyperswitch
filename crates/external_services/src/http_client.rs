@@ -10,6 +10,8 @@ use router_env::{instrument, logger, tracing};
 pub mod client;
 /// metrics module
 pub mod metrics;
+/// outbound_destination module
+pub mod outbound_destination;
 /// request module
 pub mod request;
 
@@ -86,7 +88,22 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
         // outgoing call (e.g. Stripe) is served from the lookup table with no
         // network. A recorded value this build cannot reconstruct fail-stops the
         // request; it is not a silent fallback to a live call.
-        codec = boundary::HttpResponseCodec,
+        owned_codec = boundary::HttpResponseCodec,
+        // A miss answers as a send failure: nobody answered, and a fabricated status
+        // could report a payment outcome that never happened. The url comes from the
+        // recorded args because the real call moves `request`.
+        on_miss = Err(HttpClientError::RequestNotSent(
+            format!(
+                "deja: no recorded response for this outbound call (url {}, occurrence {})",
+                __deja_miss
+                    .args
+                    .get("url")
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("unknown"),
+                __deja_miss.occurrence,
+            ),
+        )
+        .into()),
     )
 )]
 #[instrument(skip_all)]
@@ -170,22 +187,29 @@ pub async fn send_request(
         option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
     ));
 
+    // Retain the typed cause so callers can distinguish transport errors from
+    // request-construction errors within RequestNotSent, including on retries.
+    let map_request_error = |error: reqwest::Error| {
+        let context = match &error {
+            error if error.is_timeout() => {
+                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                HttpClientError::RequestTimeoutReceived
+            }
+            error if is_connection_closed_before_message_could_complete(error) => {
+                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                HttpClientError::ConnectionClosedIncompleteMessage
+            }
+            _ => HttpClientError::RequestNotSent(error.to_string()),
+        };
+        error_stack::Report::new(error).change_context(context)
+    };
+
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
         cloned_request
             .send()
             .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => HttpClientError::RequestNotSent(error.to_string()),
-            })
+            .map_err(map_request_error)
             .attach_printable("Unable to send request to connector")
     });
 
@@ -193,17 +217,7 @@ pub async fn send_request(
         request
             .send()
             .await
-            .map_err(|error| match error {
-                error if error.is_timeout() => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::RequestTimeoutReceived
-                }
-                error if is_connection_closed_before_message_could_complete(&error) => {
-                    metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                    HttpClientError::ConnectionClosedIncompleteMessage
-                }
-                _ => HttpClientError::RequestNotSent(error.to_string()),
-            })
+            .map_err(map_request_error)
             .attach_printable("Unable to send request to connector")
     };
 
@@ -248,20 +262,7 @@ pub async fn send_request(
         response => response,
     };
 
-    #[cfg(feature = "deja")]
-    {
-        match response {
-            Ok(response) if boundary::is_active() => {
-                boundary::response_with_captured_body(response).await
-            }
-            response => response,
-        }
-    }
-
-    #[cfg(not(feature = "deja"))]
-    {
-        response
-    }
+    response
 }
 
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {

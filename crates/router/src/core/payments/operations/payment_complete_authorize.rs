@@ -14,10 +14,12 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
+        payment_methods::transformers as pm_transformers,
         payments::{
             self, helpers, operations, CustomerDetails, OperationSessionGetters, PaymentAddress,
             PaymentData,
         },
+        utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
@@ -51,30 +53,50 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _auth_flow: services::AuthFlow,
         _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_fetch_data: operations::PaymentMethodFetchData,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        let operations::PaymentMethodFetchData {
+            payment_intent: prefetched_payment_intent,
+            payment_method_info: prefetched_payment_method_info,
+            ..
+        } = payment_method_fetch_data;
+        let (pre_fetched_intent, pre_fetched_attempt) = match payment_pre_fetched_info {
+            Some(info) => (Some(info.payment_intent), Some(info.payment_attempt)),
+            None => (None, None),
+        };
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let (mut payment_intent, mut payment_attempt, currency, amount);
 
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
+        payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
+            Some(payment_intent) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    payment_intent.profile_id.as_ref(),
+                )?;
+                payment_intent
+            }
+            None => helpers::find_payment_intent(
+                db,
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
+                profile_id_from_auth_layer,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 
@@ -106,16 +128,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let recurring_details = request.recurring_details.clone();
 
-        payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                processor_merchant_id,
-                &payment_intent.active_attempt.get_id(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_attempt = match pre_fetched_attempt {
+            Some(attempt) => attempt,
+            None => db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &processor_merchant_id,
+                    &payment_intent.active_attempt.get_id(),
+                    storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
@@ -143,12 +168,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
-            None,
+            prefetched_payment_method_info.clone(),
         ))
         .await?;
 
+        let payment_method_info = payment_method_info.or(prefetched_payment_method_info);
+
         // Priority: request > payment_attempt > payment_method_info
-        // If payment_method_info is present but customer_acceptance is missing/invalid, return an error
         let customer_acceptance: Option<CustomerAcceptance> =
             if let Some(ca) = request.customer_acceptance.clone() {
                 Some(ca)
@@ -160,10 +186,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             "Failed to deserialize customer_acceptance from payment_attempt",
                         )?,
                 )
-            } else if let Some(pm) = payment_method_info.clone() {
+            } else if let Some(ca) = payment_method_info
+                .as_ref()
+                .and_then(|pm| pm.customer_acceptance.clone())
+            {
                 Some(
-                    pm.customer_acceptance
-                        .parse_value::<CustomerAcceptance>("CustomerAcceptance")
+                    ca.parse_value::<CustomerAcceptance>("CustomerAcceptance")
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
                             "Failed to deserialize customer_acceptance from payment_method_info",
@@ -234,11 +262,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.clone().as_deref(),
-            processor_merchant_id,
+            &processor_merchant_id,
             payment_intent.customer_id.as_ref(),
             platform.get_processor().get_key_store(),
             &payment_id,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -251,7 +279,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -261,7 +289,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -291,12 +319,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Error converting connector_metadata to Value")?
             .or(payment_intent.connector_metadata);
 
-        payment_intent.feature_metadata = request
-            .get_feature_metadata_as_value()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error converting feature_metadata to Value")?
-            .map(hyperswitch_masking::Secret::new)
-            .or(payment_intent.feature_metadata);
+        let stored_feature_metadata = payment_intent
+            .get_optional_feature_metadata()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        let feature_metadata = match request.feature_metadata.clone() {
+            Some(metadata) => Some(metadata.merge(stored_feature_metadata)),
+            None => stored_feature_metadata,
+        };
+        payment_intent.feature_metadata = feature_metadata
+            .map(serde_json::to_value)
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?
+            .map(hyperswitch_masking::Secret::new);
 
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
 
@@ -342,7 +376,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )?;
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -429,6 +465,84 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 #[async_trait]
 impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for CompleteAuthorize {
     #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentsRequest,
+        platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        let payment_id = req.payment_id.as_ref().get_required_value("payment_id")?;
+        let (payment_intent, payment_attempt) =
+            Box::pin(super::payment_status::get_payment_intent_payment_attempt(
+                state,
+                payment_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                profile_id_from_auth_layer,
+            ))
+            .await?;
+
+        let payment_method_info = if let Some(pm_id) = payment_attempt.payment_method_id.as_ref() {
+            let payment_method_info = match state
+                .store
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    pm_id,
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+            {
+                Ok(pm) => Ok(Some(pm)),
+                Err(error)
+                    if error.current_context().is_db_not_found()
+                        && feature_config.is_payment_method_modular_allowed =>
+                {
+                    Ok(None)
+                }
+                Err(error) => Err(error)
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound),
+            }?;
+
+            // An existing V1 record must pass the freshness check even after rollout.
+            if payment_method_info.as_ref().map_or(
+                feature_config.is_payment_method_modular_allowed,
+                |pm| {
+                    feature_config.should_use_modular_pm_path(
+                        Some(pm.version),
+                        pm.compatibility_updated_at,
+                        Some(pm.last_modified),
+                    )
+                },
+            ) {
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")?;
+                Some(
+                    Box::pin(pm_transformers::fetch_payment_method_from_modular_service(
+                        state, platform, profile_id, pm_id, None, false, false,
+                    ))
+                    .await?
+                    .payment_method,
+                )
+            } else {
+                payment_method_info
+            }
+        } else {
+            None
+        };
+
+        Ok(operations::PaymentMethodFetchData {
+            payment_intent: Some(payment_intent),
+            payment_method_info,
+            ..Default::default()
+        })
+    }
+
+    #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
         state: &SessionState,
@@ -436,7 +550,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<mandates::MandateTransactionType>,
     ) -> CustomResult<
         (CompleteAuthorizeOperation<'a, F>, Option<domain::Customer>),
@@ -453,12 +567,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .customer_id
             .as_ref()
             .async_map(|customer_id| async {
+                let use_merchant_reference_id =
+                    helpers::should_use_merchant_reference_id_as_customer_id(
+                        state,
+                        &dimensions
+                            .without_profile_id()
+                            .without_processor_merchant_id()
+                            .with_organization_id(provider.get_account().organization_id.clone()),
+                        Some(customer_id),
+                    )
+                    .await;
                 // We allow CompleteAuthorize even if customer has been redacted
                 db.find_customer_optional_with_redacted_customer_details_by_customer_id_merchant_id(
                     customer_id,
                     &merchant_key_store.merchant_id,
                     merchant_key_store,
                     storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await
             })
@@ -548,7 +673,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::CompleteAuthorizeUpdate {

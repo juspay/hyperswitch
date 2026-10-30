@@ -57,6 +57,65 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+pub trait ApiPaymentMethodDataMandateIds {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds>;
+}
+
+impl ApiPaymentMethodDataMandateIds for api_models::payments::PaymentMethodData {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds> {
+        let mandate_reference_id = match self {
+            Self::NetworkTransactionIdAndCardDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkTokenWithNTI(
+                    mandates::NetworkTokenWithNTIRef {
+                        network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                        transaction_link_id: details.transaction_link_id.clone(),
+                        token_exp_month: Some(details.token_exp_month.clone()),
+                        token_exp_year: Some(details.token_exp_year.clone()),
+                    },
+                )
+            }
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::Card(_)
+            | Self::CardWithNoCVC(_)
+            | Self::CardRedirect(_)
+            | Self::Wallet(_)
+            | Self::PayLater(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::RealTimePayment(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_)
+            | Self::CardToken(_)
+            | Self::OpenBanking(_)
+            | Self::MobilePayment(_)
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => return None,
+        };
+
+        Some(mandates::MandateIds {
+            mandate_id: None,
+            mandate_reference_id: Some(mandate_reference_id),
+        })
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
     Card(Box<ExternalVaultCard>),
@@ -83,6 +142,10 @@ pub enum RecurringDetails {
     NetworkTransactionIdAndDecryptedWalletTokenDetails(
         Box<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
+
+    /// Network transaction ID and external vault card details for MIT payments where the card
+    /// is held in an external vault and referenced by a vault alias rather than by PAN.
+    NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
 
     CardWithLimitedData(Box<CardWithLimitedData>),
 }
@@ -184,6 +247,59 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct VaultCardDetails {
+    /// The vault alias standing in for the card number, not the card number itself
+    pub vault_card_token: Secret<String>,
+
+    /// The card's expiry month
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digits of the card number
+    pub bin_number: Option<String>,
+
+    /// The last four digits of the card number
+    pub last_four: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct NetworkTransactionIdAndVaultCardDetails {
+    /// The external vault card details
+    pub vault_card_data: VaultCardDetails,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a
+    /// CIT (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct CardWithLimitedData {
     /// The card number
     pub card_number: cards::CardNumber,
@@ -220,6 +336,27 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    #[cfg(feature = "v1")]
+    pub fn get_payment_method_vaulting_data(
+        &self,
+    ) -> Option<crate::vault::PaymentMethodVaultingData> {
+        match self {
+            Self::BankRedirect(BankRedirectData::Trustly {
+                connector_instrument_id,
+                ..
+            }) => connector_instrument_id
+                .clone()
+                .map(|connector_instrument_id| {
+                    crate::vault::PaymentMethodVaultingData::BankRedirect(
+                        BankRedirectDetail::Trustly {
+                            connector_instrument_id,
+                        },
+                    )
+                }),
+            _ => None,
+        }
+    }
+
     /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
@@ -771,6 +908,7 @@ pub struct DecryptedWalletTokenDetailsForNetworkTransactionId {
     pub eci: Option<String>,
     pub token_source: Option<common_types::payments::TokenSource>,
     pub card_network: Option<common_enums::CardNetwork>,
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
@@ -892,12 +1030,65 @@ impl CardDetailsForNetworkTransactionId {
     }
 }
 
+impl VaultCardDetails {
+    /// The external vault counterpart of
+    /// `CardDetailsForNetworkTransactionId::get_nti_and_card_details_for_mit_flow`.
+    pub fn get_nti_and_vault_card_details_for_mit_flow(
+        network_transaction_id_and_vault_card_details: NetworkTransactionIdAndVaultCardDetails,
+    ) -> (mandates::MandateReferenceId, ExternalVaultPaymentMethodData) {
+        let mandate_reference_id =
+            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                network_transaction_id: network_transaction_id_and_vault_card_details
+                    .network_transaction_id
+                    .peek()
+                    .to_string(),
+                transaction_link_id: network_transaction_id_and_vault_card_details
+                    .transaction_link_id
+                    .clone(),
+            });
+
+        (
+            mandate_reference_id,
+            ExternalVaultPaymentMethodData::Card(Box::new(
+                network_transaction_id_and_vault_card_details
+                    .vault_card_data
+                    .into(),
+            )),
+        )
+    }
+}
+
+impl From<VaultCardDetails> for ExternalVaultCard {
+    /// `card_cvc` is deliberately empty: an MIT has no cardholder present, and the transaction
+    /// authorizes on the network transaction ID.
+    fn from(vault_card_details: VaultCardDetails) -> Self {
+        Self {
+            card_number: vault_card_details.vault_card_token,
+            card_exp_month: vault_card_details.card_exp_month,
+            card_exp_year: vault_card_details.card_exp_year,
+            card_cvc: Secret::new(String::new()),
+            bin_number: vault_card_details.bin_number,
+            last_four: vault_card_details.last_four,
+            card_issuer: vault_card_details.card_issuer,
+            card_network: vault_card_details.card_network,
+            card_type: vault_card_details.card_type,
+            card_issuing_country: vault_card_details.card_issuing_country,
+            bank_code: vault_card_details.bank_code,
+            nick_name: vault_card_details.nick_name,
+            card_holder_name: vault_card_details.card_holder_name,
+            co_badged_card_data: None,
+        }
+    }
+}
+
 impl NetworkTokenDetailsForNetworkTransactionId {
     pub fn get_nti_and_network_token_details_for_mit_flow(
         network_transaction_id_and_network_token_details: NetworkTransactionIdAndNetworkTokenDetails,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
+        // A network token replay carries its own mandate reference variant: connectors match on
+        // it to pick the token payment source, and `NetworkMandateId` is the raw-card one.
         let mandate_reference_id =
-            mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+            mandates::MandateReferenceId::NetworkTokenWithNTI(mandates::NetworkTokenWithNTIRef {
                 network_transaction_id: network_transaction_id_and_network_token_details
                     .network_transaction_id
                     .peek()
@@ -905,6 +1096,16 @@ impl NetworkTokenDetailsForNetworkTransactionId {
                 transaction_link_id: network_transaction_id_and_network_token_details
                     .transaction_link_id
                     .clone(),
+                token_exp_month: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_month
+                        .clone(),
+                ),
+                token_exp_year: Some(
+                    network_transaction_id_and_network_token_details
+                        .token_exp_year
+                        .clone(),
+                ),
             });
 
         (
@@ -1059,6 +1260,8 @@ impl From<common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDet
             token_source: decrypted_token_details_for_nti.token_source,
             eci: decrypted_token_details_for_nti.eci,
             card_network: decrypted_token_details_for_nti.card_network,
+            device_manufacturer_identifier: decrypted_token_details_for_nti
+                .device_manufacturer_identifier,
         }
     }
 }
@@ -1116,6 +1319,7 @@ pub enum WalletData {
     SamsungPay(Box<SamsungPayWalletData>),
     TwintRedirect {},
     VippsRedirect {},
+    WeroRedirect {},
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     WeChatPayQr(Box<WeChatPayQr>),
@@ -1251,6 +1455,8 @@ pub struct CashappQr {}
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
+    /// PayPal payer identifier disclosed by the connector response.
+    pub payer_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -1432,6 +1638,11 @@ pub enum BankRedirectData {
     },
     Trustly {
         country: Option<api_enums::CountryAlpha2>,
+        account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        additional_details: Option<Secret<serde_json::Value>>,
+        bank_last_digits: Option<Secret<String>>,
+        connector_instrument_id: Option<Secret<String>>,
     },
     OnlineBankingFpx {
         issuer: common_enums::BankNames,
@@ -1472,6 +1683,18 @@ impl BankRedirectData {
                 masked_sort_code: sort_code.map(|sort_code| {
                     common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
+                account_holder_name,
+                bank_name,
+            }),
+            Self::Trustly {
+                country: _,
+                account_holder_name,
+                bank_name,
+                additional_details: _,
+                bank_last_digits,
+                connector_instrument_id: _,
+            } => Some(BankRedirectDetailsPaymentMethod::Trustly {
+                bank_last_digits: bank_last_digits.map(|digits| digits.peek().to_owned()),
                 account_holder_name,
                 bank_name,
             }),
@@ -1899,7 +2122,26 @@ pub enum WalletDetail {
     },
 }
 
-#[cfg(feature = "v1")]
+impl From<common_types::payments::ApplePayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::ApplePayPredecryptData) -> Self {
+        Self::ApplePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.application_expiration_month,
+            expiry_year: data.application_expiration_year,
+        }
+    }
+}
+
+impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
+    fn from(data: common_types::payments::GPayPredecryptData) -> Self {
+        Self::GooglePayDecryptedData {
+            application_primary_account_number: data.application_primary_account_number,
+            expiry_month: data.card_exp_month,
+            expiry_year: data.card_exp_year,
+        }
+    }
+}
+
 impl From<payment_methods::WalletDetail> for WalletDetail {
     fn from(wallet: payment_methods::WalletDetail) -> Self {
         match wallet {
@@ -1925,6 +2167,31 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
     }
 }
 
+impl From<WalletDetail> for payment_methods::WalletDetail {
+    fn from(wallet: WalletDetail) -> Self {
+        match wallet {
+            WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+            WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectDetail {
@@ -1932,6 +2199,9 @@ pub enum BankRedirectDetail {
         iban: Option<Secret<String>>,
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
+    },
+    Trustly {
+        connector_instrument_id: Secret<String>,
     },
 }
 
@@ -1954,24 +2224,6 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
-    fn from(bank_redirect: BankRedirectDetailsPaymentMethod) -> Self {
-        match bank_redirect {
-            BankRedirectDetailsPaymentMethod::OpenBanking {
-                masked_account_number,
-                masked_sort_code,
-                account_holder_name: _,
-                masked_iban,
-                bank_name: _,
-            } => Self::OpenBanking {
-                account_number: masked_account_number.map(Secret::new),
-                iban: masked_iban.map(Secret::new),
-                sort_code: masked_sort_code.map(Secret::new),
-            },
-        }
-    }
-}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -2224,6 +2476,21 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(
+                card_details,
+            ) => Self::CardDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndCardDetails::from(*card_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(
+                network_token_details,
+            ) => Self::NetworkTokenDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndNetworkTokenDetails::from(*network_token_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                decrypted_wallet_token_details,
+            ) => Self::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                (*decrypted_wallet_token_details).into(),
+            ),
             // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
             // (routed to external_vault_proxy_for_payments_core). These branches should not be
             // reached in normal flow, but we handle them gracefully.
@@ -2766,6 +3033,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
+                    payer_id: paypal_redirect_data.payer_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
@@ -2802,6 +3070,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             }
             api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
+            api_models::payments::WalletData::WeroRedirect {} => Self::WeroRedirect {},
         }
     }
 }
@@ -2982,9 +3251,14 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => {
-                Self::Trustly { country }
-            }
+            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
+                country,
+                account_holder_name: None,
+                bank_name: None,
+                additional_details: None,
+                bank_last_digits: None,
+                connector_instrument_id: None,
+            },
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }
@@ -3765,6 +4039,7 @@ impl GetPaymentMethodType for WalletData {
             Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay
@@ -3997,6 +4272,7 @@ pub fn get_applepay_wallet_info(
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4021,6 +4297,7 @@ pub fn get_googlepay_wallet_info(
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4132,6 +4409,11 @@ pub enum BankRedirectDetailsPaymentMethod {
         masked_sort_code: Option<String>,
         account_holder_name: Option<Secret<String>>,
         masked_iban: Option<String>,
+        bank_name: Option<common_enums::BankNames>,
+    },
+    Trustly {
+        bank_last_digits: Option<String>,
+        account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
     },
 }
@@ -4330,7 +4612,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
@@ -4410,7 +4692,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),
@@ -4792,6 +5074,21 @@ impl From<api_mandates::RecurringDetails> for RecurringDetails {
             ) => Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(Box::new(
                 *network_transaction_id_and_decrypted_wallet_token_details,
             )),
+            api_mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                network_transaction_id_and_vault_card_details,
+            ) => Self::NetworkTransactionIdAndVaultCardDetails(Box::new(
+                (*network_transaction_id_and_vault_card_details).into(),
+            )),
+            // The fallback variant is an orchestration-level input: the core flow decomposes it
+            // into its two arms (`to_network_token_arm` / `to_vault_card_arm`) before calling a
+            // payment core, so only those arm variants ever reach the domain model. Should one
+            // leak through, it resolves to the arm that runs first rather than to nothing, so a
+            // first attempt still carries its mandate reference.
+            api_mandates::RecurringDetails::NetworkTokenWithVaultCardFallback(fallback) => {
+                Self::NetworkTransactionIdAndNetworkTokenDetails(Box::new(
+                    fallback.network_token_arm_details().into(),
+                ))
+            }
             api_mandates::RecurringDetails::CardWithLimitedData(card_with_limited_data) => {
                 Self::CardWithLimitedData(Box::new((*card_with_limited_data).into()))
             }
@@ -4844,6 +5141,37 @@ impl From<api_mandates::NetworkTransactionIdAndNetworkTokenDetails>
     }
 }
 
+impl From<api_mandates::VaultCardData> for VaultCardDetails {
+    fn from(value: api_mandates::VaultCardData) -> Self {
+        Self {
+            vault_card_token: value.card_number,
+            card_exp_month: value.card_exp_month,
+            card_exp_year: value.card_exp_year,
+            card_holder_name: value.card_holder_name,
+            card_issuer: value.card_issuer,
+            card_network: value.card_network,
+            card_type: value.card_type,
+            card_issuing_country: value.card_issuing_country,
+            bank_code: value.bank_code,
+            nick_name: value.nick_name,
+            bin_number: value.bin_number,
+            last_four: value.last_four,
+        }
+    }
+}
+
+impl From<api_mandates::NetworkTransactionIdAndVaultCardDetails>
+    for NetworkTransactionIdAndVaultCardDetails
+{
+    fn from(value: api_mandates::NetworkTransactionIdAndVaultCardDetails) -> Self {
+        Self {
+            vault_card_data: value.vault_card_data.into(),
+            network_transaction_id: value.network_transaction_id,
+            transaction_link_id: value.transaction_link_id,
+        }
+    }
+}
+
 impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
     fn from(card_with_limited_data: api_mandates::CardWithLimitedData) -> Self {
         Self {
@@ -4859,6 +5187,26 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
 }
 
 impl RecurringDetails {
+    /// The external vault counterpart of
+    /// `get_mandate_reference_id_and_payment_method_data_for_proxy_flow`, pairing the same mandate
+    /// reference with `ExternalVaultPaymentMethodData`.
+    pub fn get_mandate_reference_id_and_external_vault_pmd_for_proxy_flow(
+        &self,
+    ) -> Option<(mandates::MandateReferenceId, ExternalVaultPaymentMethodData)> {
+        match self.clone() {
+            Self::NetworkTransactionIdAndVaultCardDetails(vault_card_details) => Some(
+                VaultCardDetails::get_nti_and_vault_card_details_for_mit_flow(*vault_card_details),
+            ),
+            Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+            | Self::CardWithLimitedData(_)
+            | Self::PaymentMethodId(_)
+            | Self::MandateId(_)
+            | Self::ProcessorPaymentToken(_) => None,
+        }
+    }
+
     pub fn get_mandate_reference_id_and_payment_method_data_for_proxy_flow(
         &self,
     ) -> Option<(mandates::MandateReferenceId, PaymentMethodData)> {
@@ -4875,7 +5223,9 @@ impl RecurringDetails {
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(network_transaction_id_and_decrypted_wallet_token_details) => {
                 Some(DecryptedWalletTokenDetailsForNetworkTransactionId::get_nti_and_decrypted_wallet_token_details_for_mit_flow(*network_transaction_id_and_decrypted_wallet_token_details))
             }
-            Self::PaymentMethodId(_)
+            // Vault card details are authorized through the external vault proxy core instead.
+            Self::NetworkTransactionIdAndVaultCardDetails(_)
+            | Self::PaymentMethodId(_)
             | Self::MandateId(_)
             | Self::ProcessorPaymentToken(_) => None,
         }

@@ -16,17 +16,9 @@ use api_models::{
     },
 };
 use async_trait::async_trait;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use common_utils::ext_traits::AsyncExt;
 use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use external_services::grpc_client::dynamic_routing::{
-    contract_routing_client::ContractBasedDynamicRouting,
-    elimination_based_client::EliminationBasedRouting,
-    success_rate_client::SuccessBasedDynamicRouting,
-};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use helpers::{
     enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
@@ -35,8 +27,6 @@ use hyperswitch_domain_models::{mandates, payment_address};
 use hyperswitch_masking::Secret;
 use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use storage_impl::redis::cache;
 
 #[cfg(feature = "payouts")]
 use super::payouts;
@@ -1145,12 +1135,12 @@ pub async fn link_routing_config(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
-            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 utils::when(record.algorithm_for != transaction_type, || {
@@ -1665,12 +1655,12 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
         Ok(routing_algorithm) => routing_algorithm,
         Err(error) => {
             // DE-only rules have no HS row; serve them from the DE.
-            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+            if let Some((_business_profile, record)) = Box::pin(find_de_record_for_algorithm(
                 &state,
                 &platform,
                 authentication_profile_id.clone(),
                 &algorithm_id,
-            )
+            ))
             .await?
             {
                 let response = de_record_to_merchant_routing_algorithm(record)?;
@@ -2593,7 +2583,7 @@ pub async fn create_specific_dynamic_routing(
             // disable specific dynamic routing for the requested profile
             helpers::disable_dynamic_routing_algorithm(
                 &state,
-                processor.get_key_store().clone(),
+                processor.get_key_store().inner().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
@@ -2693,214 +2683,6 @@ pub async fn retrieve_dynamic_routing_volume_split(
     Ok(service_api::ApplicationResponse::Json(resp))
 }
 
-// check if this needs to stay
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn success_based_routing_update_configs(
-    state: SessionState,
-    request: routing_types::SuccessBasedRoutingConfig,
-    algorithm_id: common_utils::id_type::RoutingId,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
-        1,
-        router_env::metric_attributes!(
-            ("profile_id", profile_id.clone()),
-            (
-                "algorithm_type",
-                routing::DynamicRoutingType::SuccessRateBasedRouting.to_string()
-            )
-        ),
-    );
-    let db = state.store.as_ref();
-
-    let dynamic_routing_algo_to_update = db
-        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let mut config_to_update: routing::SuccessBasedRoutingConfig = dynamic_routing_algo_to_update
-        .algorithm_data
-        .parse_value::<routing::SuccessBasedRoutingConfig>("SuccessBasedRoutingConfig")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize algorithm data from routing table into SuccessBasedRoutingConfig")?;
-
-    config_to_update.update(request);
-
-    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
-    let timestamp = common_utils::date_time::now();
-    let algo = RoutingAlgorithm {
-        algorithm_id: updated_algorithm_id,
-        profile_id: dynamic_routing_algo_to_update.profile_id,
-        merchant_id: dynamic_routing_algo_to_update.merchant_id,
-        name: dynamic_routing_algo_to_update.name,
-        description: dynamic_routing_algo_to_update.description,
-        kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update.clone()),
-        created_at: timestamp,
-        modified_at: timestamp,
-        algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
-        decision_engine_routing_id: None,
-        processor_merchant_id: dynamic_routing_algo_to_update.processor_merchant_id,
-        created_by: dynamic_routing_algo_to_update.created_by,
-    };
-    let record = db
-        .insert_routing_algorithm(algo)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to insert record in routing algorithm table")?;
-
-    // redact cache for success based routing configs
-    let cache_key = format!(
-        "{}_{}",
-        profile_id.get_string_repr(),
-        algorithm_id.get_string_repr()
-    );
-    let cache_entries_to_redact = vec![cache::CacheKind::SuccessBasedDynamicRoutingCache(
-        cache_key.into(),
-    )];
-    let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
-        cache_entries_to_redact,
-    )
-    .await
-    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the success based routing config cache {e:?}"));
-
-    let new_record = record.foreign_into();
-
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
-        1,
-        router_env::metric_attributes!(("profile_id", profile_id.clone())),
-    );
-
-    if !state.conf.open_router.dynamic_routing_enabled {
-        state
-            .grpc_client
-            .dynamic_routing
-            .as_ref()
-            .async_map(|dr_client| async {
-                dr_client
-                    .success_rate_client
-                    .invalidate_success_rate_routing_keys(
-                        profile_id.get_string_repr().into(),
-                        state.get_grpc_headers(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to invalidate the routing keys")
-            })
-            .await
-            .transpose()?;
-    }
-
-    Ok(service_api::ApplicationResponse::Json(new_record))
-}
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn elimination_routing_update_configs(
-    state: SessionState,
-    request: routing_types::EliminationRoutingConfig,
-    algorithm_id: common_utils::id_type::RoutingId,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
-        1,
-        router_env::metric_attributes!(
-            ("profile_id", profile_id.clone()),
-            (
-                "algorithm_type",
-                routing::DynamicRoutingType::EliminationRouting.to_string()
-            )
-        ),
-    );
-
-    let db = state.store.as_ref();
-
-    let dynamic_routing_algo_to_update = db
-        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let mut config_to_update: routing::EliminationRoutingConfig = dynamic_routing_algo_to_update
-        .algorithm_data
-        .parse_value::<routing::EliminationRoutingConfig>("EliminationRoutingConfig")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "unable to deserialize algorithm data from routing table into EliminationRoutingConfig",
-        )?;
-
-    config_to_update.update(request);
-
-    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
-    let timestamp = common_utils::date_time::now();
-    let algo = RoutingAlgorithm {
-        algorithm_id: updated_algorithm_id,
-        profile_id: dynamic_routing_algo_to_update.profile_id,
-        merchant_id: dynamic_routing_algo_to_update.merchant_id,
-        name: dynamic_routing_algo_to_update.name,
-        description: dynamic_routing_algo_to_update.description,
-        kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
-        created_at: timestamp,
-        modified_at: timestamp,
-        algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
-        decision_engine_routing_id: None,
-        processor_merchant_id: dynamic_routing_algo_to_update.processor_merchant_id,
-        created_by: dynamic_routing_algo_to_update.created_by,
-    };
-
-    let record = db
-        .insert_routing_algorithm(algo)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to insert record in routing algorithm table")?;
-
-    // redact cache for elimination routing configs
-    let cache_key = format!(
-        "{}_{}",
-        profile_id.get_string_repr(),
-        algorithm_id.get_string_repr()
-    );
-    let cache_entries_to_redact = vec![cache::CacheKind::EliminationBasedDynamicRoutingCache(
-        cache_key.into(),
-    )];
-
-    cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
-        cache_entries_to_redact,
-    )
-    .await
-    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the elimination routing config cache {e:?}")).ok();
-
-    let new_record = record.foreign_into();
-
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
-        1,
-        router_env::metric_attributes!(("profile_id", profile_id.clone())),
-    );
-
-    if !state.conf.open_router.dynamic_routing_enabled {
-        state
-            .grpc_client
-            .dynamic_routing
-            .as_ref()
-            .async_map(|dr_client| async {
-                dr_client
-                    .elimination_based_client
-                    .invalidate_elimination_bucket(
-                        profile_id.get_string_repr().into(),
-                        state.get_grpc_headers(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to invalidate the elimination routing keys")
-            })
-            .await
-            .transpose()?;
-    }
-
-    Ok(service_api::ApplicationResponse::Json(new_record))
-}
-
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn contract_based_dynamic_routing_setup(
     state: SessionState,
@@ -2961,7 +2743,7 @@ pub async fn contract_based_dynamic_routing_setup(
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
         return helpers::disable_dynamic_routing_algorithm(
             &state,
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
@@ -3057,117 +2839,6 @@ pub async fn contract_based_dynamic_routing_setup(
         1,
         router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
     );
-    Ok(service_api::ApplicationResponse::Json(new_record))
-}
-
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-pub async fn contract_based_routing_update_configs(
-    state: SessionState,
-    request: routing_types::ContractBasedRoutingConfig,
-    processor: domain::Processor,
-    algorithm_id: common_utils::id_type::RoutingId,
-    profile_id: common_utils::id_type::ProfileId,
-) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE.add(
-        1,
-        router_env::metric_attributes!(
-            ("profile_id", profile_id.get_string_repr().to_owned()),
-            (
-                "algorithm_type",
-                routing::DynamicRoutingType::ContractBasedRouting.to_string()
-            )
-        ),
-    );
-    let db = state.store.as_ref();
-
-    let dynamic_routing_algo_to_update = db
-        .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-
-    let mut config_to_update: routing::ContractBasedRoutingConfig = dynamic_routing_algo_to_update
-        .algorithm_data
-        .parse_value::<routing::ContractBasedRoutingConfig>("ContractBasedRoutingConfig")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
-
-    // validate the contained mca_ids
-    if let Some(info_vec) = &request.label_info {
-        helpers::validate_contract_based_label_info(
-            db,
-            processor.get_account().get_id(),
-            &profile_id,
-            info_vec,
-        )
-        .await?;
-    }
-
-    config_to_update.update(request);
-
-    let updated_algorithm_id = common_utils::generate_routing_id_of_default_length();
-    let timestamp = common_utils::date_time::now();
-    let algo = RoutingAlgorithm {
-        algorithm_id: updated_algorithm_id,
-        profile_id: dynamic_routing_algo_to_update.profile_id,
-        merchant_id: dynamic_routing_algo_to_update.merchant_id,
-        name: dynamic_routing_algo_to_update.name,
-        description: dynamic_routing_algo_to_update.description,
-        kind: dynamic_routing_algo_to_update.kind,
-        algorithm_data: serde_json::json!(config_to_update),
-        created_at: timestamp,
-        modified_at: timestamp,
-        algorithm_for: dynamic_routing_algo_to_update.algorithm_for,
-        decision_engine_routing_id: None,
-        processor_merchant_id: dynamic_routing_algo_to_update.processor_merchant_id,
-        created_by: dynamic_routing_algo_to_update.created_by,
-    };
-    let record = db
-        .insert_routing_algorithm(algo)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to insert record in routing algorithm table")?;
-
-    // redact cache for contract based routing configs
-    let cache_key = format!(
-        "{}_{}",
-        profile_id.get_string_repr(),
-        algorithm_id.get_string_repr()
-    );
-    let cache_entries_to_redact = vec![cache::CacheKind::ContractBasedDynamicRoutingCache(
-        cache_key.into(),
-    )];
-    let _ = cache::redact_from_redis_and_publish(
-        state.store.get_cache_store().as_ref(),
-        cache_entries_to_redact,
-    )
-    .await
-    .map_err(|e| router_env::logger::error!("unable to publish into the redact channel for evicting the contract based routing config cache {e:?}"));
-
-    let new_record = record.foreign_into();
-
-    metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(
-        1,
-        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_owned())),
-    );
-
-    state
-        .grpc_client
-        .dynamic_routing
-        .as_ref()
-        .async_map(|dr_client| async {
-            dr_client
-                .contract_based_client
-                .invalidate_contracts(
-                    profile_id.get_string_repr().into(),
-                    state.get_grpc_headers(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to invalidate the contract based routing keys")
-        })
-        .await
-        .transpose()?;
-
     Ok(service_api::ApplicationResponse::Json(new_record))
 }
 
@@ -3314,6 +2985,7 @@ impl RoutableConnectors {
             &TransactionData::Payment(payments_dsl_input),
             None,
             business_profile,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3983,10 +3655,34 @@ pub fn transaction_type_from_payments_dsl(input: &PaymentsDslInput<'_>) -> enums
     enums::TransactionType::from(&txn_data)
 }
 
+pub fn format_connector_for_logging(
+    connector: impl std::fmt::Display,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
+) -> String {
+    format!(
+        "{connector}:{}",
+        merchant_connector_id
+            .map(|id| id.get_string_repr())
+            .unwrap_or("<unresolved>")
+    )
+}
+
+pub fn format_connectors_for_logging(
+    connectors: &[routing::RoutableConnectorChoice],
+) -> Vec<String> {
+    connectors
+        .iter()
+        .map(|choice| {
+            format_connector_for_logging(choice.connector, choice.merchant_connector_id.as_ref())
+        })
+        .collect()
+}
+
 pub fn log_connectors(stage: &str, connectors: &[routing::RoutableConnectorChoice]) {
-    let names: Vec<String> = connectors.iter().map(|c| c.connector.to_string()).collect();
+    let names = format_connectors_for_logging(connectors);
 
     router_env::logger::debug!(
+        connectors = ?names,
         "euclid: connectors after {} = {{{}}}",
         stage,
         names.join(", ")

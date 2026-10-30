@@ -142,6 +142,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::CashappQr(_)
@@ -337,6 +338,16 @@ pub enum CheckoutPaymentType {
     Moto,
     Installment,
     Recurring,
+}
+
+impl From<Option<MitCategory>> for CheckoutPaymentType {
+    fn from(mit_category: Option<MitCategory>) -> Self {
+        match mit_category {
+            Some(MitCategory::Installment) => Self::Installment,
+            Some(MitCategory::Recurring | MitCategory::Subscription) => Self::Recurring,
+            Some(MitCategory::Unscheduled | MitCategory::Resubmission) | None => Self::Unscheduled,
+        }
+    }
 }
 
 pub struct CheckoutAuthType {
@@ -772,12 +783,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         ) {
             CheckoutPaymentType::Moto
         } else if item.router_data.request.is_mandate_payment() {
-            match item.router_data.request.mit_category {
-                Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                _ => CheckoutPaymentType::Unscheduled,
-            }
+            CheckoutPaymentType::from(item.router_data.request.mit_category)
         } else {
             CheckoutPaymentType::Regular
         };
@@ -966,12 +972,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
@@ -997,12 +998,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
@@ -1016,12 +1012,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
 
                 let token_type = match network_token_data.token_source {
                     Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
@@ -1113,12 +1104,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
 
                 let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
                     source_type: "network_token".to_string(),
@@ -1666,6 +1652,18 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
         ));
 
         if status == AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             let error_response = ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -1681,8 +1679,8 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             };
@@ -1810,12 +1808,13 @@ impl
             .response
             .processing
             .as_ref()
-            .and_then(|processing| {
-                processing
-                    .partner_merchant_advice_code
-                    .as_ref()
-                    .or(processing.partner_response_code.as_ref())
-            })
+            .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+            .cloned();
+        let network_decline_code = item
+            .response
+            .processing
+            .as_ref()
+            .and_then(|processing| processing.partner_response_code.as_ref())
             .cloned();
         let error_response = if status == AttemptStatus::Failure {
             Some(ErrorResponse {
@@ -1834,7 +1833,7 @@ impl
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
                 network_advice_code,
-                network_decline_code: None,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             })
@@ -1914,6 +1913,18 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             prev_status,
         ));
         let error_response = if status == AttemptStatus::Failure {
+            let network_advice_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_merchant_advice_code.as_ref())
+                .cloned();
+            let network_decline_code = item
+                .response
+                .processing
+                .as_ref()
+                .and_then(|processing| processing.partner_response_code.as_ref())
+                .cloned();
             Some(ErrorResponse {
                 status_code: item.http_code,
                 code: item
@@ -1929,8 +1940,8 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
                 connector_response_reference_id: None,
-                network_advice_code: None,
-                network_decline_code: None,
+                network_advice_code,
+                network_decline_code,
                 network_error_message: None,
                 connector_metadata: None,
             })
@@ -2800,6 +2811,13 @@ fn convert_to_additional_payment_method_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }

@@ -48,12 +48,14 @@ use subscriptions::{subscription_handler::SubscriptionHandler, workflows::Invoic
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::types::storage;
 use crate::{
     consts,
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments as payments_core,
+        payments as payments_core, webhooks as webhooks_core,
     },
     db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
@@ -62,8 +64,6 @@ use crate::{
     services::{self, authentication::get_header_value_by_key},
     types::{self, domain, transformers::ForeignInto},
 };
-#[cfg(feature = "v1")]
-use crate::{core::webhooks as webhooks_core, types::storage};
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -122,7 +122,8 @@ pub mod error_parser {
 #[inline]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
+    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,
+        on_miss = { use common_utils::synth_shape::Synthesize as _; __deja_miss.prefixed(prefix, length) },)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
@@ -188,27 +189,27 @@ pub async fn find_payment_intent_from_payment_id_type(
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
                 .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &connector_transaction_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -217,23 +218,20 @@ pub async fn find_payment_intent_from_payment_id_type(
             let attempt = db
                 .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        }
-        payments::PaymentIdType::PreprocessingId(_) => {
-            Err(errors::ApiErrorResponse::PaymentNotFound)?
         }
     }
 }
@@ -268,18 +266,18 @@ pub async fn find_payment_intent_from_refund_id_type(
     let attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &refund.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &refund.attempt_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -315,9 +313,9 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -394,9 +392,9 @@ pub async fn get_mca_from_payment_intent(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await
@@ -1161,21 +1159,81 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 }
 
 #[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op, D>(
+pub async fn trigger_payments_webhook<F, D, Res>(
     platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
-    customer: Option<domain::Customer>,
+    payments_response: &services::ApplicationResponse<Res>,
     state: &SessionState,
-    operation: Op,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
-    Op: Debug,
     D: payments_core::OperationSessionGetters<F>,
+    Res: Clone + Into<api_models::payments::PaymentsResponse>,
 {
-    todo!()
+    let status = payment_data.get_payment_intent().status;
+
+    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is
+    // configured in the profile.
+    let should_trigger_webhook = business_profile
+        .get_configured_payment_webhook_statuses()
+        .map(|statuses| statuses.contains(&status))
+        .unwrap_or(true);
+
+    if !should_trigger_webhook {
+        return Ok(());
+    }
+
+    let event_type: Option<diesel_models::enums::EventType> = status.into();
+    let Some(event_type) = event_type else {
+        logger::warn!(
+            ?status,
+            "Outgoing webhook not sent because of missing event type status mapping"
+        );
+        return Ok(());
+    };
+
+    let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) = payments_response
+    else {
+        logger::warn!("Unexpected application response variant for outgoing payment webhook");
+        return Ok(());
+    };
+
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+    let created_by = payment_data.get_payment_attempt().created_by.clone();
+    let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+        state,
+        platform,
+        &business_profile,
+        created_by.as_ref(),
+    )
+    .await?;
+
+    let cloned_state = state.clone();
+    let cloned_platform = platform.clone();
+    let payments_response = payments_response.clone().into();
+    let primary_object_created_at = payments_response.created;
+
+    // Persisting and delivering the webhook should not add latency to the payment API response.
+    tokio::spawn(
+        async move {
+            Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                cloned_state,
+                cloned_platform,
+                event_type,
+                diesel_models::enums::EventClass::Payments,
+                payment_id.get_string_repr().to_owned(),
+                common_enums::EventObjectType::PaymentDetails,
+                webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
+                primary_object_created_at,
+                webhook_recipient,
+            ))
+            .await
+        }
+        .in_current_span(),
+    );
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -1377,6 +1435,17 @@ pub async fn trigger_refund_outgoing_webhook(
     profile_id: id_type::ProfileId,
 ) -> RouterResult<()> {
     todo!()
+}
+
+/// Checks that a resource fetched by id alone belongs to the authenticated merchant and profile
+#[cfg(feature = "v2")]
+pub fn is_owned_by_merchant_and_profile(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    merchant_id == platform.get_processor().get_account().get_id() && profile_id == profile.get_id()
 }
 
 pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {

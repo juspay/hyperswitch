@@ -10,7 +10,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            helpers,
+            helpers, multi_currency_processing,
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -19,6 +19,7 @@ use crate::{
         api::{self, ConnectorCallType},
         domain::{self},
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -154,7 +155,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
     ) -> RouterResult<operations::GetTrackerResponse<PaymentCaptureData<F>>> {
         let db = &*state.store;
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_intent = db
             .find_payment_intent_by_id(
@@ -200,7 +201,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
                 .set_amount_to_capture(amount_to_capture);
         }
 
+        let payment_feature_metadata = payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from);
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_feature_metadata =
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request.feature_metadata.as_ref(),
+                &[],
+            )?;
         let payment_data = PaymentCaptureData {
+            capture_feature_metadata,
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
@@ -305,9 +322,9 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
-        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.to_string() };
+        let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.inner().to_string() };
 
         let payment_attempt = state
             .store

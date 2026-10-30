@@ -414,11 +414,13 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
+                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
                 | PaymentMethodType::PixAutomaticoPush
-                | PaymentMethodType::PixAutomaticoQr => {
+                | PaymentMethodType::PixAutomaticoQr
+                | PaymentMethodType::Ted => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -2142,6 +2144,7 @@ impl IncomingWebhook for Adyen {
         let year_str = expiry.year();
 
         Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            update_last_used_at: Some(true),
             card: Some(api_models::payment_methods::CardDetailUpdate {
                 card_exp_month: Some(month_str),
                 card_exp_year: Some(year_str),

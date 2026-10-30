@@ -219,7 +219,6 @@ mod storage {
             mandate: storage_types::Mandate,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let key = PartitionKey::MerchantIdMandateId {
                 merchant_id,
                 mandate_id,
@@ -233,6 +232,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
                     storage_types::Mandate::update_by_merchant_id_mandate_id(
                         &conn,
                         merchant_id,
@@ -318,7 +318,6 @@ mod storage {
             mut mandate: storage_types::MandateNew,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<storage_types::Mandate, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let storage_scheme = Box::pin(decide_storage_scheme::<_, diesel_models::Mandate>(
                 self,
                 storage_scheme,
@@ -327,10 +326,13 @@ mod storage {
             .await;
             mandate.update_storage_scheme(storage_scheme);
             match storage_scheme {
-                MerchantStorageScheme::PostgresOnly => mandate
-                    .insert(&conn)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error))),
+                MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
+                    mandate
+                        .insert(&conn)
+                        .await
+                        .map_err(|error| report!(errors::StorageError::from(error)))
+                }
                 MerchantStorageScheme::RedisKv => {
                     let mandate_id = mandate.mandate_id.clone();
                     let merchant_id = &mandate.merchant_id.to_owned();

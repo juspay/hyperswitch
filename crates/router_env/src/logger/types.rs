@@ -216,6 +216,10 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    /// Aggregated payments list flow for a platform across its connected merchants.
+    PlatformPaymentsList,
+    /// Aggregated payments filter-values flow for a platform across its connected merchants.
+    PlatformPaymentsFilters,
     /// Payments filters flow
     PaymentsFilters,
     /// Payments aggregates flow
@@ -740,6 +744,8 @@ pub enum Flow {
     RevenueRecoveryRetrieve,
     /// Process Tracker Revenue Recovery Workflow Resume
     RevenueRecoveryResume,
+    /// Revenue Recovery invoice cancel
+    RevenueRecoveryCancel,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
@@ -828,6 +834,8 @@ pub enum Flow {
     ListMembersForEntity,
     /// Authorize external token
     AuthorizeUserToken,
+    /// Generic pay inbound charge flow, for any provider
+    TelephoneOrderCharge,
 }
 
 /// Trait for providing generic behaviour to flow metric

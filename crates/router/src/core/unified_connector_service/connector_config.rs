@@ -67,6 +67,7 @@ pub struct AdyenMetadata {
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+    merchant_id: HashMap<Currency, Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -115,8 +116,8 @@ pub struct JpmorganOrbitalMetadata {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
-    brand_id: Secret<String>,
-    destination_account_number: Secret<String>,
+    brand_id: Option<Secret<String>>,
+    destination_account_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -513,6 +514,18 @@ pub enum ConnectorSpecificConfig {
         location_id: Secret<String>,
         api_secret_key: Secret<String>,
     },
+    /// Global Payments RealEx (legacy Global Payments XML API) configuration.
+    /// Field names mirror `GlobalpaymentsRealexConfig` in the connector-service proto.
+    /// `shared_secret`   = shared secret used to build the sha1 digest (never sent verbatim)
+    /// `merchant_id`     = Merchant Id / Client Id (`<merchantid>`)
+    /// `account`         = RealEx sub-account, e.g. "internet" (`<account>`)
+    /// `refund_password` = rebate/refund password, hashed into `<refundhash>`
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
+    },
     /// Paytm connector configuration
     Paytm {
         merchant_id: Secret<String>,
@@ -548,6 +561,17 @@ pub enum ConnectorSpecificConfig {
         ssl_merchant_id: Secret<String>,
         ssl_user_id: Secret<String>,
         ssl_pin: Secret<String>,
+    },
+    /// Elavon Payment Gateway (EPG) - Elavon's JSON REST gateway, HTTP Basic auth.
+    /// NOT the `Elavon` variant above, which is Elavon Converge (an XML API).
+    /// Field names must match `ConnectorSpecificConfig::ElavonPg` in the
+    /// connector-service repo (`crates/types-traits/domain_types/src/router_data.rs`).
+    /// `api_key` = merchant alias, the HTTP Basic username
+    /// `key1`    = secret API key (`sk_...`), the HTTP Basic password
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
     },
     /// Redsys connector configuration
     Redsys {
@@ -671,7 +695,10 @@ pub enum ConnectorSpecificConfig {
     /// Jpmorgan connector configuration
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
+        merchant_id: Option<HashMap<Currency, Secret<String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -744,6 +771,14 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         key1: Secret<String>,
         api_secret: Secret<String>,
+    },
+    /// Ecommpay connector configuration (Gate API v2).
+    /// Field names must match `EcommpayConfig` in the connector-service repo.
+    /// `project_id` = `general.project_id` (from `key1`)
+    /// `secret_key` = HMAC-SHA512 signing key (from `api_key`); never transmitted
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
     },
     /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
     /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
@@ -1170,25 +1205,41 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
-            Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let jpm_meta = metadata
-                        .map(|m| {
-                            m.clone()
-                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Invalid Jpmorgan metadata format")
-                        })
-                        .transpose()?;
-                    Ok(Self::Jpmorgan {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
-                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+            Connector::Jpmorgan => {
+                let (client_id, thumbprint, private_key, resource_id) = match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => (
+                        api_key.clone(),
+                        key1.clone(),
+                        api_secret.clone(),
+                        key2.clone(),
+                    ),
+                    _ => return Err(err("Jpmorgan requires MultiAuthKey auth type")),
+                };
+                let jpm_meta = metadata
+                    .map(|m| {
+                        m.clone()
+                            .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid Jpmorgan metadata format")
                     })
-                }
-                _ => Err(err("Jpmorgan requires BodyKey auth type")),
-            },
+                    .transpose()?;
+                Ok(Self::Jpmorgan {
+                    client_id,
+                    thumbprint,
+                    private_key,
+                    resource_id,
+                    merchant_id: jpm_meta
+                        .as_ref()
+                        .map(|m| m.merchant_id.clone()),
+                    company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                    product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                })
+            }
             Connector::Loonio => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                     merchant_id: api_key.clone(),
@@ -1383,6 +1434,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
             },
+            Connector::Ecommpay => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                    project_id: key1.clone(),
+                    secret_key: api_key.clone(),
+                }),
+                _ => Err(err("Ecommpay requires BodyKey auth type")),
+            },
             Connector::JpmorganOrbital => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1441,6 +1499,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     ssl_pin: api_secret.clone(),
                 }),
                 _ => Err(err("Elavon requires SignatureKey auth type")),
+            },
+            Connector::ElavonPg => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("ElavonPg requires BodyKey auth type")),
             },
             Connector::Fiserv => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1810,6 +1876,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Forte requires MultiAuthKey auth type")),
             },
+            Connector::GlobalpaymentsRealex => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    account: key2.clone(),
+                    refund_password: api_secret.clone(),
+                }),
+                _ => Err(err(
+                    "GlobalpaymentsRealex requires MultiAuthKey auth type \
+                     (api_key = shared secret, key1 = merchant id, key2 = account, \
+                     api_secret = refund password)",
+                )),
+            },
             Connector::Paybox => match auth {
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -2110,10 +2194,10 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
 
                     Ok(Self::Mifinity {
                         key: api_key.clone(),
-                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        brand_id: mifinity_meta.as_ref().and_then(|m| m.brand_id.clone()),
                         destination_account_number: mifinity_meta
                             .as_ref()
-                            .map(|m| m.destination_account_number.clone()),
+                            .and_then(|m| m.destination_account_number.clone()),
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),

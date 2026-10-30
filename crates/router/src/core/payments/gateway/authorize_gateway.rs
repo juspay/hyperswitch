@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use common_enums::{CallConnectorAction, Currency, ExecutionPath};
+use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
@@ -70,11 +69,11 @@ where
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         ConnectorError,
     > {
+        let rollout_settings = context.rollout_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -113,7 +112,9 @@ where
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let grpc_headers = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(router_data.payment_method))
+            .payment_method_type(router_data.payment_method_type)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -134,7 +135,7 @@ where
                 state,
                 recurring_payment_charge_request,
                 grpc_headers,
-                unified_connector_service_execution_mode,
+                rollout_settings,
                 |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
                     let response = match Box::pin(client.recurring_payment_charge(
                         recurring_payment_charge_request,
@@ -176,10 +177,20 @@ where
                     };
                     router_data.response = router_data_response;
 
+                    router_data.request.integrity_object = recurring_payment_charge_response
+                        .authorized_money
+                        .as_ref()
+                        .map(AuthoriseIntegrityObject::foreign_try_from)
+                        .transpose()?;
+
                     router_data.amount_captured = recurring_payment_charge_response.captured_amount;
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
                         .map(MinorUnit::new);
+                    router_data.minor_amount_capturable = recurring_payment_charge_response
+                        .capturable_money
+                        .as_ref()
+                        .map(|capturable_money| MinorUnit::new(capturable_money.minor_amount));
                     if return_raw_connector_response.unwrap_or(false) {
                         router_data.raw_connector_response = recurring_payment_charge_response
                             .raw_connector_response
@@ -217,7 +228,7 @@ where
                 state,
                 granular_authorize_request,
                 grpc_headers,
-                unified_connector_service_execution_mode,
+                rollout_settings,
                 |mut router_data, granular_authorize_request, grpc_headers| async move {
                     let response = match Box::pin(client.payment_authorize(
                         granular_authorize_request,
@@ -258,22 +269,9 @@ where
 
                     router_data.request.integrity_object = payment_authorize_response
                         .authorized_money
-                        .map(|money| -> Result<_, error_stack::Report<ConnectorError>> {
-                            let grpc_currency = payments_grpc::Currency::try_from(money.currency)
-                                .change_context(ConnectorError::ResponseDeserializationFailed)
-                                .attach_printable("Invalid currency received from UCS response")?;
-                            let currency = Currency::foreign_try_from(grpc_currency)
-                                .change_context(ConnectorError::ResponseDeserializationFailed)?;
-
-                            Ok(AuthoriseIntegrityObject {
-                                amount: MinorUnit::new(money.minor_amount),
-                                currency,
-                            })
-                        })
-                        .transpose()
-                        .change_context(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )?;
+                        .as_ref()
+                        .map(AuthoriseIntegrityObject::foreign_try_from)
+                        .transpose()?;
 
                     router_data.amount_captured = payment_authorize_response.captured_amount;
                     router_data.minor_amount_captured = payment_authorize_response

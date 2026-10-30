@@ -14,7 +14,7 @@ payouts = []
 
 [dependencies]
 anyhow = "1.0.98"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 base64 = "0.22.1"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 rand = "0.8.5"

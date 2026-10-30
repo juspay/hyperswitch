@@ -29,6 +29,8 @@ use hyperswitch_domain_models::payment_methods::{
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
+use hyperswitch_interfaces::consts::USER_AGENT;
+#[cfg(feature = "v1")]
 use hyperswitch_masking::Mask;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use josekit::jwe;
@@ -66,6 +68,7 @@ use crate::{consts, types::payment_methods as pm_types};
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
     pub payment_intent: Option<storage::PaymentIntent>,
+    pub business_profile: Option<domain::Profile>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -76,6 +79,7 @@ impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
@@ -88,6 +92,7 @@ impl PaymentMethodFetchData {
     ) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
@@ -719,7 +724,7 @@ pub fn generate_payment_method_response(
                     }
                     Some(common_enums::PaymentMethodType::Paypal) => Some(
                         api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
-                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                            Box::new(api_models::payments::PaypalRedirection::from(info)),
                         )),
                     ),
                     _ => None,
@@ -786,6 +791,7 @@ pub fn generate_payment_method_response(
         raw_payment_method_data,
         billing,
         acknowledgement_status,
+        fingerprint_id: None,
     };
 
     Ok(resp)
@@ -1040,7 +1046,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1094,14 +1100,16 @@ impl
     transformers::ForeignTryFrom<(
         domain::PaymentMethod,
         Option<id_type::GlobalPaymentMethodId>,
+        Option<id_type::CustomerId>,
     )> for PaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, default_payment_method_id): (
+        (item, default_payment_method_id, merchant_customer_reference_id): (
             domain::PaymentMethod,
             Option<id_type::GlobalPaymentMethodId>,
+            Option<id_type::CustomerId>,
         ),
     ) -> Result<Self, Self::Error> {
         // For payment methods that are active we should always have the payment method subtype
@@ -1149,7 +1157,7 @@ impl
                         api_enums::PaymentMethodType::Paypal => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1220,6 +1228,7 @@ impl
                 .change_context(errors::ValidationError::MissingRequiredField {
                     field_name: "customer_id".into(),
                 })?,
+            merchant_customer_reference_id,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
@@ -1404,7 +1413,7 @@ pub async fn call_modular_payment_method_update(
         state
             .conf
             .internal_merchant_id_profile_id_auth
-            .internal_api_key
+            .outbound_api_key()
             .clone()
             .expose()
             .to_string()
@@ -1720,14 +1729,18 @@ impl
     TryFrom<(
         payment_methods::types::RawPaymentMethodData,
         Option<domain::CardToken>,
+        Option<api_models::payment_methods::PaymentMethodDataWalletInfo>,
     )> for DomainPaymentMethodDataWrapper
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
+    /// `stored_wallet_info` is the wallet display metadata kept with the payment method; it
+    /// completes the wallet payload rebuilt from the vaulted decrypted token.
     fn try_from(
-        (raw_data, card_token): (
+        (raw_data, card_token, stored_wallet_info): (
             payment_methods::types::RawPaymentMethodData,
             Option<domain::CardToken>,
+            Option<api_models::payment_methods::PaymentMethodDataWalletInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         match raw_data {
@@ -1838,6 +1851,77 @@ impl
                         },
                     ))),
                 }
+            }
+            payment_methods::types::RawPaymentMethodData::Wallet(wallet_detail) => {
+                // The vault holds only the decrypted device PAN and its expiry. The wallet payload
+                // is rebuilt around it: display metadata comes from the wallet info stored with
+                // the payment method, and whatever the vault never had (the one-time cryptogram,
+                // the transaction identifier) is left empty.
+                let (last4, card_network, card_type) = stored_wallet_info
+                    .map(|wallet_info| {
+                        (
+                            wallet_info.last4,
+                            wallet_info.card_network,
+                            wallet_info.card_type,
+                        )
+                    })
+                    .unwrap_or_default();
+                let last4 = last4.unwrap_or_default();
+                let card_network = card_network.unwrap_or_default();
+                let card_type = card_type.unwrap_or_default();
+
+                let wallet_data = match wallet_detail {
+                    api_models::payment_methods::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                        payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+                            common_types::payments::ApplePayPredecryptData {
+                                application_primary_account_number,
+                                application_expiration_month: expiry_month,
+                                application_expiration_year: expiry_year,
+                                payment_data: common_types::payments::ApplePayCryptogramData {
+                                    online_payment_cryptogram: Secret::new(String::new()),
+                                    eci_indicator: None,
+                                },
+                                device_manufacturer_identifier: None,
+                            },
+                        ),
+                        payment_method: domain::ApplepayPaymentMethod {
+                            display_name: last4,
+                            network: card_network,
+                            pm_type: card_type,
+                        },
+                        transaction_identifier: String::new(),
+                    }),
+                    api_models::payment_methods::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
+                    } => domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                        pm_type: card_type,
+                        description: String::new(),
+                        info: domain::GooglePayPaymentMethodInfo {
+                            card_network,
+                            card_details: last4,
+                            assurance_details: None,
+                            card_funding_source: None,
+                        },
+                        tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                            common_types::payments::GPayPredecryptData {
+                                auth_method: None,
+                                card_exp_month: expiry_month,
+                                card_exp_year: expiry_year,
+                                application_primary_account_number,
+                                cryptogram: None,
+                                eci_indicator: None,
+                            },
+                        ),
+                    }),
+                };
+
+                Ok(Self(domain::PaymentMethodData::Wallet(wallet_data)))
             }
             payment_methods::types::RawPaymentMethodData::ProxyCard(_proxy_card_data) => {
                 // ProxyCard (vault token reference) should not be converted to domain PaymentMethodData.
@@ -2028,9 +2112,19 @@ pub async fn fetch_payment_method_from_modular_service(
         _ => (None, None),
     };
 
+    // The vault holds only a wallet's decrypted device PAN and expiry; the display metadata
+    // (network, card type, last4) stored with the payment method completes the wallet payload.
+    let stored_wallet_info = match &pm_response.payment_method_data {
+        Some(payment_methods::types::PaymentMethodResponseData::Wallet(
+            payment_methods::types::WalletPaymentMethodData::ApplePay(wallet_info)
+            | payment_methods::types::WalletPaymentMethodData::GooglePay(wallet_info),
+        )) => Some((**wallet_info).clone()),
+        _ => None,
+    };
+
     // Split raw data based on variant:
     // - ProxyCard → vault_payment_method_token_data (raw_payment_method_data stays None)
-    // - Card / CardWithNT / BankDebit → raw_payment_method_data (vault_payment_method_token_data stays None)
+    // - Card / CardWithNT / BankDebit / Wallet → raw_payment_method_data (vault_payment_method_token_data stays None)
     let (raw_payment_method_data, vault_payment_method_token_data) =
         match pm_response.raw_payment_method_data {
             Some(payment_methods::types::RawPaymentMethodData::ProxyCard(proxy_card)) => {
@@ -2042,9 +2136,12 @@ pub async fn fetch_payment_method_from_modular_service(
                 (None, Some(vault_data))
             }
             Some(other_raw) => {
-                let domain_wrapper =
-                    DomainPaymentMethodDataWrapper::try_from((other_raw, pmd_card_token))
-                        .attach_printable("Failed to convert raw payment method data")?;
+                let domain_wrapper = DomainPaymentMethodDataWrapper::try_from((
+                    other_raw,
+                    pmd_card_token,
+                    stored_wallet_info,
+                ))
+                .attach_printable("Failed to convert raw payment method data")?;
                 (Some(domain_wrapper.0), None)
             }
             None => (None, None),
@@ -2065,10 +2162,10 @@ pub async fn retrieve_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2248,6 +2345,9 @@ struct VaultTokenDetailsResponse {
 /// targets `connectors.hyperswitch_vault.base_url` (which already includes the `/v2` prefix) and is
 /// authenticated as the merchant using the external vault connector account's credentials
 /// (`api-key` + profile id) — not the pay server's internal API key.
+///
+/// Traffic to the vault is routed through the router-wide `[proxy]` config (e.g. a Squid
+/// egress proxy required by self-hosted / non-PCI deployments), if configured.
 #[cfg(feature = "v1")]
 pub async fn get_permanent_pm_id_from_temporary_token(
     state: &routes::SessionState,
@@ -2274,6 +2374,10 @@ pub async fn get_permanent_pm_id_from_temporary_token(
             (
                 headers::X_PROFILE_ID.to_string(),
                 vault_profile_id.expose().into_masked(),
+            ),
+            (
+                headers::USER_AGENT.to_string(),
+                USER_AGENT.to_string().into(),
             ),
         ])
         .build();
@@ -2328,10 +2432,10 @@ pub async fn list_customer_payment_methods_from_modular_service(
     customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2389,10 +2493,10 @@ pub async fn create_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_create_req: CreatePaymentMethodV1Request,
 ) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),

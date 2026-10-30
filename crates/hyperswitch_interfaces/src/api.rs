@@ -451,6 +451,11 @@ pub enum ConnectorCustomerAction {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Whether this connector consumes merchant-supplied multi-currency settlement details.
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        false
+    }
+
     /// Check if pre-authentication flow is required
     fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
@@ -522,6 +527,16 @@ pub trait ConnectorSpecifications {
         None
     }
 
+    /// Whether incoming webhooks must be received over a verified mTLS connection.
+    fn is_webhook_mtls_required(&self) -> bool {
+        false
+    }
+
+    /// Whether incoming webhook source IPs must be checked against allowed IP ranges.
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        false
+    }
+
     /// About the connector
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         None
@@ -570,6 +585,13 @@ pub trait ConnectorSpecifications {
         _current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         Some(false)
+    }
+
+    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
+    /// connector-mandate-status validation.
+    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+        None
     }
 
     /// Whether SDK session token generation is enabled for this connector

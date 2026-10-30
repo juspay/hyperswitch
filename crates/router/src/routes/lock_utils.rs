@@ -180,6 +180,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
             | Flow::PaymentsList
+            | Flow::PlatformPaymentsList
+            | Flow::PlatformPaymentsFilters
             | Flow::PaymentsFilters
             | Flow::PaymentsAggregate
             | Flow::PaymentsRedirect
@@ -211,7 +213,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSubmitEligibility
             // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
             | Flow::PaymentLinkCreate
-            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
+            | Flow::PaymentsCancelPostCaptureSync
+            // A telephone order adapter creates and confirms a payment, so it belongs in the
+            // Payments lock namespace
+            | Flow::TelephoneOrderCharge => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate
@@ -418,7 +423,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RecoveryDataBackfill
             | Flow::RecoveryRetryStatsMigration
-            | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            | Flow::RevenueRecoveryRedis
+            | Flow::RevenueRecoveryCancel => Self::RecoveryRecovery,
             Flow::GetSuperpositionSdkConfig
             | Flow::SuperpositionListContexts
             | Flow::SuperpositionListDefaultConfigs

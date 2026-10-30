@@ -92,6 +92,8 @@ pub struct PaymentIntent {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -218,6 +220,8 @@ pub struct PaymentIntent {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -444,6 +448,8 @@ pub struct PaymentIntentNew {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -540,6 +546,8 @@ pub struct PaymentIntentNew {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -685,6 +693,8 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -737,6 +747,8 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -789,6 +801,8 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -855,6 +869,8 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -930,6 +946,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -993,6 +1011,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1054,6 +1074,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: value.external_surcharge_applicable,
                 is_account_funded_transaction: value.is_account_funded_transaction,
                 recipient_details: value.recipient_details,
+                enable_avs_check: value.enable_avs_check,
+                settlement_conclusion_applied: value.settlement_conclusion_applied,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1122,6 +1144,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1187,6 +1211,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1252,6 +1278,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1325,6 +1353,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1389,6 +1419,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1454,6 +1486,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1518,6 +1552,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1582,6 +1618,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1645,6 +1683,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
                 external_surcharge_applicable,
@@ -1708,6 +1748,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_strategy: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1768,6 +1810,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1830,6 +1874,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1892,6 +1938,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ManualUpdate {
                 status,
@@ -1956,6 +2004,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -2021,6 +2071,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -2081,6 +2133,8 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                settlement_conclusion_applied: None,
             },
         }
     }

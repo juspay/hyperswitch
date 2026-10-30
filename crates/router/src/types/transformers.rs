@@ -1,4 +1,6 @@
-use actix_web::http::header::HeaderMap;
+use std::net::{IpAddr, SocketAddr};
+
+use actix_web::http::header::{HeaderMap, HeaderValue};
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
     gsm as gsm_api_types, offer_engine as offer_engine_api, payment_methods,
@@ -76,6 +78,22 @@ where
 
     fn foreign_try_into(self) -> Result<T, Self::Error> {
         T::foreign_try_from(self)
+    }
+}
+
+impl ForeignTryFrom<&HeaderValue> for IpAddr {
+    type Error = error_stack::Report<errors::ParsingError>;
+
+    fn foreign_try_from(value: &HeaderValue) -> Result<Self, Self::Error> {
+        let value = value
+            .to_str()
+            .change_context(errors::ParsingError::StructParseFailure("HeaderValue"))
+            .attach_printable("IP address header is not valid UTF-8")?;
+        value
+            .parse::<Self>()
+            .or_else(|_| value.parse::<SocketAddr>().map(|address| address.ip()))
+            .change_context(errors::ParsingError::StructParseFailure("IpAddr"))
+            .attach_printable("Header value is not an IP or socket address")
     }
 }
 
@@ -320,7 +338,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Mifinity
             | api_enums::PaymentMethodType::RevolutPay
             | api_enums::PaymentMethodType::Neteller
-            | api_enums::PaymentMethodType::Bluecode => Self::Wallet,
+            | api_enums::PaymentMethodType::Bluecode
+            | api_enums::PaymentMethodType::Wero => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
             | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
@@ -405,7 +424,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixQr
             | api_enums::PaymentMethodType::Payshap
             | api_enums::PaymentMethodType::PayshapProxy
-            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+            | api_enums::PaymentMethodType::Pix
+            | api_enums::PaymentMethodType::Ted => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
             | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
@@ -432,7 +452,11 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         match payment_method_data {
             payments::PaymentMethodData::Card(..)
             | payments::PaymentMethodData::CardWithNoCVC(..)
-            | payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
+            | payments::PaymentMethodData::CardToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(..) => {
+                Ok(Self::Card)
+            }
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -452,7 +476,10 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
-            payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::NetworkToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(..) => {
+                Ok(Self::NetworkToken)
+            }
             payments::PaymentMethodData::ProxyCard(..)
             | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }
@@ -1533,6 +1560,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::Bank::Payshap(_) => Self::Payshap,
             api_models::payouts::Bank::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::Bank::Ted(_) => Self::Ted,
         }
     }
 }
@@ -1551,6 +1579,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
             api_models::payouts::BankTransfer::Payshap(_) => Self::Payshap,
             api_models::payouts::BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
+            api_models::payouts::BankTransfer::Ted(_) => Self::Ted,
         }
     }
 }
@@ -1563,6 +1592,7 @@ impl ForeignFrom<&api_models::payouts::Wallet> for api_enums::PaymentMethodType 
             api_models::payouts::Wallet::Venmo(_) => Self::Venmo,
             api_models::payouts::Wallet::ApplePayDecrypt(_) => Self::ApplePay,
             api_models::payouts::Wallet::GooglePayDecrypt(_) => Self::GooglePay,
+            api_models::payouts::Wallet::Mifinity(_) => Self::Mifinity,
         }
     }
 }
@@ -2585,10 +2615,18 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     }
 }
 
-impl ForeignFrom<api_models::admin::WebhookDetails>
+impl ForeignFrom<api_models::admin::WebhookDetailsRequest>
     for diesel_models::business_profile::WebhookDetails
 {
-    fn foreign_from(item: api_models::admin::WebhookDetails) -> Self {
+    fn foreign_from(item: api_models::admin::WebhookDetailsRequest) -> Self {
+        api_models::admin::WebhookDetailsResponse::from(item).foreign_into()
+    }
+}
+
+impl ForeignFrom<api_models::admin::WebhookDetailsResponse>
+    for diesel_models::business_profile::WebhookDetails
+{
+    fn foreign_from(item: api_models::admin::WebhookDetailsResponse) -> Self {
         Self {
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
@@ -2609,7 +2647,7 @@ impl ForeignFrom<api_models::admin::WebhookDetails>
 }
 
 impl ForeignFrom<diesel_models::business_profile::WebhookDetails>
-    for api_models::admin::WebhookDetails
+    for api_models::admin::WebhookDetailsResponse
 {
     fn foreign_from(item: diesel_models::business_profile::WebhookDetails) -> Self {
         Self {

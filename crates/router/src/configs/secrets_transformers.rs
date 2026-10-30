@@ -478,7 +478,40 @@ impl SecretsHandler for settings::AccountUpdaterConfig {
 pub(crate) async fn fetch_raw_secrets(
     conf: Settings<SecuredSecret>,
     secret_management_client: &dyn SecretManagementInterface,
-) -> Settings<RawSecret> {
+) -> CustomResult<Settings<RawSecret>, SecretsManagementError> {
+    #[cfg(feature = "olap")]
+    let opensearch = conf
+        .opensearch
+        .decrypt_credentials(secret_management_client)
+        .await?;
+    let micro_services = conf
+        .micro_services
+        .decrypt_credentials(secret_management_client)
+        .await?;
+    let redis = conf.redis;
+    let primary_password = redis
+        .primary_password
+        .async_map(|secret| async move {
+            secret_management_client
+                .get_secret(secret)
+                .await
+                .map_err(|error| error.attach_printable("redis.primary_password"))
+        })
+        .await
+        .transpose()?;
+    let redis = redis_interface::RedisSettings {
+        primary_password,
+        ..redis
+    };
+    let internal_merchant_id_profile_id_auth = conf
+        .internal_merchant_id_profile_id_auth
+        .decrypt_credentials(secret_management_client)
+        .await?;
+    #[cfg(feature = "email")]
+    let email = conf
+        .email
+        .decrypt_credentials(secret_management_client)
+        .await?;
     #[allow(clippy::expect_used)]
     let master_database =
         settings::Database::convert_to_raw_secret(conf.master_database, secret_management_client)
@@ -688,14 +721,15 @@ pub(crate) async fn fetch_raw_secrets(
         open_router
     };
 
-    Settings {
+    Ok(Settings {
         server: conf.server,
         application_source: conf.application_source,
         sage,
         master_database,
         accounts_database,
         global_database,
-        redis: conf.redis,
+        redis,
+        cache: conf.cache,
         log: conf.log,
         #[cfg(feature = "deja")]
         deja: conf.deja,
@@ -718,6 +752,7 @@ pub(crate) async fn fetch_raw_secrets(
         scheduler: conf.scheduler,
         jwekey,
         webhooks: conf.webhooks,
+        incoming_webhooks: conf.incoming_webhooks,
         pm_filters: conf.pm_filters,
         customer_acceptance_support: conf.customer_acceptance_support,
         payout_method_filters: conf.payout_method_filters,
@@ -729,7 +764,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "dummy_connector")]
         dummy_connector: conf.dummy_connector,
         #[cfg(feature = "email")]
-        email: conf.email,
+        email,
         user: conf.user,
         oidc,
         mandates: conf.mandates,
@@ -746,6 +781,7 @@ pub(crate) async fn fetch_raw_secrets(
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,
         billing_connectors_invoice_sync: conf.billing_connectors_invoice_sync,
+        billing_connectors_invoice_record_back: conf.billing_connectors_invoice_record_back,
         billing_connectors_dispute_record_back: conf.billing_connectors_dispute_record_back,
         payment_method_auth,
         connector_request_reference_id_config: conf.connector_request_reference_id_config,
@@ -763,7 +799,7 @@ pub(crate) async fn fetch_raw_secrets(
         #[cfg(feature = "olap")]
         analytics,
         #[cfg(feature = "olap")]
-        opensearch: conf.opensearch,
+        opensearch,
         #[cfg(feature = "kv_store")]
         kv_config: conf.kv_config,
         #[cfg(feature = "frm")]
@@ -800,18 +836,18 @@ pub(crate) async fn fetch_raw_secrets(
         debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
         merchant_id_auth: conf.merchant_id_auth,
-        internal_merchant_id_profile_id_auth: conf.internal_merchant_id_profile_id_auth,
+        internal_merchant_id_profile_id_auth,
         infra_values: conf.infra_values,
         enhancement: conf.enhancement,
         proxy_status_mapping: conf.proxy_status_mapping,
         trace_header: conf.trace_header,
         internal_services: conf.internal_services,
-        micro_services: conf.micro_services,
+        micro_services,
         superposition,
         offer_engine,
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
         account_updater,
-    }
+    })
 }

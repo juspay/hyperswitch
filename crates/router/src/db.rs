@@ -1,4 +1,5 @@
 pub mod address;
+pub mod analytics_report;
 pub mod api_keys;
 pub mod authentication;
 pub mod authorization;
@@ -69,7 +70,9 @@ use router_env::logger;
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats;
 use storage_impl::{
-    errors::StorageError, redis::kv_store::RedisConnInterface, tokenization, MockDb,
+    errors::StorageError,
+    redis::{cache::CacheInterface, kv_store::RedisConnInterface},
+    tokenization, MockDb,
 };
 
 pub use self::kafka_store::KafkaStore;
@@ -121,6 +124,7 @@ pub trait StorageInterface:
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
+    + analytics_report::AnalyticsReportInterface
     + blocklist::BlocklistInterface
     + blocklist_fingerprint::BlocklistFingerprintInterface
     + batch_blocklist_job::BatchBlocklistJobInterface
@@ -137,6 +141,7 @@ pub trait StorageInterface:
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
@@ -182,6 +187,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {
@@ -199,6 +205,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + CacheInterface
     + RequestIdStore
     + 'static
 {
@@ -236,6 +243,7 @@ pub trait AccountsStorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
+    + RequestIdStore
     + 'static
 {
 }
@@ -363,6 +371,15 @@ pub trait RequestIdStore {
     fn get_request_id(&self) -> Option<String> {
         None
     }
+
+    /// Hand this store the session's read ledger, so what it reads is weighed
+    /// against what the session already read. One ledger per session, attached
+    /// to each of its stores.
+    fn attach_read_ledger(
+        &mut self,
+        _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -385,6 +402,21 @@ impl RequestIdStore for Store {
 
     fn get_request_id(&self) -> Option<String> {
         self.request_id.clone()
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        // Both direct and KV-delegated reads use the ledger in `RouterStore`.
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger = Some(read_ledger);
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger = Some(read_ledger);
+        }
     }
 }
 
@@ -411,6 +443,13 @@ dyn_clone::clone_trait_object!(AccountsStorageInterface);
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        self.diesel_store.attach_read_ledger(read_ledger)
     }
 }
 
