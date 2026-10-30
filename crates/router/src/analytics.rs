@@ -2532,7 +2532,7 @@ pub mod routes {
                         user_id = %auth.user_id,
                         count = user_roles.len(),
                         user_roles = ?user_roles,
-                        "OMP28 search: fetched user_roles for scope construction"
+                        "Fetched active user roles for search scope construction"
                     );
 
                     let role_info_map: HashMap<String, RoleInfo> = user_roles
@@ -2713,7 +2713,7 @@ pub mod routes {
                         user_id = %auth.user_id,
                         count = user_roles.len(),
                         user_roles = ?user_roles,
-                        "OMP28 search: fetched user_roles for scope construction"
+                        "Fetched active user roles for search scope construction"
                     );
 
                     let role_info_map: HashMap<String, RoleInfo> = user_roles
