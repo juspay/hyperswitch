@@ -206,6 +206,23 @@ pub struct EmailSettings {
 }
 
 impl EmailSettings {
+    #[allow(missing_docs)]
+    pub async fn decrypt_credentials(
+        self,
+        client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> CustomResult<Self, hyperswitch_interfaces::secrets_interface::SecretsManagementError> {
+        let client_config = match self.client_config {
+            EmailClientConfigs::Smtp { smtp } => EmailClientConfigs::Smtp {
+                smtp: smtp.decrypt_credentials(client).await?,
+            },
+            client_config => client_config,
+        };
+        Ok(Self {
+            client_config,
+            ..self
+        })
+    }
+
     /// Validation for the Email client specific configurations
     pub fn validate(&self) -> Result<(), &'static str> {
         match &self.client_config {

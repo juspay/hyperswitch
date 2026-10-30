@@ -25,6 +25,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
+    mandates,
     merchant_connector_account::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
@@ -55,6 +56,8 @@ use super::payouts::{helpers as payout_helpers, PayoutData};
 use crate::core::payments;
 #[cfg(feature = "v2")]
 use crate::core::payments::helpers as payment_helpers;
+#[cfg(feature = "v2")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     configs::Settings,
     consts,
@@ -559,6 +562,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.id.get_string_repr().to_string(),
+            payment_feature_metadata: payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -578,6 +586,8 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -670,6 +680,8 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a diesel_refund::Refund,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    payment_method_data: Option<domain::PaymentMethodData>,
+    mandate_id: Option<mandates::MandateIds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -786,6 +798,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
+            payment_feature_metadata: payment_intent
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -805,6 +822,8 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_method_data,
+            mandate_id,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),

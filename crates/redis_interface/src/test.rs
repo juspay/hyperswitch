@@ -2409,7 +2409,7 @@ fn auth_settings_from_env() -> Option<RedisSettings> {
         host,
         port,
         username,
-        password: Some(password.into()),
+        primary_password: Some(password.into()),
         ..RedisSettings::default()
     })
 }
@@ -2508,7 +2508,7 @@ async fn test_authenticated_connection_wrong_password_fails() {
                 return true;
             };
 
-            settings.password = Some("definitely_the_wrong_password".to_string().into());
+            settings.primary_password = Some("definitely_the_wrong_password".to_string().into());
 
             test_connection(&settings).await.is_err()
         })
@@ -2572,7 +2572,7 @@ fn tls_settings_from_env() -> Option<RedisSettings> {
         host,
         port,
         username,
-        password: password.map(Into::into),
+        primary_password: password.map(Into::into),
         tls_enabled: true,
         tls_ca_certificate_path,
         ..RedisSettings::default()

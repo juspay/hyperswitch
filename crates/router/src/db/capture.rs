@@ -94,6 +94,7 @@ mod storage {
                             .clone(),
                         processor_capture_data: capture.processor_capture_data.clone(),
                         connector_capture_data: capture.connector_capture_data.clone(),
+                        feature_metadata: capture.feature_metadata.clone(),
                     };
 
                     let key = created_capture.get_partition_key();
@@ -339,6 +340,7 @@ impl CaptureInterface for MockDb {
             connector_capture_id: capture.connector_capture_id,
             connector_response_reference_id: capture.connector_response_reference_id,
             processor_capture_data: capture.processor_capture_data,
+            feature_metadata: capture.feature_metadata,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         };

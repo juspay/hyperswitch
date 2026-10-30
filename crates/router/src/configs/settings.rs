@@ -1019,6 +1019,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1638,6 +1639,7 @@ impl Settings<SecuredSecret> {
         self.connectors.validate("connectors")?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
+        self.user.validate()?;
 
         self.scheduler
             .as_ref()
