@@ -241,38 +241,6 @@ pub async fn recovery_incoming_webhook_flow(
         .await
 }
 
-async fn handle_monitoring_threshold(
-    state: &SessionState,
-    business_profile: &domain::Profile,
-    key_store: &domain::MerchantKeyStore,
-) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
-    let db = &*state.store;
-    let key_manager_state = &(state).into();
-    let monitoring_threshold_config = state.conf.revenue_recovery.monitoring_threshold_in_seconds;
-    let retry_algorithm_type = state.conf.revenue_recovery.retry_algorithm_type;
-    let revenue_recovery_retry_algorithm = business_profile
-        .revenue_recovery_retry_algorithm_data
-        .clone()
-        .ok_or(report!(
-            errors::RevenueRecoveryError::RetryAlgorithmTypeNotFound
-        ))?;
-    if revenue_recovery_retry_algorithm
-        .has_exceeded_monitoring_threshold(monitoring_threshold_config)
-    {
-        let profile_wrapper = admin::ProfileWrapper::new(business_profile.clone());
-        profile_wrapper
-            .update_revenue_recovery_algorithm_under_profile(
-                db,
-                key_manager_state,
-                key_store,
-                retry_algorithm_type,
-            )
-            .await
-            .change_context(errors::RevenueRecoveryError::RetryAlgorithmUpdationFailed)?;
-    }
-    Ok(webhooks::WebhookResponseTracker::NoEffect)
-}
-
 #[allow(clippy::too_many_arguments)]
 async fn handle_schedule_failed_payment(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -1757,12 +1725,10 @@ impl RecoveryAction {
                     ))?;
                 match recovery_algorithm_type {
                     api_enums::RevenueRecoveryAlgorithmType::Monitoring => {
-                        handle_monitoring_threshold(
-                            state,
-                            business_profile,
-                            platform.get_processor().get_key_store(),
-                        )
-                        .await
+                        logger::info!(
+                            "Profile is in monitoring mode, skipping recovery scheduling"
+                        );
+                        Ok(webhooks::WebhookResponseTracker::NoEffect)
                     }
                     revenue_recovery_retry_type => {
                         handle_schedule_failed_payment(
