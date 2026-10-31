@@ -82,7 +82,9 @@ fn find_field_recursively_in_vault_data(
 fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
     match vault_data {
         Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
-            .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+            .ok_or_else(|| errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("Field '{field_name}' not found in vault data"),
+            })
             .attach_printable(format!("Field '{field_name}' not found")),
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Vault data is not a valid JSON object"),
