@@ -86,7 +86,14 @@ pub async fn fetch_disputes(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::connector_sync_disputes(state, auth.platform, connector_id.clone(), req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::connector_sync_disputes(
+                state,
+                auth.platform,
+                profile_id,
+                connector_id.clone(),
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
