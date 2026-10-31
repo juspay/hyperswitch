@@ -72,19 +72,72 @@ The removed fields (`payment_type`, `transaction_type`, EMI fields, `internal_me
 
 ```json
 {
+  "static_routing": {
+    "payment_id": "pay_demo",
+    "status": "success",
+    "output": {
+      "type": "priority",
+      "connectors": [
+        { "gateway_name": "worldpay", "gateway_id": "mca_wp" },
+        { "gateway_name": "checkout", "gateway_id": "mca_cko" }
+      ]
+    },
+    "evaluated_output": [
+      { "gateway_name": "worldpay", "gateway_id": "mca_wp" },
+      { "gateway_name": "checkout", "gateway_id": "mca_cko" }
+    ],
+    "eligible_connectors": [
+      { "gateway_name": "worldpay", "gateway_id": "mca_wp" },
+      { "gateway_name": "checkout", "gateway_id": "mca_cko" }
+    ]
+  },
+  "dynamic_routing": {
+    "status": "success",
+    "decision": {
+      "decided_gateway": "worldpay",
+      "fallback_gateways": ["checkout"],
+      "gateway_priority_map": {
+        "checkout": 0.91,
+        "worldpay": 0.95
+      },
+      "filter_wise_gateways": null,
+      "priority_logic_tag": null,
+      "routing_approach": "SR_SELECTION_V3_ROUTING",
+      "gateway_before_evaluation": "worldpay",
+      "priority_logic_output": {
+        "isEnforcement": false,
+        "gws": ["worldpay", "checkout"],
+        "priorityLogicTag": null,
+        "gatewayReferenceIds": {},
+        "primaryLogic": null,
+        "fallbackLogic": null
+      },
+      "debit_routing_output": null,
+      "reset_approach": "NO_RESET",
+      "routing_dimension": "ORDER_PAYMENT,CARD,CREDIT,UNKNOWN",
+      "routing_dimension_level": "CARD_LEVEL",
+      "is_scheduled_outage": false,
+      "is_dynamic_mga_enabled": false,
+      "gateway_mga_id_map": null,
+      "is_rust_based_decider": true,
+      "latency": 2,
+      "multi_objective_info": null,
+      "volume_steer_info": null
+    },
+    "fallback_connectors": null
+  },
   "evaluated_connectors": [
-    { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" }
-  ],
-  "decision": {
-    "outcome": "routed",
-    "source": "volume_split",
-    "decision_id": "req_1234"
-  }
+    { "gateway_name": "worldpay", "gateway_id": "mca_wp" }
+  ]
 }
 ```
 
-`decision_id` matches the `x-request-id` response header. `source` identifies the static algorithm or dynamic routing approach. A `source` of `eligible_connectors` means hybrid used the supplied candidates after static evaluation failed. `outcome` is `routed` for a selection, `fallback` when hybrid uses a fallback, or `no_active_algorithm` / `no_eligible_connector` for an empty successful result.
+`evaluated_connectors` is the list clients should consume. Prefer it over the per branch outputs.
 
-The endpoint preserves hybrid's connector order, selection, and errors. When there is no active rule, hybrid can still return the supplied candidates as a fallback. Existing hybrid candidate filtering still applies: a rule output outside the supplied candidate list falls back to eligible candidates. If a legacy rule returns only a gateway name, its response account ID is null. A dynamic success returns the same winning connector that hybrid puts in `evaluated_connectors`.
+`static_routing` reports the rule evaluation. `status` says how the rule resolved, `output` carries the rule result and its type, and `evaluated_output` and `eligible_connectors` show the candidates considered.
 
-The response omits the legacy static/dynamic diagnostic envelopes. Analytics retain those internal details, add the original `/decide` request and response, and identify the API route as `decide`. Decisions remain in the hybrid analytics and A/B experiment family.
+`dynamic_routing` reports the scoring decision. `decision.decided_gateway` is the winning connector, `fallback_gateways` is the order to retry in, `gateway_priority_map` holds the per gateway scores, and `routing_approach` identifies the approach that produced them.
+
+The endpoint preserves the connector order, selection, and errors of the routing evaluation. When there is no active rule, the supplied candidates can still be returned as a fallback. Candidate filtering still applies: a rule output outside the supplied candidate list falls back to eligible candidates. If a legacy rule returns only a gateway name, its account ID is null.
+
+Analytics add the original `/decide` request and response and identify the API route as `decide`. Decisions remain in the same analytics and A/B experiment family as `/routing/hybrid`.
