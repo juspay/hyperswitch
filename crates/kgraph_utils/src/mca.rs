@@ -1172,6 +1172,7 @@ mod tests {
                         maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: Some(true),
                         installment_payment_enabled: Some(true),
+                        pay_via_single_use_token: None,
                     },
                     RequestPaymentMethodTypes {
                         payment_method_type: api_enums::PaymentMethodType::Debit,
@@ -1188,6 +1189,7 @@ mod tests {
                         maximum_amount: Some(MinorUnit::new(1000)),
                         recurring_enabled: Some(true),
                         installment_payment_enabled: Some(true),
+                        pay_via_single_use_token: None,
                     },
                 ]),
             }]),
