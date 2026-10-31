@@ -228,9 +228,12 @@ function emitPaymentStatus(paymentDetails) {
  *  - Initialize SDK
  **/
 function boot() {
-  if (!isFramed) {
-    document.documentElement.lang = getLanguage(paymentDetails.locale);
+  document.documentElement.lang =
+    translations === locales.en
+      ? "en"
+      : getLanguage(paymentDetails.locale);
 
+  if (!isFramed) {
     if (paymentDetails.merchant_name) {
       document.title = formatPaymentLinkTitle(
         translations.paymentLinkTitle,

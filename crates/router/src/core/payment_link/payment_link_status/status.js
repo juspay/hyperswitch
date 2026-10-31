@@ -102,7 +102,10 @@ var paymentDetails = decodeUri(encodedPaymentDetails);
 
 // @ts-ignore
 const translations = getTranslations(paymentDetails.locale);
-document.documentElement.lang = getLanguage(paymentDetails.locale);
+document.documentElement.lang =
+  translations === locales.en
+    ? "en"
+    : getLanguage(paymentDetails.locale);
 document.title = translations.paymentStatusTitle;
 
 var isFramed = false;
@@ -223,6 +226,9 @@ function renderStatusDetails(paymentDetails) {
         createdDate,
         paymentDetails.locale
       );
+      if (statusDetails.amountText) {
+        statusDetails.items.push(createItem("", statusDetails.amountText));
+      }
       break;
 
     case "requires_customer_action":
@@ -397,6 +403,9 @@ function formatStatusDate(date, locale) {
 
   try {
     return new Intl.DateTimeFormat(selectedLocale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
       hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
@@ -404,6 +413,9 @@ function formatStatusDate(date, locale) {
     }).format(date);
   } catch (e) {
     return new Intl.DateTimeFormat("en", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
       hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
@@ -420,13 +432,15 @@ function formatStatusDate(date, locale) {
 function createItem(heading, value) {
   var itemNode = document.createElement("div");
   itemNode.className = "hyper-checkout-status-item";
-  var headerNode = document.createElement("div");
-  headerNode.className = "hyper-checkout-item-header";
-  headerNode.innerText = heading;
   var valueNode = document.createElement("div");
   valueNode.className = "hyper-checkout-item-value";
   valueNode.innerText = value;
-  itemNode.append(headerNode);
+  if (heading) {
+    var headerNode = document.createElement("div");
+    headerNode.className = "hyper-checkout-item-header";
+    headerNode.innerText = heading;
+    itemNode.append(headerNode);
+  }
   itemNode.append(valueNode);
   return itemNode;
 }
