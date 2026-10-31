@@ -55,6 +55,8 @@ where
             )
             .switch()?;
 
+        auth.set_filter_clause(&mut inner_query_builder).switch()?;
+
         time_range
             .set_filter_clause(&mut inner_query_builder)
             .attach_printable("Error filtering time range for inner query")
