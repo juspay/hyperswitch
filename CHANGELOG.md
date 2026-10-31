@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix7
+
+### Bug Fixes
+
+- **network_tokenization:** Add User-Agent header to network token service ([#15102](https://github.com/juspay/hyperswitch/pull/15102)) ([`100e296`](https://github.com/juspay/hyperswitch/commit/100e2965caf4c9447130f3959fe258425d9a8300))
+
+**Full Changelog:** [`2026.10.26.0-hotfix6...2026.10.26.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix6...2026.10.26.0-hotfix7)
+
+- - -
+
 ## 2026.10.26.0-hotfix6
 
 ### Bug Fixes
