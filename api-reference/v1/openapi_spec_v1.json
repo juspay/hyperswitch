@@ -9335,7 +9335,7 @@
             }
           },
           "400": {
-            "description": "Invalid data or authenticated profile mismatch"
+            "description": "Invalid data"
           }
         },
         "security": [

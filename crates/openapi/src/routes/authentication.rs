@@ -8,7 +8,7 @@
     request_body = AuthenticationCreateRequest,
     responses(
         (status = 200, description = "Authentication created", body = AuthenticationResponse),
-        (status = 400, description = "Invalid data or authenticated profile mismatch")
+        (status = 400, description = "Invalid data")
     ),
     tag = "Authentication",
     operation_id = "Create an Authentication",
