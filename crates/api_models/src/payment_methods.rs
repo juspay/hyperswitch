@@ -3768,8 +3768,8 @@ pub struct PaymentMethodResponseItem {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
@@ -3833,8 +3833,8 @@ pub struct CustomerPaymentMethodResponseItem {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

@@ -893,7 +893,7 @@ pub fn make_new_auto_retry_payment_attempt(
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
         fingerprint_type: Default::default(),
-        customer_acceptance: Default::default(),
+        customer_acceptance: old_payment_attempt.customer_acceptance,
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
         extended_authorization_applied: Default::default(),

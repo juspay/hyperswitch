@@ -359,7 +359,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
                 customer_payment_methods.push(CustomerPaymentMethodForClient {
                     payment_token,
                     payment_method: pm.payment_method_type,
-                    payment_method_type: Some(pm.payment_method_subtype),
+                    payment_method_type: pm.payment_method_subtype,
                     default_payment_method_set: pm.is_default,
                     requires_cvv,
                     recurring_enabled: Some(recurring_enabled),
