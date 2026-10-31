@@ -2282,14 +2282,8 @@ impl HierarchicalResources {
     }
 }
 
+#[cfg(feature = "v2")]
 pub struct EphemeralKey;
-
-#[cfg(all(feature = "v1", feature = "oltp"))]
-impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys").app_data(web::Data::new(config))
-    }
-}
 
 #[cfg(feature = "v2")]
 impl EphemeralKey {
