@@ -191,6 +191,38 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
     }
 }
 
+/// A percentage validated with [`Percentage`] and represented as a JSON number.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScalarPercentage<const PRECISION: u8>(Percentage<PRECISION>);
+
+impl<const PRECISION: u8> ScalarPercentage<PRECISION> {
+    /// Return the percentage as a floating-point number.
+    pub fn get_percentage(&self) -> f64 {
+        self.0.get_percentage()
+    }
+}
+
+impl<const PRECISION: u8> Serialize for ScalarPercentage<PRECISION> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_f64(self.get_percentage())
+    }
+}
+
+impl<'de, const PRECISION: u8> Deserialize<'de> for ScalarPercentage<PRECISION> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = f64::deserialize(deserializer)?;
+        Percentage::from_string(value.to_string())
+            .map(Self)
+            .map_err(serde::de::Error::custom)
+    }
+}
+
 /// represents surcharge type and value
 #[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]

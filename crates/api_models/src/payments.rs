@@ -30,7 +30,10 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit, TimeRange},
+    types::{
+        AmountConvertor, MinorUnit, Percentage, ScalarPercentage, SemanticVersion, StringMajorUnit,
+        TimeRange,
+    },
 };
 use error_stack::ResultExt;
 
@@ -1619,9 +1622,30 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<i64>")]
     pub shipping_amount_tax: Option<MinorUnit>,
 
+    /// Value added tax (VAT) amount applied to the order or transaction.
+    #[schema(value_type = Option<i64>, example = 54)]
+    #[smithy(value_type = "Option<i64>")]
+    pub value_added_tax_amount: Option<MinorUnit>,
+
+    /// Value added tax (VAT) rate applied to the order or transaction.
+    #[schema(value_type = Option<f64>, example = 2.5)]
+    #[smithy(value_type = "Option<f64>")]
+    pub value_added_tax_percent: Option<VatPercentage>,
+
     /// Duty or customs fee amount for international transactions.
     #[smithy(value_type = "Option<i64>")]
     pub duty_amount: Option<MinorUnit>,
+
+    /// Commodity code classifying the order as a whole, as opposed to the
+    /// per-item codes in `order_details`.
+    #[schema(value_type = Option<String>, example = "4900")]
+    #[smithy(value_type = "Option<String>")]
+    pub order_commodity_code: Option<String>,
+
+    /// Reference number of the value added tax (VAT) invoice for this order.
+    #[schema(value_type = Option<String>, example = "9999")]
+    #[smithy(value_type = "Option<String>")]
+    pub vat_invoice_reference_number: Option<String>,
 
     /// Date the payer placed the order.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -10345,6 +10369,8 @@ pub struct PaymentsRetrieveRequest {
 
 /// Percentage value used to represent the discount applied on an item.
 pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
+
+pub type VatPercentage = ScalarPercentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
 
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,

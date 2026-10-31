@@ -824,6 +824,10 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+
+    /// The merchant's VAT registration identifier
+    #[schema(value_type = Option<String>, example = "GB987654321")]
+    pub merchant_vat_registration_id: Option<Secret<String>>,
 }
 
 /// The credentials required for calling the network tokenization provider APIs
