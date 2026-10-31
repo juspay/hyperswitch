@@ -100,6 +100,8 @@ pub async fn upload_file_to_theme_storage(
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
 
+    theme_utils::validate_asset_name(&request.asset_name)?;
+
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
@@ -127,7 +129,7 @@ pub async fn create_theme(
 
     let new_theme = ThemeNew::new(
         common_utils::generate_uuid_v4().to_string(),
-        request.theme_name,
+        request.theme_name.into_inner(),
         request.lineage,
         email_config,
     );
@@ -265,7 +267,7 @@ pub async fn create_user_theme(
     .await?;
     let new_theme = ThemeNew::new(
         common_utils::generate_uuid_v4().to_string(),
-        request.theme_name,
+        request.theme_name.into_inner(),
         lineage,
         email_config,
     );
@@ -439,6 +441,7 @@ pub async fn upload_file_to_user_theme_storage(
     let user_entity_type = user_role_info.get_entity_type();
 
     theme_utils::can_user_access_theme(&user_from_token, &user_entity_type, &db_theme).await?;
+    theme_utils::validate_asset_name(&request.asset_name)?;
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),
