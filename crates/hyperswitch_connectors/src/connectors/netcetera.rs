@@ -479,10 +479,6 @@ static NETCETERA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 };
 
 impl ConnectorSpecifications for Netcetera {
-    fn is_webhook_ip_verification_required(&self) -> bool {
-        true
-    }
-
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&NETCETERA_CONNECTOR_INFO)
     }
