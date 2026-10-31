@@ -1,4 +1,16 @@
+#[cfg(feature = "payouts")]
+use crate::types::PayoutsResponseRouterData;
+use crate::{
+    types::ResponseRouterData,
+    utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _},
+};
+#[cfg(feature = "payouts")]
+use api_models::payouts::{PayoutMethodData, Wallet};
 use common_enums::enums;
+#[cfg(feature = "payouts")]
+use common_enums::PayoutStatus;
+#[cfg(feature = "payouts")]
+use common_utils::types::FloatMajorUnit;
 use common_utils::{
     pii::{self, Email},
     types::StringMajorUnit,
@@ -11,15 +23,18 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
     types,
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::PoCreate,
+    types::{PayoutsResponseData, PayoutsRouterData},
+};
+
 use hyperswitch_interfaces::errors;
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::errors::ConnectorError;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::Date;
-
-use crate::{
-    types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _},
-};
 
 pub struct MifinityRouterData<T> {
     pub amount: StringMajorUnit,
@@ -34,6 +49,23 @@ impl<T> From<(StringMajorUnit, T)> for MifinityRouterData<T> {
         }
     }
 }
+
+#[cfg(feature = "payouts")]
+pub struct MifinityPayoutRouterData<T> {
+    pub amount: FloatMajorUnit,
+    pub router_data: T,
+}
+
+#[cfg(feature = "payouts")]
+impl<T> From<(FloatMajorUnit, T)> for MifinityPayoutRouterData<T> {
+    fn from((amount, router_data): (FloatMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
+
 pub mod auth_headers {
     pub const API_VERSION: &str = "api-version";
 }
@@ -76,6 +108,145 @@ pub struct MifinityPaymentsRequest {
 pub struct Money {
     amount: StringMajorUnit,
     currency: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPayoutCreateRequest {
+    pub source_account: Secret<String>,
+    pub destination_account: Secret<String>,
+    pub money: MifinityPayoutMoney,
+    pub description: String,
+    pub trace_id: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Serialize)]
+pub struct MifinityPayoutMoney {
+    pub amount: FloatMajorUnit,
+    pub currency: String,
+}
+
+#[cfg(feature = "payouts")]
+impl TryFrom<&MifinityPayoutRouterData<&types::PayoutsRouterData<PoCreate>>>
+    for MifinityPayoutCreateRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &MifinityPayoutRouterData<&types::PayoutsRouterData<PoCreate>>,
+    ) -> Result<Self, Self::Error> {
+        let metadata: MifinityConnectorMetadataObject =
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
+                .change_context(ConnectorError::InvalidConnectorConfig {
+                    config: "merchant_connector_account.metadata",
+                })?;
+
+        let destination_account = match item.router_data.get_payout_method_data()? {
+            PayoutMethodData::Wallet(Wallet::Mifinity(data)) => data.destination_account.clone(),
+            _ => {
+                return Err(ConnectorError::NotImplemented(
+                    "Unsupported payout method for Mifinity".to_string(),
+                )
+                .into());
+            }
+        };
+
+        let source_account = metadata.destination_account_number;
+
+        let trace_id = item.router_data.connector_request_reference_id.clone();
+        let description = item
+            .router_data
+            .description
+            .clone()
+            .filter(|description| !description.trim().is_empty())
+            .unwrap_or_else(|| "Payout".to_string());
+
+        if description.chars().count() > 25 {
+            return Err(ConnectorError::RequestEncodingFailedWithReason(
+                "MiFinity payout description must not exceed 25 characters".to_string(),
+            )
+            .into());
+        }
+
+        Ok(Self {
+            source_account,
+            destination_account,
+            money: MifinityPayoutMoney {
+                amount: item.amount.clone(),
+                currency: item.router_data.request.source_currency.to_string(),
+            },
+            description,
+            trace_id,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MifinityPayoutCreateResponse {
+    payload: Vec<MifinityPayoutPayload>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPayoutPayload {
+    transaction_id: String,
+    transaction_reference: String,
+    trace_id: String,
+    status: MifinityPayoutStatus,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MifinityPayoutStatus {
+    #[serde(rename = "OK")]
+    Success,
+}
+
+#[cfg(feature = "payouts")]
+fn build_payouts_response(
+    response: MifinityPayoutCreateResponse,
+) -> Result<PayoutsResponseData, error_stack::Report<ConnectorError>> {
+    let payload = response
+        .payload
+        .first()
+        .ok_or(ConnectorError::ResponseDeserializationFailed)?;
+
+    let status = match &payload.status {
+        MifinityPayoutStatus::Success => PayoutStatus::Success,
+    };
+
+    Ok(PayoutsResponseData {
+        status: Some(status),
+        connector_payout_id: Some(payload.transaction_id.clone()),
+        payout_eligible: None,
+        should_add_next_step_to_process_tracker: false,
+        error_code: None,
+        error_message: None,
+        payout_connector_metadata: None,
+        connector_eligibility_reference_id: None,
+    })
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, MifinityPayoutCreateResponse>>
+    for PayoutsRouterData<F>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: PayoutsResponseRouterData<F, MifinityPayoutCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response = build_payouts_response(item.response)?;
+
+        Ok(Self {
+            response: Ok(response),
+            ..item.data
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -448,4 +619,338 @@ pub struct MifinityErrorList {
     pub error_code: String,
     pub message: String,
     pub field: Option<String>,
+}
+
+#[cfg(all(test, feature = "payouts"))]
+mod tests {
+    use super::*;
+    use common_utils::id_type::GenerateId;
+    use hyperswitch_masking::PeekInterface;
+
+    fn create_payout_router_data(
+        description: Option<String>,
+        metadata: Option<pii::SecretSerdeValue>,
+        payout_method_data: Option<PayoutMethodData>,
+    ) -> types::PayoutsRouterData<PoCreate> {
+        use common_utils::id_type::{MerchantId, TenantId};
+        use hyperswitch_domain_models::{
+            router_data::{ConnectorAuthType, ErrorResponse},
+            router_request_types::PayoutsData,
+        };
+
+        RouterData {
+            flow: std::marker::PhantomData,
+            merchant_id: MerchantId::try_from(std::borrow::Cow::from("merchant")).unwrap(),
+            customer_id: None,
+            connector_customer: None,
+            connector: "mifinity".to_string(),
+            payment_id: "payment_123".to_string(),
+            attempt_id: "attempt_123".to_string(),
+            tenant_id: TenantId::try_from_string("public".to_string()).unwrap(),
+            status: enums::AttemptStatus::default(),
+            payment_method: enums::PaymentMethod::Wallet,
+            payment_method_type: None,
+            connector_auth_type: ConnectorAuthType::HeaderKey {
+                api_key: Secret::new("test_key".to_string()),
+            },
+            description,
+            address: Default::default(),
+            auth_type: enums::AuthenticationType::NoThreeDs,
+            connector_meta_data: metadata,
+            connector_wallets_details: None,
+            amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token: None,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request: PayoutsData {
+                payout_id: common_utils::id_type::PayoutId::generate(),
+                amount: 100,
+                minor_amount: common_utils::types::MinorUnit::new(100),
+                connector_payout_id: None,
+                destination_currency: enums::Currency::EUR,
+                source_currency: enums::Currency::EUR,
+                payout_type: Some(enums::PayoutType::Bank),
+                entity_type: enums::PayoutEntityType::Individual,
+                customer_details: None,
+                vendor_details: None,
+                priority: None,
+                connector_transfer_method_id: None,
+                webhook_url: None,
+                browser_info: None,
+                payout_connector_metadata: None,
+                additional_payout_method_data: None,
+                source_bank_data: None,
+                billing_descriptor: None,
+                connector_eligibility_reference_id: None,
+                external_vault_pmd: None,
+            },
+            response: Err(ErrorResponse::default()),
+            connector_request_reference_id: "trace_123".to_string(),
+            payout_method_data,
+            quote_id: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payout_id: None,
+            connector_response: None,
+            payment_method_status: None,
+            integrity_check: Ok(()),
+            accept_amount_mismatch: None,
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            l2_l3_data: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            customer_document_details: None,
+            customer_date_of_birth: None,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
+        }
+    }
+
+    #[test]
+    fn test_payout_response_deserialization() {
+        let response = serde_json::from_value::<MifinityPayoutCreateResponse>(serde_json::json!({
+            "payload": [{
+                "transactionId": "txn_123",
+                "transactionReference": "ref_123",
+                "traceId": "trace_123",
+                "status": "OK"
+            }]
+        }));
+
+        assert!(response.is_ok());
+
+        let response = response.unwrap();
+        assert_eq!(response.payload.len(), 1);
+        assert_eq!(response.payload[0].transaction_id, "txn_123");
+        assert_eq!(response.payload[0].transaction_reference, "ref_123");
+        assert_eq!(response.payload[0].trace_id, "trace_123");
+        assert!(matches!(
+            response.payload[0].status,
+            MifinityPayoutStatus::Success
+        ));
+    }
+
+    #[test]
+    fn test_payout_response_deserialization_with_empty_payload() {
+        let response = serde_json::from_value::<MifinityPayoutCreateResponse>(serde_json::json!({
+            "payload": []
+        }));
+
+        assert!(response.is_ok());
+        assert!(response.unwrap().payload.is_empty());
+    }
+
+    #[test]
+    fn test_payout_response_rejects_unknown_status() {
+        let response = serde_json::from_value::<MifinityPayoutCreateResponse>(serde_json::json!({
+            "payload": [{
+                "transactionId": "txn_123",
+                "transactionReference": "ref_123",
+                "traceId": "trace_123",
+                "status": "PENDING"
+            }]
+        }));
+
+        assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_payout_response_rejects_missing_transaction_id() {
+        let response = serde_json::from_value::<MifinityPayoutCreateResponse>(serde_json::json!({
+            "payload": [{
+                "transactionReference": "ref_123",
+                "traceId": "trace_123",
+                "status": "OK"
+            }]
+        }));
+
+        assert!(response.is_err());
+    }
+    #[test]
+    fn test_payout_response_mapping() {
+        let response = MifinityPayoutCreateResponse {
+            payload: vec![MifinityPayoutPayload {
+                transaction_id: "txn_123".to_string(),
+                transaction_reference: "ref_123".to_string(),
+                trace_id: "trace_123".to_string(),
+                status: MifinityPayoutStatus::Success,
+            }],
+        };
+
+        let result = build_payouts_response(response);
+
+        assert!(result.is_ok());
+
+        let result = result.unwrap();
+
+        assert_eq!(result.status, Some(PayoutStatus::Success));
+        assert_eq!(result.connector_payout_id, Some("txn_123".to_string()));
+        assert_eq!(result.payout_eligible, None);
+        assert!(!result.should_add_next_step_to_process_tracker);
+        assert_eq!(result.error_code, None);
+        assert_eq!(result.error_message, None);
+    }
+
+    #[test]
+    fn test_payout_response_mapping_rejects_empty_payload() {
+        let response = MifinityPayoutCreateResponse { payload: vec![] };
+
+        let result = build_payouts_response(response);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_payout_request_transformation() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "destination_account_number": "source_account_123"
+        }));
+
+        let payout_method =
+            PayoutMethodData::Wallet(Wallet::Mifinity(api_models::payouts::Mifinity {
+                destination_account: Secret::new("destination_account_456".to_string()),
+            }));
+
+        let router_data = create_payout_router_data(
+            Some("Test payout".to_string()),
+            Some(metadata),
+            Some(payout_method),
+        );
+
+        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+        let result = MifinityPayoutCreateRequest::try_from(&connector_data).unwrap();
+
+        assert_eq!(result.source_account.peek(), "source_account_123");
+        assert_eq!(result.destination_account.peek(), "destination_account_456");
+        assert_eq!(result.money.currency, "EUR");
+        assert_eq!(result.description, "Test payout");
+        assert_eq!(result.trace_id, "trace_123");
+
+        let serialized = serde_json::to_value(&result).unwrap();
+
+        assert_eq!(serialized["sourceAccount"], "source_account_123");
+        assert_eq!(serialized["destinationAccount"], "destination_account_456");
+        assert_eq!(serialized["money"]["currency"], "EUR");
+        assert_eq!(serialized["description"], "Test payout");
+        assert_eq!(serialized["traceId"], "trace_123");
+    }
+
+    #[test]
+    fn test_payout_request_uses_default_description() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "destination_account_number": "source_account_123"
+        }));
+
+        let payout_method =
+            PayoutMethodData::Wallet(Wallet::Mifinity(api_models::payouts::Mifinity {
+                destination_account: Secret::new("destination_account_456".to_string()),
+            }));
+
+        for description in [None, Some("   ".to_string())] {
+            let router_data = create_payout_router_data(
+                description,
+                Some(metadata.clone()),
+                Some(payout_method.clone()),
+            );
+
+            let connector_data =
+                MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+            let result = MifinityPayoutCreateRequest::try_from(&connector_data).unwrap();
+
+            assert_eq!(result.description, "Payout");
+        }
+    }
+
+    #[test]
+    fn test_payout_request_accepts_25_character_description() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "destination_account_number": "source_account_123"
+        }));
+
+        let payout_method =
+            PayoutMethodData::Wallet(Wallet::Mifinity(api_models::payouts::Mifinity {
+                destination_account: Secret::new("destination_account_456".to_string()),
+            }));
+
+        let router_data = create_payout_router_data(
+            Some("1234567890123456789012345".to_string()),
+            Some(metadata),
+            Some(payout_method),
+        );
+
+        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+        assert!(MifinityPayoutCreateRequest::try_from(&connector_data).is_ok());
+    }
+
+    #[test]
+    fn test_payout_request_rejects_description_over_25_characters() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "destination_account_number": "source_account_123"
+        }));
+
+        let payout_method =
+            PayoutMethodData::Wallet(Wallet::Mifinity(api_models::payouts::Mifinity {
+                destination_account: Secret::new("destination_account_456".to_string()),
+            }));
+
+        let router_data = create_payout_router_data(
+            Some("12345678901234567890123456".to_string()),
+            Some(metadata),
+            Some(payout_method),
+        );
+
+        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+        assert!(MifinityPayoutCreateRequest::try_from(&connector_data).is_err());
+    }
+
+    #[test]
+    fn test_payout_request_rejects_invalid_metadata() {
+        let payout_method =
+            PayoutMethodData::Wallet(Wallet::Mifinity(api_models::payouts::Mifinity {
+                destination_account: Secret::new("destination_account_456".to_string()),
+            }));
+
+        let router_data =
+            create_payout_router_data(Some("Test payout".to_string()), None, Some(payout_method));
+
+        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+        assert!(MifinityPayoutCreateRequest::try_from(&connector_data).is_err());
+    }
+
+    #[test]
+    fn test_payout_request_rejects_missing_payout_method_data() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "destination_account_number": "source_account_123"
+        }));
+
+        let router_data =
+            create_payout_router_data(Some("Test payout".to_string()), Some(metadata), None);
+
+        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+
+        assert!(MifinityPayoutCreateRequest::try_from(&connector_data).is_err());
+    }
 }
