@@ -94,24 +94,24 @@ pub mod proxy;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
-#[cfg(feature = "v2")]
-pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, ExternalService,
-    FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount,
-    MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll,
-    ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay,
-    RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy, TelephoneOrder,
-    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, ExternalService, FeatureMatrix,
+    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
+    OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker,
+    ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
+    SdkConfig, SessionState, SuperpositionProxy, TelephoneOrder, ThreeDsDecisionRule, User,
+    UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{
     Blocklist, HierarchicalResources, Organization, Routing, Subscription, UnifiedConnectorService,
     Verify, WebhookEvents,
 };
+#[cfg(feature = "v2")]
+pub use self::app::{EphemeralKey, PaymentMethodSession};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]
