@@ -2917,6 +2917,12 @@ impl GetProfileId for domain::Profile {
     }
 }
 
+impl GetProfileId for hyperswitch_domain_models::authentication::Authentication {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl GetProfileId for storage::Payouts {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {

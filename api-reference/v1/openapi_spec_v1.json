@@ -9376,6 +9376,9 @@
           },
           "400": {
             "description": "Invalid data"
+          },
+          "422": {
+            "description": "Profile does not match the authentication"
           }
         },
         "security": [
