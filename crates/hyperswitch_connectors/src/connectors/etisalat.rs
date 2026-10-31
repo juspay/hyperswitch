@@ -1,3 +1,17 @@
+//! Etisalat Payment Gateway (EPG) — Etisalat's REST gateway.
+//!
+//! This connector is **UCS-only**: it is listed in `ucs_only_connectors`, so every
+//! payment is executed by the Unified Connector Service, not by this crate. The
+//! implementation here is the thin native shell Hyperswitch requires for every
+//! `Connector` enum variant (see `router::types::api::connector_mapping`); it carries
+//! the connector id, base URL and credential shape, and is never used to build a live
+//! EPG request. The real integration lives in the connector-service repo at
+//! `crates/integrations/connector-integration/src/connectors/etisalat.rs`.
+//!
+//! Scope: card credit and debit, non-3DS only, Visa and Mastercard. No mandates/MIT,
+//! no wallets, no bank transfers, no BNPL. Payment and refund status sync
+//! (PSync/RSync) are not supported: both flows are gated with `FlowNotSupported`.
+
 pub mod transformers;
 
 use std::sync::LazyLock;
@@ -308,7 +322,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Eti
         _req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "PSync".to_string(),
+            connector: "Etisalat".to_string(),
+        }
+        .into())
     }
 
     fn build_request(
@@ -538,7 +556,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Etisalat 
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RSync".to_string(),
+            connector: "Etisalat".to_string(),
+        }
+        .into())
     }
 
     fn build_request(
