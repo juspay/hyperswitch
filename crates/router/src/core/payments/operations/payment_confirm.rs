@@ -2321,6 +2321,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let auth_create_resp = crate::core::unified_authentication_service::authentication_create_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         auth_req
                     ).await?
                     .get_json_body()
@@ -2332,6 +2333,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let elig_resp = Box::pin(crate::core::unified_authentication_service::authentication_eligibility_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         eligibility_req,
                         auth_create_resp.authentication_id.clone(),
                     )).await?
@@ -2432,6 +2434,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         let resp = Box::pin(crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
+                            Some(business_profile.get_id().clone()),
                             services::api::AuthFlow::Merchant,
                             sync_req,
                         ))

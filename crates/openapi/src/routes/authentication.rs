@@ -8,7 +8,7 @@
     request_body = AuthenticationCreateRequest,
     responses(
         (status = 200, description = "Authentication created", body = AuthenticationResponse),
-        (status = 400, description = "Invalid data")
+        (status = 400, description = "Invalid data or authenticated profile mismatch")
     ),
     tag = "Authentication",
     operation_id = "Create an Authentication",
@@ -26,7 +26,8 @@ pub async fn authentication_create() {}
     request_body = AuthenticationEligibilityRequest,
     responses(
         (status = 200, description = "Authentication eligibility checked", body = AuthenticationEligibilityResponse),
-        (status = 400, description = "Invalid data")
+        (status = 400, description = "Invalid data"),
+        (status = 422, description = "Profile does not match the authentication")
     ),
     tag = "Authentication",
     operation_id = "Check Authentication Eligibility",

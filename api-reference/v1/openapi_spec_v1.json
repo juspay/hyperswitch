@@ -9335,7 +9335,7 @@
             }
           },
           "400": {
-            "description": "Invalid data"
+            "description": "Invalid data or authenticated profile mismatch"
           }
         },
         "security": [
@@ -9375,7 +9375,10 @@
             }
           },
           "400": {
-            "description": "Invalid data"
+            "description": "Invalid data or authenticated profile mismatch"
+          },
+          "422": {
+            "description": "Profile does not match the authentication"
           }
         },
         "security": [
@@ -9460,13 +9463,13 @@
         "security": []
       }
     },
-    "/authentication/{authentication_id}/sync": {
+    "/authentication/{merchant_id}/{authentication_id}/sync": {
       "post": {
         "tags": [
           "Authentication"
         ],
         "summary": "Authentication - Sync",
-        "description": "Sync an authentication for accessing our APIs from your servers.\n",
+        "description": "Sync an authentication scoped to the authenticated processor merchant and any authenticated profile.\nThe URL merchant ID identifies the originating caller in modular-service integrations; it does not select the storage scope.\n",
         "operationId": "Sync an Authentication",
         "requestBody": {
           "content": {
@@ -9490,7 +9493,7 @@
             }
           },
           "400": {
-            "description": "Invalid data"
+            "description": "Invalid data or authenticated profile mismatch"
           }
         },
         "security": [
@@ -12647,7 +12650,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "The business profile that is associated with this authentication",
+            "description": "The business profile associated with this authentication. Must match any authenticated profile scope.\nWhen omitted, the authenticated profile is used, or the merchant default if no profile scope is present.",
             "nullable": true
           },
           "amount": {
@@ -12666,7 +12669,7 @@
           },
           "return_url": {
             "type": "string",
-            "description": "The URL to which the user should be redirected after authentication.",
+            "description": "The absolute URL to which the user should be redirected after authentication. Validated at creation.",
             "example": "https://example.com/redirect",
             "nullable": true
           },
@@ -12810,7 +12813,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Optional identifier for the business profile associated with the payment.\nThis determines which configurations, rules, and branding are applied to the transaction.",
+            "description": "Optional business profile identifier. Must match the authentication's stored profile.\nWhen omitted, the stored profile is used.",
             "nullable": true
           },
           "billing": {
