@@ -43,7 +43,7 @@ use self::settings::Tenant;
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
+#[cfg(all(feature = "v2", feature = "oltp"))]
 use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
@@ -2287,10 +2287,7 @@ pub struct EphemeralKey;
 #[cfg(all(feature = "v1", feature = "oltp"))]
 impl EphemeralKey {
     pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys")
-            .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
+        web::scope("/ephemeral_keys").app_data(web::Data::new(config))
     }
 }
 
