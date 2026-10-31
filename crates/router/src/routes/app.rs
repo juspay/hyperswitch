@@ -44,7 +44,7 @@ use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(all(feature = "v2", feature = "oltp"))]
-use super::ephemeral_key::*;
+use super::ephemeral_key::{client_secret_create, client_secret_delete};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
 #[cfg(feature = "payouts")]
