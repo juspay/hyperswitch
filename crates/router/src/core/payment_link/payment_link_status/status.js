@@ -102,6 +102,11 @@ var paymentDetails = decodeUri(encodedPaymentDetails);
 
 // @ts-ignore
 const translations = getTranslations(paymentDetails.locale);
+document.documentElement.lang =
+  translations === locales.en
+    ? "en"
+    : getLanguage(paymentDetails.locale);
+document.title = translations.paymentStatusTitle;
 
 var isFramed = false;
 try {
@@ -214,9 +219,17 @@ function renderStatusDetails(paymentDetails) {
       statusDetails.imageSource = "https://live.hyperswitch.io/payment-link-assets/success.png";
       statusDetails.message = translations.paymentReceived;
       statusDetails.status = translations.paidSuccessfully;
-      statusDetails.amountText = new Date(
-        paymentDetails.created
-      ).toTimeString();
+      var createdDate =
+        paymentDetails.created === null || paymentDetails.created === undefined
+          ? null
+          : new Date(paymentDetails.created);
+      statusDetails.amountText = formatStatusDate(
+        createdDate,
+        paymentDetails.locale
+      );
+      if (statusDetails.amountText) {
+        statusDetails.items.push(createItem("", statusDetails.amountText));
+      }
       break;
 
     case "requires_customer_action":
@@ -379,6 +392,39 @@ function renderStatusDetails(paymentDetails) {
   }
 }
 
+function formatStatusDate(date, locale) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  var selectedLocale = typeof locale === "string"
+    ? locale.split(",")[0].trim()
+    : "en";
+  selectedLocale = selectedLocale || "en";
+
+  try {
+    return new Intl.DateTimeFormat(selectedLocale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
+  } catch (e) {
+    return new Intl.DateTimeFormat("en", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZoneName: "short",
+    }).format(date);
+  }
+}
+
 /**
  * Use - create an item which is a key-value pair of some information related to a payment
  * @param {String} heading
@@ -387,13 +433,15 @@ function renderStatusDetails(paymentDetails) {
 function createItem(heading, value) {
   var itemNode = document.createElement("div");
   itemNode.className = "hyper-checkout-status-item";
-  var headerNode = document.createElement("div");
-  headerNode.className = "hyper-checkout-item-header";
-  headerNode.innerText = heading;
   var valueNode = document.createElement("div");
   valueNode.className = "hyper-checkout-item-value";
   valueNode.innerText = value;
-  itemNode.append(headerNode);
+  if (heading) {
+    var headerNode = document.createElement("div");
+    headerNode.className = "hyper-checkout-item-header";
+    headerNode.innerText = heading;
+    itemNode.append(headerNode);
+  }
   itemNode.append(valueNode);
   return itemNode;
 }
