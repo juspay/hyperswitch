@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** Netcetera webhook ([#15101](https://github.com/juspay/hyperswitch/pull/15101)) ([`edf857d`](https://github.com/juspay/hyperswitch/commit/edf857db3fa9f5befee63f427846df327bd709dd))
+
+**Full Changelog:** [`2026.10.26.0-hotfix5...2026.10.26.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix5...2026.10.26.0-hotfix6)
+
+- - -
+
 ## 2026.10.26.0-hotfix5
 
 ### Features
