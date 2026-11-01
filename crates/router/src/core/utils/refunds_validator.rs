@@ -1,5 +1,7 @@
+use common_utils::types::MinorUnit;
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
+use hyperswitch_domain_models::refunds::RefundNetAmount;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
 #[cfg(feature = "v1")]
@@ -21,6 +23,45 @@ use crate::{
 pub const LOWER_LIMIT: i64 = 1;
 pub const UPPER_LIMIT: i64 = 100;
 pub const DEFAULT_LIMIT: i64 = 10;
+
+fn is_stripe_setup_intent(connector: Option<&str>, connector_payment_id: Option<&str>) -> bool {
+    connector == Some("stripe") && connector_payment_id.is_some_and(|id| id.starts_with("seti_"))
+}
+
+/// A successful SetupIntent saves a payment method but does not create a
+/// refundable Stripe payment, even if the local attempt has a charged status.
+pub fn validate_refundable_payment_attempt(
+    payment_attempt: &storage::PaymentAttempt,
+) -> RouterResult<()> {
+    if is_stripe_setup_intent(
+        payment_attempt.connector.as_deref(),
+        payment_attempt.get_connector_payment_id(),
+    ) {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "A Stripe SetupIntent does not capture a payment and cannot be refunded"
+                .to_string(),
+        }
+        .into());
+    }
+
+    Ok(())
+}
+
+/// A charged attempt supplies the captured amount for successful payments
+/// whose intent did not record `amount_captured`. Partial captures need an
+/// explicit captured amount to avoid refunding more than was captured.
+pub fn get_captured_amount_for_refund(
+    intent_status: enums::IntentStatus,
+    attempt_status: enums::AttemptStatus,
+    intent_amount_captured: Option<MinorUnit>,
+    attempt_total_amount: MinorUnit,
+) -> Option<MinorUnit> {
+    intent_amount_captured.or_else(|| {
+        (intent_status == enums::IntentStatus::Succeeded
+            && attempt_status == enums::AttemptStatus::Charged)
+            .then_some(attempt_total_amount)
+    })
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
@@ -49,9 +90,9 @@ pub fn validate_success_transaction(
 
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
-    amount_captured: i64,
+    amount_captured: MinorUnit,
     all_refunds: &[diesel_refund::Refund],
-    refund_amount: i64,
+    refund_net_amount: RefundNetAmount,
 ) -> CustomResult<(), RefundValidationError> {
     let total_refunded_amount: i64 = all_refunds
         .iter()
@@ -59,7 +100,12 @@ pub fn validate_refund_amount(
             if refund.refund_status != enums::RefundStatus::Failure
                 && refund.refund_status != enums::RefundStatus::TransactionFailure
             {
-                Some(refund.refund_amount.get_amount_as_i64())
+                Some(
+                    refund
+                        .net_refund_amount
+                        .unwrap_or_else(|| RefundNetAmount::from(refund).get_total_amount())
+                        .get_amount_as_i64(),
+                )
             } else {
                 None
             }
@@ -67,7 +113,8 @@ pub fn validate_refund_amount(
         .sum();
 
     utils::when(
-        refund_amount > (amount_captured - total_refunded_amount),
+        refund_net_amount.get_total_amount().get_amount_as_i64()
+            > (amount_captured.get_amount_as_i64() - total_refunded_amount),
         || {
             Err(report!(
                 RefundValidationError::RefundAmountExceedsPaymentAmount
@@ -121,6 +168,8 @@ pub fn validate_for_valid_refunds(
     connector_enum: hyperswitch_interfaces::connector_integration_interface::ConnectorEnum,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
+    validate_refundable_payment_attempt(payment_attempt)?;
+
     let payment_method = payment_attempt
         .payment_method
         .as_ref()
@@ -151,6 +200,8 @@ pub fn validate_for_valid_refunds(
     payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     connector: api_models::enums::Connector,
 ) -> RouterResult<()> {
+    validate_refundable_payment_attempt(payment_attempt)?;
+
     let payment_method_type = payment_attempt.payment_method_type;
 
     match payment_method_type {

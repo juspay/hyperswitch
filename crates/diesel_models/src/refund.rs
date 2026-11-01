@@ -38,6 +38,10 @@ pub struct Refund {
     pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub refund_amount: MinorUnit,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
@@ -133,6 +137,10 @@ pub struct Refund {
     pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub refund_amount: MinorUnit,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub refund_error_message: Option<String>,
@@ -192,6 +200,10 @@ pub struct RefundNew {
     pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub refund_amount: MinorUnit,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
@@ -244,6 +256,10 @@ pub struct RefundNew {
     pub total_amount: MinorUnit,
     pub currency: storage_enums::Currency,
     pub refund_amount: MinorUnit,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
     pub refund_status: storage_enums::RefundStatus,
     pub sent_to_gateway: bool,
     pub metadata: Option<pii::SecretSerdeValue>,

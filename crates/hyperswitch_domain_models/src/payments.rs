@@ -467,10 +467,19 @@ impl PaymentIntent {
         &self,
         requested_amount: Option<MinorUnit>,
     ) -> CustomResult<(), common_utils::errors::ValidationError> {
-        let captured = self
-            .amount_captured
-            .unwrap_or(MinorUnit::zero())
-            .get_amount_as_i64();
+        self.validate_amount_against_intent_state_metadata_with_captured_amount(
+            requested_amount,
+            self.amount_captured.unwrap_or_default(),
+        )
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn validate_amount_against_intent_state_metadata_with_captured_amount(
+        &self,
+        requested_amount: Option<MinorUnit>,
+        captured_amount: MinorUnit,
+    ) -> CustomResult<(), common_utils::errors::ValidationError> {
+        let captured = captured_amount.get_amount_as_i64();
 
         let blocked_amount = self
             .state_metadata
