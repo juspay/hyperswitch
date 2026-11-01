@@ -551,6 +551,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             city: details.city.as_ref().map(|s| s.clone().into()),
             state: details.state.clone(),
             zip_code: details.zip.clone(),
+            origin_zip: details.origin_zip.clone(),
             country_alpha2_code,
             origin_zip: None,
             email: None,
@@ -4092,7 +4093,10 @@ impl
             }),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
-            additional_amount: None,
+            additional_amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.additional_amount,
+                currency: currency.into(),
+            }),
             network_transaction_id: None,
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
@@ -5740,6 +5744,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
+                origin_zip: details
+                    .and_then(|d| d.origin_zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
                 email: address
                     .email
@@ -5777,6 +5783,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                origin_zip: details
+                    .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                 country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
@@ -5817,6 +5825,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                     zip_code: details
                         .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                    origin_zip: details
+                        .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
                     email: address
                         .email
@@ -5867,6 +5877,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
             state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
             zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+            origin_zip: details
+                .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
             country_alpha2_code: country,
             origin_zip: None,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
@@ -9305,7 +9317,7 @@ impl
             test_mode: router_data.test_mode,
             amount,
             payment_method,
-            capture_method: capture_method.map(|capture_method| capture_method.into()),
+            capture_method: capture_method.map(Into::into),
         })
     }
 }
