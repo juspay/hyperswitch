@@ -554,7 +554,6 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             zip_code: details.zip.clone(),
             origin_zip: details.origin_zip.clone(),
             country_alpha2_code,
-            origin_zip: None,
             email: None,
             phone_number: None,
             phone_country_code: None,
@@ -5866,7 +5865,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 origin_zip: details
                     .and_then(|d| d.origin_zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
-                origin_zip: None,
                 email: address
                     .email
                     .as_ref()
@@ -5904,7 +5902,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 origin_zip: details
                     .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                 country_alpha2_code: country,
-                origin_zip: None,
                 email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
                     .phone
@@ -5945,7 +5942,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     origin_zip: details
                         .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
-                    origin_zip: None,
                     email: address
                         .email
                         .as_ref()
@@ -5996,7 +5992,6 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             origin_zip: details
                 .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
             country_alpha2_code: country,
-            origin_zip: None,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
             phone_number: address
                 .phone
