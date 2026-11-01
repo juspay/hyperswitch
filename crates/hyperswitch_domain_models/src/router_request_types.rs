@@ -1148,6 +1148,7 @@ pub struct PaymentsCancelPostCaptureData {
     pub connector_meta: Option<serde_json::Value>,
     // minor amount data for amount framework
     pub minor_amount: Option<MinorUnit>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
 }

@@ -835,7 +835,13 @@ where
     let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
     let payment_method_fetch_data = operation
         .to_domain()?
-        .fetch_payment_method(state, &req, platform, &feature_config)
+        .fetch_payment_method(
+            state,
+            &req,
+            platform,
+            &feature_config,
+            profile_id_from_auth_layer.as_ref(),
+        )
         .await?;
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
@@ -859,6 +865,7 @@ where
             payment_method_fetch_data,
             dimensions,
             payment_pre_fetched_info,
+            profile_id_from_auth_layer.as_ref(),
         )
         .await?;
 
@@ -1839,6 +1846,7 @@ where
             operations::PaymentMethodFetchData::default(),
             dimensions,
             None,
+            profile_id_from_auth_layer.as_ref(),
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -3327,7 +3335,13 @@ where
 
     let payment_method_info = operation
         .to_domain()?
-        .fetch_payment_method(state, &req, &platform, &feature_config)
+        .fetch_payment_method(
+            state,
+            &req,
+            &platform,
+            &feature_config,
+            profile_id_from_auth_layer.as_ref(),
+        )
         .await?;
 
     let operations::GetTrackerResponse {
@@ -3347,6 +3361,7 @@ where
         payment_method_info,
         &dimensions,
         None,
+        profile_id_from_auth_layer.as_ref(),
     ))
     .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -5131,6 +5146,7 @@ pub trait PaymentRedirectFlow: Sync {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse>;
 
     #[cfg(feature = "v2")]
@@ -5192,6 +5208,33 @@ pub trait PaymentRedirectFlow: Sync {
                 field_name: "payment_id".into(),
             })?;
 
+        let (payment_intent, payment_attempt) =
+            operations::payment_status::get_payment_intent_payment_attempt(
+                &state,
+                &req.resource_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                None,
+            )
+            .await?;
+        // All redirect URLs name the payment connector, including the external
+        // authentication return URL. Verify it against the active attempt.
+        if payment_attempt.connector.as_deref() != Some(connector.as_str()) {
+            return Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "The connector in the redirect URL does not match the active payment attempt"
+                    .to_string(),
+            })
+            .attach_printable(format!(
+                "Redirect connector {connector} does not match active payment attempt connector {:?}",
+                payment_attempt.connector
+            ));
+        }
+        let payment_pre_fetched_info = Some(operations::PaymentPreFetchedInformation {
+            payment_intent,
+            payment_attempt,
+        });
+
         #[cfg(feature = "v2")]
         //TODO: Will get the global payment id from the resource id, we need to handle this in the further flow
         let resource_id: id_type::PaymentId = todo!();
@@ -5224,6 +5267,7 @@ pub trait PaymentRedirectFlow: Sync {
                 flow_type,
                 connector.clone(),
                 resource_id.clone(),
+                payment_pre_fetched_info,
             )
             .await?;
 
@@ -5274,6 +5318,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_confirm_req = api::PaymentsRequest {
             payment_id: Some(req.resource_id.clone()),
@@ -5319,7 +5364,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             None,
             None,
             HeaderPayload::default(),
-            None,
+            payment_pre_fetched_info,
         ))
         .await?;
         let payments_response = match response {
@@ -5482,6 +5527,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         connector_action: CallConnectorAction,
         _connector: String,
         _payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
         let payment_sync_req = api::PaymentsRetrieveRequest {
             resource_id: req.resource_id,
@@ -5513,7 +5559,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 None,
                 None,
                 HeaderPayload::default(),
-                None,
+                payment_pre_fetched_info,
             ),
         )
         .await?;
@@ -5794,28 +5840,26 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         connector_action: CallConnectorAction,
         connector: String,
         payment_id: id_type::PaymentId,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<Self::PaymentFlowResponse> {
-        let payment_intent = state
-            .store
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &platform.get_processor().get_processor_merchant_id(),
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_storage_scheme(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_attempt = state
-            .store
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &platform.get_processor().get_processor_merchant_id(),
-                &payment_intent.active_attempt.get_id(),
-                platform.get_processor().get_storage_scheme(),
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (payment_intent, payment_attempt) = match payment_pre_fetched_info {
+            Some(info) => (info.payment_intent, info.payment_attempt),
+            None => {
+                operations::payment_status::get_payment_intent_payment_attempt(
+                    state,
+                    &api::PaymentIdType::PaymentIntentId(payment_id.clone()),
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_storage_scheme(),
+                    None,
+                )
+                .await?
+            }
+        };
+        let payment_pre_fetched_info = Some(operations::PaymentPreFetchedInformation {
+            payment_intent: payment_intent.clone(),
+            payment_attempt: payment_attempt.clone(),
+        });
         let authentication_id = payment_attempt
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -5998,7 +6042,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                    None,
+                    payment_pre_fetched_info,
                 ))
                 .await?
             } else {
@@ -6021,7 +6065,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                    None,
+                    payment_pre_fetched_info,
                 ))
                 .await?
             }
@@ -6056,7 +6100,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     None,
                     None,
                     HeaderPayload::default(),
-                    None,
+                    payment_pre_fetched_info,
                 ),
             )
             .await?

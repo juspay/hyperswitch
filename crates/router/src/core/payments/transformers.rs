@@ -6349,6 +6349,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
             payment_data.payment_attempt.merchant_connector_id.clone(),
         )?;
         let amount = payment_data.payment_attempt.get_total_amount();
+        let capture_method = payment_data.payment_attempt.get_effective_capture_method();
 
         Ok(Self {
             minor_amount: Some(amount),
@@ -6359,6 +6360,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            capture_method,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
         })

@@ -68,6 +68,7 @@ use crate::{consts, types::payment_methods as pm_types};
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
     pub payment_intent: Option<storage::PaymentIntent>,
+    pub business_profile: Option<domain::Profile>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -78,6 +79,7 @@ impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
@@ -90,6 +92,7 @@ impl PaymentMethodFetchData {
     ) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
@@ -998,12 +1001,7 @@ impl
             Option<id_type::GlobalPaymentMethodId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1030,17 +1028,17 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
@@ -1109,12 +1107,7 @@ impl
             Option<id_type::CustomerId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1141,17 +1134,17 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),

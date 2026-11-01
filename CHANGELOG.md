@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.30.1
+
+### Features
+
+- **connector:**
+  - [Noon] enable UCS SetupMandate and IncomingWebhook ([#14918](https://github.com/juspay/hyperswitch/pull/14918)) ([`a25db0f`](https://github.com/juspay/hyperswitch/commit/a25db0f94bb748d34dedd445aaaf019a575136e6))
+  - [Elavon PG] enable card mandates, NTID MIT and pre-decrypted wallets for UCS ([#14898](https://github.com/juspay/hyperswitch/pull/14898)) ([`3c69e28`](https://github.com/juspay/hyperswitch/commit/3c69e280fa0568d0d91dcf2682778a6adc87dec3))
+- **payment_link:** Added csp nounce for foreign script injection prevention ([#15071](https://github.com/juspay/hyperswitch/pull/15071)) ([`69c4464`](https://github.com/juspay/hyperswitch/commit/69c4464e228fa5e5ebfc54138ecf2c595a689862))
+- **prism:** Pass payment method details in post-capture void and fix Prism request mappings ([#15070](https://github.com/juspay/hyperswitch/pull/15070)) ([`16bab21`](https://github.com/juspay/hyperswitch/commit/16bab21f7259fd489ec0f34429e3451f8873b99e))
+
+### Bug Fixes
+
+- **api:** Enforce merchant and profile isolation ([#15049](https://github.com/juspay/hyperswitch/pull/15049)) ([`08c2e71`](https://github.com/juspay/hyperswitch/commit/08c2e710f1fbd865af4e0deceea802b8fa4f9c0e))
+- **authentication:** Added webhook ip verification support for netcetera ([#15083](https://github.com/juspay/hyperswitch/pull/15083)) ([`12fbd8e`](https://github.com/juspay/hyperswitch/commit/12fbd8e09fc4a7f141bf0c8b6f7223e740d7c764))
+- **payments:** Enforce authenticated payment scope ([#15080](https://github.com/juspay/hyperswitch/pull/15080)) ([`d07de03`](https://github.com/juspay/hyperswitch/commit/d07de03379c9d4347c9cfb6e3ea5d67bfdf66145))
+- **refunds:** Serialize payment-scoped refund reservation ([#14923](https://github.com/juspay/hyperswitch/pull/14923)) ([`62bd820`](https://github.com/juspay/hyperswitch/commit/62bd8206285f4587065c4d7cfe419f188cb500fa))
+- **router:** Reuse prefetched trackers in redirect flows ([#15053](https://github.com/juspay/hyperswitch/pull/15053)) ([`c60d11f`](https://github.com/juspay/hyperswitch/commit/c60d11f49c9b3ff810d5fbf6302113328745608d))
+- **users:** Remove idle_session_timeout_in_secs from production.toml file ([#15077](https://github.com/juspay/hyperswitch/pull/15077)) ([`6952d2f`](https://github.com/juspay/hyperswitch/commit/6952d2f432730880fbd4df0513aa78d5ef422163))
+
+**Full Changelog:** [`2026.10.30.0...2026.10.30.1`](https://github.com/juspay/hyperswitch/compare/2026.10.30.0...2026.10.30.1)
+
+- - -
+
 ## 2026.10.30.0
 
 ### Features
