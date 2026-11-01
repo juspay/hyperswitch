@@ -480,6 +480,8 @@ pub trait ConnectorSpecifications {
     fn is_pre_authorize_cancel_supported(
         &self,
         _payment_method_type: Option<PaymentMethodType>,
+        _intent_status: IntentStatus,
+        _is_mit_payment: bool,
     ) -> bool {
         false
     }
