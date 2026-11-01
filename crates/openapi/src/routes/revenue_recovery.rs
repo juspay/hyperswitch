@@ -24,14 +24,17 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Create
 ///
-/// Record a transaction made outside of Hyperswitch against a billing connector invoice.
+/// Record a transaction made outside of Hyperswitch against an invoice. The
+/// `revenue_recovery_trigger_model` of the profile decides what is needed: `internal_triggers`
+/// needs the billing and payment merchant connector accounts and schedules the retries, while
+/// `external_triggers` needs only the `connector`, records the transaction and schedules nothing.
 #[utoipa::path(
     post,
     path = "/v2/recovery",
     params(
         (
             "X-Profile-Id" = String, Header,
-            description = "Unique identifier of the business profile under which the invoice is processed. The billing and payment merchant connector accounts in the request must belong to this profile.",
+            description = "Unique identifier of the business profile under which the invoice is processed. Any billing and payment merchant connector accounts in the request must belong to this profile.",
             example = "pro_abcdefghijklmnop"
         ),
     ),
@@ -74,6 +77,41 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                             "network_advice_code": "01",
                             "network_decline_code": "51",
                             "network_error_message": "Retry after some time"
+                        },
+                        "payment_method_data": {
+                            "primary_processor_payment_method_token": "token_1234",
+                            "payment_method_metadata": {
+                                "card_network": "Visa",
+                                "card_type": "credit",
+                                "last4": "4242",
+                                "card_isin": "424242",
+                                "card_extended_bin": "42424242",
+                                "card_exp_month": "01",
+                                "card_exp_year": "2026"
+                            }
+                        },
+                    })
+                )
+            ),
+            (
+                "Record a failed transaction on a profile with external triggers" = (
+                    value = json!({
+                        "amount_details": {
+                            "order_amount": 6540,
+                            "currency": "USD"
+                        },
+                        "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                        "connector": "stripe",
+                        "transaction_status": "failure",
+                        "payment_method_type": "card",
+                        "payment_method_sub_type": "credit",
+                        "connector_customer_id": "cust_12345",
+                        "connector_transaction_id": "993672945374576J",
+                        "transaction_created_at": "2022-09-10T10:11:12Z",
+                        "billing_started_at": "2022-09-10T10:11:12Z",
+                        "error": {
+                            "code": "card_declined",
+                            "message": "The card was declined."
                         },
                         "payment_method_data": {
                             "primary_processor_payment_method_token": "token_1234",

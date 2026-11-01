@@ -90,10 +90,12 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .peek()
                 .to_string(),
             connector_customer_id: data.connector_customer_id.peek().to_string(),
+            // Only the billing connector webhooks look up an account through this reference.
             connector_account_reference_id: data
                 .payment_merchant_connector_id
-                .get_string_repr()
-                .to_string(),
+                .as_ref()
+                .map(|account_id| account_id.get_string_repr().to_string())
+                .unwrap_or_default(),
             transaction_created_at: Some(data.transaction_created_at),
             status: data.transaction_status.into(),
             payment_method_type: data.payment_method_type,

@@ -2810,6 +2810,10 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
@@ -3217,6 +3221,10 @@ pub struct ProfileResponse {
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = RevenueRecoveryTriggerModel, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
+
     /// Indicates the state of revenue recovery algorithm type
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
@@ -3600,6 +3608,10 @@ pub struct ProfileUpdate {
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
 
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]

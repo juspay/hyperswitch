@@ -472,7 +472,7 @@ impl RevenueRecoveryAttempt {
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_intent: revenue_recovery::RecoveryPaymentIntent,
-        payment_merchant_connector_account: domain::MerchantConnectorAccount,
+        payment_merchant_connector_account: Option<domain::MerchantConnectorAccount>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -493,6 +493,12 @@ impl RevenueRecoveryAttempt {
                 errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded
             ));
         }
+        // Without a connector account, the processor that was reported is all that is known.
+        let (payment_connector_id, payment_connector_name) =
+            match payment_merchant_connector_account {
+                Some(account) => (Some(account.id.clone()), Some(account.connector_name)),
+                None => (None, data.connector.and_then(|connector| connector.into())),
+            };
         recovery_attempt
             .record_payment_attempt(
                 state,
@@ -500,8 +506,9 @@ impl RevenueRecoveryAttempt {
                 platform,
                 profile,
                 &payment_intent,
-                &data.billing_merchant_connector_id,
-                Some(payment_merchant_connector_account),
+                data.billing_merchant_connector_id.as_ref(),
+                payment_connector_id,
+                payment_connector_name,
             )
             .await
     }
@@ -707,8 +714,9 @@ impl RevenueRecoveryAttempt {
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
-        billing_connector_account_id: &id_type::MerchantConnectorAccountId,
-        payment_connector_account: Option<domain::MerchantConnectorAccount>,
+        billing_connector_account_id: Option<&id_type::MerchantConnectorAccountId>,
+        payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        payment_connector_name: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -716,10 +724,6 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let payment_connector_id =   payment_connector_account.as_ref().map(|account: &hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount| account.id.clone());
-        let payment_connector_name = payment_connector_account
-            .as_ref()
-            .map(|account| account.connector_name);
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
@@ -816,7 +820,13 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        self.store_payment_processor_tokens_in_redis(state, &response.0, payment_connector_name)
+        // The tokens serve the retries Hyperswitch schedules, and those need connector accounts.
+        if billing_connector_account_id.is_some() {
+            self.store_payment_processor_tokens_in_redis(
+                state,
+                &response.0,
+                payment_connector_name,
+            )
             .await
             .map_err(|e| {
                 router_env::logger::error!(
@@ -825,6 +835,7 @@ impl RevenueRecoveryAttempt {
                 );
                 errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
             })?;
+        }
 
         Ok(response)
     }
@@ -832,7 +843,7 @@ impl RevenueRecoveryAttempt {
     pub async fn create_payment_record_request(
         &self,
         state: &SessionState,
-        billing_merchant_connector_account_id: &id_type::MerchantConnectorAccountId,
+        billing_merchant_connector_account_id: Option<&id_type::MerchantConnectorAccountId>,
         payment_merchant_connector_account_id: Option<id_type::MerchantConnectorAccountId>,
         payment_connector: Option<common_enums::connector_enums::Connector>,
         triggered_by: common_enums::TriggeredBy,
@@ -888,7 +899,7 @@ impl RevenueRecoveryAttempt {
                 .connector_transaction_id
                 .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
-            billing_connector_id: billing_merchant_connector_account_id.clone(),
+            billing_connector_id: billing_merchant_connector_account_id.cloned(),
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
             payment_method_data: Some(payment_method_data),
             metadata: None,
@@ -992,8 +1003,9 @@ impl RevenueRecoveryAttempt {
                                 platform,
                                 business_profile,
                                 payment_intent,
-                                &billing_connector_account.get_id(),
-                                Some(payment_merchant_connector_account),
+                                Some(&billing_connector_account.get_id()),
+                                Some(payment_merchant_connector_account.id.clone()),
+                                Some(payment_merchant_connector_account.connector_name),
                             )
                             .await
                     })
@@ -1529,7 +1541,7 @@ impl RecoveryPaymentTuple {
                 .and_then(|info| info.card_network.as_ref()),
             card_issuer: card_info.and_then(|data| data.card_issuer.clone()),
             retry_count,
-            payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
+            payment_gateway: revenue_recovery_feature_metadata.and_then(|data| data.connector),
         };
         state.event_handler.log_event(&event);
         Ok(())

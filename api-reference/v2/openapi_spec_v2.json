@@ -4872,13 +4872,13 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed: `internal_triggers`\nneeds the billing and payment merchant connector accounts and schedules the retries, while\n`external_triggers` needs only the `connector`, records the transaction and schedules nothing.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
             "name": "X-Profile-Id",
             "in": "header",
-            "description": "Unique identifier of the business profile under which the invoice is processed. The billing and payment merchant connector accounts in the request must belong to this profile.",
+            "description": "Unique identifier of the business profile under which the invoice is processed. Any billing and payment merchant connector accounts in the request must belong to this profile.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4925,6 +4925,39 @@
                     },
                     "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                     "payment_merchant_connector_id": "mca_payment_1234567890",
+                    "payment_method_data": {
+                      "payment_method_metadata": {
+                        "card_exp_month": "01",
+                        "card_exp_year": "2026",
+                        "card_extended_bin": "42424242",
+                        "card_isin": "424242",
+                        "card_network": "Visa",
+                        "card_type": "credit",
+                        "last4": "4242"
+                      },
+                      "primary_processor_payment_method_token": "token_1234"
+                    },
+                    "payment_method_sub_type": "credit",
+                    "payment_method_type": "card",
+                    "transaction_created_at": "2022-09-10T10:11:12Z",
+                    "transaction_status": "failure"
+                  }
+                },
+                "Record a failed transaction on a profile with external triggers": {
+                  "value": {
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    },
+                    "billing_started_at": "2022-09-10T10:11:12Z",
+                    "connector": "stripe",
+                    "connector_customer_id": "cust_12345",
+                    "connector_transaction_id": "993672945374576J",
+                    "error": {
+                      "code": "card_declined",
+                      "message": "The card was declined."
+                    },
+                    "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                     "payment_method_data": {
                       "payment_method_metadata": {
                         "card_exp_month": "01",
@@ -25888,12 +25921,9 @@
         "type": "object",
         "required": [
           "total_retry_count",
-          "billing_connector_id",
-          "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
-          "connector",
           "billing_connector_payment_method_details"
         ],
         "properties": {
@@ -25914,13 +25944,15 @@
           },
           "billing_connector_id": {
             "type": "string",
-            "description": "Billing Connector Id to update the invoices",
-            "example": "mca_1234567890"
+            "description": "Billing Connector Id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "active_attempt_payment_connector_id": {
             "type": "string",
-            "description": "Payment Connector Id to retry the payments",
-            "example": "mca_1234567890"
+            "description": "Payment Connector Id to retry the payments. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "billing_connector_payment_details": {
             "$ref": "#/components/schemas/BillingConnectorPaymentDetails"
@@ -25932,7 +25964,12 @@
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "connector": {
-            "$ref": "#/components/schemas/Connector"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Connector"
+              }
+            ],
+            "nullable": true
           },
           "billing_connector_payment_method_details": {
             "$ref": "#/components/schemas/BillingConnectorPaymentMethodDetails"
@@ -30467,6 +30504,15 @@
             "default": "skip",
             "nullable": true
           },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers",
+            "nullable": true
+          },
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
@@ -30530,7 +30576,8 @@
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "split_txns_enabled"
+          "split_txns_enabled",
+          "revenue_recovery_trigger_model"
         ],
         "properties": {
           "merchant_id": {
@@ -30790,6 +30837,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers"
           },
           "revenue_recovery_retry_algorithm_type": {
             "allOf": [
@@ -31686,13 +31741,21 @@
           }
         }
       },
+      "RecoveryConnector": {
+        "type": "string",
+        "description": "Payment processor on which the reported transaction was made.",
+        "enum": [
+          "adyen",
+          "stripe",
+          "paypal",
+          "other"
+        ]
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
           "amount_details",
           "merchant_reference_id",
-          "billing_merchant_connector_id",
-          "payment_merchant_connector_id",
           "transaction_status",
           "payment_method_type",
           "payment_method_sub_type",
@@ -31723,13 +31786,23 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and must not be sent when it is `external_triggers`.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and must not be sent when it is `external_triggers`.",
+            "example": "mca_1234567890",
+            "nullable": true
+          },
+          "connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryConnector"
+              }
+            ],
+            "nullable": true
           },
           "transaction_status": {
             "$ref": "#/components/schemas/RecoveryTransactionStatus"
@@ -32991,6 +33064,14 @@
             "type": "string"
           }
         }
+      },
+      "RevenueRecoveryTriggerModel": {
+        "type": "string",
+        "description": "Decides who triggers the retries of a failed invoice under revenue recovery, and so which\nmodel the recovery API follows.",
+        "enum": [
+          "internal_triggers",
+          "external_triggers"
+        ]
       },
       "RevokeApiKeyResponse": {
         "type": "object",

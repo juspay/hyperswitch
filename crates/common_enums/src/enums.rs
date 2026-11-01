@@ -387,6 +387,35 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// Decides who triggers the retries of a failed invoice under revenue recovery, and so which
+/// model the recovery API follows.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryTriggerModel {
+    /// Hyperswitch schedules and triggers the retries. Transactions are recorded against
+    /// billing and payment merchant connector accounts.
+    #[default]
+    InternalTriggers,
+    /// The merchant triggers the retries. Transactions are only recorded, without any merchant
+    /// connector account.
+    ExternalTriggers,
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,
@@ -12648,4 +12677,37 @@ pub enum PayshapProxyType {
     Cellphone,
     #[default]
     ShapId,
+}
+
+#[cfg(test)]
+mod revenue_recovery_trigger_model_tests {
+    use super::RevenueRecoveryTriggerModel;
+
+    #[test]
+    fn profile_without_a_value_follows_internal_triggers() {
+        assert_eq!(
+            RevenueRecoveryTriggerModel::default(),
+            RevenueRecoveryTriggerModel::InternalTriggers
+        );
+    }
+
+    #[test]
+    fn stored_and_api_values_are_snake_case() {
+        for (model, value) in [
+            (
+                RevenueRecoveryTriggerModel::InternalTriggers,
+                "internal_triggers",
+            ),
+            (
+                RevenueRecoveryTriggerModel::ExternalTriggers,
+                "external_triggers",
+            ),
+        ] {
+            assert_eq!(model.to_string(), value);
+            assert_eq!(
+                serde_json::to_value(model).ok(),
+                Some(serde_json::Value::String(value.to_owned()))
+            );
+        }
+    }
 }

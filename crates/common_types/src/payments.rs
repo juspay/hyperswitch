@@ -1019,6 +1019,31 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
+/// Payment processor on which the reported transaction was made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnector {
+    /// Adyen.
+    Adyen,
+    /// Stripe.
+    Stripe,
+    /// PayPal.
+    Paypal,
+    /// Any payment processor not listed here.
+    Other,
+}
+
+impl From<RecoveryConnector> for Option<common_enums::connector_enums::Connector> {
+    fn from(connector: RecoveryConnector) -> Self {
+        match connector {
+            RecoveryConnector::Adyen => Some(common_enums::connector_enums::Connector::Adyen),
+            RecoveryConnector::Stripe => Some(common_enums::connector_enums::Connector::Stripe),
+            RecoveryConnector::Paypal => Some(common_enums::connector_enums::Connector::Paypal),
+            RecoveryConnector::Other => None,
+        }
+    }
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
@@ -1789,3 +1814,35 @@ pub struct AppliedOverrides {
 
 #[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AppliedOverrides);
+
+#[cfg(test)]
+mod recovery_connector_tests {
+    use common_enums::connector_enums::Connector;
+
+    use super::RecoveryConnector;
+
+    #[test]
+    fn named_processors_map_to_their_connector() {
+        for (reported, connector) in [
+            (RecoveryConnector::Adyen, Connector::Adyen),
+            (RecoveryConnector::Stripe, Connector::Stripe),
+            (RecoveryConnector::Paypal, Connector::Paypal),
+        ] {
+            assert_eq!(Option::<Connector>::from(reported), Some(connector));
+        }
+    }
+
+    #[test]
+    fn other_processor_has_no_connector() {
+        assert_eq!(Option::<Connector>::from(RecoveryConnector::Other), None);
+    }
+
+    #[test]
+    fn processor_outside_the_list_must_be_sent_as_other() {
+        assert!(serde_json::from_str::<RecoveryConnector>(r#""worldpay""#).is_err());
+        assert_eq!(
+            serde_json::from_str::<RecoveryConnector>(r#""other""#).ok(),
+            Some(RecoveryConnector::Other)
+        );
+    }
+}

@@ -266,13 +266,27 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             common_enums::TriggeredBy::External => None,
         };
         let active_attempts_group_id = payment_data.payment_intent.active_attempts_group_id.clone();
-        let amount_captured = payment_data.payment_intent.amount_captured;
-        let status = if amount_captured > Some(MinorUnit::new(0))
-            && *payment_data.payment_intent.enable_partial_authorization
+        let (status, amount_captured) = if payment_data
+            .revenue_recovery_data
+            .billing_connector_id
+            .is_some()
         {
-            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            let amount_captured = payment_data.payment_intent.amount_captured;
+            let status = if amount_captured > Some(MinorUnit::new(0))
+                && *payment_data.payment_intent.enable_partial_authorization
+            {
+                common_enums::IntentStatus::PartiallyCapturedAndProcessing
+            } else {
+                common_enums::IntentStatus::from(payment_data.payment_attempt.status)
+            };
+            (status, None)
         } else {
-            common_enums::IntentStatus::from(payment_data.payment_attempt.status)
+            // No connector sync runs for a transaction recorded without connector accounts, so
+            // the reported status and amount are final.
+            (
+                common_enums::IntentStatus::from(payment_data.payment_attempt.status),
+                payment_data.get_reported_amount_captured(),
+            )
         };
         let payment_intent_update =
 
@@ -283,6 +297,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             updated_by: storage_scheme.inner().to_string(),
             active_attempt_id,
             active_attempts_group_id,
+            amount_captured,
         }
     ;
         payment_data.payment_intent = state

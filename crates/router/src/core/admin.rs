@@ -3965,6 +3965,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            revenue_recovery_trigger_model: self.revenue_recovery_trigger_model.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self
                 .surcharge_connector_details
@@ -4591,6 +4592,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
+                revenue_recovery_trigger_model: self.revenue_recovery_trigger_model,
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details

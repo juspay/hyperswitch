@@ -292,7 +292,7 @@ impl FeatureMetadata {
     ) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
+            .and_then(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
     // TODO: Check search_tags for relevant payment method type
@@ -498,18 +498,21 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
-    /// Billing Connector Id to update the invoices
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    /// Payment Connector Id to retry the payments
-    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Id to update the invoices. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Payment Connector Id to retry the payments. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
     pub payment_method_subtype: common_enums::enums::PaymentMethodType,
-    /// The name of the payment connector through which the payment attempt was made.
-    pub connector: common_enums::connector_enums::Connector,
+    /// The name of the payment connector through which the payment attempt was made. Absent when
+    /// the transaction is recorded with a processor Hyperswitch does not name.
+    pub connector: Option<common_enums::connector_enums::Connector>,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
     /// Time at which invoice started
@@ -557,4 +560,64 @@ pub struct BillingConnectorAdditionalCardInfo {
     /// Issuer identification number of the card, retained so that any further card details can
     /// be looked up from it later
     pub card_isin: Option<String>,
+}
+
+#[cfg(all(test, feature = "v2"))]
+#[allow(clippy::indexing_slicing)]
+mod revenue_recovery_metadata_tests {
+    use super::PaymentRevenueRecoveryMetadata;
+
+    /// A recovery block exactly as rows with connector accounts are stored today.
+    fn stored_block_with_connector_accounts() -> serde_json::Value {
+        serde_json::json!({
+            "total_retry_count": 3,
+            "payment_connector_transmission": "ConnectorCallUnsuccessful",
+            "billing_connector_id": "mca_billing",
+            "active_attempt_payment_connector_id": "mca_payment",
+            "billing_connector_payment_details": {
+                "payment_processor_token": "token_1",
+                "connector_customer_id": "cust_1"
+            },
+            "payment_method_type": "card",
+            "payment_method_subtype": "credit",
+            "connector": "stripe",
+            "invoice_next_billing_time": null,
+            "invoice_billing_started_at_time": null,
+            "billing_connector_payment_method_details": null,
+            "first_payment_attempt_pg_error_code": null,
+            "first_payment_attempt_network_decline_code": null,
+            "first_payment_attempt_network_advice_code": null,
+            "revenue_recovery_ab_routing": null
+        })
+    }
+
+    #[test]
+    fn block_with_connector_accounts_is_written_back_unchanged() {
+        let stored = stored_block_with_connector_accounts();
+
+        let block: PaymentRevenueRecoveryMetadata =
+            serde_json::from_value(stored.clone()).expect("stored block must stay readable");
+
+        assert_eq!(
+            serde_json::to_value(block).expect("block must serialize"),
+            stored
+        );
+    }
+
+    #[test]
+    fn block_without_connector_accounts_keeps_its_retry_count() {
+        let mut stored = stored_block_with_connector_accounts();
+        for blank_field in [
+            "billing_connector_id",
+            "active_attempt_payment_connector_id",
+            "connector",
+        ] {
+            stored[blank_field] = serde_json::Value::Null;
+        }
+
+        let block: PaymentRevenueRecoveryMetadata =
+            serde_json::from_value(stored).expect("block without accounts must be readable");
+
+        assert_eq!(block.total_retry_count, 3);
+    }
 }
