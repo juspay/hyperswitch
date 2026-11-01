@@ -2477,10 +2477,7 @@ static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 impl ConnectorSpecifications for Santander {
     fn is_webhook_mtls_required(&self) -> bool {
         // Santander does not have an MTLS guard in sandbox, but it is required in production. The router will enforce MTLS for Santander webhooks in production.
-        matches!(
-            router_env::env::which(),
-            router_env::env::Env::Production
-        )
+        matches!(router_env::env::which(), router_env::env::Env::Production)
     }
 
     fn is_payment_recurrence_operation_needed(
