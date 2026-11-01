@@ -2191,6 +2191,26 @@ impl PaymentIntentInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &id_type::ProfileId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+    ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
+        self.diesel_store
+            .find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+                payment_id,
+                processor_merchant_id,
+                profile_id,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,
