@@ -1386,6 +1386,10 @@ impl<F>
             }),
             payment_method_data: None,
             mandate_id: item.request.mandate_id,
+            original_payment_details: transformers::get_original_payment_details_from_response(
+                &response,
+                item.authorized_amount.unwrap_or(item.request.minor_amount),
+            ),
         })
     }
 }

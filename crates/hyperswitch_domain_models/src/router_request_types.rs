@@ -378,6 +378,34 @@ pub struct PaymentsCaptureData {
     pub feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Original payment identifiers required for connector follow-up operations.
+    pub original_payment_details: Option<OriginalPaymentDetails>,
+}
+
+/// Original payment identifiers required by connectors for follow-up operations.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct OriginalPaymentDetails {
+    pub connector_reference_id: Option<String>,
+    pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
+    pub authorized_amount: Option<MinorUnit>,
+}
+
+impl From<&payments::payment_attempt::PaymentAttempt> for OriginalPaymentDetails {
+    fn from(payment_attempt: &payments::payment_attempt::PaymentAttempt) -> Self {
+        Self {
+            connector_reference_id: payment_attempt.connector_response_reference_id.clone(),
+            network_transaction_id: payment_attempt.network_transaction_id.clone(),
+            network_transaction_link_id: payment_attempt.network_transaction_link_id.clone(),
+            // Partial authorizations store the amount approved by the connector here. For
+            // regular authorizations this field is unset, so use the original attempt total.
+            authorized_amount: Some(
+                payment_attempt
+                    .authorized_amount
+                    .unwrap_or_else(|| payment_attempt.get_total_amount()),
+            ),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -398,6 +426,8 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub connector_meta: Option<serde_json::Value>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
+    /// Original payment identifiers required for this follow-up authorization.
+    pub original_payment_details: Option<OriginalPaymentDetails>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -1136,6 +1166,8 @@ pub struct PaymentsCancelData {
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
+    /// Original payment identifiers required for this follow-up operation.
+    pub original_payment_details: Option<OriginalPaymentDetails>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1149,6 +1181,8 @@ pub struct PaymentsCancelPostCaptureData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
+    /// Original payment identifiers required for this follow-up reversal.
+    pub original_payment_details: Option<OriginalPaymentDetails>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

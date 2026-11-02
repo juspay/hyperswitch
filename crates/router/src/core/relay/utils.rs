@@ -269,6 +269,7 @@ pub async fn construct_relay_capture_router_data(
             is_overcapture_enabled: None,
             payment_method_data: None,
             mandate_id: None,
+            original_payment_details: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -400,6 +401,7 @@ pub async fn construct_relay_incremental_authorization_router_data(
                 connector_meta: None,
                 payment_method_data: None,
                 mandate_id: None,
+                original_payment_details: None,
             },
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -539,6 +541,7 @@ pub async fn construct_relay_void_router_data(
             payment_method_type: None,
             payment_method_data: None,
             mandate_id: None,
+            original_payment_details: None,
         },
         response: Err(ErrorResponse::default()),
         access_token: None,

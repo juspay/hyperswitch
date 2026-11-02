@@ -83,6 +83,26 @@ use crate::{
     utils::{OptionExt, ValueExt},
 };
 
+pub(super) fn get_original_payment_details_from_response(
+    response: &types::PaymentsResponseData,
+    authorized_amount: MinorUnit,
+) -> Option<router_request_types::OriginalPaymentDetails> {
+    match response {
+        hyperswitch_domain_models::router_response_types::PaymentsResponseData::TransactionResponse {
+            connector_response_reference_id,
+            network_txn_id,
+            network_txn_link_id,
+            ..
+        } => Some(router_request_types::OriginalPaymentDetails {
+            connector_reference_id: connector_response_reference_id.clone(),
+            network_transaction_id: network_txn_id.clone(),
+            network_transaction_link_id: network_txn_link_id.clone(),
+            authorized_amount: Some(authorized_amount),
+        }),
+        _ => None,
+    }
+}
+
 #[cfg(feature = "v2")]
 fn get_customer_id_from_global_customer_id(
     customer: &Option<domain::Customer>,
@@ -1140,6 +1160,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
             .clone()
             .expose_option(),
         connector_intent_metadata,
+        original_payment_details: Some((&payment_data.payment_attempt).into()),
         // TODO: add multiple capture data
         multiple_capture_data: None,
         // TODO: why do we need browser info during capture?
@@ -1525,6 +1546,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         payment_method_type: None,
         payment_method_data: None,
         mandate_id: None,
+        original_payment_details: Some(attempt.into()),
     };
 
     // Construct RouterDataV2 for cancel operation
@@ -5910,6 +5932,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
             connector_meta: payment_attempt.connector_metadata.clone(),
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some((&payment_data.payment_attempt).into()),
         })
     }
 }
@@ -5950,6 +5973,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .map(|secret| secret.expose()),
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some((&payment_data.payment_attempt).into()),
         })
     }
 }
@@ -6023,6 +6047,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             is_overcapture_enabled: None,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some((&payment_data.payment_attempt).into()),
         })
     }
 }
@@ -6084,6 +6109,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .get_connector_metadata_from_intent()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse connector metadata")?;
+        let original_payment_details = (&payment_data.payment_attempt).into();
         Ok(Self {
             feature_metadata: payment_data.capture_feature_metadata.clone(),
             payment_feature_metadata: payment_data
@@ -6123,6 +6149,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some(original_payment_details),
         })
     }
 }
@@ -6190,6 +6217,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             payment_method_type: None,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some((&payment_data.payment_attempt).into()),
         })
     }
 }
@@ -6240,6 +6268,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             merchant_connector_account_id,
         ));
         let capture_method = payment_data.payment_attempt.get_effective_capture_method();
+        let original_payment_details = (&payment_data.payment_attempt).into();
         Ok(Self {
             amount: Some(amount.get_amount_as_i64()), // This should be removed once we start moving to connector module
             minor_amount: Some(amount),
@@ -6260,6 +6289,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             feature_metadata,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some(original_payment_details),
         })
     }
 }
@@ -6310,6 +6340,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
         )?;
         let amount = payment_data.payment_attempt.get_total_amount();
         let capture_method = payment_data.payment_attempt.get_effective_capture_method();
+        let original_payment_details = (&payment_data.payment_attempt).into();
 
         Ok(Self {
             minor_amount: Some(amount),
@@ -6323,6 +6354,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelPo
             capture_method,
             payment_method_data: payment_data.payment_method_data.clone(),
             mandate_id: payment_data.mandate_id.clone(),
+            original_payment_details: Some(original_payment_details),
         })
     }
 }

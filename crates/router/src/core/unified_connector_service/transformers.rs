@@ -35,10 +35,10 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         self, fraud_check::FraudCheckCheckoutData, AuthenticationData,
-        ExternalVaultProxyPaymentsData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData, SyncRequestType,
+        ExternalVaultProxyPaymentsData, OriginalPaymentDetails, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPreAuthorizeCancelData, PaymentsSessionData,
+        PaymentsSyncData, RefundsData, SetupMandateRequestData, SyncRequestType,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, NotifyConnectorResponseData, PaymentsResponseData,
@@ -1097,6 +1097,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            is_stored_credential: router_data.request.is_stored_credential,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -1373,6 +1374,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            is_stored_credential: router_data.request.is_stored_credential,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2546,6 +2548,9 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .request
                 .is_overcapture_enabled
                 .map(|enabled| *enabled),
+            original_payment_details: router_data.request.original_payment_details.as_ref().map(
+                |details| payments_grpc::OriginalPaymentDetails::foreign_from((details, currency)),
+            ),
         })
     }
 }
@@ -2730,6 +2735,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            is_stored_credential: router_data.request.is_stored_credential,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2955,6 +2961,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            is_stored_credential: router_data.request.is_stored_credential,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3145,6 +3152,7 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            is_stored_credential: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3423,6 +3431,26 @@ fn build_original_payment_authorized_amount(
             })
         })
         .transpose()
+}
+
+impl ForeignFrom<(&OriginalPaymentDetails, payments_grpc::Currency)>
+    for payments_grpc::OriginalPaymentDetails
+{
+    fn foreign_from(
+        (details, currency): (&OriginalPaymentDetails, payments_grpc::Currency),
+    ) -> Self {
+        Self {
+            connector_reference_id: details.connector_reference_id.clone(),
+            network_transaction_id: details.network_transaction_id.clone(),
+            network_transaction_link_id: details.network_transaction_link_id.clone(),
+            authorized_amount: details
+                .authorized_amount
+                .map(|amount| payments_grpc::Money {
+                    minor_amount: amount.get_amount_as_i64(),
+                    currency: currency.into(),
+                }),
+        }
+    }
 }
 
 /// An MIT against a card held in an external vault. `PaymentServiceAuthorizeRequest` carries no
@@ -4096,7 +4124,11 @@ impl
                 minor_amount: router_data.request.additional_amount,
                 currency: currency.into(),
             }),
-            network_transaction_id: None,
+            network_transaction_id: router_data
+                .request
+                .original_payment_details
+                .as_ref()
+                .and_then(|details| details.network_transaction_id.clone()),
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
                 .request
@@ -4108,6 +4140,9 @@ impl
                 .map(|s| s.into()),
             state,
             payment_method,
+            original_payment_details: router_data.request.original_payment_details.as_ref().map(
+                |details| payments_grpc::OriginalPaymentDetails::foreign_from((details, currency)),
+            ),
         })
     }
 }
@@ -9193,6 +9228,9 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             payment_method,
+            original_payment_details: router_data.request.original_payment_details.as_ref().map(
+                |details| payments_grpc::OriginalPaymentDetails::foreign_from((details, currency)),
+            ),
         })
     }
 }
@@ -9238,6 +9276,7 @@ impl
             state,
             test_mode: router_data.test_mode,
             payment_method: None,
+            original_payment_details: None,
         })
     }
 }
@@ -9269,6 +9308,9 @@ impl
                 })
             })
             .transpose()?;
+        let original_currency = payments_grpc::Currency::foreign_try_from(
+            router_data.request.currency.unwrap_or_default(),
+        )?;
 
         let payment_method = router_data
             .request
@@ -9310,6 +9352,14 @@ impl
             amount,
             payment_method,
             capture_method: capture_method.map(Into::into),
+            original_payment_details: router_data.request.original_payment_details.as_ref().map(
+                |details| {
+                    payments_grpc::OriginalPaymentDetails::foreign_from((
+                        details,
+                        original_currency,
+                    ))
+                },
+            ),
         })
     }
 }
