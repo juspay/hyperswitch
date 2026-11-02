@@ -1,7 +1,9 @@
-//! S3 object storage, for AWS S3 and S3-compatible stores such as OCI Object Storage.
+//! S3 object storage, for AWS S3 and S3-compatible stores such as OCI Object Storage and Google
+//! Cloud Storage.
 
 use aws_config::{meta::region::RegionProviderChain, Region};
 use aws_sdk_s3::{
+    config::{Credentials, RequestChecksumCalculation, ResponseChecksumValidation},
     operation::{
         abort_multipart_upload::AbortMultipartUploadError,
         complete_multipart_upload::CompleteMultipartUploadError,
@@ -51,10 +53,15 @@ pub(crate) struct S3Endpoint {
     pub(crate) force_path_style: bool,
 }
 
-/// Builds the S3 client, applying the endpoint overrides on top of the SDK config. With the
-/// default [`S3Endpoint`] this is the same client as `Client::new(sdk_config)`.
+/// Builds the S3 client, applying the endpoint overrides on top of the SDK config.
+///
+/// Checksums are only computed and validated when an operation requires them, as the SDK did
+/// before 1.69. S3-compatible stores such as Google Cloud Storage reject the flexible checksums
+/// (`x-amz-checksum-*` headers, `aws-chunked` bodies) the SDK otherwise sends with every upload.
 fn build_client(endpoint: &S3Endpoint, sdk_config: &aws_config::SdkConfig) -> Client {
-    let mut s3_config = aws_sdk_s3::config::Builder::from(sdk_config);
+    let mut s3_config = aws_sdk_s3::config::Builder::from(sdk_config)
+        .request_checksum_calculation(RequestChecksumCalculation::WhenRequired)
+        .response_checksum_validation(ResponseChecksumValidation::WhenRequired);
     if let Some(url) = &endpoint.url {
         s3_config = s3_config.endpoint_url(url);
     }
@@ -76,17 +83,30 @@ pub struct S3Storage {
 impl S3Storage {
     /// Creates a new AWS S3 file storage client.
     pub async fn new(config: &S3StorageConfig) -> Self {
-        Self::with_endpoint(&config.region, &config.bucket_name, &S3Endpoint::default()).await
+        Self::with_endpoint(
+            &config.region,
+            &config.bucket_name,
+            &S3Endpoint::default(),
+            None,
+        )
+        .await
     }
 
-    /// Creates a client for an S3-compatible store reached through `endpoint`.
+    /// Creates a client for an S3-compatible store reached through `endpoint`. Requests are
+    /// signed with `credentials` when given, otherwise with the SDK's default credential chain
+    /// (environment, profile, web identity, instance metadata).
     pub(crate) async fn with_endpoint(
         region: &str,
         bucket_name: &str,
         endpoint: &S3Endpoint,
+        credentials: Option<Credentials>,
     ) -> Self {
         let region_provider = RegionProviderChain::first_try(Region::new(region.to_owned()));
-        let sdk_config = aws_config::from_env().region(region_provider).load().await;
+        let mut loader = aws_config::from_env().region(region_provider);
+        if let Some(credentials) = credentials {
+            loader = loader.credentials_provider(credentials);
+        }
+        let sdk_config = loader.load().await;
         Self {
             inner_client: build_client(endpoint, &sdk_config),
             bucket_name: bucket_name.to_owned(),
@@ -315,7 +335,7 @@ pub enum S3StorageError {
 pub(crate) mod tests {
     use std::time::Duration;
 
-    use aws_sdk_s3::config::{BehaviorVersion, Credentials, SharedCredentialsProvider};
+    use aws_sdk_s3::config::{BehaviorVersion, SharedCredentialsProvider};
 
     use super::*;
 
@@ -374,6 +394,20 @@ pub(crate) mod tests {
         assert_eq!(
             config("us-east-1", "").validate(),
             Err(InvalidStorageConfig("aws s3 bucket name must not be empty"))
+        );
+    }
+
+    #[test]
+    fn checksums_are_only_sent_and_validated_when_required() {
+        let client = build_client(&S3Endpoint::default(), &sdk_config(None));
+
+        assert_eq!(
+            client.config().request_checksum_calculation(),
+            Some(&RequestChecksumCalculation::WhenRequired)
+        );
+        assert_eq!(
+            client.config().response_checksum_validation(),
+            Some(&ResponseChecksumValidation::WhenRequired)
         );
     }
 

@@ -56,6 +56,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignInto},
     },
+    utils,
     workflows::revenue_recovery as revenue_recovery_workflow,
 };
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
@@ -288,7 +289,7 @@ pub async fn upsert_calculate_pcr_task(
                     let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
                         merchant_account: platform.get_processor().get_account().clone(),
                         profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().clone(),
+                        key_store: platform.get_processor().get_key_store().inner().clone(),
                         billing_mca: billing_connector_account.clone(),
                         retry_algorithm: revenue_recovery_retry,
                         psync_data: None,
@@ -1492,6 +1493,8 @@ async fn insert_execute_pcr_task_to_pt(
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
+    platform: domain::Platform,
+    profile: domain::Profile,
     id: GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
@@ -1515,6 +1518,18 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
+
+    // The process tracker is looked up by payment id alone, so make sure it belongs to the caller
+    if !utils::is_owned_by_merchant_and_profile(
+        &platform,
+        &profile,
+        &tracking_data.merchant_id,
+        &tracking_data.profile_id,
+    ) {
+        return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Entry For the following id doesn't exists".to_owned(),
+        }));
+    }
 
     let psync_task = PSYNC_WORKFLOW;
 
@@ -1586,7 +1601,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         revenue_recovery_payment_data.key_store.clone(),
         None,
     );
-    let create_intent_response = payments::payments_intent_core::<
+    let create_intent_response = Box::pin(payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,
         _,
@@ -1601,7 +1616,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         request,
         tracking_data.global_payment_id.clone(),
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-    )
+    ))
     .await?;
 
     let response = create_intent_response
@@ -1654,13 +1669,17 @@ pub async fn resume_revenue_recovery_process_tracker(
         IntentStatus::Succeeded => {
             // Sync the intent's *active* (charged) attempt, NOT tracking_data's attempt — the latter
             // is the original failed attempt; the successful retry lives on `active_attempt_id`.
+            let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+                revenue_recovery_payment_data.merchant_account.clone(),
+            );
+            let processor_key_store = domain::ProcessorKeyStore::from_untagged(
+                revenue_recovery_payment_data.key_store.clone(),
+            );
             let payment_intent = db
                 .find_payment_intent_by_id(
                     &id,
-                    &revenue_recovery_payment_data.key_store,
-                    revenue_recovery_payment_data
-                        .merchant_account
-                        .storage_scheme,
+                    &processor_key_store,
+                    processor_account.get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -1958,8 +1977,8 @@ pub fn decide_invoice_cancellation(
 /// the decision returned and returns it. Otherwise returns the refusal without changing anything.
 pub async fn cancel_invoice_workflows(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
     payment_intent: PaymentIntent,
 ) -> CustomResult<Result<PaymentIntent, CancelInvoiceRefusal>, errors::RevenueRecoveryError> {
     let db = &*state.store;
@@ -1998,7 +2017,7 @@ pub async fn cancel_invoice_workflows(
 
     let intent_update = PaymentIntentUpdate::VoidUpdate {
         status: cancelled_status,
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     let cancelled_intent = db
         .update_payment_intent(payment_intent, intent_update, key_store, storage_scheme)

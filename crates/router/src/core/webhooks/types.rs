@@ -261,10 +261,11 @@ impl WebhookPayload {
         Ok(payment_attempt
             .external_surcharge_details
             .as_ref()
-            .map(|external_surcharge_details| {
+            .filter(|details| details.usable_connector_id().is_some())
+            .map(|details| {
                 let feature_specific_data = SurchargeDetails {
-                    surcharge_amount: external_surcharge_details.external_surcharge_amount,
-                    external_surcharge_id: external_surcharge_details.external_surcharge_id.clone(),
+                    surcharge_amount: details.external_surcharge_amount,
+                    external_surcharge_id: details.external_surcharge_id.clone(),
                     payment_id: payment_attempt.payment_id.clone(),
                     attempt_id: payment_attempt.attempt_id.clone(),
                 };

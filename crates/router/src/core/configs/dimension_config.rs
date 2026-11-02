@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums;
+use common_enums::{self, connector_enums};
 use external_services::superposition;
+use hyperswitch_domain_models::webhooks::IncomingWebhookIpRange;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
@@ -182,6 +183,22 @@ impl DatabaseBackedConfig for RequiresCvv {
 }
 
 config! {
+    superposition_key = ALLOW_PAYMENT_METHOD_DATA_COLLECTION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AllowPaymentMethodDataCollection {
+    const KEY: &'static str = "system.allow_payment_method_data_collection";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
@@ -208,6 +225,24 @@ config! {
 
 impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
     const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = USE_MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for UseMerchantReferenceIdAsCustomerId {
+    const KEY: &'static str = "use_merchant_reference_id_as_customer_id";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
@@ -989,6 +1024,41 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
                 .ok()
             })
             .map(|event| disabled_events.contains(&event))
+    }
+}
+
+/// Incoming webhook allowed IP ranges, keyed by connector.
+pub type IncomingWebhookIpRangesConfig =
+    HashMap<connector_enums::Connector, Vec<IncomingWebhookIpRange>>;
+
+// An absent config defaults to an empty object; enabled, required checks reject missing ranges.
+config! {
+    superposition_key = INCOMING_WEBHOOK_ALLOWED_IP_RANGES,
+    output = IncomingWebhookIpRangesConfig,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookAllowedIpRanges {
+    const KEY: &'static str = "incoming_webhooks_allowed_ip_ranges";
+}
+
+config! {
+    superposition_key = INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for IncomingWebhookIpVerificationEnabled {
+    const KEY: &'static str = "incoming_webhook_ip_verification_enabled";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep the global kill switch in Superposition without a database fallback.
+        None
     }
 }
 
