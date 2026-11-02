@@ -134,6 +134,7 @@ impl<F: Send + Clone + Sync>
             })?;
 
         let payment_data = payments::PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,

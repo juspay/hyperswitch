@@ -1586,7 +1586,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         revenue_recovery_payment_data.key_store.clone(),
         None,
     );
-    let create_intent_response = payments::payments_intent_core::<
+    let create_intent_response = Box::pin(payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,
         _,
@@ -1601,7 +1601,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         request,
         tracking_data.global_payment_id.clone(),
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-    )
+    ))
     .await?;
 
     let response = create_intent_response

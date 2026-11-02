@@ -451,6 +451,11 @@ pub enum ConnectorCustomerAction {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Whether this connector consumes merchant-supplied multi-currency settlement details.
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        false
+    }
+
     /// Check if pre-authentication flow is required
     fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
