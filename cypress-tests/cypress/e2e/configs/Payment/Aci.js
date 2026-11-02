@@ -17,6 +17,16 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+// Mastercard no-3DS card from the permitted test cards, used without
+// `payment_method_type` so the attempt can only be typed by the BIN lookup.
+const untypedNo3DSCardDetails = {
+  card_number: "5454545454545454",
+  card_exp_month: "01",
+  card_exp_year: "2045",
+  card_holder_name: "morino",
+  card_cvc: "737",
+};
+
 // This card details will fail because of card expiryYear
 const failedNo3DSCardDetails = {
   card_number: "4012001037461114",
@@ -31,7 +41,7 @@ const singleUseMandateData = {
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "ZAR",
     },
   },
 };
@@ -41,7 +51,7 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "ZAR",
     },
   },
 };
@@ -76,7 +86,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -92,7 +102,7 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
         authentication_type: "no_three_ds",
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "off_session",
       },
@@ -109,7 +119,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -120,6 +130,14 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
         },
+        // Verify ACI mapping populates the hyperswitch response fields:
+        // - auth_code: from resultDetails.AuthCode
+        // - payment_checks: from parsed ConnectorTxID (STAN, originalTransactionId, acquirerResponse)
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+          "payment_method_data.card.payment_checks",
+        ],
       },
     },
     No3DSManualCapture: {
@@ -128,7 +146,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -139,6 +157,32 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
         },
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+          "payment_method_data.card.payment_checks",
+        ],
+      },
+    },
+    // The same payment without `payment_method_type`, as the web SDK sends it.
+    // With no `cards_info` row for the card's BIN the attempt stays untyped
+    // (asserted below), and its refund used to fail with IR_04 (PT-4386).
+    No3DSManualCaptureNoPmType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: untypedNo3DSCardDetails,
+        },
+        currency: "ZAR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method_type: null,
+        },
       },
     },
     "3DSAutoCapture": {
@@ -147,7 +191,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -158,13 +202,33 @@ export const connectorDetails = {
         },
       },
     },
+    // Retrieved after the 3DS challenge completes, so the authentication has actually
+    // happened by the time these are asserted. Two regressions are pinned here:
+    // - ACI parses `threeDSecure` but used to drop it on the floor, leaving
+    //   `payment_method_data.card.authentication_data` null for a demonstrably
+    //   authenticated payment (PT-3899);
+    // - the force_sync this retrieve triggers is a second connector response, and ACI need
+    //   not repeat the 3DS block in it. A sync that overwrites rather than preserves wipes
+    //   the evidence the authorize established, so asserting after the sync is the point.
+    "3DSAutoCaptureRetrieve": {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.authentication_data",
+        ],
+      },
+    },
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -177,7 +241,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
         shipping_cost: 50,
         amount: 6000,
       },
@@ -194,7 +258,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -208,6 +272,54 @@ export const connectorDetails = {
         },
       },
     },
+    // ACI forwards the statement descriptor and its suffix, space-joined, as OPPWA's
+    // `descriptor` (AN127) — the only descriptor field in the Basic Payment parameter
+    // set. The remaining billing_descriptor keys have no Basic Payment target and are
+    // not forwarded; they are still echoed by the Hyperswitch response asserted below.
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "ZAR",
+        billing_descriptor: {
+          name: "Peach Payments",
+          city: "Cape Town",
+          phone: "0211234567",
+          statement_descriptor: "PEACH STORE",
+          statement_descriptor_suffix: "ORDER99",
+          reference: "ref-qa-001",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "ZAR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: {
+            name: "Peach Payments",
+            city: "Cape Town",
+            phone: "0211234567",
+            statement_descriptor: "PEACH STORE",
+            statement_descriptor_suffix: "ORDER99",
+            reference: "ref-qa-001",
+          },
+        },
+      },
+    },
     Refund: {
       Request: {
         amount: 6000,
@@ -217,6 +329,10 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // ACI refund response populates connector_refund_id from the new
+        // AciRefundResponse.id — verifies response mapping survived the
+        // references[] enrichment.
+        assertNotNull: ["connector_refund_id"],
       },
     },
     PartialRefund: {
@@ -228,6 +344,7 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        assertNotNull: ["connector_refund_id"],
       },
     },
     SyncRefund: {
@@ -282,55 +399,53 @@ export const connectorDetails = {
         },
       },
     },
+    // The 3DS mandate_data CITs carried TRIGGER_SKIP from the upstream ACI
+    // configs, written when the "3DS" card was 4111... and the plain 3DS CIT
+    // was skipped too. 5386... is challenged (see "3DSAutoCapture"), so these
+    // assert the redirect like every other 3DS CIT here; the outcome is
+    // checked on the retrieve after the challenge.
     MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
+        authentication_type: "three_ds",
         mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
     MandateSingleUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
+        authentication_type: "three_ds",
         mandate_data: singleUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -341,16 +456,13 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -361,16 +473,13 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -378,19 +487,25 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // Mandate CIT must return mandate_id + connector_mandate_id (ACI
+        // registrationId). The CITI (`network_transaction_id`) is asserted on
+        // the CIT by 25-ConnectorAgnosticNTID, and its replay on the MITs by
+        // 20-MandatesUsingPMID.
+        assertNotNull: [
+          "mandate_id",
+          "connector_mandate_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         amount: 6000,
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -401,40 +516,36 @@ export const connectorDetails = {
       },
     },
     MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
+        authentication_type: "three_ds",
         mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
     MandateMultiUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
+        authentication_type: "three_ds",
         mandate_data: multiUseMandateData,
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "requires_customer_action",
         },
       },
     },
@@ -445,7 +556,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -459,7 +570,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -495,7 +606,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -512,7 +623,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -524,9 +635,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -541,12 +649,18 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // Off-session CIT proves `auth_code` surfacing in the save-card path.
+        // `connector_mandate_id` is verified by the MandateMultiUse specs
+        // (asserting it here would fail because this config is also reused
+        // on retrieves after the subsequent token-based MIT, where the
+        // response doesn't echo a new mandate id).
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -562,16 +676,17 @@ export const connectorDetails = {
         },
       },
     },
+    // Un-skipped with the 3DS mandate_data CITs above, for the same reason.
     SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        // The sandbox entity is ZAR-only; the USD default is rejected with
+        // "not configured for this currency".
+        currency: "ZAR",
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
@@ -579,6 +694,28 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    // The same CIT without `payment_method_type`, as the web SDK and the
+    // playground send it. The type then comes only from the BIN lookup, and
+    // `cards_info` has no row for the test card, so core used to drop
+    // `setup_future_usage` to on_session and ACI got no `createRegistration`.
+    SaveCardUse3DSAutoCaptureOffSessionNoPmType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "ZAR",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "off_session",
         },
       },
     },
@@ -600,7 +737,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -609,6 +746,15 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // A MIT on this payment_method_id succeeding proves no linkage: ACI's
+        // test environment approves a REPEATED charge with or without
+        // standingInstruction.initialTransactionId/agreementId. The replay is
+        // asserted on the MIT's wire body in 20-MandatesUsingPMID (mitm record
+        // mode, cy.assertAciMitStandingInstruction).
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
@@ -618,7 +764,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -636,10 +782,31 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    // Declares the series RECURRING on the CIT; ACI records the type it sent
+    // and every MIT of the series must repeat it.
+    PaymentMethodIdMandate3DSAutoCaptureRecurring: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "ZAR",
+        mandate_data: null,
+        authentication_type: "three_ds",
+        customer_acceptance: customerAcceptance,
+        mit_category: "recurring",
       },
       Response: {
         status: 200,
@@ -655,7 +822,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -670,7 +837,22 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {
         amount: 6000,
-        currency: "EUR",
+        currency: "ZAR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    // setup_future_usage=off_session on a MIT is what lets core copy a sync's
+    // network_transaction_id onto the payment method; the PSync of this MIT
+    // while it is still requires_capture must not re-anchor the series.
+    MITManualCaptureOffSession: {
+      Request: {
+        currency: "ZAR",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -682,7 +864,7 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {
         amount: 6000,
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -694,7 +876,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -731,6 +913,116 @@ export const connectorDetails = {
           error_message: "Technical Error in 3D system",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
+        },
+      },
+    },
+    // External 3DS passthrough — merchant has already completed 3DS and is
+    // forwarding the results (eci/cavv/dsTransactionId) for ACI to pass to
+    // the acquirer. Skipped in CI because the CAVV must come from a real
+    // authentication run; included here to document the expected payload
+    // shape and ACI response behaviour.
+    ExternalThreeDsPassthroughAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "ZAR",
+        authentication_type: "no_three_ds",
+        three_ds_data: {
+          eci: "05",
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "AAABCSIIAAAAAAAAAAAAAAAAAAo=",
+            },
+          },
+          ds_trans_id: "a8e95050-e7a1-4e67-a25a-example00001",
+          version: "2.1.0",
+          transaction_status: "Y",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    // Verify ACI returns apple_pay and google_pay session tokens
+    SessionToken: {
+      Request: {
+        currency: "ZAR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            { wallet_name: "apple_pay", connector: "aci" },
+            { wallet_name: "google_pay", connector: "aci" },
+          ],
+        },
+      },
+    },
+    // Wallet payment flows require real device tokens — skipped in CI
+    ApplePayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "apple_pay",
+        payment_method_data: {
+          wallet: { apple_pay_redirect: {} },
+        },
+        currency: "ZAR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    GooglePayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: { google_pay_redirect: {} },
+        },
+        currency: "ZAR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SamsungPayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "samsung_pay",
+        payment_method_data: {
+          wallet: { samsung_pay: { token: "test_token" } },
+        },
+        currency: "ZAR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
