@@ -1870,8 +1870,10 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
+                // What the merchant was last told only stands while they report the transactions.
                 external_trigger_state: revenue_recovery
                     .as_ref()
+                    .filter(|_| !connector_details.has_connector_accounts())
                     .and_then(|data| data.external_trigger_state.clone()),
             });
         Ok(Some(FeatureMetadata {

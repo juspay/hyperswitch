@@ -80,23 +80,18 @@ impl<'a> RecoveryTrigger<'a> {
     }
 }
 
-/// An invoice stays with the trigger model it was first recorded under, whatever the profile is
-/// set to now. So a profile that changes models cannot have Hyperswitch and the merchant both
-/// retrying the same invoice.
-pub(super) fn validate_invoice_trigger_model(
-    invoice_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
-    profile_trigger_model: common_enums::RevenueRecoveryTriggerModel,
-) -> RouterResult<()> {
-    match invoice_trigger_model {
-        Some(invoice_trigger_model) if invoice_trigger_model != profile_trigger_model => {
-            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "The invoice was first recorded under `{invoice_trigger_model}`, and the `revenue_recovery_trigger_model` of the profile is `{profile_trigger_model}`"
-                ),
-            }))
-        }
-        _ => Ok(()),
-    }
+/// Whether a recovery job stops instead of running. The profile alone decides who retries, and
+/// under external triggers that is the merchant, so a job left waiting from before the profile
+/// changed must not charge. A status check still runs, as its charge was already made.
+pub(crate) fn should_stop_retry_job(
+    trigger_model: common_enums::RevenueRecoveryTriggerModel,
+    job_name: Option<&str>,
+) -> bool {
+    trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+        && matches!(
+            job_name,
+            Some(super::CALCULATE_WORKFLOW | super::EXECUTE_WORKFLOW)
+        )
 }
 
 #[cfg(test)]
@@ -105,8 +100,11 @@ mod tests {
     use common_types::payments::RecoveryConnector;
     use diesel_models::business_profile::RevenueRecoveryConfig;
 
-    use super::{validate_invoice_trigger_model, RecoveryTrigger};
-    use crate::core::errors::ApiErrorResponse;
+    use super::{should_stop_retry_job, RecoveryTrigger};
+    use crate::core::{
+        errors::ApiErrorResponse,
+        revenue_recovery::{CALCULATE_WORKFLOW, EXECUTE_WORKFLOW, PSYNC_WORKFLOW},
+    };
 
     fn recovery_request(
         connector_fields: serde_json::Value,
@@ -266,33 +264,24 @@ mod tests {
     }
 
     #[test]
-    fn a_new_invoice_follows_the_profile() {
-        for profile_trigger_model in [InternalTriggers, ExternalTriggers] {
-            assert!(validate_invoice_trigger_model(None, profile_trigger_model).is_ok());
+    fn a_waiting_retry_stops_under_external_triggers() {
+        for job_name in [CALCULATE_WORKFLOW, EXECUTE_WORKFLOW] {
+            assert!(should_stop_retry_job(ExternalTriggers, Some(job_name)));
         }
     }
 
     #[test]
-    fn an_invoice_stays_recordable_under_its_own_trigger_model() {
-        for trigger_model in [InternalTriggers, ExternalTriggers] {
-            assert!(validate_invoice_trigger_model(Some(trigger_model), trigger_model).is_ok());
-        }
+    fn a_status_check_runs_under_external_triggers() {
+        assert!(!should_stop_retry_job(
+            ExternalTriggers,
+            Some(PSYNC_WORKFLOW)
+        ));
     }
 
     #[test]
-    fn an_invoice_is_refused_after_its_profile_changes_trigger_model() {
-        for (invoice_trigger_model, profile_trigger_model) in [
-            (InternalTriggers, ExternalTriggers),
-            (ExternalTriggers, InternalTriggers),
-        ] {
-            let error =
-                validate_invoice_trigger_model(Some(invoice_trigger_model), profile_trigger_model)
-                    .expect_err("the invoice keeps the model it was first recorded under");
-
-            assert!(matches!(
-                error.current_context(),
-                ApiErrorResponse::PreconditionFailed { .. }
-            ));
+    fn every_job_runs_under_internal_triggers() {
+        for job_name in [CALCULATE_WORKFLOW, EXECUTE_WORKFLOW, PSYNC_WORKFLOW] {
+            assert!(!should_stop_retry_job(InternalTriggers, Some(job_name)));
         }
     }
 
@@ -341,7 +330,6 @@ mod tests {
             ("adyen", RecoveryConnector::Adyen),
             ("stripe", RecoveryConnector::Stripe),
             ("paypal", RecoveryConnector::Paypal),
-            ("other", RecoveryConnector::Other),
         ] {
             let request = recovery_request(serde_json::json!({ "connector": sent }));
             let config = retry_config();

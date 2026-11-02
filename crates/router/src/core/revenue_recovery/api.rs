@@ -5,10 +5,7 @@ use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
 
-use super::{
-    external_triggers,
-    trigger_model::{self, RecoveryTrigger},
-};
+use super::{external_triggers, trigger_model::RecoveryTrigger};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -88,8 +85,8 @@ pub async fn call_psync_api(
     Ok(payment_data)
 }
 
-/// The connector accounts that the retries of an invoice run through. Hyperswitch only retries
-/// invoices recorded against connector accounts, so they are always present here.
+/// The connector accounts that the retries of an invoice run through. An invoice whose last
+/// transaction was reported by the merchant has none, and its retry fails here without charging.
 fn get_connector_accounts_for_retry(
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<RecoveryConnectorAccounts> {
@@ -476,8 +473,7 @@ fn get_recovery_payments_response(
     }
 }
 
-/// Finds or creates the invoice of the transaction, and checks that it follows the trigger model
-/// of the profile.
+/// Finds or creates the invoice of the transaction.
 pub(super) async fn get_or_create_invoice(
     state: &SessionState,
     req_state: &ReqState,
@@ -485,29 +481,21 @@ pub(super) async fn get_or_create_invoice(
     profile: &domain::Profile,
     request: &api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
-    let recovery_intent =
-        recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
-            request.clone(),
-            state,
-            req_state,
-            platform,
-            profile,
+    recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
+        request.clone(),
+        state,
+        req_state,
+        platform,
+        profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: format!(
+            "Failed to load recovery intent for merchant reference id : {:?}",
+            request.merchant_reference_id.to_owned()
         )
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "Failed to load recovery intent for merchant reference id : {:?}",
-                request.merchant_reference_id.to_owned()
-            )
-            .to_string(),
-        })?;
-
-    trigger_model::validate_invoice_trigger_model(
-        recovery_intent.get_recorded_trigger_model(),
-        profile.revenue_recovery_trigger_model,
-    )?;
-
-    Ok(recovery_intent)
+        .to_string(),
+    })
 }
 
 /// Records the transaction against the invoice.

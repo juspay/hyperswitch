@@ -14782,9 +14782,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// PaymentMethod Subtype
     #[schema(example = "klarna", value_type = PaymentMethodType)]
     pub payment_method_subtype: common_enums::PaymentMethodType,
-    /// The name of the payment connector through which the payment attempt was made. Absent when the transaction is recorded with a processor Hyperswitch does not name.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
-    pub connector: Option<common_enums::connector_enums::Connector>,
+    /// The name of the payment connector through which the payment attempt was made.
+    #[schema(value_type = Connector, example = "stripe")]
+    pub connector: common_enums::connector_enums::Connector,
     #[schema(value_type = BillingConnectorPaymentMethodDetails)]
     /// Extra Payment Method Details that are needed to be stored
     pub billing_connector_payment_method_details: Option<BillingConnectorPaymentMethodDetails>,
@@ -14859,24 +14859,16 @@ impl PaymentRevenueRecoveryMetadata {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
 
-    /// The connector accounts the invoice is recorded against. Absent when the merchant triggers
-    /// its retries.
+    /// The connector accounts the invoice is recorded against. Absent when its last transaction
+    /// was recorded without them.
     pub fn get_connector_accounts(
         &self,
     ) -> Option<common_payments_types::RecoveryConnectorAccounts> {
         Some(common_payments_types::RecoveryConnectorAccounts {
             billing_connector_id: self.billing_connector_id.clone()?,
             payment_connector_id: self.active_attempt_payment_connector_id.clone()?,
-            connector: self.connector?,
+            connector: self.connector,
         })
-    }
-
-    /// The trigger model the invoice follows, which is the one it was first recorded under.
-    pub fn get_trigger_model(&self) -> common_enums::RevenueRecoveryTriggerModel {
-        match self.billing_connector_id {
-            Some(_) => common_enums::RevenueRecoveryTriggerModel::InternalTriggers,
-            None => common_enums::RevenueRecoveryTriggerModel::ExternalTriggers,
-        }
     }
 
     pub fn get_connector_customer_id(&self) -> String {
@@ -15116,7 +15108,6 @@ impl Serialize for NullObject {
 #[cfg(test)]
 #[cfg(feature = "v2")]
 mod revenue_recovery_metadata_tests {
-    use common_enums::RevenueRecoveryTriggerModel;
     use common_utils::id_type::MerchantConnectorAccountId;
 
     use super::PaymentRevenueRecoveryMetadata;
@@ -15129,7 +15120,8 @@ mod revenue_recovery_metadata_tests {
                 "connector_customer_id": "cust_1"
             },
             "payment_method_type": "card",
-            "payment_method_subtype": "credit"
+            "payment_method_subtype": "credit",
+            "connector": "stripe"
         });
         if let (Some(metadata), Some(connector_fields)) =
             (metadata.as_object_mut(), connector_fields.as_object())
@@ -15144,17 +15136,12 @@ mod revenue_recovery_metadata_tests {
     }
 
     #[test]
-    fn invoice_recorded_against_accounts_follows_internal_triggers() {
+    fn invoice_recorded_against_accounts_has_them() {
         let metadata = metadata(serde_json::json!({
             "billing_connector_id": "mca_billing",
             "active_attempt_payment_connector_id": "mca_payment",
-            "connector": "stripe",
         }));
 
-        assert_eq!(
-            metadata.get_trigger_model(),
-            RevenueRecoveryTriggerModel::InternalTriggers
-        );
         let accounts = metadata
             .get_connector_accounts()
             .expect("every account is present");
@@ -15167,19 +15154,10 @@ mod revenue_recovery_metadata_tests {
     }
 
     #[test]
-    fn invoice_recorded_without_accounts_follows_external_triggers() {
-        for connector_fields in [
-            serde_json::json!({ "connector": "stripe" }),
-            serde_json::json!({}),
-        ] {
-            let metadata = metadata(connector_fields);
+    fn invoice_recorded_without_accounts_has_none() {
+        let metadata = metadata(serde_json::json!({}));
 
-            assert_eq!(
-                metadata.get_trigger_model(),
-                RevenueRecoveryTriggerModel::ExternalTriggers
-            );
-            assert!(metadata.get_connector_accounts().is_none());
-        }
+        assert!(metadata.get_connector_accounts().is_none());
     }
 }
 

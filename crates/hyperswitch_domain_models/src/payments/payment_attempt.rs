@@ -1301,10 +1301,7 @@ impl PaymentAttempt {
             .connector_transaction_id
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
-        let connector = request
-            .connector_details
-            .get_connector()
-            .map(|connector| connector.to_string());
+        let connector = Some(request.connector_details.get_connector().to_string());
         let connector_request_reference_id = payment_intent
             .merchant_reference_id
             .as_ref()

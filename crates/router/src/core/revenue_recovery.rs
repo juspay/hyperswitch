@@ -2001,6 +2001,55 @@ pub fn decide_invoice_cancellation(
     }
 }
 
+/// Stops the retries of an invoice whose profile moved to external triggers, as the merchant
+/// triggers them from here on. Nothing is charged, and the invoice keeps its status.
+pub async fn stop_retries_for_external_triggers(
+    state: &SessionState,
+    payment_id: &GlobalPaymentId,
+) -> Result<(), sch_errors::ProcessTrackerError> {
+    let db = &*state.store;
+
+    let (calculate_workflow, execute_workflow) = get_workflow_entries(state, payment_id)
+        .await
+        .map_err(|error| {
+            logger::error!(
+                payment_id = %payment_id.get_string_repr(),
+                error = ?error,
+                "Failed to fetch the recovery tasks of an invoice on external triggers"
+            );
+            sch_errors::ProcessTrackerError::ProcessUpdateFailed
+        })?;
+
+    logger::info!(
+        payment_id = %payment_id.get_string_repr(),
+        "The profile is on external triggers, stopping the waiting retry of the invoice"
+    );
+
+    for (task, status) in [
+        (
+            calculate_workflow,
+            business_status::RETRIES_HANDED_TO_MERCHANT,
+        ),
+        (execute_workflow, business_status::EXECUTE_WORKFLOW_FAILURE),
+    ] {
+        if let Some(task) = task {
+            db.as_scheduler()
+                .finish_process_with_business_status(task, status)
+                .await
+                .map_err(|error| {
+                    logger::error!(
+                        payment_id = %payment_id.get_string_repr(),
+                        error = ?error,
+                        "Failed to finish a recovery task of an invoice on external triggers"
+                    );
+                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
+                })?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Stop the recovery workflow of a cancelled invoice.
 ///
 /// When [`decide_invoice_cancellation`] allows it, finishes the CALCULATE task as `CANCELLED`

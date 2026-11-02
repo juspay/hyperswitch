@@ -25983,6 +25983,7 @@
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
+          "connector",
           "billing_connector_payment_method_details"
         ],
         "properties": {
@@ -26023,12 +26024,7 @@
             "$ref": "#/components/schemas/PaymentMethodType"
           },
           "connector": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Connector"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/Connector"
           },
           "billing_connector_payment_method_details": {
             "$ref": "#/components/schemas/BillingConnectorPaymentMethodDetails"
@@ -31810,12 +31806,11 @@
       },
       "RecoveryConnector": {
         "type": "string",
-        "description": "Payment processor on which the reported transaction was made.",
+        "description": "Payment processor on which the reported transaction was made. Any other value is refused, as\nthe standardised error code of a transaction is looked up by its processor.",
         "enum": [
           "adyen",
           "stripe",
-          "paypal",
-          "other"
+          "paypal"
         ]
       },
       "RecoveryNextRetry": {

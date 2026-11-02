@@ -1151,15 +1151,10 @@ impl Action {
                 //  get a schedule time for psync
                 // and retry the process if there is a schedule time
                 // if None mark the pt status as Retries Exceeded and finish the task
-                let connector = revenue_recovery_metadata
-                    .connector
-                    .get_required_value("connector")
-                    .change_context(errors::RecoveryError::ValueNotFound)
-                    .attach_printable("Connector not found in revenue recovery metadata")?;
                 payment_sync::recovery_retry_sync_task(
                     state,
                     connector_customer_id,
-                    connector.to_string(),
+                    revenue_recovery_metadata.connector.to_string(),
                     revenue_recovery_payment_data
                         .merchant_account
                         .get_id()

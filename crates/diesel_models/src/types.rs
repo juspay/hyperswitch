@@ -510,9 +510,8 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub payment_method_type: common_enums::enums::PaymentMethod,
     /// PaymentMethod Subtype
     pub payment_method_subtype: common_enums::enums::PaymentMethodType,
-    /// The name of the payment connector through which the payment attempt was made. Absent when
-    /// the transaction is recorded with a processor Hyperswitch does not name.
-    pub connector: Option<common_enums::connector_enums::Connector>,
+    /// The name of the payment connector through which the payment attempt was made.
+    pub connector: common_enums::connector_enums::Connector,
     /// Time at which next invoice will be created
     pub invoice_next_billing_time: Option<time::PrimitiveDateTime>,
     /// Time at which invoice started
@@ -635,7 +634,6 @@ mod revenue_recovery_metadata_tests {
         for blank_field in [
             "billing_connector_id",
             "active_attempt_payment_connector_id",
-            "connector",
         ] {
             stored[blank_field] = serde_json::Value::Null;
         }

@@ -75,6 +75,17 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
+    // The merchant is the only one who reports the transactions when they trigger the retries.
+    if business_profile.revenue_recovery_trigger_model
+        == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+    {
+        logger::info!(
+            profile_id = ?business_profile.get_id(),
+            "Ignoring the billing connector webhook of a profile whose retries the merchant triggers"
+        );
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let connector = api_enums::Connector::from_str(connector_name)
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
@@ -132,20 +143,6 @@ pub async fn recovery_incoming_webhook_flow(
     let existing_payment_intent = invoice_details
         .get_payment_intent(&state, &req_state, &platform, &business_profile)
         .await?;
-
-    // An invoice stays with the trigger model it was first recorded under, and the merchant is the
-    // only one who reports the transactions of an invoice they trigger the retries of.
-    let invoice_trigger_model = existing_payment_intent
-        .as_ref()
-        .and_then(revenue_recovery::RecoveryPaymentIntent::get_recorded_trigger_model)
-        .unwrap_or(business_profile.revenue_recovery_trigger_model);
-    if invoice_trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers {
-        logger::info!(
-            invoice_id = ?invoice_details.0.merchant_reference_id,
-            "Ignoring the billing connector webhook of an invoice the merchant triggers retries for"
-        );
-        return Ok(webhooks::WebhookResponseTracker::NoEffect);
-    }
 
     // Resolve the gateway before persistence to avoid creating records for an unmapped account.
     let resolved_transaction_details = if is_event_recovery_transaction_event {
@@ -746,9 +743,7 @@ impl RevenueRecoveryAttempt {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
                 let standardised_error_code = retry_stats::events::resolve_standardised_error_code(
                     state,
-                    connector_details
-                        .get_connector()
-                        .map(|connector| connector.to_string()),
+                    Some(connector_details.get_connector().to_string()),
                     attempt_response
                         .error_details
                         .as_ref()
@@ -1009,7 +1004,7 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
-        payment_connector: Option<common_enums::connector_enums::Connector>,
+        payment_connector: common_enums::connector_enums::Connector,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
 
@@ -1023,23 +1018,17 @@ impl RevenueRecoveryAttempt {
             .clone()
             .or_else(|| revenue_recovery_attempt_data.network_decline_code.clone());
 
-        // A processor Hyperswitch does not name has no gsm records to look up.
-        let gsm_record = match payment_connector {
-            Some(connector) => {
-                helpers::get_gsm_record(
-                    state,
-                    connector.to_string(),
-                    REVENUE_RECOVERY,
-                    consts::DEFAULT_SUBFLOW_STR,
-                    error_code.clone(),
-                    error_message,
-                    network_decline_code,
-                    revenue_recovery_attempt_data.card_info.card_network.clone(),
-                )
-                .await
-            }
-            None => None,
-        };
+        let gsm_record = helpers::get_gsm_record(
+            state,
+            payment_connector.to_string(),
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
+            error_code.clone(),
+            error_message,
+            network_decline_code,
+            revenue_recovery_attempt_data.card_info.card_network.clone(),
+        )
+        .await;
 
         let is_hard_decline = gsm_record
             .and_then(|record| record.error_category)
@@ -1528,7 +1517,7 @@ impl RecoveryPaymentTuple {
                 .and_then(|info| info.card_network.as_ref()),
             card_issuer: card_info.and_then(|data| data.card_issuer.clone()),
             retry_count,
-            payment_gateway: revenue_recovery_feature_metadata.and_then(|data| data.connector),
+            payment_gateway: revenue_recovery_feature_metadata.map(|data| data.connector),
         };
         state.event_handler.log_event(&event);
         Ok(())

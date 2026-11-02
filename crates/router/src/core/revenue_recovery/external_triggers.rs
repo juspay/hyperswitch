@@ -181,7 +181,7 @@ async fn handle_merchant_report(
         request,
         &invoice,
         &RecoveryConnectorDetails::ReportedByMerchant {
-            connector: connector.get_known_connector(),
+            connector: connector.into(),
         },
     ))
     .await?;

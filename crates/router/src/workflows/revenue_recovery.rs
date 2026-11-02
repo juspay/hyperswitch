@@ -123,6 +123,20 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
         };
         let revenue_recovery_payment_data =
             extract_data_and_perform_action(state, &tracking_data).await?;
+
+        if pcr::trigger_model::should_stop_retry_job(
+            revenue_recovery_payment_data
+                .profile
+                .revenue_recovery_trigger_model,
+            process.name.as_deref(),
+        ) {
+            return pcr::stop_retries_for_external_triggers(
+                state,
+                &tracking_data.global_payment_id,
+            )
+            .await;
+        }
+
         let platform_from_revenue_recovery_payment_data = domain::Platform::new(
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
