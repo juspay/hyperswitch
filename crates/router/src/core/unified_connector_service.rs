@@ -964,10 +964,14 @@ where
         previous_gateway,
         call_connector_action,
         shadow_ucs_call_connector_action,
-        transaction_type,
-        None,
+        RolloutKeySelection::Derived(transaction_type),
     )
     .await
+}
+
+enum RolloutKeySelection {
+    Derived(common_enums::TransactionType),
+    Explicit(Vec<String>),
 }
 
 async fn should_call_unified_connector_service_with_rollout_keys<F: Clone, T, R>(
@@ -977,8 +981,7 @@ async fn should_call_unified_connector_service_with_rollout_keys<F: Clone, T, R>
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
-    transaction_type: common_enums::TransactionType,
-    rollout_keys_override: Option<Vec<String>>,
+    rollout_key_selection: RolloutKeySelection,
 ) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
 where
     R: Send + Sync + Clone,
@@ -999,23 +1002,28 @@ where
 
     // Build rollout keys in ascending precedence order.
     // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
-    let rollout_keys = rollout_keys_override.unwrap_or_else(|| match transaction_type {
-        common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
-            org_id,
-            merchant_id,
-            connector_name,
-            &flow_name,
-            router_data.payment_method,
-            router_data.payment_method_type,
-        ),
-        common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
-            merchant_id,
-            connector_name,
-            &flow_name,
-            router_data.payment_method_type,
-        ),
-    });
+    let rollout_keys = match rollout_key_selection {
+        RolloutKeySelection::Derived(transaction_type) => match transaction_type {
+            common_enums::TransactionType::Payment
+            | common_enums::TransactionType::ThreeDsAuthentication => {
+                build_rollout_keys_by_precedence(
+                    org_id,
+                    merchant_id,
+                    connector_name,
+                    &flow_name,
+                    router_data.payment_method,
+                    router_data.payment_method_type,
+                )
+            }
+            common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
+                merchant_id,
+                connector_name,
+                &flow_name,
+                router_data.payment_method_type,
+            ),
+        },
+        RolloutKeySelection::Explicit(keys) => keys,
+    };
 
     // Determine connector integration type
     let connector_integration_type =
@@ -1491,8 +1499,7 @@ where
             None,
             CallConnectorAction::Trigger,
             None,
-            common_enums::TransactionType::Payment,
-            Some(scoped_keys),
+            RolloutKeySelection::Explicit(scoped_keys),
         )
         .await?;
     Ok((
