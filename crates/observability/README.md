@@ -245,15 +245,14 @@ Verify cross-namespace connectivity and the exact Control Center host's `grafana
 in sandbox before enabling Grafana traffic.
 
 The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
-Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
+Router `POST /user/internal/authorize` with the hard-coded `MerchantMonitoringRead` permission,
 then `GET /user` with **the same token**. For the user lookup, only Authorization is populated with that token;
 Router must run with `force_cookies=false`. No browser cookie, identity, role or tenant header
 is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
 active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
 SHA-256 uses the exact bytes Router returned. This is a namespaced Grafana username, **not**
 Router's canonical `user_id`; it is deterministic, not an email privacy mechanism. Changing the
-email would create a new Grafana login. A follow-up switches the fixed permission to
-`MonitoringView` once Router supports it.
+email would create a new Grafana login.
 
 Missing/malformed Bearer headers and Router 401 return 401. Token validity is left to Router,
 without a local JWT shape or length check. The auth endpoint uses Actix's default JSON extractor:

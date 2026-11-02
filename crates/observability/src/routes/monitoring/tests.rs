@@ -112,7 +112,7 @@ async fn session_cookie_and_fail_closed_contract() {
                     "/user/internal/authorize",
                     web::post().to(move |payload: web::Json<Value>| async move {
                         assert_eq!(payload["token"], "signed.token.value");
-                        assert_eq!(payload["permission"], "ProfileReconRuleRead");
+                        assert_eq!(payload["permission"], "MerchantMonitoringRead");
                         HttpResponse::build(StatusCode::from_u16(authorize_status).unwrap())
                             .finish()
                     }),

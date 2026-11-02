@@ -13,7 +13,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use super::response::ApplicationResponse;
 use crate::{domain::monitoring::GrafanaLogin, errors::ObservabilityError, state::AppState};
 
-const GRAFANA_PERMISSION: &str = "ProfileReconRuleRead";
+const GRAFANA_PERMISSION: &str = "MerchantMonitoringRead";
 
 pub async fn authorize(
     state: AppState,
