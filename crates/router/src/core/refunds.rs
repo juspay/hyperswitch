@@ -435,30 +435,21 @@ pub async fn refund_create_core(
         },
     )?;
 
+    payment_intent
+        .validate_amount_against_intent_state_metadata(req.amount)
+        .map_err(|err| {
+            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
+                .attach_printable("refund amount validation against payment intent failed")
+        })?;
+
     payment_intent.prevent_refund_after_post_capture_void()?;
 
-    payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
-            &req.payment_id,
-            &processor_merchant_id,
-            platform.get_processor().get_storage_scheme(),
-            platform.get_processor().get_key_store()
-        ).await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    validator::validate_refundable_payment_attempt(&payment_attempt)?;
-
-    let captured_amount = validator::get_captured_amount_for_refund(
-        payment_intent.status,
-        payment_attempt.status,
-        payment_intent.amount_captured,
-        payment_attempt.get_total_amount(),
-    )
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("captured amount is unavailable for refund")?;
-
-    // When the request omits an amount, refund the captured amount.
-    amount = req.amount.unwrap_or(captured_amount);
+    // Amount is not passed in request refer from payment intent.
+    amount = req
+        .amount
+        .or(payment_intent.amount_captured)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("amount captured is none in a successful payment")?;
 
     //[#299]: Can we change the flow based on some workflow idea
     utils::when(amount <= MinorUnit::new(0), || {
@@ -469,15 +460,14 @@ pub async fn refund_create_core(
         .attach_printable("amount less than or equal to zero"))
     })?;
 
-    payment_intent
-        .validate_amount_against_intent_state_metadata_with_captured_amount(
-            Some(amount),
-            captured_amount,
-        )
-        .map_err(|err| {
-            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
-                .attach_printable("refund amount validation against payment intent failed")
-        })?;
+    payment_attempt = db
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
+            &req.payment_id,
+            &processor_merchant_id,
+            platform.get_processor().get_storage_scheme(),
+            platform.get_processor().get_key_store()
+        ).await
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     let creds_identifier = req
         .merchant_connector_details
@@ -498,7 +488,6 @@ pub async fn refund_create_core(
         &payment_attempt,
         &payment_intent,
         amount,
-        captured_amount,
         req,
         creds_identifier,
     ))
@@ -522,8 +511,6 @@ pub async fn trigger_refund_to_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    validator::validate_refundable_payment_attempt(payment_attempt)?;
-
     let routed_through = payment_attempt
         .connector
         .clone()
@@ -1689,7 +1676,6 @@ pub async fn validate_and_create_refund(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund_amount: MinorUnit,
-    captured_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
 ) -> RouterResult<refunds::RefundResponse> {
@@ -1761,7 +1747,10 @@ pub async fn validate_and_create_refund(
         })?;
 
     let refund_net_amount = RefundNetAmount::from(refund_amount);
-    validator::validate_refund_amount(captured_amount, &all_refunds, refund_net_amount)
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.get_total_amount());
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_net_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(

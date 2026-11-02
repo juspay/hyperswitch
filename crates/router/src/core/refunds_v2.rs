@@ -73,27 +73,12 @@ pub async fn refund_create_core(
         },
     )?;
 
-    payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            platform.get_processor().get_key_store(),
-            &req.payment_id,
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+    let captured_amount = payment_intent
+        .amount_captured
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("amount captured is none in a successful payment")?;
 
-    refunds_validator::validate_refundable_payment_attempt(&payment_attempt)?;
-
-    let captured_amount = refunds_validator::get_captured_amount_for_refund(
-        payment_intent.status,
-        payment_attempt.status,
-        payment_intent.amount_captured,
-        payment_attempt.get_total_amount(),
-    )
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("captured amount is unavailable for refund")?;
-
-    // When the request omits an amount, refund the captured amount.
+    // Amount is not passed in request refer from payment intent.
     amount = req.amount.unwrap_or(captured_amount);
 
     utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
@@ -103,6 +88,15 @@ pub async fn refund_create_core(
         })
         .attach_printable("amount less than or equal to zero"))
     })?;
+
+    payment_attempt = db
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+            platform.get_processor().get_key_store(),
+            &req.payment_id,
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
@@ -114,7 +108,6 @@ pub async fn refund_create_core(
         &payment_attempt,
         &payment_intent,
         amount,
-        captured_amount,
         req,
         global_refund_id,
         merchant_connector_details,
@@ -1162,7 +1155,6 @@ pub async fn validate_and_create_refund(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     refund_amount: common_utils_types::MinorUnit,
-    captured_amount: common_utils_types::MinorUnit,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
     merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
@@ -1215,8 +1207,15 @@ pub async fn validate_and_create_refund(
     })?;
 
     let refund_net_amount = RefundNetAmount::from(refund_amount);
-    refunds_validator::validate_refund_amount(captured_amount, &all_refunds, refund_net_amount)
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.get_total_amount());
+    refunds_validator::validate_refund_amount(
+        total_amount_captured,
+        &all_refunds,
+        refund_net_amount,
+    )
+    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     refunds_validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
