@@ -528,6 +528,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers. Left out of the stored
+    /// data for every other invoice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_types::payments::ExternalTriggerState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -594,6 +598,27 @@ mod revenue_recovery_metadata_tests {
     #[test]
     fn block_with_connector_accounts_is_written_back_unchanged() {
         let stored = stored_block_with_connector_accounts();
+
+        let block: PaymentRevenueRecoveryMetadata =
+            serde_json::from_value(stored.clone()).expect("stored block must stay readable");
+
+        assert_eq!(
+            serde_json::to_value(block).expect("block must serialize"),
+            stored
+        );
+    }
+
+    #[test]
+    fn block_with_external_trigger_state_is_written_back_unchanged() {
+        let mut stored = stored_block_with_connector_accounts();
+        stored["external_trigger_state"] = serde_json::json!({
+            "last_failure_code": "do_not_honor",
+            "consumed_ladder_rungs": 1,
+            "next_retry": {
+                "status": "scheduled",
+                "schedule_time": "2026-11-02T18:30:00.000Z"
+            }
+        });
 
         let block: PaymentRevenueRecoveryMetadata =
             serde_json::from_value(stored.clone()).expect("stored block must stay readable");

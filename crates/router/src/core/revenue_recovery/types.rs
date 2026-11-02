@@ -891,7 +891,7 @@ impl Action {
                 Box::pin(revenue_recovery_core::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
-                    revenue_recovery_payment_data,
+                    revenue_recovery_payment_data.get_merchant_context(),
                     payment_update_req,
                 ))
                 .await

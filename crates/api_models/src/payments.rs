@@ -800,6 +800,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
 
+    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
+
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
 
@@ -2445,6 +2450,11 @@ pub struct RecoveryPaymentsResponse {
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers`.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 }
 
 #[cfg(feature = "v2")]
@@ -14797,6 +14807,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers.
+    #[schema(value_type = Option<ExternalTriggerState>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_payments_types::ExternalTriggerState>,
 }
 
 #[cfg(feature = "v2")]

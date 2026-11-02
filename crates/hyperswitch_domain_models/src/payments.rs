@@ -1298,6 +1298,18 @@ impl PaymentIntent {
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
     }
 
+    /// When the merchant should trigger the next retry of this invoice. Absent unless the merchant
+    /// triggers its retries.
+    pub fn get_external_trigger_next_retry(
+        &self,
+    ) -> Option<common_types::payments::RecoveryNextRetry> {
+        self.get_revenue_recovery_metadata()
+            .and_then(|recovery_metadata| recovery_metadata.external_trigger_state)
+            .map(|trigger_state| {
+                get_next_retry_for_intent_status(self.status, trigger_state.next_retry)
+            })
+    }
+
     /// Retries already made against this invoice, by the billing connector and by recovery
     /// together. Zero for an intent that has not entered recovery.
     pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
@@ -1646,6 +1658,47 @@ pub struct RevenueRecoveryData {
     pub card_issuer: Option<String>,
 }
 
+/// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
+/// not touch its recovery metadata, and the state saved after a report can fail to be written.
+#[cfg(feature = "v2")]
+fn get_next_retry_for_intent_status(
+    intent_status: common_enums::IntentStatus,
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> common_types::payments::RecoveryNextRetry {
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+
+    if intent_status == common_enums::IntentStatus::Succeeded {
+        RecoveryNextRetry::NotScheduled {
+            reason: RecoveryNoRetryReason::Recovered,
+        }
+    } else if matches!(
+        intent_status,
+        common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::CancelledPostCapture
+    ) {
+        RecoveryNextRetry::NotScheduled {
+            reason: RecoveryNoRetryReason::Cancelled,
+        }
+    } else {
+        next_retry
+    }
+}
+
+/// The status of an invoice after recording a transaction that no connector sync confirms. Money
+/// already collected stays collected when a later transaction fails.
+#[cfg(feature = "v2")]
+fn get_intent_status_from_reported_transaction(
+    attempt_status: common_enums::AttemptStatus,
+    intent_amount_captured: Option<MinorUnit>,
+) -> common_enums::IntentStatus {
+    if attempt_status == common_enums::AttemptStatus::Failure
+        && intent_amount_captured > Some(MinorUnit::zero())
+    {
+        common_enums::IntentStatus::PartiallyCaptured
+    } else {
+        common_enums::IntentStatus::from(attempt_status)
+    }
+}
+
 /// The captured amount of an invoice after recording a transaction that no connector sync
 /// confirms. `None` leaves the amount the invoice already has.
 #[cfg(feature = "v2")]
@@ -1674,8 +1727,6 @@ where
     pub fn get_intent_status_and_amount_captured(
         &self,
     ) -> (common_enums::IntentStatus, Option<MinorUnit>) {
-        let attempt_status = common_enums::IntentStatus::from(self.payment_attempt.status);
-
         if !self
             .revenue_recovery_data
             .connector_details
@@ -1684,7 +1735,10 @@ where
             // No connector sync runs for this transaction, so the reported status and amount are
             // final.
             return (
-                attempt_status,
+                get_intent_status_from_reported_transaction(
+                    self.payment_attempt.status,
+                    self.payment_intent.amount_captured,
+                ),
                 get_amount_captured_from_reported_transaction(
                     self.payment_attempt.status,
                     self.payment_attempt.amount_details.get_amount_captured(),
@@ -1698,7 +1752,7 @@ where
         {
             common_enums::IntentStatus::PartiallyCapturedAndProcessing
         } else {
-            attempt_status
+            common_enums::IntentStatus::from(self.payment_attempt.status)
         };
         (status, None)
     }
@@ -1816,6 +1870,9 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
+                external_trigger_state: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.external_trigger_state.clone()),
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata
@@ -1953,10 +2010,102 @@ pub struct GuestCustomer {
 #[cfg(feature = "v2")]
 #[cfg(test)]
 mod recovery_record_tests {
-    use common_enums::AttemptStatus;
+    use common_enums::{AttemptStatus, IntentStatus};
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
     use common_utils::types::MinorUnit;
 
-    use super::get_amount_captured_from_reported_transaction;
+    use super::{
+        get_amount_captured_from_reported_transaction, get_intent_status_from_reported_transaction,
+        get_next_retry_for_intent_status,
+    };
+
+    fn scheduled() -> RecoveryNextRetry {
+        RecoveryNextRetry::Scheduled {
+            schedule_time: time::PrimitiveDateTime::new(
+                time::Date::from_calendar_date(2026, time::Month::November, 2).expect("valid date"),
+                time::Time::MIDNIGHT,
+            ),
+        }
+    }
+
+    #[test]
+    fn an_open_invoice_keeps_its_next_retry() {
+        for status in [
+            IntentStatus::Failed,
+            IntentStatus::PartiallyCaptured,
+            IntentStatus::RequiresPaymentMethod,
+        ] {
+            assert_eq!(
+                get_next_retry_for_intent_status(status, scheduled()),
+                scheduled()
+            );
+        }
+    }
+
+    #[test]
+    fn a_succeeded_invoice_has_no_next_retry() {
+        assert_eq!(
+            get_next_retry_for_intent_status(IntentStatus::Succeeded, scheduled()),
+            RecoveryNextRetry::NotScheduled {
+                reason: RecoveryNoRetryReason::Recovered
+            }
+        );
+    }
+
+    #[test]
+    fn a_cancelled_invoice_has_no_next_retry() {
+        for status in [IntentStatus::Cancelled, IntentStatus::CancelledPostCapture] {
+            assert_eq!(
+                get_next_retry_for_intent_status(status, scheduled()),
+                RecoveryNextRetry::NotScheduled {
+                    reason: RecoveryNoRetryReason::Cancelled
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn a_failure_with_nothing_collected_fails_the_invoice() {
+        for intent_amount_captured in [None, Some(MinorUnit::zero())] {
+            assert_eq!(
+                get_intent_status_from_reported_transaction(
+                    AttemptStatus::Failure,
+                    intent_amount_captured
+                ),
+                IntentStatus::Failed
+            );
+        }
+    }
+
+    #[test]
+    fn a_failure_after_a_partial_charge_keeps_the_invoice_partially_captured() {
+        assert_eq!(
+            get_intent_status_from_reported_transaction(
+                AttemptStatus::Failure,
+                Some(MinorUnit::new(30))
+            ),
+            IntentStatus::PartiallyCaptured
+        );
+    }
+
+    #[test]
+    fn a_charge_decides_the_status_whatever_was_collected_before() {
+        for (attempt_status, intent_status) in [
+            (AttemptStatus::Charged, IntentStatus::Succeeded),
+            (
+                AttemptStatus::PartialCharged,
+                IntentStatus::PartiallyCaptured,
+            ),
+        ] {
+            assert_eq!(
+                get_intent_status_from_reported_transaction(
+                    attempt_status,
+                    Some(MinorUnit::new(30))
+                ),
+                intent_status
+            );
+        }
+    }
 
     #[test]
     fn partial_charges_add_up() {

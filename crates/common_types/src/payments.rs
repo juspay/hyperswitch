@@ -1106,6 +1106,56 @@ impl RecoveryConnectorDetails {
     }
 }
 
+/// Why no retry is scheduled for an invoice whose retries the merchant triggers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryNoRetryReason {
+    /// The invoice is charged in full.
+    Recovered,
+    /// The invoice has used every retry it is allowed.
+    RetriesExhausted,
+    /// The grace period of the invoice is over, or would be over by the time of the next retry.
+    GraceWindowExpired,
+    /// The card is hard declined, so retrying it cannot succeed.
+    HardDecline,
+    /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
+    Monitoring,
+    /// The invoice is cancelled.
+    Cancelled,
+}
+
+/// When the merchant should trigger the next retry of an invoice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RecoveryNextRetry {
+    /// Trigger the retry at `schedule_time`, then report its result through the recovery API.
+    Scheduled {
+        /// The time to trigger the retry at.
+        #[schema(value_type = String, example = "2022-09-10T10:11:12.000Z")]
+        #[serde(with = "common_utils::custom_serde::iso8601")]
+        schedule_time: PrimitiveDateTime,
+    },
+    /// Do not trigger a retry.
+    NotScheduled {
+        /// Why no retry is scheduled.
+        reason: RecoveryNoRetryReason,
+    },
+}
+
+/// The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled
+/// job holds it between the merchant's reports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ExternalTriggerState {
+    /// Standardised error code of the last failed transaction. The result of the next retry is
+    /// counted against it in the cluster data.
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
+    /// Positions of the static retry ladder the invoice has used.
+    pub consumed_ladder_rungs: i32,
+    /// What the merchant was last told to do.
+    pub next_retry: RecoveryNextRetry,
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
@@ -1882,7 +1932,10 @@ mod recovery_connector_tests {
     use common_enums::connector_enums::Connector;
     use common_utils::id_type::MerchantConnectorAccountId;
 
-    use super::{RecoveryConnector, RecoveryConnectorAccounts, RecoveryConnectorDetails};
+    use super::{
+        ExternalTriggerState, RecoveryConnector, RecoveryConnectorAccounts,
+        RecoveryConnectorDetails, RecoveryNextRetry, RecoveryNoRetryReason,
+    };
 
     fn account_id(id: &str) -> MerchantConnectorAccountId {
         MerchantConnectorAccountId::wrap(id.to_owned()).expect("valid account id")
@@ -1943,6 +1996,67 @@ mod recovery_connector_tests {
         };
 
         assert_eq!(details.get_connector(), None);
+    }
+
+    fn schedule_time() -> time::PrimitiveDateTime {
+        time::PrimitiveDateTime::new(
+            time::Date::from_calendar_date(2026, time::Month::November, 2).expect("valid date"),
+            time::Time::from_hms(18, 30, 0).expect("valid time"),
+        )
+    }
+
+    #[test]
+    fn scheduled_retry_is_sent_with_its_time() {
+        let next_retry = RecoveryNextRetry::Scheduled {
+            schedule_time: schedule_time(),
+        };
+
+        assert_eq!(
+            serde_json::to_value(next_retry).expect("next retry must serialize"),
+            serde_json::json!({
+                "status": "scheduled",
+                "schedule_time": "2026-11-02T18:30:00.000Z",
+            })
+        );
+    }
+
+    #[test]
+    fn unscheduled_retry_is_sent_with_its_reason() {
+        for (reason, sent) in [
+            (RecoveryNoRetryReason::Recovered, "recovered"),
+            (RecoveryNoRetryReason::RetriesExhausted, "retries_exhausted"),
+            (
+                RecoveryNoRetryReason::GraceWindowExpired,
+                "grace_window_expired",
+            ),
+            (RecoveryNoRetryReason::HardDecline, "hard_decline"),
+            (RecoveryNoRetryReason::Monitoring, "monitoring"),
+            (RecoveryNoRetryReason::Cancelled, "cancelled"),
+        ] {
+            assert_eq!(
+                serde_json::to_value(RecoveryNextRetry::NotScheduled { reason })
+                    .expect("next retry must serialize"),
+                serde_json::json!({ "status": "not_scheduled", "reason": sent })
+            );
+        }
+    }
+
+    #[test]
+    fn external_trigger_state_is_read_back_as_it_was_stored() {
+        let state = ExternalTriggerState {
+            last_failure_code: Some(common_enums::StandardisedCode::DoNotHonor),
+            consumed_ladder_rungs: 2,
+            next_retry: RecoveryNextRetry::Scheduled {
+                schedule_time: schedule_time(),
+            },
+        };
+
+        let stored = serde_json::to_value(&state).expect("state must serialize");
+
+        assert_eq!(
+            serde_json::from_value::<ExternalTriggerState>(stored).ok(),
+            Some(state)
+        );
     }
 
     #[test]

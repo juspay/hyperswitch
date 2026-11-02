@@ -719,11 +719,11 @@ async fn get_retry_time_for_error_code(
 async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     remaining_grace_days: u32,
     remaining_budget: u32,
     // Both needed only to assign an implementation to an invoice that arrives without one
-    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
+    merchant_context: pcr_storage_types::RecoveryMerchantContext<'_>,
     ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
 ) -> (
     Option<time::PrimitiveDateTime>,
@@ -758,7 +758,7 @@ async fn get_ab_routed_retry_time(
                     .feature_metadata
                     .as_ref()
                     .map(api_models::payments::FeatureMetadata::foreign_from),
-                revenue_recovery_payment_data,
+                merchant_context,
                 ab_dimensions,
             )
             .await
@@ -768,7 +768,7 @@ async fn get_ab_routed_retry_time(
     let schedule_time = get_retry_time_for_error_code(
         state,
         assigned_algorithm,
-        tracking_data.prev_attempt_error_code,
+        prev_attempt_error_code,
         remaining_grace_days,
         remaining_budget,
     )
@@ -786,15 +786,281 @@ async fn get_ab_routed_retry_time(
 /// When a retry runs, as the algorithm decides it. Which card it is made with is decided apart
 /// from this, by the card selection.
 #[cfg(feature = "v2")]
-enum RetryTiming {
+pub(crate) enum RetryTiming {
     /// One time for the invoice, from the cascading ladder or the retry model, with the ladder
-    /// position to carry back if a retry is scheduled at it.
+    /// position to carry back if a retry is scheduled at it and the A/B arm the invoice ran.
     At {
         retry_time: time::PrimitiveDateTime,
         next_static_ladder_progress: Option<pcr::schedule::StaticLadderProgress>,
+        assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
     },
     /// The decider's time, asked of each card the selection admits.
     Decider,
+    /// The algorithm does not retry invoices.
+    NoRetries,
+    /// The cascading ladder has no slot left for this invoice.
+    LadderExhausted,
+}
+
+/// What the retry time of an invoice is worked out from, whoever triggers the retry.
+#[cfg(feature = "v2")]
+pub(crate) struct RetryTimingParams<'a> {
+    pub payment_intent: &'a PaymentIntent,
+    pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
+    pub retry_count: i32,
+    pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
+    pub max_hybrid_cascading_retry_count: Option<u16>,
+    pub remaining_grace_days: u32,
+    pub remaining_budget: u32,
+    // Needed only to resolve the A/B gate
+    pub provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
+    // Needed only to assign an implementation to an invoice that arrives without one
+    pub merchant_context: pcr_storage_types::RecoveryMerchantContext<'a>,
+}
+
+/// When the next retry of an invoice runs, under the retry algorithm.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_retry_timing(
+    state: &SessionState,
+    params: RetryTimingParams<'_>,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+) -> CustomResult<RetryTiming, errors::ProcessTrackerError> {
+    let RetryTimingParams {
+        payment_intent,
+        retry_algorithm_type,
+        retry_count,
+        prev_attempt_error_code,
+        static_ladder_progress,
+        max_hybrid_cascading_retry_count,
+        remaining_grace_days,
+        remaining_budget,
+        provider_merchant_id,
+        merchant_context,
+    } = params;
+
+    let retry_timing = match retry_algorithm_type {
+        RevenueRecoveryAlgorithmType::Monitoring => {
+            logger::error!("Monitoring type found for Revenue Recovery retry payment");
+            RetryTiming::NoRetries
+        }
+
+        RevenueRecoveryAlgorithmType::Cascading => {
+            let schedule_time = get_schedule_time_to_retry_mit_payments(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                dimensions,
+                retry_count,
+            )
+            .await;
+
+            match schedule_time {
+                Some(time) => RetryTiming::At {
+                    retry_time: time,
+                    next_static_ladder_progress: None,
+                    assigned_ab_algorithm: None,
+                },
+                None => {
+                    logger::info!(retry_count, "Retry ladder exhausted for this invoice");
+                    RetryTiming::LadderExhausted
+                }
+            }
+        }
+
+        RevenueRecoveryAlgorithmType::Smart => {
+            let adaptive_retry_enabled = dimensions
+                .get_adaptive_retry_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(provider_merchant_id)
+                .with_organization_id(payment_intent.organization_id.clone())
+                .with_profile_id(payment_intent.profile_id.clone());
+
+            let ab_enabled = ab_dimensions
+                .get_revenue_recovery_ab_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            if ab_enabled || adaptive_retry_enabled {
+                // Same shape as the cascading arm — compute the schedule time, then gate on the
+                // token. The addition is the model's candidate, and the variant says both how it
+                // is produced and whether the static ladder bounds it; the cascading ladder covers
+                // only what every source in play declines.
+                //
+                // Enrolled and unenrolled invoices differ ONLY in that variant. The allowances it
+                // works against arrive as arguments, and everything after it — the fallback, the
+                // decision, the token — is shared, so enrolling an invoice cannot change whether
+                // it gets retried at all.
+                let (model_time, assigned_algorithm) = if ab_enabled {
+                    let (time, algorithm) = get_ab_routed_retry_time(
+                        state,
+                        payment_intent,
+                        prev_attempt_error_code,
+                        remaining_grace_days,
+                        remaining_budget,
+                        merchant_context,
+                        &ab_dimensions,
+                    )
+                    .await;
+                    (time, Some(algorithm))
+                } else {
+                    let time = match prev_attempt_error_code {
+                        // Not enrolled in A/B routing, so this runs the baseline pairing.
+                        Some(error_code) => compute_model_retry_time(
+                            state,
+                            error_code,
+                            remaining_grace_days,
+                            remaining_budget,
+                            RetryModelVariant::default(),
+                        )
+                        .await
+                        .map(common_utils::date_time::convert_to_pdt),
+                        // Counted here as well as on the A/B branch: the condition is the same,
+                        // and with A/B off this is the branch every invoice takes, so counting it
+                        // only there would read zero exactly when it matters.
+                        None => {
+                            crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
+                                1,
+                                router_env::metric_attributes!(("algorithm", "unenrolled")),
+                            );
+                            logger::info!(
+                                payment_id = %payment_intent.id.get_string_repr(),
+                                "retry model: the CALCULATE task carries no error code, so the \
+                                 model cannot be consulted — falling back to the cascading \
+                                 ladder"
+                            );
+                            None
+                        }
+                    };
+                    (time, None)
+                };
+
+                let ladder_role = assigned_algorithm.map_or_else(
+                    || RetryModelVariant::default().ladder,
+                    |arm| RetryModelVariant::from(arm).ladder,
+                );
+                let queried_rung = static_ladder_progress.next_rung();
+
+                // Read only where it can win, and only while the merchant's configured length
+                // still has the rung being asked for. Rungs run 1..=max.
+                let static_time = match ladder_role {
+                    pcr::schedule::StaticLadderRole::Standby => None,
+                    pcr::schedule::StaticLadderRole::Ceiling => {
+                        let max_hybrid_cascading_retry_count = max_hybrid_cascading_retry_count
+                            .map(i32::from)
+                            .ok_or(errors::ProcessTrackerError::MissingRequiredField)
+                            .attach_printable(
+                                "Failed to get max hybrid cascading retry count from billing merchant connector account",
+                            )?;
+
+                        if queried_rung <= max_hybrid_cascading_retry_count {
+                            get_schedule_time_to_retry_adaptive_payments(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                dimensions,
+                                queried_rung,
+                            )
+                            .await
+                        } else {
+                            logger::info!(
+                                queried_rung,
+                                max_hybrid_cascading_retry_count,
+                                "hybrid ladder spent for this invoice — the merchant's configured \
+                                 length is reached, so the model's time stands unbounded"
+                            );
+                            None
+                        }
+                    }
+                };
+
+                // The global fallback for everything the sources above decline, indexed by the
+                // invoice's overall retry count. `None` means "not consulted", not "nothing left".
+                let fallback_time = match (model_time, static_time) {
+                    (None, None) => {
+                        get_schedule_time_to_retry_mit_payments(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            dimensions,
+                            retry_count,
+                        )
+                        .await
+                    }
+                    _ => None,
+                };
+
+                let decision = pcr::schedule::decide_next_retry(
+                    static_ladder_progress,
+                    ladder_role,
+                    queried_rung,
+                    model_time,
+                    static_time,
+                    fallback_time,
+                )
+                .ok_or_else(|| {
+                    logger::error!(
+                        retry_count = retry_count,
+                        queried_rung = queried_rung,
+                        ladder_role = ?ladder_role,
+                        error_code = ?prev_attempt_error_code,
+                        remaining_grace_days = remaining_grace_days,
+                        remaining_budget = remaining_budget,
+                        "No retry time available — every source in play declined and the MIT \
+                         cascading ladder had nothing left"
+                    );
+                    // Counted, not just logged: an arm that loses invoices at a different rate
+                    // from another is measuring its own drop rate rather than retry quality, and
+                    // an aggregate count cannot show that.
+                    crate::routes::metrics::REVENUE_RECOVERY_NO_SCHEDULE_TIME.add(
+                        1,
+                        router_env::metric_attributes!((
+                            "algorithm",
+                            assigned_algorithm
+                                .map_or_else(|| "unenrolled".to_string(), |arm| arm.to_string())
+                        )),
+                    );
+                    errors::ProcessTrackerError::FlowExecutionError {
+                        flow: "revenue_recovery_no_schedule_time",
+                    }
+                })?;
+
+                logger::info!(
+                    source = ?decision.source,
+                    retry_count = retry_count,
+                    ladder_role = ?ladder_role,
+                    queried_rung = queried_rung,
+                    model_time = ?model_time,
+                    static_time = ?static_time,
+                    fallback_time = ?fallback_time,
+                    consumed_rungs = decision.next_progress.consumed_rungs,
+                    error_code = ?prev_attempt_error_code,
+                    remaining_grace_days = remaining_grace_days,
+                    remaining_budget = remaining_budget,
+                    ab_enabled = ab_enabled,
+                    schedule_time = ?decision.schedule_time,
+                    "Retry decision"
+                );
+
+                RetryTiming::At {
+                    retry_time: decision.schedule_time,
+                    next_static_ladder_progress: Some(decision.next_progress),
+                    assigned_ab_algorithm: assigned_algorithm,
+                }
+            } else {
+                RetryTiming::Decider
+            }
+        }
+    };
+
+    Ok(retry_timing)
 }
 
 #[cfg(feature = "v2")]
@@ -837,234 +1103,41 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             .await,
     );
 
-    let retry_timing = match retry_algorithm_type {
-        RevenueRecoveryAlgorithmType::Monitoring => {
-            logger::error!("Monitoring type found for Revenue Recovery retry payment");
-            return Ok((PaymentProcessorTokenResponse::None, None));
-        }
-
-        RevenueRecoveryAlgorithmType::Cascading => {
-            let schedule_time = get_schedule_time_to_retry_mit_payments(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                &dimensions,
-                retry_count,
-            )
-            .await;
-
-            // Distinct from `None` below, which means "no token right now, come back later" and
-            // keeps the calculate job alive.
-            let Some(time) = schedule_time else {
-                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
-            };
-
-            RetryTiming::At {
-                retry_time: time,
-                next_static_ladder_progress: None,
-            }
-        }
-
-        RevenueRecoveryAlgorithmType::Smart => {
-            let adaptive_retry_enabled = dimensions
-                .get_adaptive_retry_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await;
-
-            let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(provider_merchant_id)
-                .with_organization_id(payment_intent.organization_id.clone())
-                .with_profile_id(payment_intent.profile_id.clone());
-
-            let ab_enabled = ab_dimensions
-                .get_revenue_recovery_ab_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await;
-
-            if ab_enabled || adaptive_retry_enabled {
-                // Same shape as the cascading arm — compute the schedule time, then gate on the
-                // token. The addition is the model's candidate, and the variant says both how it
-                // is produced and whether the static ladder bounds it; the cascading ladder covers
-                // only what every source in play declines.
-                //
-                // Enrolled and unenrolled invoices differ ONLY in that variant. The allowances it
-                // works against arrive as arguments, and everything after it — the fallback, the
-                // decision, the token — is shared, so enrolling an invoice cannot change whether
-                // it gets retried at all.
-                let (model_time, assigned_algorithm) = if ab_enabled {
-                    let (time, algorithm) = get_ab_routed_retry_time(
-                        state,
-                        payment_intent,
-                        tracking_data,
-                        remaining_grace_days,
-                        remaining_budget,
-                        revenue_recovery_payment_data,
-                        &ab_dimensions,
-                    )
-                    .await;
-                    (time, Some(algorithm))
-                } else {
-                    let time = match tracking_data.prev_attempt_error_code {
-                        // Not enrolled in A/B routing, so this runs the baseline pairing.
-                        Some(error_code) => compute_model_retry_time(
-                            state,
-                            error_code,
-                            remaining_grace_days,
-                            remaining_budget,
-                            RetryModelVariant::default(),
-                        )
-                        .await
-                        .map(common_utils::date_time::convert_to_pdt),
-                        // Counted here as well as on the A/B branch: the condition is the same,
-                        // and with A/B off this is the branch every invoice takes, so counting it
-                        // only there would read zero exactly when it matters.
-                        None => {
-                            crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
-                                1,
-                                router_env::metric_attributes!(("algorithm", "unenrolled")),
-                            );
-                            logger::info!(
-                                payment_id = %payment_intent.id.get_string_repr(),
-                                "retry model: the CALCULATE task carries no error code, so the \
-                                 model cannot be consulted — falling back to the cascading \
-                                 ladder"
-                            );
-                            None
-                        }
-                    };
-                    (time, None)
-                };
-
-                let ladder_role = assigned_algorithm.map_or_else(
-                    || RetryModelVariant::default().ladder,
-                    |arm| RetryModelVariant::from(arm).ladder,
-                );
-                let queried_rung = static_ladder_progress.next_rung();
-
-                // Read only where it can win, and only while the merchant's configured length
-                // still has the rung being asked for. Rungs run 1..=max.
-                let static_time = match ladder_role {
-                    pcr::schedule::StaticLadderRole::Standby => None,
-                    pcr::schedule::StaticLadderRole::Ceiling => {
-                        let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
-                            .billing_mca
-                            .get_max_hybrid_cascading_retry_count()
-                            .map(i32::from)
-                            .ok_or(errors::ProcessTrackerError::MissingRequiredField)
-                            .attach_printable(
-                                "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                            )?;
-
-                        if queried_rung <= max_hybrid_cascading_retry_count {
-                            get_schedule_time_to_retry_adaptive_payments(
-                                state.store.as_ref(),
-                                state.superposition_service.as_ref(),
-                                &dimensions,
-                                queried_rung,
-                            )
-                            .await
-                        } else {
-                            logger::info!(
-                                queried_rung,
-                                max_hybrid_cascading_retry_count,
-                                "hybrid ladder spent for this invoice — the merchant's configured \
-                                 length is reached, so the model's time stands unbounded"
-                            );
-                            None
-                        }
-                    }
-                };
-
-                // The global fallback for everything the sources above decline, indexed by the
-                // invoice's overall retry count. `None` means "not consulted", not "nothing left".
-                let fallback_time = match (model_time, static_time) {
-                    (None, None) => {
-                        get_schedule_time_to_retry_mit_payments(
-                            state.store.as_ref(),
-                            state.superposition_service.as_ref(),
-                            &dimensions,
-                            retry_count,
-                        )
-                        .await
-                    }
-                    _ => None,
-                };
-
-                let decision = pcr::schedule::decide_next_retry(
-                    static_ladder_progress,
-                    ladder_role,
-                    queried_rung,
-                    model_time,
-                    static_time,
-                    fallback_time,
-                )
-                .ok_or_else(|| {
-                    logger::error!(
-                        retry_count = retry_count,
-                        queried_rung = queried_rung,
-                        ladder_role = ?ladder_role,
-                        error_code = ?tracking_data.prev_attempt_error_code,
-                        remaining_grace_days = remaining_grace_days,
-                        remaining_budget = remaining_budget,
-                        "No retry time available — every source in play declined and the MIT \
-                         cascading ladder had nothing left"
-                    );
-                    // Counted, not just logged: an arm that loses invoices at a different rate
-                    // from another is measuring its own drop rate rather than retry quality, and
-                    // an aggregate count cannot show that.
-                    crate::routes::metrics::REVENUE_RECOVERY_NO_SCHEDULE_TIME.add(
-                        1,
-                        router_env::metric_attributes!((
-                            "algorithm",
-                            assigned_algorithm
-                                .map_or_else(|| "unenrolled".to_string(), |arm| arm.to_string())
-                        )),
-                    );
-                    errors::ProcessTrackerError::FlowExecutionError {
-                        flow: "revenue_recovery_no_schedule_time",
-                    }
-                })?;
-
-                logger::info!(
-                    source = ?decision.source,
-                    retry_count = retry_count,
-                    ladder_role = ?ladder_role,
-                    queried_rung = queried_rung,
-                    model_time = ?model_time,
-                    static_time = ?static_time,
-                    fallback_time = ?fallback_time,
-                    consumed_rungs = decision.next_progress.consumed_rungs,
-                    error_code = ?tracking_data.prev_attempt_error_code,
-                    remaining_grace_days = remaining_grace_days,
-                    remaining_budget = remaining_budget,
-                    ab_enabled = ab_enabled,
-                    schedule_time = ?decision.schedule_time,
-                    "Retry decision"
-                );
-
-                RetryTiming::At {
-                    retry_time: decision.schedule_time,
-                    next_static_ladder_progress: Some(decision.next_progress),
-                }
-            } else {
-                RetryTiming::Decider
-            }
-        }
-    };
+    let retry_timing = Box::pin(get_retry_timing(
+        state,
+        RetryTimingParams {
+            payment_intent,
+            retry_algorithm_type,
+            retry_count,
+            prev_attempt_error_code: tracking_data.prev_attempt_error_code,
+            static_ladder_progress,
+            max_hybrid_cascading_retry_count: revenue_recovery_payment_data
+                .billing_mca
+                .get_max_hybrid_cascading_retry_count(),
+            remaining_grace_days,
+            remaining_budget,
+            provider_merchant_id,
+            merchant_context: revenue_recovery_payment_data.get_merchant_context(),
+        },
+        &dimensions,
+    ))
+    .await?;
 
     // Ladder position to write back onto the CALCULATE row. `None` leaves the stored count alone,
     // which is the case for every outcome but one — see where it is set.
     let (mut payment_processor_token_response, next_static_ladder_progress) = match retry_timing {
+        RetryTiming::NoRetries => return Ok((PaymentProcessorTokenResponse::None, None)),
+
+        // Distinct from `None`, which means "no token right now, come back later" and keeps the
+        // calculate job alive.
+        RetryTiming::LadderExhausted => {
+            return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None))
+        }
+
         RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
+            assigned_ab_algorithm: _,
         } => {
             let payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,

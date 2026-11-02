@@ -4735,6 +4735,7 @@ pub async fn revenue_recovery_get_intent_core(
         execute_workflow.as_ref(),
         payment_intent.attempt_count,
         max_retry_threshold.try_into().unwrap_or(0),
+        payment_intent.get_external_trigger_next_retry(),
     );
 
     // Get card_attached count from Redis

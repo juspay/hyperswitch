@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed: `internal_triggers`\nneeds the billing and payment merchant connector accounts and schedules the retries, while\n`external_triggers` needs only the `connector`, records the transaction and schedules nothing.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`, and the merchant makes the retries. `next_retry`\nin the response says when to trigger the next one. Trigger it at that time and report its result\nthrough this same API, until `next_retry` says no retry is scheduled and why. A transaction\nreported against a closed invoice is refused.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
@@ -4989,16 +4989,42 @@
                 "schema": {
                   "$ref": "#/components/schemas/RecoveryPaymentsResponse"
                 },
-                "example": {
-                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                  "intent_status": "failed",
-                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                "examples": {
+                  "Next retry scheduled on a profile with external triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                      "next_retry": {
+                        "schedule_time": "2022-09-10T13:11:12.000Z",
+                        "status": "scheduled"
+                      }
+                    }
+                  },
+                  "No retry scheduled on a profile with external triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                      "next_retry": {
+                        "reason": "retries_exhausted",
+                        "status": "not_scheduled"
+                      }
+                    }
+                  },
+                  "Recorded on a profile with internal triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields",
+            "description": "Missing or invalid mandatory fields, or the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
@@ -16121,6 +16147,32 @@
           }
         }
       },
+      "ExternalTriggerState": {
+        "type": "object",
+        "description": "The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled\njob holds it between the merchant's reports.",
+        "required": [
+          "consumed_ladder_rungs",
+          "next_retry"
+        ],
+        "properties": {
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "consumed_ladder_rungs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Positions of the static retry ladder the invoice has used."
+          },
+          "next_retry": {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -26011,6 +26063,14 @@
               }
             ],
             "nullable": true
+          },
+          "external_trigger_state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31751,6 +31811,66 @@
           "other"
         ]
       },
+      "RecoveryNextRetry": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Trigger the retry at `schedule_time`, then report its result through the recovery API.",
+            "required": [
+              "schedule_time",
+              "status"
+            ],
+            "properties": {
+              "schedule_time": {
+                "type": "string",
+                "description": "The time to trigger the retry at.",
+                "example": "2022-09-10T10:11:12.000Z"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "scheduled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Do not trigger a retry.",
+            "required": [
+              "reason",
+              "status"
+            ],
+            "properties": {
+              "reason": {
+                "$ref": "#/components/schemas/RecoveryNoRetryReason"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_scheduled"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "When the merchant should trigger the next retry of an invoice.",
+        "discriminator": {
+          "propertyName": "status"
+        }
+      },
+      "RecoveryNoRetryReason": {
+        "type": "string",
+        "description": "Why no retry is scheduled for an invoice whose retries the merchant triggers.",
+        "enum": [
+          "recovered",
+          "retries_exhausted",
+          "grace_window_expired",
+          "hard_decline",
+          "monitoring",
+          "cancelled"
+        ]
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -31912,6 +32032,14 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "next_retry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNextRetry"
+              }
+            ],
+            "nullable": true
           }
         }
       },

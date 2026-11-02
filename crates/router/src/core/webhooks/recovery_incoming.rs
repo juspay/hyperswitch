@@ -818,19 +818,23 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        // The tokens serve the retries Hyperswitch schedules, and those need connector accounts.
-        if let common_types::payments::RecoveryConnectorDetails::ConnectorAccounts(accounts) =
-            connector_details
+        if let Err(error) = self
+            .store_payment_processor_tokens_in_redis(
+                state,
+                &response.0,
+                connector_details.get_connector(),
+            )
+            .await
         {
-            self.store_payment_processor_tokens_in_redis(state, &response.0, accounts.connector)
-                .await
-                .map_err(|e| {
-                    router_env::logger::error!(
-                        "Failed to store payment processor tokens in Redis: {:?}",
-                        e
-                    );
-                    errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
-                })?;
+            router_env::logger::error!(
+                "Failed to store payment processor tokens in Redis: {:?}",
+                error
+            );
+            // A merchant who triggers the retries still has to be told when, and reporting the
+            // recorded transaction again would be refused as a duplicate.
+            if connector_details.has_connector_accounts() {
+                return Err(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed.into());
+            }
         }
 
         Ok(response)
@@ -1005,13 +1009,12 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
-        payment_connector: common_enums::connector_enums::Connector,
+        payment_connector: Option<common_enums::connector_enums::Connector>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
 
         let error_code = revenue_recovery_attempt_data.error_code.clone();
         let error_message = revenue_recovery_attempt_data.error_message.clone();
-        let connector_name = payment_connector.to_string();
 
         // The recorded attempt is synced with the payment connector, so prefer the decline code
         // it carries and fall back to the one the caller sent.
@@ -1020,17 +1023,23 @@ impl RevenueRecoveryAttempt {
             .clone()
             .or_else(|| revenue_recovery_attempt_data.network_decline_code.clone());
 
-        let gsm_record = helpers::get_gsm_record(
-            state,
-            connector_name,
-            REVENUE_RECOVERY,
-            consts::DEFAULT_SUBFLOW_STR,
-            error_code.clone(),
-            error_message,
-            network_decline_code,
-            revenue_recovery_attempt_data.card_info.card_network.clone(),
-        )
-        .await;
+        // A processor Hyperswitch does not name has no gsm records to look up.
+        let gsm_record = match payment_connector {
+            Some(connector) => {
+                helpers::get_gsm_record(
+                    state,
+                    connector.to_string(),
+                    REVENUE_RECOVERY,
+                    consts::DEFAULT_SUBFLOW_STR,
+                    error_code.clone(),
+                    error_message,
+                    network_decline_code,
+                    revenue_recovery_attempt_data.card_info.card_network.clone(),
+                )
+                .await
+            }
+            None => None,
+        };
 
         let is_hard_decline = gsm_record
             .and_then(|record| record.error_category)
