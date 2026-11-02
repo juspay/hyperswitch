@@ -30480,6 +30480,14 @@
             ],
             "nullable": true
           },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
+              }
+            ],
+            "nullable": true
+          },
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
@@ -30800,6 +30808,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
               }
             ],
             "nullable": true
@@ -32827,6 +32843,59 @@
           "cascading"
         ]
       },
+      "RevenueRecoveryConfig": {
+        "type": "object",
+        "description": "Revenue recovery retry configuration for a profile",
+        "required": [
+          "max_retry_count",
+          "billing_connector_retry_threshold"
+        ],
+        "properties": {
+          "max_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.",
+            "example": "15",
+            "minimum": 0
+          },
+          "billing_connector_retry_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of `billing connector` retries before revenue recovery can start executing retries.",
+            "example": "10",
+            "minimum": 0
+          },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
+            "minimum": 0
+          },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period, in days from the invoice's billing start, within which retries are allowed.\nDefaults to 30 days when not provided.",
+            "default": 30,
+            "example": "30",
+            "minimum": 0
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for recovered payments. A value passed in the recovery\npayments API request takes priority over this. Defaults to `false` when not provided.",
+            "default": false,
+            "example": false
+          },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
+          }
+        }
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -32870,6 +32939,14 @@
             "description": "Allow partial authorization for payments recovered through this `billing connector`.\nA value passed in the recovery payments API request takes priority over this. Defaults to\n`false` when not provided.",
             "default": false,
             "example": false
+          },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
           },
           "billing_account_reference": {
             "type": "integer",

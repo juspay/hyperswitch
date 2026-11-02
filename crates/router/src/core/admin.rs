@@ -3969,6 +3969,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             surcharge_connector_details: self
                 .surcharge_connector_details
                 .map(ForeignInto::foreign_into),
+            revenue_recovery_config: self.revenue_recovery_config.map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4593,6 +4594,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
+                revenue_recovery_config: self
+                    .revenue_recovery_config
                     .map(ForeignInto::foreign_into),
             },
         )))

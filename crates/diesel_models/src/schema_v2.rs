@@ -333,6 +333,7 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        revenue_recovery_config -> Nullable<Jsonb>,
     }
 }
 
