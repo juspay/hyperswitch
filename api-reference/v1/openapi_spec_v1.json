@@ -10237,18 +10237,18 @@
             }
           },
           {
-            "name": "plan_id",
+            "name": "item_price_id",
             "in": "query",
-            "description": "Plan ID for estimation",
+            "description": "Item price ID for estimation",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "customer_id",
+            "name": "plan_id",
             "in": "query",
-            "description": "Customer ID for personalized pricing",
+            "description": "Plan ID for estimation",
             "required": false,
             "schema": {
               "type": "string",
@@ -10256,9 +10256,9 @@
             }
           },
           {
-            "name": "coupon_id",
+            "name": "coupon_code",
             "in": "query",
-            "description": "Coupon ID to apply discount",
+            "description": "Coupon code to apply discount",
             "required": false,
             "schema": {
               "type": "string",
@@ -10266,15 +10266,13 @@
             }
           },
           {
-            "name": "trial_days",
+            "name": "client_secret",
             "in": "query",
-            "description": "Number of trial days",
+            "description": "Subscription client secret; required when authenticating with a publishable key",
             "required": false,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true,
-              "minimum": 0
+              "type": "string",
+              "nullable": true
             }
           }
         ],
@@ -10299,6 +10297,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "client_secret": []
           }
         ]
       }
@@ -24207,6 +24208,11 @@
           "item_price_id"
         ],
         "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
           "plan_id": {
             "type": "string",
             "description": "Identifier for the associated subscription plan.",
