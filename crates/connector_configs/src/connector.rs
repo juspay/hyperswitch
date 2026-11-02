@@ -241,7 +241,7 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
 pub enum WalletFlow {
     /// The wallet token is decrypted by the connector
     Encrypt,
-    /// The wallet token is decrypted by Hyperswitch
+    /// The wallet token is decrypted by Hyperswitch or Merchant
     Decrypt,
 }
 

@@ -10446,7 +10446,6 @@ where
                     ),
                     payment_data.get_payment_method_data(),
                     payment_data.get_payment_method_token(),
-                    payment_method_type,
                 )?;
 
             let is_network_transaction_id_flow = payment_data

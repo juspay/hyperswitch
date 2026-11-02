@@ -1,4 +1,4 @@
-use common_enums::{PaymentMethodType, SingleUseTokenDecision, SingleUseTokenFlow};
+use common_enums::{SingleUseTokenDecision, SingleUseTokenFlow};
 use common_types::payment_methods::PayViaSingleUseToken;
 use error_stack::report;
 use hyperswitch_domain_models::{
@@ -20,7 +20,6 @@ pub fn decide_single_use_token(
     pay_via_single_use_token: Option<PayViaSingleUseToken>,
     payment_method_data: Option<&PaymentMethodData>,
     payment_method_token: Option<&PaymentMethodToken>,
-    payment_method_type: Option<PaymentMethodType>,
 ) -> PmResult<SingleUseTokenDecision> {
     let pay_via_single_use_token = pay_via_single_use_token.unwrap_or_default();
 
@@ -44,10 +43,6 @@ pub fn decide_single_use_token(
         }
     };
 
-    let payment_method_type = payment_method_type
-        .map(|payment_method_type| payment_method_type.to_string())
-        .unwrap_or_default();
-
     match (pay_via_single_use_token, single_use_token_support) {
         // Not configured, or not implemented for the connector, follow the default behaviour
         (PayViaSingleUseToken::Default, _) | (_, None) => Ok(SingleUseTokenDecision::Default),
@@ -55,7 +50,7 @@ pub fn decide_single_use_token(
             if single_use_token_support == SingleUseTokenSupport::NotSupported {
                 Err(report!(ApiErrorResponse::InvalidConnectorConfiguration {
                     config: format!(
-                        "pay_via_single_use_token: tokenization is not supported for payment method type {payment_method_type} with connector {connector_name}"
+                        "pay_via_single_use_token: tokenization is not supported for the payment method type with connector {connector_name}"
                     ),
                 }))
             } else {
@@ -66,7 +61,7 @@ pub fn decide_single_use_token(
             if single_use_token_support == SingleUseTokenSupport::Required {
                 Err(report!(ApiErrorResponse::InvalidConnectorConfiguration {
                     config: format!(
-                        "pay_via_single_use_token: payment without tokenization is not supported for payment method type {payment_method_type} with connector {connector_name}"
+                        "pay_via_single_use_token: payment without tokenization is not supported for the payment method type with connector {connector_name}"
                     ),
                 }))
             } else {

@@ -117,10 +117,11 @@ impl PaymentMethodsEnabled {
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PayViaSingleUseToken {
-    /// The default behaviour is followed (the current behaviour, based on the connector tokenization config)
+    /// Hyperswitch decides whether to make the payment via a single-use token, based on the connector's default requirement
     #[default]
     Default,
-    /// The payment is made via a single-use token, the payment fails if the connector does not support it
+    /// The payment is made via a single-use token, an `InvalidConnectorConfiguration` error is
+    /// returned if the connector does not support it for the payment method
     Enabled,
     /// The payment is made directly, without the single-use token call
     Disabled,
