@@ -1664,8 +1664,6 @@ diesel::table! {
         total_amount -> Int8,
         currency -> Currency,
         refund_amount -> Int8,
-        refund_surcharge_amount -> Nullable<Int8>,
-        net_refund_amount -> Nullable<Int8>,
         refund_status -> RefundStatus,
         sent_to_gateway -> Bool,
         refund_error_message -> Nullable<Text>,
@@ -1709,6 +1707,8 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         feature_metadata -> Nullable<Jsonb>,
+        refund_surcharge_amount -> Nullable<Int8>,
+        net_refund_amount -> Nullable<Int8>,
     }
 }
 
