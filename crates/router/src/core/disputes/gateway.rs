@@ -48,7 +48,30 @@ where
     ) -> RouterResult<types::RouterData<Self, Req, Resp>>;
 }
 
-/// Selects the UCS or direct connector gateway for one dispute action.
+async fn execute_direct_dispute_gateway<Flow, Req, Resp>(
+    state: &SessionState,
+    connector_integration: services::BoxedDisputeConnectorIntegrationInterface<Flow, Req, Resp>,
+    router_data: &types::RouterData<Flow, Req, Resp>,
+) -> RouterResult<types::RouterData<Flow, Req, Resp>>
+where
+    Flow: Clone + Debug + Send + Sync + 'static,
+    Req: Debug + Clone + Send + Sync + 'static,
+    Resp: Debug + Clone + Send + Sync + 'static,
+    DisputesFlowData: RouterDataConversion<Flow, Req, Resp>,
+{
+    services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        router_data,
+        common_enums::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_dispute_failed_response()
+}
+
+/// Selects the execution path for one dispute action.
 pub async fn execute_dispute_gateway<Flow, Req, Resp>(
     state: &SessionState,
     ucs_state: &SessionState,
@@ -64,6 +87,9 @@ where
     DisputesFlowData: RouterDataConversion<Flow, Req, Resp>,
 {
     match context.execution_path {
+        ExecutionPath::Direct => {
+            execute_direct_dispute_gateway(state, connector_integration, &router_data).await
+        }
         ExecutionPath::UnifiedConnectorService => {
             let rollout_settings = context.rollout_settings();
             Flow::execute_ucs(
@@ -76,17 +102,13 @@ where
             )
             .await
         }
-        ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService => {
-            services::execute_connector_processing_step(
-                state,
-                connector_integration,
-                &router_data,
-                common_enums::CallConnectorAction::Trigger,
-                None,
-                None,
-            )
-            .await
-            .to_dispute_failed_response()
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            // These dispute flows change connector state. Mirroring the request through UCS
+            // would submit the same accept, evidence, or defend action a second time.
+            router_env::logger::debug!(
+                "Dispute shadow path uses the direct connector without a duplicate UCS request"
+            );
+            execute_direct_dispute_gateway(state, connector_integration, &router_data).await
         }
     }
 }
