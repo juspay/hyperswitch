@@ -57,6 +57,65 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+pub trait ApiPaymentMethodDataMandateIds {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds>;
+}
+
+impl ApiPaymentMethodDataMandateIds for api_models::payments::PaymentMethodData {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds> {
+        let mandate_reference_id = match self {
+            Self::NetworkTransactionIdAndCardDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkTokenWithNTI(
+                    mandates::NetworkTokenWithNTIRef {
+                        network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                        transaction_link_id: details.transaction_link_id.clone(),
+                        token_exp_month: Some(details.token_exp_month.clone()),
+                        token_exp_year: Some(details.token_exp_year.clone()),
+                    },
+                )
+            }
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::Card(_)
+            | Self::CardWithNoCVC(_)
+            | Self::CardRedirect(_)
+            | Self::Wallet(_)
+            | Self::PayLater(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::RealTimePayment(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_)
+            | Self::CardToken(_)
+            | Self::OpenBanking(_)
+            | Self::MobilePayment(_)
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => return None,
+        };
+
+        Some(mandates::MandateIds {
+            mandate_id: None,
+            mandate_reference_id: Some(mandate_reference_id),
+        })
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
     Card(Box<ExternalVaultCard>),
@@ -1396,6 +1455,8 @@ pub struct CashappQr {}
 pub struct PaypalRedirection {
     /// paypal's email address
     pub email: Option<Email>,
+    /// PayPal payer identifier disclosed by the connector response.
+    pub payer_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -2415,6 +2476,21 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(
+                card_details,
+            ) => Self::CardDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndCardDetails::from(*card_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(
+                network_token_details,
+            ) => Self::NetworkTokenDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndNetworkTokenDetails::from(*network_token_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                decrypted_wallet_token_details,
+            ) => Self::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                (*decrypted_wallet_token_details).into(),
+            ),
             // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
             // (routed to external_vault_proxy_for_payments_core). These branches should not be
             // reached in normal flow, but we handle them gracefully.
@@ -2957,6 +3033,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::PaypalRedirect(paypal_redirect_data) => {
                 Self::PaypalRedirect(PaypalRedirection {
                     email: paypal_redirect_data.email,
+                    payer_id: paypal_redirect_data.payer_id,
                 })
             }
             api_models::payments::WalletData::PaypalSdk(paypal_sdk_data) => {
@@ -4195,6 +4272,7 @@ pub fn get_applepay_wallet_info(
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4219,6 +4297,7 @@ pub fn get_googlepay_wallet_info(
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        provider_details: None,
         email: None,
     }
 }
@@ -4533,7 +4612,7 @@ impl From<payment_methods::CardDetail> for CardDetailsPaymentMethod {
             expiry_year: Some(item.card_exp_year),
             card_holder_name: item.card_holder_name,
             nick_name: item.nick_name,
-            card_isin: None,
+            card_isin: Some(item.card_number.get_card_isin()),
             card_issuer: item.card_issuer,
             card_network: item.card_network,
             card_type: item.card_type.map(|card| card.to_string()),

@@ -1994,7 +1994,8 @@ pub async fn payments_cancel(
                             &header_payload,
                             crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
                             &preliminary_dimensions,
-                            None
+                            None,
+                            auth.profile.as_ref().map(|profile| profile.get_id()),
                         )
                         .await?;
 

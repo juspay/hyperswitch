@@ -1,26 +1,36 @@
 //! Refund related types
 
+#[cfg(feature = "diesel")]
 use common_utils::impl_to_sql_from_sql_json;
+#[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, XenditSplitSubMerchantData};
+use crate::{
+    domain::{AdyenSplitData, XenditSplitSubMerchantData},
+    payments::MultiCurrencyProcessingAmountData,
+};
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Default, Debug, ToSchema, Clone, PartialEq, Eq, Deserialize, Serialize, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+/// Feature metadata for a refund operation.
+pub struct RefundFeatureMetadata {
+    /// Settlement amount and currency for this refund.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
+}
+
+#[cfg(feature = "diesel")]
+impl_to_sql_from_sql_json!(RefundFeatureMetadata);
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -36,21 +46,12 @@ pub enum SplitRefund {
     #[smithy(value_type = "XenditSplitSubMerchantData")]
     XenditSplitRefund(XenditSplitSubMerchantData),
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(SplitRefund);
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Charge specific fields for controlling the revert of funds from either platform or connected account for Stripe. Check sub-fields for more details.
@@ -65,4 +66,5 @@ pub struct StripeSplitRefundRequest {
     #[smithy(value_type = "Option<bool>")]
     pub revert_transfer: Option<bool>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(StripeSplitRefundRequest);

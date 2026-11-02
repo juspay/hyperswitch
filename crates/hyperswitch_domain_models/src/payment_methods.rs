@@ -341,6 +341,7 @@ impl PaymentMethod {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct PaymentMethodUpdate {
+    pub update_last_used_at: Option<bool>,
     pub payment_method_data: Option<payment_methods::PaymentMethodUpdateData>,
     pub connector_token_details: Option<payment_methods::ConnectorTokenDetails>,
     pub network_transaction_id: Option<Secret<String>>,
@@ -355,6 +356,7 @@ pub struct PaymentMethodUpdate {
 impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
     fn from(value: payment_methods::PaymentMethodUpdate) -> Self {
         Self {
+            update_last_used_at: value.update_last_used_at,
             payment_method_data: value.payment_method_data,
             connector_token_details: value.connector_token_details,
             network_transaction_id: value.network_transaction_id,
@@ -401,12 +403,16 @@ impl PaymentMethodUpdate {
                     } => bank_account_holder_name.is_some(),
                 }
             }
+            Some(payment_methods::PaymentMethodUpdateData::Wallet(wallet_update)) => {
+                wallet_update.is_metadata_update()
+            }
             None => false,
         }
     }
 
     pub fn is_payment_method_update_required(&self) -> bool {
-        self.is_payment_method_metadata_update()
+        self.update_last_used_at == Some(true)
+            || self.is_payment_method_metadata_update()
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
             || self.acknowledgement_status.is_some()
@@ -455,6 +461,7 @@ impl
 
         Self {
             payment_method_data,
+            update_last_used_at: None,
             connector_token_details: None,
             network_transaction_id: None,
             acknowledgement_status: None,
@@ -656,6 +663,16 @@ pub trait PaymentMethodInterface {
         key_store: &MerchantKeyStore,
         fingerprint_id: &str,
     ) -> CustomResult<PaymentMethod, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(

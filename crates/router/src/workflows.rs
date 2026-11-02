@@ -1,3 +1,5 @@
+#[cfg(feature = "olap")]
+pub mod analytics_report;
 #[cfg(feature = "email")]
 pub mod api_key_expiry;
 #[cfg(feature = "payouts")]

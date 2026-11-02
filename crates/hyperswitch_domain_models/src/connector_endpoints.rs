@@ -54,6 +54,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
+    pub ecommpay: ConnectorParams,
     pub elavon: ConnectorParams,
     pub elavon_pg: ConnectorParams,
     pub envoy: ConnectorParams,
@@ -71,6 +72,7 @@ pub struct Connectors {
     pub givepayments: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globalpayments_heartland: ConnectorParams,
+    pub globalpayments_realex: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,
     pub gotyme_sanlam: ConnectorParams,
@@ -222,8 +224,6 @@ impl NoParams {
 pub struct ConnectorParamsWithKeys {
     /// base url
     pub base_url: String,
-    /// api key
-    pub api_key: Secret<String>,
     /// merchant ID
     pub merchant_id: Secret<String>,
 }
