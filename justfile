@@ -245,8 +245,6 @@ migrate_v2 operation=default_operation *args='':
 
     EXIT_CODE=0
     just prefix_and_copy_migrations {{ v1_migration_dir }} {{ v2_compatible_migrations }} 8 {{ resultant_dir }}
-    # Exclude the v1-only refund migration from the v2 migration set.
-    rm -rf {{ resultant_dir }}/2026-10-27-000000_add_refund_net_amount
     just prefix_and_copy_migrations {{ resultant_dir }} {{ v2_migration_dir }} 9 {{ resultant_dir }}
     just run_migration {{ operation }} {{ resultant_dir }} {{ v2_config_file_dir }} {{ database_url }} {{ args }} || EXIT_CODE=$?
     just delete_dir_if_exists
