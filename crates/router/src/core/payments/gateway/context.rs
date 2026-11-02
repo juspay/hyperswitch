@@ -12,6 +12,22 @@ use hyperswitch_interfaces::api::gateway::GatewayContext;
 
 use crate::core::payments::helpers;
 
+/// Aliases can only be submitted on the primary UCS path, where the vault injector runs.
+#[cfg(feature = "v1")]
+pub(crate) fn validate_external_vault_proxy_execution_path(
+    execution_path: ExecutionPath,
+    requires_proxy: bool,
+) -> crate::core::errors::RouterResult<()> {
+    if requires_proxy && !matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
+        return Err(crate::core::errors::ApiErrorResponse::NotSupported {
+            message: "External vault proxy requires primary Unified Connector Service execution"
+                .to_string(),
+        }
+        .into());
+    }
+    Ok(())
+}
+
 /// Router's gateway execution context
 ///
 /// This is the router crate's implementation of gateway context. It contains
@@ -19,6 +35,8 @@ use crate::core::payments::helpers;
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
+    /// Vault configuration for the primary payment RPC. Auxiliary RPCs do not inherit it.
+    pub external_vault_proxy_metadata: Option<String>,
     /// Processor context for payment execution
     pub processor: Processor,
 
@@ -83,6 +101,7 @@ impl RouterGatewayContext {
     ) -> Self {
         let lineage_ids = LineageIds::new(merchant_id, profile_id);
         Self {
+            external_vault_proxy_metadata: None,
             processor,
             header_payload: HeaderPayload::default(),
             lineage_ids,
@@ -112,6 +131,7 @@ impl RouterGatewayContext {
         rollout_result: helpers::RolloutExecutionResult,
     ) -> Self {
         Self {
+            external_vault_proxy_metadata: None,
             creds_identifier,
             processor,
             header_payload,

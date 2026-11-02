@@ -371,6 +371,7 @@ pub struct PaymentsCaptureData {
     /// mismatch.
     pub is_overcapture_enabled: Option<common_types::primitive_wrappers::OvercaptureEnabledBool>,
     pub payment_method_data: Option<PaymentMethodData>,
+    pub external_vault_pmd: Option<ExternalVaultPaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
     /// Original payment settlement metadata for operation validation.
     pub payment_feature_metadata: Option<api_models::payments::FeatureMetadata>,
@@ -397,6 +398,7 @@ pub struct PaymentsIncrementalAuthorizationData {
     pub connector_transaction_id: String,
     pub connector_meta: Option<serde_json::Value>,
     pub payment_method_data: Option<PaymentMethodData>,
+    pub external_vault_pmd: Option<ExternalVaultPaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
 }
 
@@ -1135,6 +1137,7 @@ pub struct PaymentsCancelData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub payment_method_data: Option<PaymentMethodData>,
+    pub external_vault_pmd: Option<ExternalVaultPaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
 }
 

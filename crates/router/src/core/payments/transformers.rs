@@ -1151,6 +1151,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         merchant_order_reference_id: None,
         is_overcapture_enabled: None,
         payment_method_data: None,
+        external_vault_pmd: None,
         mandate_id: None,
     };
 
@@ -1524,6 +1525,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         feature_metadata: None,
         payment_method_type: None,
         payment_method_data: None,
+        external_vault_pmd: None,
         mandate_id: None,
     };
 
@@ -5909,6 +5911,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             connector_meta: payment_attempt.connector_metadata.clone(),
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: payment_data.external_vault_pmd.clone(),
             mandate_id: payment_data.mandate_id.clone(),
         })
     }
@@ -5949,6 +5952,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>>
                 .connector_metadata
                 .map(|secret| secret.expose()),
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: None,
             mandate_id: payment_data.mandate_id.clone(),
         })
     }
@@ -6022,6 +6026,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             merchant_order_reference_id: None,
             is_overcapture_enabled: None,
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: None,
             mandate_id: payment_data.mandate_id.clone(),
         })
     }
@@ -6122,6 +6127,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
             is_overcapture_enabled: payment_data.payment_attempt.is_overcapture_enabled,
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: payment_data.external_vault_pmd.clone(),
             mandate_id: payment_data.mandate_id.clone(),
         })
     }
@@ -6189,6 +6195,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             feature_metadata: None,
             payment_method_type: None,
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: None,
             mandate_id: payment_data.mandate_id.clone(),
         })
     }
@@ -6259,6 +6266,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             feature_metadata,
             payment_method_data: payment_data.payment_method_data.clone(),
+            external_vault_pmd: payment_data.external_vault_pmd.clone(),
             mandate_id: payment_data.mandate_id.clone(),
         })
     }

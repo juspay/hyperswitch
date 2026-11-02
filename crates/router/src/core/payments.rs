@@ -1185,21 +1185,25 @@ where
                         None
                     };
 
-                    let (merchant_connector_account, router_data, tokenization_action) =
-                        Box::pin(call_connector_service_prerequisites(
-                            state,
-                            platform,
-                            connector.connector_data.clone(),
-                            &operation,
-                            &mut payment_data,
-                            &validate_result,
-                            &business_profile,
-                            false,
-                            None,
-                            &feature_config,
-                            post_frm_capture_hold,
-                        ))
-                        .await?;
+                    let (
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                        external_vault_proxy_metadata,
+                    ) = Box::pin(call_connector_service_prerequisites(
+                        state,
+                        platform,
+                        connector.connector_data.clone(),
+                        &operation,
+                        &mut payment_data,
+                        &validate_result,
+                        &business_profile,
+                        false,
+                        None,
+                        &feature_config,
+                        post_frm_capture_hold,
+                    ))
+                    .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
                         decide_unified_connector_service_call(
@@ -1220,6 +1224,7 @@ where
                             merchant_connector_account.clone(),
                             router_data,
                             tokenization_action,
+                            external_vault_proxy_metadata,
                         )
                         .await?;
 
@@ -1391,21 +1396,25 @@ where
                         None
                     };
 
-                    let (merchant_connector_account, router_data, tokenization_action) =
-                        Box::pin(call_connector_service_prerequisites(
-                            state,
-                            platform,
-                            connector_data.clone(),
-                            &operation,
-                            &mut payment_data,
-                            &validate_result,
-                            &business_profile,
-                            false,
-                            routing_decision,
-                            &feature_config,
-                            post_frm_capture_hold,
-                        ))
-                        .await?;
+                    let (
+                        merchant_connector_account,
+                        router_data,
+                        tokenization_action,
+                        external_vault_proxy_metadata,
+                    ) = Box::pin(call_connector_service_prerequisites(
+                        state,
+                        platform,
+                        connector_data.clone(),
+                        &operation,
+                        &mut payment_data,
+                        &validate_result,
+                        &business_profile,
+                        false,
+                        routing_decision,
+                        &feature_config,
+                        post_frm_capture_hold,
+                    ))
+                    .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
                         decide_unified_connector_service_call(
@@ -1426,6 +1435,7 @@ where
                             merchant_connector_account.clone(),
                             router_data,
                             tokenization_action,
+                            external_vault_proxy_metadata,
                         )
                         .await?;
 
@@ -3726,38 +3736,8 @@ where
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
-    let provider_business_profile =
-        helpers::resolve_provider_profile(state, platform, business_profile)
-            .await
-            .inspect_err(|err| {
-                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault MCA lookup");
-            })?;
-
-    // Fetch the external vault MCA from the provider's business_profile
-    let external_vault_mca_id = provider_business_profile
-        .external_vault_details
-        .get_vault_connector_id()
-        .ok_or_else(|| {
-            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("external vault is not enabled for this business profile")
-        })?;
-
     let external_vault_merchant_connector_account =
-        helpers::MerchantConnectorAccountType::DbVal(Box::new(
-            state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_provider().get_account().get_id(),
-                    &external_vault_mca_id,
-                    platform.get_provider().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: external_vault_mca_id.get_string_repr().to_string(),
-                    },
-                )?,
-        ));
+        get_external_vault_merchant_connector_account(state, platform, business_profile).await?;
 
     let router_data = payment_data
         .construct_router_data(
@@ -3778,6 +3758,43 @@ where
         external_vault_merchant_connector_account,
         router_data,
     ))
+}
+
+#[cfg(feature = "v1")]
+async fn get_external_vault_merchant_connector_account(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+) -> RouterResult<helpers::MerchantConnectorAccountType> {
+    let provider_business_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile)
+            .await
+            .inspect_err(|err| {
+                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault MCA lookup");
+            })?;
+
+    // Fetch the external vault MCA from the provider's business_profile
+    let external_vault_mca_id = provider_business_profile
+        .external_vault_details
+        .get_vault_connector_id()
+        .ok_or_else(|| {
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("external vault is not enabled for this business profile")
+        })?;
+
+    Ok(helpers::MerchantConnectorAccountType::DbVal(Box::new(
+        state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_provider().get_account().get_id(),
+                &external_vault_mca_id,
+                platform.get_provider().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: external_vault_mca_id.get_string_repr().to_string(),
+            })?,
+    )))
 }
 
 /// Decide and perform the external vault proxy connector call (v1): pick the execution path
@@ -3888,6 +3905,7 @@ where
                     platform.get_processor(),
                     payment_data.get_creds_identifier(),
                     &gateway_context::RouterGatewayContext {
+                        external_vault_proxy_metadata: None,
                         creds_identifier: payment_data
                             .get_creds_identifier()
                             .map(|id| id.to_string()),
@@ -3912,6 +3930,7 @@ where
             );
 
             let gateway_ctx = gateway_context::RouterGatewayContext {
+                external_vault_proxy_metadata: None,
                 creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
                 processor: platform.get_processor().clone(),
                 header_payload: header_payload.clone(),
@@ -6819,6 +6838,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     TokenizationAction,
+    Option<String>,
 )>
 where
     F: Send + Clone + Sync,
@@ -6833,6 +6853,33 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    let external_vault_proxy_metadata = if payment_data.get_external_vault_pmd().is_some() {
+        let flow_name = core_utils::get_flow_name::<F>()?;
+        if !matches!(
+            flow_name.as_str(),
+            "Capture" | "Void" | "IncrementalAuthorization"
+        ) {
+            return Err(errors::ApiErrorResponse::NotSupported {
+                message: format!("External vault proxy is not supported for {flow_name}"),
+            }
+            .into());
+        }
+        let vault_account =
+            get_external_vault_merchant_connector_account(state, platform, business_profile)
+                .await?;
+        Some(
+            super::unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
+                vault_account,
+                &state.conf.connectors,
+                &state.conf.proxy,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to construct external vault proxy metadata")?,
+        )
+    } else {
+        None
+    };
+
     let dimensions = Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
@@ -7001,7 +7048,12 @@ where
     payment_data
         .set_connector_request_reference_id_in_payment_attempt(connector_request_reference_id);
 
-    Ok((merchant_connector_account, router_data, tokenization_action))
+    Ok((
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
+        external_vault_proxy_metadata,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -7026,6 +7078,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
+    external_vault_proxy_metadata: Option<String>,
 ) -> RouterResult<(
     Option<storage::CustomerUpdate>,
     ConnectorServiceIntermediateState<F, RouterDReq>,
@@ -7058,6 +7111,11 @@ where
     )
     .await?;
 
+    gateway_context::validate_external_vault_proxy_execution_path(
+        execution_path,
+        external_vault_proxy_metadata.is_some(),
+    )?;
+
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
         business_profile.get_id().clone(),
@@ -7071,6 +7129,7 @@ where
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
+        external_vault_proxy_metadata,
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
         processor: processor.clone(),
         header_payload: header_payload.clone(),
@@ -7666,6 +7725,7 @@ where
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
+        external_vault_proxy_metadata: None,
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
         processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
@@ -7802,6 +7862,7 @@ where
         };
 
         let gateway_context = gateway_context::RouterGatewayContext {
+            external_vault_proxy_metadata: None,
             creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
             processor: processor.clone(),
             header_payload: header_payload.clone(),
@@ -8007,6 +8068,7 @@ where
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
+        external_vault_proxy_metadata: None,
         creds_identifier: payment_data.get_creds_identifier().map(|id| id.to_string()),
         processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
@@ -9139,6 +9201,7 @@ where
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
+        external_vault_proxy_metadata: None,
         creds_identifier,
         processor: processor.clone(),
         header_payload: header_payload.clone(),

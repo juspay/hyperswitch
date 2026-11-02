@@ -54,6 +54,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
+        let operation_payment_method_data = operations::split_payment_method_data_for_operation(
+            request.payment_method_data.clone(),
+            payment_method_fetch_data
+                .payment_method_with_raw_data
+                .and_then(|pm| pm.raw_payment_method_data),
+        )?;
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
@@ -169,15 +175,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let payment_method_data = payment_method_fetch_data
-            .payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(request
-                .payment_method_data
-                .clone()
-                .map(domain::PaymentMethodData::from));
-
         let payment_data = PaymentData {
             capture_feature_metadata: None,
             flow: PhantomData,
@@ -202,7 +199,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
-            payment_method_data,
+            payment_method_data: operation_payment_method_data.payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
@@ -238,7 +235,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
-            external_vault_pmd: None,
+            external_vault_pmd: operation_payment_method_data.external_vault_pmd,
             update_request_fields: None,
         };
 
@@ -400,6 +397,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelRequest, PaymentData<F
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
+        if payment_data.external_vault_pmd.is_some() {
+            return Ok((Box::new(self), None, None));
+        }
+
         let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
             state,
             platform,

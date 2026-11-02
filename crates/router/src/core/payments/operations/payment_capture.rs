@@ -62,6 +62,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payments::PaymentData<F>,
         >,
     > {
+        let operation_payment_method_data = operations::split_payment_method_data_for_operation(
+            request.payment_method_data.clone(),
+            payment_method_fetch_data
+                .payment_method_with_raw_data
+                .and_then(|pm| pm.raw_payment_method_data),
+        )?;
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
@@ -101,6 +107,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         let capture_method = payment_attempt
             .get_effective_capture_method()
             .get_required_value("capture_method")?;
+
+        if operation_payment_method_data.external_vault_pmd.is_some()
+            && capture_method == enums::CaptureMethod::ManualMultiple
+        {
+            return Err(errors::ApiErrorResponse::NotSupported {
+                message: "External vault proxy is not supported for multiple captures".to_string(),
+            }
+            .into());
+        }
 
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
@@ -254,15 +269,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 id: profile_id.get_string_repr().to_owned(),
             })?;
 
-        let payment_method_data = payment_method_fetch_data
-            .payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(request
-                .payment_method_data
-                .clone()
-                .map(domain::PaymentMethodData::from));
-
         let payment_data = payments::PaymentData {
             capture_feature_metadata,
             flow: PhantomData,
@@ -289,7 +295,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: None,
-            payment_method_data,
+            payment_method_data: operation_payment_method_data.payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             refunds: vec![],
@@ -323,7 +329,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
-            external_vault_pmd: None,
+            external_vault_pmd: operation_payment_method_data.external_vault_pmd,
             update_request_fields: None,
         };
 
@@ -482,6 +488,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCaptureRequest, payments::Pa
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
+        if payment_data.external_vault_pmd.is_some() {
+            return Ok((Box::new(self), None, None));
+        }
+
         let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
             state,
             platform,

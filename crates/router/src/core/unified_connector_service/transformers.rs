@@ -2457,19 +2457,27 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
+        let payment_method = match router_data.request.external_vault_pmd.clone() {
+            Some(payment_method_data) => Some(
+                unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                     payment_method_data,
                     router_data.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?;
+                )?,
+            ),
+            None => router_data
+                .request
+                .payment_method_data
+                .clone()
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?,
+        };
         let settlement = multi_currency_processing::resolve_operation_multi_currency_processing(
             &router_data.connector,
             router_data.request.payment_feature_metadata.as_ref(),
@@ -4070,19 +4078,27 @@ impl
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
+        let payment_method = match router_data.request.external_vault_pmd.clone() {
+            Some(payment_method_data) => Some(
+                unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                     payment_method_data,
                     router_data.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?;
+                )?,
+            ),
+            None => router_data
+                .request
+                .payment_method_data
+                .clone()
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?,
+        };
 
         Ok(Self {
             test_mode: router_data.test_mode,
@@ -9143,19 +9159,27 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| {
-                unified_connector_service::build_unified_connector_service_payment_method(
+        let payment_method = match router_data.request.external_vault_pmd.clone() {
+            Some(payment_method_data) => Some(
+                unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
                     payment_method_data,
                     router_data.payment_method_type,
-                    router_data.payment_method_token.as_ref(),
-                    router_data.connector_meta_data.as_ref(),
-                )
-            })
-            .transpose()?;
+                )?,
+            ),
+            None => router_data
+                .request
+                .payment_method_data
+                .clone()
+                .map(|payment_method_data| {
+                    unified_connector_service::build_unified_connector_service_payment_method(
+                        payment_method_data,
+                        router_data.payment_method_type,
+                        router_data.payment_method_token.as_ref(),
+                        router_data.connector_meta_data.as_ref(),
+                    )
+                })
+                .transpose()?,
+        };
 
         Ok(Self {
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
