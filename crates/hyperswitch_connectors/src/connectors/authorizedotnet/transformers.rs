@@ -1530,8 +1530,15 @@ pub struct AuthorizedotnetNonZeroMandateResponse {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedotnetVoidResponse {
-    pub transaction_response: Option<VoidResponse>,
+    pub transaction_response: Option<VoidTransactionResponse>,
     pub messages: ResponseMessages,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum VoidTransactionResponse {
+    VoidResponse(Box<VoidResponse>),
+    Error(Box<AuthorizedotnetTransactionResponseError>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1757,7 +1764,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
     ) -> Result<Self, Self::Error> {
         let prev_status = item.data.status;
         match &item.response.transaction_response {
-            Some(transaction_response) => {
+            Some(VoidTransactionResponse::VoidResponse(transaction_response)) => {
                 let status =
                     get_void_status(transaction_response.response_code.clone(), prev_status);
                 let error = transaction_response.errors.as_ref().and_then(|errors| {
@@ -1816,8 +1823,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, Payment
                     ..item.data
                 })
             }
-            None => Ok(Self {
-                status: enums::AttemptStatus::Failure,
+            Some(VoidTransactionResponse::Error(_)) | None => Ok(Self {
+                status: enums::AttemptStatus::VoidFailed,
                 response: Err(get_err_response(item.http_code, item.response.messages)?),
                 ..item.data
             }),
