@@ -12,9 +12,9 @@ pub mod payouts;
 /// types that are wrappers around primitive types
 pub mod primitive_wrappers;
 pub mod refunds;
-pub mod user;
 /// types for three ds decision rule engine
 pub mod three_ds_decision_rule_engine;
+pub mod user;
 
 ///types for callback mapper
 pub mod callback_mapper;
