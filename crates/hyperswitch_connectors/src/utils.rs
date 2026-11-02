@@ -3062,6 +3062,7 @@ pub trait PaymentsSetupMandateRequestData {
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
+    fn is_stripe_split_payment(&self) -> bool;
 }
 
 impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
@@ -3113,6 +3114,12 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+    fn is_stripe_split_payment(&self) -> bool {
+        matches!(
+            self.split_payments,
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(..))
+        )
     }
 }
 

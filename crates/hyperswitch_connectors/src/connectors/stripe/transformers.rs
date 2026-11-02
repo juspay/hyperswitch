@@ -67,7 +67,8 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
-        PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
+        PaymentMethodPredicates, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
+        SplitPaymentData,
     },
 };
 pub mod auth_headers {
@@ -313,8 +314,9 @@ pub struct SetupIntentRequest {
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
     pub return_url: Option<String>,
+    pub payment_method: Option<Secret<String>>,
     #[serde(flatten)]
-    pub payment_data: StripePaymentMethodData,
+    pub payment_data: Option<StripePaymentMethodData>,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     #[serde(flatten)]
     pub meta_data: Option<HashMap<String, String>>,
@@ -2215,6 +2217,10 @@ pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterDa
                 .unwrap_or(false))
 }
 
+pub fn is_setup_mandate_tokenize_flow_required(data: &SetupMandateRouterData) -> bool {
+    data.request.is_stripe_split_payment() && data.request.is_card()
+}
+
 fn is_tokenized_ntid_flow(item: &PaymentsAuthorizeRouterData) -> bool {
     item.payment_method_token.is_some()
         && item.request.is_stripe_split_payment()
@@ -2792,18 +2798,41 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
         //Only cards supported for mandates
         let pm_type = StripePaymentMethodType::Card;
-        let payment_data = StripePaymentMethodData::try_from((item, item.auth_type, pm_type))?;
+
+        let payment_method_token = if is_setup_mandate_tokenize_flow_required(item) {
+            match item.payment_method_token.clone() {
+                Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        let payment_data = if payment_method_token.is_some() {
+            None
+        } else {
+            Some(StripePaymentMethodData::try_from((
+                item,
+                item.auth_type,
+                pm_type,
+            ))?)
+        };
 
         let meta_data = Some(get_transaction_metadata(
             item.request.metadata.clone(),
             item.connector_request_reference_id.clone(),
         ));
 
-        let browser_info = item
-            .request
-            .browser_info
-            .clone()
-            .map(StripeBrowserInformation::from);
+        // We pass browser_info only when payment_data exists.
+        // It is sent as payment_method_data[...], which cannot go along with payment_method
+        let browser_info = if payment_data.is_some() {
+            item.request
+                .browser_info
+                .clone()
+                .map(StripeBrowserInformation::from)
+        } else {
+            None
+        };
 
         let is_moto = if matches!(
             item.request.payment_method_data,
@@ -2836,6 +2865,7 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
 
         Ok(Self {
             confirm: true,
+            payment_method: payment_method_token,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,
@@ -5824,5 +5854,232 @@ mod test_validate_shipping_address_against_payment_method {
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
         }
+    }
+}
+
+#[cfg(test)]
+mod test_setup_intent_request {
+    use std::{marker::PhantomData, str::FromStr};
+
+    use common_enums::{enums, PaymentChargeType, StripeChargeType};
+    use common_types::payments::{SplitPaymentsRequest, StripeSplitPaymentRequest};
+    use common_utils::{id_type, types::MinorUnit};
+    use hyperswitch_domain_models::{
+        payment_address::PaymentAddress,
+        payment_method_data::{Card, PaymentMethodData},
+        router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+        router_request_types::{BrowserInformation, SetupMandateRequestData},
+        types::SetupMandateRouterData,
+    };
+    use hyperswitch_masking::Secret;
+
+    use crate::connectors::stripe::transformers::SetupIntentRequest;
+
+    fn get_direct_split_payment() -> SplitPaymentsRequest {
+        SplitPaymentsRequest::StripeSplitPayment(StripeSplitPaymentRequest {
+            charge_type: PaymentChargeType::Stripe(StripeChargeType::Direct),
+            application_fees: None,
+            transfer_account_id: "acct_test".to_string(),
+            on_behalf_of: None,
+        })
+    }
+
+    fn get_setup_mandate_router_data(
+        split_payments: Option<SplitPaymentsRequest>,
+        payment_method_token: Option<PaymentMethodToken>,
+    ) -> SetupMandateRouterData {
+        let card = Card {
+            card_number: cards::CardNumber::from_str("4242424242424242").unwrap(),
+            card_exp_month: Secret::new("12".to_string()),
+            card_exp_year: Secret::new("2030".to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            ..Default::default()
+        };
+
+        let browser_info = BrowserInformation {
+            ip_address: Some(std::net::IpAddr::from_str("127.0.0.1").unwrap()),
+            user_agent: Some("test-agent".to_string()),
+            ..Default::default()
+        };
+
+        let request = SetupMandateRequestData {
+            currency: enums::Currency::USD,
+            payment_method_data: PaymentMethodData::Card(card),
+            amount: 0,
+            confirm: true,
+            customer_acceptance: None,
+            mandate_id: None,
+            setup_future_usage: Some(enums::FutureUsage::OffSession),
+            off_session: None,
+            setup_mandate_details: None,
+            router_return_url: Some("https://example.com/return".to_string()),
+            webhook_url: None,
+            feature_metadata: None,
+            browser_info: Some(browser_info),
+            email: None,
+            customer_name: None,
+            return_url: None,
+            payment_method_type: Some(enums::PaymentMethodType::Credit),
+            request_incremental_authorization: false,
+            metadata: None,
+            complete_authorize_url: None,
+            capture_method: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
+            minor_amount: MinorUnit::new(0),
+            shipping_cost: None,
+            connector_testing_data: None,
+            customer_id: None,
+            enable_partial_authorization: None,
+            payment_channel: None,
+            is_stored_credential: None,
+            billing_descriptor: None,
+            split_payments,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            authentication_data: None,
+            connector_intent_metadata: None,
+            merchant_order_reference_id: None,
+            mit_category: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
+            business_country: None,
+            enable_avs_check: None,
+        };
+
+        RouterData {
+            flow: PhantomData,
+            merchant_id: id_type::MerchantId::get_irrelevant_merchant_id(),
+            customer_id: None,
+            connector_customer: Some("cus_test".to_string()),
+            connector: "stripe".to_string(),
+            payment_id: "pay_test".to_string(),
+            attempt_id: "pay_test_1".to_string(),
+            tenant_id: id_type::TenantId::get_default_tenant_id(),
+            status: enums::AttemptStatus::Pending,
+            payment_method: enums::PaymentMethod::Card,
+            payment_method_type: Some(enums::PaymentMethodType::Credit),
+            connector_auth_type: ConnectorAuthType::HeaderKey {
+                api_key: Secret::new("sk_test".to_string()),
+            },
+            description: None,
+            address: PaymentAddress::default(),
+            auth_type: enums::AuthenticationType::NoThreeDs,
+            connector_meta_data: None,
+            connector_wallets_details: None,
+            amount_captured: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            payment_method_token,
+            recurring_mandate_payment_data: None,
+            preprocessing_id: None,
+            payment_method_balance: None,
+            connector_api_version: None,
+            request,
+            response: Err(ErrorResponse::default()),
+            connector_request_reference_id: "pay_test_1".to_string(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: None,
+            #[cfg(feature = "payouts")]
+            quote_id: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            apple_pay_flow: None,
+            frm_metadata: None,
+            dispute_id: None,
+            refund_id: None,
+            payout_id: None,
+            connector_response: None,
+            payment_method_status: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            authorized_amount: None,
+            integrity_check: Ok(()),
+            accept_amount_mismatch: None,
+            additional_merchant_data: None,
+            header_payload: None,
+            connector_mandate_request_reference_id: None,
+            l2_l3_data: None,
+            authentication_id: None,
+            psd2_sca_exemption_type: None,
+            raw_connector_response: None,
+            is_payment_id_from_merchant: None,
+            customer_document_details: None,
+            customer_date_of_birth: None,
+            feature_data: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        }
+    }
+
+    // Serializes the request the same way the connector sends it (form urlencoded) and
+    // decodes it back into (key, value) pairs with readable keys.
+    fn get_serialized_fields(request: &SetupIntentRequest) -> Vec<(String, String)> {
+        let body = serde_urlencoded::to_string(request).unwrap();
+        serde_urlencoded::from_str(&body).unwrap()
+    }
+
+    #[test]
+    fn should_send_payment_method_token_for_split_payment() {
+        // Arrange
+        let router_data = get_setup_mandate_router_data(
+            Some(get_direct_split_payment()),
+            Some(PaymentMethodToken::Token(Secret::new(
+                "pm_test_123".to_string(),
+            ))),
+        );
+
+        // Act
+        let request = SetupIntentRequest::try_from(&router_data).unwrap();
+        let fields = get_serialized_fields(&request);
+
+        // Assert
+        assert!(fields.contains(&("payment_method".to_string(), "pm_test_123".to_string())));
+        assert!(!fields
+            .iter()
+            .any(|(key, _)| key.starts_with("payment_method_data[card]")));
+        assert!(!fields
+            .iter()
+            .any(|(key, _)| key == "payment_method_data[ip]"));
+        assert!(fields.contains(&("payment_method_types[0]".to_string(), "card".to_string())));
+        assert!(fields.contains(&("customer".to_string(), "cus_test".to_string())));
+    }
+
+    #[test]
+    fn should_send_card_data_for_non_split_payment() {
+        // Arrange
+        let router_data = get_setup_mandate_router_data(None, None);
+
+        // Act
+        let request = SetupIntentRequest::try_from(&router_data).unwrap();
+        let fields = get_serialized_fields(&request);
+
+        // Assert
+        assert!(fields.contains(&(
+            "payment_method_data[card][number]".to_string(),
+            "4242424242424242".to_string()
+        )));
+        assert!(fields
+            .iter()
+            .any(|(key, _)| key == "payment_method_data[ip]"));
+        assert!(!fields.iter().any(|(key, _)| key == "payment_method"));
+    }
+
+    #[test]
+    fn should_send_card_data_for_split_payment_without_token() {
+        // Arrange
+        let router_data = get_setup_mandate_router_data(Some(get_direct_split_payment()), None);
+
+        // Act
+        let request = SetupIntentRequest::try_from(&router_data).unwrap();
+        let fields = get_serialized_fields(&request);
+
+        // Assert
+        assert!(fields
+            .iter()
+            .any(|(key, _)| key == "payment_method_data[card][number]"));
+        assert!(!fields.iter().any(|(key, _)| key == "payment_method"));
     }
 }
