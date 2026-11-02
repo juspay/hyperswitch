@@ -750,7 +750,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            integrity_specifications: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -1375,6 +1374,10 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            domain_data: None,
+            risk_assessment_data: None,
+            split_payments: None,
+            split_settlement: None,
         })
     }
 }
@@ -1541,9 +1544,6 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             .transpose()?;
 
         Ok(Self {
-            integrity_specifications: None,
-            is_overcapture_enabled: None,
-            enable_partial_authorization: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -3546,7 +3546,6 @@ impl
         };
 
         Ok(Self {
-            integrity_specifications: None,
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             connector_recurring_payment_id,
             payment_method,
@@ -3821,7 +3820,6 @@ impl
         )?;
 
         Ok(Self {
-            integrity_specifications: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -4102,7 +4100,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            payment_method: None,
             test_mode: router_data.test_mode,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.total_amount,
@@ -9176,7 +9173,6 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
             .transpose()?;
 
         Ok(Self {
-            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             cancellation_reason: router_data.request.cancellation_reason.clone(),
@@ -9236,7 +9232,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            payment_method: None,
             merchant_void_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             split_payments: None,
