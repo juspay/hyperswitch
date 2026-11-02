@@ -865,26 +865,34 @@ impl StripeWalletNetworkTokenPayment {
     fn try_from_google_pay_predecrypt_data(
         decrypt_data: &common_types::payments::GPayPredecryptData,
     ) -> Result<Option<Self>, error_stack::Report<ConnectorError>> {
-        let Some(cryptogram) = decrypt_data.cryptogram.clone() else {
-            return Ok(None);
-        };
-        let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year().change_context(
-            ConnectorError::InvalidDataFormat {
-                field_name: "expiry_year_4_digit".into(),
-            },
-        )?;
-        Ok(Some(Self {
-            payment_method_data_type: StripePaymentMethodType::Card,
-            exp_month: decrypt_data.card_exp_month.clone(),
-            exp_year: expiry_year_4_digit.clone(),
-            last4: decrypt_data.application_primary_account_number.get_last4(),
-            network_token_number: decrypt_data.application_primary_account_number.clone(),
-            network_token_exp_month: decrypt_data.card_exp_month.clone(),
-            network_token_exp_year: expiry_year_4_digit,
-            tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
-            cryptogram,
-            eci: decrypt_data.eci_indicator.clone(),
-        }))
+        decrypt_data
+            .cryptogram
+            .clone()
+            .map(|cryptogram| {
+                decrypt_data
+                    .get_four_digit_expiry_year()
+                    .change_context(ConnectorError::InvalidDataFormat {
+                        field_name: "expiry_year_4_digit".into(),
+                    })
+                    .attach_printable(
+                        "Failed to get four digit expiry year from decrypted Google Pay token",
+                    )
+                    .map(|expiry_year_4_digit| Self {
+                        payment_method_data_type: StripePaymentMethodType::Card,
+                        exp_month: decrypt_data.card_exp_month.clone(),
+                        exp_year: expiry_year_4_digit.clone(),
+                        last4: decrypt_data.application_primary_account_number.get_last4(),
+                        network_token_number: decrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                        network_token_exp_month: decrypt_data.card_exp_month.clone(),
+                        network_token_exp_year: expiry_year_4_digit,
+                        tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
+                        cryptogram,
+                        eci: decrypt_data.eci_indicator.clone(),
+                    })
+            })
+            .transpose()
     }
 }
 

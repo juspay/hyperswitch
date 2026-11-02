@@ -99,7 +99,7 @@ pub trait Feature<F, T> {
     }
 
     /// Flow used to decide whether the payment should be made via a single-use token, `None` if not applicable
-    fn single_use_token_flow() -> Option<payments::SingleUseTokenFlow>
+    fn single_use_token_flow() -> Option<common_enums::SingleUseTokenFlow>
     where
         Self: Sized,
     {

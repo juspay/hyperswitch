@@ -76,7 +76,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
-use hyperswitch_interfaces::api::{ConnectorSpecifications, SingleUseTokenSupport};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -10217,164 +10217,47 @@ fn get_pay_via_single_use_token_from_mca(
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
 ) -> Option<common_types::payment_methods::PayViaSingleUseToken> {
-    let helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account) =
-        merchant_connector_account
-    else {
-        return None;
-    };
-    let payment_method_type = payment_method_type?;
-
-    merchant_connector_account
-        .payment_methods_enabled
-        .as_ref()?
-        .iter()
-        .filter_map(|payment_methods_enabled| {
-            payment_methods_enabled
-                .clone()
-                .parse_value::<api_models::admin::PaymentMethodsEnabled>("PaymentMethodsEnabled")
-                .inspect_err(|err| {
-                    logger::error!("Unable to deserialize payment methods enabled: {:?}", err)
-                })
-                .ok()
-        })
-        .filter(|payment_methods_enabled| payment_methods_enabled.payment_method == payment_method)
-        .flat_map(|payment_methods_enabled| {
-            payment_methods_enabled
-                .payment_method_types
-                .unwrap_or_default()
-        })
-        .find(|request_payment_method_type| {
-            request_payment_method_type.payment_method_type == payment_method_type
-        })
-        .and_then(|request_payment_method_type| {
-            request_payment_method_type.pay_via_single_use_token
-        })
-}
-
-/// Decision on whether the payment should be made via a single-use token created at the connector before the flow
-/// (authorize / setup mandate), based on the `pay_via_single_use_token` config of the merchant connector account
-#[cfg(feature = "v1")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SingleUseTokenDecision {
-    /// Follow the default behaviour, based on the connector tokenization config
-    Default,
-    /// Make the payment via a single-use token created at the connector
-    PayViaSingleUseToken,
-    /// Make the payment directly, without creating a single-use token at the connector
-    PayDirectly,
-}
-
-#[cfg(feature = "v1")]
-impl SingleUseTokenDecision {
-    /// Decides the payment mode from the `pay_via_single_use_token` config, erroring if the connector support conflicts
-    #[allow(clippy::too_many_arguments)]
-    fn decide(
-        connector_data: &api::ConnectorData,
-        single_use_token_flow: Option<SingleUseTokenFlow>,
-        pay_via_single_use_token: Option<common_types::payment_methods::PayViaSingleUseToken>,
-        payment_method_data: Option<&domain::PaymentMethodData>,
-        payment_method_token: Option<&PaymentMethodToken>,
-        payment_method_type: Option<storage::enums::PaymentMethodType>,
-    ) -> RouterResult<Self> {
-        let pay_via_single_use_token = pay_via_single_use_token.unwrap_or_default();
-
-        // The connector single-use token support is checked only when `Enabled` / `Disabled` is configured, for the
-        // flows that can be made via a single-use token, and when the payment method data is available (not for
-        // saved payment methods)
-        let single_use_token_support = match pay_via_single_use_token {
-            common_types::payment_methods::PayViaSingleUseToken::Default => None,
-            common_types::payment_methods::PayViaSingleUseToken::Enabled
-            | common_types::payment_methods::PayViaSingleUseToken::Disabled => {
-                single_use_token_flow.zip(payment_method_data).and_then(
-                    |(single_use_token_flow, payment_method_data)| match single_use_token_flow {
-                        SingleUseTokenFlow::Authorize => {
-                            connector_data.connector.get_single_use_token_support(
-                                payment_method_data,
-                                payment_method_token,
-                            )
-                        }
-                        SingleUseTokenFlow::SetupMandate => connector_data
-                            .connector
-                            .get_single_use_token_support_for_setup_mandate(
-                                payment_method_data,
-                                payment_method_token,
-                            ),
-                    },
-                )
-            }
-        };
-
-        let payment_method_type = payment_method_type
-            .map(|payment_method_type| payment_method_type.to_string())
-            .unwrap_or_default();
-
-        match (pay_via_single_use_token, single_use_token_support) {
-            // Not configured, or not implemented for the connector, follow the default behaviour
-            (common_types::payment_methods::PayViaSingleUseToken::Default, _) | (_, None) => {
-                Ok(Self::Default)
-            }
-            (
-                common_types::payment_methods::PayViaSingleUseToken::Enabled,
-                Some(single_use_token_support),
-            ) => {
-                if single_use_token_support == SingleUseTokenSupport::NotSupported {
-                    Err(report!(errors::ApiErrorResponse::InvalidConnectorConfiguration {
-                        config: format!(
-                            "pay_via_single_use_token: tokenization is not supported for payment method type {} with connector {}",
-                            payment_method_type, connector_data.connector_name
-                        ),
-                    }))
-                } else {
-                    Ok(Self::PayViaSingleUseToken)
-                }
-            }
-            (
-                common_types::payment_methods::PayViaSingleUseToken::Disabled,
-                Some(single_use_token_support),
-            ) => {
-                if single_use_token_support == SingleUseTokenSupport::Required {
-                    Err(report!(errors::ApiErrorResponse::InvalidConnectorConfiguration {
-                        config: format!(
-                            "pay_via_single_use_token: payment without tokenization is not supported for payment method type {} with connector {}",
-                            payment_method_type, connector_data.connector_name
-                        ),
-                    }))
-                } else {
-                    Ok(Self::PayDirectly)
-                }
-            }
+    let payment_methods_enabled = match merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account) => {
+            merchant_connector_account.payment_methods_enabled.as_ref()
         }
-    }
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
 
-    /// Gets the tokenization action
-    #[allow(clippy::too_many_arguments)]
-    async fn get_tokenization_action(
-        self,
-        state: &SessionState,
-        connector_name: &str,
-        payment_method: storage::enums::PaymentMethod,
-        payment_intent_data: payments::PaymentIntent,
-        pm_parent_token: Option<&str>,
-        is_connector_tokenization_enabled_by_default: bool,
-        is_network_transaction_id_flow: bool,
-    ) -> RouterResult<TokenizationAction> {
-        let is_connector_tokenization_enabled = match self {
-            Self::Default => is_connector_tokenization_enabled_by_default,
-            Self::PayViaSingleUseToken => true,
-            Self::PayDirectly => false,
-        };
-
-        decide_payment_method_tokenize_action(
-            state,
-            connector_name,
-            payment_method,
-            payment_intent_data,
-            pm_parent_token,
-            is_connector_tokenization_enabled,
-            is_network_transaction_id_flow,
-        )
-        .await
-    }
+    payment_methods_enabled.zip(payment_method_type).and_then(
+        |(payment_methods_enabled, payment_method_type)| {
+            payment_methods_enabled
+                .iter()
+                .filter_map(|payment_methods_enabled| {
+                    payment_methods_enabled
+                        .clone()
+                        .parse_value::<api_models::admin::PaymentMethodsEnabled>(
+                            "PaymentMethodsEnabled",
+                        )
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Unable to deserialize payment methods enabled: {:?}",
+                                err
+                            )
+                        })
+                        .ok()
+                })
+                .filter(|payment_methods_enabled| {
+                    payment_methods_enabled.payment_method == payment_method
+                })
+                .flat_map(|payment_methods_enabled| {
+                    payment_methods_enabled
+                        .payment_method_types
+                        .unwrap_or_default()
+                })
+                .find(|request_payment_method_type| {
+                    request_payment_method_type.payment_method_type == payment_method_type
+                })
+                .and_then(|request_payment_method_type| {
+                    request_payment_method_type.pay_via_single_use_token
+                })
+        },
+    )
 }
 
 #[cfg(feature = "v1")]
@@ -10462,13 +10345,6 @@ pub struct GooglePayPaymentProcessingDetails {
     /// decrypted token. Set for `INTERNAL_GATEWAY` only.
     pub google_pay_gateway_merchant_id: Option<String>,
 }
-/// Flows in which the payment can be made via a single-use token created at the connector
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SingleUseTokenFlow {
-    Authorize,
-    SetupMandate,
-}
-
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug)]
 pub enum TokenizationAction {
@@ -10499,7 +10375,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     feature_config: &core_utils::FeatureConfig,
     connector_data: &api::ConnectorData,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    single_use_token_flow: Option<SingleUseTokenFlow>,
+    single_use_token_flow: Option<common_enums::SingleUseTokenFlow>,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -10558,18 +10434,20 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
-            let single_use_token_decision = SingleUseTokenDecision::decide(
-                connector_data,
-                single_use_token_flow,
-                get_pay_via_single_use_token_from_mca(
-                    merchant_connector_account,
-                    payment_method,
+            let single_use_token_decision =
+                ::payment_methods::single_use_token::decide_single_use_token(
+                    &connector_data.connector,
+                    &connector_data.connector_name.to_string(),
+                    single_use_token_flow,
+                    get_pay_via_single_use_token_from_mca(
+                        merchant_connector_account,
+                        payment_method,
+                        payment_method_type,
+                    ),
+                    payment_data.get_payment_method_data(),
+                    payment_data.get_payment_method_token(),
                     payment_method_type,
-                ),
-                payment_data.get_payment_method_data(),
-                payment_data.get_payment_method_token(),
-                payment_method_type,
-            )?;
+                )?;
 
             let is_network_transaction_id_flow = payment_data
                 .get_mandate_id()
@@ -10578,17 +10456,17 @@ where
                 .map(|mandate_reference| mandate_reference.is_network_mandate_id())
                 .unwrap_or(false);
 
-            let payment_method_action =
-                Box::pin(single_use_token_decision.get_tokenization_action(
-                    state,
-                    &connector,
-                    payment_method,
-                    payment_data.get_payment_intent().clone(),
-                    payment_data.get_token(),
-                    is_connector_tokenization_enabled,
-                    is_network_transaction_id_flow,
-                ))
-                .await?;
+            let payment_method_action = Box::pin(decide_payment_method_tokenize_action(
+                state,
+                &connector,
+                payment_method,
+                payment_data.get_payment_intent().clone(),
+                payment_data.get_token(),
+                single_use_token_decision
+                    .is_connector_tokenization_enabled(is_connector_tokenization_enabled),
+                is_network_transaction_id_flow,
+            ))
+            .await?;
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {

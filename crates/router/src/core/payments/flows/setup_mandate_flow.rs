@@ -111,8 +111,8 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
-    fn single_use_token_flow() -> Option<payments::SingleUseTokenFlow> {
-        Some(payments::SingleUseTokenFlow::SetupMandate)
+    fn single_use_token_flow() -> Option<common_enums::SingleUseTokenFlow> {
+        Some(common_enums::SingleUseTokenFlow::SetupMandate)
     }
 
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {

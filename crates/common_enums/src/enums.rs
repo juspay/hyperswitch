@@ -12641,3 +12641,32 @@ pub enum PayshapProxyType {
     #[default]
     ShapId,
 }
+
+/// Flows in which the payment can be made via a single-use token created at the connector
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SingleUseTokenFlow {
+    Authorize,
+    SetupMandate,
+}
+
+/// Decision on whether the payment should be made via a single-use token created at the connector before the flow
+/// (authorize / setup mandate), based on the `pay_via_single_use_token` config of the merchant connector account
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SingleUseTokenDecision {
+    Default,
+    PayViaSingleUseToken,
+    PayDirectly,
+}
+
+impl SingleUseTokenDecision {
+    pub fn is_connector_tokenization_enabled(
+        self,
+        is_connector_tokenization_enabled_by_default: bool,
+    ) -> bool {
+        match self {
+            Self::Default => is_connector_tokenization_enabled_by_default,
+            Self::PayViaSingleUseToken => true,
+            Self::PayDirectly => false,
+        }
+    }
+}
