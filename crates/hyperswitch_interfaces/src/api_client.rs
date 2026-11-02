@@ -12,6 +12,7 @@ use common_utils::{
     },
     errors::CustomResult,
     request::{Headers, Request, RequestContent},
+    transformers::ForeignTryFrom,
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -295,7 +296,7 @@ where
                         None,
                     )
                     .await;
-                    let external_latency = current_time.elapsed().as_millis();
+                    let external_latency = common_utils::elapsed::millis_since(current_time);
                     logger::info!(raw_connector_request=?masked_request_body);
                     let status_code = response
                         .as_ref()
@@ -383,6 +384,9 @@ where
                                     }?
                                 }
                                 Err(body) => {
+                                    // Preserve the HTTP status if connector-specific parsing fails.
+                                    let http_status = http::StatusCode::from_u16(body.status_code)
+                                        .unwrap_or(http::StatusCode::INTERNAL_SERVER_ERROR);
                                     router_data.connector_http_status_code = Some(body.status_code);
                                     router_data.external_latency = Some(
                                         router_data
@@ -409,7 +413,8 @@ where
                                                 .get_5xx_error_response(
                                                     body,
                                                     Some(&mut connector_event),
-                                                )?;
+                                                )
+                                                .attach(http_status)?;
                                             state
                                                 .event_handler()
                                                 .log_connector_event(&connector_event);
@@ -420,7 +425,8 @@ where
                                                 .get_error_response(
                                                     body,
                                                     Some(&mut connector_event),
-                                                )?;
+                                                )
+                                                .attach(http_status)?;
                                             if let Some(status) = error_res.attempt_status {
                                                 router_data.status = status;
                                             };
@@ -566,7 +572,7 @@ pub async fn handle_response(
         .map(|response| async {
             logger::info!(?response);
             let status_code = response.status().as_u16();
-            let headers = Some(response.headers().to_owned());
+            let headers = Some(http::HeaderMap::foreign_try_from(response.headers())?);
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line

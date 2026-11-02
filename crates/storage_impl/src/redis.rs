@@ -65,6 +65,15 @@ impl RedisStore {
         }
     }
 
+    /// The key prefix this store's keys are namespaced by.
+    ///
+    /// Deliberately not routed through [`Self::get_redis_pool`]: the prefix is a plain
+    /// string that is known whether or not redis is reachable, and callers need it on paths
+    /// that must not fail when redis is down.
+    pub fn key_prefix(&self) -> &str {
+        &self.redis_conn.key_prefix
+    }
+
     pub fn clone_pool_with_prefix(&self, key_prefix: &str) -> Self {
         Self {
             redis_conn: Arc::new(redis_interface::RedisConnectionPool::clone(

@@ -9,7 +9,7 @@ use crate::{
     kv_router_store,
     redis::{
         cache,
-        cache::{CacheKind, CONFIG_CACHE},
+        cache::{CacheId, CacheKind},
     },
     store::ConfigUpdateInternal,
     CustomResult, DatabaseStore, MockDb, RouterStore,
@@ -124,7 +124,13 @@ impl<T: DatabaseStore> ConfigInterface for RouterStore<T> {
                 }
             }
         };
-        cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
+        Box::pin(cache::get_or_populate_in_memory_redis(
+            self,
+            key,
+            find_config_by_key_from_db(),
+            CacheId::Config,
+        ))
+        .await
     }
 
     #[instrument(skip_all)]

@@ -515,6 +515,7 @@ impl
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)

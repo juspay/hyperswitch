@@ -6,6 +6,7 @@ use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, router_data::RouterData, router_flow_types as domain,
+    router_request_types::SyncIntegrityObject,
 };
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
@@ -107,12 +108,24 @@ where
                 };
 
                 router_data.response = router_data_response;
+                router_data.request.integrity_object = payment_get_response
+                    .authorized_money
+                    .as_ref()
+                    .map(SyncIntegrityObject::foreign_try_from)
+                    .transpose()
+                    .change_context(ConnectorError::ResponseHandlingFailed)?;
                 // Only override `amount_captured` when UCS actually reports a captured
                 // amount on sync. Connectors that don't return an amount on psync (e.g.
                 // cybersource TSS) leave this `None` .
                 if let Some(captured_amount) = payment_get_response.captured_amount {
                     router_data.amount_captured = Some(captured_amount);
                     router_data.minor_amount_captured = Some(MinorUnit::new(captured_amount));
+                }
+                // Likewise, only override the capturable amount when UCS reports one; a sync
+                // triggered by a webhook never carries it.
+                if let Some(capturable_money) = payment_get_response.capturable_money.as_ref() {
+                    router_data.minor_amount_capturable =
+                        Some(MinorUnit::new(capturable_money.minor_amount));
                 }
                 if return_raw_connector_response.unwrap_or(false) {
                     router_data.raw_connector_response = payment_get_response
@@ -139,11 +152,11 @@ where
                 let connector_enum =
                     common_enums::connector_enums::Connector::from_str(&connector_name)
                         .change_context(ConnectorError::InvalidConnectorName)?;
+                let rollout_settings = context.rollout_settings();
                 let merchant_connector_account = context.merchant_connector_account;
                 let processor = &context.processor;
                 let lineage_ids = context.lineage_ids;
                 let header_payload = context.header_payload;
-                let unified_connector_service_execution_mode = context.execution_mode;
                 let is_ucs_psync_disabled = state
                     .conf
                     .grpc_client
@@ -198,7 +211,9 @@ where
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
                 let header_payload = state
-                    .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+                    .get_grpc_headers_ucs(rollout_settings.execution_mode)
+                    .payment_method(Some(router_data.payment_method))
+                    .payment_method_type(router_data.payment_method_type)
                     .external_vault_proxy_metadata(None)
                     .merchant_reference_id(merchant_reference_id)
                     .resource_id(resource_id)
@@ -209,7 +224,7 @@ where
                     state,
                     payment_get_request,
                     header_payload,
-                    unified_connector_service_execution_mode,
+                    rollout_settings,
                     |mut router_data, payment_get_request, grpc_headers| async move {
                         let response = match client
                             .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
@@ -252,6 +267,11 @@ where
                         }
 
                         router_data.response = router_data_response;
+                        router_data.request.integrity_object = payment_get_response
+                            .authorized_money
+                            .as_ref()
+                            .map(SyncIntegrityObject::foreign_try_from)
+                            .transpose()?;
                         // Only override `amount_captured` when UCS actually reports a
                         // captured amount on sync. Connectors that don't return an amount
                         // on psync (e.g. cybersource TSS) leave this `None`;
@@ -259,6 +279,14 @@ where
                             router_data.amount_captured = Some(captured_amount);
                             router_data.minor_amount_captured =
                                 Some(MinorUnit::new(captured_amount));
+                        }
+                        // Likewise, only override the capturable amount when UCS reports one;
+                        // a sync triggered by a webhook never carries it.
+                        if let Some(capturable_money) =
+                            payment_get_response.capturable_money.as_ref()
+                        {
+                            router_data.minor_amount_capturable =
+                                Some(MinorUnit::new(capturable_money.minor_amount));
                         }
                         if return_raw_connector_response.unwrap_or(false) {
                             router_data.raw_connector_response =

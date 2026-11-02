@@ -406,6 +406,7 @@ async fn payments_create_core() {
         off_session: None,
         capture_on: None,
         capture_method: None,
+        capture_method_applied: None,
         payment_method: None,
         payment_method_data: None,
         payment_token: None,
@@ -497,6 +498,7 @@ async fn payments_create_core() {
         connector_customer_id: None,
         sender_payment_instrument_id: None,
         payment_account_reference: None,
+        enable_avs_check: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -723,6 +725,7 @@ async fn payments_create_core_adyen_no_redirect() {
             off_session: None,
             capture_on: None,
             capture_method: None,
+            capture_method_applied: None,
             payment_method: None,
             payment_method_data: None,
             payment_token: None,
@@ -814,6 +817,7 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_customer_id: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            enable_avs_check: None,
         },
         vec![],
     ));

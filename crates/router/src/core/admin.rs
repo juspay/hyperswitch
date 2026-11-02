@@ -15,7 +15,7 @@ use diesel_models::payment_method;
 #[cfg(all(any(feature = "v1", feature = "v2"), feature = "olap"))]
 use diesel_models::{business_profile::CardTestingGuardConfig, organization::OrganizationBridge};
 use error_stack::{report, FutureExt, ResultExt};
-use external_services::http_client::client;
+use external_services::http_client::{client, outbound_destination};
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
@@ -73,6 +73,14 @@ use crate::{
     deja::id(
         component = "router::admin",
         operation = "create_merchant_publishable_key",
+        on_miss = {
+            use common_utils::synth_shape::Synthesize as _;
+            format!(
+                "pk_{}_{}",
+                router_env::env::prefix_for_env(),
+                __deja_miss.uuid().simple()
+            )
+        },
         codec = SerdeCodec,
     )
 )]
@@ -439,6 +447,22 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                 field_name: "primary_business_details".into(),
             },
         )?;
+
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
+        }
 
         let webhook_details = self.webhook_details.clone().map(ForeignInto::foreign_into);
 
@@ -1157,6 +1181,22 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 field_name: "routing_algorithm".into(),
             },
         )?;
+
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
+        }
 
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
@@ -2830,7 +2870,7 @@ pub async fn create_connector(
         .clone()
         .create_domain_model_from_request(
             &state,
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             &business_profile,
             key_manager_state,
         )
@@ -2878,7 +2918,7 @@ pub async fn create_connector(
         merchant_connector_id: &mca.get_id(),
         store,
         business_profile,
-        key_store: processor.get_key_store().to_owned(),
+        key_store: processor.get_key_store().inner().to_owned(),
         key_manager_state,
     };
 
@@ -3292,7 +3332,7 @@ pub async fn delete_connector(
         merchant_connector_id: &mca.get_id(),
         store: db,
         business_profile,
-        key_store: platform.get_processor().get_key_store().to_owned(),
+        key_store: platform.get_processor().get_key_store().inner().to_owned(),
         key_manager_state,
     };
 
@@ -3534,6 +3574,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
 
         let current_time = date_time::now();
 
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
+        }
+
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
         let payment_response_hash_key = self
@@ -3718,6 +3774,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
             is_manual_retry_enabled: self.is_manual_retry_enabled,
+            auto_fallback_capture_method: self
+                .auto_fallback_capture_method
+                .map(common_enums::AutoFallbackCaptureMethod::from),
             always_enable_overcapture: self.always_enable_overcapture,
             external_vault_details: domain::ExternalVaultDetails::try_from((
                 self.is_external_vault_enabled,
@@ -3754,6 +3813,22 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let profile_name = self.profile_name;
 
         let current_time = date_time::now();
+
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
+        }
 
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
 
@@ -4047,11 +4122,20 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
+    // Cache hits must preserve the same ownership constraint as the database query.
+    match business_profile {
+        business_profile if business_profile.merchant_id == merchant_id => {
+            Ok(service_api::ApplicationResponse::Json(
+                api_models::admin::ProfileResponse::foreign_try_from(business_profile)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse business profile details")?,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        }
+        .into()),
+    }
 }
 
 pub async fn delete_profile(
@@ -4098,13 +4182,31 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
             helpers::validate_intent_fulfillment_expiry(intent_fulfillment_expiry)?;
         }
 
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
+        }
+
         let webhook_details = self
             .webhook_details
             .map(|webhook_details| {
+                let webhook_details =
+                    api_models::admin::WebhookDetailsResponse::from(webhook_details);
                 let existing_webhook_details = business_profile
                     .webhook_details
                     .clone()
-                    .map(|wh| api_models::admin::WebhookDetails::foreign_from(wh.clone()));
+                    .map(api_models::admin::WebhookDetailsResponse::foreign_from);
 
                 match existing_webhook_details {
                     Some(existing_details) => existing_details.merge(webhook_details),
@@ -4305,6 +4407,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 dispute_polling_interval: self.dispute_polling_interval,
                 is_manual_retry_enabled: self.is_manual_retry_enabled,
+                auto_fallback_capture_method: self
+                    .auto_fallback_capture_method
+                    .map(common_enums::AutoFallbackCaptureMethod::from),
                 always_enable_overcapture: self.always_enable_overcapture,
                 is_external_vault_enabled: self.is_external_vault_enabled,
                 external_vault_connector_details: self
@@ -4335,6 +4440,22 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     ) -> RouterResult<domain::ProfileUpdate> {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
+        }
+
+        if let Some(url) = self
+            .webhook_details
+            .as_ref()
+            .and_then(|details| details.webhook_url.as_ref())
+            .map(|secret| secret.peek())
+        {
+            outbound_destination::validate_destination(
+                url,
+                state.conf.proxy.bypass_proxy_hosts.as_deref(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "webhook_url is not valid".to_string(),
+            })?;
         }
 
         let webhook_details = self.webhook_details.map(ForeignInto::foreign_into);
@@ -4607,13 +4728,10 @@ impl ProfileWrapper {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
-        storage_impl::redis::cache::redact_from_redis_and_publish(
-            db.get_cache_store().as_ref(),
-            [routing_cache_key],
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to invalidate routing cache")?;
+        storage_impl::redis::cache::redact_from_redis_and_publish(db, [routing_cache_key])
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to invalidate routing cache")?;
         Ok(())
     }
 
@@ -4749,50 +4867,53 @@ pub async fn extended_card_info_toggle(
 
 pub async fn connector_agnostic_mit_toggle(
     state: SessionState,
+    processor: domain::Processor,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    match processor.get_account().get_id() {
+        processor_merchant_id if processor_merchant_id == merchant_id => {
+            let key_store = processor.get_key_store();
 
-    if business_profile.merchant_id != *merchant_id {
-        Err(errors::ApiErrorResponse::AccessForbidden {
+            let business_profile = db
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
+
+            if business_profile.merchant_id != *merchant_id {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: profile_id.get_string_repr().to_owned(),
+                })?
+            }
+
+            if business_profile.is_connector_agnostic_mit_enabled
+                != Some(connector_agnostic_mit_choice.enabled)
+            {
+                let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
+                    is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
+                };
+
+                db.update_profile_by_profile_id(key_store, business_profile, profile_update)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_id.get_string_repr().to_owned(),
+                    })?;
+            }
+
+            Ok(service_api::ApplicationResponse::Json(
+                connector_agnostic_mit_choice,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::AccessForbidden {
             resource: profile_id.get_string_repr().to_owned(),
-        })?
+        }
+        .into()),
     }
-
-    if business_profile.is_connector_agnostic_mit_enabled
-        != Some(connector_agnostic_mit_choice.enabled)
-    {
-        let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
-            is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
-        };
-
-        db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-    }
-
-    Ok(service_api::ApplicationResponse::Json(
-        connector_agnostic_mit_choice,
-    ))
 }
 
 pub async fn transfer_key_store_to_key_manager(

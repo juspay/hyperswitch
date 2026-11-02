@@ -74,19 +74,14 @@ pub async fn delete_card_issuer(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::ListCardIssuers))]
-pub async fn list_card_issuers(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    query: web::Query<api_types::CardIssuerListQuery>,
-) -> HttpResponse {
+pub async fn list_card_issuers(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
     let flow = Flow::ListCardIssuers;
-    let query = query.into_inner();
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        query,
-        |state, _, query, _| card_issuer::list_card_issuers(state, query),
+        (),
+        |state, _, _, _| card_issuer::list_card_issuers(state),
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 allow_connected_scope_operation: false,

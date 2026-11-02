@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use common_enums;
 use hyperswitch_domain_models::payments as domain_payments;
-use hyperswitch_interfaces::api::gateway;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     connector::utils::RouterData,
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{self, access_token, gateway, helpers, transformers, PaymentData},
     },
     routes::SessionState,
     services::{self, api::ConnectorValidation, logger},
@@ -111,6 +110,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .get_multiple_capture_sync_method()
             .to_payment_failed_response();
 
+        // Read before the connector call: connectors on the V2 interface rebuild the returned
+        // router data from `PaymentFlowData`, which does not carry this flag.
+        let accept_amount_mismatch = self.accept_amount_mismatch;
         match (self.request.sync_type.clone(), capture_sync_method_result) {
             (
                 types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
@@ -130,6 +132,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 let integrity_result = helpers::check_integrity_based_on_flow(
                     &new_router_data.request,
                     &new_router_data.response,
+                    accept_amount_mismatch,
                 );
 
                 new_router_data.integrity_check = integrity_result;
@@ -155,6 +158,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 let integrity_result = helpers::check_integrity_based_on_flow(
                     &new_router_data.request,
                     &new_router_data.response,
+                    accept_amount_mismatch,
                 );
 
                 new_router_data.integrity_check = integrity_result;
@@ -170,7 +174,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
-        gateway_context: &payments::gateway::context::RouterGatewayContext,
+        gateway_context: &gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         let current_flow = Some(hyperswitch_interfaces::api::CurrentFlowInfo::Psync {
             request_data: Box::new(self.request.clone()),
@@ -308,7 +312,7 @@ impl RouterDataPSync
                         });
                     },
                     Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
-                        capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                        capture_sync_response_map.extend(capture_sync_response_list);
                     }
                     _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
                 };

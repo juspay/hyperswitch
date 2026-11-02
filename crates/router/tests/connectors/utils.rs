@@ -391,6 +391,8 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
+                payment_feature_metadata: None,
+                feature_metadata: None,
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
@@ -411,6 +413,8 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_method_data: None,
+                mandate_id: None,
                 payment_connector_request_reference_id: None,
             }),
             payment_info,
@@ -487,6 +491,7 @@ pub trait ConnectorActions: Connector {
                 additional_payout_method_data: None,
                 source_bank_data: None,
                 billing_descriptor: None,
+                external_vault_pmd: None,
             },
             payment_info,
         )
@@ -562,6 +567,7 @@ pub trait ConnectorActions: Connector {
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
@@ -1046,6 +1052,7 @@ impl Default for PaymentAuthorizeType {
             installment_details: None,
             connector_intent_metadata: None,
             business_country: None,
+            enable_avs_check: None,
         };
         Self(data)
     }
@@ -1121,6 +1128,8 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
+            payment_feature_metadata: None,
+            feature_metadata: None,
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
@@ -1141,6 +1150,8 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: None,
         };
         Self(data)

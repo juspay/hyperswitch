@@ -180,6 +180,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,

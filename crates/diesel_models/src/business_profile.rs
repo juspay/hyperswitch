@@ -5,7 +5,6 @@ use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use hyperswitch_masking::Secret;
-use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
@@ -100,6 +99,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -168,6 +168,7 @@ pub struct ProfileNew {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -240,6 +241,7 @@ pub struct ProfileUpdateInternal {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -324,6 +326,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -692,14 +695,6 @@ common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
-}
-
-impl RevenueRecoveryAlgorithmData {
-    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
-        let total_threshold_time = self.monitoring_configured_timestamp
-            + Duration::seconds(monitoring_threshold_in_seconds);
-        common_utils::date_time::now() >= total_threshold_time
-    }
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);

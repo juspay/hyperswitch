@@ -4,7 +4,7 @@ use common_enums;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorSpecifications, ConnectorValidation},
+    api::{ConnectorSpecifications, ConnectorValidation},
     consts as interfaces_consts,
 };
 use unified_connector_service_client::payments as payments_grpc;
@@ -13,7 +13,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
-        payments::{self, gateway::context as gateway_context},
+        payments::{self, gateway, gateway::context as gateway_context},
         unified_connector_service,
     },
     routes::{metrics, SessionState},
@@ -383,6 +383,8 @@ async fn fetch_access_token_from_ucs(
 
     let grpc_headers = state
         .get_grpc_headers_ucs(common_enums::ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
         .resource_id(None)

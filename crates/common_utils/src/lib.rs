@@ -3,10 +3,14 @@
 
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
+#[cfg(feature = "deja")]
+use crate::synth_shape::Synthesize;
+
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
 pub mod custom_serde;
+pub mod elapsed;
 #[allow(missing_docs)] // Todo: add docs
 pub mod encryption;
 pub mod errors;
@@ -25,13 +29,17 @@ pub mod macros;
 #[cfg(feature = "metrics")]
 pub mod metrics;
 pub mod new_type;
+pub mod outbound_url;
 pub mod payout_method_utils;
 pub mod pii;
+pub mod read_ledger;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
 pub mod request_context;
 #[cfg(feature = "signals")]
 pub mod signals;
+#[cfg(feature = "deja")]
+pub mod synth_shape;
 pub mod transformers;
 pub mod types;
 /// Unified Connector Service (UCS) interface definitions.
@@ -59,6 +67,9 @@ pub mod date_time {
         OffsetDateTime, PrimitiveDateTime,
     };
 
+    #[cfg(feature = "deja")]
+    use crate::synth_shape::Synthesize;
+
     /// Enum to represent date formats
     #[derive(Debug)]
     pub enum DateFormat {
@@ -76,7 +87,8 @@ pub mod date_time {
     #[cfg_attr(feature = "deja", track_caller)]
     #[cfg_attr(
         feature = "deja",
-        deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
+        deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,
+            on_miss = { let synthetic = __deja_miss.instant(); PrimitiveDateTime::new(synthetic.date(), synthetic.time()) },)
     )]
     pub fn now() -> PrimitiveDateTime {
         #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
@@ -96,6 +108,7 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_unix_timestamp",
+            on_miss = __deja_miss.instant_at_second_resolution().unix_timestamp(),
             codec = SerdeCodec,
         )
     )]
@@ -125,6 +138,7 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_unix_timestamp_millis",
+            on_miss = __deja_miss.instant().unix_timestamp_nanos() / 1_000_000,
             codec = SerdeCodec,
         )
     )]
@@ -163,6 +177,19 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::date_as_yyyymmddthhmmssmmmz",
+            // `time::error::Format` is not `Serialize`, so capture the Ok side only;
+            // the `Err` arm is unreachable for this constant config.
+            codec = ResultOkCodec,
+            on_miss = {
+                const SYNTH_ISO: EncodedConfig = Config::DEFAULT
+                    .set_time_precision(TimePrecision::Second {
+                        decimal_digits: NonZeroU8::new(3),
+                    })
+                    .encode();
+                convert_to_pdt(__deja_miss.instant())
+                    .assume_utc()
+                    .format(&Iso8601::<SYNTH_ISO>)
+            },
         )
     )]
     pub fn date_as_yyyymmddthhmmssmmmz() -> Result<String, time::error::Format> {
@@ -186,6 +213,13 @@ pub mod date_time {
         deja::time(
             component = "common_utils",
             operation = "date_time::now_rfc7231_http_date",
+            // Ok-only, as above; the `Err` arm is unreachable for a constant format.
+            codec = ResultOkCodec,
+            on_miss = __deja_miss.instant_at_second_resolution().format(
+                &time::macros::format_description!(
+                    "[weekday repr:short], [day padding:zero] [month repr:short] [year repr:full] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] GMT"
+                )
+            ),
         )
     )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
@@ -305,7 +339,8 @@ pub mod date_time {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,
+        on_miss = __deja_miss.uuid(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_uuid_v4() -> uuid::Uuid {
@@ -328,6 +363,7 @@ pub fn generate_uuid_v4() -> uuid::Uuid {
     deja::id(
         component = "common_utils",
         operation = "generate_random_alphanumeric_string",
+        on_miss = __deja_miss.alphanumeric(length),
         codec = SerdeCodec,
     )
 )]
@@ -351,6 +387,7 @@ pub fn generate_random_alphanumeric_string(length: usize) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_random_numeric_string",
+        on_miss = __deja_miss.digits(length),
         codec = SerdeCodec,
     )
 )]
@@ -375,7 +412,8 @@ pub fn generate_random_numeric_string(length: usize) -> String {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,
+        on_miss = __deja_miss.uuid(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn generate_uuid_v7() -> uuid::Uuid {
@@ -396,6 +434,7 @@ pub fn generate_uuid_v7() -> uuid::Uuid {
     deja::id(
         component = "common_utils",
         operation = "generate_nanoid_with_default_alphabet",
+        on_miss = __deja_miss.over(&nanoid::alphabet::SAFE, length),
         codec = SerdeCodec,
     )
 )]
@@ -417,6 +456,7 @@ pub fn generate_nanoid_with_default_alphabet(length: usize) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_random_f64_unit",
+        on_miss = __deja_miss.unit_f64(),
         codec = SerdeCodec,
     )
 )]
@@ -439,6 +479,7 @@ pub fn generate_random_f64_unit() -> f64 {
     deja::id(
         component = "common_utils",
         operation = "generate_random_number_in_range",
+        on_miss = __deja_miss.in_range(min, max),
         codec = SerdeCodec,
     )
 )]
@@ -461,6 +502,7 @@ pub fn generate_random_number_in_range(min: i64, max: i64) -> i64 {
     deja::id(
         component = "common_utils",
         operation = "generate_random_index",
+        on_miss = __deja_miss.index(length),
         codec = SerdeCodec,
     )
 )]
@@ -486,7 +528,8 @@ pub fn generate_random_index(length: usize) -> Option<usize> {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "process_id", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "process_id", codec = SerdeCodec,
+        on_miss = __deja_miss.opaque_u32(),)
 )]
 #[allow(clippy::disallowed_methods, reason = "this function IS the seam")]
 pub fn process_id() -> u32 {
@@ -511,7 +554,8 @@ pub fn process_id() -> u32 {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "hostname", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "hostname", codec = SerdeCodec,
+        on_miss = Some(__deja_miss.alphanumeric(12)),)
 )]
 pub fn hostname() -> Option<String> {
     std::env::var("HOSTNAME")
@@ -531,6 +575,7 @@ pub fn hostname() -> Option<String> {
     deja::id(
         component = "common_utils",
         operation = "generate_random_permutation",
+        on_miss = __deja_miss.permutation(length),
         codec = SerdeCodec,
     )
 )]
@@ -557,6 +602,7 @@ pub fn generate_random_permutation(length: usize) -> Vec<usize> {
     deja::id(
         component = "common_utils",
         operation = "generate_random_bytes",
+        on_miss = __deja_miss.byte_vec(length),
         codec = SerdeCodec,
     )
 )]
@@ -573,7 +619,8 @@ pub fn generate_random_bytes(length: usize) -> Vec<u8> {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,
+        on_miss = __deja_miss.prefixed(prefix, length),)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id(length: usize, prefix: &str) -> String {
@@ -644,6 +691,7 @@ pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcqui
     deja::id(
         component = "common_utils",
         operation = "generate_id_with_default_len",
+        on_miss = __deja_miss.prefixed(prefix, consts::ID_LENGTH),
         codec = SerdeCodec,
     )
 )]
@@ -661,6 +709,7 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_time_ordered_id",
+        on_miss = format!("{prefix}_{}", __deja_miss.uuid().as_simple()),
         codec = SerdeCodec,
     )
 )]
@@ -677,6 +726,7 @@ pub fn generate_time_ordered_id(prefix: &str) -> String {
     deja::id(
         component = "common_utils",
         operation = "generate_time_ordered_id_without_prefix",
+        on_miss = __deja_miss.uuid().as_simple().to_string(),
         codec = SerdeCodec,
     )
 )]
@@ -690,12 +740,29 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "common_utils", operation = "generate_id_with_len", codec = SerdeCodec,)
+    deja::id(component = "common_utils", operation = "generate_id_with_len", codec = SerdeCodec,
+        on_miss = __deja_miss.alphanumeric(length),)
 )]
 #[allow(clippy::disallowed_macros, reason = "this function IS the seam")]
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }
+/// OS default is ~2 hours, far too slow to notice a connection killed by a managed-Postgres
+/// (Aurora/RDS/AlloyDB) failover.
+pub const DEFAULT_DB_KEEPALIVES_IDLE_SECS: u64 = 5;
+
+/// OS default is ~75s, which would make detection minutes-slow.
+pub const DEFAULT_DB_KEEPALIVES_INTERVAL_SECS: u64 = 2;
+
+/// With the two values above, a dead idle connection is detected in ~11s instead of hanging
+/// indefinitely.
+pub const DEFAULT_DB_KEEPALIVES_COUNT: u32 = 3;
+
+/// Bounds how long a checkout's health-check ping can hang against a peer that went silent
+/// without a TCP RST/FIN -- what managed-Postgres failover does. Must stay below
+/// `connection_timeout` (10s), or a hung ping masks the dead connection as healthy.
+pub const DEFAULT_DB_TCP_USER_TIMEOUT_MS: u64 = 5_000;
+
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;
@@ -703,9 +770,27 @@ pub trait DbConnectionParams {
     fn get_host(&self) -> &str;
     fn get_port(&self) -> u16;
     fn get_dbname(&self) -> &str;
+
+    /// See [`DEFAULT_DB_KEEPALIVES_IDLE_SECS`].
+    fn get_pool_keepalives_idle(&self) -> u64 {
+        DEFAULT_DB_KEEPALIVES_IDLE_SECS
+    }
+    /// See [`DEFAULT_DB_KEEPALIVES_INTERVAL_SECS`].
+    fn get_pool_keepalives_interval(&self) -> u64 {
+        DEFAULT_DB_KEEPALIVES_INTERVAL_SECS
+    }
+    /// See [`DEFAULT_DB_KEEPALIVES_COUNT`].
+    fn get_pool_keepalives_count(&self) -> u32 {
+        DEFAULT_DB_KEEPALIVES_COUNT
+    }
+    /// See [`DEFAULT_DB_TCP_USER_TIMEOUT_MS`].
+    fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
+        DEFAULT_DB_TCP_USER_TIMEOUT_MS
+    }
+
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}&keepalives=1&keepalives_idle={}&keepalives_interval={}&keepalives_count={}&tcp_user_timeout={}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -713,6 +798,10 @@ pub trait DbConnectionParams {
             self.get_dbname(),
             schema,
             schema,
+            self.get_pool_keepalives_idle(),
+            self.get_pool_keepalives_interval(),
+            self.get_pool_keepalives_count(),
+            self.get_pool_tcp_user_timeout_ms(),
         )
     }
 }

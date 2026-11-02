@@ -404,6 +404,7 @@ pub enum PaymentMethodUpdate {
         last_modified_by: Option<String>,
     },
     GenericUpdate {
+        last_used_at: Option<PrimitiveDateTime>,
         payment_method_data: Option<Encryption>,
         status: Option<storage_enums::PaymentMethodStatus>,
         locker_id: Option<String>,
@@ -1219,6 +1220,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 compatibility_updated_at: Some(now),
             },
             PaymentMethodUpdate::GenericUpdate {
+                last_used_at,
                 payment_method_data,
                 status,
                 locker_id,
@@ -1235,7 +1237,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
             } => Self {
                 payment_method_data,
-                last_used_at: None,
+                last_used_at,
                 status,
                 locker_id,
                 payment_method: None,

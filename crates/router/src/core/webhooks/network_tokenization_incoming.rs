@@ -265,14 +265,20 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
         true => {
-            let mut card = cards::get_card_from_locker(state, customer_id, merchant_id, &locker_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch token information from the locker")?
-                .get_card();
+            let mut card = Box::pin(cards::get_card_from_locker(
+                state,
+                customer_id,
+                merchant_id,
+                &locker_id,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch token information from the locker")?
+            .get_card();
 
             card.card_exp_year = metadata.expiry_year.clone();
             card.card_exp_month = metadata.expiry_month.clone();
@@ -399,6 +405,7 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
     }

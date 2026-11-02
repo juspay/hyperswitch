@@ -61,10 +61,10 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(
+        Box::pin(self.call_database(
             key_store,
             Subscription::update_subscription_entry(&conn, merchant_id, subscription_id, sub_new),
-        )
+        ))
         .await
     }
 
@@ -78,7 +78,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
         offset: Option<i64>,
     ) -> CustomResult<Vec<DomainSubscription>, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        self.find_resources(
+        Box::pin(self.find_resources(
             key_store,
             Subscription::list_by_merchant_id_profile_id(
                 &conn,
@@ -87,7 +87,7 @@ impl<T: DatabaseStore> SubscriptionInterface for RouterStore<T> {
                 limit,
                 offset,
             ),
-        )
+        ))
         .await
     }
 }

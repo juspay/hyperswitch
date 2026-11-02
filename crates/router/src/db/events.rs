@@ -2088,6 +2088,7 @@ mod tests {
             merchant_category_code: None,
             dispute_polling_interval: None,
             is_manual_retry_enabled: None,
+            auto_fallback_capture_method: None,
             always_enable_overcapture: None,
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
@@ -2144,6 +2145,7 @@ mod tests {
             off_session: None,
             capture_on: None,
             capture_method: None,
+            capture_method_applied: None,
             payment_method: None,
             payment_method_data: None,
             payment_token: None,
@@ -2235,6 +2237,7 @@ mod tests {
             connector_customer_id: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            enable_avs_check: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

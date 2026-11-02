@@ -31,6 +31,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::ApplePay => Ok(dirval!(WalletType = ApplePay)),
             global_enums::PaymentMethodType::Paypal => Ok(dirval!(WalletType = Paypal)),
             global_enums::PaymentMethodType::RevolutPay => Ok(dirval!(WalletType = RevolutPay)),
+            global_enums::PaymentMethodType::Wero => Ok(dirval!(WalletType = Wero)),
             global_enums::PaymentMethodType::CryptoCurrency => {
                 Ok(dirval!(CryptoType = CryptoCurrency))
             }
@@ -104,6 +105,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::PayshapProxy => {
                 Ok(dirval!(BankTransferType = PayshapProxy))
             }
+            global_enums::PaymentMethodType::Ted => Ok(dirval!(BankTransferType = Ted)),
             global_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             global_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             global_enums::PaymentMethodType::OnlineBankingCzechRepublic => {

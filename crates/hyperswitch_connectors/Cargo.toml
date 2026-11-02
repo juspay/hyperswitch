@@ -19,7 +19,7 @@ dummy_connector = [
 
 [dependencies]
 actix-web = "4.11.0"
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 base64 = "0.22.1"
 bytes = "1.10.1"
 chrono = "0.4"
@@ -44,7 +44,7 @@ qrcode = "0.14.1"
 quick-xml = { version = "0.31.0", features = ["serialize"] }
 rand = "0.8.5"
 regex = "1.11.1"
-reqwest = { version = "0.11.27" }
+reqwest = { version = "0.13.5" }
 ring = "0.17.14"
 roxmltree = "0.19.0"
 serde = { version = "1.0.219", features = ["derive"] }

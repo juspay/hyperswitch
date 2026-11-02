@@ -150,7 +150,7 @@ impl TryFrom<&PowertranzRouterData<&PaymentsAuthorizeRouterData>> for Powertranz
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector: "powertranz",
+                    connector: "powertranz".into(),
                 }
                 .into())
             }

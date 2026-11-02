@@ -1,4 +1,4 @@
-use router_env::{counter_metric, gauge_metric, global_meter};
+use router_env::{counter_metric, gauge_metric, global_meter, histogram_metric_f64};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
@@ -13,9 +13,48 @@ counter_metric!(KV_SOFT_KILL_ACTIVE_UPDATE, GLOBAL_METER);
 
 // Metrics for In-memory cache
 gauge_metric!(IN_MEMORY_CACHE_ENTRY_COUNT, GLOBAL_METER);
+// The configured entry ceiling, recorded alongside the count above so that utilisation is
+// computable from the metrics rather than from configuration. moka's other runtime figure,
+// `weighted_size`, is not recorded: with no weigher configured it equals the entry count.
+gauge_metric!(IN_MEMORY_CACHE_MAX_CAPACITY, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_HIT, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_MISS, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_EVICTION_COUNT, GLOBAL_METER);
 
+// Metrics for in-memory cache population coalescing
+counter_metric!(IN_MEMORY_CACHE_POPULATION_AVOIDED, GLOBAL_METER); // Miss served by another caller
+counter_metric!(IN_MEMORY_CACHE_POPULATE_TIMEOUT, GLOBAL_METER); // Populate hit the timeout cap
+counter_metric!(IN_MEMORY_CACHE_TYPE_MISMATCH, GLOBAL_METER); // Entry had an unexpected type
+counter_metric!(IN_MEMORY_CACHE_INVARIANT_VIOLATION, GLOBAL_METER); // Unreachable compute outcome
+
 // Metrics for cache invalidation
 counter_metric!(CACHE_REDACTION_FAILURE_COUNT, GLOBAL_METER);
+
+// Metrics for database
+histogram_metric_f64!(DATABASE_CONNECTION_ACQUIRE_DURATION, GLOBAL_METER);
+
+pub async fn record_db_connection_acquire_duration<Fut, T, E>(
+    future: Fut,
+    db_pool: crate::database::pool_metrics::DbPool,
+    tenant_id: &str,
+) -> Result<T, E>
+where
+    Fut: std::future::Future<Output = Result<T, E>>,
+{
+    let start = std::time::Instant::now();
+    let result = future.await;
+    let duration = start.elapsed();
+    let outcome = if result.is_ok() { "success" } else { "error" };
+    let tenant_id = tenant_id.to_owned();
+
+    DATABASE_CONNECTION_ACQUIRE_DURATION.record(
+        duration.as_secs_f64(),
+        router_env::metric_attributes!(
+            ("pool", db_pool.as_str()),
+            ("outcome", outcome),
+            ("tenant_id", tenant_id)
+        ),
+    );
+
+    result
+}

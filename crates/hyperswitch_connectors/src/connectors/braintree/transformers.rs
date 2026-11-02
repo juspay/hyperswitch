@@ -2905,6 +2905,7 @@ fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> S
             "D".to_string()
         }
         common_enums::TransactionStatus::InformationOnly => "I".to_string(),
+        common_enums::TransactionStatus::SecurePaymentConfirmationRequired => "S".to_string(),
     }
 }
 

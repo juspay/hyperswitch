@@ -340,7 +340,7 @@
             ]
           },
           {
-            "version": "2.0.0 [BETA]",
+            "version": "2.0.0",
             "groups": [
               {
                 "group": "Get Started [BETA]",
@@ -504,12 +504,18 @@
                     ]
                   },
                   {
-                    "group": "Revenue Recovery",
+                    "group": "Schemas",
                     "pages": [
-                      "v2/revenue-recovery/revenue-recovery--create",
-                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                      "v2/schemas/outgoing--webhook"
                     ]
                   }
+                ]
+              },
+              {
+                "group": "Revenue Recovery",
+                "pages": [
+                  "v2/revenue-recovery/revenue-recovery--create",
+                  "v2/revenue-recovery/revenue-recovery--cancel"
                 ]
               }
             ]
@@ -600,6 +606,7 @@
           {
             "group": "OpenAPI: Gateway Decision",
             "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/decide",
               "decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway"
             ]
           },
@@ -747,7 +754,8 @@
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list",
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active",
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate",
-                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid"
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-decide"
                 ]
               },
               {
@@ -852,7 +860,7 @@
     "primary": {
       "type": "button",
       "label": "Self-Deploy",
-      "href": "https://docs.hyperswitch.io/hyperswitch-open-source/overview"
+      "href": "https://docs.hyperswitch.io/self-hosting"
     }
   },
   "footer": {

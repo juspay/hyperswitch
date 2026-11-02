@@ -54,6 +54,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -61,8 +62,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_with_raw_data,
             ..
         } = payment_method_fetch_data;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let (currency, amount);
 
         let payment_id = payment_id
@@ -72,15 +73,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = &*state.store;
         let m_merchant_id = processor_merchant_id.clone();
 
-        let payment_intent = store
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &m_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = helpers::find_payment_intent(
+            store,
+            &payment_id,
+            &m_merchant_id,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
@@ -194,7 +196,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_key_store = platform.get_processor().get_key_store().clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_merchant_id = processor_merchant_id.clone();
-        let m_storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let m_storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_method_billing_future = tokio::spawn(
             async move {
@@ -204,7 +206,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_key_store,
                     &m_payment_intent_payment_id,
                     &m_merchant_id,
-                    m_storage_scheme,
+                    m_storage_scheme.inner(),
                 )
                 .await
             }
@@ -291,20 +293,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let shipping_address = helpers::get_address_by_id(
             state,
             payment_intent.shipping_address_id.clone(),
-            &platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id.clone(),
             &processor_merchant_id.clone(),
-            m_storage_scheme,
+            m_storage_scheme.inner(),
         )
         .await?;
 
         let billing_address = helpers::get_address_by_id(
             state,
             payment_intent.billing_address_id.clone(),
-            &platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store(),
             &payment_intent.payment_id.clone(),
             &processor_merchant_id.clone(),
-            m_storage_scheme,
+            m_storage_scheme.inner(),
         )
         .await?;
 
@@ -346,7 +348,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -536,7 +540,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let frm_message = payment_data.frm_message.clone();
 
@@ -625,7 +629,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         error_code: m_error_code.flatten(),
                         error_message: m_error_message.flatten(),
                         error_reason: m_error_reason.flatten(),
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                         connector_mandate_detail: payment_data
                             .payment_attempt
                             .connector_mandate_detail
@@ -643,7 +647,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
         let m_db = state.clone().store;
-        let m_storage_scheme = storage_scheme.to_string();
+        let m_storage_scheme = storage_scheme.inner().to_string();
         let m_key_store = key_store.clone();
         let payment_intent_fut = tokio::spawn(
             async move {
