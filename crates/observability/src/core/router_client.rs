@@ -127,7 +127,7 @@ mod tests {
                             assert_eq!(request.method(), "POST");
                             let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
                             assert_eq!(body["token"], "signed.token.value");
-                            assert_eq!(body["permission"], "ProfileReconRuleRead");
+                            assert_eq!(body["permission"], "MerchantMonitoringRead");
                             HttpResponse::Ok().finish()
                         }
                         "/api/user" => {
@@ -160,7 +160,7 @@ mod tests {
             client
                 .authorize_token(
                     &Secret::new("signed.token.value".into()),
-                    "ProfileReconRuleRead"
+                    "MerchantMonitoringRead"
                 )
                 .await,
             Ok(())
