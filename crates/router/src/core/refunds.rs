@@ -2403,6 +2403,8 @@ impl
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
+            net_amount: refund.net_refund_amount,
+            surcharge_refund_amount: refund.refund_surcharge_amount,
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
