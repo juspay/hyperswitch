@@ -420,8 +420,7 @@ pub async fn get_platform_disputes_filters(
     ))
 }
 
-/// Fetches the merchant connector account of the disputed attempt, which the UCS gate and
-/// the UCS dispute calls both need.
+/// Fetches the merchant connector account of the disputed attempt for UCS dispute calls.
 #[cfg(feature = "v1")]
 async fn get_dispute_merchant_connector_account(
     state: &SessionState,
@@ -451,13 +450,9 @@ async fn get_dispute_merchant_connector_account(
 fn get_dispute_ucs_rollout_settings(
     rollout_result: &payments::helpers::RolloutExecutionResult,
 ) -> unified_connector_service::kill_switch::RolloutSettings {
-    unified_connector_service::kill_switch::RolloutSettings {
-        execution_mode: common_enums::ExecutionMode::Primary,
-        kill_switch_enabled: rollout_result.kill_switch_enabled,
-        kill_switch_threshold: rollout_result.kill_switch_threshold,
-        connector_decline_threshold: rollout_result.connector_decline_threshold,
-        rollout_scope: rollout_result.rollout_scope.clone(),
-    }
+    let mut settings = rollout_result.rollout_settings();
+    settings.execution_mode = common_enums::ExecutionMode::Primary;
+    settings
 }
 
 #[cfg(feature = "v1")]
@@ -537,14 +532,6 @@ pub async fn accept_dispute(
         &dispute,
     )
     .await?;
-    let merchant_connector_account = get_dispute_merchant_connector_account(
-        &state,
-        &processor,
-        &payment_intent,
-        &payment_attempt,
-        &dispute,
-    )
-    .await?;
     let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service_for_dispute(
             &state,
@@ -554,6 +541,14 @@ pub async fn accept_dispute(
         .await?;
     let response = match execution_path {
         common_enums::ExecutionPath::UnifiedConnectorService => {
+            let merchant_connector_account = get_dispute_merchant_connector_account(
+                &state,
+                &processor,
+                &payment_intent,
+                &payment_attempt,
+                &dispute,
+            )
+            .await?;
             unified_connector_service::call_unified_connector_service_for_dispute_accept(
                 &updated_state,
                 &processor,
@@ -703,14 +698,6 @@ pub async fn submit_evidence(
         submit_evidence_request_data,
     )
     .await?;
-    let merchant_connector_account = get_dispute_merchant_connector_account(
-        &state,
-        &processor,
-        &payment_intent,
-        &payment_attempt,
-        &dispute,
-    )
-    .await?;
     let connector_transaction_id = payment_attempt
         .get_connector_payment_id()
         .map(ToString::to_string);
@@ -721,6 +708,23 @@ pub async fn submit_evidence(
             &router_data,
         )
         .await?;
+    let merchant_connector_account = if matches!(
+        execution_path,
+        common_enums::ExecutionPath::UnifiedConnectorService
+    ) {
+        Some(
+            get_dispute_merchant_connector_account(
+                &state,
+                &processor,
+                &payment_intent,
+                &payment_attempt,
+                &dispute,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
     let response = match execution_path {
         common_enums::ExecutionPath::UnifiedConnectorService => {
             unified_connector_service::call_unified_connector_service_for_dispute_submit_evidence(
@@ -729,7 +733,9 @@ pub async fn submit_evidence(
                 router_data,
                 connector_transaction_id.clone(),
                 get_dispute_ucs_rollout_settings(&rollout_result),
-                merchant_connector_account.clone(),
+                merchant_connector_account
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?,
             )
             .await
             .attach_printable("Failed while calling submit evidence via UCS")?
@@ -787,7 +793,8 @@ pub async fn submit_evidence(
                     defend_dispute_router_data,
                     connector_transaction_id,
                     get_dispute_ucs_rollout_settings(&rollout_result),
-                    merchant_connector_account,
+                    merchant_connector_account
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)?,
                 )
                 .await
                 .attach_printable("Failed while calling defend dispute via UCS")?
