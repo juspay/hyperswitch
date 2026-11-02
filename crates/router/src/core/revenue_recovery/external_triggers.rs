@@ -15,10 +15,7 @@ use router_env::logger;
 use time::{Duration, PrimitiveDateTime};
 
 use super::{
-    api,
-    card_selection::{self, CardAvailability, CardSelection},
-    get_recovery_grace_window_end, is_retry_budget_exhausted,
-    retry_stats::RetryOutcomeEvent,
+    api, get_recovery_grace_window_end, is_retry_budget_exhausted, retry_stats::RetryOutcomeEvent,
     schedule::StaticLadderProgress,
 };
 use crate::{
@@ -39,6 +36,19 @@ use crate::{
 };
 
 /// What the next retry of an invoice is decided from.
+/// Where the card of an invoice stands for its next retry.
+#[derive(Debug)]
+enum CardAvailability {
+    /// It can be retried at the decided time.
+    Ready,
+    /// It is at its network's retry limit for this many more hours.
+    WaitHours(i64),
+    /// It is hard declined.
+    HardDecline,
+    /// It has no retry history on record.
+    NoCard,
+}
+
 struct NextRetryInputs<'a> {
     transaction_status: RecoveryTransactionStatus,
     payment_intent: &'a PaymentIntent,
@@ -445,8 +455,7 @@ async fn decide_next_retry(
 }
 
 /// Where the card of the invoice stands. The merchant picks the card of a retry, so only that card
-/// is considered, whatever the card switching flag says. A failed lookup does not hold the retry
-/// back, the merchant is still given a time.
+/// is considered. A failed lookup does not hold the retry back, the merchant is still given a time.
 async fn get_card_availability(
     state: &SessionState,
     connector_customer_id: &str,
@@ -461,11 +470,16 @@ async fn get_card_availability(
     )
     .await
     {
-        Ok(tokens) => card_selection::pick_card_for_retry_time(
-            CardSelection::InvoiceCard,
-            &tokens,
-            invoice_token.as_deref(),
-        ),
+        Ok(tokens) => match invoice_token.as_ref().and_then(|token| tokens.get(token)) {
+            None => CardAvailability::NoCard,
+            Some(token) if token.token_status.is_hard_decline.unwrap_or(false) => {
+                CardAvailability::HardDecline
+            }
+            Some(token) if token.retry_wait_time_hours > 0 => {
+                CardAvailability::WaitHours(token.retry_wait_time_hours)
+            }
+            Some(_) => CardAvailability::Ready,
+        },
         Err(error) => {
             logger::error!(?error, "Failed to read the retry history of the card");
             CardAvailability::NoCard
@@ -630,9 +644,9 @@ fn get_next_retry(
 ) -> RecoveryNextRetry {
     let schedule_time = match card_availability {
         // A hard declined card gets here only while the profile still allows retries after it.
-        CardAvailability::Ready { .. }
-        | CardAvailability::NoCard
-        | CardAvailability::HardDecline => retry_time,
+        CardAvailability::Ready | CardAvailability::NoCard | CardAvailability::HardDecline => {
+            retry_time
+        }
         // The card is at its network's retry limit until then, and nothing works out the time
         // again before the merchant retries, so the retry has to wait past the limit here.
         CardAvailability::WaitHours(wait_hours) => retry_time.max(
