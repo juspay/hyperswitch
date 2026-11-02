@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize)]
 pub struct GetThemeResponse {
     pub theme_id: String,
-    pub theme_name: String,
+    pub theme_name: SafeString,
     pub entity_type: EntityType,
     pub tenant_id: id_type::TenantId,
     pub org_id: Option<id_type::OrganizationId>,

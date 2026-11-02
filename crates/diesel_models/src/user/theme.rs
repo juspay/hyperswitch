@@ -19,7 +19,7 @@ pub struct Theme {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
-    pub theme_name: String,
+    pub theme_name: SafeString,
     pub email_primary_color: SafeString,
     pub email_foreground_color: SafeString,
     pub email_background_color: SafeString,
@@ -39,7 +39,7 @@ pub struct ThemeNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
-    pub theme_name: String,
+    pub theme_name: SafeString,
     pub email_primary_color: SafeString,
     pub email_foreground_color: SafeString,
     pub email_background_color: SafeString,
@@ -51,7 +51,7 @@ pub struct ThemeNew {
 impl ThemeNew {
     pub fn new(
         theme_id: String,
-        theme_name: String,
+        theme_name: SafeString,
         lineage: ThemeLineage,
         email_config: EmailThemeConfig,
     ) -> Self {
