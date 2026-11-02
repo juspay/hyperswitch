@@ -10237,18 +10237,18 @@
             }
           },
           {
-            "name": "item_price_id",
+            "name": "plan_id",
             "in": "query",
-            "description": "Item price ID for estimation",
+            "description": "Plan ID for estimation",
             "required": true,
             "schema": {
               "type": "string"
             }
           },
           {
-            "name": "plan_id",
+            "name": "customer_id",
             "in": "query",
-            "description": "Plan ID for estimation",
+            "description": "Customer ID for personalized pricing",
             "required": false,
             "schema": {
               "type": "string",
@@ -10256,13 +10256,25 @@
             }
           },
           {
-            "name": "coupon_code",
+            "name": "coupon_id",
             "in": "query",
-            "description": "Coupon code to apply discount",
+            "description": "Coupon ID to apply discount",
             "required": false,
             "schema": {
               "type": "string",
               "nullable": true
+            }
+          },
+          {
+            "name": "trial_days",
+            "in": "query",
+            "description": "Number of trial days",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
             }
           },
           {
