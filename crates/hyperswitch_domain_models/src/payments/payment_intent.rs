@@ -18,6 +18,7 @@ use common_utils::{
 };
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+    ValueAddedTaxDetails,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -1207,7 +1208,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 value_added_tax_percent: value.value_added_tax_percent,
                 duty_amount: value.duty_amount,
                 order_commodity_code: value.order_commodity_code.clone(),
-                vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
                 installment_options: value.installment_options,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
@@ -1609,11 +1609,16 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     discount_amount: value.discount_amount,
                     order_date: value.order_date,
                     shipping_amount_tax: value.shipping_amount_tax,
-                    value_added_tax_amount: value.value_added_tax_amount,
-                    value_added_tax_percent: value.value_added_tax_percent,
+                    value_added_tax_details: (value.value_added_tax_amount.is_some()
+                        || value.value_added_tax_percent.is_some()
+                        || value.vat_invoice_reference_number.is_some())
+                    .then(|| ValueAddedTaxDetails {
+                        value_added_tax_amount: value.value_added_tax_amount,
+                        value_added_tax_percent: value.value_added_tax_percent,
+                        vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
+                    }),
                     duty_amount: value.duty_amount,
                     order_commodity_code: value.order_commodity_code.clone(),
-                    vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
                     shipping_cost: value.shipping_cost,
@@ -1813,9 +1818,9 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_amount_tax,
             value_added_tax_amount,
             value_added_tax_percent,
+            vat_invoice_reference_number,
             duty_amount,
             order_commodity_code,
-            vat_invoice_reference_number,
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
@@ -1877,11 +1882,16 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             discount_amount,
             order_date,
             shipping_amount_tax,
-            value_added_tax_amount,
-            value_added_tax_percent,
+            value_added_tax_details: (value_added_tax_amount.is_some()
+                || value_added_tax_percent.is_some()
+                || vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount,
+                value_added_tax_percent,
+                vat_invoice_reference_number: vat_invoice_reference_number.clone(),
+            }),
             duty_amount,
             order_commodity_code,
-            vat_invoice_reference_number,
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
@@ -2455,11 +2465,9 @@ impl behaviour::Conversion for PaymentIntent {
             tax_status: None,
             discount_amount: None,
             shipping_amount_tax: None,
-            value_added_tax_amount: None,
-            value_added_tax_percent: None,
+            value_added_tax_details: None,
             duty_amount: None,
             order_commodity_code: None,
-            vat_invoice_reference_number: None,
             order_date: None,
             enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
@@ -2741,11 +2749,9 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: None,
             mit_category: self.mit_category,
             shipping_amount_tax: None,
-            value_added_tax_amount: None,
-            value_added_tax_percent: None,
+            value_added_tax_details: None,
             duty_amount: None,
             order_commodity_code: None,
-            vat_invoice_reference_number: None,
             order_date: None,
             enable_partial_authorization: Some(self.enable_partial_authorization),
             tokenization: None,
@@ -2840,11 +2846,16 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: self.discount_amount,
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
-            value_added_tax_amount: self.value_added_tax_amount,
-            value_added_tax_percent: self.value_added_tax_percent,
+            value_added_tax_details: (self.value_added_tax_amount.is_some()
+                || self.value_added_tax_percent.is_some()
+                || self.vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount: self.value_added_tax_amount,
+                value_added_tax_percent: self.value_added_tax_percent,
+                vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
+            }),
             duty_amount: self.duty_amount,
             order_commodity_code: self.order_commodity_code.clone(),
-            vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
@@ -2968,11 +2979,20 @@ impl behaviour::Conversion for PaymentIntent {
                 tax_status: storage_model.tax_status,
                 discount_amount: storage_model.discount_amount,
                 shipping_amount_tax: storage_model.shipping_amount_tax,
-                value_added_tax_amount: storage_model.value_added_tax_amount,
-                value_added_tax_percent: storage_model.value_added_tax_percent,
+                value_added_tax_amount: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.value_added_tax_amount),
+                value_added_tax_percent: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.value_added_tax_percent),
                 duty_amount: storage_model.duty_amount,
                 order_commodity_code: storage_model.order_commodity_code.clone(),
-                vat_invoice_reference_number: storage_model.vat_invoice_reference_number.clone(),
+                vat_invoice_reference_number: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.vat_invoice_reference_number.clone()),
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
@@ -3068,11 +3088,16 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: self.discount_amount,
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
-            value_added_tax_amount: self.value_added_tax_amount,
-            value_added_tax_percent: self.value_added_tax_percent,
+            value_added_tax_details: (self.value_added_tax_amount.is_some()
+                || self.value_added_tax_percent.is_some()
+                || self.vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount: self.value_added_tax_amount,
+                value_added_tax_percent: self.value_added_tax_percent,
+                vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
+            }),
             duty_amount: self.duty_amount,
             order_commodity_code: self.order_commodity_code.clone(),
-            vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,

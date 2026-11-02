@@ -1410,11 +1410,11 @@ impl PaymentUpdate {
                 shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
                 value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
                 value_added_tax_percent: payment_data.payment_intent.value_added_tax_percent,
-                order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 vat_invoice_reference_number: payment_data
                     .payment_intent
                     .vat_invoice_reference_number
                     .clone(),
+                order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 duty_amount: payment_data.payment_intent.duty_amount,
                 enable_partial_authorization: payment_data
                     .payment_intent

@@ -1375,9 +1375,7 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
-        value_added_tax_amount -> Nullable<Int8>,
-        value_added_tax_percent -> Nullable<Float8>,
-        vat_invoice_reference_number -> Nullable<Varchar>,
+        value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
     }
