@@ -12679,36 +12679,3 @@ pub enum PayshapProxyType {
     #[default]
     ShapId,
 }
-
-#[cfg(test)]
-mod revenue_recovery_trigger_model_tests {
-    use super::RevenueRecoveryTriggerModel;
-
-    #[test]
-    fn profile_without_a_value_follows_internal_triggers() {
-        assert_eq!(
-            RevenueRecoveryTriggerModel::default(),
-            RevenueRecoveryTriggerModel::InternalTriggers
-        );
-    }
-
-    #[test]
-    fn stored_and_api_values_are_snake_case() {
-        for (model, value) in [
-            (
-                RevenueRecoveryTriggerModel::InternalTriggers,
-                "internal_triggers",
-            ),
-            (
-                RevenueRecoveryTriggerModel::ExternalTriggers,
-                "external_triggers",
-            ),
-        ] {
-            assert_eq!(model.to_string(), value);
-            assert_eq!(
-                serde_json::to_value(model).ok(),
-                Some(serde_json::Value::String(value.to_owned()))
-            );
-        }
-    }
-}

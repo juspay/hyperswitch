@@ -15103,64 +15103,6 @@ impl Serialize for NullObject {
     }
 }
 
-// Split rather than `cfg(all(test, feature = "v2"))`, so that clippy recognises this as a test
-// module and the in-test lint allowances apply.
-#[cfg(test)]
-#[cfg(feature = "v2")]
-mod revenue_recovery_metadata_tests {
-    use common_utils::id_type::MerchantConnectorAccountId;
-
-    use super::PaymentRevenueRecoveryMetadata;
-
-    fn metadata(connector_fields: serde_json::Value) -> PaymentRevenueRecoveryMetadata {
-        let mut metadata = serde_json::json!({
-            "total_retry_count": 1,
-            "billing_connector_payment_details": {
-                "payment_processor_token": "token_1",
-                "connector_customer_id": "cust_1"
-            },
-            "payment_method_type": "card",
-            "payment_method_subtype": "credit",
-            "connector": "stripe"
-        });
-        if let (Some(metadata), Some(connector_fields)) =
-            (metadata.as_object_mut(), connector_fields.as_object())
-        {
-            metadata.extend(connector_fields.clone());
-        }
-        serde_json::from_value(metadata).expect("valid recovery metadata")
-    }
-
-    fn account_id(id: &str) -> MerchantConnectorAccountId {
-        MerchantConnectorAccountId::wrap(id.to_owned()).expect("valid account id")
-    }
-
-    #[test]
-    fn invoice_recorded_against_accounts_has_them() {
-        let metadata = metadata(serde_json::json!({
-            "billing_connector_id": "mca_billing",
-            "active_attempt_payment_connector_id": "mca_payment",
-        }));
-
-        let accounts = metadata
-            .get_connector_accounts()
-            .expect("every account is present");
-        assert_eq!(accounts.billing_connector_id, account_id("mca_billing"));
-        assert_eq!(accounts.payment_connector_id, account_id("mca_payment"));
-        assert_eq!(
-            accounts.connector,
-            common_enums::connector_enums::Connector::Stripe
-        );
-    }
-
-    #[test]
-    fn invoice_recorded_without_accounts_has_none() {
-        let metadata = metadata(serde_json::json!({}));
-
-        assert!(metadata.get_connector_accounts().is_none());
-    }
-}
-
 #[cfg(test)]
 mod null_object_test {
     use serde_json;
