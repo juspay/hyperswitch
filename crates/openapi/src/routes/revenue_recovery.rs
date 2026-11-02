@@ -30,7 +30,8 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 /// `internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch
 /// schedules and makes the retries.
 ///
-/// `external_triggers` needs only the `connector`, and the merchant makes the retries. `next_retry`
+/// `external_triggers` needs only the `connector`, and the merchant makes the retries within the
+/// limits in the `revenue_recovery_config` of the profile, which this model requires. `next_retry`
 /// in the response says when to trigger the next one. Trigger it at that time and report its result
 /// through this same API, until `next_retry` says no retry is scheduled and why. A transaction
 /// reported against a closed invoice is refused.

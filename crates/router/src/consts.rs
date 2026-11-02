@@ -495,7 +495,7 @@ pub mod superposition {
     /// Total retries an invoice is allowed across its whole recovery lifecycle
     pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
     /// Positions on the static ladder available to an invoice under the hybrid static + adaptive
-    /// scheme, for invoices with no billing connector account to carry it
+    /// scheme. Controlled internally rather than by merchants, for both trigger models
     pub const RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT: &str =
         "revenue_recovery.max_hybrid_cascading_retry_count";
     /// Payment sync (psync) retry process tracker mapping key

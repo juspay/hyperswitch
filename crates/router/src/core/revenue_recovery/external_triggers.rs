@@ -3,6 +3,7 @@ use common_types::payments::{
     ExternalTriggerState, RecoveryConnector, RecoveryConnectorDetails, RecoveryNextRetry,
     RecoveryNoRetryReason, RecoveryTransactionStatus,
 };
+use diesel_models::business_profile::RevenueRecoveryConfig;
 use error_stack::report;
 use hyperswitch_domain_models::{
     payments::{payment_intent::PaymentIntentUpdate, PaymentIntent},
@@ -37,53 +38,26 @@ use crate::{
     workflows::revenue_recovery::{self as revenue_recovery_workflow, RetryTiming},
 };
 
-/// The limits that bound how long an invoice is retried. There is no billing connector account to
-/// hold them with external triggers, so they come from the configuration of the merchant.
-struct RecoveryRetryLimits {
-    max_retry_count: u16,
-    grace_period_days: u16,
-    max_hybrid_cascading_retry_count: u16,
-}
-
-impl RecoveryRetryLimits {
-    async fn from_config(
-        state: &SessionState,
-        dimensions: &DimensionsWithProcessorMerchantIdAndConnector,
-    ) -> Self {
-        let store = state.store.as_ref();
-        let superposition = state.superposition_service.as_ref();
-        let to_limit = |value: i64| u16::try_from(value.max(0)).unwrap_or(u16::MAX);
-
-        Self {
-            max_retry_count: to_limit(
-                dimensions
-                    .get_recovery_max_retry_count(store, superposition, None)
-                    .await,
-            ),
-            grace_period_days: to_limit(
-                dimensions
-                    .get_recovery_grace_period_days(store, superposition, None)
-                    .await,
-            ),
-            max_hybrid_cascading_retry_count: to_limit(
-                dimensions
-                    .get_recovery_max_hybrid_cascading_retry_count(store, superposition, None)
-                    .await,
-            ),
-        }
-    }
-}
-
 /// What the next retry of an invoice is decided from.
 struct NextRetryInputs<'a> {
     transaction_status: RecoveryTransactionStatus,
-    connector_customer_id: &'a str,
     payment_intent: &'a PaymentIntent,
     dimensions: &'a DimensionsWithProcessorMerchantIdAndConnector,
-    limits: &'a RecoveryRetryLimits,
+    retry_config: &'a RevenueRecoveryConfig,
     ladder_progress: &'a StaticLadderProgress,
     retry_count: u16,
     last_failure_code: Option<common_enums::StandardisedCode>,
+    card_availability: CardAvailability,
+    retries_after_hard_decline: Option<u16>,
+}
+
+/// What the limits of the profile say about the next retry of an invoice.
+#[derive(Clone, Copy, Debug, Default)]
+struct RetryLimitChecks {
+    is_retry_budget_spent: bool,
+    is_grace_window_over: bool,
+    is_hard_decline_limit_reached: bool,
+    is_below_retry_threshold: bool,
 }
 
 /// What is decided about the next retry of an invoice, with the state to keep for the one after.
@@ -113,6 +87,7 @@ pub(super) async fn record_transaction_and_get_next_retry(
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
     connector: RecoveryConnector,
+    retry_config: &RevenueRecoveryConfig,
 ) -> RouterResult<(RecoveryPaymentIntent, RecoveryNextRetry)> {
     let invoice_lock = LockAction::Hold {
         input: LockingInput {
@@ -129,7 +104,13 @@ pub(super) async fn record_transaction_and_get_next_retry(
         .await?;
 
     let result = Box::pin(handle_merchant_report(
-        state, req_state, platform, profile, request, connector,
+        state,
+        req_state,
+        platform,
+        profile,
+        request,
+        connector,
+        retry_config,
     ))
     .await;
 
@@ -152,7 +133,16 @@ async fn handle_merchant_report(
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
     connector: RecoveryConnector,
+    retry_config: &RevenueRecoveryConfig,
 ) -> RouterResult<(RecoveryPaymentIntent, RecoveryNextRetry)> {
+    // A value sent in the request takes priority over the one on the profile.
+    let request = &RecoveryPaymentsCreate {
+        enable_partial_authorization: request
+            .enable_partial_authorization
+            .or(Some(retry_config.enable_partial_authorization.into())),
+        ..request.clone()
+    };
+
     let invoice = api::get_or_create_invoice(state, req_state, platform, profile, request).await?;
 
     PaymentAttemptRecord
@@ -170,7 +160,16 @@ async fn handle_merchant_report(
         .feature_metadata
         .as_ref()
         .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref());
-    let is_retry = previous_recovery_metadata.is_some();
+    let is_existing_invoice = previous_recovery_metadata.is_some();
+    let is_same_card = previous_recovery_metadata.is_some_and(|recovery_metadata| {
+        recovery_metadata
+            .billing_connector_payment_details
+            .payment_processor_token
+            == *request
+                .payment_method_data
+                .primary_processor_payment_method_token
+                .peek()
+    });
     let previous_trigger_state = previous_recovery_metadata
         .and_then(|recovery_metadata| recovery_metadata.external_trigger_state.clone());
 
@@ -187,11 +186,8 @@ async fn handle_merchant_report(
     ))
     .await?;
 
-    let previous_failure_code = previous_trigger_state
-        .as_ref()
-        .and_then(|trigger_state| trigger_state.last_failure_code);
     if let Some((failure_code, success)) =
-        get_retry_outcome(is_retry, request.transaction_status, previous_failure_code)
+        get_retry_outcome(previous_trigger_state.as_ref(), request.transaction_status)
     {
         RetryOutcomeEvent::from_retry_outcome(recovery_attempt.created_at, failure_code, success)
             .record(state)
@@ -215,17 +211,25 @@ async fn handle_merchant_report(
         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
         // The merchant's own system plays the billing connector, as with a custom billing account.
         .with_connector(common_enums::connector_enums::Connector::Custombilling);
-    let limits = RecoveryRetryLimits::from_config(state, &dimensions).await;
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .unwrap_or(1);
     let ladder_progress = get_ladder_progress(
         previous_trigger_state.as_ref(),
-        is_retry,
+        is_existing_invoice,
         retry_count,
-        limits.max_hybrid_cascading_retry_count,
+        revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions).await,
     );
     let last_failure_code = get_last_failure_code(request.transaction_status, &recovery_attempt);
+    let card_availability =
+        get_card_availability(state, request.connector_customer_id.peek(), &payment_intent).await;
+    let retries_after_hard_decline = get_retries_after_hard_decline(
+        previous_trigger_state
+            .as_ref()
+            .and_then(|trigger_state| trigger_state.retries_after_hard_decline),
+        is_same_card,
+        matches!(card_availability, CardAvailability::HardDecline),
+    );
 
     let decision = Box::pin(decide_next_retry(
         state,
@@ -233,13 +237,14 @@ async fn handle_merchant_report(
         profile,
         NextRetryInputs {
             transaction_status: request.transaction_status,
-            connector_customer_id: request.connector_customer_id.peek(),
             payment_intent: &payment_intent,
             dimensions: &dimensions,
-            limits: &limits,
+            retry_config,
             ladder_progress: &ladder_progress,
             retry_count,
             last_failure_code,
+            card_availability,
+            retries_after_hard_decline,
         },
     ))
     .await;
@@ -250,6 +255,7 @@ async fn handle_merchant_report(
             .next_ladder_progress
             .unwrap_or(ladder_progress)
             .consumed_rungs,
+        retries_after_hard_decline,
         next_retry: decision.next_retry,
     };
     save_trigger_state(
@@ -295,8 +301,8 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
     }
 }
 
-/// Decides the next retry of an invoice: first whatever rules a retry out, then its time under the
-/// retry algorithm of the profile, then whatever the card allows.
+/// Decides the next retry of an invoice: first whatever the limits of the profile rule out, then
+/// its time under the retry algorithm of the profile, then whatever the card allows.
 async fn decide_next_retry(
     state: &SessionState,
     platform: &Platform,
@@ -305,13 +311,14 @@ async fn decide_next_retry(
 ) -> NextRetryDecision {
     let NextRetryInputs {
         transaction_status,
-        connector_customer_id,
         payment_intent,
         dimensions,
-        limits,
+        retry_config,
         ladder_progress,
         retry_count,
         last_failure_code,
+        card_availability,
+        retries_after_hard_decline,
     } = inputs;
 
     let retry_algorithm_type = profile
@@ -320,18 +327,27 @@ async fn decide_next_retry(
     let now = common_utils::date_time::now();
 
     // An invoice that cannot be bounded by its grace window is not retried.
-    let grace_window_end = get_recovery_grace_window_end(payment_intent, limits.grace_period_days)
-        .inspect_err(|error| {
-            logger::error!(?error, "Cannot bound the invoice by its grace window");
-        })
-        .ok()
-        .filter(|grace_window_end| *grace_window_end > now);
+    let grace_window_end =
+        get_recovery_grace_window_end(payment_intent, retry_config.grace_period_days)
+            .inspect_err(|error| {
+                logger::error!(?error, "Cannot bound the invoice by its grace window");
+            })
+            .ok()
+            .filter(|grace_window_end| *grace_window_end > now);
 
     if let Some(reason) = get_no_retry_reason(
         transaction_status,
         retry_algorithm_type,
-        is_retry_budget_exhausted(i32::from(retry_count), limits.max_retry_count),
-        grace_window_end.is_none(),
+        RetryLimitChecks {
+            is_retry_budget_spent: is_retry_budget_exhausted(
+                i32::from(retry_count),
+                retry_config.max_retry_count,
+            ),
+            is_grace_window_over: grace_window_end.is_none(),
+            is_hard_decline_limit_reached: retries_after_hard_decline
+                .is_some_and(|retries| retries >= retry_config.max_hard_decline_retries),
+            is_below_retry_threshold: retry_count < retry_config.billing_connector_retry_threshold,
+        },
     ) {
         return NextRetryDecision::not_scheduled(reason);
     }
@@ -347,10 +363,9 @@ async fn decide_next_retry(
             retry_count: i32::from(retry_count),
             prev_attempt_error_code: last_failure_code,
             static_ladder_progress: ladder_progress,
-            max_hybrid_cascading_retry_count: Some(limits.max_hybrid_cascading_retry_count),
             remaining_grace_days: u32::try_from((grace_window_end - now).whole_days().max(0))
                 .unwrap_or(0),
-            remaining_budget: u32::from(limits.max_retry_count)
+            remaining_budget: u32::from(retry_config.max_retry_count)
                 .saturating_sub(u32::from(retry_count)),
             provider_merchant_id: platform.get_provider().get_provider_merchant_id(),
             merchant_context: pcr::RecoveryMerchantContext {
@@ -409,7 +424,7 @@ async fn decide_next_retry(
 
     let next_retry = get_next_retry(
         revenue_recovery_workflow::add_random_delay_to_schedule_time(state, retry_time),
-        &get_card_availability(state, connector_customer_id, payment_intent).await,
+        &card_availability,
         Duration::seconds(
             state
                 .conf
@@ -502,16 +517,28 @@ async fn save_trigger_state(
 /// worked out from the retries already made.
 fn get_ladder_progress(
     previous_trigger_state: Option<&ExternalTriggerState>,
-    is_retry: bool,
+    is_existing_invoice: bool,
     retry_count: u16,
     max_hybrid_cascading_retry_count: u16,
 ) -> StaticLadderProgress {
     match previous_trigger_state {
+        // Recovery starts with this report, and the merchant's retries before it use up the ladder
+        // the way the retries of a billing connector do.
+        Some(ExternalTriggerState {
+            next_retry:
+                RecoveryNextRetry::NotScheduled {
+                    reason: RecoveryNoRetryReason::BelowRetryThreshold,
+                },
+            ..
+        }) => StaticLadderProgress::seed_for_new_invoice(
+            retry_count,
+            max_hybrid_cascading_retry_count,
+        ),
         Some(trigger_state) => StaticLadderProgress {
             consumed_rungs: trigger_state.consumed_ladder_rungs,
         },
         // The last report could not save its state.
-        None if is_retry => StaticLadderProgress::seed_for_existing_invoice(
+        None if is_existing_invoice => StaticLadderProgress::seed_for_existing_invoice(
             retry_count,
             max_hybrid_cascading_retry_count,
         ),
@@ -519,6 +546,19 @@ fn get_ladder_progress(
             retry_count,
             max_hybrid_cascading_retry_count,
         ),
+    }
+}
+
+/// Retries made with the card of the invoice since it was first hard declined. A hard decline is
+/// about the card, so a report on another card starts over.
+fn get_retries_after_hard_decline(
+    previous_retries: Option<u16>,
+    is_same_card: bool,
+    is_hard_declined: bool,
+) -> Option<u16> {
+    match previous_retries.filter(|_| is_same_card) {
+        Some(retries) => Some(retries.saturating_add(1)),
+        None => is_hard_declined.then_some(0),
     }
 }
 
@@ -535,20 +575,23 @@ fn get_last_failure_code(
 }
 
 /// The result to count in the cluster data, as the error code the retry was made after and whether
-/// it succeeded. The first transaction of an invoice is not a retry, and partial charges are not
+/// it succeeded. Only a retry that was scheduled is counted, which leaves out the first transaction
+/// of an invoice and the merchant's own retries before recovery starts, and partial charges are not
 /// counted, as they are not for the retries Hyperswitch makes.
 fn get_retry_outcome(
-    is_retry: bool,
+    previous_trigger_state: Option<&ExternalTriggerState>,
     transaction_status: RecoveryTransactionStatus,
-    previous_failure_code: Option<common_enums::StandardisedCode>,
 ) -> Option<(Option<common_enums::StandardisedCode>, bool)> {
-    if !is_retry {
-        return None;
-    }
+    let trigger_state = previous_trigger_state.filter(|trigger_state| {
+        matches!(
+            trigger_state.next_retry,
+            RecoveryNextRetry::Scheduled { .. }
+        )
+    })?;
 
     match transaction_status {
-        RecoveryTransactionStatus::Failure => Some((previous_failure_code, false)),
-        RecoveryTransactionStatus::Charged => Some((previous_failure_code, true)),
+        RecoveryTransactionStatus::Failure => Some((trigger_state.last_failure_code, false)),
+        RecoveryTransactionStatus::Charged => Some((trigger_state.last_failure_code, true)),
         RecoveryTransactionStatus::PartialCharged => None,
     }
 }
@@ -557,17 +600,20 @@ fn get_retry_outcome(
 fn get_no_retry_reason(
     transaction_status: RecoveryTransactionStatus,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
-    is_retry_budget_spent: bool,
-    is_grace_window_over: bool,
+    limit_checks: RetryLimitChecks,
 ) -> Option<RecoveryNoRetryReason> {
     if matches!(transaction_status, RecoveryTransactionStatus::Charged) {
         Some(RecoveryNoRetryReason::Recovered)
     } else if retry_algorithm_type == common_enums::RevenueRecoveryAlgorithmType::Monitoring {
         Some(RecoveryNoRetryReason::Monitoring)
-    } else if is_retry_budget_spent {
+    } else if limit_checks.is_retry_budget_spent {
         Some(RecoveryNoRetryReason::RetriesExhausted)
-    } else if is_grace_window_over {
+    } else if limit_checks.is_grace_window_over {
         Some(RecoveryNoRetryReason::GraceWindowExpired)
+    } else if limit_checks.is_hard_decline_limit_reached {
+        Some(RecoveryNoRetryReason::HardDecline)
+    } else if limit_checks.is_below_retry_threshold {
+        Some(RecoveryNoRetryReason::BelowRetryThreshold)
     } else {
         None
     }
@@ -583,12 +629,10 @@ fn get_next_retry(
     now: PrimitiveDateTime,
 ) -> RecoveryNextRetry {
     let schedule_time = match card_availability {
-        CardAvailability::HardDecline => {
-            return RecoveryNextRetry::NotScheduled {
-                reason: RecoveryNoRetryReason::HardDecline,
-            }
-        }
-        CardAvailability::Ready { .. } | CardAvailability::NoCard => retry_time,
+        // A hard declined card gets here only while the profile still allows retries after it.
+        CardAvailability::Ready { .. }
+        | CardAvailability::NoCard
+        | CardAvailability::HardDecline => retry_time,
         // The card is at its network's retry limit until then, and nothing works out the time
         // again before the merchant retries, so the retry has to wait past the limit here.
         CardAvailability::WaitHours(wait_hours) => retry_time.max(
@@ -638,18 +682,21 @@ mod tests {
 
     // ---- where the invoice stands on the static ladder --------------------
 
-    fn saved_state(consumed_ladder_rungs: i32) -> ExternalTriggerState {
+    fn saved_state(next_retry: RecoveryNextRetry) -> ExternalTriggerState {
         ExternalTriggerState {
-            last_failure_code: None,
-            consumed_ladder_rungs,
-            next_retry: scheduled(at(1)),
+            last_failure_code: Some(FAILURE_CODE),
+            consumed_ladder_rungs: 2,
+            retries_after_hard_decline: None,
+            next_retry,
         }
     }
 
     #[test]
     fn the_saved_ladder_position_is_used() {
+        let state = saved_state(scheduled(at(1)));
+
         assert_eq!(
-            get_ladder_progress(Some(&saved_state(2)), true, 9, 5).consumed_rungs,
+            get_ladder_progress(Some(&state), true, 9, 5).consumed_rungs,
             2
         );
     }
@@ -664,6 +711,47 @@ mod tests {
         assert_eq!(get_ladder_progress(None, true, 5, 5).consumed_rungs, 4);
     }
 
+    #[test]
+    fn recovery_opens_the_ladder_when_the_threshold_is_reached() {
+        let state = saved_state(not_scheduled(RecoveryNoRetryReason::BelowRetryThreshold));
+
+        assert_eq!(
+            get_ladder_progress(Some(&state), true, 3, 5).consumed_rungs,
+            3
+        );
+    }
+
+    // ---- retries allowed after a hard decline -----------------------------
+
+    #[test]
+    fn a_card_that_was_never_hard_declined_has_no_count() {
+        assert_eq!(get_retries_after_hard_decline(None, true, false), None);
+    }
+
+    #[test]
+    fn the_first_hard_decline_starts_the_count() {
+        assert_eq!(get_retries_after_hard_decline(None, true, true), Some(0));
+        assert_eq!(get_retries_after_hard_decline(None, false, true), Some(0));
+    }
+
+    #[test]
+    fn every_later_report_on_the_card_counts_whatever_its_outcome() {
+        assert_eq!(get_retries_after_hard_decline(Some(0), true, true), Some(1));
+        assert_eq!(
+            get_retries_after_hard_decline(Some(1), true, false),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn another_card_starts_over() {
+        assert_eq!(get_retries_after_hard_decline(Some(3), false, false), None);
+        assert_eq!(
+            get_retries_after_hard_decline(Some(3), false, true),
+            Some(0)
+        );
+    }
+
     // ---- what is counted in the cluster data ------------------------------
 
     #[test]
@@ -673,59 +761,92 @@ mod tests {
             RecoveryTransactionStatus::Charged,
             RecoveryTransactionStatus::PartialCharged,
         ] {
-            assert_eq!(get_retry_outcome(false, status, None), None);
+            assert_eq!(get_retry_outcome(None, status), None);
         }
     }
 
     #[test]
     fn a_failed_retry_counts_against_the_previous_failure() {
+        let state = saved_state(scheduled(at(1)));
+
         assert_eq!(
-            get_retry_outcome(true, RecoveryTransactionStatus::Failure, Some(FAILURE_CODE)),
+            get_retry_outcome(Some(&state), RecoveryTransactionStatus::Failure),
             Some((Some(FAILURE_CODE), false))
         );
     }
 
     #[test]
     fn a_charged_retry_counts_for_the_previous_failure() {
+        let state = saved_state(scheduled(at(1)));
+
         assert_eq!(
-            get_retry_outcome(true, RecoveryTransactionStatus::Charged, Some(FAILURE_CODE)),
+            get_retry_outcome(Some(&state), RecoveryTransactionStatus::Charged),
             Some((Some(FAILURE_CODE), true))
         );
     }
 
     #[test]
     fn a_retry_after_an_unknown_failure_is_still_counted() {
+        let state = ExternalTriggerState {
+            last_failure_code: None,
+            ..saved_state(scheduled(at(1)))
+        };
+
         assert_eq!(
-            get_retry_outcome(true, RecoveryTransactionStatus::Failure, None),
+            get_retry_outcome(Some(&state), RecoveryTransactionStatus::Failure),
             Some((None, false))
         );
     }
 
     #[test]
     fn a_partial_charge_is_not_counted() {
+        let state = saved_state(scheduled(at(1)));
+
         assert_eq!(
-            get_retry_outcome(
-                true,
-                RecoveryTransactionStatus::PartialCharged,
-                Some(FAILURE_CODE)
-            ),
+            get_retry_outcome(Some(&state), RecoveryTransactionStatus::PartialCharged),
             None
         );
     }
 
+    #[test]
+    fn a_report_no_retry_was_scheduled_for_is_not_counted() {
+        for reason in [
+            RecoveryNoRetryReason::BelowRetryThreshold,
+            RecoveryNoRetryReason::RetriesExhausted,
+            RecoveryNoRetryReason::HardDecline,
+            RecoveryNoRetryReason::Monitoring,
+        ] {
+            let state = saved_state(not_scheduled(reason));
+
+            assert_eq!(
+                get_retry_outcome(Some(&state), RecoveryTransactionStatus::Charged),
+                None
+            );
+        }
+    }
+
     // ---- what rules a retry out -------------------------------------------
+
+    fn no_retry_reason(limit_checks: RetryLimitChecks) -> Option<RecoveryNoRetryReason> {
+        get_no_retry_reason(
+            RecoveryTransactionStatus::Failure,
+            RevenueRecoveryAlgorithmType::Cascading,
+            limit_checks,
+        )
+    }
+
+    fn every_limit_reached() -> RetryLimitChecks {
+        RetryLimitChecks {
+            is_retry_budget_spent: true,
+            is_grace_window_over: true,
+            is_hard_decline_limit_reached: true,
+            is_below_retry_threshold: true,
+        }
+    }
 
     #[test]
     fn a_failure_within_every_limit_can_be_retried() {
-        assert_eq!(
-            get_no_retry_reason(
-                RecoveryTransactionStatus::Failure,
-                RevenueRecoveryAlgorithmType::Cascading,
-                false,
-                false,
-            ),
-            None
-        );
+        assert_eq!(no_retry_reason(RetryLimitChecks::default()), None);
     }
 
     #[test]
@@ -734,8 +855,7 @@ mod tests {
             get_no_retry_reason(
                 RecoveryTransactionStatus::PartialCharged,
                 RevenueRecoveryAlgorithmType::Smart,
-                false,
-                false,
+                RetryLimitChecks::default(),
             ),
             None
         );
@@ -747,8 +867,7 @@ mod tests {
             get_no_retry_reason(
                 RecoveryTransactionStatus::Charged,
                 RevenueRecoveryAlgorithmType::Monitoring,
-                true,
-                true,
+                every_limit_reached(),
             ),
             Some(RecoveryNoRetryReason::Recovered)
         );
@@ -760,8 +879,7 @@ mod tests {
             get_no_retry_reason(
                 RecoveryTransactionStatus::Failure,
                 RevenueRecoveryAlgorithmType::Monitoring,
-                true,
-                true,
+                every_limit_reached(),
             ),
             Some(RecoveryNoRetryReason::Monitoring)
         );
@@ -770,12 +888,7 @@ mod tests {
     #[test]
     fn a_spent_retry_budget_stops_the_retries() {
         assert_eq!(
-            get_no_retry_reason(
-                RecoveryTransactionStatus::Failure,
-                RevenueRecoveryAlgorithmType::Cascading,
-                true,
-                true,
-            ),
+            no_retry_reason(every_limit_reached()),
             Some(RecoveryNoRetryReason::RetriesExhausted)
         );
     }
@@ -783,13 +896,34 @@ mod tests {
     #[test]
     fn a_closed_grace_window_stops_the_retries() {
         assert_eq!(
-            get_no_retry_reason(
-                RecoveryTransactionStatus::Failure,
-                RevenueRecoveryAlgorithmType::Cascading,
-                false,
-                true,
-            ),
+            no_retry_reason(RetryLimitChecks {
+                is_retry_budget_spent: false,
+                ..every_limit_reached()
+            }),
             Some(RecoveryNoRetryReason::GraceWindowExpired)
+        );
+    }
+
+    #[test]
+    fn a_hard_decline_past_its_limit_stops_the_retries() {
+        assert_eq!(
+            no_retry_reason(RetryLimitChecks {
+                is_hard_decline_limit_reached: true,
+                is_below_retry_threshold: true,
+                ..RetryLimitChecks::default()
+            }),
+            Some(RecoveryNoRetryReason::HardDecline)
+        );
+    }
+
+    #[test]
+    fn an_invoice_below_the_threshold_waits_for_the_merchants_retries() {
+        assert_eq!(
+            no_retry_reason(RetryLimitChecks {
+                is_below_retry_threshold: true,
+                ..RetryLimitChecks::default()
+            }),
+            Some(RecoveryNoRetryReason::BelowRetryThreshold)
         );
     }
 
@@ -818,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn a_hard_declined_card_is_not_retried() {
+    fn a_hard_declined_card_the_profile_still_allows_is_retried_at_the_retry_time() {
         assert_eq!(
             get_next_retry(
                 at(3),
@@ -827,7 +961,7 @@ mod tests {
                 at(100),
                 at(0)
             ),
-            not_scheduled(RecoveryNoRetryReason::HardDecline)
+            scheduled(at(3))
         );
     }
 

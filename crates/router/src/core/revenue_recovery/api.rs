@@ -308,33 +308,45 @@ pub async fn custom_revenue_recovery_core(
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
 
-    let (updated_recovery_intent, next_retry) =
-        match RecoveryTrigger::from_request(profile.revenue_recovery_trigger_model, &request)? {
-            RecoveryTrigger::Internal {
-                billing_merchant_connector_id,
-                payment_merchant_connector_id,
-            } => {
-                let updated_recovery_intent = Box::pin(record_transaction_and_schedule_retries(
+    let (updated_recovery_intent, next_retry) = match RecoveryTrigger::from_profile_settings(
+        profile.revenue_recovery_trigger_model,
+        profile.revenue_recovery_config.as_ref(),
+        &request,
+    )? {
+        RecoveryTrigger::Internal {
+            billing_merchant_connector_id,
+            payment_merchant_connector_id,
+        } => {
+            let updated_recovery_intent = Box::pin(record_transaction_and_schedule_retries(
+                &state,
+                &req_state,
+                &platform,
+                &profile,
+                &request,
+                &billing_merchant_connector_id,
+                &payment_merchant_connector_id,
+            ))
+            .await?;
+            (updated_recovery_intent, None)
+        }
+        RecoveryTrigger::External {
+            connector,
+            retry_config,
+        } => {
+            let (updated_recovery_intent, next_retry) =
+                Box::pin(external_triggers::record_transaction_and_get_next_retry(
                     &state,
                     &req_state,
                     &platform,
                     &profile,
                     &request,
-                    &billing_merchant_connector_id,
-                    &payment_merchant_connector_id,
+                    connector,
+                    retry_config,
                 ))
                 .await?;
-                (updated_recovery_intent, None)
-            }
-            RecoveryTrigger::External { connector } => {
-                let (updated_recovery_intent, next_retry) =
-                    Box::pin(external_triggers::record_transaction_and_get_next_retry(
-                        &state, &req_state, &platform, &profile, &request, connector,
-                    ))
-                    .await?;
-                (updated_recovery_intent, Some(next_retry))
-            }
-        };
+            (updated_recovery_intent, Some(next_retry))
+        }
+    };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         get_recovery_payments_response(&updated_recovery_intent, next_retry),

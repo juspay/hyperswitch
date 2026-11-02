@@ -275,6 +275,24 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// Positions on the static ladder available to an invoice under the hybrid static + adaptive
+/// scheme. Controlled internally rather than by merchants, so both trigger models read it here.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_max_hybrid_cascading_retry_count(
+    state: &SessionState,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+) -> u16 {
+    let max_hybrid_cascading_retry_count = dimensions
+        .get_recovery_max_hybrid_cascading_retry_count(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    u16::try_from(max_hybrid_cascading_retry_count.max(0)).unwrap_or(u16::MAX)
+}
+
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -810,7 +828,6 @@ pub(crate) struct RetryTimingParams<'a> {
     pub retry_count: i32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
-    pub max_hybrid_cascading_retry_count: Option<u16>,
     pub remaining_grace_days: u32,
     pub remaining_budget: u32,
     // Needed only to resolve the A/B gate
@@ -832,7 +849,6 @@ pub(crate) async fn get_retry_timing(
         retry_count,
         prev_attempt_error_code,
         static_ladder_progress,
-        max_hybrid_cascading_retry_count,
         remaining_grace_days,
         remaining_budget,
         provider_merchant_id,
@@ -955,12 +971,9 @@ pub(crate) async fn get_retry_timing(
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
-                        let max_hybrid_cascading_retry_count = max_hybrid_cascading_retry_count
-                            .map(i32::from)
-                            .ok_or(errors::ProcessTrackerError::MissingRequiredField)
-                            .attach_printable(
-                                "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                            )?;
+                        let max_hybrid_cascading_retry_count = i32::from(
+                            get_max_hybrid_cascading_retry_count(state, dimensions).await,
+                        );
 
                         if queried_rung <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
@@ -1111,9 +1124,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             retry_count,
             prev_attempt_error_code: tracking_data.prev_attempt_error_code,
             static_ladder_progress,
-            max_hybrid_cascading_retry_count: revenue_recovery_payment_data
-                .billing_mca
-                .get_max_hybrid_cascading_retry_count(),
             remaining_grace_days,
             remaining_budget,
             provider_merchant_id,

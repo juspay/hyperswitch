@@ -4872,7 +4872,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`, and the merchant makes the retries. `next_retry`\nin the response says when to trigger the next one. Trigger it at that time and report its result\nthrough this same API, until `next_retry` says no retry is scheduled and why. A transaction\nreported against a closed invoice is refused.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`, and the merchant makes the retries within the\nlimits in the `revenue_recovery_config` of the profile, which this model requires. `next_retry`\nin the response says when to trigger the next one. Trigger it at that time and report its result\nthrough this same API, until `next_retry` says no retry is scheduled and why. A transaction\nreported against a closed invoice is refused.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
@@ -16167,6 +16167,13 @@
             "type": "integer",
             "format": "int32",
             "description": "Positions of the static retry ladder the invoice has used."
+          },
+          "retries_after_hard_decline": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries made with the card of the invoice since it was first hard declined. Absent while it\nhas not been.",
+            "nullable": true,
+            "minimum": 0
           },
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
@@ -31868,7 +31875,8 @@
           "grace_window_expired",
           "hard_decline",
           "monitoring",
-          "cancelled"
+          "cancelled",
+          "below_retry_threshold"
         ]
       },
       "RecoveryPaymentsCreate": {

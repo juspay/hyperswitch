@@ -3807,6 +3807,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model.unwrap_or_default(),
+            self.revenue_recovery_config.is_some(),
+        )?;
+
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_profile_id_of_default_length();
@@ -4431,6 +4436,24 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     }
 }
 
+/// A profile that follows external triggers has no billing connector account to hold its retry
+/// limits, so they have to be on the profile.
+#[cfg(feature = "v2")]
+fn validate_retry_config_of_trigger_model(
+    trigger_model: common_enums::RevenueRecoveryTriggerModel,
+    has_retry_config: bool,
+) -> RouterResult<()> {
+    utils::when(
+        trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+            && !has_retry_config,
+        || {
+            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "revenue_recovery_config".into(),
+            }))
+        },
+    )
+}
+
 #[cfg(all(feature = "olap", feature = "v2"))]
 #[async_trait::async_trait]
 impl ProfileUpdateBridge for api::ProfileUpdate {
@@ -4443,6 +4466,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
+
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model
+                .unwrap_or(business_profile.revenue_recovery_trigger_model),
+            self.revenue_recovery_config.is_some()
+                || business_profile.revenue_recovery_config.is_some(),
+        )?;
 
         if let Some(url) = self
             .webhook_details
@@ -5245,6 +5275,43 @@ impl From<&types::MerchantAccountData> for pm_auth_types::RecipientCreateRequest
             name,
             account_data,
             address: None,
+        }
+    }
+}
+
+// Split rather than `cfg(all(test, feature = "v2"))`, so that clippy recognises this as a test
+// module and the in-test lint allowances apply.
+#[cfg(test)]
+#[cfg(feature = "v2")]
+mod retry_config_of_trigger_model_tests {
+    use common_enums::RevenueRecoveryTriggerModel::{ExternalTriggers, InternalTriggers};
+
+    use super::validate_retry_config_of_trigger_model;
+    use crate::core::errors::ApiErrorResponse;
+
+    #[test]
+    fn external_triggers_need_the_retry_config() {
+        let error = validate_retry_config_of_trigger_model(ExternalTriggers, false)
+            .expect_err("the limits come from the profile");
+
+        assert!(matches!(
+            error.current_context(),
+            ApiErrorResponse::MissingRequiredField { field_name }
+                if *field_name == "revenue_recovery_config"
+        ));
+    }
+
+    #[test]
+    fn external_triggers_accept_a_profile_with_the_retry_config() {
+        assert!(validate_retry_config_of_trigger_model(ExternalTriggers, true).is_ok());
+    }
+
+    #[test]
+    fn internal_triggers_do_not_need_the_retry_config() {
+        for has_retry_config in [true, false] {
+            assert!(
+                validate_retry_config_of_trigger_model(InternalTriggers, has_retry_config).is_ok()
+            );
         }
     }
 }

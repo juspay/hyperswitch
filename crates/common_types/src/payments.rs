@@ -1116,12 +1116,15 @@ pub enum RecoveryNoRetryReason {
     RetriesExhausted,
     /// The grace period of the invoice is over, or would be over by the time of the next retry.
     GraceWindowExpired,
-    /// The card is hard declined, so retrying it cannot succeed.
+    /// The card was hard declined, and the retries the profile allows after that are used up.
     HardDecline,
     /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
     Monitoring,
     /// The invoice is cancelled.
     Cancelled,
+    /// The invoice has not reached the `billing_connector_retry_threshold` of the profile. The
+    /// merchant's own retries come first, and recovery starts once they reach it.
+    BelowRetryThreshold,
 }
 
 /// When the merchant should trigger the next retry of an invoice.
@@ -1152,6 +1155,10 @@ pub struct ExternalTriggerState {
     pub last_failure_code: Option<common_enums::StandardisedCode>,
     /// Positions of the static retry ladder the invoice has used.
     pub consumed_ladder_rungs: i32,
+    /// Retries made with the card of the invoice since it was first hard declined. Absent while it
+    /// has not been.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retries_after_hard_decline: Option<u16>,
     /// What the merchant was last told to do.
     pub next_retry: RecoveryNextRetry,
 }
@@ -2032,6 +2039,10 @@ mod recovery_connector_tests {
             (RecoveryNoRetryReason::HardDecline, "hard_decline"),
             (RecoveryNoRetryReason::Monitoring, "monitoring"),
             (RecoveryNoRetryReason::Cancelled, "cancelled"),
+            (
+                RecoveryNoRetryReason::BelowRetryThreshold,
+                "below_retry_threshold",
+            ),
         ] {
             assert_eq!(
                 serde_json::to_value(RecoveryNextRetry::NotScheduled { reason })
@@ -2046,6 +2057,7 @@ mod recovery_connector_tests {
         let state = ExternalTriggerState {
             last_failure_code: Some(common_enums::StandardisedCode::DoNotHonor),
             consumed_ladder_rungs: 2,
+            retries_after_hard_decline: Some(1),
             next_retry: RecoveryNextRetry::Scheduled {
                 schedule_time: schedule_time(),
             },

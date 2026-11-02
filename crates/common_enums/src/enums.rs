@@ -412,7 +412,8 @@ pub enum RevenueRecoveryTriggerModel {
     #[default]
     InternalTriggers,
     /// The merchant triggers the retries and reports their results. Transactions are recorded
-    /// without any merchant connector account.
+    /// without any merchant connector account, and the retry limits come from the
+    /// `revenue_recovery_config` of the profile, which this model requires.
     ExternalTriggers,
 }
 
