@@ -1135,23 +1135,23 @@ impl
             )
         });
 
-        // A token returned for this redirect is what the connector settles with, so it wins
-        // over a card recovered from a saved payment method (make_pm_data).
-        let payment_method = match build_redirect_completion_payment_method(
-            router_data.request.connector_meta.as_ref(),
-        ) {
-            Some(token) => Some(token),
-            None => payment_method_data
-                .map(|payment_method_data| {
-                    unified_connector_service::build_unified_connector_service_payment_method(
-                        payment_method_data,
-                        router_data.request.payment_method_type,
-                        router_data.payment_method_token.as_ref(),
-                        router_data.connector_meta_data.as_ref(),
-                    )
-                })
-                .transpose()?,
-        };
+        let payment_method = payment_method_data
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    router_data.request.payment_method_type,
+                    router_data.payment_method_token.as_ref(),
+                    router_data.connector_meta_data.as_ref(),
+                )
+            })
+            .transpose()?
+            // Card data is not persisted through a redirect. Connectors that return a
+            // single-use payment token in connector metadata can settle with that token.
+            .or_else(|| {
+                build_redirect_completion_payment_method(
+                    router_data.request.connector_meta.as_ref(),
+                )
+            });
 
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
 

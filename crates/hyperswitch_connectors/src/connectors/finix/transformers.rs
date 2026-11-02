@@ -1130,8 +1130,10 @@ impl FinixWebhookBody {
                 match transfers.payment_type {
                     Some(FinixPaymentType::REVERSAL) => match transfers.state {
                         FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::RefundSuccess),
-                        FinixState::PENDING => Ok(IncomingWebhookEvent::EventNotSupported),
-                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                        FinixState::PENDING | FinixState::UNKNOWN => {
+                            Ok(IncomingWebhookEvent::EventNotSupported)
+                        }
+                        FinixState::FAILED | FinixState::CANCELED => {
                             Ok(IncomingWebhookEvent::RefundFailure)
                         }
                     },

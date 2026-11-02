@@ -4487,14 +4487,17 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body =
-        hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+        .unwrap_or_else(|error| {
             logger::warn!(
                 ?error,
                 "Failed to mask-serialize UCS webhook gRPC request for logging"
             );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
         });
+    if let Some(secrets) = grpc_request_body.get_mut("webhook_secrets") {
+        *secrets = serde_json::Value::String("*** masked ***".to_string());
+    }
     logger::info!(
         flow,
         ucs_webhook_grpc_request = ?grpc_request_body,
