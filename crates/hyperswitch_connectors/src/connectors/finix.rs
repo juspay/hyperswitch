@@ -581,9 +581,13 @@ impl ConnectorIntegration<Authenticate, PaymentsAuthenticateData, PaymentsRespon
     fn get_url(
         &self,
         _req: &PaymentsAuthenticateRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/3d_secure_sessions", self.base_url(connectors)))
+        // Native 3DS runs through UCS only; the Direct path keeps refusing, as before.
+        Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("finix"),
+        )
+        .into())
     }
 
     fn get_request_body(
