@@ -113,6 +113,8 @@ pub async fn construct_relay_refund_router_data<F>(
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             // Relay refunds have no locally recorded payment attempt, so the original payment's
             // connector request reference is not known here.
             payment_connector_request_reference_id: None,
@@ -265,6 +267,8 @@ pub async fn construct_relay_capture_router_data(
             webhook_url,
             merchant_order_reference_id: None,
             is_overcapture_enabled: None,
+            payment_method_data: None,
+            mandate_id: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -394,6 +398,8 @@ pub async fn construct_relay_incremental_authorization_router_data(
                 reason: None,
                 connector_transaction_id: relay_record.connector_resource_id.clone(),
                 connector_meta: None,
+                payment_method_data: None,
+                mandate_id: None,
             },
         response: Err(ErrorResponse::default()),
         access_token: None,
@@ -531,6 +537,8 @@ pub async fn construct_relay_void_router_data(
             merchant_order_reference_id: None,
             feature_metadata: None,
             payment_method_type: None,
+            payment_method_data: None,
+            mandate_id: None,
         },
         response: Err(ErrorResponse::default()),
         access_token: None,

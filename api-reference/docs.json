@@ -606,6 +606,7 @@
           {
             "group": "OpenAPI: Gateway Decision",
             "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/decide",
               "decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway"
             ]
           },
@@ -753,7 +754,8 @@
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list",
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active",
                   "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate",
-                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid"
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-decide"
                 ]
               },
               {

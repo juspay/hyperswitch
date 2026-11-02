@@ -112,7 +112,7 @@ port = 6379
 # an unauthenticated local Redis. `username` is optional (defaults to the
 # `default` user); setting `username` requires `password`.
 # username = "default"
-# password = ""
+# primary_password = ""
 # Connect over TLS (`rediss://`); required by most managed Redis offerings
 # (e.g. ElastiCache with encryption in transit, Redis Cloud with TLS).
 # When `tls_ca_certificate_path` is set, the server certificate is verified
@@ -1396,8 +1396,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft"
-card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft"
+card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
+card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 pay_later.klarna.connector_list = "adyen,aci"
 wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub"
 wallet.samsung_pay.connector_list = "aci,cybersource"
@@ -1410,7 +1410,7 @@ wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
-network_token.network_token.connector_list = "peachpayments"
+network_token.network_token.connector_list = "peachpayments,worldpayraft"
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"
 bank_redirect.sofort.connector_list = "stripe,globalpay,aci,multisafepay"
@@ -1434,7 +1434,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,elavon_pg"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -1562,7 +1562,7 @@ forex_enabled = false
 
 [analytics.clickhouse]
 username = "default"
-# password = ""
+# primary_password = ""
 host = "http://localhost:8123"
 database_name = "default"
 
@@ -1598,7 +1598,7 @@ enabled = false
 [opensearch.auth]
 auth = "basic"
 username = "admin"
-password = "0penS3arc#"
+primary_password = "0penS3arc#"
 region = "eu-central-1"
 
 [opensearch.indexes]
@@ -1700,7 +1700,6 @@ ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fis
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
-monitoring_threshold_in_seconds = 60
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
 default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the retry model schedules at when a cluster has no hour-of-day history
@@ -1764,8 +1763,10 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
+primary_internal_api_key = "test_internal_api_key"
+key_rotation_enabled = false
+use_legacy_key_for_outbound = false
 enabled = false
-internal_api_key = "test_internal_api_key"
 
 [internal_services]
 payments_base_url = "http://localhost:8080"
