@@ -927,7 +927,6 @@ impl
         )?;
 
         Ok(Self {
-            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -994,6 +993,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -1232,7 +1232,6 @@ impl
         )?;
 
         Ok(Self {
-            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
@@ -1284,6 +1283,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: None,
             payment_experience: None,
@@ -2625,7 +2625,6 @@ impl
         )?;
 
         Ok(Self {
-            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
@@ -2678,6 +2677,7 @@ impl
                 .transpose()?
                 .map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance: router_data
                 .request
                 .customer_acceptance
@@ -2816,7 +2816,6 @@ impl
         )?;
 
         Ok(Self {
-            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -2879,6 +2878,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -3027,7 +3027,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            is_stored_credential: None,
             risk_assessment_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
@@ -3095,6 +3094,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: None,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -3252,7 +3252,6 @@ impl
             .transpose()?;
 
         Ok(Self {
-            is_stored_credential: router_data.request.is_stored_credential,
             // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
             // and echoes the charge details back as mandate_reference.mandate_metadata.
             split_payments: router_data
@@ -3337,6 +3336,7 @@ impl
                 .map(|cost| cost.get_amount_as_i64()),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             request_incremental_authorization: router_data
                 .request
                 .request_incremental_authorization,

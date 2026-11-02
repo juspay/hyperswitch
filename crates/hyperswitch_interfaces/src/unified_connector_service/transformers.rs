@@ -2106,7 +2106,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             ),
             Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "QR data form type is not implemented".to_string(),
+                    "QrData form type is not implemented".to_string(),
                 )
                 .into(),
             ),
