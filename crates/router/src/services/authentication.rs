@@ -2709,11 +2709,9 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
             (internal_api_key, merchant_id, profile_id)
         {
             let config = state.conf();
-            if internal_api_key
-                != *config
-                    .internal_merchant_id_profile_id_auth
-                    .internal_api_key
-                    .peek()
+            if !config
+                .internal_merchant_id_profile_id_auth
+                .accepts_api_key(&internal_api_key)
             {
                 return Err(errors::ApiErrorResponse::Unauthorized)
                     .attach_printable("Internal API key authentication failed");
@@ -2856,12 +2854,10 @@ where
 
         match internal_api_key {
             Some(key) => {
-                if key
-                    == *state
-                        .conf()
-                        .internal_merchant_id_profile_id_auth
-                        .internal_api_key
-                        .peek()
+                if state
+                    .conf()
+                    .internal_merchant_id_profile_id_auth
+                    .accepts_api_key(&key)
                 {
                     Ok(((), AuthenticationType::InternalApiKey))
                 } else {
@@ -4913,6 +4909,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
+
         fp_utils::when(payload.profile_id != self.profile_id, || {
             Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
                 .attach_printable("Profile id in JWT does not match profile id in route")
@@ -5115,6 +5116,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
 
         let profile = state
             .store()

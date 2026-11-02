@@ -13,6 +13,7 @@ use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v1")]
 pub use common_enums::FingerprintType;
 use common_enums::{self, GooglePayCardFundingSource, ProductType};
+pub use common_types::payments::{CaptureFeatureMetadata, MultiCurrencyProcessingAmountData};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
     ExtendedAuthorizationAppliedBool, RequestExtendedAuthorizationBool,
@@ -90,7 +91,10 @@ use crate::mandates;
 use crate::{
     admin::{self, MerchantConnectorInfo},
     enums as api_enums,
-    mandates::RecurringDetails,
+    mandates::{
+        NetworkTransactionIdAndCardDetails, NetworkTransactionIdAndNetworkTokenDetails,
+        RecurringDetails,
+    },
     payment_methods,
     payments::additional_info::{
         BankDebitAdditionalData, BankRedirectDetails, BankTransferAdditionalData,
@@ -1687,6 +1691,13 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+
+    /// Indicates that the merchant has concluded settlement and supplied final amounts.
+    /// When true, Hyperswitch skips tax and surcharge calculations that would change
+    /// those amounts. Omit this field on updates or confirmation to preserve the setting.
+    #[schema(default = false, example = false)]
+    #[smithy(value_type = "Option<bool>")]
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -3532,6 +3543,9 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::CardWithNoCVC(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::NetworkTransactionIdAndCardDetails(_)
+                    | PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(_)
+                    | PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
                     | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::VaultCardTokenData(_)
                     | PaymentMethodData::MandatePayment
@@ -3875,6 +3889,22 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
     #[schema(title = "NetworkToken")]
     NetworkToken(NetworkTokenData),
+    /// Network transaction ID and Card Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndCardDetails")]
+    NetworkTransactionIdAndCardDetails(Box<NetworkTransactionIdAndCardDetails>),
+    /// Network transaction ID and Network Token Details for MIT payments when payment_method_data
+    /// is not stored in the application
+    #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
+    NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
+    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
     /// Vault card data used for external vault proxy payments.
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "VaultDataCard")]
@@ -3915,6 +3945,9 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
+            | Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
             | Self::ProxyCard(_)
             | Self::VaultCardTokenData(_) => None,
         }
@@ -3940,6 +3973,13 @@ impl PaymentMethodData {
             Self::OpenBanking(_) => Some(api_enums::PaymentMethod::OpenBanking),
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
+            Self::NetworkTransactionIdAndCardDetails(_)
+            | Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_) => {
+                Some(api_enums::PaymentMethod::Card)
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(_) => {
+                Some(api_enums::PaymentMethod::NetworkToken)
+            }
             Self::CardToken(_) | Self::MandatePayment => None,
             Self::ProxyCard(_) | Self::VaultCardTokenData(_) => {
                 Some(api_enums::PaymentMethod::Card)
@@ -6922,6 +6962,12 @@ pub struct PaymentsCaptureRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Feature metadata persisted for this operation.
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -6932,6 +6978,9 @@ pub struct PaymentsCaptureRequest {
     pub amount_to_capture: Option<MinorUnit>,
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+    /// Feature metadata persisted for this operation.
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<CaptureFeatureMetadata>"))]
+    pub feature_metadata: Option<CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -11048,6 +11097,45 @@ pub struct BraintreeData {
     pub merchant_config_currency: Option<api_enums::Currency>,
 }
 
+/// Datatrans multi-currency processing (multi-currency processing) details supplied by the merchant.
+///
+/// `amount`/`currency` here describe the **merchant settlement leg** — what Planet pays out to
+/// the merchant. The payment's own `amount`/`currency` remain the **customer-facing leg**, i.e.
+/// what the shopper saw at checkout and is charged. Hyperswitch never recomputes either leg; the
+/// merchant is the source of truth for both.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct MultiCurrencyProcessingData {
+    /// The merchant settlement currency, i.e. the currency the merchant is paid out in.
+    #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
+    pub currency: api_enums::Currency,
+    /// The merchant settlement amount, expressed in `currency`. The merchant converts the
+    /// customer-facing amount itself and supplies the result here.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Conversion rate received from the currency rates endpoint. Required for dynamic multi-currency processing.
+    #[smithy(value_type = "Option<f64>")]
+    pub conversion_rate: Option<f64>,
+    /// Transaction datetime received from the currency rates endpoint.
+    #[schema(value_type = Option<PrimitiveDateTime>)]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
+    /// Processing reference received from the currency rates endpoint.
+    #[smithy(value_type = "Option<String>")]
+    pub processing_reference_id: Option<String>,
+    #[smithy(value_type = "Option<String>")]
+    pub user_id: Option<String>,
+    /// The provider for multi-currency processing.
+    #[smithy(value_type = "Option<String>")]
+    pub conversion_provider: Option<String>,
+    /// Reason indicator received from the acquirer.
+    #[smithy(value_type = "Option<String>")]
+    pub conversion_reason_code: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct AdyenConnectorMetadata {
@@ -12341,6 +12429,9 @@ pub struct PaymentsCancelRequest {
     /// If enabled, provides whole connector response
     #[smithy(value_type = "Option<bool>")]
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the Connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 /// Request to cancel a payment when the payment is already captured
@@ -12351,6 +12442,8 @@ pub struct PaymentsCancelPostCaptureRequest {
     pub payment_id: id_type::PaymentId,
     /// The reason for the payment cancel
     pub cancellation_reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 /// Tracking data for the post_capture_void_sync workflow stored in process_tracker
@@ -12379,6 +12472,8 @@ pub struct PaymentsIncrementalAuthorizationRequest {
     pub amount: MinorUnit,
     /// Reason for incremental authorization
     pub reason: Option<String>,
+    /// Collects payment method data to be passed through to the Connector
+    pub payment_method_data: Option<PaymentMethodData>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -12723,6 +12818,12 @@ pub struct FeatureMetadata {
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
     /// Extra information for Finix connector for fraud checks and risk evaluation
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[cfg_attr(
+        feature = "v1",
+        smithy(value_type = "Option<MultiCurrencyProcessingData>")
+    )]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[cfg(feature = "v2")]
@@ -12824,6 +12925,7 @@ impl FeatureMetadata {
         payment_revenue_recovery_metadata: PaymentRevenueRecoveryMetadata,
     ) -> Self {
         Self {
+            multi_currency_processing: self.multi_currency_processing,
             redirect_response: self.redirect_response,
             search_tags: self.search_tags,
             apple_pay_recurring_details: self.apple_pay_recurring_details,
@@ -12876,7 +12978,9 @@ impl FeatureMetadata {
 
 /// additional data that might be required by hyperswitch
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq)]
+#[derive(
+    Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel, PartialEq,
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -12902,6 +13006,9 @@ pub struct FeatureMetadata {
     /// Extra information for Finix connector for fraud checks and risk evaluation
     #[smithy(value_type = "Option<FinixAdditionalDetails>")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
+    /// Datatrans multi-currency processing settlement amount, currency and conversion details.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingData>,
 }
 
 #[cfg(feature = "v1")]
@@ -12937,6 +13044,9 @@ impl FeatureMetadata {
     pub fn merge(self, other: Option<Self>) -> Self {
         if let Some(other) = other {
             Self {
+                multi_currency_processing: self
+                    .multi_currency_processing
+                    .or(other.multi_currency_processing),
                 redirect_response: self.redirect_response.or(other.redirect_response),
                 search_tags: self.search_tags.or(other.search_tags),
                 apple_pay_recurring_details: self

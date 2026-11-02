@@ -452,7 +452,11 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         match payment_method_data {
             payments::PaymentMethodData::Card(..)
             | payments::PaymentMethodData::CardWithNoCVC(..)
-            | payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
+            | payments::PaymentMethodData::CardToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(..) => {
+                Ok(Self::Card)
+            }
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -472,7 +476,10 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
-            payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::NetworkToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(..) => {
+                Ok(Self::NetworkToken)
+            }
             payments::PaymentMethodData::ProxyCard(..)
             | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }

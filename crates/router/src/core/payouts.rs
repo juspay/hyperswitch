@@ -764,6 +764,7 @@ pub async fn payouts_create_core(
 pub async fn payouts_confirm_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -774,7 +775,7 @@ pub async fn payouts_confirm_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -833,6 +834,7 @@ pub async fn payouts_confirm_core(
 pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -844,7 +846,7 @@ pub async fn payouts_update_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -964,13 +966,14 @@ pub async fn payouts_retrieve_core(
 pub async fn payouts_cancel_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -1075,13 +1078,14 @@ pub async fn payouts_cancel_core(
 pub async fn payouts_fulfill_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -3887,6 +3891,23 @@ pub async fn make_payout_data(
     }
 
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        validator::validate_payout_condition(
+            request
+                .merchant_id
+                .as_ref()
+                .is_some_and(|request_merchant_id| request_merchant_id != merchant_id),
+            "Payout merchant does not match the authenticated merchant",
+        )?;
+        validator::validate_payout_condition(
+            request
+                .profile_id
+                .as_ref()
+                .is_some_and(|request_profile_id| request_profile_id != &payouts.profile_id),
+            "Payout profile does not match the existing payout",
+        )?;
+    }
 
     let payout_attempt_id =
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);

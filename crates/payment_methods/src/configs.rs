@@ -16,6 +16,30 @@ pub struct MicroServicesConfig {
     pub authentication_service: Option<AuthenticationServiceConfig>,
 }
 
+impl MicroServicesConfig {
+    pub async fn decrypt_credentials(
+        self,
+        client: &dyn hyperswitch_interfaces::secrets_interface::SecretManagementInterface,
+    ) -> common_utils::errors::CustomResult<
+        Self,
+        hyperswitch_interfaces::secrets_interface::SecretsManagementError,
+    > {
+        let authentication_service = match self.authentication_service {
+            Some(service) => Some(AuthenticationServiceConfig {
+                api_key: client.get_secret(service.api_key).await.map_err(|error| {
+                    error.attach_printable("micro_services.authentication_service.api_key")
+                })?,
+                ..service
+            }),
+            None => None,
+        };
+        Ok(Self {
+            authentication_service,
+            ..self
+        })
+    }
+}
+
 /// Configuration for the authentication microservice.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]

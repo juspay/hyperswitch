@@ -67,6 +67,7 @@ pub struct AdyenMetadata {
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+    merchant_id: HashMap<Currency, Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -697,6 +698,7 @@ pub enum ConnectorSpecificConfig {
         thumbprint: Secret<String>,
         private_key: Secret<String>,
         resource_id: Secret<String>,
+        merchant_id: Option<HashMap<Currency, Secret<String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -1231,6 +1233,9 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     thumbprint,
                     private_key,
                     resource_id,
+                    merchant_id: jpm_meta
+                        .as_ref()
+                        .map(|m| m.merchant_id.clone()),
                     company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
                     product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
                 })
