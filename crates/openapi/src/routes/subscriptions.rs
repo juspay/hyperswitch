@@ -299,9 +299,10 @@ pub async fn get_subscription_items() {}
     path = "/subscriptions/estimate",
     params(
         ("X-Profile-Id" = String, Header, description = "Profile ID for authentication"),
-        ("item_price_id" = String, Query, description = "Item price ID for estimation"),
-        ("plan_id" = Option<String>, Query, description = "Plan ID for estimation"),
-        ("coupon_code" = Option<String>, Query, description = "Coupon code to apply discount"),
+        ("plan_id" = String, Query, description = "Plan ID for estimation"),
+        ("customer_id" = Option<String>, Query, description = "Customer ID for personalized pricing"),
+        ("coupon_id" = Option<String>, Query, description = "Coupon ID to apply discount"),
+        ("trial_days" = Option<u32>, Query, description = "Number of trial days"),
         ("client_secret" = Option<String>, Query, description = "Subscription client secret; required when authenticating with a publishable key")
     ),
     responses(
