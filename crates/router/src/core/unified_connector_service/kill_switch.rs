@@ -1148,16 +1148,20 @@ pub mod shadow {
 
         #[tokio::test]
         async fn connection_refused_counts_from_the_original_request() {
-            // Reserve the port without listening, so another test cannot claim it.
-            let socket = tokio::net::TcpSocket::new_v4().expect("socket");
-            socket
-                .bind("127.0.0.1:0".parse().expect("address"))
+            // A bound, non-listening socket can time out on macOS. Close a temporary
+            // listener immediately before the request so the OS refuses the connection.
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                .await
                 .expect("bind");
-            let error = reqwest::Client::builder()
+            let address = listener.local_addr().expect("address");
+            let client = reqwest::Client::builder()
                 .no_proxy()
+                .timeout(std::time::Duration::from_secs(2))
                 .build()
-                .expect("client")
-                .get(format!("http://{}/", socket.local_addr().expect("address")))
+                .expect("client");
+            drop(listener);
+            let error = client
+                .get(format!("http://{address}/"))
                 .send()
                 .await
                 .expect_err("connection refused");
