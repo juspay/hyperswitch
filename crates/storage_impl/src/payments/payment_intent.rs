@@ -1570,7 +1570,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, Option<PaymentAttempt>)>, StorageError> {
-        use diesel::NullableExpressionMethods as _;
+        use diesel::{BoolExpressionMethods as _, NullableExpressionMethods as _};
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await?;
@@ -1674,6 +1674,22 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
+
+                // The plain `created_at` bound is what lets an index seek to the cursor.
+                if let Some((created_at, id)) = &params.read_after {
+                    query = match params.order.by {
+                        SortBy::Asc => query.filter(pi_dsl::created_at.ge(*created_at)).filter(
+                            pi_dsl::created_at
+                                .gt(*created_at)
+                                .or(pi_dsl::id.gt(id.clone())),
+                        ),
+                        SortBy::Desc => query.filter(pi_dsl::created_at.le(*created_at)).filter(
+                            pi_dsl::created_at
+                                .lt(*created_at)
+                                .or(pi_dsl::id.lt(id.clone())),
+                        ),
+                    };
+                }
 
                 query = match params.amount_filter {
                     Some(AmountFilter {

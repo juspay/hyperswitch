@@ -9365,21 +9365,19 @@ pub struct RecoveryPaymentListConstraints {
     )]
     pub customer_id: Option<id_type::GlobalCustomerId>,
 
-    /// A cursor for use in pagination, fetch the next list after some object
+    /// A cursor for use in pagination, fetch the rows after this payment. Pass the
+    /// `next_cursor` of the previous response. Cannot be combined with `ending_before`.
     #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub starting_after: Option<id_type::GlobalPaymentId>,
 
-    /// A cursor for use in pagination, fetch the previous list before some object
+    /// A cursor for use in pagination, fetch the rows before this payment. Cannot be combined
+    /// with `starting_after`.
     #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
-
-    /// The starting point within a list of objects
-    #[serde(default)]
-    pub offset: common_utils::types::list::PageOffset,
 
     /// The time at which payment is created
     #[param(example = "2022-09-10T10:11:12Z")]
@@ -9451,7 +9449,7 @@ pub struct RecoveryPaymentListConstraints {
     #[param(value_type = Option<Vec<String>>)]
     #[serde(deserialize_with = "parse_comma_separated", default)]
     pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
-    /// The field on which the payments list should be sorted
+    /// The field on which the list is sorted. Only `created` is supported.
     #[serde(default)]
     pub order_on: SortOn,
     /// The order in which payments list should be sorted
@@ -9485,7 +9483,6 @@ impl RecoveryPaymentListConstraints {
             starting_after,
             ending_before,
             limit,
-            offset,
             created,
             created_lt,
             created_gt,
@@ -9514,7 +9511,7 @@ impl RecoveryPaymentListConstraints {
                 starting_after,
                 ending_before,
                 limit,
-                offset,
+                offset: common_utils::types::list::PageOffset::default(),
                 created,
                 created_lt,
                 created_gt,
@@ -9843,8 +9840,10 @@ pub struct RecoveryAggregateResponse {
 pub struct RecoveryPaymentListResponse {
     /// The number of payments included in the current response
     pub count: usize,
-    /// The total number of available payments for given constraints
-    pub total_count: i64,
+    /// Pass this to continue reading in the same direction, as `starting_after` when paging
+    /// forward or `ending_before` when paging back. It is null once no rows are left to read.
+    #[schema(value_type = Option<String>)]
+    pub next_cursor: Option<id_type::GlobalPaymentId>,
     /// The list of payments response objects
     pub data: Vec<RecoveryPaymentsListResponseItem>,
 }
