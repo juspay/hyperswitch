@@ -111,6 +111,16 @@ pub struct RecoveryPaymentIntent {
     pub billing_address: Option<api_payments::Address>,
 }
 
+impl RecoveryPaymentIntent {
+    /// The trigger model the invoice follows. Absent until its first transaction is recorded.
+    pub fn get_recorded_trigger_model(&self) -> Option<common_enums::RevenueRecoveryTriggerModel> {
+        self.feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .map(api_payments::PaymentRevenueRecoveryMetadata::get_trigger_model)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RecoveryPaymentAttempt {
     pub attempt_id: id_type::GlobalAttemptId,

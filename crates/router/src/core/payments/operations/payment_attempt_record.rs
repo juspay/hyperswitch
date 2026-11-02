@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::{keymanager::ToEncryptable, MinorUnit},
+    types::keymanager::ToEncryptable,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
@@ -197,7 +197,7 @@ impl<F: Send + Clone + Sync>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
         let revenue_recovery_data = hyperswitch_domain_models::payments::RevenueRecoveryData {
-            billing_connector_id: request.billing_connector_id.clone(),
+            connector_details: request.connector_details.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
             retry_count: request.retry_count,
@@ -266,28 +266,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             common_enums::TriggeredBy::External => None,
         };
         let active_attempts_group_id = payment_data.payment_intent.active_attempts_group_id.clone();
-        let (status, amount_captured) = if payment_data
-            .revenue_recovery_data
-            .billing_connector_id
-            .is_some()
-        {
-            let amount_captured = payment_data.payment_intent.amount_captured;
-            let status = if amount_captured > Some(MinorUnit::new(0))
-                && *payment_data.payment_intent.enable_partial_authorization
-            {
-                common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            } else {
-                common_enums::IntentStatus::from(payment_data.payment_attempt.status)
-            };
-            (status, None)
-        } else {
-            // No connector sync runs for a transaction recorded without connector accounts, so
-            // the reported status and amount are final.
-            (
-                common_enums::IntentStatus::from(payment_data.payment_attempt.status),
-                payment_data.get_reported_amount_captured(),
-            )
-        };
+        let (status, amount_captured) = payment_data.get_intent_status_and_amount_captured();
         let payment_intent_update =
 
     hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate

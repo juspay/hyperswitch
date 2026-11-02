@@ -14844,13 +14844,24 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
-        mandates::ProcessorPaymentToken {
-            processor_payment_token: self
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone(),
-            merchant_connector_id: self.active_attempt_payment_connector_id.clone(),
+
+    /// The connector accounts the invoice is recorded against. Absent when the merchant triggers
+    /// its retries.
+    pub fn get_connector_accounts(
+        &self,
+    ) -> Option<common_payments_types::RecoveryConnectorAccounts> {
+        Some(common_payments_types::RecoveryConnectorAccounts {
+            billing_connector_id: self.billing_connector_id.clone()?,
+            payment_connector_id: self.active_attempt_payment_connector_id.clone()?,
+            connector: self.connector?,
+        })
+    }
+
+    /// The trigger model the invoice follows, which is the one it was first recorded under.
+    pub fn get_trigger_model(&self) -> common_enums::RevenueRecoveryTriggerModel {
+        match self.billing_connector_id {
+            Some(_) => common_enums::RevenueRecoveryTriggerModel::InternalTriggers,
+            None => common_enums::RevenueRecoveryTriggerModel::ExternalTriggers,
         }
     }
 
@@ -14910,17 +14921,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
-    /// The name of the payment connector through which the payment attempt was made.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
-    pub connector: Option<common_enums::connector_enums::Connector>,
-
-    /// Billing connector id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.
-    #[schema(value_type = Option<String>, example = "mca_1234567890")]
-    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
-
-    /// Billing connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// What is known about the connector of the transaction, which decides how it is recorded.
+    #[schema(value_type = Object)]
+    pub connector_details: common_payments_types::RecoveryConnectorDetails,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
@@ -15091,6 +15094,78 @@ impl Serialize for NullObject {
         S: Serializer,
     {
         serializer.serialize_none()
+    }
+}
+
+// Split rather than `cfg(all(test, feature = "v2"))`, so that clippy recognises this as a test
+// module and the in-test lint allowances apply.
+#[cfg(test)]
+#[cfg(feature = "v2")]
+mod revenue_recovery_metadata_tests {
+    use common_enums::RevenueRecoveryTriggerModel;
+    use common_utils::id_type::MerchantConnectorAccountId;
+
+    use super::PaymentRevenueRecoveryMetadata;
+
+    fn metadata(connector_fields: serde_json::Value) -> PaymentRevenueRecoveryMetadata {
+        let mut metadata = serde_json::json!({
+            "total_retry_count": 1,
+            "billing_connector_payment_details": {
+                "payment_processor_token": "token_1",
+                "connector_customer_id": "cust_1"
+            },
+            "payment_method_type": "card",
+            "payment_method_subtype": "credit"
+        });
+        if let (Some(metadata), Some(connector_fields)) =
+            (metadata.as_object_mut(), connector_fields.as_object())
+        {
+            metadata.extend(connector_fields.clone());
+        }
+        serde_json::from_value(metadata).expect("valid recovery metadata")
+    }
+
+    fn account_id(id: &str) -> MerchantConnectorAccountId {
+        MerchantConnectorAccountId::wrap(id.to_owned()).expect("valid account id")
+    }
+
+    #[test]
+    fn invoice_recorded_against_accounts_follows_internal_triggers() {
+        let metadata = metadata(serde_json::json!({
+            "billing_connector_id": "mca_billing",
+            "active_attempt_payment_connector_id": "mca_payment",
+            "connector": "stripe",
+        }));
+
+        assert_eq!(
+            metadata.get_trigger_model(),
+            RevenueRecoveryTriggerModel::InternalTriggers
+        );
+        let accounts = metadata
+            .get_connector_accounts()
+            .expect("every account is present");
+        assert_eq!(accounts.billing_connector_id, account_id("mca_billing"));
+        assert_eq!(accounts.payment_connector_id, account_id("mca_payment"));
+        assert_eq!(
+            accounts.connector,
+            common_enums::connector_enums::Connector::Stripe
+        );
+    }
+
+    #[test]
+    fn invoice_recorded_without_accounts_follows_external_triggers() {
+        for connector_fields in [
+            serde_json::json!({ "connector": "stripe" }),
+            serde_json::json!({}),
+        ] {
+            let metadata = metadata(connector_fields);
+
+            assert_eq!(
+                metadata.get_trigger_model(),
+                RevenueRecoveryTriggerModel::ExternalTriggers
+            );
+            assert!(metadata.get_connector_accounts().is_none());
+        }
     }
 }
 

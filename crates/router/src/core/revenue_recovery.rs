@@ -3,6 +3,7 @@ pub mod card_selection;
 pub mod retry_stats;
 pub mod schedule;
 pub mod transformers;
+pub(crate) mod trigger_model;
 pub mod types;
 use std::marker::PhantomData;
 

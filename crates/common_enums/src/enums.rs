@@ -407,12 +407,12 @@ pub enum RevenueRecoveryAlgorithmType {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryTriggerModel {
-    /// Hyperswitch schedules and triggers the retries. Transactions are recorded against
-    /// billing and payment merchant connector accounts.
+    /// Hyperswitch triggers the retries through the billing and payment merchant connector
+    /// accounts the transactions are recorded against.
     #[default]
     InternalTriggers,
-    /// The merchant triggers the retries. Transactions are only recorded, without any merchant
-    /// connector account.
+    /// The merchant triggers the retries and reports their results. Transactions are recorded
+    /// without any merchant connector account.
     ExternalTriggers,
 }
 

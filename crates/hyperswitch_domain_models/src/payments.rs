@@ -1635,8 +1635,7 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct RevenueRecoveryData {
-    /// Absent when the transaction is recorded without merchant connector accounts.
-    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector_details: common_types::payments::RecoveryConnectorDetails,
     pub processor_payment_method_token: String,
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
@@ -1645,49 +1644,6 @@ pub struct RevenueRecoveryData {
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
-}
-
-/// The connector details kept in the recovery metadata of an invoice.
-#[cfg(feature = "v2")]
-struct RecoveryConnectorDetails {
-    billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    connector: Option<common_enums::connector_enums::Connector>,
-}
-
-/// Retries of a transaction recorded with a billing connector account run through these details,
-/// so all of them are required. A transaction recorded without accounts only has the processor
-/// that was reported.
-#[cfg(feature = "v2")]
-fn get_recovery_connector_details(
-    billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    attempt_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
-    attempt_connector: Option<String>,
-) -> CustomResult<RecoveryConnectorDetails, errors::api_error_response::ApiErrorResponse> {
-    if billing_connector_id.is_some() {
-        attempt_connector
-            .as_ref()
-            .ok_or(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Connector not found in payment attempt")?;
-        attempt_merchant_connector_id
-            .as_ref()
-            .ok_or(errors::api_error_response::ApiErrorResponse::InternalServerError)
-            .attach_printable("Merchant connector id is None")?;
-    }
-
-    let connector = attempt_connector
-        .map(|connector| connector.parse::<common_enums::connector_enums::Connector>())
-        .transpose()
-        .map_err(|err| {
-            router_env::logger::error!(?err, "Failed to parse connector string to enum");
-            errors::api_error_response::ApiErrorResponse::InternalServerError
-        })?;
-
-    Ok(RecoveryConnectorDetails {
-        billing_connector_id,
-        active_attempt_payment_connector_id: attempt_merchant_connector_id,
-        connector,
-    })
 }
 
 /// The captured amount of an invoice after recording a transaction that no connector sync
@@ -1713,14 +1669,38 @@ impl<F> PaymentAttemptRecordData<F>
 where
     F: Clone,
 {
-    /// The captured amount of the invoice after recording this attempt, when no connector sync
-    /// confirms it.
-    pub fn get_reported_amount_captured(&self) -> Option<MinorUnit> {
-        get_amount_captured_from_reported_transaction(
-            self.payment_attempt.status,
-            self.payment_attempt.amount_details.get_amount_captured(),
-            self.payment_intent.amount_captured,
-        )
+    /// The status of the invoice and its captured amount after recording this attempt. A `None`
+    /// amount leaves the amount the invoice already has.
+    pub fn get_intent_status_and_amount_captured(
+        &self,
+    ) -> (common_enums::IntentStatus, Option<MinorUnit>) {
+        let attempt_status = common_enums::IntentStatus::from(self.payment_attempt.status);
+
+        if !self
+            .revenue_recovery_data
+            .connector_details
+            .has_connector_accounts()
+        {
+            // No connector sync runs for this transaction, so the reported status and amount are
+            // final.
+            return (
+                attempt_status,
+                get_amount_captured_from_reported_transaction(
+                    self.payment_attempt.status,
+                    self.payment_attempt.amount_details.get_amount_captured(),
+                    self.payment_intent.amount_captured,
+                ),
+            );
+        }
+
+        let status = if self.payment_intent.amount_captured > Some(MinorUnit::new(0))
+            && *self.payment_intent.enable_partial_authorization
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            attempt_status
+        };
+        (status, None)
     }
 
     pub fn get_updated_feature_metadata(
@@ -1728,15 +1708,7 @@ where
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-        let RecoveryConnectorDetails {
-            billing_connector_id,
-            active_attempt_payment_connector_id,
-            connector,
-        } = get_recovery_connector_details(
-            self.revenue_recovery_data.billing_connector_id.clone(),
-            self.payment_attempt.merchant_connector_id.clone(),
-            self.payment_attempt.connector.clone(),
-        )?;
+        let connector_details = &self.revenue_recovery_data.connector_details;
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()
@@ -1801,8 +1773,10 @@ where
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                billing_connector_id,
-                active_attempt_payment_connector_id,
+                billing_connector_id: connector_details.get_billing_connector_id().cloned(),
+                active_attempt_payment_connector_id: connector_details
+                    .get_payment_connector_id()
+                    .cloned(),
                 billing_connector_payment_details:
                     diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
@@ -1823,7 +1797,7 @@ where
                         errors::api_error_response::ApiErrorResponse::InternalServerError,
                     )
                     .attach_printable("Failed to construct revenue recovery metadata")?,
-                connector,
+                connector: connector_details.get_connector(),
                 // Both billing times belong to the invoice rather than to an individual attempt,
                 // so the value recorded first is retained and later webhooks only seed it when it
                 // is still unset.
@@ -1979,76 +1953,10 @@ pub struct GuestCustomer {
 #[cfg(feature = "v2")]
 #[cfg(test)]
 mod recovery_record_tests {
-    use common_enums::{connector_enums::Connector, AttemptStatus};
-    use common_utils::{id_type::MerchantConnectorAccountId, types::MinorUnit};
+    use common_enums::AttemptStatus;
+    use common_utils::types::MinorUnit;
 
-    use super::{get_amount_captured_from_reported_transaction, get_recovery_connector_details};
-
-    fn account_id(id: &str) -> MerchantConnectorAccountId {
-        MerchantConnectorAccountId::wrap(id.to_owned()).expect("valid account id")
-    }
-
-    #[test]
-    fn recording_with_accounts_keeps_every_detail() {
-        let details = get_recovery_connector_details(
-            Some(account_id("mca_billing")),
-            Some(account_id("mca_payment")),
-            Some("stripe".to_owned()),
-        )
-        .expect("every detail is present");
-
-        assert_eq!(
-            details.billing_connector_id,
-            Some(account_id("mca_billing"))
-        );
-        assert_eq!(
-            details.active_attempt_payment_connector_id,
-            Some(account_id("mca_payment"))
-        );
-        assert_eq!(details.connector, Some(Connector::Stripe));
-    }
-
-    #[test]
-    fn recording_with_billing_account_requires_the_connector() {
-        let details = get_recovery_connector_details(
-            Some(account_id("mca_billing")),
-            Some(account_id("mca_payment")),
-            None,
-        );
-
-        assert!(details.is_err());
-    }
-
-    #[test]
-    fn recording_with_billing_account_requires_the_payment_account() {
-        let details = get_recovery_connector_details(
-            Some(account_id("mca_billing")),
-            None,
-            Some("stripe".to_owned()),
-        );
-
-        assert!(details.is_err());
-    }
-
-    #[test]
-    fn recording_without_accounts_keeps_the_reported_processor() {
-        let details = get_recovery_connector_details(None, None, Some("adyen".to_owned()))
-            .expect("no account is needed");
-
-        assert_eq!(details.billing_connector_id, None);
-        assert_eq!(details.active_attempt_payment_connector_id, None);
-        assert_eq!(details.connector, Some(Connector::Adyen));
-    }
-
-    #[test]
-    fn recording_without_accounts_allows_an_unnamed_processor() {
-        let details =
-            get_recovery_connector_details(None, None, None).expect("no account is needed");
-
-        assert_eq!(details.billing_connector_id, None);
-        assert_eq!(details.active_attempt_payment_connector_id, None);
-        assert_eq!(details.connector, None);
-    }
+    use super::get_amount_captured_from_reported_transaction;
 
     #[test]
     fn partial_charges_add_up() {

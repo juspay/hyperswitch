@@ -1033,13 +1033,75 @@ pub enum RecoveryConnector {
     Other,
 }
 
-impl From<RecoveryConnector> for Option<common_enums::connector_enums::Connector> {
-    fn from(connector: RecoveryConnector) -> Self {
-        match connector {
-            RecoveryConnector::Adyen => Some(common_enums::connector_enums::Connector::Adyen),
-            RecoveryConnector::Stripe => Some(common_enums::connector_enums::Connector::Stripe),
-            RecoveryConnector::Paypal => Some(common_enums::connector_enums::Connector::Paypal),
-            RecoveryConnector::Other => None,
+impl RecoveryConnector {
+    /// The connector this processor is, when it is one Hyperswitch names.
+    pub fn get_known_connector(self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::Adyen => Some(common_enums::connector_enums::Connector::Adyen),
+            Self::Stripe => Some(common_enums::connector_enums::Connector::Stripe),
+            Self::Paypal => Some(common_enums::connector_enums::Connector::Paypal),
+            Self::Other => None,
+        }
+    }
+}
+
+/// The connector accounts a recovery transaction is recorded against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryConnectorAccounts {
+    /// Billing connector account the invoice belongs to.
+    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// Payment connector account the transaction ran on and the retries run through.
+    pub payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// The payment connector of that account.
+    pub connector: common_enums::connector_enums::Connector,
+}
+
+/// What is known about the connector of a recovery transaction, which decides how it is recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnectorDetails {
+    /// Recorded against connector accounts, so Hyperswitch can sync the transaction with the
+    /// connector and retry through it.
+    ConnectorAccounts(RecoveryConnectorAccounts),
+    /// Reported by the merchant without any connector account, so what was reported is final. The
+    /// connector is blank for a processor Hyperswitch does not name.
+    ReportedByMerchant {
+        /// The processor that was reported.
+        connector: Option<common_enums::connector_enums::Connector>,
+    },
+}
+
+impl RecoveryConnectorDetails {
+    /// Whether the transaction is recorded against connector accounts.
+    pub fn has_connector_accounts(&self) -> bool {
+        matches!(self, Self::ConnectorAccounts(_))
+    }
+
+    /// The billing connector account, when the transaction is recorded against one.
+    pub fn get_billing_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.billing_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector account, when the transaction is recorded against one.
+    pub fn get_payment_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.payment_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector of the transaction, when Hyperswitch names it.
+    pub fn get_connector(&self) -> Option<common_enums::connector_enums::Connector> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(accounts.connector),
+            Self::ReportedByMerchant { connector } => *connector,
         }
     }
 }
@@ -1818,8 +1880,13 @@ impl_to_sql_from_sql_json!(AppliedOverrides);
 #[cfg(test)]
 mod recovery_connector_tests {
     use common_enums::connector_enums::Connector;
+    use common_utils::id_type::MerchantConnectorAccountId;
 
-    use super::RecoveryConnector;
+    use super::{RecoveryConnector, RecoveryConnectorAccounts, RecoveryConnectorDetails};
+
+    fn account_id(id: &str) -> MerchantConnectorAccountId {
+        MerchantConnectorAccountId::wrap(id.to_owned()).expect("valid account id")
+    }
 
     #[test]
     fn named_processors_map_to_their_connector() {
@@ -1828,13 +1895,54 @@ mod recovery_connector_tests {
             (RecoveryConnector::Stripe, Connector::Stripe),
             (RecoveryConnector::Paypal, Connector::Paypal),
         ] {
-            assert_eq!(Option::<Connector>::from(reported), Some(connector));
+            assert_eq!(reported.get_known_connector(), Some(connector));
         }
     }
 
     #[test]
     fn other_processor_has_no_connector() {
-        assert_eq!(Option::<Connector>::from(RecoveryConnector::Other), None);
+        assert_eq!(RecoveryConnector::Other.get_known_connector(), None);
+    }
+
+    #[test]
+    fn details_with_accounts_expose_every_account() {
+        let details = RecoveryConnectorDetails::ConnectorAccounts(RecoveryConnectorAccounts {
+            billing_connector_id: account_id("mca_billing"),
+            payment_connector_id: account_id("mca_payment"),
+            connector: Connector::Stripe,
+        });
+
+        assert!(details.has_connector_accounts());
+        assert_eq!(
+            details.get_billing_connector_id(),
+            Some(&account_id("mca_billing"))
+        );
+        assert_eq!(
+            details.get_payment_connector_id(),
+            Some(&account_id("mca_payment"))
+        );
+        assert_eq!(details.get_connector(), Some(Connector::Stripe));
+    }
+
+    #[test]
+    fn details_reported_by_the_merchant_have_only_the_processor() {
+        let details = RecoveryConnectorDetails::ReportedByMerchant {
+            connector: RecoveryConnector::Adyen.get_known_connector(),
+        };
+
+        assert!(!details.has_connector_accounts());
+        assert_eq!(details.get_billing_connector_id(), None);
+        assert_eq!(details.get_payment_connector_id(), None);
+        assert_eq!(details.get_connector(), Some(Connector::Adyen));
+    }
+
+    #[test]
+    fn details_reported_for_an_unnamed_processor_have_no_connector() {
+        let details = RecoveryConnectorDetails::ReportedByMerchant {
+            connector: RecoveryConnector::Other.get_known_connector(),
+        };
+
+        assert_eq!(details.get_connector(), None);
     }
 
     #[test]

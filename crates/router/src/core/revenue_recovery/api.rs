@@ -1,9 +1,11 @@
 use actix_web::{web, Responder};
 use api_models::{payments as payments_api, payments as api_payments};
+use common_types::payments::{RecoveryConnectorAccounts, RecoveryConnectorDetails};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
 
+use super::trigger_model::{self, RecoveryTrigger};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -83,21 +85,15 @@ pub async fn call_psync_api(
     Ok(payment_data)
 }
 
-/// The payment connector account and connector that the retries of an invoice run through. Only
-/// invoices whose transactions are recorded with connector accounts are retried, so these are
-/// always present here.
-fn get_payment_connector_details(
+/// The connector accounts that the retries of an invoice run through. Hyperswitch only retries
+/// invoices recorded against connector accounts, so they are always present here.
+fn get_connector_accounts_for_retry(
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
-) -> RouterResult<(
-    id_type::MerchantConnectorAccountId,
-    common_enums::connector_enums::Connector,
-)> {
+) -> RouterResult<RecoveryConnectorAccounts> {
     revenue_recovery_metadata
-        .active_attempt_payment_connector_id
-        .clone()
-        .zip(revenue_recovery_metadata.connector)
+        .get_connector_accounts()
         .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
-        .attach_printable("Payment connector details not found in revenue recovery metadata")
+        .attach_printable("Connector accounts not found in revenue recovery metadata")
 }
 
 pub async fn call_proxy_api(
@@ -108,10 +104,10 @@ pub async fn call_proxy_api(
     payment_processor_token: &str,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
-    let (merchant_connector_id, connector) = get_payment_connector_details(revenue_recovery)?;
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery)?;
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
         processor_payment_token: payment_processor_token.to_string(),
-        merchant_connector_id: Some(merchant_connector_id.clone()),
+        merchant_connector_id: Some(connector_accounts.payment_connector_id.clone()),
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
@@ -119,8 +115,8 @@ pub async fn call_proxy_api(
         recurring_details,
         shipping: None,
         browser_info: None,
-        connector: connector.to_string(),
-        merchant_connector_id,
+        connector: connector_accounts.connector.to_string(),
+        merchant_connector_id: connector_accounts.payment_connector_id,
     };
     logger::info!(
         "Call made to payments proxy api , with the request body {:?}",
@@ -224,21 +220,12 @@ pub async fn record_internal_attempt_api(
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
-    let (payment_merchant_connector_id, connector) =
-        get_payment_connector_details(revenue_recovery_metadata)?;
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery_metadata)?;
 
-    let request_payload = revenue_recovery_attempt_data
-        .create_payment_record_request(
-            state,
-            Some(&revenue_recovery_payment_data.billing_mca.id),
-            Some(payment_merchant_connector_id),
-            Some(connector),
-            common_enums::TriggeredBy::Internal,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Cannot Create the payment record Request".to_string(),
-        })?;
+    let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
+        &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
+        common_enums::TriggeredBy::Internal,
+    );
 
     let platform_from_revenue_recovery_payment_data = Platform::new(
         revenue_recovery_payment_data.merchant_account.clone(),
@@ -316,175 +303,101 @@ pub async fn custom_revenue_recovery_core(
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     validate_recovery_amounts(&request)?;
+    validate_customer_information(&request)?;
 
-    match profile.revenue_recovery_trigger_model {
-        common_enums::RevenueRecoveryTriggerModel::InternalTriggers => {
-            let (billing_merchant_connector_id, payment_merchant_connector_account_id) =
-                get_connector_accounts_for_internal_triggers(&request)?;
-            Box::pin(record_transaction_for_internal_triggers(
-                state,
-                req_state,
-                platform,
-                profile,
-                request,
+    let updated_recovery_intent =
+        match RecoveryTrigger::from_request(profile.revenue_recovery_trigger_model, &request)? {
+            RecoveryTrigger::Internal {
                 billing_merchant_connector_id,
-                payment_merchant_connector_account_id,
-            ))
-            .await
-        }
-        common_enums::RevenueRecoveryTriggerModel::ExternalTriggers => {
-            validate_connector_fields_for_external_triggers(&request)?;
-            Box::pin(record_transaction_for_external_triggers(
-                state, req_state, platform, profile, request,
-            ))
-            .await
-        }
-    }
-}
-
-/// With internal triggers, the retries run through both connector accounts and the processor comes
-/// from the payment account.
-fn get_connector_accounts_for_internal_triggers(
-    request: &api_models::payments::RecoveryPaymentsCreate,
-) -> RouterResult<(
-    id_type::MerchantConnectorAccountId,
-    id_type::MerchantConnectorAccountId,
-)> {
-    utils::when(request.connector.is_some(), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "`connector` must not be sent when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`".to_owned(),
-        })
-    })?;
-
-    let billing_merchant_connector_id =
-        request
-            .billing_merchant_connector_id
-            .clone()
-            .ok_or_else(|| {
-                report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "billing_merchant_connector_id".into(),
-                })
-            })?;
-    let payment_merchant_connector_id =
-        request
-            .payment_merchant_connector_id
-            .clone()
-            .ok_or_else(|| {
-                report!(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_merchant_connector_id".into(),
-                })
-            })?;
-
-    Ok((billing_merchant_connector_id, payment_merchant_connector_id))
-}
-
-/// With external triggers there are no connector accounts, so the reported processor is all that
-/// is known about the connector.
-fn validate_connector_fields_for_external_triggers(
-    request: &api_models::payments::RecoveryPaymentsCreate,
-) -> RouterResult<()> {
-    utils::when(
-        request.billing_merchant_connector_id.is_some()
-            || request.payment_merchant_connector_id.is_some(),
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "`billing_merchant_connector_id` and `payment_merchant_connector_id` must not be sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers`".to_owned(),
-            })
-        },
-    )?;
-
-    utils::when(request.connector.is_none(), || {
-        Err(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "connector".into(),
-        })
-    })?;
-
-    Ok(())
-}
-
-/// Records the transaction and leaves everything else to the merchant, who triggers the retries.
-async fn record_transaction_for_external_triggers(
-    state: SessionState,
-    req_state: ReqState,
-    platform: Platform,
-    profile: domain::Profile,
-    request: api_models::payments::RecoveryPaymentsCreate,
-) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
-    let (_, updated_recovery_intent) = Box::pin(record_transaction(
-        &state, &req_state, &platform, &profile, &request, None,
-    ))
-    .await?;
+                payment_merchant_connector_id,
+            } => {
+                Box::pin(record_transaction_and_schedule_retries(
+                    &state,
+                    &req_state,
+                    &platform,
+                    &profile,
+                    &request,
+                    &billing_merchant_connector_id,
+                    &payment_merchant_connector_id,
+                ))
+                .await?
+            }
+            RecoveryTrigger::External { connector } => {
+                let (_, updated_recovery_intent) = Box::pin(record_transaction(
+                    &state,
+                    &req_state,
+                    &platform,
+                    &profile,
+                    &request,
+                    &RecoveryConnectorDetails::ReportedByMerchant {
+                        connector: connector.get_known_connector(),
+                    },
+                ))
+                .await?;
+                updated_recovery_intent
+            }
+        };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         get_recovery_payments_response(&updated_recovery_intent),
     ))
 }
 
-/// Records the transaction against the connector accounts and schedules its retries.
-async fn record_transaction_for_internal_triggers(
-    state: SessionState,
-    req_state: ReqState,
-    platform: Platform,
-    profile: domain::Profile,
-    request: api_models::payments::RecoveryPaymentsCreate,
-    billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
-    payment_merchant_connector_account_id: id_type::MerchantConnectorAccountId,
-) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
-    let store = state.store.as_ref();
-    let profile_id = profile.get_id();
-    // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
-    let payment_merchant_connector_account = store
-        .find_merchant_connector_account_by_id(
-            &payment_merchant_connector_account_id,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: payment_merchant_connector_account_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })?;
+/// Finds a connector account of the profile.
+async fn find_connector_account_of_profile(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let not_found = || errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        id: merchant_connector_id.get_string_repr().to_string(),
+    };
 
-    utils::when(
-        &payment_merchant_connector_account.profile_id != profile_id,
-        || {
-            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: payment_merchant_connector_account_id
-                    .clone()
-                    .get_string_repr()
-                    .to_string(),
-            })
-        },
-    )?;
-    let billing_connector_account = store
+    let connector_account = state
+        .store
         .find_merchant_connector_account_by_id(
-            &billing_merchant_connector_id,
+            merchant_connector_id,
             platform.get_processor().get_key_store(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: billing_merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })?;
-    utils::when(&billing_connector_account.profile_id != profile_id, || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: billing_merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })
+        .to_not_found_response(not_found())?;
+
+    utils::when(&connector_account.profile_id != profile.get_id(), || {
+        Err(not_found())
     })?;
 
+    Ok(connector_account)
+}
+
+/// Records the transaction against the connector accounts and schedules its retries.
+async fn record_transaction_and_schedule_retries(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+    billing_merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    payment_merchant_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    let payment_connector_account =
+        find_connector_account_of_profile(state, platform, profile, payment_merchant_connector_id)
+            .await?;
+    let billing_connector_account =
+        find_connector_account_of_profile(state, platform, profile, billing_merchant_connector_id)
+            .await?;
+
     let (revenue_recovery_attempt_data, updated_recovery_intent) = Box::pin(record_transaction(
-        &state,
-        &req_state,
-        &platform,
-        &profile,
-        &request,
-        Some(payment_merchant_connector_account),
+        state,
+        req_state,
+        platform,
+        profile,
+        request,
+        &RecoveryConnectorDetails::ConnectorAccounts(RecoveryConnectorAccounts {
+            billing_connector_id: billing_connector_account.get_id(),
+            payment_connector_id: payment_connector_account.get_id(),
+            connector: payment_connector_account.get_connector_name(),
+        }),
     ))
     .await?;
 
@@ -518,9 +431,9 @@ async fn record_transaction_for_internal_triggers(
 
     recovery_action
         .handle_action(
-            &state,
-            &profile,
-            &platform,
+            state,
+            profile,
+            platform,
             &billing_connector_account,
             mca_retry_threshold,
             intent_retry_count,
@@ -534,9 +447,7 @@ async fn record_transaction_for_internal_triggers(
             message: "Unexpected response from recovery core".to_string(),
         })?;
 
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        get_recovery_payments_response(&updated_recovery_intent),
-    ))
+    Ok(updated_recovery_intent)
 }
 
 fn get_recovery_payments_response(
@@ -556,13 +467,11 @@ async fn record_transaction(
     platform: &Platform,
     profile: &domain::Profile,
     request: &api_models::payments::RecoveryPaymentsCreate,
-    payment_merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+    connector_details: &RecoveryConnectorDetails,
 ) -> RouterResult<(
     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt,
     hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
 )> {
-    validate_customer_information(request)?;
-
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
             request.clone(),
@@ -580,15 +489,20 @@ async fn record_transaction(
             .to_string(),
         })?;
 
+    trigger_model::validate_invoice_trigger_model(
+        recovery_intent.get_recorded_trigger_model(),
+        profile.revenue_recovery_trigger_model,
+    )?;
+
     Box::pin(
         recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
-            request.clone(),
+            request,
             state,
             req_state,
             platform,
             profile,
-            recovery_intent.clone(),
-            payment_merchant_connector_account,
+            &recovery_intent,
+            connector_details,
         ),
     )
     .await
@@ -650,14 +564,12 @@ pub async fn cancel_revenue_recovery_core(
         })
     })?;
 
-    let response = api_payments::RecoveryPaymentsResponse {
-        id: cancelled_intent.id,
-        intent_status: cancelled_intent.status,
-        merchant_reference_id: cancelled_intent.merchant_reference_id,
-    };
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
+        get_recovery_payments_response(
+            &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                &cancelled_intent,
+            ),
+        ),
     ))
 }
 
@@ -677,154 +589,4 @@ fn validate_customer_information(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod connector_field_tests {
-    use super::{
-        errors::ApiErrorResponse, get_connector_accounts_for_internal_triggers,
-        validate_connector_fields_for_external_triggers,
-    };
-
-    fn recovery_request(
-        connector_fields: serde_json::Value,
-    ) -> api_models::payments::RecoveryPaymentsCreate {
-        let mut request = serde_json::json!({
-            "amount_details": { "order_amount": 6540, "currency": "USD" },
-            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-            "transaction_status": "failure",
-            "payment_method_type": "card",
-            "payment_method_sub_type": "credit",
-            "connector_customer_id": "cust_12345",
-            "connector_transaction_id": "993672945374576J",
-            "transaction_created_at": "2022-09-10T10:11:12Z",
-            "billing_started_at": "2022-09-10T10:11:12Z",
-            "payment_method_data": {
-                "primary_processor_payment_method_token": "token_1234",
-                "payment_method_metadata": {
-                    "card_network": "Visa",
-                    "card_type": "credit",
-                    "last4": "4242",
-                    "card_isin": "424242",
-                    "card_extended_bin": "42424242",
-                    "card_exp_month": "01",
-                    "card_exp_year": "2026"
-                }
-            }
-        });
-        if let (Some(request), Some(connector_fields)) =
-            (request.as_object_mut(), connector_fields.as_object())
-        {
-            request.extend(connector_fields.clone());
-        }
-        serde_json::from_value(request).expect("valid recovery request")
-    }
-
-    fn is_missing_field(error: &ApiErrorResponse, field: &str) -> bool {
-        matches!(
-            error,
-            ApiErrorResponse::MissingRequiredField { field_name } if *field_name == field
-        )
-    }
-
-    #[test]
-    fn internal_triggers_need_the_billing_account() {
-        let request = recovery_request(serde_json::json!({
-            "payment_merchant_connector_id": "mca_payment",
-        }));
-
-        let error = get_connector_accounts_for_internal_triggers(&request)
-            .expect_err("billing account is required");
-
-        assert!(is_missing_field(
-            error.current_context(),
-            "billing_merchant_connector_id"
-        ));
-    }
-
-    #[test]
-    fn internal_triggers_need_the_payment_account() {
-        let request = recovery_request(serde_json::json!({
-            "billing_merchant_connector_id": "mca_billing",
-        }));
-
-        let error = get_connector_accounts_for_internal_triggers(&request)
-            .expect_err("payment account is required");
-
-        assert!(is_missing_field(
-            error.current_context(),
-            "payment_merchant_connector_id"
-        ));
-    }
-
-    #[test]
-    fn internal_triggers_do_not_accept_a_reported_connector() {
-        let request = recovery_request(serde_json::json!({
-            "billing_merchant_connector_id": "mca_billing",
-            "payment_merchant_connector_id": "mca_payment",
-            "connector": "stripe",
-        }));
-
-        let error = get_connector_accounts_for_internal_triggers(&request)
-            .expect_err("the processor comes from the payment account");
-
-        assert!(matches!(
-            error.current_context(),
-            ApiErrorResponse::InvalidRequestData { .. }
-        ));
-    }
-
-    #[test]
-    fn internal_triggers_use_the_accounts_of_the_request() {
-        let request = recovery_request(serde_json::json!({
-            "billing_merchant_connector_id": "mca_billing",
-            "payment_merchant_connector_id": "mca_payment",
-        }));
-
-        let (billing_account, payment_account) =
-            get_connector_accounts_for_internal_triggers(&request).expect("both accounts are sent");
-
-        assert_eq!(billing_account.get_string_repr(), "mca_billing");
-        assert_eq!(payment_account.get_string_repr(), "mca_payment");
-    }
-
-    #[test]
-    fn external_triggers_need_the_connector() {
-        let request = recovery_request(serde_json::json!({}));
-
-        let error = validate_connector_fields_for_external_triggers(&request)
-            .expect_err("the connector is required");
-
-        assert!(is_missing_field(error.current_context(), "connector"));
-    }
-
-    #[test]
-    fn external_triggers_do_not_accept_connector_accounts() {
-        for account_field in [
-            "billing_merchant_connector_id",
-            "payment_merchant_connector_id",
-        ] {
-            let request = recovery_request(serde_json::json!({
-                "connector": "stripe",
-                account_field: "mca_1234567890",
-            }));
-
-            let error = validate_connector_fields_for_external_triggers(&request)
-                .expect_err("no account is used with external triggers");
-
-            assert!(matches!(
-                error.current_context(),
-                ApiErrorResponse::InvalidRequestData { .. }
-            ));
-        }
-    }
-
-    #[test]
-    fn external_triggers_accept_every_listed_connector() {
-        for connector in ["adyen", "stripe", "paypal", "other"] {
-            let request = recovery_request(serde_json::json!({ "connector": connector }));
-
-            assert!(validate_connector_fields_for_external_triggers(&request).is_ok());
-        }
-    }
 }

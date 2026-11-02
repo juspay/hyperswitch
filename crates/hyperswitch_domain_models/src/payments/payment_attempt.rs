@@ -1301,7 +1301,10 @@ impl PaymentAttempt {
             .connector_transaction_id
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
-        let connector = request.connector.map(|connector| connector.to_string());
+        let connector = request
+            .connector_details
+            .get_connector()
+            .map(|connector| connector.to_string());
         let connector_request_reference_id = payment_intent
             .merchant_reference_id
             .as_ref()
@@ -1330,7 +1333,10 @@ impl PaymentAttempt {
             updated_by: storage_scheme.to_string(),
             redirection_data: None,
             encoded_data: None,
-            merchant_connector_id: request.payment_merchant_connector_id.clone(),
+            merchant_connector_id: request
+                .connector_details
+                .get_payment_connector_id()
+                .cloned(),
             external_three_ds_authentication_attempted: None,
             external_threeds_authentication_type: None,
             authentication_connector: None,
