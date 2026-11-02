@@ -32228,7 +32228,7 @@
       },
       "PayViaSingleUseToken": {
         "type": "string",
-        "description": "Whether the payment method data is exchanged for a single-use token at the connector before authorize / setup\nmandate. Unrelated to mandates or saving the payment method at the connector; `None` is treated as `Default`.",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
         "enum": [
           "default",
           "enabled",
