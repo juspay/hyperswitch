@@ -10513,19 +10513,18 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
-            let single_use_token_decision =
-                single_use_token::decide_single_use_token(
-                    &connector_data.connector,
-                    &connector_data.connector_name.to_string(),
-                    single_use_token_flow,
-                    get_pay_via_single_use_token_from_mca(
-                        merchant_connector_account,
-                        payment_method,
-                        payment_method_type,
-                    ),
-                    payment_data.get_payment_method_data(),
-                    payment_data.get_payment_method_token(),
-                )?;
+            let single_use_token_decision = single_use_token::decide_single_use_token(
+                &connector_data.connector,
+                &connector_data.connector_name.to_string(),
+                single_use_token_flow,
+                get_pay_via_single_use_token_from_mca(
+                    merchant_connector_account,
+                    payment_method,
+                    payment_method_type,
+                ),
+                payment_data.get_payment_method_data(),
+                payment_data.get_payment_method_token(),
+            )?;
 
             let is_network_transaction_id_flow = payment_data
                 .get_mandate_id()
