@@ -533,10 +533,14 @@ pub async fn accept_dispute(
     )
     .await?;
     let (execution_path, updated_state, rollout_result) =
-        unified_connector_service::should_call_unified_connector_service_for_dispute(
+        unified_connector_service::should_call_unified_connector_service(
             &state,
             &processor,
             &router_data,
+            None,
+            payments::CallConnectorAction::Trigger,
+            None,
+            unified_connector_service::RolloutKeySelection::Dispute,
         )
         .await?;
     let response = match execution_path {
@@ -702,10 +706,14 @@ pub async fn submit_evidence(
         .get_connector_payment_id()
         .map(ToString::to_string);
     let (execution_path, updated_state, rollout_result) =
-        unified_connector_service::should_call_unified_connector_service_for_dispute(
+        unified_connector_service::should_call_unified_connector_service(
             &state,
             &processor,
             &router_data,
+            None,
+            payments::CallConnectorAction::Trigger,
+            None,
+            unified_connector_service::RolloutKeySelection::Dispute,
         )
         .await?;
     let merchant_connector_account = if matches!(

@@ -952,7 +952,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
-    transaction_type: common_enums::TransactionType,
+    rollout_key_selection: impl Into<RolloutKeySelection>,
 ) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
 where
     R: Send + Sync + Clone,
@@ -964,14 +964,20 @@ where
         previous_gateway,
         call_connector_action,
         shadow_ucs_call_connector_action,
-        RolloutKeySelection::Derived(transaction_type),
+        rollout_key_selection.into(),
     )
     .await
 }
 
-enum RolloutKeySelection {
+pub enum RolloutKeySelection {
     Derived(common_enums::TransactionType),
-    Explicit(Vec<String>),
+    Dispute,
+}
+
+impl From<common_enums::TransactionType> for RolloutKeySelection {
+    fn from(transaction_type: common_enums::TransactionType) -> Self {
+        Self::Derived(transaction_type)
+    }
 }
 
 async fn should_call_unified_connector_service_with_rollout_keys<F: Clone, T, R>(
@@ -1001,7 +1007,8 @@ where
     let ucs_availability = check_ucs_availability(state).await;
 
     // Build rollout keys in ascending precedence order.
-    // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
+    // Payments use org-level hierarchy; payouts use a single merchant-level key; disputes
+    // use only connector- and flow-scoped keys so a payment-wide rollout cannot route them.
     let rollout_keys = match rollout_key_selection {
         RolloutKeySelection::Derived(transaction_type) => match transaction_type {
             common_enums::TransactionType::Payment
@@ -1022,7 +1029,20 @@ where
                 router_data.payment_method_type,
             ),
         },
-        RolloutKeySelection::Explicit(keys) => keys,
+        RolloutKeySelection::Dispute => {
+            let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+            let scope = build_merchant_rollout_scope(
+                merchant_id,
+                connector_name,
+                &flow_name,
+                router_data.payment_method,
+                router_data.payment_method_type,
+            );
+            vec![
+                format!("{prefix}_{org_id}_{scope}"),
+                format!("{prefix}_{scope}"),
+            ]
+        }
     };
 
     // Determine connector integration type
@@ -1438,79 +1458,6 @@ fn build_rollout_keys_by_precedence(
         format!("{prefix}_{org_id}_{scope}"),
         format!("{prefix}_{scope}"),
     ]
-}
-
-/// Dispute gate. UCS implements the dispute service for only a few connectors, so the org- and
-/// merchant-wide rollout keys (which are connector- and flow-agnostic) must never move a dispute
-/// off the direct integration. Only a UCS-only connector, or a rollout key scoped to this
-/// connector and flow that selects `Primary`, routes a dispute action to UCS.
-pub async fn should_call_unified_connector_service_for_dispute<F: Clone, T, R>(
-    state: &SessionState,
-    processor: &Processor,
-    router_data: &RouterData<F, T, R>,
-) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
-where
-    R: Send + Sync + Clone,
-{
-    let connector_name = &router_data.connector;
-    let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
-
-    if determine_connector_integration_type(state, connector_enum).await?
-        == ConnectorIntegrationType::UcsConnector
-    {
-        return should_call_unified_connector_service(
-            state,
-            processor,
-            router_data,
-            None,
-            CallConnectorAction::Trigger,
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await;
-    }
-
-    let merchant_id = processor.get_account().get_id().get_string_repr();
-    let org_id = processor.get_account().get_org_id().get_string_repr();
-    let flow_name = get_flow_name::<F>()?;
-    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let scope = build_merchant_rollout_scope(
-        merchant_id,
-        connector_name,
-        &flow_name,
-        router_data.payment_method,
-        router_data.payment_method_type,
-    );
-
-    // Connector- and flow-scoped keys only, lowest precedence first.
-    let scoped_keys = vec![
-        format!("{prefix}_{org_id}_{scope}"),
-        format!("{prefix}_{scope}"),
-    ];
-    // Evaluate the scoped rollout once. The common gate then applies availability,
-    // kill-switch and proxy rules to that same decision.
-    let (execution_path, updated_state, rollout_result) =
-        should_call_unified_connector_service_with_rollout_keys(
-            state,
-            processor,
-            router_data,
-            None,
-            CallConnectorAction::Trigger,
-            None,
-            RolloutKeySelection::Explicit(scoped_keys),
-        )
-        .await?;
-    Ok((
-        if execution_path == ExecutionPath::UnifiedConnectorService {
-            execution_path
-        } else {
-            ExecutionPath::Direct
-        },
-        updated_state,
-        rollout_result,
-    ))
 }
 
 /// Build rollout key for payouts — single key, org-level precedence not applied to payouts yet.
