@@ -810,7 +810,7 @@ pub struct StripeGooglePayPredecrypt {
     #[serde(rename = "card[cryptogram]")]
     cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
-    eci: String,
+    eci: Option<String>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -2152,25 +2152,19 @@ impl
                         field_name: "expiry_year_4_digit".into(),
                     })?;
 
-                match (
-                    predecrypted_data.cryptogram.clone(),
-                    predecrypted_data.eci_indicator.clone(),
-                ) {
-                    (Some(cryptogram), Some(eci)) => {
-                        Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
-                            Box::new(StripeGooglePayPredecrypt {
-                                number: predecrypted_data
-                                    .application_primary_account_number
-                                    .clone(),
-                                exp_year: expiry_year_4_digit,
-                                exp_month: predecrypted_data.card_exp_month.clone(),
-                                cryptogram,
-                                eci,
-                                tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
-                            }),
-                        )))
-                    }
-                    _ => Ok(Self::Card(StripeCardData {
+                // ECI is optional for the predecrypted token, only the cryptogram is required
+                match predecrypted_data.cryptogram.clone() {
+                    Some(cryptogram) => Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                        Box::new(StripeGooglePayPredecrypt {
+                            number: predecrypted_data.application_primary_account_number.clone(),
+                            exp_year: expiry_year_4_digit,
+                            exp_month: predecrypted_data.card_exp_month.clone(),
+                            cryptogram,
+                            eci: predecrypted_data.eci_indicator.clone(),
+                            tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
+                        }),
+                    ))),
+                    None => Ok(Self::Card(StripeCardData {
                         payment_method_data_type: StripePaymentMethodType::Card,
                         payment_method_data_card_number: predecrypted_data
                             .application_primary_account_number
