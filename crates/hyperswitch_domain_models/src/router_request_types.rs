@@ -1149,8 +1149,6 @@ pub struct PaymentsCancelPostCaptureData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub mandate_id: Option<mandates::MandateIds>,
-    // capture method of the original payment
-    pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
