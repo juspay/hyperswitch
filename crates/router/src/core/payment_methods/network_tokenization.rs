@@ -21,6 +21,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
+use hyperswitch_interfaces::consts::USER_AGENT;
 use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 use josekit::jwe;
 
@@ -99,6 +100,7 @@ async fn call_network_token_service(
             .clone()
             .into_masked(),
     );
+    request.add_header(headers::USER_AGENT, USER_AGENT.to_string().into());
     request.add_default_headers();
 
     if let Some(body_content) = body {

@@ -27,7 +27,7 @@ use crate::{
     types::{api, domain, storage, transformers::ForeignFrom},
 };
 #[cfg(feature = "v1")]
-use crate::{core::payments::helpers, logger, types::storage::enums as storage_enums};
+use crate::{core::payments::helpers, logger};
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 pub async fn list_payments(
@@ -36,14 +36,14 @@ pub async fn list_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
         &state,
         &(constraints, profile_id_list).try_into()?,
-        processor_merchant_id,
+        &processor_merchant_id,
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -53,10 +53,10 @@ pub async fn list_payments(
             match db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &pi.payment_id,
-                    processor_merchant_id,
+                    &processor_merchant_id,
                     &pi.active_attempt.get_id(),
                     // since OLAP doesn't have KV. Force to get the data from PSQL.
-                    storage_enums::MerchantStorageScheme::PostgresOnly,
+                    domain::ProcessorStorageScheme::postgres_only(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
@@ -128,14 +128,14 @@ pub async fn list_payments_for_platform(
             )?;
 
             // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
-            let platform_merchant_id = platform.get_provider().get_account().get_id();
+            let provider_merchant_id = platform.get_provider().get_provider_merchant_id();
             let db: &dyn StorageInterface = state.store.as_ref();
 
             let pi_fetch_constraints = (constraints, profile_id_list).try_into()?;
 
             let raw_rows = db
                 .get_filtered_payment_intents_attempt_for_platform(
-                    platform_merchant_id,
+                    &provider_merchant_id,
                     &pi_fetch_constraints,
                 )
                 .await
@@ -143,7 +143,7 @@ pub async fn list_payments_for_platform(
 
             let total_count = db
                 .get_payment_intents_attempt_count_for_platform(
-                    platform_merchant_id,
+                    &provider_merchant_id,
                     &pi_fetch_constraints,
                 )
                 .await
@@ -183,10 +183,10 @@ pub async fn list_payments(
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &fetch_constraints,
                     platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -195,9 +195,9 @@ pub async fn list_payments(
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &fetch_constraints,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
@@ -214,7 +214,7 @@ pub async fn list_payments(
                     .collect::<Vec<String>>();
 
                 db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &active_attempt_ids,
                     constraints.connector,
                     constraints.payment_method_type,
@@ -222,7 +222,7 @@ pub async fn list_payments(
                     constraints.authentication_type,
                     constraints.merchant_connector_id,
                     constraints.card_network,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -262,7 +262,7 @@ async fn find_recovery_list_cursor(
         .find_payment_intent_by_id(
             payment_id,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -397,10 +397,10 @@ async fn scan_recovery_items(
         let fetch_constraints = page_constraints.into();
         let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
             .get_filtered_payment_intents_attempt(
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 &fetch_constraints,
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -557,10 +557,10 @@ async fn list_recovery_page(
 
         let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
             .get_filtered_payment_intents_attempt(
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 &fetch_constraints,
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -617,10 +617,10 @@ pub async fn apply_filters_on_payments(
             let fetch_constraints = (constraints.clone(), profile_id_list).try_into()?;
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &fetch_constraints,
                     platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -629,9 +629,9 @@ pub async fn apply_filters_on_payments(
 
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &fetch_constraints,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -642,7 +642,7 @@ pub async fn apply_filters_on_payments(
                     .attach_printable("Error while converting from usize to i64")
             } else {
                 db.get_total_count_of_filtered_payment_attempts(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &active_attempt_ids,
                     constraints.connector,
                     constraints.payment_method,
@@ -651,7 +651,7 @@ pub async fn apply_filters_on_payments(
                     constraints.merchant_connector_id,
                     constraints.card_network,
                     constraints.card_discovery,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

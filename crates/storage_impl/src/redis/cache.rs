@@ -946,15 +946,18 @@ where
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
     // misses for one key cost a single redis round trip between them.
     cache
-        .get_or_populate_in_memory(cache_key, async {
-            let redis = store
-                .get_redis_conn()
-                .change_context(StorageError::RedisError(
-                    RedisError::RedisConnectionError.into(),
-                ))
-                .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, redis_ttl, fun).await
-        })
+        .get_or_populate_in_memory(
+            cache_key,
+            Box::pin(async {
+                let redis = store
+                    .get_redis_conn()
+                    .change_context(StorageError::RedisError(
+                        RedisError::RedisConnectionError.into(),
+                    ))
+                    .attach_printable("Failed to get redis connection")?;
+                Box::pin(get_or_populate_redis(&redis, key, redis_ttl, fun)).await
+            }),
+        )
         .await
 }
 

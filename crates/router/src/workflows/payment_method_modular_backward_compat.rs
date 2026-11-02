@@ -756,6 +756,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
 
                 if older_locker_id.as_deref() != Some(updated_card_reference.as_str()) {
                     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                        last_used_at: None,
                         payment_method_data: None,
                         status: None,
                         locker_id: Some(updated_card_reference.clone()),

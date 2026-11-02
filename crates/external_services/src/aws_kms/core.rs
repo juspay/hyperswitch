@@ -1,43 +1,28 @@
 //! Interactions with the AWS KMS SDK
+//!
+//! Hyperswitch adapter over the shared [`cloud_services::kms::aws`] client: it adds logging,
+//! metrics and `error-stack` reports on top of the plain client.
 
 use std::time::Instant;
 
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_kms::{config::Region, primitives::Blob, Client};
-use base64::Engine;
+use cloud_services::kms::aws as shared;
+pub use cloud_services::kms::aws::{AwsKmsConfig, AwsKmsError};
 use common_utils::errors::CustomResult;
-use error_stack::{report, ResultExt};
 use router_env::logger;
 
-use crate::{consts, metrics};
-
-/// Configuration parameters required for constructing a [`AwsKmsClient`].
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(default)]
-pub struct AwsKmsConfig {
-    /// The AWS key identifier of the KMS key used to encrypt or decrypt data.
-    pub key_id: Option<String>,
-
-    /// The AWS region to send KMS requests to.
-    pub region: String,
-}
+use crate::{metrics, report_with_cause};
 
 /// Client for AWS KMS operations.
 #[derive(Debug, Clone)]
 pub struct AwsKmsClient {
-    inner_client: Client,
-    key_id: Option<String>,
+    inner: shared::AwsKmsClient,
 }
 
 impl AwsKmsClient {
     /// Constructs a new AWS KMS client.
     pub async fn new(config: &AwsKmsConfig) -> Self {
-        let region_provider = RegionProviderChain::first_try(Region::new(config.region.clone()));
-        let sdk_config = aws_config::from_env().region(region_provider).load().await;
-
         Self {
-            inner_client: Client::new(&sdk_config),
-            key_id: config.key_id.clone(),
+            inner: shared::AwsKmsClient::new(config).await,
         }
     }
 
@@ -47,35 +32,16 @@ impl AwsKmsClient {
     /// a machine that is able to assume an IAM role.
     pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
-        let data = consts::BASE64_ENGINE
-            .decode(data)
-            .change_context(AwsKmsError::Base64DecodingFailed)?;
-        let ciphertext_blob = Blob::new(data);
 
-        let mut decryption_builder = self.inner_client.decrypt();
-
-        if let Some(key_id) = &self.key_id {
-            decryption_builder = decryption_builder.key_id(key_id);
-        }
-
-        let decrypt_output = decryption_builder
-            .ciphertext_blob(ciphertext_blob)
-            .send()
-            .await
-            .inspect_err(|error| {
+        let output = self.inner.decrypt(data).await.map_err(|error| {
+            if let AwsKmsError::DecryptionFailed(sdk_error) = &error {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
-                logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS decrypt data");
+                logger::error!(aws_kms_sdk_error=?sdk_error, "Failed to AWS KMS decrypt data");
                 metrics::AWS_KMS_DECRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(AwsKmsError::DecryptionFailed)?;
-
-        let output = decrypt_output
-            .plaintext
-            .ok_or(report!(AwsKmsError::MissingPlaintextDecryptionOutput))
-            .and_then(|blob| {
-                String::from_utf8(blob.into_inner()).change_context(AwsKmsError::Utf8DecodingFailed)
-            })?;
+            }
+            report_with_cause(error)
+        })?;
 
         let time_taken = start.elapsed();
         metrics::AWS_KMS_DECRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
@@ -89,87 +55,21 @@ impl AwsKmsClient {
     /// a machine that is able to assume an IAM role.
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, AwsKmsError> {
         let start = Instant::now();
-        let plaintext_blob = Blob::new(data.as_ref());
 
-        let mut encryption_builder = self.inner_client.encrypt();
-
-        match &self.key_id {
-            Some(key_id) => encryption_builder = encryption_builder.key_id(key_id),
-            None => {
-                return Err(report!(AwsKmsError::MissingKeyId));
-            }
-        };
-        let encrypted_output = encryption_builder
-            .plaintext(plaintext_blob)
-            .send()
-            .await
-            .inspect_err(|error| {
+        let output = self.inner.encrypt(data).await.map_err(|error| {
+            if let AwsKmsError::EncryptionFailed(sdk_error) = &error {
                 // Logging using `Debug` representation of the error as the `Display`
                 // representation does not hold sufficient information.
-                logger::error!(aws_kms_sdk_error=?error, "Failed to AWS KMS encrypt data");
+                logger::error!(aws_kms_sdk_error=?sdk_error, "Failed to AWS KMS encrypt data");
                 metrics::AWS_KMS_ENCRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(AwsKmsError::EncryptionFailed)?;
+            }
+            report_with_cause(error)
+        })?;
 
-        let output = encrypted_output
-            .ciphertext_blob
-            .ok_or(AwsKmsError::MissingCiphertextEncryptionOutput)
-            .map(|blob| consts::BASE64_ENGINE.encode(blob.into_inner()))?;
         let time_taken = start.elapsed();
         metrics::AWS_KMS_ENCRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
 
         Ok(output)
-    }
-}
-
-/// Errors that could occur during KMS operations.
-#[derive(Debug, thiserror::Error)]
-pub enum AwsKmsError {
-    /// An error occurred when base64 encoding input data.
-    #[error("Failed to base64 encode input data")]
-    Base64EncodingFailed,
-
-    /// An error occurred when base64 decoding input data.
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-
-    /// An error occurred when AWS KMS decrypting input data.
-    #[error("Failed to AWS KMS decrypt input data")]
-    DecryptionFailed,
-
-    /// An error occurred when AWS KMS encrypting input data.
-    #[error("Failed to AWS KMS encrypt input data")]
-    EncryptionFailed,
-
-    /// The AWS KMS decrypted output does not include a plaintext output.
-    #[error("Missing plaintext AWS KMS decryption output")]
-    MissingPlaintextDecryptionOutput,
-
-    /// The AWS KMS encrypted output does not include a ciphertext output.
-    #[error("Missing ciphertext AWS KMS encryption output")]
-    MissingCiphertextEncryptionOutput,
-
-    /// An error occurred UTF-8 decoding AWS KMS decrypted output.
-    #[error("Failed to UTF-8 decode decryption output")]
-    Utf8DecodingFailed,
-
-    /// The AWS KMS client has not been initialized.
-    #[error("The AWS KMS client has not been initialized")]
-    AwsKmsClientNotInitialized,
-
-    /// AWS KMS key id not provided.
-    #[error("AWS KMS key id not provided")]
-    MissingKeyId,
-}
-
-impl AwsKmsConfig {
-    /// Verifies that the [`AwsKmsClient`] configuration is usable.
-    pub fn validate(&self) -> Result<(), &'static str> {
-        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
-
-        when(self.region.is_default_or_empty(), || {
-            Err("KMS AWS region must not be empty")
-        })
     }
 }
 
@@ -216,5 +116,67 @@ mod tests {
             .expect("aws kms decryption failed");
 
         println!("{kms_encrypted_fingerprint}");
+    }
+
+    mod error_reports {
+        use error_stack::{AttachmentKind, FrameKind};
+
+        use super::super::*;
+
+        #[tokio::test]
+        async fn invalid_base64_report_keeps_the_decode_error() {
+            let client = AwsKmsClient::new(&AwsKmsConfig {
+                key_id: Some("key".to_owned()),
+                region: "us-east-1".to_owned(),
+            })
+            .await;
+
+            #[allow(clippy::expect_used)]
+            let report = client
+                .decrypt("not base64!")
+                .await
+                .expect_err("invalid base64 must fail");
+
+            assert!(matches!(
+                report.current_context(),
+                AwsKmsError::Base64DecodingFailed(_)
+            ));
+            let printed = format!("{report:?}");
+            assert!(
+                printed.contains("Failed to base64 decode input data"),
+                "{printed}"
+            );
+            assert!(printed.contains("Invalid symbol"), "{printed}");
+        }
+
+        #[tokio::test]
+        async fn missing_key_id_reports_only_missing_key_id() {
+            let client = AwsKmsClient::new(&AwsKmsConfig {
+                key_id: None,
+                region: "us-east-1".to_owned(),
+            })
+            .await;
+
+            #[allow(clippy::expect_used)]
+            let report = client
+                .encrypt("hello")
+                .await
+                .expect_err("encrypting without a key id must fail");
+
+            assert!(matches!(
+                report.current_context(),
+                AwsKmsError::MissingKeyId
+            ));
+            let printable_attachments = report
+                .frames()
+                .filter(|frame| {
+                    matches!(
+                        frame.kind(),
+                        FrameKind::Attachment(AttachmentKind::Printable(_))
+                    )
+                })
+                .count();
+            assert_eq!(printable_attachments, 0);
+        }
     }
 }

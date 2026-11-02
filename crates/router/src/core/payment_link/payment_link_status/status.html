@@ -10,14 +10,15 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
     />
-    <script>
+    <script {{csp_nonce_attribute}}>
       window.__REDIRECTION_LOG_ENDPOINT = '{{redirection_log_endpoint}}';
+      window.__REDIRECTION_LOG_MESSAGE_ORIGINS = [];
       {{logging_template}}
       {{locale_template}}
       {{ rendered_js }}
     </script>
   </head>
-  <body onload="boot()" class="hidden">
+  <body class="hidden">
     <div>
       <div class="hyper-checkout-status-wrap">
         <div id="hyper-checkout-status-header"></div>

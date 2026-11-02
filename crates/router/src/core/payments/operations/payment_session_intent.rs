@@ -128,7 +128,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_intent = db
             .find_payment_intent_by_id(
@@ -179,7 +179,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
         let prerouting_algorithm = payment_data.payment_intent.prerouting_algorithm.clone();
         payment_data.payment_intent = match prerouting_algorithm {
@@ -189,7 +189,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsS
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::SessionIntentUpdate {
                         prerouting_algorithm,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                     },
                     key_store,
                     storage_scheme,

@@ -28,6 +28,15 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+// Trustpay test card used for the auto fallback capture method flow (PR #14452)
+const autoFallbackCardDetails = {
+  card_number: "4111111111111111",
+  card_exp_month: "03",
+  card_exp_year: "30",
+  card_holder_name: "John Doe",
+  card_cvc: "737",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -641,6 +650,65 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    // Auto fallback capture method flow (PR #14452) - trustpay does not support
+    // manual capture; with auto_fallback_capture_method enabled on the business
+    // profile, manual capture payments fall back to automatic capture.
+    AutoFallbackCaptureMethod: {
+      PaymentIntent: {
+        Request: {
+          currency: "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+            capture_method_applied: null,
+          },
+        },
+      },
+      AutoFallbackDisabled: {
+        Configs: {
+          skipBillingAssertion: true,
+        },
+        Request: {
+          payment_method: "card",
+          payment_method_type: "credit",
+          payment_method_data: {
+            card: autoFallbackCardDetails,
+          },
+          authentication_type: "no_three_ds",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              message:
+                "No eligible connector was found for the current payment method configuration",
+              code: "IR_39",
+            },
+          },
+        },
+      },
+      AutoFallbackEnabled: {
+        Request: {
+          payment_method: "card",
+          payment_method_type: "credit",
+          payment_method_data: {
+            card: autoFallbackCardDetails,
+          },
+          authentication_type: "no_three_ds",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+            capture_method: "manual",
+            capture_method_applied: "automatic",
+          },
         },
       },
     },
