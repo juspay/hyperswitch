@@ -117,6 +117,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
         let response = Box::pin(disputes::fetch_disputes_from_connector(
             state.clone(),
             platform,
+            None,
             tracking_data.merchant_connector_id,
             hyperswitch_domain_models::router_request_types::FetchDisputesRequestData {
                 created_from: tracking_data.created_from,
