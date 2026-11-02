@@ -15,7 +15,7 @@ use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
     payment_method_data::ApiPaymentMethodDataMandateIds, payments::HeaderPayload,
-    refunds::RefundNetAmount, router_data::ErrorResponse,
+    refunds::RefundAmountDetails, router_data::ErrorResponse,
     router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::{
@@ -1746,11 +1746,11 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    let refund_net_amount = RefundNetAmount::from(refund_amount);
+    let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-    validator::validate_refund_net_amount(total_amount_captured, &all_refunds, refund_net_amount)
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount_details)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
@@ -1792,6 +1792,8 @@ pub async fn validate_and_create_refund(
             req.feature_metadata,
             &all_refunds,
         )?;
+    let (refund_amount, refund_surcharge_amount, net_refund_amount) =
+        refund_amount_details.into_storage_amounts();
     let refund_create_req = diesel_refund::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
@@ -1802,9 +1804,9 @@ pub async fn validate_and_create_refund(
         connector,
         refund_type: req.refund_type.unwrap_or_default().foreign_into(),
         total_amount: payment_attempt.get_total_amount(),
-        refund_amount: refund_net_amount.get_refund_amount(),
-        refund_surcharge_amount: refund_net_amount.get_refund_surcharge_amount(),
-        net_refund_amount: Some(refund_net_amount.get_total_amount()),
+        refund_amount,
+        refund_surcharge_amount,
+        net_refund_amount: Some(net_refund_amount),
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),

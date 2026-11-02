@@ -1,9 +1,7 @@
-#[cfg(feature = "v1")]
 use common_utils::types::MinorUnit;
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::refunds::RefundNetAmount;
+use hyperswitch_domain_models::refunds::RefundAmountDetails;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
 #[cfg(feature = "v1")]
@@ -53,61 +51,17 @@ pub fn validate_success_transaction(
 
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
-    amount_captured: i64,
-    all_refunds: &[diesel_refund::Refund],
-    refund_amount: i64,
-) -> CustomResult<(), RefundValidationError> {
-    let total_refunded_amount: i64 = all_refunds
-        .iter()
-        .filter_map(|refund| {
-            if refund.refund_status != enums::RefundStatus::Failure
-                && refund.refund_status != enums::RefundStatus::TransactionFailure
-            {
-                Some(refund.refund_amount.get_amount_as_i64())
-            } else {
-                None
-            }
-        })
-        .sum();
-
-    utils::when(
-        refund_amount > (amount_captured - total_refunded_amount),
-        || {
-            Err(report!(
-                RefundValidationError::RefundAmountExceedsPaymentAmount
-            ))
-        },
-    )
-}
-
-#[instrument(skip_all)]
-#[cfg(feature = "v1")]
-pub fn validate_refund_net_amount(
     amount_captured: MinorUnit,
     all_refunds: &[diesel_refund::Refund],
-    refund_net_amount: RefundNetAmount,
+    refund_amount_details: RefundAmountDetails,
 ) -> CustomResult<(), RefundValidationError> {
-    let total_refunded_amount: i64 = all_refunds
-        .iter()
-        .filter_map(|refund| {
-            if refund.refund_status != enums::RefundStatus::Failure
-                && refund.refund_status != enums::RefundStatus::TransactionFailure
-            {
-                Some(
-                    refund
-                        .net_refund_amount
-                        .unwrap_or_else(|| RefundNetAmount::from(refund).get_total_amount())
-                        .get_amount_as_i64(),
-                )
-            } else {
-                None
-            }
-        })
-        .sum();
-
     utils::when(
-        refund_net_amount.get_total_amount().get_amount_as_i64()
-            > (amount_captured.get_amount_as_i64() - total_refunded_amount),
+        refund_amount_details.exceeds_remaining_refundable_amount(
+            amount_captured,
+            all_refunds
+                .iter()
+                .map(|refund| (refund.refund_status, RefundAmountDetails::from(refund))),
+        ),
         || {
             Err(report!(
                 RefundValidationError::RefundAmountExceedsPaymentAmount

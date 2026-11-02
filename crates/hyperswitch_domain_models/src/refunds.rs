@@ -1,4 +1,3 @@
-#[cfg(feature = "v1")]
 use common_utils::types::MinorUnit;
 
 #[cfg(feature = "v2")]
@@ -7,16 +6,14 @@ use crate::business_profile::Profile;
 use crate::errors;
 
 /// Amounts that make up a refund. Older refunds have no surcharge component.
-#[cfg(feature = "v1")]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct RefundNetAmount {
+pub struct RefundAmountDetails {
     refund_amount: MinorUnit,
     #[serde(default)]
     refund_surcharge_amount: Option<MinorUnit>,
 }
 
-#[cfg(feature = "v1")]
-impl RefundNetAmount {
+impl RefundAmountDetails {
     pub fn new(refund_amount: MinorUnit, refund_surcharge_amount: Option<MinorUnit>) -> Self {
         Self {
             refund_amount,
@@ -32,20 +29,55 @@ impl RefundNetAmount {
         self.refund_surcharge_amount
     }
 
-    pub fn get_total_amount(&self) -> MinorUnit {
+    pub fn get_net_refund_amount(&self) -> MinorUnit {
         self.refund_amount + self.refund_surcharge_amount.unwrap_or_default()
+    }
+
+    /// Values for the flat amount columns in the Diesel refund model.
+    pub fn into_storage_amounts(self) -> (MinorUnit, Option<MinorUnit>, MinorUnit) {
+        (
+            self.refund_amount,
+            self.refund_surcharge_amount,
+            self.get_net_refund_amount(),
+        )
+    }
+
+    pub fn get_remaining_refundable_amount(
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> MinorUnit {
+        let total_refunded: MinorUnit = previous_refunds
+            .into_iter()
+            .filter(|(status, _)| {
+                !matches!(
+                    status,
+                    diesel_models::enums::RefundStatus::Failure
+                        | diesel_models::enums::RefundStatus::TransactionFailure
+                )
+            })
+            .map(|(_, amount_details)| amount_details.get_net_refund_amount())
+            .sum();
+
+        amount_captured - total_refunded
+    }
+
+    pub fn exceeds_remaining_refundable_amount(
+        &self,
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> bool {
+        self.get_net_refund_amount()
+            > Self::get_remaining_refundable_amount(amount_captured, previous_refunds)
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<MinorUnit> for RefundNetAmount {
+impl From<MinorUnit> for RefundAmountDetails {
     fn from(refund_amount: MinorUnit) -> Self {
         Self::new(refund_amount, None)
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<&diesel_models::refund::Refund> for RefundNetAmount {
+impl From<&diesel_models::refund::Refund> for RefundAmountDetails {
     fn from(refund: &diesel_models::refund::Refund) -> Self {
         Self::new(refund.refund_amount, refund.refund_surcharge_amount)
     }
