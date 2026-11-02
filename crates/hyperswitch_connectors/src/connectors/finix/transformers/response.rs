@@ -32,6 +32,47 @@ pub struct FinixPaymentsResponse {
     pub network_details: Option<FinixNetworkDetails>,
 }
 
+/// Finix `electronic_commerce_indicator`: the outcome class, not the raw two-digit ECI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FinixElectronicCommerceIndicator {
+    Authenticated,
+    Attempted,
+    NonAuthenticated,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum FinixThreeDSecureSessionState {
+    Pending,
+    Succeeded,
+    Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FinixThreeDSecureAuthentication {
+    pub cardholder_authentication: Option<Secret<String>>,
+    pub electronic_commerce_indicator: Option<FinixElectronicCommerceIndicator>,
+    pub transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FinixThreeDSecureSessionResponse {
+    pub id: String,
+    pub state: FinixThreeDSecureSessionState,
+    pub payment_instrument_id: Option<Secret<String>>,
+    #[serde(rename = "3d_secure_authentication_url")]
+    pub three_d_secure_authentication_url: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<FinixThreeDSecureAuthentication>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FinixNetworkDetails {
     pub brand: Option<String>,

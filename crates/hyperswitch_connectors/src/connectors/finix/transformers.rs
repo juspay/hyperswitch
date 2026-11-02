@@ -20,19 +20,22 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         self as flows,
         refunds::{Execute, RSync},
-        Authorize, Capture,
+        Authenticate, Authorize, Capture, CompleteAuthorize, PostAuthenticate,
     },
     router_request_types::{
-        ConnectorCustomerData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCaptureData, RefundsData, ResponseId, SetupMandateRequestData,
+        CompleteAuthorizeData, ConnectorCustomerData, PaymentMethodTokenizationData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, RefundsData, ResponseId, SetupMandateRequestData,
+        UcsAuthenticationData,
     },
     router_response_types::{
-        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
+        ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors::ConnectorError};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 pub use request::*;
 pub use response::*;
 
@@ -222,7 +225,319 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
             three_d_secure_authentication: three_d_secure,
+            three_d_secure_session: None,
             statement_descriptor,
+        })
+    }
+}
+
+// ---------- 3D SECURE SESSIONS (Authenticate / PostAuthenticate / CompleteAuthorize)
+
+/// Finix resource ids are type-prefixed; a 3D Secure Session id reads `3d_secure_session_...`.
+const FINIX_3DS_SESSION_ID_PREFIX: &str = "3d_secure_session_";
+
+fn is_finix_three_d_secure_session_id(id: &str) -> bool {
+    id.strip_prefix(FINIX_3DS_SESSION_ID_PREFIX)
+        .is_some_and(|rest| !rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric()))
+}
+
+impl TryFrom<&FinixRouterData<'_, Authenticate, PaymentsAuthenticateData, PaymentsResponseData>>
+    for FinixThreeDSecureSessionRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<'_, Authenticate, PaymentsAuthenticateData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        // A session is created for a Finix Payment Instrument (the PaymentMethodToken result).
+        let payment_instrument_id = match item.router_data.get_payment_method_token()? {
+            PaymentMethodToken::Token(token) => token,
+            PaymentMethodToken::ApplePayDecrypt(_)
+            | PaymentMethodToken::PazeDecrypt(_)
+            | PaymentMethodToken::GooglePayDecrypt(_) => Err(ConnectorError::NotImplemented(
+                "Finix 3D Secure Sessions authenticate a tokenized card only".to_string(),
+            ))?,
+        };
+        // 3DS sessions accept USD and CAD only.
+        let currency = match request.currency {
+            Some(currency @ (enums::Currency::USD | enums::Currency::CAD)) => currency,
+            Some(other) => Err(ConnectorError::NotSupported {
+                message: format!("3DS currency {other}"),
+                connector: "finix".into(),
+            })?,
+            None => Err(ConnectorError::MissingRequiredField {
+                field_name: "currency".into(),
+            })?,
+        };
+        // The buyer returns to Hyperswitch's complete-authorize endpoint after the hosted page.
+        let redirect_url =
+            request
+                .complete_authorize_url
+                .clone()
+                .ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "complete_authorize_url".into(),
+                })?;
+        Ok(Self {
+            amount: item.amount,
+            currency,
+            merchant_id: item.merchant_id.clone(),
+            payment_instrument_id,
+            redirect_url,
+        })
+    }
+}
+
+impl FinixThreeDSecureSessionResponse {
+    fn eci(&self) -> Option<FinixElectronicCommerceIndicator> {
+        self.three_d_secure_authentication
+            .as_ref()
+            .and_then(|auth| auth.electronic_commerce_indicator)
+    }
+
+    /// Finix: "A state of SUCCEEDED means the process finished. It does not mean the
+    /// buyer was authenticated" -- the outcome is the electronic_commerce_indicator.
+    fn attempt_status(&self) -> AttemptStatus {
+        match self.state {
+            FinixThreeDSecureSessionState::Failed => AttemptStatus::AuthenticationFailed,
+            FinixThreeDSecureSessionState::Pending | FinixThreeDSecureSessionState::Unknown => {
+                AttemptStatus::AuthenticationPending
+            }
+            FinixThreeDSecureSessionState::Succeeded => match self.eci() {
+                Some(
+                    FinixElectronicCommerceIndicator::Authenticated
+                    | FinixElectronicCommerceIndicator::Attempted,
+                ) => AttemptStatus::AuthenticationSuccessful,
+                Some(FinixElectronicCommerceIndicator::NonAuthenticated) => {
+                    AttemptStatus::AuthenticationFailed
+                }
+                Some(FinixElectronicCommerceIndicator::Unknown) | None => {
+                    AttemptStatus::AuthenticationPending
+                }
+            },
+        }
+    }
+
+    fn trans_status(&self) -> Option<enums::TransactionStatus> {
+        match self.eci()? {
+            FinixElectronicCommerceIndicator::Authenticated => {
+                Some(enums::TransactionStatus::Success)
+            }
+            FinixElectronicCommerceIndicator::Attempted => {
+                Some(enums::TransactionStatus::NotVerified)
+            }
+            FinixElectronicCommerceIndicator::NonAuthenticated => {
+                Some(enums::TransactionStatus::Failure)
+            }
+            FinixElectronicCommerceIndicator::Unknown => None,
+        }
+    }
+
+    /// The session id rides in `transaction_id`; CompleteAuthorize sends it as `3d_secure_session`.
+    fn authentication_data(&self) -> UcsAuthenticationData {
+        let auth = self.three_d_secure_authentication.as_ref();
+        UcsAuthenticationData {
+            eci: None,
+            cavv: auth.and_then(|a| a.cardholder_authentication.clone()),
+            threeds_server_transaction_id: None,
+            message_version: None,
+            ds_trans_id: None,
+            acs_trans_id: auth.and_then(|a| a.transaction_id.clone()),
+            trans_status: self.trans_status(),
+            transaction_id: Some(self.id.clone()),
+            ucaf_collection_indicator: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+        }
+    }
+
+    /// FAILED is the only failure state (2xx with `state: FAILED`, `failure_code` set).
+    fn failed_error_response(&self, status_code: u16) -> Option<ErrorResponse> {
+        (self.state == FinixThreeDSecureSessionState::Failed).then(|| ErrorResponse {
+            code: self
+                .failure_code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: self
+                .failure_message
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: self.failure_message.clone(),
+            status_code,
+            attempt_status: Some(AttemptStatus::AuthenticationFailed),
+            connector_transaction_id: Some(self.id.clone()),
+            connector_response_reference_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+
+    fn to_router_data<F, T>(
+        &self,
+        data: RouterData<F, T, PaymentsResponseData>,
+        http_code: u16,
+        redirection_data: Option<RedirectForm>,
+        authentication_data: Option<UcsAuthenticationData>,
+    ) -> RouterData<F, T, PaymentsResponseData> {
+        RouterData {
+            status: self.attempt_status(),
+            response: match self.failed_error_response(http_code) {
+                Some(error) => Err(error),
+                None => Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(self.id.clone()),
+                    redirection_data: Box::new(redirection_data),
+                    mandate_reference: Box::new(None),
+                    // CompleteAuthorize charges this instrument (the session GET echoes it).
+                    connector_metadata: self.payment_instrument_id.as_ref().map(
+                        |pi| serde_json::json!({ "payment_instrument_id": pi.clone().expose() }),
+                    ),
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(self.id.clone()),
+                    incremental_authorization_allowed: None,
+                    authentication_data: authentication_data.map(Box::new),
+                    charges: None,
+                    payment_account_reference: None,
+                }),
+            },
+            ..data
+        }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            Authenticate,
+            FinixThreeDSecureSessionResponse,
+            PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<Authenticate, PaymentsAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            Authenticate,
+            FinixThreeDSecureSessionResponse,
+            PaymentsAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item
+            .response
+            .three_d_secure_authentication_url
+            .as_deref()
+            .map(|url| {
+                url::Url::parse(url)
+                    .map(|url| RedirectForm::from((url, common_utils::request::Method::Get)))
+                    .change_context(ConnectorError::ResponseDeserializationFailed)
+            })
+            .transpose()?;
+        Ok(item
+            .response
+            .to_router_data(item.data, item.http_code, redirection_data, None))
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostAuthenticate,
+            FinixThreeDSecureSessionResponse,
+            PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PostAuthenticate, PaymentsPostAuthenticateData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            PostAuthenticate,
+            FinixThreeDSecureSessionResponse,
+            PaymentsPostAuthenticateData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let authentication_data = Some(item.response.authentication_data());
+        Ok(item
+            .response
+            .to_router_data(item.data, item.http_code, None, authentication_data))
+    }
+}
+
+/// The session to retrieve: the Authenticate leg's id (the attempt's connector transaction
+/// id), else the `session` query parameter Finix appends to redirect_url. It lands in a URL
+/// path, so a browser-supplied value must look like a Finix session id.
+pub(crate) fn get_three_d_secure_session_id(
+    request: &PaymentsPostAuthenticateData,
+) -> Result<String, error_stack::Report<ConnectorError>> {
+    let session_id = request
+        .connector_transaction_id
+        .clone()
+        .or_else(|| {
+            let params = request.redirect_response.as_ref()?.params.as_ref()?;
+            url::form_urlencoded::parse(params.peek().trim_start_matches('?').as_bytes())
+                .find(|(key, _)| key == "session")
+                .map(|(_, value)| value.into_owned())
+        })
+        .ok_or(ConnectorError::MissingConnectorTransactionID)?;
+    if !is_finix_three_d_secure_session_id(&session_id) {
+        Err(ConnectorError::InvalidDataFormat {
+            field_name: "3d_secure_session_id".into(),
+        })?
+    }
+    Ok(session_id)
+}
+
+impl TryFrom<&FinixRouterData<'_, CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>>
+    for FinixPaymentsRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: &FinixRouterData<'_, CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let three_d_secure_session = request
+            .authentication_data
+            .as_ref()
+            .and_then(|auth| auth.transaction_id.clone())
+            .filter(|id| is_finix_three_d_secure_session_id(id))
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "3d_secure_session".into(),
+            })?;
+        // The session must correspond to `source`: the instrument the session GET returned.
+        let source = request
+            .connector_meta
+            .as_ref()
+            .and_then(|meta| meta.get("payment_instrument_id"))
+            .and_then(|pi| pi.as_str())
+            .map(|pi| Secret::new(pi.to_string()))
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "payment_instrument_id".into(),
+            })?;
+        let fraud_session_id = request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.finix_additional_details.as_ref())
+            .and_then(|finix_details| finix_details.fraud_session_id.clone());
+        Ok(Self {
+            amount: item.amount,
+            currency: request.currency,
+            source,
+            merchant: item.merchant_id.clone(),
+            tags: None,
+            fraud_session_id,
+            three_d_secure_authentication: None,
+            three_d_secure_session: Some(three_d_secure_session),
+            idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
+            statement_descriptor: request
+                .billing_descriptor
+                .clone()
+                .and_then(|billing_descriptor| billing_descriptor.statement_descriptor),
         })
     }
 }
