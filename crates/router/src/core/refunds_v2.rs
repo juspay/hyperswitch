@@ -1258,6 +1258,8 @@ pub async fn validate_and_create_refund(
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
         feature_metadata: refund_feature_metadata,
+        refund_surcharge_amount: None,
+        net_refund_amount: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
