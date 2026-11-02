@@ -60,7 +60,9 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
             // Defaults to absent since recovery retries are merchant initiated
-            customer_present: Some(data.customer_present.unwrap_or(false)).into(),
+            customer_present: data
+                .customer_present
+                .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent),
             setup_future_usage: data
                 .setup_future_usage
                 .unwrap_or(common_enums::FutureUsage::OffSession),

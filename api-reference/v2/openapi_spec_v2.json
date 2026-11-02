@@ -31734,10 +31734,12 @@
             "nullable": true
           },
           "customer_present": {
-            "type": "boolean",
-            "description": "Set to `true` if the customer was present during the transaction. Defaults to `false`.",
-            "default": false,
-            "example": false,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
             "nullable": true
           },
           "setup_future_usage": {
