@@ -132,7 +132,7 @@ impl PayoutAttempt {
             error_code: self.error_code.clone(),
             error_message: self.error_message.clone(),
             payment_method: payout.payout_type,
-            payout_method_type: None,
+            payout_method_type: self.additional_payout_method_data.as_ref().map(From::from),
             connector_transaction_id: self.connector_payout_id.clone(),
             cancellation_reason: None,
             unified_code: self.unified_code.clone(),

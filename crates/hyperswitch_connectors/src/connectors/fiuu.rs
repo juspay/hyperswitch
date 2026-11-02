@@ -90,6 +90,13 @@ pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
     }
 }
 
+/// Returns the trimmed body if it is a plain string, i.e. it has no `key=value` lines
+fn get_plain_text_response(data: &[u8]) -> Option<String> {
+    let response_str = std::str::from_utf8(data).ok()?.trim();
+    (!response_str.is_empty() && !response_str.lines().any(|line| line.contains('=')))
+        .then(|| response_str.to_string())
+}
+
 fn parse_response<T>(data: &[u8]) -> Result<T, errors::ConnectorError>
 where
     T: for<'de> Deserialize<'de>,
@@ -490,22 +497,50 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
                 let content_header = utils::get_http_header("Content-type", &headers)
                     .attach_printable("Missing content type in headers")
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
-                let response: fiuu::FiuuPaymentResponse = if content_header
-                    == "text/plain;charset=UTF-8"
-                {
-                    parse_response(&res.response)
+                let response = if content_header == "text/plain;charset=UTF-8" {
+                    parse_response::<fiuu::FiuuPaymentResponse>(&res.response)
                 } else {
                     Err(errors::ConnectorError::ResponseDeserializationFailed)
                         .attach_printable(format!("Expected content type to be text/plain;charset=UTF-8 , but received different content type as {content_header} in response"))?
-                }?;
-                event_builder.map(|i| i.set_response_body(&response));
-                router_env::logger::info!(connector_response=?response);
-                RouterData::try_from(ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                };
+                match response {
+                    Ok(response) => {
+                        event_builder.map(|i| i.set_response_body(&response));
+                        router_env::logger::info!(connector_response=?response);
+                        RouterData::try_from(ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                    }
+                    // Fiuu can respond with a plain string instead of `key=value` pairs
+                    // (e.g. "System is busy now, temporary out of services..."). Treat it as
+                    // an error without changing the attempt status, so the next sync can retry.
+                    Err(error) => match get_plain_text_response(&res.response) {
+                        Some(message) => {
+                            event_builder.map(|i| i.set_response_body(&message));
+                            router_env::logger::info!(connector_response=?message);
+                            Ok(RouterData {
+                                response: Err(ErrorResponse {
+                                    status_code: res.status_code,
+                                    code: NO_ERROR_CODE.to_string(),
+                                    message: message.clone(),
+                                    reason: Some(message),
+                                    attempt_status: Some(data.status),
+                                    connector_transaction_id: None,
+                                    connector_response_reference_id: None,
+                                    network_advice_code: None,
+                                    network_decline_code: None,
+                                    network_error_message: None,
+                                    connector_metadata: None,
+                                }),
+                                ..data.clone()
+                            })
+                        }
+                        None => Err(error.into()),
+                    },
+                }
             }
             None => {
                 // We don't get headers for payment webhook response handling

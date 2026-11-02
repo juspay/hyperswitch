@@ -5,6 +5,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::{AuthenticationIdType, IncomingWebhookEvent, ObjectReferenceId};
 use common_utils::{
+    crypto,
     errors::CustomResult,
     ext_traits::ByteSliceExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -240,6 +241,19 @@ impl IncomingWebhook for Netcetera {
             challenge_cancel,
             challenge_code_reason,
         })
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        _connector_name: &str,
+    ) -> CustomResult<bool, ConnectorError> {
+        Ok(true)
     }
 }
 

@@ -12,10 +12,8 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api as api_interface,
-    api::{gateway, ConnectorSpecifications},
-    consts as interface_consts, errors as interface_errors,
-    unified_connector_service::transformers as ucs_transformers,
+    api as api_interface, api::ConnectorSpecifications, consts as interface_consts,
+    errors as interface_errors, unified_connector_service::transformers as ucs_transformers,
 };
 use hyperswitch_masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
@@ -25,8 +23,8 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway as payments_gateway, gateway::context as gateway_context,
-            helpers, transformers, PaymentData,
+            self, access_token, gateway, gateway as payments_gateway,
+            gateway::context as gateway_context, helpers, transformers, PaymentData,
         },
         unified_connector_service as ucs_core,
     },
@@ -1308,6 +1306,10 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
+            payment_feature_metadata: item.request.feature_metadata,
+            // Full automatic capture uses the original payment settlement values.
+            feature_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,
@@ -1321,6 +1323,8 @@ impl<F>
             is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
+            payment_method_data: None,
+            mandate_id: item.request.mandate_id,
         })
     }
 }
@@ -1354,7 +1358,7 @@ async fn process_capture_flow(
     );
 
     // Call capture request
-    let post_capture_router_data = super::call_capture_request(
+    let post_capture_router_data = Box::pin(super::call_capture_request(
         capture_router_data,
         state,
         connector,
@@ -1362,7 +1366,7 @@ async fn process_capture_flow(
         business_profile,
         header_payload,
         gateway_context,
-    )
+    ))
     .await;
 
     // Process capture response

@@ -66,6 +66,10 @@ impl Default for PayoutRequiredFields {
                                 PayoutConnectors::Deutschebank,
                                 fields(vec![], vec![], sepa_deutschebank_fields()),
                             ),
+                            (
+                                PayoutConnectors::Mifinity,
+                                fields(vec![], vec![], sepa_fields()),
+                            ),
                         ]),
                     ),
                     (
@@ -99,17 +103,26 @@ impl Default for PayoutRequiredFields {
             ),
             (
                 Wallet,
-                PaymentMethodTypeInfo(HashMap::from([(
-                    PaymentMethodType::Paypal,
-                    connectors(vec![(
-                        PayoutConnectors::Adyenplatform,
-                        fields(
-                            vec![],
-                            vec![],
-                            adyen_billing_fields(PaymentMethodType::Paypal, paypal_fields()),
-                        ),
-                    )]),
-                )])),
+                PaymentMethodTypeInfo(HashMap::from([
+                    (
+                        PaymentMethodType::Paypal,
+                        connectors(vec![(
+                            PayoutConnectors::Adyenplatform,
+                            fields(
+                                vec![],
+                                vec![],
+                                adyen_billing_fields(PaymentMethodType::Paypal, paypal_fields()),
+                            ),
+                        )]),
+                    ),
+                    (
+                        PaymentMethodType::Mifinity,
+                        connectors(vec![(
+                            PayoutConnectors::Mifinity,
+                            fields(vec![], vec![], mifinity_fields()),
+                        )]),
+                    ),
+                ])),
             ),
             (
                 BankRedirect,
@@ -356,6 +369,19 @@ fn paypal_fields() -> Vec<(String, RequiredFieldInfo)> {
         RequiredFieldInfo {
             required_field: "payout_method_data.wallet.telephone_number".to_string(),
             display_name: "telephone_number".to_string(),
+            field_type: FieldType::Text,
+            value: None,
+        },
+    )]
+}
+
+#[cfg(feature = "v1")]
+fn mifinity_fields() -> Vec<(String, RequiredFieldInfo)> {
+    vec![(
+        "payout_method_data.wallet.mifinity.destination_account".to_string(),
+        RequiredFieldInfo {
+            required_field: "payout_method_data.wallet.mifinity.destination_account".to_string(),
+            display_name: "destination_account".to_string(),
             field_type: FieldType::Text,
             value: None,
         },

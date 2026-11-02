@@ -112,7 +112,7 @@ impl<F: Send + Clone + Sync>
 
         let cell_id = state.conf.cell_information.id.clone();
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
@@ -122,7 +122,13 @@ impl<F: Send + Clone + Sync>
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
                         shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
                         billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
-                        customer_details: None,
+                        customer_details: request.customer_details.clone()
+                            .map(hyperswitch_domain_models::payments::payment_intent::CustomerData::from)
+                            .map(|customer| customer.encode_to_value())
+                            .transpose()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to encode customer details")?
+                            .map(hyperswitch_masking::Secret::new),
                         recipient_details: request.recipient_details.clone().map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),

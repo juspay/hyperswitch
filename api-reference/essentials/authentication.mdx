@@ -55,6 +55,14 @@ Check the Docker Compose example for extra clarity:
 [See example in the Hyperswitch repository](https://github.com/juspay/hyperswitch/blob/main/config/docker_compose.toml)
 
 
+Send admin credentials using the same header format in v1 and v2:
+
+```http
+Authorization: admin-api-key=<admin-key>
+```
+
+Admin credentials in the `api-key` header are no longer accepted. V1 merchant and platform API keys continue to use `api-key`. Update admin callers when deploying this change, including callers of cache invalidation and UCS kill-switch routes.
+
 ## 3. Publishable Key
 
 - **Client-side key** with limited permissions.

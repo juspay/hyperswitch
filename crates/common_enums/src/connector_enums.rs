@@ -25,7 +25,7 @@ pub use crate::PaymentMethodType;
     Hash,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -107,6 +107,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Ecommpay,
     Envoy,
     Elavon,
     Etisalat,
@@ -124,6 +125,7 @@ pub enum Connector {
     Givepayments,
     Globalpay,
     GlobalpaymentsHeartland,
+    GlobalpaymentsRealex,
     Globepay,
     Gocardless,
     GotymeSanlam,
@@ -248,6 +250,7 @@ impl Connector {
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
                 | (Self::Deutschebank, Some(PayoutType::Bank))
+                | (Self::Mifinity, Some(PayoutType::Wallet | PayoutType::Bank))
                 | (Self::Paysafe, Some(PayoutType::GiftCard))
         )
     }
@@ -257,7 +260,9 @@ impl Connector {
         payout_method: Option<PayoutType>,
         is_passthrough: bool,
     ) -> bool {
-        if matches!(self, Self::Trustly) {
+        if matches!(self, Self::Mifinity) {
+            false
+        } else if matches!(self, Self::Trustly) {
             !is_passthrough
         } else {
             matches!(payout_method, Some(PayoutType::Bank))
@@ -311,6 +316,12 @@ impl Connector {
     #[cfg(feature = "payouts")]
     pub fn supports_vendor_disburse_account_create_for_payout(self) -> bool {
         matches!(self, Self::Stripe | Self::Nomupay)
+    }
+    /// Whether this FRM provider's risk API is bearer-authenticated, so a token
+    /// must be fetched before the risk check. Static-key providers (nSure) and
+    /// the in-process ones need none; add a provider here when it requires one.
+    pub fn supports_access_token_for_frm(self) -> bool {
+        false
     }
     pub fn supports_access_token(self, payment_method: PaymentMethod) -> bool {
         matches!(
@@ -410,6 +421,7 @@ impl Connector {
             | Self::Getnet
             | Self::Gigadat
             | Self::Globalpay
+            | Self::GlobalpaymentsRealex
             | Self::Globepay
             | Self::Gocardless
             | Self::GotymeSanlam
@@ -447,7 +459,6 @@ impl Connector {
             | Self::Paysafe
             | Self::Paystack
             | Self::Payu
-            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -511,10 +522,12 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::Ecommpay
             | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml
+            | Self::Peachpayments
             // Portico cannot authenticate: its Secure3D block only carries results computed
             // by a separate authentication connector, so external 3DS is its only 3DS mode.
             | Self::GlobalpaymentsHeartland => true,
@@ -583,7 +596,7 @@ impl Connector {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum InvoiceStatus {

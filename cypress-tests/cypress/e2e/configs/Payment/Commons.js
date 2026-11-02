@@ -103,6 +103,14 @@ export const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+// Card the Offer Engine saved-card flow (54-OfferEngine.cy.js) saves and
+// quotes. Kept apart from successfulNo3DSCardDetails, which the plain-card
+// offer flow already uses.
+export const offerEngineSavedCardDetails = {
+  ...successfulNo3DSCardDetails,
+  card_number: "4242424242424242",
+};
+
 const blocklistedCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "01",
@@ -4431,6 +4439,31 @@ export const connectorDetails = {
         },
       },
     }),
+    // Builds the same message validate_integration_type (server_integration.rs)
+    // produces for a header/merchant-integration_type mismatch. Used by
+    // integrationTypeChecker/paymentUpdate in commands.js, which
+    // 54-IntegrationTypeValidation.cy.js calls into.
+    IntegrationTypeValidation: (expectedStatus, header, merchantConfig) => ({
+      Request: {
+        currency: "USD",
+        amount: 6540,
+      },
+      Response: {
+        status: expectedStatus,
+        body:
+          expectedStatus === 200
+            ? { status: "requires_payment_method" }
+            : {
+                error: {
+                  code: "IR_06",
+                  message: integrationTypeMismatchMessage(
+                    header,
+                    merchantConfig
+                  ),
+                },
+              },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -5981,6 +6014,15 @@ export const connectorDetails = {
   },
 };
 
+// Builds the same message validate_integration_type (server_integration.rs)
+// produces for a header/merchant-integration_type mismatch. Used by
+// integrationTypeChecker/paymentUpdate in commands.js, which
+// 54-IntegrationTypeValidation.cy.js calls into.
+export function integrationTypeMismatchMessage(header, merchantConfig) {
+  const headerLabel = header ?? "client";
+  const merchantLabel = merchantConfig ?? "client";
+  return `\`x-integration-type\` header value \`${headerLabel}\` does not match the merchant integration type \`${merchantLabel}\``;
+}
 // Separate keys, not a reuse of ConfirmWithOfferApplied/
 // AppliedOfferOnRetrieve in place, so that connectors which can't actually
 // complete a saved-card confirm (e.g. ilixium, which doesn't implement
@@ -5992,3 +6034,4 @@ connectorDetails.offer_engine.ConfirmWithOfferAppliedSavedCard =
   connectorDetails.offer_engine.ConfirmWithOfferApplied;
 connectorDetails.offer_engine.AppliedOfferOnRetrieveSavedCard =
   connectorDetails.offer_engine.AppliedOfferOnRetrieve;
+connectorDetails.offer_engine.SavedCardDetails = offerEngineSavedCardDetails;
