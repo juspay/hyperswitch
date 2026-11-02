@@ -15019,6 +15019,14 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
 
+    /// Set to `true` if the customer was present during the transaction. Defaults to `false`.
+    #[schema(value_type = Option<bool>, default = false, example = false)]
+    pub customer_present: Option<bool>,
+
+    /// Indicates how the payment method is intended to be used in the future. Defaults to `off_session`.
+    #[schema(value_type = Option<FutureUsage>, default = "off_session", example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
+
     /// The billing details of the transaction.
     pub billing: Option<Address>,
 
