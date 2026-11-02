@@ -785,7 +785,7 @@ fn database_state(
     let mut alert = json!({
         "rule_source": "database",
         "grafana": { "base_url": grafana_url, "api_token": "synthetic-local-token" },
-        "datasources": { "grafana_cloudwatch": { "uid": "synthetic-cloudwatch" } }
+        "datasources": { "grafana_cloudwatch": { "uid": "synthetic-cloudwatch" }, "grafana_loki": { "uid": "synthetic-loki" } }
     });
     if let Some(rules) = config_rules {
         alert["rules"] = json!(rules.to_string());
@@ -837,7 +837,7 @@ fn stored_rule(
 
 async fn notify(state: AppState) -> Value {
     serde_json::to_value(
-        observability::core::evaluator::notify(state, ())
+        observability::core::alert_evaluation::notify(state, ())
             .await
             .unwrap(),
     )
@@ -919,7 +919,7 @@ fn the_dry_run_checks_every_active_rule_and_claims_nothing() {
         let (state, messages) = database_state(&grafana_url, Arc::clone(&store), None);
 
         let response = serde_json::to_value(
-            observability::core::evaluator::evaluate(state, ())
+            observability::core::alert_evaluation::evaluate(state, ())
                 .await
                 .unwrap(),
         )

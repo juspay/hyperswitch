@@ -17,9 +17,11 @@ pub struct RuleDefinition {
 }
 
 impl RuleDefinition {
-    pub fn metrics_query(&self, datasource_uid: &str) -> CloudwatchMetricsQuery {
-        let AlertQuery::GrafanaCloudwatch(query) = &self.config.query;
-        CloudwatchMetricsQuery {
+    pub fn metrics_query(&self, datasource_uid: &str) -> EvaluatorResult<CloudwatchMetricsQuery> {
+        let AlertQuery::GrafanaCloudwatch(query) = &self.config.query else {
+            return Err(error_stack::Report::new(EvaluatorError::UnexpectedResponse));
+        };
+        Ok(CloudwatchMetricsQuery {
             datasource_uid: datasource_uid.to_owned(),
             region: query.region.clone(),
             namespace: query.namespace.clone(),
@@ -32,7 +34,7 @@ impl RuleDefinition {
                 CloudwatchStatistic::Sum => ProviderStatistic::Sum,
             },
             period: query.period,
-        }
+        })
     }
 }
 
@@ -65,7 +67,7 @@ pub struct Notification {
 
 pub enum RuleRun {
     Evaluated {
-        evaluation: Evaluation,
+        level: AlertEvaluationLevel,
         notification: Option<Notification>,
     },
     Failed {

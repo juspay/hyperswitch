@@ -2,10 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use common_types::alert_rules::MetricSource;
 use common_utils::fp_utils::when;
-use external_services::metrics_provider::{
-    grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
-    MetricsError, MetricsProvider,
-};
+use external_services::metrics_provider::grafana::GrafanaConfig;
 use hyperswitch_masking::PeekInterface;
 use serde::Deserialize;
 
@@ -16,22 +13,18 @@ use crate::{
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AlertSettings {
+    pub rule_source: RuleSource,
     pub grafana: GrafanaConfig,
     pub datasources: HashMap<MetricSource, DatasourceSettings>,
-    /// Where the evaluator reads rules from. Exactly one source is used.
-    pub rule_source: RuleSource,
     #[serde(deserialize_with = "common_utils::custom_serde::json_string::deserialize")]
     pub(crate) rules: Vec<RuleDefinition>,
 }
 
-/// Where the evaluator reads rules from.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuleSource {
-    /// `rules` in this section, every rule on every tick.
     #[default]
     Config,
-    /// The `alert_rules` table, managed through `/alerts/rules`; each rule when it is due.
     Database,
 }
 
@@ -43,16 +36,14 @@ pub struct DatasourceSettings {
 
 impl AlertSettings {
     pub(crate) fn validate(&self, chat: &ChatSettings) -> Result<(), ConfigurationError> {
-        // Rules here would be silently ignored, so refuse them rather than surprise someone.
         when(
             self.rule_source == RuleSource::Database && !self.rules.is_empty(),
             || {
                 Err(ConfigurationError::ConfigParsingError(
-                    "invalid alert configuration: field `rules` must be empty when `rule_source` is `database`".to_owned(),
+                    "database rule_source requires empty config rules".to_owned(),
                 ))
             },
         )?;
-        // Rules from the database arrive after startup, so Grafana must be usable from the start.
         if !self.rules.is_empty() || self.rule_source == RuleSource::Database {
             when(
                 !url::Url::parse(&self.grafana.base_url)
@@ -94,11 +85,15 @@ impl AlertSettings {
                     rule.id
                 )))
             })?;
-            when(rule.config.interval_seconds != 60, || {
-                Err(ConfigurationError::ConfigParsingError(format!(
-                    "invalid alert configuration: rule `{}` field `config.interval_seconds` must equal 60", rule.id
+            when(
+                !(60..=86400).contains(&rule.config.interval_seconds)
+                    || rule.config.interval_seconds % 60 != 0,
+                || {
+                    Err(ConfigurationError::ConfigParsingError(format!(
+                    "invalid alert configuration: rule `{}` field `config.interval_seconds` must be whole minutes from 60 to 86400 seconds", rule.id
                 )))
-            })?;
+                },
+            )?;
             when(rule.config.thresholds.severities.is_empty(), || {
                 Err(ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `config.thresholds.severities` must contain at least one severity", rule.id
@@ -120,28 +115,27 @@ impl AlertSettings {
                     },
                 )?;
             }
-            let datasource = self.datasources.get(&MetricSource::GrafanaCloudwatch)
+            self.datasources.get(&rule.config.query.metric_source())
                 .ok_or_else(|| ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `config.query.datasource` requires its configured provider/datasource UID", rule.id
                 )))?;
-            if let Err(error) =
-                GrafanaCloudwatch::validate_query(&rule.metrics_query(&datasource.uid))
-            {
-                let (field, requirement) = match error.current_context() {
-                    MetricsError::InvalidQuery { field, requirement } => (*field, *requirement),
-                    _ => ("query", "must be a valid metric query"),
-                };
-                return Err(ConfigurationError::ConfigParsingError(format!(
-                    "invalid alert configuration: rule `{}` field `config.query.{field}` {requirement}", rule.id
-                )));
+            match &rule.config.query {
+                common_types::alert_rules::AlertQuery::GrafanaCloudwatch(query) => {
+                    when(query.end_offset_seconds > 3600, || {
+                        Err(ConfigurationError::ConfigParsingError(format!(
+                            "invalid alert configuration: rule `{}` field `config.query.end_offset_seconds` must not exceed 3600 seconds", rule.id
+                        )))
+                    })?;
+                }
+                common_types::alert_rules::AlertQuery::GrafanaLoki(query) => {
+                    query.validate().map_err(|reason| {
+                        ConfigurationError::ConfigParsingError(format!(
+                            "invalid alert configuration: rule `{}` {reason}",
+                            rule.id
+                        ))
+                    })?;
+                }
             }
-            let common_types::alert_rules::AlertQuery::GrafanaCloudwatch(query) =
-                &rule.config.query;
-            when(query.end_offset_seconds > 3600, || {
-                Err(ConfigurationError::ConfigParsingError(format!(
-                    "invalid alert configuration: rule `{}` field `config.query.end_offset_seconds` must not exceed 3600 seconds", rule.id
-                )))
-            })?;
         }
         Ok(())
     }
@@ -149,10 +143,8 @@ impl AlertSettings {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
     use super::*;
-    use crate::settings::{ChatDestination, ChatSettings};
+    use crate::settings::ChatDestination;
 
     #[test]
     fn alert_settings_default_to_no_rules_or_provider_configuration() {
@@ -160,33 +152,70 @@ mod tests {
         assert!(settings.rules.is_empty());
         assert!(settings.datasources.is_empty());
         assert!(settings.grafana.base_url.is_empty());
-        assert_eq!(settings.rule_source, RuleSource::Config);
     }
 
     #[test]
-    fn database_rules_need_grafana_and_no_config_rules() {
-        let chat = ChatSettings::default();
-        let settings =
-            |value: serde_json::Value| -> AlertSettings { serde_json::from_value(value).unwrap() };
-
-        let without_grafana = settings(serde_json::json!({ "rule_source": "database" }));
-        let error = without_grafana.validate(&chat).unwrap_err().to_string();
-        assert!(error.contains("grafana.base_url"), "{error}");
-
-        let with_grafana = settings(serde_json::json!({
-            "rule_source": "database",
-            "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
-            "datasources": { "grafana_cloudwatch": { "uid": "cloudwatch" } }
-        }));
-        with_grafana.validate(&chat).unwrap();
-
-        let with_config_rules = settings(serde_json::json!({
-            "rule_source": "database",
-            "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
-            "rules": "[{\"id\":\"cpu\",\"name\":\"CPU\",\"config\":{\"interval_seconds\":60,\"query\":{\"datasource\":\"grafana_cloudwatch\",\"region\":\"us-east-1\",\"namespace\":\"AWS/EC2\",\"metric_name\":\"CPUUtilization\",\"statistic\":\"Average\",\"period\":60},\"thresholds\":{\"severities\":{\"critical\":{\"threshold\":90,\"comparison_operator\":\"GreaterThanThreshold\",\"description\":\"CPU\",\"destination\":\"oncall\"}}}}}]"
-        }));
-        let error = with_config_rules.validate(&chat).unwrap_err().to_string();
-        assert!(error.contains("field `rules` must be empty"), "{error}");
+    fn loki_only_settings_validate_and_reject_incomplete_query_contracts() {
+        let settings: AlertSettings = serde_json::from_value(serde_json::json!({
+            "grafana": {"base_url":"https://sandbox.example", "api_token":"test-token"},
+            "datasources": {"grafana_loki":{"uid":"loki"}},
+            "rules": serde_json::json!([{
+                "id":"application-error", "name":"Application error", "config":{
+                    "interval_seconds":60,
+                    "query":{"datasource":"grafana_loki","expression":"count_over_time({app=\"test\"}[$__range])","mode":"instant","range_seconds":300,"reducer":"last"},
+                    "thresholds":{"severities":{"critical":{"threshold":0,"comparison_operator":"GreaterThanThreshold","destination":"oncall","description":"Application error"}}}
+                }
+            }]).to_string()
+        })).unwrap();
+        let chat = ChatSettings {
+            destinations: HashMap::from([("oncall".to_owned(), ChatDestination::Log)]),
+            ..Default::default()
+        };
+        settings.validate(&chat).unwrap();
+        for (mode, range, step, expression) in [
+            (
+                common_types::alert_rules::LokiQueryMode::Instant,
+                0,
+                None,
+                "vector(1)",
+            ),
+            (
+                common_types::alert_rules::LokiQueryMode::Range,
+                300,
+                None,
+                "vector(1)",
+            ),
+            (
+                common_types::alert_rules::LokiQueryMode::Instant,
+                300,
+                Some(0),
+                "vector(1)",
+            ),
+            (
+                common_types::alert_rules::LokiQueryMode::Instant,
+                300,
+                None,
+                "$__interval",
+            ),
+            (
+                common_types::alert_rules::LokiQueryMode::Instant,
+                300,
+                None,
+                "$__unknown",
+            ),
+        ] {
+            let mut invalid = settings.clone();
+            let common_types::alert_rules::AlertQuery::GrafanaLoki(query) =
+                &mut invalid.rules[0].config.query
+            else {
+                panic!("expected Loki");
+            };
+            query.mode = mode;
+            query.range_seconds = range;
+            query.step_seconds = step;
+            query.expression = expression.to_owned();
+            assert!(invalid.validate(&chat).is_err());
+        }
     }
 
     #[test]
@@ -203,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_rules_reuse_provider_query_validation() {
+    fn provider_query_fields_are_not_prevalidated_at_startup() {
         let settings: AlertSettings = serde_json::from_value(serde_json::json!({
             "grafana": { "base_url": "http://localhost:3000", "api_token": "token" },
             "datasources": { "grafana_cloudwatch": { "uid": "cloudwatch" } },
@@ -236,8 +265,6 @@ mod tests {
             destinations: HashMap::from([("oncall".to_owned(), ChatDestination::Log)]),
             ..Default::default()
         };
-        let error = settings.validate(&chat).unwrap_err().to_string();
-        assert!(error.contains("config.query.region"));
-        assert!(error.contains("must not be blank"));
+        settings.validate(&chat).unwrap();
     }
 }

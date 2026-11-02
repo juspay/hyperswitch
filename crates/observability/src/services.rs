@@ -8,6 +8,7 @@
 //! while handling a request can be correlated. For a service whose job is talking to flaky third
 //! parties, that is the difference between "an alert did not arrive" and knowing why.
 
+pub(crate) mod application_alert;
 pub(crate) mod chat;
 
 use std::{fmt::Debug, future::Future};

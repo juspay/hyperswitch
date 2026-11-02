@@ -16,6 +16,127 @@ pub struct AlertRuleConfig {
 #[serde(tag = "datasource", rename_all = "snake_case")]
 pub enum AlertQuery {
     GrafanaCloudwatch(GrafanaCloudwatchQuery),
+    GrafanaLoki(GrafanaLokiQuery),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GrafanaLokiQuery {
+    pub expression: String,
+    pub mode: LokiQueryMode,
+    pub range_seconds: u32,
+    #[serde(default)]
+    pub step_seconds: Option<u32>,
+    pub reducer: LokiReducer,
+    #[serde(default)]
+    pub delivery_enabled: bool,
+    #[serde(default)]
+    pub pending_seconds: u32,
+    #[serde(default)]
+    pub labels: BTreeMap<String, String>,
+    #[serde(default)]
+    pub fields: BTreeMap<String, String>,
+}
+
+impl GrafanaLokiQuery {
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if self.expression.trim().is_empty()
+            || !(1..=86400).contains(&self.range_seconds)
+            || self.step_seconds == Some(0)
+            || (self.mode == LokiQueryMode::Range && self.step_seconds.is_none())
+        {
+            return Err(
+                "Loki requires a nonblank expression, bounded range and positive range step",
+            );
+        }
+        if self.delivery_enabled && self.pending_seconds != 0 {
+            return Err("Loki delivery with pending timers requires persistent instance state; use preview only");
+        }
+        if self.fields.keys().any(|key| {
+            !matches!(
+                key.as_str(),
+                "error"
+                    | "application"
+                    | "environment"
+                    | "path"
+                    | "method"
+                    | "flow"
+                    | "connector"
+                    | "file"
+                    | "request_id"
+                    | "event_time"
+                    | "error_code"
+            )
+        }) {
+            return Err("unsupported application message field mapping");
+        }
+        if self
+            .labels
+            .iter()
+            .chain(self.fields.iter())
+            .any(|(k, v)| k.trim().is_empty() || v.trim().is_empty())
+        {
+            return Err("Loki static labels and field mappings must not be blank");
+        }
+        self.expanded_expression()?;
+        Ok(())
+    }
+
+    pub fn expanded_expression(&self) -> Result<String, &'static str> {
+        let mut result = String::new();
+        let mut remaining = self.expression.as_str();
+        while let Some(index) = remaining.find("$__") {
+            result.push_str(&remaining[..index]);
+            let token = &remaining[index..];
+            let end = token
+                .char_indices()
+                .skip(1)
+                .find(|(_, c)| !c.is_ascii_alphanumeric() && *c != '_')
+                .map_or(token.len(), |(index, _)| index);
+            let seconds = match &token[..end] {
+                "$__range" => self.range_seconds,
+                "$__auto" if self.mode == LokiQueryMode::Instant => self.range_seconds,
+                "$__auto" | "$__interval" => self
+                    .step_seconds
+                    .ok_or("Loki macro requires an explicit step")?,
+                _ => return Err("unsupported Loki macro"),
+            };
+            if seconds == 0 {
+                return Err("Loki macro duration must be positive");
+            }
+            result.push_str(&format!("{seconds}s"));
+            remaining = &token[end..];
+        }
+        result.push_str(remaining);
+        Ok(result)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LokiQueryMode {
+    Instant,
+    Range,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LokiReducer {
+    Last,
+    Count,
+    Sum,
+    Minimum,
+    Maximum,
+    Mean,
+}
+
+impl AlertQuery {
+    pub fn metric_source(&self) -> MetricSource {
+        match self {
+            Self::GrafanaCloudwatch(_) => MetricSource::GrafanaCloudwatch,
+            Self::GrafanaLoki(_) => MetricSource::GrafanaLoki,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -54,6 +175,7 @@ pub struct SeverityThreshold {
 #[strum(serialize_all = "snake_case")]
 pub enum MetricSource {
     GrafanaCloudwatch,
+    GrafanaLoki,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
@@ -102,6 +224,29 @@ impl ComparisonOperator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loki_macros_are_exact_and_do_not_change_regex_anchors() {
+        let mut query = GrafanaLokiQuery {
+            expression: "count_over_time({app=\"test\"} |~ `failed$` [$__auto]) + count_over_time({app=\"test\"}[$__range])".to_owned(),
+            mode: LokiQueryMode::Instant,
+            range_seconds: 300,
+            step_seconds: Some(10),
+            reducer: LokiReducer::Last,
+            delivery_enabled: false,
+            pending_seconds: 0,
+            labels: BTreeMap::new(),
+            fields: BTreeMap::new(),
+        };
+        assert_eq!(query.expanded_expression().unwrap(), "count_over_time({app=\"test\"} |~ `failed$` [300s]) + count_over_time({app=\"test\"}[300s])");
+        query.mode = LokiQueryMode::Range;
+        assert!(query.expanded_expression().unwrap().contains("[10s]"));
+        query.expression = "$__range_ms".to_owned();
+        assert!(query.expanded_expression().is_err());
+        query.expression = "$__interval".to_owned();
+        query.step_seconds = None;
+        assert!(query.expanded_expression().is_err());
+    }
 
     #[test]
     fn severity_order_is_highest_priority_first() {
@@ -166,7 +311,9 @@ mod tests {
             "period": 60
         }))
         .unwrap();
-        let AlertQuery::GrafanaCloudwatch(query) = query;
+        let AlertQuery::GrafanaCloudwatch(query) = query else {
+            panic!("expected CloudWatch query");
+        };
         assert_eq!(query.end_offset_seconds, 180);
     }
 }
