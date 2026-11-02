@@ -1046,7 +1046,7 @@ where
 
     match config_source {
         UcsConfigSource::Superposition => {
-            should_call_ucs_via_superposition(
+            Box::pin(should_call_ucs_via_superposition(
                 state,
                 processor,
                 router_data,
@@ -1054,11 +1054,11 @@ where
                 call_connector_action,
                 shadow_ucs_call_connector_action,
                 transaction_type,
-            )
+            ))
             .await
         }
         UcsConfigSource::Database => {
-            should_call_ucs_via_db(
+            Box::pin(should_call_ucs_via_db(
                 state,
                 processor,
                 router_data,
@@ -1066,7 +1066,7 @@ where
                 call_connector_action,
                 shadow_ucs_call_connector_action,
                 transaction_type,
-            )
+            ))
             .await
         }
     }
@@ -5515,19 +5515,29 @@ mod ucs_routing_tests {
         use external_services::grpc_client::unified_connector_service::{
             UcsConfigSource, UnifiedConnectorServiceClientConfig,
         };
-        let mut json = serde_json::json!({
-            "base_url": "http://localhost:8000",
-            "connection_timeout": 10,
-        });
-        let config: UnifiedConnectorServiceClientConfig = serde_json::from_value(json.clone())
+        let config: UnifiedConnectorServiceClientConfig =
+            serde_json::from_value(serde_json::json!({
+                "base_url": "http://localhost:8000",
+                "connection_timeout": 10,
+            }))
             .expect("existing config without config_source remains valid");
         assert_eq!(config.config_source, UcsConfigSource::Database);
-        json["config_source"] = serde_json::json!("superposition");
         let config: UnifiedConnectorServiceClientConfig =
-            serde_json::from_value(json.clone()).expect("Superposition source");
+            serde_json::from_value(serde_json::json!({
+                "base_url": "http://localhost:8000",
+                "connection_timeout": 10,
+                "config_source": "superposition",
+            }))
+            .expect("Superposition source");
         assert_eq!(config.config_source, UcsConfigSource::Superposition);
-        json["config_source"] = serde_json::json!("invalid_source");
-        assert!(serde_json::from_value::<UnifiedConnectorServiceClientConfig>(json).is_err());
+        assert!(
+            serde_json::from_value::<UnifiedConnectorServiceClientConfig>(serde_json::json!({
+                "base_url": "http://localhost:8000",
+                "connection_timeout": 10,
+                "config_source": "invalid_source",
+            }))
+            .is_err()
+        );
     }
 
     #[test]
