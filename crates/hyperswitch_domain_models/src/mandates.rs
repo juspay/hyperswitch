@@ -812,7 +812,7 @@ impl From<&api_models::mandates::ProcessorPaymentToken> for ConnectorMandateRefe
             mandate_metadata: None,
             connector_mandate_request_reference_id: None,
             updated_mandate_details: None,
-            additional_mandate_details: token.processor_payment_token_details.clone().map(Box::new),
+            additional_mandate_details: token.processor_payment_token_details.clone().map(Box::new), // note: this is not persisted in payment_attempt table
         }
     }
 }

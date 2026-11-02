@@ -1,7 +1,6 @@
 #[cfg(feature = "olap")]
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::ext_traits::AsyncExt;
 #[cfg(feature = "v2")]
 use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
@@ -49,8 +48,6 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::HsetnxReply;
-#[cfg(feature = "olap")]
-use router_env::logger;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
@@ -404,6 +401,42 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             ),
         ))
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let payment_intent: PaymentIntent = Box::pin(self.find_resource_by_id_old(
+            merchant_key_store,
+            storage_scheme.inner(),
+            DieselPaymentIntent::find_by_payment_id_processor_merchant_id_profile_id(
+                &conn,
+                payment_id,
+                processor_merchant_id,
+                profile_id,
+            ),
+            FindResourceBy::Id(
+                payment_id.get_hash_key_for_kv_store(),
+                PartitionKey::MerchantIdPaymentId {
+                    merchant_id: processor_merchant_id,
+                    payment_id,
+                },
+            ),
+        ))
+        .await?;
+        if payment_intent.profile_id.as_ref() == Some(profile_id) {
+            Ok(payment_intent)
+        } else {
+            Err(StorageError::ValueNotFound("PaymentIntent not found".to_owned()).into())
+        }
     }
 
     #[cfg(feature = "v2")]
@@ -822,6 +855,42 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        merchant_key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        DieselPaymentIntent::find_by_payment_id_processor_merchant_id_profile_id(
+            &conn,
+            payment_id,
+            processor_merchant_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| {
+            let context = diesel_error_to_data_error(*error.current_context());
+            error.change_context(context)
+        })
+        .async_and_then(|payment_intent| async {
+            PaymentIntent::convert_back(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                payment_intent,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+        })
+        .await
+    }
+
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_payment_intent_by_id(
@@ -906,8 +975,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         );
 
         match filters {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
+            PaymentIntentFetchConstraints::Single {
+                payment_intent_id,
+                profile_id,
+            } => {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+                if let Some(profile_ids) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_ids.clone()));
+                }
             }
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
@@ -977,12 +1052,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let keymanager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, DieselPaymentIntent>(
             db_metrics::DatabaseOperation::Filter,
-            query.get_results_async::<DieselPaymentIntent>(conn.raw_connection()),
+            query,
         )
         .await
         .map(|payment_intents| {
@@ -1029,8 +1101,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         );
 
         query = match filters {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
+            PaymentIntentFetchConstraints::Single {
+                payment_intent_id,
+                profile_id,
+            } => {
+                query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+                if let Some(profile_ids) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_ids.clone()));
+                }
+                query
             }
             PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order {
@@ -1147,22 +1226,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            db_metrics::DatabaseOperation::Filter,
-            query.get_results_async::<(
-                DieselPaymentIntent,
-                diesel_models::payment_attempt::PaymentAttempt,
-            )>(conn.raw_connection()),
-        )
-        .await
-        .map_err(|er| {
-            error_stack::report!(StorageError::from(er))
-                .attach_printable("Error filtering platform payment records")
-        })
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, (
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>(db_metrics::DatabaseOperation::Filter, query)
+            .await
+            .map_err(|er| {
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering platform payment records")
+            })
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -1186,8 +1258,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         );
 
         query = match filters {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
+            PaymentIntentFetchConstraints::Single {
+                payment_intent_id,
+                profile_id,
+            } => {
+                query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+                if let Some(profile_ids) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_ids.clone()));
+                }
+                query
             }
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(processor_merchant_id) = &params.processor_merchant_id {
@@ -1266,13 +1345,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<DieselPaymentIntent as HasTable>::Table, _, i64>(
             db_metrics::DatabaseOperation::Count,
-            query.get_result_async::<i64>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {
@@ -1329,13 +1404,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             None => query,
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, (common_enums::IntentStatus, i64)>(
             db_metrics::DatabaseOperation::Filter,
-            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {
@@ -1354,7 +1425,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         storage_scheme: ProcessorStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         let mut query = diesel_models::list::into_boxed_list(
             DieselPaymentIntent::table()
                 .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.inner().to_owned()))
@@ -1367,8 +1437,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         );
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
+            PaymentIntentFetchConstraints::Single {
+                payment_intent_id,
+                profile_id,
+            } => {
+                query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+                if let Some(profile_ids) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_ids.clone()));
+                }
+                query
             }
             PaymentIntentFetchConstraints::List(params) => {
                 query = match params.order {
@@ -1522,18 +1599,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
         let keymanager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
         use crate::behaviour::Conversion;
 
-        query
-            .get_results_async::<(
-                DieselPaymentIntent,
-                diesel_models::payment_attempt::PaymentAttempt,
-            )>(conn)
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, (
+            DieselPaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        )>(db_metrics::DatabaseOperation::Filter, query)
             .await
             .async_map(|results| {
                 try_join_all(results.into_iter().map(|(pi, pa)| async {
@@ -1578,7 +1653,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         // Filtering on merchant_id for payment_attempt is not required for v2 as payment_attempt_ids are globally unique
         let mut query = diesel_models::list::into_boxed_list(
             DieselPaymentIntent::table()
@@ -1735,17 +1809,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
         let keymanager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
         use crate::behaviour::Conversion;
-        query
-            .get_results_async::<(
-                DieselPaymentIntent,
-                Option<diesel_models::payment_attempt::PaymentAttempt>,
-            )>(conn)
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, (
+            DieselPaymentIntent,
+            Option<diesel_models::payment_attempt::PaymentAttempt>,
+        )>(db_metrics::DatabaseOperation::Filter, query)
             .await
             .change_context(StorageError::DecryptionError)
             .async_and_then(|output| async {
@@ -1853,11 +1925,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, Option<String>>(
             db_metrics::DatabaseOperation::Filter,
-            query.get_results_async::<Option<String>>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {
@@ -1883,8 +1953,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         );
 
         query = match constraints {
-            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
-                query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
+            PaymentIntentFetchConstraints::Single {
+                payment_intent_id,
+                profile_id,
+            } => {
+                query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
+                if let Some(profile_ids) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq_any(profile_ids.clone()));
+                }
+                query
             }
             PaymentIntentFetchConstraints::List(params) => {
                 if let Some(customer_id) = &params.customer_id {
@@ -1939,11 +2016,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             }
         };
 
-        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<DieselPaymentIntent as HasTable>::Table, _, String>(
             db_metrics::DatabaseOperation::Filter,
-            query.get_results_async::<String>(conn.raw_connection()),
+            query,
         )
         .await
         .map_err(|er| {

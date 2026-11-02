@@ -183,6 +183,22 @@ impl DatabaseBackedConfig for RequiresCvv {
 }
 
 config! {
+    superposition_key = ALLOW_PAYMENT_METHOD_DATA_COLLECTION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AllowPaymentMethodDataCollection {
+    const KEY: &'static str = "system.allow_payment_method_data_collection";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,

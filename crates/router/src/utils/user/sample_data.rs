@@ -311,6 +311,7 @@ pub async fn generate_sample_data(
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -424,6 +425,7 @@ pub async fn generate_sample_data(
             let (connector_transaction_id, processor_transaction_data) =
                 ConnectorTransactionId::form_id_and_data(attempt_id.clone());
             Some(RefundNew {
+                feature_metadata: None,
                 refund_id: common_utils::generate_id_with_default_len("test"),
                 internal_reference_id: common_utils::generate_id_with_default_len("test"),
                 external_reference_id: None,

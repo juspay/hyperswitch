@@ -366,6 +366,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let (ack_response, webhook_effect, serialized_body) = match outcome {
         Ok(super::gateway::WebhookOutcome::Skipped {
             event_type,
+            masked_log_payload,
             ack_response,
             ..
         }) => {
@@ -380,7 +381,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             (
                 ack_response,
                 WebhookResponseTracker::NoEffect,
-                Secret::new(serde_json::Value::Null),
+                masked_log_payload,
             )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
@@ -552,6 +553,11 @@ async fn process_webhook_business_logic(
     } else if connector.is_webhook_source_verification_mandatory() {
         // if webhook consumption is mandatory for connector, fail webhook
         // so that merchant can retrigger it after updating merchant_secret
+        logger::warn!(
+            connector = %connector_name,
+            merchant_id = ?platform.get_processor().get_account().get_id(),
+            "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+        );
         return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
     } else {
         // Unverified webhooks fall back to syncing with the connector, so cap how many of them
@@ -4075,6 +4081,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         return Ok(super::gateway::WebhookOutcome::Skipped {
             reference: None,
             event_type,
+            masked_log_payload: Secret::new(serde_json::Value::Null),
             ack_response,
         });
     }

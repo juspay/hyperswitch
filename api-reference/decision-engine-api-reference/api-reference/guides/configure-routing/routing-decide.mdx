@@ -1,0 +1,90 @@
+---
+title: "Decide (Unified Contract)"
+description: "Curl example for /decide, the unified payment payload for hybrid routing."
+---
+
+# Decide
+
+`POST /decide` accepts a flat payment payload with nested `card` and `routing_config` objects. It runs the same hybrid evaluator as [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) — rule selection, Auth Rate routing, A/B experiments, scoring, and fallback handling.
+
+Send the same authentication and tenant headers used for `/routing/hybrid` (`Authorization: Bearer <token>` or `x-api-key: <key>`). Merchant sessions and API keys may only name their own `merchant_id`. A cross-merchant request returns `403`. Service callers can use the existing `x-admin-secret` header to act for the named routing scope. `/routing/hybrid` continues to accept its existing request and return its existing response.
+
+## Full request
+
+```bash
+curl --location "$BASE_URL/decide" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "payment_id": "pay_demo",
+    "merchant_id": "pro_demo",
+    "amount": 1000,
+    "currency": "USD",
+    "payment_method_type": "card",
+    "payment_method_sub_type": "credit",
+    "billing_country": "US",
+    "card": {
+      "card_isin": "001234",
+      "card_extended_bin": "00123456",
+      "card_network": "Visa",
+      "card_type": "credit",
+      "card_issuing_country_code": "US"
+    },
+    "metadata": {
+      "segment": "premium"
+    },
+    "routing_config": {
+      "algorithm_for": "payment",
+      "eligible_connectors": [
+        { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" },
+        { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko" }
+      ]
+    }
+  }'
+```
+
+The required fields are `payment_id`, `merchant_id`, `amount`, `currency`, `routing_config.algorithm_for`, and `routing_config.eligible_connectors`. Every input connector requires a nonempty `gateway_name` and `payment_merchant_connector_id`. Other fields may be omitted or null. Amounts are unsigned integers in minor units. BINs are strings and preserve leading zeros.
+
+## Field mapping
+
+| `/decide` field | Existing internal field |
+| --- | --- |
+| `amount` | static `amount` and `payment_amount`, plus dynamic payment amount |
+| `payment_method_type` | static `payment_method` |
+| `payment_method_sub_type` | static `payment_method_type` |
+| `card.card_isin` | `card_bin` |
+| `card.card_extended_bin` | `extended_card_bin` |
+| `card.card_issuer` | `issuer_name` |
+| `card.card_issuing_country_code` | `issuer_country` |
+| Root `merchant_id` | static `created_by` / dynamic merchant ID |
+| `routing_config.eligible_connectors` | hybrid candidate/fallback input |
+| `payment_merchant_connector_id` | `gateway_id` / account-qualified dynamic connector |
+
+Country codes use ISO alpha-2 values. The adapter translates them to the configured country names for rule matching. Other configured enum values retain an exact match when available, otherwise a case-insensitive match. Existing rule schemas and stored configurations keep their current names.
+
+`merchant_id` is the routing scope formerly called `created_by`. Integrations must continue sending the same identifier (the Hyperswitch profile ID where applicable). `routing_config.algorithm_for` remains explicit and required. It is not inferred from `payment_id`.
+
+`amount` is the single payment amount in this contract. It supplies both existing rule parameters, `amount` and `payment_amount`, without changing stored rule definitions. `metadata` supplies custom rule parameters without overwriting configured or reserved fields. `authentication_type` supplies both rule and dynamic authentication data. Preferred accounts and ranking/elimination options are forwarded to the existing decider. Feature and experiment gates still control whether it runs. `country` takes precedence over `billing_country`, then `business_country`.
+
+The removed fields (`payment_type`, `transaction_type`, EMI fields, `internal_metadata`, `order_amount`, `payment_amount`, `udfs`, `payment_metadata`, `payment_source`, `auth_type`, and `channel`), old `context` / `created_by`, top-level card fields, and `fallback_connectors` are not accepted by `/decide`. Other endpoints retain their existing contracts. Missing required fields, unknown fields, and incorrect JSON types return `400` in the standard invalid-request format.
+
+## Response
+
+```json
+{
+  "evaluated_connectors": [
+    { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" }
+  ],
+  "decision": {
+    "outcome": "routed",
+    "source": "volume_split",
+    "decision_id": "req_1234"
+  }
+}
+```
+
+`decision_id` matches the `x-request-id` response header. `source` identifies the static algorithm or dynamic routing approach. A `source` of `eligible_connectors` means hybrid used the supplied candidates after static evaluation failed. `outcome` is `routed` for a selection, `fallback` when hybrid uses a fallback, or `no_active_algorithm` / `no_eligible_connector` for an empty successful result.
+
+The endpoint preserves hybrid's connector order, selection, and errors. When there is no active rule, hybrid can still return the supplied candidates as a fallback. Existing hybrid candidate filtering still applies: a rule output outside the supplied candidate list falls back to eligible candidates. If a legacy rule returns only a gateway name, its response account ID is null. A dynamic success returns the same winning connector that hybrid puts in `evaluated_connectors`.
+
+The response omits the legacy static/dynamic diagnostic envelopes. Analytics retain those internal details, add the original `/decide` request and response, and identify the API route as `decide`. Decisions remain in the hybrid analytics and A/B experiment family.

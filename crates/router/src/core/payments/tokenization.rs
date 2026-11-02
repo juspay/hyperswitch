@@ -123,6 +123,7 @@ pub async fn save_in_locker(
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
     business_profile: &domain::Profile,
+    wallet_decrypt_preference: WalletDecryptedToken,
 ) -> RouterResult<(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
@@ -150,6 +151,7 @@ pub async fn save_in_locker(
                 platform.get_provider(),
                 payment_method_request,
                 card_detail,
+                wallet_decrypt_preference,
             )
             .await
         }
@@ -389,6 +391,19 @@ where
                 let customer_id = customer_id.to_owned().get_required_value("customer_id")?;
                 let is_network_tokenization_enabled =
                     business_profile.is_network_tokenization_enabled;
+
+                let should_save_walled_decrypted_token = dimensions
+                    .get_save_wallet_decrypted_data(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        Some(&customer_id),
+                    )
+                    .await;
+                let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
+                    save_payment_method_data.payment_method_token.as_ref(),
+                    should_save_walled_decrypted_token,
+                ));
+
                 let (
                     (mut resp, duplication_check, network_token_requestor_ref_id),
                     network_token_resp,
@@ -415,6 +430,7 @@ where
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
                         business_profile,
+                        wallet_decrypt_preference,
                     ))
                     .await?
                 };
@@ -985,18 +1001,6 @@ where
                         }
                     },
                     None => {
-                        let should_save_walled_decrypted_token = dimensions
-                            .get_save_wallet_decrypted_data(
-                                state.store.as_ref(),
-                                state.superposition_service.as_ref(),
-                                Some(&customer_id),
-                            )
-                            .await;
-                        let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
-                            save_payment_method_data.payment_method_token.as_ref(),
-                            should_save_walled_decrypted_token,
-                        ));
-
                         let check_for_customer_pm = payment_method_type
                             .map(|payment_method_type_value| {
                                 payment_method_type_value
@@ -1422,6 +1426,7 @@ pub async fn save_in_locker_internal(
     provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
+    wallet_decrypt_preference: WalletDecryptedToken,
 ) -> RouterResult<(
     domain::PaymentMethodResponse,
     Option<payment_methods::transformers::DataDuplicationCheck>,
@@ -1493,20 +1498,25 @@ pub async fn save_in_locker_internal(
             None,
             None,
             Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
-        ) => Box::pin(
-            PmCards { state, provider }.add_wallet_to_locker(
-                payment_method_request,
-                wallet_create_data,
-                provider.get_key_store(),
-                &customer_id,
-                customer_obj
-                    .get_global_id()
-                    .map(|id| id.get_string_repr().to_owned()),
-            ),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Wallet Failed"),
+        ) => match wallet_decrypt_preference {
+            WalletDecryptedToken::ApplePay | WalletDecryptedToken::GooglePay => Box::pin(
+                PmCards { state, provider }.add_wallet_to_locker(
+                    payment_method_request,
+                    wallet_create_data,
+                    provider.get_key_store(),
+                    &customer_id,
+                    customer_obj
+                        .get_global_id()
+                        .map(|id| id.get_string_repr().to_owned()),
+                ),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Wallet Failed"),
+            WalletDecryptedToken::None => {
+                get_default_payment_method(provider, payment_method_request, &customer_id)
+            }
+        },
         (
             None,
             None,
@@ -1523,29 +1533,52 @@ pub async fn save_in_locker_internal(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Redirect Failed"),
 
-        _ => {
-            let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-            let payment_method_response = domain::PaymentMethodResponse {
-                merchant_id: provider.get_account().get_id().clone(),
-                customer_id: Some(customer_id),
-                payment_method_id: pm_id,
-                payment_method: payment_method_request.payment_method,
-                payment_method_type: payment_method_request.payment_method_type,
-                #[cfg(feature = "payouts")]
-                bank_transfer: None,
-                card: None,
-                metadata: None,
-                created: Some(common_utils::date_time::now()),
-                recurring_enabled: Some(false),
-                installment_payment_enabled: Some(false),
-                payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
-                last_used_at: Some(common_utils::date_time::now()),
-                client_secret: None,
-                locker_fingerprint_id: None,
-            };
-            Ok((payment_method_response, None))
-        }
+        _ => get_default_payment_method(provider, payment_method_request, &customer_id),
     }
+}
+
+#[cfg(feature = "v1")]
+fn get_default_payment_method(
+    provider: &domain::Provider,
+    payment_method_request: api::PaymentMethodCreate,
+    customer_id: &id_type::CustomerId,
+) -> RouterResult<(
+    domain::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
+    let payment_method_response = domain::PaymentMethodResponse {
+        merchant_id: provider.get_account().get_id().clone(),
+        customer_id: Some(customer_id.clone()),
+        payment_method_id: pm_id,
+        payment_method: payment_method_request.payment_method,
+        payment_method_type: payment_method_request.payment_method_type,
+        #[cfg(feature = "payouts")]
+        bank_transfer: None,
+        card: None,
+        metadata: None,
+        created: Some(common_utils::date_time::now()),
+        recurring_enabled: Some(false),
+        installment_payment_enabled: Some(false),
+        payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]), //[#219]
+        last_used_at: Some(common_utils::date_time::now()),
+        client_secret: None,
+        locker_fingerprint_id: None,
+    };
+    Ok((payment_method_response, None))
+}
+
+#[cfg(feature = "v2")]
+fn get_default_payment_method(
+    state: &SessionState,
+    provider: &domain::Provider,
+    payment_method_request: api::PaymentMethodCreate,
+    customer_id: &id_type::CustomerId,
+) -> RouterResult<(
+    api_models::payment_methods::PaymentMethodResponse,
+    Option<payment_methods::transformers::DataDuplicationCheck>,
+)> {
+    todo!()
 }
 
 #[cfg(feature = "v1")]
@@ -2161,6 +2194,7 @@ pub async fn save_card_and_network_token_in_locker(
     payment_method_create_request: api::PaymentMethodCreate,
     _is_network_tokenization_enabled: bool,
     business_profile: &domain::Profile,
+    wallet_decrypt_preference: WalletDecryptedToken,
 ) -> RouterResult<(
     (
         domain::PaymentMethodResponse,
@@ -2200,6 +2234,7 @@ pub async fn save_card_and_network_token_in_locker(
                 payment_method_create_request.to_owned(),
                 Some(card_data),
                 business_profile,
+                wallet_decrypt_preference,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2226,6 +2261,7 @@ pub async fn save_card_and_network_token_in_locker(
                     platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
+                    wallet_decrypt_preference,
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2271,6 +2307,7 @@ pub async fn save_card_and_network_token_in_locker(
                     platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
+                    wallet_decrypt_preference,
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2287,6 +2324,7 @@ pub async fn save_card_and_network_token_in_locker(
                 payment_method_create_request.to_owned(),
                 card_data,
                 business_profile,
+                wallet_decrypt_preference,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

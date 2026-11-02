@@ -1098,6 +1098,8 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
             customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            // Chargebee invoices come from subscriptions, so recovery retries are sent as recurring merchant initiated transactions
+            mit_category: Some(common_enums::MitCategory::Recurring),
         })
     }
 }

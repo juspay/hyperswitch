@@ -10,6 +10,8 @@ use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v2")]
+use super::generics::db_metrics::DatabaseOperation;
+#[cfg(feature = "v2")]
 use crate::customers::CustomerGlobalIdMigrationRow;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
@@ -61,8 +63,11 @@ impl Customer {
                 dsl::version,
             ));
 
-        match query
-            .first_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
+        match conn
+            .track_first::<<Self as HasTable>::Table, _, CustomerGlobalIdMigrationRow>(
+                DatabaseOperation::FindOne,
+                query,
+            )
             .await
         {
             Ok(row) => Ok(row),
@@ -97,8 +102,11 @@ impl Customer {
             dsl::version,
         ));
 
-        match query
-            .get_result_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
+        match conn
+            .track_get_result::<<Self as HasTable>::Table, _, CustomerGlobalIdMigrationRow>(
+                DatabaseOperation::UpdateOne,
+                query,
+            )
             .await
         {
             Ok(row) => Ok(row),
