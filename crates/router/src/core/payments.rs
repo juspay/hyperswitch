@@ -10458,7 +10458,7 @@ where
                 .map(|mandate_reference| mandate_reference.is_network_mandate_id())
                 .unwrap_or(false);
 
-            let payment_method_action = decide_payment_method_tokenize_action(
+            let payment_method_action = Box::pin(decide_payment_method_tokenize_action(
                 state,
                 &connector,
                 payment_method,
@@ -10466,7 +10466,7 @@ where
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
                 is_network_transaction_id_flow,
-            )
+            ))
             .await?;
 
             let connector_tokenization_action = match payment_method_action {
@@ -12935,7 +12935,15 @@ where
                 }
             }
 
-            payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
+            payment_data.set_recurring_mandate_payment_data(
+                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                    network_transaction_id: payment_method_info.network_transaction_id.clone(),
+                    network_transaction_link_id: payment_method_info
+                        .network_transaction_link_id
+                        .clone(),
+                    ..mandate_reference_record.into()
+                },
+            );
 
             Some(mandates::MandateReferenceId::ConnectorMandateId(
                 mandates::ConnectorMandateReferenceId::new(
@@ -13027,7 +13035,13 @@ where
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
-                                mandate_reference_record.into(),
+                                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                                    network_transaction_id: payment_method_info.network_transaction_id.clone(),
+                                    network_transaction_link_id: payment_method_info
+                                        .network_transaction_link_id
+                                        .clone(),
+                                    ..mandate_reference_record.into()
+                                },
                             );
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;

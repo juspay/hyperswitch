@@ -248,6 +248,9 @@ impl From<&PaymentsMandateReferenceRecord> for RecurringMandatePaymentData {
             original_payment_authorized_currency: mandate_reference_record
                 .original_payment_authorized_currency,
             mandate_metadata: mandate_reference_record.mandate_metadata.clone(),
+            // Lives on the payment method, not the mandate record; set by the caller.
+            network_transaction_id: None,
+            network_transaction_link_id: None,
         }
     }
 }
