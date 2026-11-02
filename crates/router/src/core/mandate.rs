@@ -49,7 +49,7 @@ pub async fn get_mandate(
     Ok(services::ApplicationResponse::Json(
         mandates::MandateResponse::from_db_mandate(
             &state,
-            platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store().inner().clone(),
             mandate,
             platform.get_processor().get_account(),
         )
@@ -249,7 +249,7 @@ pub async fn get_customer_mandates(
             response_vec.push(
                 mandates::MandateResponse::from_db_mandate(
                     &state,
-                    platform.get_processor().get_key_store().clone(),
+                    platform.get_processor().get_key_store().inner().clone(),
                     mandate,
                     platform.get_processor().get_account(),
                 )
@@ -416,7 +416,7 @@ pub async fn retrieve_mandates_list(
     let mandates_list = future::try_join_all(mandates.into_iter().map(|mandate| {
         mandates::MandateResponse::from_db_mandate(
             &state,
-            platform.get_processor().get_key_store().clone(),
+            platform.get_processor().get_key_store().inner().clone(),
             mandate,
             platform.get_processor().get_account(),
         )

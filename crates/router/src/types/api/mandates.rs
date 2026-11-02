@@ -68,7 +68,7 @@ impl MandateResponseExt for MandateResponse {
         let card = if pm == storage_enums::PaymentMethod::Card {
             // if locker is disabled , decrypt the payment method data
             let card_details = if state.conf.locker.locker_enabled {
-                let card = payment_methods::cards::get_card_from_locker(
+                let card = Box::pin(payment_methods::cards::get_card_from_locker(
                     state,
                     &customer_id,
                     &payment_method.merchant_id,
@@ -76,7 +76,7 @@ impl MandateResponseExt for MandateResponse {
                         .locker_id
                         .as_ref()
                         .unwrap_or(payment_method.get_id()),
-                )
+                ))
                 .await?
                 .get_card();
 
@@ -109,6 +109,7 @@ impl MandateResponseExt for MandateResponse {
         let user_agent = mandate.get_user_agent_extended().unwrap_or_default();
         Ok(Self {
             mandate_id: mandate.mandate_id,
+            payment_id: mandate.original_payment_id,
             customer_acceptance: Some(api::payments::CustomerAcceptance {
                 acceptance_type: if mandate.customer_ip_address.is_some() {
                     api::payments::AcceptanceType::Online

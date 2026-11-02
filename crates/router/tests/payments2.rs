@@ -258,6 +258,7 @@ async fn payments_create_core() {
         connector_customer_id: None,
         sender_payment_instrument_id: None,
         payment_account_reference: None,
+        enable_avs_check: None,
     };
 
     let expected_response =
@@ -585,6 +586,7 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_customer_id: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            enable_avs_check: None,
         },
         vec![],
     ));

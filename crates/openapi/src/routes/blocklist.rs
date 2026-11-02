@@ -3,6 +3,7 @@
     path = "/blocklist/count",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of blocklist entries to count"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Counts only payment or payout when selected. When omitted, counts both, including legacy NULL entries. Legacy NULL entries belong to payment when filtered."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the count to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
@@ -30,6 +31,7 @@ pub async fn get_blocklist_count() {}
     path = "/blocklist/lookup",
     params (
         ("data" = String, Query, description = "The raw value to check against the blocklist, e.g. a card BIN"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Looks up only payment or payout when selected. When omitted, both are included. Legacy NULL transaction namespaces belong to payment."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the lookup to entries \
          belonging to this business profile, plus entries with no profile. If omitted, the \
          merchant's default profile is used; merchants with more than one profile have no default \
@@ -43,7 +45,7 @@ pub async fn get_blocklist_count() {}
          )
     ),
     responses(
-        (status = 200, description = "Blocklist lookup result", body = BlocklistLookupResponse),
+        (status = 200, description = "All matches within the resolved profile, including merchant-wide entries. transaction_types contains distinct matching payment/payout namespaces, without data kinds or profile IDs.", body = BlocklistLookupResponse),
         (status = 400, description = "Invalid Data, or no profile could be resolved")
     ),
     tag = "Blocklist",
@@ -78,7 +80,7 @@ pub async fn toggle_blocklist_guard() {}
 #[utoipa::path(
     post,
     path = "/blocklist",
-    request_body = BlocklistRequest,
+    request_body = BlocklistEntryRequest,
     params (
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to block this \
          entry under. Ignored when authenticating with a JWT, which carries its own profile. If \
@@ -105,7 +107,7 @@ pub async fn add_entry_to_blocklist() {}
 #[utoipa::path(
     delete,
     path = "/blocklist",
-    request_body = BlocklistRequest,
+    request_body = BlocklistEntryRequest,
     params (
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile to unblock \
          this entry from. Only entries belonging to that profile, or entries with no profile, are \
@@ -135,6 +137,7 @@ pub async fn remove_entry_from_blocklist() {}
     path = "/blocklist",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
          belonging to this business profile, plus entries with no profile. When no profile can be \
          resolved - as with publishable-key authentication - all of the merchant's entries are \
@@ -165,12 +168,15 @@ pub async fn list_blocked_payment_methods() {}
         content_type = "multipart/form-data",
         description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
             The part's `filename` is recorded on the job and returned as `file_name`. \
-            The CSV must have a header row: `type,data,metadata`. \
-            `type`: one of `generic_card_bin` (6 to 10 digits), `fingerprint`. \
+            The CSV header is `type,data,metadata,transaction_type`; older headers without `transaction_type` are accepted. \
+            `type`: one of `generic_card_bin` (6 to 10 digits), `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
+            `transaction_type`: optional, `payment` (default) or `payout`; selection may differ per row. \
+            Invalid CSV transaction-type values are rejected even when a query override is selected. \
             Maximum 100,000 data rows.",
     ),
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Overrides every CSV row with payment or payout when selected. When omitted, row selections are used; missing or empty row values default to payment."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile every entry \
          in this upload is blocked under. Resolution follows the same rules as blocking a single \
          entry."),
@@ -252,6 +258,8 @@ pub async fn list_batch_blocklist_jobs() {}
     post,
     path = "/blocklist/export",
     params (
+        ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Exports only \
+         `payment` or `payout` entries when selected. Both are exported when omitted."),
         ("X-Profile-Id" = Option<String>, Header, description = "The business profile whose \
          blocklist is exported. Resolution follows the same rules as blocking a single entry."),
          (
@@ -264,7 +272,7 @@ pub async fn list_batch_blocklist_jobs() {}
     ),
     responses(
         (status = 202, description = "Blocklist export started", body = BlocklistExportResponse),
-        (status = 400, description = "No profile could be resolved"),
+        (status = 400, description = "Invalid transaction type, or no profile could be resolved"),
     ),
     tag = "Blocklist",
     operation_id = "Start a blocklist CSV export",

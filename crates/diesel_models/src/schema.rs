@@ -234,6 +234,7 @@ diesel::table! {
         created_by -> Nullable<Varchar>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        transaction_type -> Nullable<Text>,
     }
 }
 
@@ -400,6 +401,7 @@ diesel::table! {
         #[max_length = 512]
         connector_capture_data -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -515,6 +517,8 @@ diesel::table! {
         #[max_length = 64]
         id -> Nullable<Varchar>,
         preferred_connectors -> Nullable<Jsonb>,
+        #[max_length = 64]
+        merchant_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1370,6 +1374,8 @@ diesel::table! {
         external_surcharge_applicable -> Nullable<Bool>,
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
+        enable_avs_check -> Nullable<Bool>,
+        settlement_conclusion_applied -> Nullable<Bool>,
     }
 }
 
@@ -1700,6 +1706,7 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 

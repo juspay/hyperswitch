@@ -216,8 +216,10 @@ pub async fn generate_sample_data(
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
-        let is_failed_payment =
-            (random_array.get(num - 1).unwrap_or(&0) % failure_after_attempts) == 0;
+        let is_failed_payment = random_array
+            .get(num - 1)
+            .unwrap_or(&0)
+            .is_multiple_of(failure_after_attempts);
 
         let payment_intent = PaymentIntent {
             payment_id: payment_id.clone(),
@@ -308,6 +310,8 @@ pub async fn generate_sample_data(
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -421,6 +425,7 @@ pub async fn generate_sample_data(
             let (connector_transaction_id, processor_transaction_data) =
                 ConnectorTransactionId::form_id_and_data(attempt_id.clone());
             Some(RefundNew {
+                feature_metadata: None,
                 refund_id: common_utils::generate_id_with_default_len("test"),
                 internal_reference_id: common_utils::generate_id_with_default_len("test"),
                 external_reference_id: None,

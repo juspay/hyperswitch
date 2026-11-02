@@ -188,25 +188,36 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
         let payment_method_wrapper = payment_method_fetch_data.payment_method_with_raw_data;
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
+        let payment_intent = match payment_method_fetch_data.payment_intent {
+            Some(payment_intent) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    payment_intent.profile_id.as_ref(),
+                )?;
+                payment_intent
+            }
+            None => helpers::find_payment_intent(
+                db,
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
+                profile_id_from_auth_layer,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         if [
             Some(common_enums::PaymentSource::Webhook),
@@ -240,16 +251,62 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )?;
         }
 
-        let mut payment_attempt = db
+        let active_payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // The vault card arm of a fallback follows an earlier attempt on the same intent, so it
+        // needs its own attempt or that attempt's decline is overwritten. Only that case: a 3DS
+        // resume reaches this operation with its authentication on the active attempt, and a new
+        // attempt would drop `authentication_id` and authorize without the 3DS result.
+        let needs_new_attempt =
+            request
+                .recurring_details
+                .as_ref()
+                .is_some_and(|recurring_details| {
+                    matches!(
+                    recurring_details,
+                    api_models::mandates::RecurringDetails::NetworkTransactionIdAndVaultCardDetails(
+                        _
+                    )
+                )
+                })
+                && active_payment_attempt.status.is_terminal_status();
+
+        let (payment_intent, mut payment_attempt) = match needs_new_attempt {
+            true => {
+                let previous_connector = active_payment_attempt.connector.clone();
+                let previous_merchant_connector_id =
+                    active_payment_attempt.merchant_connector_id.clone();
+
+                let (payment_intent, mut payment_attempt) = Box::pin(
+                    helpers::AttemptType::New.modify_payment_intent_and_payment_attempt(
+                        request,
+                        payment_intent,
+                        active_payment_attempt,
+                        state,
+                        platform.get_processor().get_key_store(),
+                        storage_scheme,
+                    ),
+                )
+                .await?;
+
+                // The manual retry helper clears both, but the network transaction ID was issued
+                // by the connector that declined, so the fallback has to stay on it.
+                payment_attempt.connector = previous_connector;
+                payment_attempt.merchant_connector_id = previous_merchant_connector_id;
+
+                (payment_intent, payment_attempt)
+            }
+            false => (payment_intent, active_payment_attempt),
+        };
 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.get_total_amount().into();
@@ -259,8 +316,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -269,8 +326,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -279,8 +336,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
-            storage_scheme,
+            &processor_merchant_id,
+            storage_scheme.inner(),
         )
         .await?;
 
@@ -410,6 +467,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             });
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -502,7 +560,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let connector = payment_data.payment_attempt.connector.clone();
@@ -584,6 +642,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
+                    setup_future_usage_applied: payment_data
+                        .payment_attempt
+                        .setup_future_usage_applied,
                     currency: payment_data.currency,
                     status: attempt_status,
                     payment_method,
@@ -602,7 +663,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .clone(),
                     error_code,
                     error_message,
-                    updated_by: storage_scheme.to_string(),
+                    updated_by: storage_scheme.inner().to_string(),
                     merchant_connector_id,
                     external_three_ds_authentication_attempted,
                     external_threeds_authentication_type,
@@ -681,7 +742,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     payment_data.payment_intent.clone(),
                     storage::PaymentIntentUpdate::PGStatusUpdate {
                         status: intent_status,
-                        updated_by: storage_scheme.to_string(),
+                        updated_by: storage_scheme.inner().to_string(),
                         incremental_authorization_allowed: payment_data
                             .payment_intent
                             .incremental_authorization_allowed,
@@ -740,7 +801,24 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         req: &PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<PaymentMethodFetchData> {
+        let payment_id = req
+            .payment_id
+            .as_ref()
+            .get_required_value("payment_id")?
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = helpers::find_payment_intent(
+            state.store.as_ref(),
+            &payment_id,
+            &platform.get_processor().get_processor_merchant_id(),
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_storage_scheme(),
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         // Only the saved-card token flow (`VaultCardTokenData`) needs an up-front fetch. The inline
         // `VaultDataCard` flow carries the card on the request and is parsed in `get_trackers`.
         let card_token = req
@@ -760,7 +838,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
 
         // A fetch is only needed for the saved-card token flow, and only when the org is eligible
         // for the modular PM service. Every other case has nothing to fetch up front.
-        let fetch_data = match card_token {
+        let mut fetch_data = match card_token {
             Some(card_token) if feature_config.is_payment_method_modular_allowed => {
                 // 1. Resolve the payment_token to the actual stored payment_method_id via Redis.
                 //    This uses the same key construction as the regular Confirm flow's
@@ -787,12 +865,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
 
                 // 2. Retrieve the external vault tokens for that payment method from the modular PM
                 //    service.
-                let profile_id = platform
-                    .get_processor()
-                    .get_account()
-                    .get_default_profile()
-                    .clone()
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
                     .get_required_value("profile_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "profile_id is required to fetch external vault tokens from the modular service",
                     )?;
@@ -801,7 +878,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     pm_transformers::fetch_payment_method_from_modular_service(
                         state,
                         platform,
-                        &profile_id,
+                        profile_id,
                         &payment_method_id,
                         Some(card_token),
                         // External vault proxy cards are not in the internal vault; requesting raw
@@ -826,6 +903,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             // Not a token flow — nothing to fetch up front.
             None => PaymentMethodFetchData::default(),
         };
+        fetch_data.payment_intent = Some(payment_intent);
 
         Ok(fetch_data)
     }

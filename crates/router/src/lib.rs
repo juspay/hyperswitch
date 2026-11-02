@@ -317,6 +317,10 @@ pub fn mk_app(
     {
         server_app = server_app.service(routes::Poll::server(state.clone()))
     }
+    #[cfg(all(feature = "oltp", feature = "v1"))]
+    {
+        server_app = server_app.service(routes::TelephoneOrder::server(state.clone()))
+    }
 
     #[cfg(feature = "olap")]
     {
@@ -358,7 +362,7 @@ pub fn mk_app(
                 .service(routes::ProcessTrackerDeprecated::server(state.clone()))
                 .service(routes::ProcessTracker::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
-                .service(routes::RecoveryDataBackfill::server(state.clone()))
+                .service(routes::RevenueRecovery::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()));
         }
     }

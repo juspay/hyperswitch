@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
@@ -29,6 +31,7 @@ use common_utils::{
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
+    validation::ValidateXSSOrSQLi,
 };
 use diesel_models::{
     enums as storage_enums,
@@ -41,7 +44,6 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -52,6 +54,8 @@ use validator::PayoutExecutionKindValidation;
 
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
+#[cfg(feature = "payout_retry")]
+use crate::core::fraud_check::types::PayoutFrmApplicability;
 #[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
@@ -115,6 +119,9 @@ macro_rules! handle_payout_pre_frm_result {
         }
     }};
 }
+
+#[cfg(feature = "payout_retry")]
+pub(super) use handle_payout_pre_frm_result;
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
@@ -292,14 +299,14 @@ pub async fn make_connector_decision(
 
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -330,6 +337,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -345,14 +354,14 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut routing_data)?.connector_data;
 
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -384,6 +393,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -401,6 +412,7 @@ pub async fn make_connector_decision(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn predetermined_call_connector_type_payout_retry(
     state: &SessionState,
     connector_data: api::ConnectorData,
@@ -408,6 +420,8 @@ async fn predetermined_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_bool = retry::config_should_call_gsm_payout(
         state,
@@ -425,6 +439,8 @@ async fn predetermined_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload,
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
@@ -433,6 +449,7 @@ async fn predetermined_call_connector_type_payout_retry(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn retryable_call_connector_type_payout_retry(
     state: &SessionState,
     routing_data: IntoIter<api::ConnectorRoutingData>,
@@ -441,6 +458,8 @@ async fn retryable_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
         state,
@@ -450,8 +469,10 @@ async fn retryable_call_connector_type_payout_retry(
     )
     .await;
 
+    let mut frm_outcome = PayoutFrmOutcome::Continue;
+
     if config_multiple_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_multiple_connector_actions(
+        frm_outcome = Box::pin(retry::do_gsm_multiple_connector_actions(
             state,
             routing_data,
             connector_data.clone(),
@@ -459,28 +480,34 @@ async fn retryable_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload.clone(),
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
 
-    let config_single_connector_bool = retry::config_should_call_gsm_payout(
-        state,
-        dimensions,
-        PayoutRetryType::SingleConnector,
-        payout_data.payouts.customer_id.as_ref(),
-    )
-    .await;
-
-    if config_single_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_single_connector_actions(
+    if frm_outcome == PayoutFrmOutcome::Continue {
+        let config_single_connector_bool = retry::config_should_call_gsm_payout(
             state,
-            connector_data,
-            payout_data,
-            platform,
             dimensions,
-            header_payload,
-        ))
-        .await?;
+            PayoutRetryType::SingleConnector,
+            payout_data.payouts.customer_id.as_ref(),
+        )
+        .await;
+
+        if config_single_connector_bool && payout_data.should_call_gsm() {
+            Box::pin(retry::do_gsm_single_connector_actions(
+                state,
+                connector_data,
+                payout_data,
+                platform,
+                dimensions,
+                header_payload,
+                pre_frm_failure_mode,
+                payout_frm_applicability,
+            ))
+            .await?;
+        }
     }
 
     Ok(())
@@ -703,7 +730,7 @@ pub async fn payouts_create_core(
             .customer_id
             .clone()
             .get_required_value("customer_id when payout_method_data is provided")?;
-        payout_data.payout_method_data = helpers::make_payout_method_data(
+        payout_data.payout_method_data = Box::pin(helpers::make_payout_method_data(
             &state,
             req.payout_method_data.as_ref(),
             payout_attempt.payout_token.as_deref(),
@@ -713,7 +740,7 @@ pub async fn payouts_create_core(
             platform.get_processor().get_key_store(),
             Some(&mut payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?;
     }
 
@@ -737,6 +764,7 @@ pub async fn payouts_create_core(
 pub async fn payouts_confirm_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -747,7 +775,7 @@ pub async fn payouts_confirm_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -806,6 +834,7 @@ pub async fn payouts_confirm_core(
 pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -817,7 +846,7 @@ pub async fn payouts_update_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -851,7 +880,7 @@ pub async fn payouts_update_core(
             .customer_id
             .clone()
             .get_required_value("customer_id when payout_method_data is provided")?;
-        payout_data.payout_method_data = helpers::make_payout_method_data(
+        payout_data.payout_method_data = Box::pin(helpers::make_payout_method_data(
             &state,
             req.payout_method_data.as_ref(),
             payout_attempt.payout_token.as_deref(),
@@ -861,7 +890,7 @@ pub async fn payouts_update_core(
             platform.get_processor().get_key_store(),
             Some(&mut payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?;
     }
 
@@ -937,13 +966,14 @@ pub async fn payouts_retrieve_core(
 pub async fn payouts_cancel_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -1048,13 +1078,14 @@ pub async fn payouts_cancel_core(
 pub async fn payouts_fulfill_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -1097,7 +1128,13 @@ pub async fn payouts_fulfill_core(
         .attach_printable("Connector not found for payout fulfillment")?,
     };
 
-    helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &platform).await?;
+    Box::pin(helpers::fetch_payout_method_data(
+        &state,
+        &mut payout_data,
+        &connector_data,
+        &platform,
+    ))
+    .await?;
 
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
@@ -1188,6 +1225,7 @@ pub async fn payouts_list_core(
                             merchant_id,
                             platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
+                            false,
                         )
                         .await
                         .map_err(|err| {
@@ -1317,7 +1355,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1339,7 +1377,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1579,7 +1617,13 @@ pub async fn call_connector_payout(
 
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
-        helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
+        Box::pin(helpers::fetch_payout_method_data(
+            state,
+            payout_data,
+            connector_data,
+            platform,
+        ))
+        .await?;
     }
 
     #[cfg(feature = "v1")]
@@ -3761,6 +3805,24 @@ pub async fn make_payout_data(
 }
 
 #[cfg(feature = "v1")]
+fn authenticate_payout_client_secret(
+    request_client_secret: Option<&str>,
+    stored_client_secret: Option<&str>,
+) -> Result<(), errors::ApiErrorResponse> {
+    match request_client_secret {
+        Some(request_client_secret)
+            if stored_client_secret.is_some_and(|secret| secret == request_client_secret) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        // Merchant-authenticated requests do not carry a client secret. Client-authenticated
+        // requests are required to provide one before reaching this validation.
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
@@ -3820,7 +3882,32 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        authenticate_payout_client_secret(
+            request.client_secret.as_deref(),
+            payouts.client_secret.as_deref(),
+        )?;
+    }
+
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        validator::validate_payout_condition(
+            request
+                .merchant_id
+                .as_ref()
+                .is_some_and(|request_merchant_id| request_merchant_id != merchant_id),
+            "Payout merchant does not match the authenticated merchant",
+        )?;
+        validator::validate_payout_condition(
+            request
+                .profile_id
+                .as_ref()
+                .is_some_and(|request_profile_id| request_profile_id != &payouts.profile_id),
+            "Payout profile does not match the existing payout",
+        )?;
+    }
 
     let payout_attempt_id =
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
@@ -3874,6 +3961,7 @@ pub async fn make_payout_data(
                 merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
@@ -3900,7 +3988,7 @@ pub async fn make_payout_data(
                         .as_ref()
                         .map(|cd| cd.get_id().to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
-                    helpers::make_payout_method_data(
+                    Box::pin(helpers::make_payout_method_data(
                         state,
                         None,
                         Some(&payout_token),
@@ -3910,7 +3998,7 @@ pub async fn make_payout_data(
                         platform.get_processor().get_key_store(),
                         None,
                         platform.get_processor().get_account().storage_scheme,
-                    )
+                    ))
                     .await?
                 }
                 None => None,
@@ -4196,6 +4284,9 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     let test_mode_in_config = payout_link_config_req
         .as_ref()

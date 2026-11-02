@@ -508,6 +508,26 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .find_payment_method_by_fingerprint_id(key_store, fingerprint_id)
             .await
     }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        self.router_store
+            .find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+                key_store,
+                customer_id,
+                merchant_id,
+                auxiliary_fingerprint_id,
+                status,
+            )
+            .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -537,10 +557,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.call_database_new(
+        Box::pin(self.call_database_new(
             key_store,
             PaymentMethod::find_by_id(&conn, payment_method_id),
-        )
+        ))
         .await
     }
 
@@ -569,7 +589,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_merchant_id_payment_method_ids(
                 &conn,
@@ -577,7 +597,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 payment_method_ids,
                 Some(200),
             ),
-        )
+        ))
         .await
     }
 
@@ -710,10 +730,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id, limit),
-        )
+        ))
         .await
     }
 
@@ -727,10 +747,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         limit: Option<i64>,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id(&conn, id, limit),
-        )
+        ))
         .await
     }
 
@@ -746,7 +766,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id_status(
                 &conn,
@@ -755,7 +775,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 status,
                 limit,
             ),
-        )
+        ))
         .await
     }
 
@@ -772,7 +792,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_customer_id_merchant_id_status_pm_type(
                 &conn,
@@ -782,7 +802,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 payment_method_type,
                 limit,
             ),
-        )
+        ))
         .await
     }
 
@@ -798,7 +818,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id_merchant_id_status(
                 &conn,
@@ -807,7 +827,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 status,
                 limit,
             ),
-        )
+        ))
         .await
     }
 
@@ -823,7 +843,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resources_new(
+        Box::pin(self.find_resources_new(
             key_store,
             PaymentMethod::find_by_global_customer_id_merchant_id_statuses(
                 &conn,
@@ -832,7 +852,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 statuses,
                 limit,
             ),
-        )
+        ))
         .await
     }
 
@@ -892,6 +912,29 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             key_store,
             PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id),
         )
+        .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        Box::pin(self.find_resources_new(
+            key_store,
+            PaymentMethod::find_by_auxiliary_fingerprint_id_and_status(
+                &conn,
+                customer_id,
+                merchant_id,
+                auxiliary_fingerprint_id,
+                status,
+            ),
+        ))
         .await
     }
 }
@@ -1252,6 +1295,27 @@ impl PaymentMethodInterface for MockDb {
             "cannot find payment method".to_string(),
         )
         .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_payment_methods_by_auxiliary_fingerprint_id_and_status(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: common_enums::PaymentMethodStatus,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let find_pm_by = |pm: &&PaymentMethod| {
+            pm.customer_id.as_ref() == Some(customer_id)
+                && pm.merchant_id == *merchant_id
+                && pm.auxiliary_fingerprint_id.as_deref() == Some(auxiliary_fingerprint_id)
+                && pm.status == status
+        };
+        let error_message = "cannot find payment method".to_string();
+        self.get_resources_new(key_store, payment_methods, find_pm_by, error_message)
+            .await
     }
 }
 
