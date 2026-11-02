@@ -1,6 +1,8 @@
+#[cfg(feature = "v1")]
 use common_utils::types::MinorUnit;
 use diesel_models::refund as diesel_refund;
 use error_stack::report;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::refunds::RefundNetAmount;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
@@ -51,6 +53,36 @@ pub fn validate_success_transaction(
 
 #[instrument(skip_all)]
 pub fn validate_refund_amount(
+    amount_captured: i64,
+    all_refunds: &[diesel_refund::Refund],
+    refund_amount: i64,
+) -> CustomResult<(), RefundValidationError> {
+    let total_refunded_amount: i64 = all_refunds
+        .iter()
+        .filter_map(|refund| {
+            if refund.refund_status != enums::RefundStatus::Failure
+                && refund.refund_status != enums::RefundStatus::TransactionFailure
+            {
+                Some(refund.refund_amount.get_amount_as_i64())
+            } else {
+                None
+            }
+        })
+        .sum();
+
+    utils::when(
+        refund_amount > (amount_captured - total_refunded_amount),
+        || {
+            Err(report!(
+                RefundValidationError::RefundAmountExceedsPaymentAmount
+            ))
+        },
+    )
+}
+
+#[instrument(skip_all)]
+#[cfg(feature = "v1")]
+pub fn validate_refund_net_amount(
     amount_captured: MinorUnit,
     all_refunds: &[diesel_refund::Refund],
     refund_net_amount: RefundNetAmount,

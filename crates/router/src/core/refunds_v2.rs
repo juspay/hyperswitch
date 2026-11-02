@@ -5,7 +5,7 @@ use common_utils::{id_type, types as common_utils_types};
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    refunds::{RefundListConstraints, RefundNetAmount},
+    refunds::RefundListConstraints,
     router_data::{ErrorResponse, RouterData},
     router_data_v2::RefundFlowData,
 };
@@ -1206,14 +1206,14 @@ pub async fn validate_and_create_refund(
         ),
     })?;
 
-    let refund_net_amount = RefundNetAmount::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
+
     refunds_validator::validate_refund_amount(
-        total_amount_captured,
+        total_amount_captured.get_amount_as_i64(),
         &all_refunds,
-        refund_net_amount,
+        refund_amount.get_amount_as_i64(),
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
@@ -1251,9 +1251,7 @@ pub async fn validate_and_create_refund(
         connector,
         refund_type: enums::RefundType::foreign_from(req.refund_type.unwrap_or_default()),
         total_amount: payment_attempt.get_total_amount(),
-        refund_amount: refund_net_amount.get_refund_amount(),
-        refund_surcharge_amount: refund_net_amount.get_refund_surcharge_amount(),
-        net_refund_amount: Some(refund_net_amount.get_total_amount()),
+        refund_amount,
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),

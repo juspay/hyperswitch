@@ -1750,7 +1750,7 @@ pub async fn validate_and_create_refund(
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_net_amount)
+    validator::validate_refund_net_amount(total_amount_captured, &all_refunds, refund_net_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
@@ -2327,6 +2327,8 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
+            net_amount: refund.net_refund_amount,
+            surcharge_refund_amount: refund.refund_surcharge_amount,
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),

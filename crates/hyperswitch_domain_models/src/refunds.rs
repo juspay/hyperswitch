@@ -1,3 +1,4 @@
+#[cfg(feature = "v1")]
 use common_utils::types::MinorUnit;
 
 #[cfg(feature = "v2")]
@@ -6,6 +7,7 @@ use crate::business_profile::Profile;
 use crate::errors;
 
 /// Amounts that make up a refund. Older refunds have no surcharge component.
+#[cfg(feature = "v1")]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RefundNetAmount {
     refund_amount: MinorUnit,
@@ -13,6 +15,7 @@ pub struct RefundNetAmount {
     refund_surcharge_amount: Option<MinorUnit>,
 }
 
+#[cfg(feature = "v1")]
 impl RefundNetAmount {
     pub fn new(refund_amount: MinorUnit, refund_surcharge_amount: Option<MinorUnit>) -> Self {
         Self {
@@ -34,12 +37,14 @@ impl RefundNetAmount {
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<MinorUnit> for RefundNetAmount {
     fn from(refund_amount: MinorUnit) -> Self {
         Self::new(refund_amount, None)
     }
 }
 
+#[cfg(feature = "v1")]
 impl From<&diesel_models::refund::Refund> for RefundNetAmount {
     fn from(refund: &diesel_models::refund::Refund) -> Self {
         Self::new(refund.refund_amount, refund.refund_surcharge_amount)

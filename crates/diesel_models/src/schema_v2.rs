@@ -1616,8 +1616,6 @@ diesel::table! {
         merchant_reference_id -> Nullable<Varchar>,
         #[max_length = 64]
         connector_id -> Nullable<Varchar>,
-        refund_surcharge_amount -> Nullable<Int8>,
-        net_refund_amount -> Nullable<Int8>,
     }
 }
 

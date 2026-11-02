@@ -142,8 +142,6 @@ impl<'a> KafkaRefundEvent<'a> {
             total_amount,
             currency,
             refund_amount,
-            refund_surcharge_amount: _,
-            net_refund_amount: _,
             refund_status,
             sent_to_gateway,
             refund_error_message,
