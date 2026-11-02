@@ -81,6 +81,8 @@ use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
+#[cfg(feature = "v1")]
+use payment_methods::single_use_token;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -10452,7 +10454,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     feature_config: &core_utils::FeatureConfig,
     connector_data: &api::ConnectorData,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    single_use_token_flow: Option<common_enums::SingleUseTokenFlow>,
+    single_use_token_flow: Option<single_use_token::SingleUseTokenFlow>,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -10512,7 +10514,7 @@ where
                 )?;
 
             let single_use_token_decision =
-                ::payment_methods::single_use_token::decide_single_use_token(
+                single_use_token::decide_single_use_token(
                     &connector_data.connector,
                     &connector_data.connector_name.to_string(),
                     single_use_token_flow,

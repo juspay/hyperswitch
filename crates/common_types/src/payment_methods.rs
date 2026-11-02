@@ -110,8 +110,7 @@ impl PaymentMethodsEnabled {
     }
 }
 
-/// Whether the payment method data is exchanged for a single-use token at the connector before authorize / setup
-/// mandate. Unrelated to mandates or saving the payment method at the connector; `None` is treated as `Default`.
+/// Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate
 #[derive(
     Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash,
 )]
@@ -120,10 +119,9 @@ pub enum PayViaSingleUseToken {
     /// Hyperswitch decides whether to make the payment via a single-use token, based on the connector's default requirement
     #[default]
     Default,
-    /// The payment is made via a single-use token, an `InvalidConnectorConfiguration` error is
-    /// returned if the connector does not support it for the payment method
+    /// Create a single-use token for subsequent authorization or mandate setup.
     Enabled,
-    /// The payment is made directly, without the single-use token call
+    /// Don't create a single-use token before authorization or mandate setup
     Disabled,
 }
 

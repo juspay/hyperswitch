@@ -1,4 +1,3 @@
-use common_enums::{SingleUseTokenDecision, SingleUseTokenFlow};
 use common_types::payment_methods::PayViaSingleUseToken;
 use error_stack::report;
 use hyperswitch_domain_models::{
@@ -10,6 +9,34 @@ use hyperswitch_interfaces::{
 };
 
 use crate::core::errors::{ApiErrorResponse, PmResult};
+
+/// Flows in which the payment can be made via a single-use token
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SingleUseTokenFlow {
+    Authorize,
+    SetupMandate,
+}
+
+/// Decision on whether the payment should be made via a single-use token created at the connector before authorization
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SingleUseTokenDecision {
+    Default,
+    PayViaSingleUseToken,
+    PayDirectly,
+}
+
+impl SingleUseTokenDecision {
+    pub fn is_connector_tokenization_enabled(
+        self,
+        is_connector_tokenization_enabled_by_default: bool,
+    ) -> bool {
+        match self {
+            Self::Default => is_connector_tokenization_enabled_by_default,
+            Self::PayViaSingleUseToken => true,
+            Self::PayDirectly => false,
+        }
+    }
+}
 
 /// Decides whether the payment should be made via a single-use token from the `pay_via_single_use_token` config,
 /// erroring if the connector support conflicts with the config

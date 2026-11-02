@@ -23,6 +23,7 @@ use hyperswitch_interfaces::{
     unified_connector_service::transformers as ucs_transformers,
 };
 use hyperswitch_masking::ExposeInterface;
+use payment_methods::single_use_token;
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -215,8 +216,8 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
-    fn single_use_token_flow() -> Option<common_enums::SingleUseTokenFlow> {
-        Some(common_enums::SingleUseTokenFlow::Authorize)
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::Authorize)
     }
 
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {

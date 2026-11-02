@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
     payments as domain_payments,
     router_request_types::{CurrentFlowInfo, PaymentsCaptureData},
 };
+use payment_methods::single_use_token;
 
 use crate::{
     core::{
@@ -99,7 +100,7 @@ pub trait Feature<F, T> {
     }
 
     /// Flow used to decide whether the payment should be made via a single-use token, `None` if not applicable
-    fn single_use_token_flow() -> Option<common_enums::SingleUseTokenFlow>
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow>
     where
         Self: Sized,
     {

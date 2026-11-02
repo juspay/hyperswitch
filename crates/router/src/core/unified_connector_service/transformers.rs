@@ -927,6 +927,7 @@ impl
         )?;
 
         Ok(Self {
+            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -1231,6 +1232,7 @@ impl
         )?;
 
         Ok(Self {
+            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
@@ -2623,6 +2625,7 @@ impl
         )?;
 
         Ok(Self {
+            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
@@ -2813,6 +2816,7 @@ impl
         )?;
 
         Ok(Self {
+            is_stored_credential: router_data.request.is_stored_credential,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -3023,6 +3027,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            is_stored_credential: None,
             risk_assessment_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
@@ -3247,6 +3252,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            is_stored_credential: router_data.request.is_stored_credential,
             // Stripe's setup_intents needs this for on_behalf_of on a destination charge,
             // and echoes the charge details back as mandate_reference.mandate_metadata.
             split_payments: router_data
