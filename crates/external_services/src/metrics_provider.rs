@@ -1,13 +1,31 @@
 mod error;
 pub mod grafana;
 
+use std::collections::BTreeMap;
+
 use common_utils::errors::CustomResult;
 use serde::{de::DeserializeOwned, Serialize};
+use time::PrimitiveDateTime;
 
-pub use self::{
-    error::MetricsError,
-    grafana::cloudwatch::{MetricPoint, MetricRange, MetricSeries},
-};
+pub use self::error::MetricsError;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MetricRange {
+    pub from: PrimitiveDateTime,
+    pub to: PrimitiveDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricSeries {
+    pub labels: BTreeMap<String, String>,
+    pub points: Vec<MetricPoint>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricPoint {
+    pub timestamp: PrimitiveDateTime,
+    pub value: f64,
+}
 
 pub type MetricsResult<T> = CustomResult<T, MetricsError>;
 
@@ -17,8 +35,6 @@ pub trait MetricsProvider: Send + Sync + std::fmt::Debug {
     type MetricsRequest: Serialize + Send + 'static;
     type MetricsResponse: DeserializeOwned + Send;
     type MetricsError: error_stack::Context;
-
-    fn validate_query(query: &Self::MetricsQuery) -> CustomResult<(), Self::MetricsError>;
 
     fn build_request(
         query: Self::MetricsQuery,

@@ -1,4 +1,5 @@
 pub mod cloudwatch;
+pub mod loki;
 
 use common_utils::{
     ext_traits::BytesExt,
@@ -14,10 +15,20 @@ use crate::http_client;
 
 const QUERY_TIMEOUT_SECONDS: u64 = 10;
 
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GrafanaAuthType {
+    #[default]
+    Bearer,
+    SessionCookie,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct GrafanaConfig {
     pub base_url: String,
     pub api_token: Secret<String>,
+    #[serde(default)]
+    pub auth_type: GrafanaAuthType,
 }
 
 #[derive(Debug, Clone)]
@@ -35,6 +46,16 @@ impl GrafanaClient {
         MetricsRequest: Serialize + Send + 'static,
         MetricsResponse: DeserializeOwned,
     {
+        let (auth_header, credential) = match self.config.auth_type {
+            GrafanaAuthType::Bearer => (
+                http::header::AUTHORIZATION,
+                format!("Bearer {}", self.config.api_token.peek()),
+            ),
+            GrafanaAuthType::SessionCookie => (
+                http::header::COOKIE,
+                format!("grafana_session={}", self.config.api_token.peek()),
+            ),
+        };
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&format!(
@@ -43,10 +64,7 @@ impl GrafanaClient {
             ))
             .attach_default_headers()
             .headers(vec![
-                (
-                    http::header::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", self.config.api_token.peek()).into_masked(),
-                ),
+                (auth_header.to_string(), credential.into_masked()),
                 (
                     http::header::CONTENT_TYPE.to_string(),
                     mime::APPLICATION_JSON.essence_str().to_owned().into(),
@@ -91,5 +109,23 @@ impl GrafanaClient {
                 Report::new(context)
             })?;
         Ok((status, response))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_mode_is_explicit_and_defaults_to_bearer() {
+        let mut value =
+            serde_json::json!({"base_url": "http://localhost", "api_token": "test-secret"});
+        let config: GrafanaConfig = serde_json::from_value(value.clone()).unwrap();
+        assert!(matches!(config.auth_type, GrafanaAuthType::Bearer));
+        value["auth_type"] = serde_json::json!("session_cookie");
+        let config: GrafanaConfig = serde_json::from_value(value.clone()).unwrap();
+        assert!(matches!(config.auth_type, GrafanaAuthType::SessionCookie));
+        value["auth_type"] = serde_json::json!("unknown");
+        assert!(serde_json::from_value::<GrafanaConfig>(value).is_err());
     }
 }

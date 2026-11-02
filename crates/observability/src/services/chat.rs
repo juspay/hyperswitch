@@ -2,7 +2,9 @@ use common_types::alert_rules::{AlertQuery, SeverityThreshold};
 use external_services::metrics_provider::MetricPoint;
 use time::PrimitiveDateTime;
 
-use crate::domain_models::evaluator::{Evaluation, Notification, RuleDefinition};
+use crate::domain_models::evaluator::{
+    Evaluation, EvaluatorError, EvaluatorResult, Notification, RuleDefinition,
+};
 
 pub(crate) enum ChatBody<'a> {
     Alarm {
@@ -20,8 +22,10 @@ pub(crate) fn create_notification(
     rule: &RuleDefinition,
     evaluated_at: PrimitiveDateTime,
     body: ChatBody<'_>,
-) -> Notification {
-    let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
+) -> EvaluatorResult<Notification> {
+    let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query else {
+        return Err(error_stack::Report::new(EvaluatorError::UnexpectedResponse));
+    };
     let dimensions = if query.dimensions.is_empty() {
         "None".to_owned()
     } else {
@@ -32,7 +36,7 @@ pub(crate) fn create_notification(
             .collect::<Vec<_>>()
             .join("\n")
     };
-    match body {
+    Ok(match body {
         ChatBody::Alarm {
             evaluation,
             threshold,
@@ -111,7 +115,7 @@ pub(crate) fn create_notification(
                 error = error,
             ),
         },
-    }
+    })
 }
 
 #[cfg(test)]
@@ -196,7 +200,8 @@ mod tests {
                     threshold,
                     point: &point,
                 },
-            );
+            )
+            .unwrap();
             let message = notification.message;
             assert!(message.contains(&format!("Metric: {metric}\n")));
             assert!(message.contains(&format!("Statistic: {statistic}\n")));

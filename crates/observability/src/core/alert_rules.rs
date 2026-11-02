@@ -8,10 +8,70 @@ use common_utils::date_time;
 use error_stack::{report, ResultExt};
 
 use crate::{
-    domain_models::alert_rules::{invalid, AlertRuleNew},
+    domain_models::{
+        alert_rules::{invalid, next_run_after, AlertRuleNew},
+        evaluator::RuleDefinition,
+    },
     errors::{ObservabilityApiResult, ObservabilityError},
+    settings::evaluator::RuleSource,
     state::AppState,
 };
+
+/// Config rules are always previewable; database rules are claimed only for one-shot sends.
+pub async fn load_selected_rules(
+    state: &AppState,
+    source: MetricSource,
+    claim_due: bool,
+    now: time::PrimitiveDateTime,
+    selected: &[String],
+) -> ObservabilityApiResult<Vec<RuleDefinition>> {
+    let settings = state.conf.alert.get_inner();
+    if settings.rule_source == RuleSource::Config {
+        return Ok(settings
+            .rules
+            .iter()
+            .filter(|rule| {
+                rule.config.query.metric_source() == source
+                    && (selected.is_empty() || selected.contains(&rule.id))
+            })
+            .cloned()
+            .collect());
+    }
+    let rows = if claim_due {
+        state.store.list_due_alert_rules(now).await
+    } else {
+        state.store.list_active_alert_rules().await
+    }
+    .change_context(ObservabilityError::InternalServerError)
+    .attach_printable("Failed to load database alert rules")?;
+    let mut rules = Vec::new();
+    for row in rows {
+        let previous_run = row.next_run_at;
+        let rule = RuleDefinition::from(row);
+        if rule.config.query.metric_source() != source
+            || (!selected.is_empty() && !selected.contains(&rule.id))
+        {
+            continue;
+        }
+        // shortcut: a claim consumes the run before delivery; add an outbox before production scheduling.
+        if claim_due
+            && !matches!(&rule.config.query, AlertQuery::GrafanaLoki(query) if !query.delivery_enabled || query.pending_seconds != 0)
+            && !state
+                .store
+                .claim_alert_rule(
+                    &rule.id,
+                    previous_run,
+                    next_run_after(now, rule.config.interval_seconds),
+                )
+                .await
+                .change_context(ObservabilityError::InternalServerError)?
+        {
+            continue;
+        }
+        rules.push(rule);
+    }
+    Ok(rules)
+}
 
 pub async fn list(state: AppState, _: ()) -> ObservabilityApiResult<AlertRuleListResponse> {
     let rules = state
@@ -79,9 +139,7 @@ pub async fn delete(
 /// What the rule's own checks cannot know: whether this deployment can query its datasource and
 /// deliver to its destinations. Done on the evaluator's shape, so it checks what will be used.
 fn check_against_settings(state: &AppState, rule: &AlertRuleConfig) -> ObservabilityApiResult<()> {
-    let source = match rule.query {
-        AlertQuery::GrafanaCloudwatch(_) => MetricSource::GrafanaCloudwatch,
-    };
+    let source = rule.query.metric_source();
     if !state
         .conf
         .alert

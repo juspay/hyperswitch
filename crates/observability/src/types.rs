@@ -98,12 +98,12 @@ impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationR
         let delivery_error = delivery.and_then(|delivery| delivery.error);
         match run {
             RuleRun::Evaluated {
-                evaluation,
+                level,
                 notification,
             } => Self {
                 id: rule.id.clone(),
                 status: AlertRuleEvaluationStatus::Evaluated,
-                level: Some(evaluation.level),
+                level: Some(level),
                 error: None,
                 message: notification.map(|notification| notification.message),
                 delivered,

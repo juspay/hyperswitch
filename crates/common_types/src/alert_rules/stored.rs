@@ -111,6 +111,13 @@ pub struct AlertConfigurationV1 {
 pub enum AlertQuery {
     /// A CloudWatch metric.
     Cloudwatch(CloudwatchQuery),
+    Loki(LokiQuery),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum LokiQuery {
+    V1(super::GrafanaLokiQuery),
 }
 
 /// A CloudWatch metric query.
@@ -213,6 +220,9 @@ impl AlertQuery {
     fn validate(&self, path: &str) -> Result<(), String> {
         match self {
             Self::Cloudwatch(CloudwatchQuery::V1(query)) => query.validate(path),
+            Self::Loki(LokiQuery::V1(query)) => query
+                .validate()
+                .map_err(|reason| format!("{path}: {reason}")),
         }
     }
 }
@@ -311,6 +321,7 @@ impl From<AlertConfiguration> for AlertRuleConfig {
         let AlertConfiguration::V1(configuration) = configuration;
 
         let query = match configuration.query {
+            AlertQuery::Loki(LokiQuery::V1(query)) => super::AlertQuery::GrafanaLoki(query),
             AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) => {
                 super::AlertQuery::GrafanaCloudwatch(super::GrafanaCloudwatchQuery {
                     region: query.region,
@@ -435,13 +446,39 @@ mod tests {
         assert_eq!(parsed.validate(), Ok(()));
 
         let AlertConfiguration::V1(v1) = parsed;
-        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) = v1.query;
+        let AlertQuery::Cloudwatch(CloudwatchQuery::V1(query)) = v1.query else {
+            panic!("Expected CloudWatch fixture");
+        };
         assert_eq!(query.statistic, CloudwatchStatistic::Average);
         let AlertThresholds::V1(thresholds) = v1.thresholds;
         assert_eq!(
             thresholds.severities.keys().copied().collect::<Vec<_>>(),
             [Severity::Critical, Severity::Warning, Severity::Info]
         );
+    }
+
+    #[test]
+    fn loki_stored_query_roundtrip_preserves_context_and_delivery_guard() {
+        let mut value = stored();
+        value["query"] = json!({"datasource":"loki","version":"v1","expression":"vector(1)","mode":"instant","range_seconds":300,"reducer":"last","fields":{"error":"extra_error"},"labels":{"environment":"sandbox"},"delivery_enabled":false,"pending_seconds":10800});
+        let parsed = configuration(value.clone());
+        assert_eq!(parsed.validate(), Ok(()));
+        let runtime = AlertRuleConfig::from(parsed.clone());
+        assert_eq!(
+            runtime.query.metric_source(),
+            super::super::MetricSource::GrafanaLoki
+        );
+        let written = serde_json::to_value(parsed).unwrap();
+        assert_eq!(written["query"]["fields"], value["query"]["fields"]);
+        assert_eq!(written["query"]["pending_seconds"], 10800);
+        value["query"]["delivery_enabled"] = json!(true);
+        assert!(configuration(value.clone())
+            .validate()
+            .unwrap_err()
+            .contains("pending"));
+        value["query"]["pending_seconds"] = json!(0);
+        value["query"]["fields"] = json!({"unrestricted_raw_payload":"payload"});
+        assert!(configuration(value).validate().is_err());
     }
 
     #[test]

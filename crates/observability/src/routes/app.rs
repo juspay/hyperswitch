@@ -61,6 +61,20 @@ impl Alerts {
                     .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
                     .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
             )
+            .service(web::resource("/rules").route(web::get().to(alert_rules::list)))
+            .service(
+                web::resource("/rules/{id}")
+                    .route(web::get().to(alert_rules::get))
+                    .route(web::put().to(alert_rules::upsert))
+                    .route(web::delete().to(alert_rules::delete)),
+            )
+            .service(
+                web::resource("/grafana/loki/notify").route(web::post().to(evaluator::notify_loki)),
+            )
+            .service(
+                web::resource("/grafana/loki/evaluate")
+                    .route(web::get().to(evaluator::evaluate_loki)),
+            )
             .service(
                 web::resource("/blacklist")
                     .route(web::get().to(blacklist::list))
@@ -84,13 +98,6 @@ impl Alerts {
             .service(web::resource("/rule_toggles").route(web::get().to(rule_toggles::list)))
             .service(
                 web::resource("/rule_toggles/{rule_id}").route(web::put().to(rule_toggles::set)),
-            )
-            .service(web::resource("/rules").route(web::get().to(alert_rules::list)))
-            .service(
-                web::resource("/rules/{id}")
-                    .route(web::get().to(alert_rules::get))
-                    .route(web::put().to(alert_rules::upsert))
-                    .route(web::delete().to(alert_rules::delete)),
             )
             .service(
                 web::resource("/thresholds")

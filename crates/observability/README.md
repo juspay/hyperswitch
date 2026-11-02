@@ -3,10 +3,71 @@
 The observability plane for Hyperswitch.
 
 `observability` delivers caller-supplied alerts through the
-[`notifier`](src/domain/notifier.rs) and evaluates CloudWatch metric rules, kept in config or in
-the database, through Grafana. The evaluator compares an actual current sample with configured thresholds and uses
+[`notifier`](src/domain/notifier.rs) and evaluates config-sourced CloudWatch metrics through
+Grafana. The evaluator compares an actual current sample with configured thresholds and uses
 the existing notifier to send to the selected threshold's destination. It does not maintain an
 alert lifecycle or infer recovery.
+
+## Database-backed Loki alerts (one-shot; not a production cutover)
+
+OP queries Grafana only as a Loki datasource gateway; no Beacon evaluation or rendering is used.
+`GET /alerts/grafana/loki/evaluate` is authenticated and read-only. It reads config rules or,
+with `alert.rule_source="database"`, active `alert_rules` rows and previews each labeled instance
+and its detailed message. Like CloudWatch, Loki anchors its lookback at the last completed
+configured interval rather than querying the still-open interval. CloudWatch routes select only
+CloudWatch rules.
+
+`POST /alerts/grafana/loki/notify` takes `{"rule_ids":["reviewed-rule-uid"],"max_messages":1}`,
+uses the same internal API key and renderer, claims selected due database rules and sends
+individual breaching instances through OP's notifier. It reports per-instance delivery IDs,
+refusals and uncertain failures. Request limits are 31 selected IDs and 20 messages; a rule that
+exceeds the remaining budget is blocked entirely, not partially delivered. This is a **one-shot
+Stage 1 tool**, not a production scheduler. Requests do not automatically retry.
+
+Loki `delivery_enabled` defaults false. A nonzero `pending_seconds` cannot opt into delivery.
+Messages use an allowlist of application/environment/error/API/flow/connector/file/request/time
+fields. Optional `query.fields` maps those canonical names to actual returned label names;
+`query.labels` supplies reviewed static labels. Available error details are retained; aggregate
+rules explicitly say details are absent. Oversize messages fail, rather than silently truncating.
+Sensitive-line redaction and configured credential removal are defensive, not a general PII
+classifier: review source label grouping and message previews before enabling sends.
+
+Persistent pending/firing/recovery state, durable retries, threading, repeat suppression and
+all-rule parity are **not implemented**. The rule's due-time CAS is scheduling, not an outbox or
+a renewable/fenced lease: a crash/delivery failure/budget block can consume this run, and an
+upsert resets the due time. Do not pause existing Grafana rules or schedule production delivery.
+Unsupported source lifecycle/no-data/error policies must stay delivery-disabled. Failed Loki
+queries return a failed rule report without sending a RULE ERROR message; this matches only
+source rules whose reviewed execution-error policy is `OK`, not CloudWatch error delivery.
+
+Apply `migrations/2026-10-21-000008_create_alert_rules` after the preceding migrations, then use
+`/alerts/rules` CRUD with independently versioned stored queries (`datasource="loki"`,
+`version="v1"`). Database mode requires empty config rules. To seed a captured catalogue locally:
+
+```sh
+LOCAL_OBSERVABILITY_URL=http://127.0.0.1:8086 \
+  node crates/observability/scripts/import-loki-rules.mjs \
+  --source /private/active-loki-rules.json --groups /private/groups.json \
+  --destination xyne_test --report /private/import-report.json
+```
+
+Set `LOCAL_OBSERVABILITY_API_KEY` privately. Import preserves UIDs and source expressions, sets
+all rules preview-only, preserves verified group cadences and records policy blockers. It refuses
+unsupported graphs and sub-minute cadences instead of guessing. Rejected definitions are not
+upserted: inspect the report and any existing rows before using this on a previously seeded DB.
+Review import counts: a source query succeeding or being quiet is **not** parity acceptance.
+Numeric samples must be finite, frame notices fail closed and the 1,000-series cap never truncates.
+Cadences are whole minutes from 60 to 86,400 seconds; source cadence still needs review.
+
+Tests:
+
+```sh
+cargo test --locked -p observability --lib --tests
+node --test crates/observability/scripts/import-loki-rules.test.mjs
+# Scratch database only: the inherited repository test deletes alert_rules rows.
+# With migrations applied and OBSERVABILITY_TEST_DATABASE_URL supplied privately:
+cargo test --locked -p observability --test alert_rules postgres_ -- --ignored --test-threads=1
+```
 
 ## Shape
 
@@ -80,7 +141,7 @@ channel and the destination, the body carries only content. Channel ids, recipie
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
 
-Delivery, metric evaluation, alert rule and monitoring endpoints:
+Delivery, metric evaluation and monitoring endpoints:
 
 | Method | Path | Auth |
 |---|---|---|
@@ -89,8 +150,6 @@ Delivery, metric evaluation, alert rule and monitoring endpoints:
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/grafana/cloudwatch/evaluate` | `X-Internal-Api-Key`; never sends |
 | `POST` | `/alerts/grafana/cloudwatch/notify` | `X-Internal-Api-Key`; evaluates and delivers |
-| `GET` | `/alerts/rules` | `X-Internal-Api-Key` |
-| `GET`, `PUT`, `DELETE` | `/alerts/rules/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
 | `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
@@ -136,7 +195,7 @@ only; sending it to the email route is a `400`, not a silently dropped field, be
 notice that quietly loses its link to the alert it clears is a bug nobody notices.
 
 **Generic delivery routes do not render.** `text`, `subject` and `body` are delivered exactly as
-they arrive, so the caller owns markup and escaping. The evaluator separately
+they arrive, so the caller owns markup and escaping. The config-sourced evaluator separately
 renders `ChatBody::Alarm` and `ChatBody::RuleError` through one renderer and one asset,
 `services/chat/assets/alert.txt`, using `format!(include_str!(...), named_variables...)`.
 Values are passed as supplied, without custom escaping or a separate template engine.
@@ -242,15 +301,14 @@ Verify cross-namespace connectivity and the exact Control Center host's `grafana
 in sandbox before enabling Grafana traffic.
 
 The gateway POSTs `{ "token": "<login_token>" }` (never a URL parameter). Observability calls
-Router `POST /user/internal/authorize` with the hard-coded `ProfileReconRuleRead` permission,
+Router `POST /user/internal/authorize` with the hard-coded `MerchantMonitoringRead` permission,
 then `GET /user` with **the same token**. For the user lookup, only Authorization is populated with that token;
 Router must run with `force_cookies=false`. No browser cookie, identity, role or tenant header
 is forwarded. Router's StatusOk is an empty HTTP 200 and `/user` supplies the current
 active user's email. The response is only `{ "grafana_login": "cc_<sha256(email)>" }`, where
 SHA-256 uses the exact bytes Router returned. This is a namespaced Grafana username, **not**
 Router's canonical `user_id`; it is deterministic, not an email privacy mechanism. Changing the
-email would create a new Grafana login. A follow-up switches the fixed permission to
-`MonitoringView` once Router supports it.
+email would create a new Grafana login.
 
 Missing/malformed Bearer headers and Router 401 return 401. Token validity is left to Router,
 without a local JWT shape or length check. The auth endpoint uses Actix's default JSON extractor:
@@ -336,15 +394,21 @@ proxies. Verify the public Router host is allowed by the proxy before deployment
 No upstream error body is retained or logged. The client does not independently decode or validate
 the JWT.
 
-## Metric alerts
+## Config-sourced metric alerts
 
 `[alert]` defaults to empty settings: omitting it means no metric requests or notifications.
 When rules are configured, provide Grafana connection settings, a metric-source-to-UID registry
-and `rules` as a JSON string, or keep the rules in the database instead (see
-[Rules from the database](#rules-from-the-database)). See `config/observability.toml`; environment overrides use the
+and `rules` as a JSON string. See `config/observability.toml`; environment overrides use the
 `OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
 the metric source. Each threshold's `destination` is an existing chat notifier ID, not a channel ID
-or a second severity mapping. Invalid configured rules or destinations fail startup.
+or a second severity mapping. Invalid rule structure or destinations fail startup; CloudWatch
+query errors are reported per rule when evaluated.
+
+`alert.grafana.auth_type` defaults to `bearer`: `api_token` is sent as an Authorization Bearer
+credential. Explicit `auth_type = "session_cookie"` sends that same secret field only as
+`Cookie: grafana_session=...`, never as Bearer. Session cookies are short-lived; no login,
+automatic renewal or authentication fallback is performed. Prefer a read-only service-account
+token for unattended runs.
 
 - `POST /alerts/grafana/cloudwatch/notify` evaluates and delivers;
   `GET /alerts/grafana/cloudwatch/evaluate` never sends.
@@ -376,103 +440,28 @@ variables to `[alert]` and `OBSERVABILITY__ALERT__`; remove the redundant `provi
 fields from registry values. No legacy configuration aliases are provided.
 The Grafana plugin wire type remains `cloudwatch`. Update the infrastructure CronJob URL from
 `/alerts/cloudwatch/notify` to `/alerts/grafana/cloudwatch/notify` in coordination with service rollout;
-there is no old-route alias. Rules kept in the database use their own versioned JSON, which converts
-to this shape (below). No evaluation state is persisted.
+there is no old-route alias. Separate JSONB table consumers need their own storage conversion
+before integration. This evaluator adds no database migration or persisted evaluation state.
 
 An external scheduler must call the notify endpoint every minute; the server has no built-in
 polling loop. GET is dry-run only. HTTP 200 does not prove delivery: inspect each rule's status,
 level, delivery result and error fields. Rules run concurrently, responses retain configured order,
 and one rule's query or delivery failure does not cancel independent rules.
 
-### Rules from the database
-
-`rule_source` picks where the evaluator reads rules from. Exactly one source is used.
-
-- `config` (the default) reads `rules` above. Nothing changes for a deployment that does not set it.
-- `database` reads the `alert_rules` table, managed through the APIs below. `rules` must then be
-  empty, and `grafana` must be configured even before any rule exists; startup fails otherwise.
-
-| Method | Path | |
-|---|---|---|
-| `GET` | `/alerts/rules` | every rule, by id |
-| `GET` | `/alerts/rules/{id}` | one rule; `404` if there is none |
-| `PUT` | `/alerts/rules/{id}` | create or replace; a `400` names the failing field |
-| `DELETE` | `/alerts/rules/{id}` | delete; `404` if there is none. To pause a rule, `PUT` it with `"status": "inactive"` |
-
-`alerts_configuration` is stored as sent. It carries a `version` on the configuration, on its query
-and on its thresholds, so each can change format on its own (`common_types::alert_rules::stored`):
-
-```http
-PUT /alerts/rules/rds-writer-cpu
-X-Internal-Api-Key: <key>
-Content-Type: application/json
-
-{
-  "name": "RDS writer CPU",
-  "status": "active",
-  "alerts_configuration": {
-    "version": "v1",
-    "interval_seconds": 60,
-    "query": {
-      "datasource": "cloudwatch",
-      "version": "v1",
-      "region": "us-east-1",
-      "namespace": "AWS/RDS",
-      "metric_name": "CPUUtilization",
-      "dimensions": { "DBClusterIdentifier": "hyperswitchdb-cluster", "Role": "WRITER" },
-      "statistic": "Average",
-      "period": 60,
-      "end_offset_seconds": 180
-    },
-    "thresholds": {
-      "version": "v1",
-      "severities": {
-        "critical": {
-          "threshold": 80.0,
-          "comparison_operator": "GreaterThanOrEqualToThreshold",
-          "description": "RDS writer CPU above 80%.",
-          "destination": "infra_oncall"
-        }
-      }
-    }
-  }
-}
-```
-
-`dimensions` and `end_offset_seconds` may be left out (`{}` and `180`). `interval_seconds` is any
-whole number of minutes up to a day. Besides its own checks, a rule must name chat destinations and
-a datasource this deployment has configured. The APIs work whatever `rule_source` is, so rules can
-be loaded before switching.
-
-Scheduling applies to database rules only; config rules run on every tick.
-
-- A created, replaced or reactivated rule is due on the next tick.
-- `POST /alerts/grafana/cloudwatch/notify` runs the active rules whose `next_run_at` has passed. Each
-  is claimed first: its `next_run_at` moves to the start of the current minute plus
-  `interval_seconds`, only if nobody moved it since it was read, so two replicas or overlapping ticks
-  never run a rule twice. Counting from the start of the minute keeps a one-minute rule on every tick
-  when the scheduler fires a few seconds late.
-- A failed evaluation sends RULE ERROR and waits for the next interval. Missed ticks are not caught
-  up.
-- `GET /alerts/grafana/cloudwatch/evaluate` runs every active rule and moves nothing.
-
-To switch a deployment to the database without an alerting gap: deploy with `rule_source` unset, load
-the rules with `PUT /alerts/rules/{id}`, then set `OBSERVABILITY__ALERT__RULE_SOURCE=database`, clear
-`OBSERVABILITY__ALERT__RULES` and roll out.
-
 ## Layout
 
 ```
 routes/         authenticated request handlers
-core/           request orchestration, including evaluator/cloudwatch execution
+core/           alert_evaluation for CloudWatch and Loki; alert_rules for database rules
 domain_models/  typed configuration conversions and evaluation results
 domain/         existing notifier traits and delivery outcomes
 services/chat/  evaluator notification text assets
 ```
 
 `domain` holds no HTTP. Metric transport lives in `external_services::metrics_provider`.
-Its single `MetricsProvider` trait connects `MetricsQuery`, `MetricsRequest`, `MetricsResponse`
-and `MetricsError`: validate the query, build the complete request, fetch metrics and handle the
-actual typed response. CloudWatch query/request/response models and frame parsing are colocated
-in `external_services/src/metrics_provider/grafana/cloudwatch.rs`; `grafana.rs` holds the shared
-HTTP transport. The evaluator consumes normalized real metric points, not Grafana wire frames.
+The `MetricsProvider` trait uses provider-specific query, request and response types to build
+requests, fetch metrics and handle typed responses. CloudWatch models and frame parsing live
+in `external_services/src/metrics_provider/grafana/cloudwatch.rs`; Loki metric-frame parsing lives
+beside them in `grafana/loki.rs`. `grafana.rs` holds their shared HTTP transport. The evaluators
+consume numeric points, not Grafana wire frames or raw log lines. Notification rendering and
+delivery stay in the observability service.
