@@ -10897,6 +10897,7 @@
                     "expiry_year": "28",
                     "method": "charge",
                     "parameters": {
+                      "payment_id": "pay_8320b449b06630271e378214dab80ce5",
                       "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
                     },
                     "postal_code": "94122",
@@ -10964,14 +10965,20 @@
               }
             }
           },
-          "401": {
-            "description": "The API key is missing, expired, or does not belong to this merchant"
-          },
-          "404": {
-            "description": "Unknown telephone order provider in the path"
-          },
-          "422": {
-            "description": "The request body could not be deserialized for this provider"
+          "400": {
+            "description": "The request was rejected before a charge was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid charge request for that provider.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericErrorResponseOpenApi"
+                },
+                "example": {
+                  "code": "IR_04",
+                  "message": "Missing required param: transaction_id",
+                  "type": "invalid_request"
+                }
+              }
+            }
           }
         },
         "security": [

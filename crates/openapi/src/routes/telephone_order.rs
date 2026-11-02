@@ -26,6 +26,7 @@
                     "postal_code": "94122",
                     "description": "Order placed over the phone",
                     "parameters": {
+                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
                         "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
                     }
                 })
@@ -80,9 +81,13 @@
                 ))
             )
         ),
-        (status = 401, description = "The API key is missing, expired, or does not belong to this merchant"),
-        (status = 404, description = "Unknown telephone order provider in the path"),
-        (status = 422, description = "The request body could not be deserialized for this provider"),
+        (status = 400, description = "The request was rejected before a charge was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid charge request for that provider.", body = GenericErrorResponseOpenApi,
+            example = json!({
+                "type": "invalid_request",
+                "message": "Missing required param: transaction_id",
+                "code": "IR_04"
+            })
+        ),
     ),
     tag = "Telephone Order",
     operation_id = "Charge a telephone order",
