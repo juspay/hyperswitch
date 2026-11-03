@@ -72,6 +72,10 @@ pub struct Refund {
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
     pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
 }
 
 impl Refund {
@@ -160,6 +164,10 @@ pub struct Refund {
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
     pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
@@ -216,6 +224,10 @@ pub struct RefundNew {
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
     pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v2")]
@@ -268,6 +280,10 @@ pub struct RefundNew {
     /// Settlement metadata supplied for this operation, retained across status updates.
     #[serde(default)]
     pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
