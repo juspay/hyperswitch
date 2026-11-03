@@ -10501,7 +10501,7 @@ where
                                     payment_data.get_payment_intent(),
                                     enums::PaymentMethod::Card,
                                     payment_method_data,
-                                    platform.get_provider().get_key_store(),
+                                    platform,
                                     Some(business_profile),
                                 )
                                 .await
@@ -10550,7 +10550,7 @@ where
                                     payment_data.get_payment_intent(),
                                     enums::PaymentMethod::Card,
                                     payment_method_data,
-                                    platform.get_provider().get_key_store(),
+                                    platform,
                                     Some(business_profile),
                                 )
                                 .await

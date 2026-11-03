@@ -491,6 +491,17 @@ pub trait ConnectorSpecifications {
     ) -> bool {
         false
     }
+
+    /// Whether this merchant needs the payment method data kept in the temporary locker, for a
+    /// connector the `temp_locker_enable_config` lists. A connector overrides this when only some
+    /// merchants take the flow that reads it back. The default is `true`: being listed is enough.
+    fn is_temp_locker_storage_required(
+        &self,
+        _connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        true
+    }
+
     /// Check if pre-authenticate cancel flow is supported
     fn is_pre_authorize_cancel_supported(
         &self,

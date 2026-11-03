@@ -205,11 +205,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         if let Some(payment_method) = payment_method {
             let should_validate_pm_or_token_given =
                 //this validation should happen if data was stored in the vault
-                helpers::should_store_payment_method_data_in_vault(
-                    &state.conf.temp_locker_enable_config,
-                    payment_attempt.connector.clone(),
+                helpers::is_temp_locker_storage_required_for_attempt(
+                    state,
+                    platform.get_processor(),
+                    &payment_attempt,
                     payment_method,
-                );
+                )
+                .await?;
             if should_validate_pm_or_token_given {
                 helpers::validate_pm_or_token_given(
                     &request.payment_method,

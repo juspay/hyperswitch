@@ -3553,6 +3553,15 @@ impl ConnectorSpecifications for Adyen {
         !has_redirection_data && !has_three_ds_invoke
     }
 
+    /// Only native 3DS2 reads the card back from the locker, on the Authorize that follows the
+    /// browser steps; the redirect flow never does, so a locker failure must not abort it.
+    fn is_temp_locker_storage_required(
+        &self,
+        connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        Self::is_native_three_ds_enabled(connector_meta_data)
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {

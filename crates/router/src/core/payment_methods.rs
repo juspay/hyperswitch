@@ -139,7 +139,7 @@ pub async fn retrieve_payment_method_core(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
-    provider: &domain::Provider,
+    platform: &domain::Platform,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
@@ -150,7 +150,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::Card,
                 pm,
-                provider.get_key_store(),
+                platform,
                 business_profile,
             )
             .await?;
@@ -166,7 +166,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankDebit,
                 pm,
-                provider.get_key_store(),
+                platform,
                 business_profile,
             )
             .await?;
@@ -191,7 +191,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankTransfer,
                 pm,
-                provider.get_key_store(),
+                platform,
                 business_profile,
             )
             .await?;
@@ -205,7 +205,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::Wallet,
                 pm,
-                provider.get_key_store(),
+                platform,
                 business_profile,
             )
             .await?;
@@ -219,7 +219,7 @@ pub async fn retrieve_payment_method_core(
                 payment_intent,
                 enums::PaymentMethod::BankRedirect,
                 pm,
-                provider.get_key_store(),
+                platform,
                 business_profile,
             )
             .await?;
