@@ -4,13 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## Unreleased
-
-### Breaking Changes
-
-- **router:** Remove deprecated v1 ephemeral-key handlers, models, storage, and authentication. Existing ephemeral keys are no longer accepted; use merchant API keys or supported SDK authorization instead. V2 client-secret endpoints and validity configuration remain supported.
-
-
 ## 2026.10.30.1
 
 ### Features
