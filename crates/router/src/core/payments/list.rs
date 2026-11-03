@@ -11,6 +11,8 @@ use common_utils::id_type;
 use error_stack::report;
 use error_stack::ResultExt;
 use futures::future::join_all;
+#[cfg(all(feature = "v2", feature = "olap"))]
+use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
 
 #[cfg(all(feature = "v2", feature = "olap"))]
 use crate::core::errors::RouterResult;
@@ -246,6 +248,35 @@ pub async fn list_payments(
     .await
 }
 
+/// Finds where a pagination cursor sits in the list. A cursor outside the caller's merchant or
+/// profile is treated as not found.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn find_recovery_list_cursor(
+    db: &dyn StorageInterface,
+    platform: &domain::Platform,
+    profile_id: Option<&common_utils::id_type::ProfileId>,
+    payment_id: &common_utils::id_type::GlobalPaymentId,
+) -> RouterResult<(
+    time::PrimitiveDateTime,
+    common_utils::id_type::GlobalPaymentId,
+)> {
+    let payment_intent = db
+        .find_payment_intent_by_id(
+            payment_id,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let in_scope = &payment_intent.merchant_id == platform.get_processor().get_account().get_id()
+        && profile_id.is_none_or(|profile_id| &payment_intent.profile_id == profile_id);
+    if !in_scope {
+        return Err(errors::ApiErrorResponse::PaymentNotFound.into());
+    }
+    Ok((payment_intent.created_at, payment_intent.id))
+}
+
 /// Maps intents to recovery list items using their workflow entries and billing retry threshold.
 /// `retry_thresholds` keeps each billing connector's threshold, so it is fetched only once.
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -308,6 +339,29 @@ async fn build_recovery_list_items(
             )
         })
         .collect()
+}
+
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn revenue_recovery_list_payments(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    constraints: payments_api::RecoveryPaymentListConstraints,
+) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
+    let (mut constraints, recovery_status) = constraints.into_parts();
+    // The auth profile overrides a caller supplied `profile_id`.
+    if profile_id.is_some() {
+        constraints.profile_id = profile_id;
+    }
+    common_utils::metrics::utils::record_operation_time(
+        list_recovery_page(&state, &platform, constraints, recovery_status),
+        &metrics::PAYMENT_LIST_LATENCY,
+        router_env::metric_attributes!((
+            "merchant_id",
+            platform.get_processor().get_account().get_id().clone()
+        )),
+    )
+    .await
 }
 
 /// Fetches, page by page, the recovery invoices whose intent status is one of
@@ -429,144 +483,127 @@ pub async fn revenue_recovery_aggregates(
     ))
 }
 
+/// Reads one page of recovery invoices, deriving the recovery status only for the rows read.
+///
+/// Rows are read in blocks of `limit` after the cursor until the page is full or no rows are left.
+/// A sparse `recovery_status` filter can therefore read every candidate row in one request.
 #[cfg(all(feature = "v2", feature = "olap"))]
-pub async fn revenue_recovery_list_payments(
-    state: SessionState,
-    platform: domain::Platform,
-    constraints: api::PaymentListConstraints,
-) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
-    common_utils::metrics::utils::record_operation_time(
-        async {
-            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
-            let db: &dyn StorageInterface = state.store.as_ref();
-            let fetch_constraints = constraints.clone().into();
-            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
-                .get_filtered_payment_intents_attempt(
-                    &platform.get_processor().get_processor_merchant_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_key_store(),
-                    platform.get_processor().get_storage_scheme(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+async fn list_recovery_page(
+    state: &SessionState,
+    platform: &domain::Platform,
+    mut constraints: payments_api::PaymentListConstraints,
+    recovery_status: Option<Vec<common_enums::enums::RecoveryStatus>>,
+) -> RouterResult<services::ApplicationResponse<payments_api::RecoveryPaymentListResponse>> {
+    let db: &dyn StorageInterface = state.store.as_ref();
 
-            // Get all billing connector account IDs
-            let billing_connector_ids: Vec<_> = list
-                .iter()
-                .map(|(payment_intent, _)| {
-                    payment_intent.get_billing_merchant_connector_account_id()
-                })
-                .collect();
+    if constraints.order_on != payments_api::SortOn::Created {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "recovery-list can only be sorted on `created`".to_string(),
+        }
+        .into());
+    }
 
-            // Create futures for workflow lookups
-            let workflow_futures: Vec<_> = list
-                .iter()
-                .map(|(payment_intent, _)| get_workflow_entries(&state, &payment_intent.id))
-                .collect();
+    let starting_after = constraints.starting_after.take();
+    let ending_before = constraints.ending_before.take();
+    let reading_backwards = ending_before.is_some();
+    let cursor = match (starting_after, ending_before) {
+        (Some(_), Some(_)) => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "`starting_after` and `ending_before` cannot be used together".to_string(),
+            }
+            .into());
+        }
+        (cursor, None) | (None, cursor) => cursor,
+    };
+    let mut read_after = match &cursor {
+        Some(cursor) => Some(
+            find_recovery_list_cursor(db, platform, constraints.profile_id.as_ref(), cursor)
+                .await?,
+        ),
+        None => None,
+    };
 
-            let billing_connector_futures: Vec<_> = billing_connector_ids
-                .into_iter()
-                .map(|billing_mca_id| {
-                    let platform_clone = platform.clone(); // Clone for each future
-                    async move {
-                        if let Some(billing_mca_id) = billing_mca_id {
-                            db.find_merchant_connector_account_by_id(
-                                &billing_mca_id,
-                                platform_clone.get_processor().get_key_store(),
-                            )
-                            .await
-                            .ok()
-                        } else {
-                            None
-                        }
-                    }
-                })
-                .collect();
-
-            let workflow_results = join_all(workflow_futures).await;
-            let billing_connector_results = join_all(billing_connector_futures).await;
-
-            let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> = list
-                .into_iter()
-                .zip(workflow_results)
-                .zip(billing_connector_results)
-                .map(
-                    |(
-                        ((payment_intent, payment_attempt), workflow_result),
-                        billing_connector_account,
-                    )| {
-                        let (calculate_workflow, execute_workflow) =
-                            workflow_result.unwrap_or((None, None));
-
-                        // Get retry threshold from billing connector account
-                        let max_retry_threshold = billing_connector_account
-                            .as_ref()
-                            .and_then(|mca| mca.get_retry_threshold())
-                            .unwrap_or(0); // Default fallback
-
-                        // Use custom mapping function
-                        map_to_recovery_payment_item(
-                            payment_intent,
-                            payment_attempt,
-                            calculate_workflow,
-                            execute_workflow,
-                            max_retry_threshold.try_into().unwrap_or(0),
-                        )
-                    },
-                )
-                .collect();
-
-            let active_attempt_ids = db
-                .get_filtered_active_attempt_ids_for_total_count(
-                    &platform.get_processor().get_processor_merchant_id(),
-                    &fetch_constraints,
-                    platform.get_processor().get_storage_scheme(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving active_attempt_ids for merchant")?;
-
-            let total_count = if constraints.has_no_attempt_filters() {
-                i64::try_from(active_attempt_ids.len())
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Error while converting from usize to i64")
-            } else {
-                let active_attempt_ids = active_attempt_ids
-                    .into_iter()
-                    .flatten()
-                    .collect::<Vec<String>>();
-
-                db.get_total_count_of_filtered_payment_attempts(
-                    &platform.get_processor().get_processor_merchant_id(),
-                    &active_attempt_ids,
-                    constraints.connector,
-                    constraints.payment_method_type,
-                    constraints.payment_method_subtype,
-                    constraints.authentication_type,
-                    constraints.merchant_connector_id,
-                    constraints.card_network,
-                    platform.get_processor().get_storage_scheme(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while retrieving total count of payment attempts")
-            }?;
-
-            Ok(services::ApplicationResponse::Json(
-                api_models::payments::RecoveryPaymentListResponse {
-                    count: data.len(),
-                    total_count,
-                    data,
+    if let Some(recovery_status) = &recovery_status {
+        let candidate_statuses = candidate_intent_statuses_for_recovery_status(
+            recovery_status,
+            constraints.status.as_deref(),
+        );
+        if candidate_statuses.is_empty() {
+            return Ok(services::ApplicationResponse::Json(
+                payments_api::RecoveryPaymentListResponse {
+                    count: 0,
+                    next_cursor: None,
+                    data: Vec::new(),
                 },
-            ))
+            ));
+        }
+        constraints.status = Some(candidate_statuses);
+    }
+
+    // Paging back reads away from the cursor in the opposite order; the page is flipped below.
+    if reading_backwards {
+        constraints.order_by = match constraints.order_by {
+            payments_api::SortBy::Asc => payments_api::SortBy::Desc,
+            payments_api::SortBy::Desc => payments_api::SortBy::Asc,
+        };
+    }
+
+    let limit = constraints.limit.as_usize();
+    let mut fetch_constraints: PaymentIntentFetchConstraints = constraints.into();
+    let mut page = Vec::with_capacity(limit);
+    let mut retry_thresholds = HashMap::new();
+
+    let has_more = 'reads: loop {
+        let PaymentIntentFetchConstraints::List(params) = &mut fetch_constraints;
+        params.read_after = read_after.clone();
+
+        let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+            .get_filtered_payment_intents_attempt(
+                &platform.get_processor().get_processor_merchant_id(),
+                &fetch_constraints,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let rows_read = list.len();
+        let is_last_block = rows_read < limit;
+        let positions: Vec<_> = list
+            .iter()
+            .map(|(payment_intent, _)| (payment_intent.created_at, payment_intent.id.clone()))
+            .collect();
+        let items = build_recovery_list_items(state, platform, list, &mut retry_thresholds).await;
+
+        for (row_index, (position, item)) in positions.into_iter().zip(items).enumerate() {
+            read_after = Some(position);
+            if recovery_status
+                .as_ref()
+                .is_none_or(|recovery_status| recovery_status.contains(&item.status))
+            {
+                page.push(item);
+            }
+            if page.len() == limit {
+                break 'reads !(is_last_block && row_index + 1 == rows_read);
+            }
+        }
+
+        if is_last_block {
+            break false;
+        }
+    };
+
+    if reading_backwards {
+        page.reverse();
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::RecoveryPaymentListResponse {
+            count: page.len(),
+            next_cursor: read_after.filter(|_| has_more).map(|(_, id)| id),
+            data: page,
         },
-        &metrics::PAYMENT_LIST_LATENCY,
-        router_env::metric_attributes!((
-            "merchant_id",
-            platform.get_processor().get_account().get_id().clone()
-        )),
-    )
-    .await
+    ))
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]

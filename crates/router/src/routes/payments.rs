@@ -2364,7 +2364,7 @@ pub async fn payments_list_for_platform_filters(
 pub async fn revenue_recovery_invoices_list(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    payload: web::Query<payment_types::PaymentListConstraints>,
+    payload: web::Query<payment_types::RecoveryPaymentListConstraints>,
 ) -> impl Responder {
     let flow = Flow::PaymentsList;
     let payload = payload.into_inner();
@@ -2373,15 +2373,8 @@ pub async fn revenue_recovery_invoices_list(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, _| async move {
-            if let Some(profile_id) = req.profile_id.take() {
-                crate::core::utils::validate_profile_id_from_auth_layer(
-                    Some(profile_id),
-                    &auth.profile,
-                )?;
-            }
-            req.profile_id = Some(auth.profile.get_id().clone());
-            payments::list::revenue_recovery_list_payments(state, auth.platform, req).await
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list::revenue_recovery_list_payments(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2395,6 +2388,39 @@ pub async fn revenue_recovery_invoices_list(
             },
             req.headers(),
         ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Profile scoped [`revenue_recovery_invoices_list`]; the profile comes from auth.
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+pub async fn revenue_recovery_invoices_list_profile(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Query<payment_types::RecoveryPaymentListConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list::revenue_recovery_list_payments(
+                state,
+                auth.platform,
+                Some(auth.profile.get_id().clone()),
+                req,
+            )
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfilePaymentRead,
+            allow_connected: false,
+            allow_platform: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

@@ -1989,6 +1989,8 @@ pub struct PaymentIntentListParams {
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
     pub payment_id: Option<id_type::GlobalPaymentId>,
+    /// Keep only the rows strictly after this `(created_at, id)` in the order of `order.by`.
+    pub read_after: Option<(PrimitiveDateTime, id_type::GlobalPaymentId)>,
 }
 
 #[cfg(feature = "v1")]
@@ -2091,6 +2093,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             card_network,
             merchant_order_reference_id,
             payment_id,
+            read_after: None,
         }))
     }
 }
