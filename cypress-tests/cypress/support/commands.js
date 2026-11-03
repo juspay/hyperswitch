@@ -13168,13 +13168,13 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.headers["content-type"]).to.include(
+          resData.contentType || "application/json"
+        );
 
-        if (resData.messageIncludes) {
+        if (resData.bodyIncludes) {
           expect(response.status).to.equal(resData.status);
-          expect(response.body.error.message).to.include(
-            resData.messageIncludes
-          );
+          expect(response.body).to.include(resData.bodyIncludes);
           return;
         }
 
@@ -13227,10 +13227,11 @@ Cypress.Commands.add("validatePayoutLinkProfileConfig", (data, globalState) => {
     failOnStatusCode: false,
     body: { payout_link_config: { allowed_domains: [], ...data.Request } },
   }).then((response) => {
-    expect(response.status).to.equal(data.Response.status);
-    expect(response.body.error.message).to.include(
-      data.Response.messageIncludes
+    expect(response.status).to.equal(data.ProfileResponse.status);
+    expect(response.headers["content-type"]).to.include(
+      data.ProfileResponse.contentType
     );
+    expect(response.body).to.include(data.ProfileResponse.bodyIncludes);
   });
 });
 

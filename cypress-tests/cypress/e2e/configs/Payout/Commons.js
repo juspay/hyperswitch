@@ -205,11 +205,29 @@ export const connectorDetails = {
   payout_link_pm: {
     UnsafeMerchantName: {
       Request: { merchant_name: "</script><script>alert(1)</script>" },
-      Response: { status: 400, messageIncludes: "potential XSS or SQLi" },
+      Response: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
+      ProfileResponse: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
     },
     UnsafeTheme: {
       Request: { theme: "</script><script>alert(1)</script>" },
-      Response: { status: 400, messageIncludes: "potential XSS or SQLi" },
+      Response: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
+      ProfileResponse: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
     },
     EscapedData: {
       Request: { merchant_name: "Example & Co", theme: "#4285F4" },
