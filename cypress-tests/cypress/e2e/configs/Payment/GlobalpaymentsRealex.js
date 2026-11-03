@@ -1,9 +1,7 @@
 import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
-// RealEx sandbox test cards, confirmed live against integ.hyperswitch.io
-// (PR #13980 test session). 4263970000005262 is Visa credit; the decline PAN
-// below is RealEx's own standard "always declined" test number.
+// RealEx sandbox test cards; the decline PAN always declines.
 const successfulNo3DSCardDetails = {
   card_number: "4263970000005262",
   card_exp_month: "10",
@@ -33,11 +31,6 @@ const threeDSNotConfiguredMessage =
 
 export const connectorDetails = {
   card_pm: {
-    // Confirmed live: shipping_cost is supported end to end — net_amount
-    // correctly computes as amount + shipping_cost. The spec drives this
-    // from fixtures.createPaymentBody (amount: 6000), not a connector
-    // override, so the expected amount/net_amount here must match that
-    // fixture's default, not the 1000 used in ad hoc manual testing.
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "USD",
@@ -150,9 +143,7 @@ export const connectorDetails = {
         },
       },
     },
-    // Confirmed live: the connector doesn't support multi-capture —
-    // amount_capturable goes straight to 0 after any capture, not to the
-    // remaining uncaptured amount.
+    // No multi-capture: amount_capturable drops to 0 after any capture.
     PartialCapture: {
       Request: {
         amount_to_capture: 3000,
@@ -187,12 +178,7 @@ export const connectorDetails = {
         },
       },
     },
-    // Confirmed live: RealEx only allows a single refund per payment —
-    // 512 "This transaction has already been rebated and cannot be rebated
-    // again" on any second refund attempt, regardless of amount. The specs
-    // that use this key always call it twice against the same payment, and
-    // can't express a different expectation per call, so this is skipped
-    // rather than asserting a scenario the connector can't actually do.
+    // RealEx allows one refund per payment (512 on a second); specs refund twice.
     PartialRefund: {
       Configs: { TRIGGER_SKIP: true },
       Request: {
@@ -226,7 +212,7 @@ export const connectorDetails = {
         },
       },
     },
-    // Same single-refund-per-payment limitation as PartialRefund above.
+    // One refund per payment, same as PartialRefund.
     manualPaymentPartialRefund: {
       Configs: { TRIGGER_SKIP: true },
       Request: {
@@ -248,9 +234,6 @@ export const connectorDetails = {
         },
       },
     },
-    // 23-Variations.cy.js's own fail-payment scenario — RealEx's own
-    // standard "always declined" test PAN, confirmed live (error_code "101",
-    // "[ test system ] Declined").
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -290,11 +273,6 @@ export const connectorDetails = {
       Request: {},
       Response: { status: 200, body: { status: "failed" } },
     },
-    // MIT-via-payment_method_id and MIT-via-mandate-id confirms — same
-    // RepeatPayment: not_implemented ground truth as the Mandate* keys
-    // above. Request shapes copied from Commons.js's own definitions for
-    // these keys (used here instead of inherited, per the one-level-deep
-    // merge rule — see cypress-automation-standards.md §3b).
     MITAutoCapture: getCustomExchange({
       Configs: { TRIGGER_SKIP: true },
       Request: { amount: 6000 },
@@ -313,8 +291,6 @@ export const connectorDetails = {
         },
       },
     }),
-    // Not in Commons.js at all (connector-specific-only key); shape
-    // mirrors Barclaycard's own MITManualCapture.
     MITManualCapture: getCustomExchange({
       Configs: { TRIGGER_SKIP: true },
       Request: { amount: 6000 },
@@ -372,6 +348,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: { card: successfulNo3DSCardDetails },
+        setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
       Response: { status: 200, body: { status: "succeeded" } },
@@ -385,9 +362,7 @@ export const connectorDetails = {
       },
       Response: { status: 200, body: { status: "requires_capture" } },
     },
-    // Off-session / stored-credential (MIT-style) saved-card confirms.
-    // Confirmed live (14-SaveCardFlow.cy.js) AND at the source: UCS's own
-    // RepeatPayment flow for this connector is `not_implemented`.
+    // Off-session save-card needs RepeatPayment, which isn't implemented.
     SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
       Configs: { TRIGGER_SKIP: true },
       Request: {
@@ -414,11 +389,7 @@ export const connectorDetails = {
       Configs: { TRIGGER_SKIP: true },
       Request: { setup_future_usage: "off_session" },
     }),
-    // Not skipped — real, live-verified behavior (24-PaymentMethods.cy.js).
-    // authentication_type: three_ds routes through PreAuthenticate first,
-    // same as 3DSAutoCapture/3DSManualCapture above, so this hits the same
-    // account-level 3DS block before SetupMandate/RepeatPayment would ever
-    // matter.
+    // 3DS hits the same account-level 3DS block as 3DSAutoCapture.
     SaveCardUse3DSAutoCaptureOffSession: {
       Request: {
         payment_method: "card",
