@@ -235,6 +235,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Ecommpay => {
+                ecommpay::transformers::EcommpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Elavon => {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())

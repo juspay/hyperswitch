@@ -1065,35 +1065,28 @@ impl SecretsHandler for AnalyticsConfig {
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let analytics_config = value.get_inner();
-        let decrypted_password = match analytics_config {
-            // Todo: Perform kms decryption of clickhouse password
-            Self::Clickhouse { .. } => hyperswitch_masking::Secret::new(String::default()),
-            Self::Sqlx { sqlx, .. }
-            | Self::CombinedCkh { sqlx, .. }
-            | Self::CombinedSqlx { sqlx, .. } => {
-                secret_management_client
-                    .get_secret(sqlx.password.clone())
-                    .await?
-            }
+        let decrypt_sqlx = |sqlx: Database| async move {
+            let password = secret_management_client
+                .get_secret(sqlx.password)
+                .await
+                .map_err(|error| error.attach_printable("analytics.sqlx.password"))?;
+            Ok::<_, error_stack::Report<SecretsManagementError>>(Database { password, ..sqlx })
         };
-
-        Ok(value.transition_state(|conf| match conf {
+        let analytics_config = match value.get_inner().clone() {
             Self::Sqlx {
                 sqlx,
                 forex_enabled,
             } => Self::Sqlx {
-                sqlx: Database {
-                    password: decrypted_password,
-                    ..sqlx
-                },
+                sqlx: decrypt_sqlx(sqlx).await?,
                 forex_enabled,
             },
             Self::Clickhouse {
                 clickhouse,
                 forex_enabled,
             } => Self::Clickhouse {
-                clickhouse,
+                clickhouse: clickhouse
+                    .decrypt_credentials(secret_management_client)
+                    .await?,
                 forex_enabled,
             },
             Self::CombinedCkh {
@@ -1101,11 +1094,10 @@ impl SecretsHandler for AnalyticsConfig {
                 clickhouse,
                 forex_enabled,
             } => Self::CombinedCkh {
-                sqlx: Database {
-                    password: decrypted_password,
-                    ..sqlx
-                },
-                clickhouse,
+                sqlx: decrypt_sqlx(sqlx).await?,
+                clickhouse: clickhouse
+                    .decrypt_credentials(secret_management_client)
+                    .await?,
                 forex_enabled,
             },
             Self::CombinedSqlx {
@@ -1113,14 +1105,14 @@ impl SecretsHandler for AnalyticsConfig {
                 clickhouse,
                 forex_enabled,
             } => Self::CombinedSqlx {
-                sqlx: Database {
-                    password: decrypted_password,
-                    ..sqlx
-                },
-                clickhouse,
+                sqlx: decrypt_sqlx(sqlx).await?,
+                clickhouse: clickhouse
+                    .decrypt_credentials(secret_management_client)
+                    .await?,
                 forex_enabled,
             },
-        }))
+        };
+        Ok(value.transition_state(|_| analytics_config))
     }
 }
 

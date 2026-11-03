@@ -649,10 +649,12 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                // One-time card payments only: no mandates/MIT. Refunds and refund
-                // sync are implemented in UCS (`POST /transactions` with
-                // `type: "refund"`, read back from `/transactions/{id}`).
-                mandates: enums::FeatureStatus::NotSupported,
+                // Recurring cards: the initial sale opens a stored-credential agreement
+                // and each repeat is a merchant-initiated sale replaying EPG's
+                // `credentialOnFileData`. Refunds and refund sync are implemented in UCS
+                // (`POST /transactions` with `type: "refund"`, read back from
+                // `/transactions/{id}`).
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -677,10 +679,12 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                // One-time card payments only: no mandates/MIT. Refunds and refund
-                // sync are implemented in UCS (`POST /transactions` with
-                // `type: "refund"`, read back from `/transactions/{id}`).
-                mandates: enums::FeatureStatus::NotSupported,
+                // Recurring cards: the initial sale opens a stored-credential agreement
+                // and each repeat is a merchant-initiated sale replaying EPG's
+                // `credentialOnFileData`. Refunds and refund sync are implemented in UCS
+                // (`POST /transactions` with `type: "refund"`, read back from
+                // `/transactions/{id}`).
+                mandates: enums::FeatureStatus::Supported,
                 refunds: enums::FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
                 specific_features: Some(
@@ -700,6 +704,24 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 ),
             },
         );
+
+        // Wallets are one-time only (EPG does not support recurring on wallets) and are
+        // sent to EPG pre-decrypted, as the device PAN plus cryptogram.
+        for wallet in [
+            enums::PaymentMethodType::ApplePay,
+            enums::PaymentMethodType::GooglePay,
+        ] {
+            elavon_pg_supported_payment_methods.add(
+                enums::PaymentMethod::Wallet,
+                wallet,
+                PaymentMethodDetails {
+                    mandates: enums::FeatureStatus::NotSupported,
+                    refunds: enums::FeatureStatus::Supported,
+                    supported_capture_methods: supported_capture_methods.clone(),
+                    specific_features: None,
+                },
+            );
+        }
 
         elavon_pg_supported_payment_methods
     });
@@ -737,7 +759,14 @@ impl ConnectorSpecifications for ElavonPg {
                 auth_type,
                 request_data,
                 connector_meta_data: _,
-            } => auth_type.is_three_ds() && request_data.is_card(),
+            } => {
+                // A merchant that already authenticated the shopper (external 3DS data on the
+                // request) settles through the direct sale with `threeDSecure`; the hosted page
+                // is only for payments that still need EPG to run 3DS.
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.authentication_data.is_none()
+            }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
@@ -767,7 +796,14 @@ impl ConnectorSpecifications for ElavonPg {
                 auth_type,
                 request_data,
                 connector_meta_data: _,
-            } => auth_type.is_three_ds() && request_data.is_card(),
+            } => {
+                // A merchant that already authenticated the shopper (external 3DS data on the
+                // request) settles through the direct sale with `threeDSecure`; the hosted page
+                // is only for payments that still need EPG to run 3DS.
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    && request_data.authentication_data.is_none()
+            }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }

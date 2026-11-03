@@ -1019,6 +1019,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1331,6 +1332,7 @@ pub struct WebhooksSettings {
 #[serde(default)]
 pub struct IncomingWebhooksSettings {
     pub mtls_verified_header: Option<String>,
+    pub source_ip_header: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1637,6 +1639,7 @@ impl Settings<SecuredSecret> {
         self.connectors.validate("connectors")?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
+        self.user.validate()?;
 
         self.scheduler
             .as_ref()

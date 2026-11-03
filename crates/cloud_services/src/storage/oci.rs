@@ -65,7 +65,13 @@ fn is_hostname_label(value: &str) -> bool {
 impl S3Storage {
     /// Creates a file storage client for OCI Object Storage.
     pub async fn new_oci(config: &OciObjectStorageConfig) -> Self {
-        Self::with_endpoint(&config.region, &config.bucket_name, &config.endpoint()).await
+        Self::with_endpoint(
+            &config.region,
+            &config.bucket_name,
+            &config.endpoint(),
+            None,
+        )
+        .await
     }
 }
 

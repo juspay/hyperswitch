@@ -824,6 +824,10 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+
+    /// The merchant's VAT registration identifier
+    #[schema(value_type = Option<String>, example = "GB987654321")]
+    pub merchant_vat_registration_id: Option<Secret<String>>,
 }
 
 /// The credentials required for calling the network tokenization provider APIs
@@ -3641,7 +3645,9 @@ pub struct BusinessGenericLinkConfig {
 }
 
 impl BusinessGenericLinkConfig {
-    pub fn validate(&self) -> Result<(), &str> {
+    pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&self.ui_config)?;
+
         // Validate host domain name
         let host_domain_valid = self
             .domain_name
@@ -3649,7 +3655,7 @@ impl BusinessGenericLinkConfig {
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received in payout_link_config");
+            return Err("Invalid host domain name received in payout_link_config".to_string());
         }
 
         let are_allowed_domains_valid = self
@@ -3658,7 +3664,7 @@ impl BusinessGenericLinkConfig {
             .iter()
             .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received in payout_link_config");
+            return Err("Invalid allowed domain names received in payout_link_config".to_string());
         }
 
         Ok(())

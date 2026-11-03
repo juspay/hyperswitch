@@ -100,6 +100,7 @@ impl<'a> SubscriptionHandler<'a> {
                 merchant_id,
                 merchant_key_store,
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .change_context(errors::ApiErrorResponse::CustomerNotFound)
@@ -170,10 +171,15 @@ impl<'a> SubscriptionHandler<'a> {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> errors::SubscriptionResult<hyperswitch_domain_models::business_profile::Profile> {
         let merchant_key_store = platform.get_processor().get_key_store();
+        let merchant_id = platform.get_processor().get_account().get_id();
 
         state
             .store
-            .find_business_profile_by_profile_id(merchant_key_store, profile_id)
+            .find_business_profile_by_merchant_id_profile_id(
+                merchant_key_store,
+                merchant_id,
+                profile_id,
+            )
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_string(),
@@ -377,6 +383,7 @@ impl SubscriptionWithHandler<'_> {
                 .platform
                 .get_processor()
                 .get_key_store()
+                .inner()
                 .clone(),
         }
     }
