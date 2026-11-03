@@ -1,41 +1,60 @@
-use std::marker::PhantomData;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use common_enums::ExecutionPath;
+use common_utils::{id_type, ucs_types};
+use error_stack::ResultExt;
+use external_services::grpc_client::LineageIds;
+#[cfg(feature = "v2")]
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
+    platform::Processor, router_data::RouterData,
     router_data_v2::flow_common_types::DisputesFlowData, router_flow_types::dispute,
+    router_request_types::SubmitEvidenceRequestData, router_response_types::SubmitEvidenceResponse,
 };
 use hyperswitch_interfaces::api::gateway as interface_gateway;
+use router_env::{instrument, tracing};
+use unified_connector_service_client::payments as payments_grpc;
 
-use super::{
-    DirectDisputeGateway, DisputeGatewayExecutionContext, DisputeGatewayFlow, UcsDisputeGateway,
-};
+use super::{DirectDisputeGateway, DisputeGatewayExecutionContext};
 use crate::{
-    core::{payments::helpers, unified_connector_service},
+    core::{errors, payments::helpers::MerchantConnectorAccountType, unified_connector_service},
     errors::RouterResult,
     routes::SessionState,
-    types::{self, domain},
+    services,
+    types::{self, transformers::ForeignTryFrom},
 };
 
 #[async_trait]
-impl DisputeGatewayFlow<types::SubmitEvidenceRequestData, types::SubmitEvidenceResponse>
-    for dispute::Evidence
+impl
+    interface_gateway::DisputeGateway<
+        SessionState,
+        DisputesFlowData,
+        Self,
+        SubmitEvidenceRequestData,
+        SubmitEvidenceResponse,
+        DisputeGatewayExecutionContext,
+    > for dispute::Evidence
 {
-    async fn execute_ucs(
+    async fn execute(
+        self: Box<Self>,
         state: &SessionState,
-        processor: &domain::Processor,
-        router_data: types::SubmitEvidenceRouterData,
-        connector_transaction_id: Option<String>,
-        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
+        _connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
+            Self,
+            SubmitEvidenceRequestData,
+            SubmitEvidenceResponse,
+        >,
+        router_data: &types::SubmitEvidenceRouterData,
+        context: DisputeGatewayExecutionContext,
     ) -> RouterResult<types::SubmitEvidenceRouterData> {
-        unified_connector_service::call_unified_connector_service_for_dispute_submit_evidence(
+        let rollout_settings = context.dispute.rollout_settings();
+        call_unified_connector_service_for_dispute_submit_evidence(
             state,
-            processor,
-            router_data,
-            connector_transaction_id,
+            &context.processor,
+            router_data.clone(),
+            context.dispute.connector_transaction_id,
             rollout_settings,
-            merchant_connector_account,
+            context.dispute.merchant_connector_account,
         )
         .await
         .map_err(|error| error.attach_printable("Failed while calling submit evidence via UCS"))
@@ -46,8 +65,8 @@ impl
     interface_gateway::DisputeFlowGateway<
         SessionState,
         DisputesFlowData,
-        types::SubmitEvidenceRequestData,
-        types::SubmitEvidenceResponse,
+        SubmitEvidenceRequestData,
+        SubmitEvidenceResponse,
         DisputeGatewayExecutionContext,
     > for dispute::Evidence
 {
@@ -58,17 +77,96 @@ impl
             SessionState,
             DisputesFlowData,
             Self,
-            types::SubmitEvidenceRequestData,
-            types::SubmitEvidenceResponse,
+            SubmitEvidenceRequestData,
+            SubmitEvidenceResponse,
             DisputeGatewayExecutionContext,
         >,
     > {
         match execution_path {
             ExecutionPath::Direct => Box::new(DirectDisputeGateway),
             ExecutionPath::UnifiedConnectorService
-            | ExecutionPath::ShadowUnifiedConnectorService => {
-                Box::new(UcsDisputeGateway::<Self>(PhantomData))
-            }
+            | ExecutionPath::ShadowUnifiedConnectorService => Box::new(Self),
         }
     }
+}
+
+/// Execute a dispute submit evidence using DisputeService.SubmitEvidence.
+#[instrument(skip_all)]
+async fn call_unified_connector_service_for_dispute_submit_evidence(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
+    connector_transaction_id: Option<String>,
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
+    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
+    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
+) -> RouterResult<RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>>
+{
+    let ucs_client = unified_connector_service::get_ucs_client(state)?;
+    let connector_auth_metadata =
+        unified_connector_service::build_unified_connector_service_auth_metadata(
+            merchant_connector_account,
+            processor.get_account().get_id(),
+            router_data.connector.clone(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to build UCS auth metadata for dispute submit evidence")?;
+    let grpc_request = payments_grpc::DisputeServiceSubmitEvidenceRequest::foreign_try_from((
+        &router_data,
+        connector_transaction_id,
+    ))
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to transform router data to UCS dispute submit evidence request")?;
+
+    let merchant_id = processor.get_account().get_id().clone();
+    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to convert merchant_id to profile_id for UCS dispute submit evidence",
+        )?;
+    let lineage_ids = LineageIds::new(merchant_id, profile_id);
+    let merchant_reference_id =
+        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment_id to UCS reference id")
+            .map(ucs_types::UcsReferenceId::Payment)
+            .map(Some)?;
+    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
+    let grpc_header_builder = state
+        .get_grpc_headers_ucs(rollout_settings.execution_mode)
+        .payment_method(Some(router_data.payment_method))
+        .payment_method_type(router_data.payment_method_type)
+        .lineage_ids(lineage_ids)
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(merchant_reference_id)
+        .resource_id(None);
+
+    Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+        router_data,
+        state,
+        grpc_request,
+        grpc_header_builder,
+        rollout_settings.clone(),
+        |mut router_data, grpc_request, grpc_headers| async move {
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+            let grpc_response = ucs_client
+                .dispute_submit_evidence(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .attach_printable("UCS dispute submit evidence execution failed")?
+                .into_inner();
+            let (router_data_response, status_code) =
+                unified_connector_service::handle_unified_connector_service_response_for_dispute_submit_evidence(
+                    grpc_response.clone(),
+                )
+                .attach_printable("Failed to transform UCS dispute submit evidence response")?;
+
+            router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+
+            Ok((router_data, (), grpc_response))
+        },
+    ))
+    .await
+    .map(|(router_data, _flow_response)| router_data)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
 }

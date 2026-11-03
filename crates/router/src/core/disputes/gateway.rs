@@ -4,7 +4,7 @@ pub mod accept_gateway;
 pub mod defend_gateway;
 pub mod evidence_gateway;
 
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 use async_trait::async_trait;
 use common_enums::ExecutionPath;
@@ -53,22 +53,6 @@ impl DisputeGatewayContext {
     }
 }
 
-#[async_trait]
-pub trait DisputeGatewayFlow<Req, Resp>: Clone + Debug + Send + Sync + Sized + 'static
-where
-    Req: Debug + Clone + Send + Sync + 'static,
-    Resp: Debug + Clone + Send + Sync + 'static,
-{
-    async fn execute_ucs(
-        state: &SessionState,
-        processor: &domain::Processor,
-        router_data: types::RouterData<Self, Req, Resp>,
-        connector_transaction_id: Option<String>,
-        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::RouterData<Self, Req, Resp>>;
-}
-
 pub struct DirectDisputeGateway;
 
 #[async_trait]
@@ -107,48 +91,6 @@ where
     }
 }
 
-pub struct UcsDisputeGateway<Flow>(PhantomData<Flow>);
-
-#[async_trait]
-impl<Flow, Req, Resp>
-    interface_gateway::DisputeGateway<
-        SessionState,
-        DisputesFlowData,
-        Flow,
-        Req,
-        Resp,
-        DisputeGatewayExecutionContext,
-    > for UcsDisputeGateway<Flow>
-where
-    Flow: DisputeGatewayFlow<Req, Resp>,
-    Req: Debug + Clone + Send + Sync + 'static,
-    Resp: Debug + Clone + Send + Sync + 'static,
-    DisputesFlowData: RouterDataConversion<Flow, Req, Resp>,
-{
-    async fn execute(
-        self: Box<Self>,
-        state: &SessionState,
-        _connector_integration: services::BoxedDisputeConnectorIntegrationInterface<
-            Flow,
-            Req,
-            Resp,
-        >,
-        router_data: &types::RouterData<Flow, Req, Resp>,
-        context: DisputeGatewayExecutionContext,
-    ) -> RouterResult<types::RouterData<Flow, Req, Resp>> {
-        let rollout_settings = context.dispute.rollout_settings();
-        Flow::execute_ucs(
-            state,
-            &context.processor,
-            router_data.clone(),
-            context.dispute.connector_transaction_id,
-            rollout_settings,
-            context.dispute.merchant_connector_account,
-        )
-        .await
-    }
-}
-
 /// Run a dispute action through the shared gateway executor.
 pub async fn execute_dispute_gateway<Flow, Req, Resp>(
     state: &SessionState,
@@ -159,14 +101,13 @@ pub async fn execute_dispute_gateway<Flow, Req, Resp>(
     context: DisputeGatewayContext,
 ) -> RouterResult<types::RouterData<Flow, Req, Resp>>
 where
-    Flow: DisputeGatewayFlow<Req, Resp>
-        + interface_gateway::DisputeFlowGateway<
-            SessionState,
-            DisputesFlowData,
-            Req,
-            Resp,
-            DisputeGatewayExecutionContext,
-        >,
+    Flow: interface_gateway::DisputeFlowGateway<
+        SessionState,
+        DisputesFlowData,
+        Req,
+        Resp,
+        DisputeGatewayExecutionContext,
+    >,
     Req: Debug + Clone + Send + Sync + 'static,
     Resp: Debug + Clone + Send + Sync + 'static,
     DisputesFlowData: RouterDataConversion<Flow, Req, Resp>,

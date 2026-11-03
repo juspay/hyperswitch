@@ -29,11 +29,8 @@ use hyperswitch_domain_models::{
     payment_method_data as domain_pm,
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
-    router_flow_types::{dispute, refunds},
-    router_request_types::{
-        AcceptDisputeRequestData, DefendDisputeRequestData, RefundsData, ResponseId,
-        SubmitEvidenceRequestData,
-    },
+    router_flow_types::refunds,
+    router_request_types::{RefundsData, ResponseId},
     router_response_types::{
         fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
         PaymentsResponseData, PayoutsResponseData, RefundsResponseData, SubmitEvidenceResponse,
@@ -2734,7 +2731,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
 }
 
 /// Gets the UCS client from session state
-fn get_ucs_client(
+pub(crate) fn get_ucs_client(
     state: &SessionState,
 ) -> RouterResult<
     &external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient,
@@ -4443,8 +4440,9 @@ where
     let payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+    redact_dispute_evidence_for_logging(&mut grpc_request_body);
 
     // Update connector call count metrics for UCS operations
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
@@ -5003,233 +5001,6 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     .map(|(_router_data, reverse_response)| reverse_response)
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("UCS refund reverse execution failed")
-}
-
-/// Execute a dispute accept using DisputeService.Accept.
-#[instrument(skip_all)]
-pub async fn call_unified_connector_service_for_dispute_accept(
-    state: &SessionState,
-    processor: &Processor,
-    router_data: RouterData<dispute::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>,
-    connector_transaction_id: Option<String>,
-    rollout_settings: kill_switch::RolloutSettings,
-    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-) -> RouterResult<RouterData<dispute::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>> {
-    let ucs_client = get_ucs_client(state)?;
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        processor.get_account().get_id(),
-        router_data.connector.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build UCS auth metadata for dispute accept")?;
-    let grpc_request = payments_grpc::DisputeServiceAcceptRequest::foreign_try_from((
-        &router_data,
-        connector_transaction_id,
-    ))
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to transform router data to UCS dispute accept request")?;
-
-    let merchant_id = processor.get_account().get_id().clone();
-    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert merchant_id to profile_id for UCS dispute accept")?;
-    let lineage_ids = LineageIds::new(merchant_id, profile_id);
-    let merchant_reference_id =
-        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert payment_id to UCS reference id")
-            .map(ucs_types::UcsReferenceId::Payment)
-            .map(Some)?;
-    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
-    let grpc_header_builder = state
-        .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
-        .lineage_ids(lineage_ids)
-        .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_reference_id)
-        .resource_id(None);
-
-    Box::pin(ucs_logging_wrapper(
-        router_data,
-        state,
-        grpc_request,
-        grpc_header_builder,
-        rollout_settings.clone(),
-        |mut router_data, grpc_request, grpc_headers| async move {
-            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
-            let grpc_response = ucs_client
-                .dispute_accept(grpc_request, connector_auth_metadata, grpc_headers)
-                .await
-                .attach_printable("UCS dispute accept execution failed")?
-                .into_inner();
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_dispute_accept(grpc_response.clone())
-                    .attach_printable("Failed to transform UCS dispute accept response")?;
-
-            router_data.connector_http_status_code = Some(status_code);
-            router_data.response = router_data_response;
-
-            Ok((router_data, (), grpc_response))
-        },
-    ))
-    .await
-    .map(|(router_data, _flow_response)| router_data)
-}
-
-/// Execute a dispute submit evidence using DisputeService.SubmitEvidence.
-#[instrument(skip_all)]
-pub async fn call_unified_connector_service_for_dispute_submit_evidence(
-    state: &SessionState,
-    processor: &Processor,
-    router_data: RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>,
-    connector_transaction_id: Option<String>,
-    rollout_settings: kill_switch::RolloutSettings,
-    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-) -> RouterResult<RouterData<dispute::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>>
-{
-    let ucs_client = get_ucs_client(state)?;
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        processor.get_account().get_id(),
-        router_data.connector.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build UCS auth metadata for dispute submit evidence")?;
-    let grpc_request = payments_grpc::DisputeServiceSubmitEvidenceRequest::foreign_try_from((
-        &router_data,
-        connector_transaction_id,
-    ))
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to transform router data to UCS dispute submit evidence request")?;
-
-    let merchant_id = processor.get_account().get_id().clone();
-    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to convert merchant_id to profile_id for UCS dispute submit evidence",
-        )?;
-    let lineage_ids = LineageIds::new(merchant_id, profile_id);
-    let merchant_reference_id =
-        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert payment_id to UCS reference id")
-            .map(ucs_types::UcsReferenceId::Payment)
-            .map(Some)?;
-    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
-    let grpc_header_builder = state
-        .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
-        .lineage_ids(lineage_ids)
-        .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_reference_id)
-        .resource_id(None);
-
-    Box::pin(ucs_logging_wrapper(
-        router_data,
-        state,
-        grpc_request,
-        grpc_header_builder,
-        rollout_settings.clone(),
-        |mut router_data, grpc_request, grpc_headers| async move {
-            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
-            let grpc_response = ucs_client
-                .dispute_submit_evidence(grpc_request, connector_auth_metadata, grpc_headers)
-                .await
-                .attach_printable("UCS dispute submit evidence execution failed")?
-                .into_inner();
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_dispute_submit_evidence(
-                    grpc_response.clone(),
-                )
-                .attach_printable("Failed to transform UCS dispute submit evidence response")?;
-
-            router_data.connector_http_status_code = Some(status_code);
-            router_data.response = router_data_response;
-
-            Ok((router_data, (), grpc_response))
-        },
-    ))
-    .await
-    .map(|(router_data, _flow_response)| router_data)
-}
-
-/// Execute a dispute defend using DisputeService.Defend.
-#[instrument(skip_all)]
-pub async fn call_unified_connector_service_for_dispute_defend(
-    state: &SessionState,
-    processor: &Processor,
-    router_data: RouterData<dispute::Defend, DefendDisputeRequestData, DefendDisputeResponse>,
-    connector_transaction_id: Option<String>,
-    rollout_settings: kill_switch::RolloutSettings,
-    #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
-    #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
-) -> RouterResult<RouterData<dispute::Defend, DefendDisputeRequestData, DefendDisputeResponse>> {
-    let ucs_client = get_ucs_client(state)?;
-    let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        merchant_connector_account,
-        processor.get_account().get_id(),
-        router_data.connector.clone(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to build UCS auth metadata for dispute defend")?;
-    let grpc_request = payments_grpc::DisputeServiceDefendRequest::foreign_try_from((
-        &router_data,
-        connector_transaction_id,
-    ))
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to transform router data to UCS dispute defend request")?;
-
-    let merchant_id = processor.get_account().get_id().clone();
-    let profile_id = id_type::ProfileId::from_str(merchant_id.get_string_repr())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert merchant_id to profile_id for UCS dispute defend")?;
-    let lineage_ids = LineageIds::new(merchant_id, profile_id);
-    let merchant_reference_id =
-        id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert payment_id to UCS reference id")
-            .map(ucs_types::UcsReferenceId::Payment)
-            .map(Some)?;
-    // UcsResourceId has no dispute variant; the dispute is identified by the request body.
-    let grpc_header_builder = state
-        .get_grpc_headers_ucs(rollout_settings.execution_mode)
-        .payment_method(Some(router_data.payment_method))
-        .payment_method_type(router_data.payment_method_type)
-        .lineage_ids(lineage_ids)
-        .external_vault_proxy_metadata(None)
-        .merchant_reference_id(merchant_reference_id)
-        .resource_id(None);
-
-    Box::pin(ucs_logging_wrapper(
-        router_data,
-        state,
-        grpc_request,
-        grpc_header_builder,
-        rollout_settings.clone(),
-        |mut router_data, grpc_request, grpc_headers| async move {
-            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
-            let grpc_response = ucs_client
-                .dispute_defend(grpc_request, connector_auth_metadata, grpc_headers)
-                .await
-                .attach_printable("UCS dispute defend execution failed")?
-                .into_inner();
-            let (router_data_response, status_code) =
-                handle_unified_connector_service_response_for_dispute_defend(grpc_response.clone())
-                    .attach_printable("Failed to transform UCS dispute defend response")?;
-
-            router_data.connector_http_status_code = Some(status_code);
-            router_data.response = router_data_response;
-
-            Ok((router_data, (), grpc_response))
-        },
-    ))
-    .await
-    .map(|(router_data, _flow_response)| router_data)
 }
 
 /// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
