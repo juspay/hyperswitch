@@ -5001,18 +5001,6 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
-            .attach_printable("Failed to fetch merchant account for the merchant id")?;
-
-        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
-            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
-                .attach_printable("JWT merchant does not belong to JWT organization")
-        })?;
-
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
@@ -5022,6 +5010,12 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         check_merchant_access_for_jwt(
             state,
