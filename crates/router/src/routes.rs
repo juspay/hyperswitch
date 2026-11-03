@@ -9,6 +9,8 @@ pub mod blocklist;
 pub mod cache;
 pub mod card_issuer;
 pub mod cards_info;
+#[cfg(feature = "v2")]
+pub mod client_secret;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -18,7 +20,6 @@ pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
-pub mod ephemeral_key;
 pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
@@ -111,7 +112,7 @@ pub use self::app::{
     Verify, WebhookEvents,
 };
 #[cfg(feature = "v2")]
-pub use self::app::{EphemeralKey, PaymentMethodSession};
+pub use self::app::{ClientSecret, PaymentMethodSession};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]

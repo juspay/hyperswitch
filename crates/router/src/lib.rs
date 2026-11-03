@@ -311,7 +311,7 @@ pub fn mk_app(
 
     #[cfg(all(feature = "oltp", feature = "v2"))]
     {
-        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+        server_app = server_app.service(routes::ClientSecret::server(state.clone()))
     }
     #[cfg(all(feature = "oltp", feature = "v1"))]
     {
