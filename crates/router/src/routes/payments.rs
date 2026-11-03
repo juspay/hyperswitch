@@ -2383,7 +2383,7 @@ pub async fn revenue_recovery_invoices_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
-                allow_connected: true,
+                allow_connected: false,
                 allow_platform: false,
             },
             req.headers(),
@@ -2418,7 +2418,7 @@ pub async fn revenue_recovery_invoices_list_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
-            allow_connected: true,
+            allow_connected: false,
             allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
