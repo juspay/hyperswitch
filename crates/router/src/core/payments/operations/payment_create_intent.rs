@@ -130,6 +130,7 @@ impl<F: Send + Clone + Sync>
                             .attach_printable("Failed to encode customer details")?
                             .map(hyperswitch_masking::Secret::new),
                         recipient_details: request.recipient_details.clone().map(|recipient| recipient.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode recipient details")?.map(hyperswitch_masking::Secret::new),
+                        sender_details: request.sender_details.clone().map(|sender| sender.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode sender details")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -228,9 +229,11 @@ impl<F: Send + Clone>
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        _request: &PaymentsCreateIntentRequest,
+        request: &PaymentsCreateIntentRequest,
         platform: &'a domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
+        helpers::validate_sender_details(request.sender_details.as_ref())?;
+
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
             storage_scheme: platform.get_processor().get_account().storage_scheme,

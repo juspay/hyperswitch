@@ -159,6 +159,8 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
@@ -438,6 +440,12 @@ impl PaymentIntent {
                 )
             })
             .transpose()
+    }
+
+    pub fn get_sender_details(&self) -> Option<api_models::payments::SenderDetails> {
+        self.sender_details
+            .as_ref()
+            .map(|details| details.get_inner().clone())
     }
 
     #[cfg(feature = "v1")]
@@ -1068,6 +1076,9 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
+    /// The details of the party providing the funds in an account funded transaction.
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
@@ -1284,6 +1295,14 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            sender_details: decrypted_payment_intent
+                .sender_details
+                .map(|data| {
+                    data.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?,
             enable_avs_check: request.enable_avs_check,
             mit_category: request.mit_category,
             settlement_conclusion_applied: None,
