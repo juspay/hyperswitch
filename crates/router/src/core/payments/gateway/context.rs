@@ -28,6 +28,14 @@ pub(crate) fn validate_external_vault_proxy_execution_path(
     Ok(())
 }
 
+/// Resolved proxy aliases and vault configuration for the primary UCS payment RPC.
+#[derive(Clone, Debug)]
+pub struct ExternalVaultProxyContext {
+    pub payment_method_data:
+        hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    pub metadata: String,
+}
+
 /// Router's gateway execution context
 ///
 /// This is the router crate's implementation of gateway context. It contains
@@ -35,8 +43,8 @@ pub(crate) fn validate_external_vault_proxy_execution_path(
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
-    /// Vault configuration for the primary payment RPC. Auxiliary RPCs do not inherit it.
-    pub external_vault_proxy_metadata: Option<String>,
+    /// Proxy data for the primary payment RPC. Auxiliary RPCs do not inherit it.
+    pub external_vault_proxy: Option<ExternalVaultProxyContext>,
     /// Processor context for payment execution
     pub processor: Processor,
 
@@ -101,7 +109,7 @@ impl RouterGatewayContext {
     ) -> Self {
         let lineage_ids = LineageIds::new(merchant_id, profile_id);
         Self {
-            external_vault_proxy_metadata: None,
+            external_vault_proxy: None,
             processor,
             header_payload: HeaderPayload::default(),
             lineage_ids,
@@ -131,7 +139,7 @@ impl RouterGatewayContext {
         rollout_result: helpers::RolloutExecutionResult,
     ) -> Self {
         Self {
-            external_vault_proxy_metadata: None,
+            external_vault_proxy: None,
             creds_identifier,
             processor,
             header_payload,

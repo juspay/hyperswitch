@@ -84,12 +84,23 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let incremental_authorization_request =
+        let mut incremental_authorization_request =
             payments_grpc::PaymentServiceIncrementalAuthorizationRequest::foreign_try_from(
                 router_data,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct Payment IncrementalAuthorization Request")?;
+
+        if let Some(proxy) = context.external_vault_proxy.as_ref() {
+            incremental_authorization_request.payment_method = Some(
+                unified_connector_service::build_unified_connector_service_payment_method_for_external_proxy(
+                    proxy.payment_method_data.clone(),
+                    router_data.payment_method_type,
+                )
+                .change_context(ConnectorError::RequestEncodingFailed)
+                .attach_printable("Failed to construct external vault payment method")?,
+            );
+        }
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -118,7 +129,7 @@ where
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
             .payment_method(Some(router_data.payment_method))
             .payment_method_type(router_data.payment_method_type)
-            .external_vault_proxy_metadata(context.external_vault_proxy_metadata)
+            .external_vault_proxy_metadata(context.external_vault_proxy.map(|proxy| proxy.metadata))
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
