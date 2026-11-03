@@ -1170,6 +1170,9 @@ Cypress.Commands.add(
     cy.request({
       method: "GET",
       url: `${baseUrl}/poll/status/${pollId}`,
+      qs: {
+        client_secret: globalState.get("clientSecret"),
+      },
       headers: {
         "api-key": apiKey,
         "Content-Type": "application/json",

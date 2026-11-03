@@ -8920,6 +8920,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "Client secret of the payment or authentication associated with this poll. Required unless supplied in SDK Authorization.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -8932,6 +8942,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Client secret missing, invalid, or expired"
           },
           "404": {
             "description": "Poll not found"

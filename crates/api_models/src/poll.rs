@@ -2,6 +2,11 @@ use common_utils::events::{ApiEventMetric, ApiEventsType};
 use serde::Serialize;
 use utoipa::ToSchema;
 
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct PollStatusQuery {
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+}
+
 #[derive(Debug, ToSchema, Clone, Serialize)]
 pub struct PollResponse {
     /// The poll id
