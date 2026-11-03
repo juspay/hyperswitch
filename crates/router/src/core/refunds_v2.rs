@@ -44,6 +44,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     platform: domain::Platform,
+    profile: domain::Profile,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
@@ -58,6 +59,10 @@ pub async fn refund_create_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    utils::when(payment_intent.profile_id != *profile.get_id(), || {
+        Err(report!(errors::ApiErrorResponse::PaymentNotFound))
+    })?;
 
     utils::when(
         !(payment_intent.status == enums::IntentStatus::Succeeded

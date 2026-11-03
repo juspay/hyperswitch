@@ -402,7 +402,7 @@ async fn get_refund_payment_method_data(
 pub async fn refund_create_core(
     state: SessionState,
     platform: domain::Platform,
-    _profile_id: Option<common_utils::id_type::ProfileId>,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = &*state.store;
@@ -419,6 +419,8 @@ pub async fn refund_create_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &payment_intent)?;
 
     utils::when(
         !(payment_intent.status == enums::IntentStatus::Succeeded
