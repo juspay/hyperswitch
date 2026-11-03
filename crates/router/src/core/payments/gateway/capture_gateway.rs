@@ -10,6 +10,7 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
+use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
@@ -103,7 +104,11 @@ where
             .get_grpc_headers_ucs(rollout_settings.execution_mode)
             .payment_method(Some(router_data.payment_method))
             .payment_method_type(router_data.payment_method_type)
-            .external_vault_proxy_metadata(context.external_vault_proxy_metadata)
+            .external_vault_proxy_metadata(
+                context
+                    .external_vault_proxy_metadata
+                    .map(|metadata| metadata.expose()),
+            )
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);

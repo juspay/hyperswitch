@@ -1576,17 +1576,14 @@ pub fn build_unified_connector_service_payment_method(
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     // Explicit vault aliases must reach the proxy even if a processor token is present.
-    let payment_method_data = match payment_method_data {
-        domain_pm::PaymentMethodData::ProxyCard(card) => {
-            return Ok(build_unified_connector_service_proxy_card_payment_method(
-                *card,
-            ));
-        }
-        payment_method_data => payment_method_data,
-    };
-    // A connector tokenization token settles for any payment method, including wallets.
+    // Other payment methods, including wallets, can use the connector tokenization token.
     // The token message carries the payment method it was minted from.
-    if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+    if let Some(PaymentMethodToken::Token(token)) = payment_method_token.filter(|_| {
+        !matches!(
+            &payment_method_data,
+            domain_pm::PaymentMethodData::ProxyCard(_)
+        )
+    }) {
         let token_payment_method_type = match &payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
@@ -1610,6 +1607,9 @@ pub fn build_unified_connector_service_payment_method(
         });
     }
     match payment_method_data {
+        domain_pm::PaymentMethodData::ProxyCard(card) => Ok(
+            build_unified_connector_service_proxy_card_payment_method(*card),
+        ),
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
             let card_exp_month = card
                 .get_card_expiry_month_2_digit()

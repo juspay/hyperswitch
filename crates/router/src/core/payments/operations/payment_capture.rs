@@ -62,12 +62,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             payments::PaymentData<F>,
         >,
     > {
-        let payment_method_data = operations::resolve_payment_method_data_for_operation(
-            request.payment_method_data.clone(),
-            payment_method_fetch_data
-                .payment_method_with_raw_data
-                .and_then(|pm| pm.raw_payment_method_data),
-        )?;
+        operations::validate_followup_payment_method_data(request.payment_method_data.as_ref())?;
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
@@ -108,17 +103,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .get_effective_capture_method()
             .get_required_value("capture_method")?;
 
-        if matches!(
-            payment_method_data.as_ref(),
-            Some(domain::PaymentMethodData::ProxyCard(_))
-        ) && capture_method == enums::CaptureMethod::ManualMultiple
-        {
-            return Err(errors::ApiErrorResponse::NotSupported {
-                message: "External vault proxy is not supported for multiple captures".to_string(),
-            }
-            .into());
-        }
-
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
         if !*payment_attempt
@@ -134,7 +118,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             )?;
         }
 
-        helpers::validate_capture_method(capture_method)?;
+        let is_proxy_card = matches!(
+            request.payment_method_data.as_ref(),
+            Some(api_models::payments::PaymentMethodData::ProxyCard(_))
+        ) || matches!(
+            payment_method_fetch_data
+                .payment_method_with_raw_data
+                .as_ref()
+                .and_then(|pm| pm.raw_payment_method_data.as_ref()),
+            Some(domain::PaymentMethodData::ProxyCard(_))
+        );
+        helpers::validate_capture_method(capture_method, is_proxy_card)?;
 
         let payment_feature_metadata = payment_intent
             .get_optional_feature_metadata()
@@ -270,6 +264,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
 
         let payment_data = payments::PaymentData {
             capture_feature_metadata,

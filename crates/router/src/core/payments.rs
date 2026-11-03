@@ -6820,6 +6820,43 @@ fn apply_auto_fallback_capture_method<F, D>(
 }
 
 #[cfg(feature = "v1")]
+async fn build_external_vault_proxy_metadata_for_operation<F>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_method_data: Option<&domain::PaymentMethodData>,
+) -> RouterResult<Option<Secret<String>>> {
+    match payment_method_data {
+        Some(domain::PaymentMethodData::ProxyCard(_)) => {
+            let flow_name = core_utils::get_flow_name::<F>()?;
+            match flow_name.as_str() {
+                "Capture" | "Void" | "IncrementalAuthorization" => {
+                    let vault_account = get_external_vault_merchant_connector_account(
+                        state,
+                        platform,
+                        business_profile,
+                    )
+                    .await?;
+                    super::unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
+                        vault_account,
+                        &state.conf.connectors,
+                        &state.conf.proxy,
+                    )
+                    .map(|metadata| Some(Secret::new(metadata)))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to construct external vault proxy metadata")
+                }
+                _ => Err(errors::ApiErrorResponse::NotSupported {
+                    message: format!("External vault proxy is not supported for {flow_name}"),
+                }
+                .into()),
+            }
+        }
+        _ => Ok(None),
+    }
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
 pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
@@ -6838,7 +6875,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     helpers::MerchantConnectorAccountType,
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     TokenizationAction,
-    Option<String>,
+    Option<Secret<String>>,
 )>
 where
     F: Send + Clone + Sync,
@@ -6853,35 +6890,13 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let external_vault_proxy_metadata = if matches!(
+    let external_vault_proxy_metadata = build_external_vault_proxy_metadata_for_operation::<F>(
+        state,
+        platform,
+        business_profile,
         payment_data.get_payment_method_data(),
-        Some(domain::PaymentMethodData::ProxyCard(_))
-    ) {
-        let flow_name = core_utils::get_flow_name::<F>()?;
-        if !matches!(
-            flow_name.as_str(),
-            "Capture" | "Void" | "IncrementalAuthorization"
-        ) {
-            return Err(errors::ApiErrorResponse::NotSupported {
-                message: format!("External vault proxy is not supported for {flow_name}"),
-            }
-            .into());
-        }
-        let vault_account =
-            get_external_vault_merchant_connector_account(state, platform, business_profile)
-                .await?;
-        Some(
-            super::unified_connector_service::build_unified_connector_service_external_vault_proxy_metadata_v1(
-                vault_account,
-                &state.conf.connectors,
-                &state.conf.proxy,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to construct external vault proxy metadata")?,
-        )
-    } else {
-        None
-    };
+    )
+    .await?;
 
     let dimensions = Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -7081,7 +7096,7 @@ pub async fn decide_unified_connector_service_call<'a, F, RouterDReq, ApiRequest
     merchant_connector_account: helpers::MerchantConnectorAccountType,
     router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     tokenization_action: TokenizationAction,
-    external_vault_proxy_metadata: Option<String>,
+    external_vault_proxy_metadata: Option<Secret<String>>,
 ) -> RouterResult<(
     Option<storage::CustomerUpdate>,
     ConnectorServiceIntermediateState<F, RouterDReq>,

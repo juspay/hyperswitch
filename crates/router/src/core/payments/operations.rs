@@ -232,26 +232,27 @@ pub enum PaymentFlowKind {
     ExternalVaultProxy,
 }
 
-/// Prefer supplied proxy aliases over fetched raw data while retaining the existing
-/// fetched-data precedence for ordinary payment methods.
-/// Follow-up operations cannot resolve `VaultCardTokenData`, because their requests do not
-/// include the payment token required by the saved-card confirm flow.
 #[cfg(feature = "v1")]
-pub(crate) fn resolve_payment_method_data_for_operation(
-    request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
-    fetched_payment_method_data: Option<domain::PaymentMethodData>,
-) -> RouterResult<Option<domain::PaymentMethodData>> {
-    match request_payment_method_data {
-        Some(payment_method_data @ api_models::payments::PaymentMethodData::ProxyCard(_)) => {
-            Ok(Some(domain::PaymentMethodData::from(payment_method_data)))
+pub(crate) fn validate_followup_payment_method_data(
+    payment_method_data: Option<&api_models::payments::PaymentMethodData>,
+) -> RouterResult<()> {
+    match payment_method_data {
+        Some(api_models::payments::PaymentMethodData::ProxyCard(card)) => {
+            if let Some(bin_number) = card.bin_number.as_ref() {
+                bin_number.parse::<::cards::CardBin>().change_context(
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_data.proxy_card.bin_number".into(),
+                    },
+                )?;
+            }
+            Ok(())
         }
         Some(api_models::payments::PaymentMethodData::VaultCardTokenData(_)) => {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "vault_card_token_data is not supported for capture, void, or incremental authorization; provide proxy_card data instead".to_string(),
             })?
         }
-        payment_method_data => Ok(fetched_payment_method_data
-            .or_else(|| payment_method_data.map(domain::PaymentMethodData::from))),
+        _ => Ok(()),
     }
 }
 

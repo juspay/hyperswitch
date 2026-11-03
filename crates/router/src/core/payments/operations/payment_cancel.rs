@@ -54,12 +54,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCancelRequest, PaymentData<F>>,
     > {
-        let payment_method_data = operations::resolve_payment_method_data_for_operation(
-            request.payment_method_data.clone(),
-            payment_method_fetch_data
-                .payment_method_with_raw_data
-                .and_then(|pm| pm.raw_payment_method_data),
-        )?;
+        operations::validate_followup_payment_method_data(request.payment_method_data.as_ref())?;
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
@@ -174,6 +169,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
 
         let payment_data = PaymentData {
             capture_feature_metadata: None,

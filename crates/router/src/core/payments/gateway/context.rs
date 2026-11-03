@@ -9,6 +9,7 @@ use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
+use hyperswitch_masking::Secret;
 
 use crate::core::payments::helpers;
 
@@ -18,14 +19,17 @@ pub(crate) fn validate_external_vault_proxy_execution_path(
     execution_path: ExecutionPath,
     requires_proxy: bool,
 ) -> crate::core::errors::RouterResult<()> {
-    if requires_proxy && !matches!(execution_path, ExecutionPath::UnifiedConnectorService) {
-        return Err(crate::core::errors::ApiErrorResponse::NotSupported {
-            message: "External vault proxy requires primary Unified Connector Service execution"
-                .to_string(),
+    match (requires_proxy, execution_path) {
+        (false, _) | (true, ExecutionPath::UnifiedConnectorService) => Ok(()),
+        (true, ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService) => {
+            Err(crate::core::errors::ApiErrorResponse::NotSupported {
+                message:
+                    "External vault proxy requires primary Unified Connector Service execution"
+                        .to_string(),
+            }
+            .into())
         }
-        .into());
     }
-    Ok(())
 }
 
 /// Router's gateway execution context
@@ -35,8 +39,9 @@ pub(crate) fn validate_external_vault_proxy_execution_path(
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
-    /// Vault configuration for the primary payment RPC. Auxiliary RPCs do not inherit it.
-    pub external_vault_proxy_metadata: Option<String>,
+    /// Provider vault configuration resolved upstream and carried to the primary UCS RPC headers.
+    /// Auxiliary flows, including refunds, leave this unset.
+    pub external_vault_proxy_metadata: Option<Secret<String>>,
     /// Processor context for payment execution
     pub processor: Processor,
 

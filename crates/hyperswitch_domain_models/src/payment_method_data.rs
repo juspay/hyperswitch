@@ -2828,7 +2828,16 @@ impl From<PaymentMethodData> for EligibilityPaymentMethodData {
         match value {
             PaymentMethodData::ProxyCard(card) => card
                 .bin_number
-                .and_then(|bin| bin.parse::<cards::CardBin>().ok())
+                .and_then(|bin| {
+                    bin.parse::<cards::CardBin>()
+                        .inspect_err(|error| {
+                            router_env::logger::warn!(
+                                error = ?Secret::<String>::new(error.to_string()),
+                                "Invalid proxy card BIN while building eligibility data"
+                            );
+                        })
+                        .ok()
+                })
                 .map(|card_bin| Self::CardBin(EligibilityCardBin { card_bin }))
                 // Vault aliases cannot supply a PAN for fingerprint checks.
                 .unwrap_or(Self::MandatePayment),
