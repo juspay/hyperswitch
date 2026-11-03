@@ -1262,8 +1262,9 @@ pub async fn schedule_dispute_sync_task(
             .attach_printable("Error while fetching the merchant account for processor")?;
 
         let organization = state
-            .accounts_store
-            .find_organization_by_org_id(processor_account.get_org_id())
+            .track_accounts_query(|db| {
+                db.find_organization_by_org_id(processor_account.get_org_id())
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the organization for processor merchant")?;

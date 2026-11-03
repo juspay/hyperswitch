@@ -6,6 +6,8 @@
 
 /// Utilities to identify members of the current cargo workspace.
 pub mod cargo_workspace;
+/// Origin of an operation within an async task.
+pub mod call_origin;
 pub mod env;
 pub mod logger;
 pub mod metrics;

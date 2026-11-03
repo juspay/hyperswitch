@@ -221,7 +221,8 @@ impl DatabaseConnectionWithContext<'_> {
             .unwrap_or("undefined");
 
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
-            if ledger.record_read(statement, None) {
+            let location = router_env::call_origin::current().copied();
+            if ledger.record_read(statement, location) {
                 crate::metrics::DUPLICATE_DB_READ_COUNT.add(
                     1,
                     router_env::metric_attributes!(
