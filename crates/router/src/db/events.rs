@@ -2238,6 +2238,7 @@ mod tests {
             sender_payment_instrument_id: None,
             payment_account_reference: None,
             enable_avs_check: None,
+            enable_ani_check: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

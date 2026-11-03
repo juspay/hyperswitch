@@ -393,6 +393,9 @@ pub struct PaymentsCreateIntentRequest {
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name inquiry for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_ani_check: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
@@ -590,6 +593,9 @@ pub struct PaymentsUpdateIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name inquiry for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -626,6 +632,7 @@ impl PaymentsUpdateIntentRequest {
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
+            enable_ani_check: None,
         }
     }
 }
@@ -786,6 +793,9 @@ pub struct PaymentsIntentResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name inquiry was requested for this payment.
+    #[schema(example = true)]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1691,6 +1701,11 @@ pub struct PaymentsRequest {
     #[schema(default = false, example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+
+    /// Request account name inquiry for supported payments.
+    #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_ani_check: Option<bool>,
 
     /// Indicates that the merchant has concluded settlement and supplied final amounts.
     /// When true, Hyperswitch skips tax and surcharge calculations that would change
@@ -5435,6 +5450,7 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
 )]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletData {
     /// The wallet data for Ali Pay HK redirect
     #[schema(title = "AliPayHkRedirect")]
@@ -6179,6 +6195,8 @@ pub struct ApplepayPaymentMethod {
     /// The country of the card issuer, as returned by the connector
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub issuer_country: Option<api_enums::CountryAlpha2>,
+    /// Additional payment checks done by the processor.
+    pub payment_checks: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -8291,6 +8309,10 @@ pub struct PaymentsResponse {
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name inquiry was requested for this payment.
+    #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8597,6 +8619,9 @@ pub struct PaymentsConfirmIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name inquiry for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8847,6 +8872,9 @@ pub struct PaymentsRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name inquiry for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8886,6 +8914,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_ani_check: request.enable_ani_check,
             mit_category: None,
         }
     }
@@ -8909,6 +8938,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_ani_check: request.enable_ani_check,
         }
     }
 }
@@ -9222,6 +9252,9 @@ pub struct PaymentsResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name inquiry was requested for this payment.
+    #[schema(example = true)]
+    pub enable_ani_check: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -10219,6 +10252,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: apple_pay_pm.card_type,
                             issuer_name: apple_pay_pm.issuer_name,
                             issuer_country: apple_pay_pm.issuer_country,
+                            payment_checks: apple_pay_pm.payment_checks,
                         },
                     ))),
                 })),

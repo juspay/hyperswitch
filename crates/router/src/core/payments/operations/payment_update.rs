@@ -488,6 +488,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_ani_check =
+            request.enable_ani_check.or(payment_intent.enable_ani_check);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -1423,6 +1425,7 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                enable_ani_check: payment_data.payment_intent.enable_ani_check,
                 settlement_conclusion_applied: payment_data
                     .payment_intent
                     .settlement_conclusion_applied,

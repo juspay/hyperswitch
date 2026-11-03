@@ -7046,6 +7046,10 @@
               }
             ],
             "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
+            "nullable": true
           }
         }
       },
@@ -26184,6 +26188,13 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Request account name inquiry for supported payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26421,6 +26432,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Request account name inquiry for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -26827,6 +26845,12 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Whether account name inquiry was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -27338,6 +27362,13 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Request account name inquiry for supported payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -27566,6 +27597,12 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Whether account name inquiry was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -27856,6 +27893,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_ani_check": {
+            "type": "boolean",
+            "description": "Request account name inquiry for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -36928,6 +36972,10 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
             "nullable": true
           },
           "auth_code": {
