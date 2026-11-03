@@ -118,63 +118,6 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-#[cfg(test)]
-mod tests {
-    use hyperswitch_masking::ExposeInterface;
-
-    use super::*;
-
-    #[test]
-    fn saas_response_preserves_connector_bytes_status_and_repeated_headers() {
-        for body in [
-            &b" {\"result\":true}\n"[..],
-            &b"<result/>"[..],
-            &b"text response"[..],
-            &b"\x00\xff\xfe"[..],
-            &b""[..],
-        ] {
-            let mut headers = http::header::HeaderMap::new();
-            headers.append("set-cookie", "one=1".parse().unwrap());
-            headers.append("set-cookie", "two=2".parse().unwrap());
-            let response = Response {
-                status_code: 422,
-                headers: Some(headers),
-                response: body.to_vec().into(),
-            };
-            let proxy =
-                proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(response)).unwrap();
-            assert_eq!(proxy.status_code, 422);
-            assert_eq!(
-                STANDARD
-                    .decode(proxy.response_body_base64.unwrap().expose())
-                    .unwrap(),
-                body
-            );
-            assert_eq!(proxy.response_headers_multi.unwrap().expose().len(), 2);
-        }
-    }
-
-    #[test]
-    fn non_ascii_connector_headers_do_not_fail_the_proxy_response() {
-        let mut headers = http::header::HeaderMap::new();
-        headers.append(
-            "x-note",
-            http::header::HeaderValue::from_bytes(b"\xe9t\xe9").unwrap(),
-        );
-        let response = Response {
-            status_code: 200,
-            headers: Some(headers),
-            response: b"{}".to_vec().into(),
-        };
-        let proxy =
-            proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(response)).unwrap();
-        assert_eq!(
-            proxy.response_headers_multi.unwrap().expose(),
-            vec![("x-note".to_owned(), "\u{fffd}t\u{fffd}".to_owned())]
-        );
-    }
-}
-
 async fn execute_proxy_request(
     state: &SessionState,
     req_wrapper: &utils::ProxyRequestWrapper,
@@ -241,5 +184,62 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
             status_code,
             response_headers: response_headers.into(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_masking::ExposeInterface;
+
+    use super::*;
+
+    #[test]
+    fn saas_response_preserves_connector_bytes_status_and_repeated_headers() {
+        for body in [
+            &b" {\"result\":true}\n"[..],
+            &b"<result/>"[..],
+            &b"text response"[..],
+            &b"\x00\xff\xfe"[..],
+            &b""[..],
+        ] {
+            let mut headers = http::header::HeaderMap::new();
+            headers.append("set-cookie", "one=1".parse().unwrap());
+            headers.append("set-cookie", "two=2".parse().unwrap());
+            let response = Response {
+                status_code: 422,
+                headers: Some(headers),
+                response: body.to_vec().into(),
+            };
+            let proxy =
+                proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(response)).unwrap();
+            assert_eq!(proxy.status_code, 422);
+            assert_eq!(
+                STANDARD
+                    .decode(proxy.response_body_base64.unwrap().expose())
+                    .unwrap(),
+                body
+            );
+            assert_eq!(proxy.response_headers_multi.unwrap().expose().len(), 2);
+        }
+    }
+
+    #[test]
+    fn non_ascii_connector_headers_do_not_fail_the_proxy_response() {
+        let mut headers = http::header::HeaderMap::new();
+        headers.append(
+            "x-note",
+            http::header::HeaderValue::from_bytes(b"\xe9t\xe9").unwrap(),
+        );
+        let response = Response {
+            status_code: 200,
+            headers: Some(headers),
+            response: b"{}".to_vec().into(),
+        };
+        let proxy =
+            proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(response)).unwrap();
+        assert_eq!(
+            proxy.response_headers_multi.unwrap().expose(),
+            vec![("x-note".to_owned(), "\u{fffd}t\u{fffd}".to_owned())]
+        );
     }
 }
