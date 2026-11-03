@@ -1215,10 +1215,12 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
 
+    let refund_amount_details =
+        hyperswitch_domain_models::refunds::RefundAmountDetails::from(refund_amount);
     refunds_validator::validate_refund_amount(
-        total_amount_captured.get_amount_as_i64(),
+        total_amount_captured,
         &all_refunds,
-        refund_amount.get_amount_as_i64(),
+        refund_amount_details,
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
@@ -1246,6 +1248,7 @@ pub async fn validate_and_create_refund(
             req.feature_metadata,
             &all_refunds,
         )?;
+    let (refund_amount, _, _) = refund_amount_details.into_storage_amounts();
     let refund_create_req = diesel_refund::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
@@ -1263,6 +1266,8 @@ pub async fn validate_and_create_refund(
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
         feature_metadata: refund_feature_metadata,
+        refund_surcharge_amount: None,
+        net_refund_amount: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
