@@ -142,6 +142,14 @@ pub struct AccountIDSupportedMethods {
     skrill: HashMap<String, AccountIdConfigForRedirect>,
 }
 
+/// Merchant ID inputs: a single ID or IDs keyed by settlement currency.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum MerchantIdConfig {
+    Single(InputData),
+    ByCurrency(HashMap<api_models::enums::Currency, InputData>),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
@@ -164,7 +172,7 @@ pub struct ConfigMetadata {
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
     pub workspace_id: Option<InputData>,
-    pub merchant_id: Option<InputData>,
+    pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
@@ -175,6 +183,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_name: Option<InputData>,
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
+    pub enable_stc: Option<InputData>,
     pub klarna_region: Option<InputData>,
     pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
@@ -234,6 +243,26 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Wallet flow, based on who decrypts the wallet token
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletFlow {
+    /// The wallet token is decrypted by the connector
+    Encrypt,
+    /// The wallet token is decrypted by Hyperswitch or Merchant
+    Decrypt,
+}
+
+/// Input to be collected for `pay_via_single_use_token` of a payment method type
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PayViaSingleUseTokenInputData {
+    /// Wallet flows for which the value has to be collected
+    pub flows: Vec<WalletFlow>,
+    #[serde(flatten)]
+    pub input_data: InputData,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
@@ -260,6 +289,9 @@ pub struct ConnectorTomlConfig {
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
     pub network_token: Option<Vec<Provider>>,
+    /// Inputs to be collected for `pay_via_single_use_token`, keyed by payment method type
+    pub pay_via_single_use_token:
+        Option<HashMap<api_models::enums::PaymentMethodType, PayViaSingleUseTokenInputData>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -306,6 +338,7 @@ pub struct ConnectorConfig {
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
     pub ilixium: Option<ConnectorTomlConfig>,
+    pub ecommpay: Option<ConnectorTomlConfig>,
     pub jpmorgan_orbital: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
@@ -752,6 +785,7 @@ impl ConnectorConfig {
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
             Connector::Ilixium => Ok(connector_data.ilixium),
+            Connector::Ecommpay => Ok(connector_data.ecommpay),
             Connector::JpmorganOrbital => Ok(connector_data.jpmorgan_orbital),
             Connector::Givepayments => Ok(connector_data.givepayments),
         }

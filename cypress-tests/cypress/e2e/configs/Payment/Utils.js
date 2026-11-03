@@ -31,6 +31,7 @@ import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
+import { connectorDetails as elavonPgConnectorDetails } from "./ElavonPg.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
@@ -128,6 +129,7 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
+  elavon_pg: elavonPgConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
@@ -613,6 +615,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
     VOID_PAYMENT_SYNC: ["zift"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
@@ -622,6 +625,7 @@ export const CONNECTOR_LISTS = {
       "givepayments",
       "globalpayments_realex",
       "ilixium",
+      "stripe",
       "truelayer",
       "trustly",
     ],
@@ -780,7 +784,7 @@ export const CONNECTOR_LISTS = {
     PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     VAULT_TOKENIZATION: ["stripe"],
-    STEP_UP_AUTH: ["cybersource"],
+    STEP_UP_AUTH: ["cybersource", "peachpayments"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],

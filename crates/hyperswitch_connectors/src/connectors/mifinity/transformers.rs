@@ -40,7 +40,7 @@ pub mod auth_headers {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MifinityConnectorMetadataObject {
-    pub brand_id: Secret<String>,
+    pub brand_id: Option<Secret<String>>,
     pub destination_account_number: Secret<String>,
 }
 
@@ -142,7 +142,12 @@ impl TryFrom<&MifinityRouterData<&types::PaymentsAuthorizeRouterData>> for Mifin
                     )?;
                     let destination_account_number = metadata.destination_account_number;
                     let trace_id = item.router_data.connector_request_reference_id.clone();
-                    let brand_id = metadata.brand_id;
+                    let brand_id =
+                        metadata
+                            .brand_id
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "brand_id".into(),
+                            })?;
                     let language_preference = data.language_preference;
                     Ok(Self {
                         money,

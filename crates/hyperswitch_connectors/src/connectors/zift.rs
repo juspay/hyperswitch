@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
+    ext_traits::ValueExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
 };
@@ -36,6 +37,7 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -203,14 +205,44 @@ impl ConnectorCommon for Zift {
         let response: zift::ZiftErrorResponse = serde_urlencoded::from_bytes(&res.response)
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        if res.response.is_empty() {
+            router_env::logger::info!(
+                "Zift connector returned an empty response body for error response"
+            );
+        } else if response.response_code.is_none()
+            && response.response_message.is_none()
+            && response.failure_code.is_none()
+            && response.failure_message.is_none()
+        {
+            let value = serde_json::from_slice::<serde_json::Value>(&res.response)
+                .ok()
+                .or_else(|| serde_urlencoded::from_bytes::<serde_json::Value>(&res.response).ok())
+                .ok_or_else(|| report!(errors::ConnectorError::ResponseDeserializationFailed))
+                .attach_printable("Failed to parse the Zift error response")?;
+            router_env::logger::info!(
+                "Zift connector returned an unexpected error response with structure: {}",
+                value.to_type_schema()
+            );
+        }
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
+        let error_message = response
+            .response_message
+            .clone()
+            .or(response.failure_message.clone());
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.response_code,
-            message: response.response_message.clone(),
-            reason: Some(response.response_message),
+            code: response
+                .response_code
+                .or(response.failure_code)
+                .unwrap_or(NO_ERROR_CODE.to_string()),
+            message: error_message
+                .clone()
+                .unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: error_message,
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,

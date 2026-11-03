@@ -34,6 +34,48 @@ use crate::{
     consts::PERCENTAGE_BASE,
     domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
 };
+/// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct MultiCurrencyProcessingAmountData {
+    /// Merchant settlement amount in minor units.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Merchant settlement currency.
+    #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
+    pub currency: enums::Currency,
+}
+
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+/// Feature metadata for a capture operation.
+pub struct CaptureFeatureMetadata {
+    /// Settlement amount and currency for this capture.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
+}
+
+#[cfg(feature = "diesel")]
+impl_to_sql_from_sql_json!(CaptureFeatureMetadata);
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
@@ -954,25 +996,6 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-/// Action to be taken on the transaction reported through the revenue recovery API
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RecoveryPaymentsAction {
-    /// Records the external transaction against payment intent and schedules a retry.
-    ScheduleFailedPayment,
-    /// Records the external payment and stops the internal process tracker.
-    SuccessPaymentExternal,
-}
-
-impl From<RecoveryPaymentsAction> for RecoveryAction {
-    fn from(action: RecoveryPaymentsAction) -> Self {
-        match action {
-            RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
-            RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
-        }
-    }
-}
-
 /// Status of the transaction reported.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -981,10 +1004,9 @@ pub enum RecoveryTransactionStatus {
     Charged,
     /// The transaction failed.
     Failure,
-    /// The transaction was charged for a part of the amount.
+    /// The transaction was charged for a part of the amount. The captured amount must be sent
+    /// in `amount_captured`.
     PartialCharged,
-    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
-    PartialChargedAndChargeable,
 }
 
 impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
@@ -993,9 +1015,6 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
             RecoveryTransactionStatus::Charged => Self::Charged,
             RecoveryTransactionStatus::Failure => Self::Failure,
             RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
-            RecoveryTransactionStatus::PartialChargedAndChargeable => {
-                Self::PartialChargedAndChargeable
-            }
         }
     }
 }
@@ -1640,6 +1659,22 @@ pub enum TokenSource {
     ApplePay,
 }
 
+/// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
+#[derive(
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema, smithy::SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SurchargeErrorDetails {
+    /// Connector error code when the external calculation failed.
+    #[schema(example = "INVALID_NICN")]
+    pub error_code: Option<String>,
+    /// Connector error message when the external calculation failed.
+    #[schema(example = "Card BIN is invalid")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    pub error_reason: Option<String>,
+}
+
 /// External surcharge details from InterPayments (stored as JSONB)
 #[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
@@ -1655,9 +1690,31 @@ pub struct ExternalSurchargeDetails {
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+    /// Connector error details when the calculation failed; null on success.
+    #[serde(default)]
+    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
+    /// Whether any connector error details are present.
+    pub fn has_error(&self) -> bool {
+        self.error_details.is_some()
+    }
+
+    /// Connector ID only when a successful calculation can be notified or reused.
+    pub fn usable_connector_id(&self) -> Option<&str> {
+        match self {
+            details
+                if !details.has_error()
+                    && !details.external_surcharge_id.is_empty()
+                    && details.external_surcharge_id != crate::consts::NO_SURCHARGE_ID_FOUND =>
+            {
+                Some(details.external_surcharge_id.as_str())
+            }
+            _ => None,
+        }
+    }
+
     /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
     /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
     pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {

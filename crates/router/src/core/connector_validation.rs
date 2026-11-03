@@ -235,6 +235,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 ebanx::transformers::EbanxAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Ecommpay => {
+                ecommpay::transformers::EcommpayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Elavon => {
                 elavon::transformers::ElavonAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -492,6 +496,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paypal => {
                 paypal::transformers::PaypalAuthType::try_from(self.auth_type)?;
+                paypal::transformers::PaypalConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Paysafe => {
@@ -656,10 +663,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::Worldpayvantiv => {
-                worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
+                let auth_type =
+                    worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
                 worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
                     self.connector_meta_data,
-                )?;
+                )?
+                .validate_for_auth_type(&auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Worldpayxml => {

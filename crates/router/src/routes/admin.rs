@@ -426,7 +426,7 @@ pub async fn merchant_account_list(
                 organization_id: None,
             },
             &auth::JWTAuthMerchantFromHeader {
-                required_permission: Permission::MerchantAccountRead,
+                required_permission: Permission::OrganizationAccountRead,
                 allow_connected: true,
                 allow_platform: true,
             },
@@ -632,7 +632,7 @@ pub async fn connector_create(
                 state,
                 req,
                 auth_data.platform.get_processor().clone(),
-                None,
+                Some(auth_data.profile.get_id().clone()),
             ))
             .await
         },
@@ -751,13 +751,14 @@ pub async fn connector_list(
         flow,
         state,
         &req,
-        profile_id.to_owned(),
-        |state, auth: auth::AuthenticationData, _, _| {
-            list_connectors_for_a_profile(
-                state,
-                auth.platform.get_processor().clone(),
-                profile_id.clone(),
-            )
+        profile_id,
+        |state, auth: auth::AuthenticationData, profile_id, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(profile_id.clone()),
+                &auth.profile,
+            )?;
+            list_connectors_for_a_profile(state, auth.platform.get_processor().clone(), profile_id)
+                .await
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

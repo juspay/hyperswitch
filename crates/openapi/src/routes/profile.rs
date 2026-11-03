@@ -361,15 +361,17 @@ pub async fn routing_retrieve_default_config() {}
             description = "Merchant ID of the profile.",
             example = json!({"X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"})
         ),
+        ("X-Profile-Id" = String, Header, description = "Authenticated business profile. Must match the profile ID in the path."),
     ),
     responses(
         (status = 200, description = "Merchant Connector list retrieved successfully", body = Vec<MerchantConnectorResponse>),
+        (status = 400, description = "Path profile ID does not match X-Profile-Id"),
         (status = 404, description = "Merchant Connector does not exist in records"),
         (status = 401, description = "Unauthorized request")
     ),
     tag = "Business Profile",
     operation_id = "List all Merchant Connectors for Profile",
-    security(("admin_api_key" = []))
+    security(("admin_api_key" = []), ("jwt_key" = []))
 )]
 #[cfg(feature = "v2")]
 pub async fn connector_list() {}

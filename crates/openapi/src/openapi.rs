@@ -68,7 +68,8 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Event", description = "Manage events"),
         (name = "Authentication", description = "Create and manage authentication"),
         (name = "Subscriptions", description = "Subscription management and billing endpoints"),
-        (name = "Card Issuer", description = "Create and manage card issuers")
+        (name = "Card Issuer", description = "Create and manage card issuers"),
+        (name = "Telephone Order", description = "Charge cards collected over the phone by an IVR provider")
     ),
     // The paths will be displayed in the same order as they are registered here
     paths(
@@ -189,16 +190,11 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::routing_retrieve_linked_config,
         routes::routing::routing_retrieve_default_config_for_profiles,
         routes::routing::routing_update_default_config_for_profile,
-        routes::routing::success_based_routing_update_configs,
         routes::routing::toggle_success_based_routing,
         routes::routing::toggle_elimination_routing,
         routes::routing::create_success_based_routing,
         routes::routing::create_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
-        routes::routing::contract_based_routing_update_configs,
-        routes::routing::call_decide_gateway_open_router,
-        routes::routing::call_update_gateway_score_open_router,
-        routes::routing::evaluate_routing_rule,
 
         // Routes for offers
         routes::offer_engine::offer_engine_browse_offers,
@@ -279,6 +275,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::card_issuer::update_card_issuer,
         routes::card_issuer::delete_card_issuer,
         routes::card_issuer::list_card_issuers,
+
+        // Routes for telephone orders
+        routes::telephone_order::telephone_order_charge,
     ),
     components(schemas(
         common_utils::types::MinorUnit,
@@ -438,6 +437,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodListInstallmentPlan,
         api_models::payment_methods::PaymentMethodListInstallmentAmountDetails,
         api_models::payment_methods::PaymentMethodDataWalletInfo,
+        api_models::payment_methods::WalletProviderDetails,
+        api_models::payment_methods::PaypalWalletInfo,
         api_models::payment_methods::ResponsePaymentMethodsEnabled,
         api_models::payment_methods::ResponsePaymentMethodTypes,
         api_models::payment_methods::PaymentExperienceTypes,
@@ -468,6 +469,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
+        common_types::payment_methods::PayViaSingleUseToken,
         api_models::enums::AdyenSplitType,
         api_models::enums::PixKey,
         api_models::enums::PaymentType,
@@ -629,9 +631,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
         api_models::payments::ConnectorMetadata,
+        api_models::payments::PaypalConnectorMetadata,
         api_models::payments::ConnectorMetadataResponse,
         api_models::payments::SantanderData,
         api_models::payments::SantanderJourneyName,
+        api_models::payments::Revolv3Data,
         api_models::payments::WorldpayxmlData,
         api_models::payments::CheckoutData,
         api_models::payments::WorldpayxmlFundingTransactionType,
@@ -661,6 +665,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::RevolutPayData,
         api_models::payments::AirwallexData,
         api_models::payments::BraintreeData,
+        api_models::payments::MultiCurrencyProcessingData,
+        api_models::payments::MultiCurrencyProcessingAmountData,
+        api_models::payments::CaptureFeatureMetadata,
+        api_models::refunds::RefundFeatureMetadata,
         api_models::payments::NoonData,
         api_models::payments::PeachpaymentsData,
         api_models::payments::OrderDetailsWithAmount,
@@ -818,6 +826,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
         api_models::payments::RequestSurchargeDetails,
+        api_models::payments::PaymentSurchargeDetailsResponse,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
         api_models::payments::PaymentsIncrementalAuthorizationRequest,
@@ -858,6 +867,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::DefaultPaymentMethod,
         api_models::payment_methods::MaskedBankDetails,
         api_models::payment_methods::SurchargeDetailsResponse,
+        api_models::payment_methods::SurchargeErrorDetails,
         api_models::payment_methods::SurchargeResponse,
         api_models::payment_methods::SurchargePercentage,
         api_models::enums::SurchargeStrategy,
@@ -893,6 +903,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::unreferenced_refund::RecipientCardData,
         api_models::enums::RelayStatus,
         api_models::relay::RelayError,
+        api_models::telephone_order::twilio::TwilioGenericPayRequest,
+        api_models::telephone_order::twilio::TwilioGenericPayResponse,
+        api_models::telephone_order::twilio::TwilioPayMethod,
         api_models::payments::AmountFilter,
         api_models::mandates::MandateRevokedResponse,
         api_models::mandates::MandateResponse,
@@ -1191,24 +1204,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationPaymentMethodDataResponse,
         api_models::authentication::AuthenticationDetails,
         api_models::authentication::ExternalThreeDsData,
-        api_models::open_router::OpenRouterDecideGatewayRequest,
-        api_models::open_router::DecideGatewayResponse,
-        api_models::open_router::UpdateScorePayload,
-        api_models::open_router::UpdateScoreResponse,
-        api_models::routing::RoutingEvaluateRequest,
-        api_models::routing::RoutingEvaluateResponse,
         api_models::routing::ValueType,
         api_models::routing::DeRoutableConnectorChoice,
         api_models::routing::RoutableConnectorChoice,
-        api_models::open_router::PaymentInfo,
         common_utils::id_type::PaymentId,
         common_utils::id_type::ProfileId,
         common_utils::id_type::AuthenticationId,
         common_utils::id_type::ProfileAcquirerId,
-        api_models::open_router::RankingAlgorithm,
-        api_models::open_router::TxnStatus,
-        api_models::open_router::PriorityLogicOutput,
-        api_models::open_router::PriorityLogicData,
         api_models::user::PlatformAccountCreateRequest,
         api_models::user::PlatformAccountCreateResponse,
         api_models::platform::Initiator,
@@ -1292,8 +1294,8 @@ impl utoipa::Modify for SecurityAddon {
                 (
                     "admin_api_key",
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
+                        "Authorization",
+                        "Format: `admin-api-key=<admin-api-key>`\n\nAdmin API keys allow you to perform some privileged actions such as \
                         creating a merchant account and Merchant Connector account."
                     ))),
                 ),
@@ -1312,6 +1314,19 @@ impl utoipa::Modify for SecurityAddon {
                         "Ephemeral keys provide temporary access to singular data, such as access \
                         to a single customer object for a short period of time."
                     ))),
+                ),
+                (
+                    "basic_api_key",
+                    SecurityScheme::Http(
+                        HttpBuilder::new()
+                            .scheme(HttpAuthScheme::Basic)
+                            .description(Some(
+                                "HTTP Basic authentication with a merchant API key as the \
+                                password. The username is ignored. Used by endpoints that a \
+                                third party posts to, such as telephone order providers."
+                            ))
+                            .build()
+                    )
                 ),
                 (
                     "jwt_key",

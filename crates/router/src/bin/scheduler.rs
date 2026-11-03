@@ -432,6 +432,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::AnalyticsReportWorkflow => {
+                    #[cfg(feature = "olap")]
+                    {
+                        Ok(Box::new(
+                            workflows::analytics_report::AnalyticsReportWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "olap"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run analytics report workflow when olap feature is disabled",
+                            )
+                    }
+                }
                 storage::ProcessTrackerRunner::BlocklistProfileCloneWorkflow => {
                     #[cfg(feature = "v1")]
                     {

@@ -2,13 +2,13 @@ use std::fmt::Debug;
 
 use common_enums::enums;
 use error_stack::{report, ResultExt};
-use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 
 use crate::{
     core::{
         errors,
         errors::utils::ConnectorErrorExt,
-        payments::{gateway::context as gateway_context, RouterResult},
+        payments::{gateway, gateway::context as gateway_context, RouterResult},
     },
     logger, routes, services, types,
     types::{api as api_types, transformers::ForeignFrom},
