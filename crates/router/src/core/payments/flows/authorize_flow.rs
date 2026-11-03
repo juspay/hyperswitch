@@ -571,27 +571,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             let should_continue_after_preauthenticate = match connector.connector_name {
                 // connector specific handling to decide whether to continue with authorize or not should not be done here
-                // this is just a temporary fix for Redsys and Shift4 connectors
-                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        connector_metadata,
-                        redirection_data,
-                        ..
-                    }) => {
-                        let has_ucs_redirection = redirection_data.is_some();
-
-                        let has_hyperswitch_three_ds_invoke_data: bool =
-                            connector_metadata.clone().and_then(|metadata| {
-                                metadata
-                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
-                                    .ok()
-                            }).is_some();
-
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
-                        !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data
-                    }
-                    _ => false,
-                },
+                // this is just a temporary fix for the Shift4 connector
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Paypal => true,
                 // Nuvei: never run the next leg after a failed initPayment
@@ -1577,7 +1557,7 @@ fn transform_response_for_pre_authenticate_flow(
                 },
             )
         }
-        // TODO: Temporary solution for Redsys 3DS invoke flow via UCS
+        // TODO: Temporary solution for the 3DS invoke flow via UCS
         //
         // Currently, UCS returns 3DS invoke data in `redirection_data.form_fields` instead of
         // `connector_metadata`. This workaround extracts the invoke data from form_fields and
@@ -1593,7 +1573,7 @@ fn transform_response_for_pre_authenticate_flow(
         // Hyperswitch, potentially through dedicated fields in the gRPC response or a unified
         // authentication data structure that covers all 3DS scenarios.
         (
-            enums::connector_enums::Connector::Adyen | enums::connector_enums::Connector::Redsys,
+            _,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
