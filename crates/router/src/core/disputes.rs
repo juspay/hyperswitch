@@ -508,7 +508,7 @@ pub async fn accept_dispute(
             None,
             payments::CallConnectorAction::Trigger,
             None,
-            common_enums::TransactionType::Dispute,
+            common_enums::TransactionType::Payment,
         )
         .await?;
     let response = gateway::execute_dispute_gateway(
@@ -661,7 +661,7 @@ pub async fn submit_evidence(
             None,
             payments::CallConnectorAction::Trigger,
             None,
-            common_enums::TransactionType::Dispute,
+            common_enums::TransactionType::Payment,
         )
         .await?;
     let response = gateway::execute_dispute_gateway(

@@ -2072,8 +2072,7 @@ pub async fn ensure_algorithm_cached_v1(
                     profile_id.get_string_repr()
                 )
             }
-            common_enums::TransactionType::Dispute
-            | common_enums::TransactionType::ThreeDsAuthentication => {
+            common_enums::TransactionType::ThreeDsAuthentication => {
                 Err(errors::RoutingError::InvalidTransactionType)?
             }
         }
@@ -2348,8 +2347,7 @@ pub async fn get_merchant_cgraph(
                     profile_id.get_string_repr()
                 )
             }
-            api_enums::TransactionType::Dispute
-            | api_enums::TransactionType::ThreeDsAuthentication => {
+            api_enums::TransactionType::ThreeDsAuthentication => {
                 Err(errors::RoutingError::InvalidTransactionType)?
             }
         }
@@ -2408,7 +2406,7 @@ pub async fn refresh_cgraph_cache(
             merchant_connector_accounts
                 .retain(|mca| mca.connector_type == storage_enums::ConnectorType::PayoutProcessor);
         }
-        api_enums::TransactionType::Dispute | api_enums::TransactionType::ThreeDsAuthentication => {
+        api_enums::TransactionType::ThreeDsAuthentication => {
             Err(errors::RoutingError::InvalidTransactionType)?
         }
     };
@@ -2417,7 +2415,7 @@ pub async fn refresh_cgraph_cache(
         api_enums::TransactionType::Payment => common_enums::ConnectorType::PaymentProcessor,
         #[cfg(feature = "payouts")]
         api_enums::TransactionType::Payout => common_enums::ConnectorType::PayoutProcessor,
-        api_enums::TransactionType::Dispute | api_enums::TransactionType::ThreeDsAuthentication => {
+        api_enums::TransactionType::ThreeDsAuthentication => {
             Err(errors::RoutingError::InvalidTransactionType)?
         }
     };

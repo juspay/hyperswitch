@@ -972,7 +972,6 @@ where
     let ucs_availability = check_ucs_availability(state).await;
 
     // Build rollout keys in ascending precedence order.
-    // Dispute flows use the payment hierarchy, including org and merchant fallbacks.
     let rollout_keys = match transaction_type {
         common_enums::TransactionType::Payment
         | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
@@ -983,9 +982,6 @@ where
             router_data.payment_method,
             router_data.payment_method_type,
         ),
-        common_enums::TransactionType::Dispute => {
-            build_rollout_keys_for_disputes(org_id, merchant_id, connector_name, &flow_name)
-        }
         common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
             merchant_id,
             connector_name,
@@ -1347,11 +1343,8 @@ pub fn build_merchant_rollout_scope(
 
     match flow_name {
         // Refund and dispute keys carry no payment method.
-        "Execute" | "RSync" => {
+        "Execute" | "RSync" | "Accept" | "Evidence" | "Defend" => {
             format!("{merchant_id}_{connector_name}_{flow_name}")
-        }
-        "Accept" | "Evidence" | "Defend" => {
-            build_dispute_rollout_scope(merchant_id, connector_name, flow_name)
         }
 
         _ => match payment_method {
@@ -1403,21 +1396,6 @@ fn build_rollout_keys_by_precedence(
         payment_method_type,
     );
 
-    build_rollout_keys_for_scope(org_id, merchant_id, &scope)
-}
-
-fn build_dispute_rollout_scope(merchant_id: &str, connector_name: &str, flow_name: &str) -> String {
-    format!("{merchant_id}_{connector_name}_{flow_name}")
-}
-
-/// Dispute rollout keys use the payment precedence without payment method dimensions.
-fn build_rollout_keys_for_disputes(
-    org_id: &str,
-    merchant_id: &str,
-    connector_name: &str,
-    flow_name: &str,
-) -> Vec<String> {
-    let scope = build_dispute_rollout_scope(merchant_id, connector_name, flow_name);
     build_rollout_keys_for_scope(org_id, merchant_id, &scope)
 }
 

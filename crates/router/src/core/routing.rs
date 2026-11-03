@@ -1728,9 +1728,6 @@ pub async fn unlink_routing_config_under_profile(
         enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
         #[cfg(feature = "payouts")]
         enums::TransactionType::Payout => business_profile.payout_routing_algorithm_id.clone(),
-        enums::TransactionType::Dispute => Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Dispute routing algorithms are not supported".to_string(),
-        })?,
         // TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
         enums::TransactionType::ThreeDsAuthentication => todo!(),
     };
@@ -1848,11 +1845,6 @@ pub async fn unlink_routing_config(
                 enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
                 enums::TransactionType::ThreeDsAuthentication => {
                     business_profile.three_ds_decision_rule_algorithm.clone()
-                }
-                enums::TransactionType::Dispute => {
-                    Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Dispute routing algorithms are not supported".to_string(),
-                    })?
                 }
             }
             .map(|val| val.parse_value("RoutingAlgorithmRef"))
@@ -2162,12 +2154,6 @@ pub async fn retrieve_linked_routing_config(
     query_params: routing_types::RoutingRetrieveLinkQuery,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::LinkedRoutingConfigRetrieveResponse> {
-    error_stack::ensure!(
-        transaction_type != enums::TransactionType::Dispute,
-        errors::ApiErrorResponse::InvalidRequestData {
-            message: "Dispute routing algorithms are not supported".to_string(),
-        }
-    );
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
@@ -2217,8 +2203,6 @@ pub async fn retrieve_linked_routing_config(
             enums::TransactionType::ThreeDsAuthentication => {
                 &business_profile.three_ds_decision_rule_algorithm
             }
-            // The function rejects Dispute above, before building this closure.
-            enums::TransactionType::Dispute => &business_profile.routing_algorithm,
         }
         .clone()
         .and_then(|val| {
@@ -2259,8 +2243,6 @@ pub async fn retrieve_linked_routing_config(
             enums::TransactionType::ThreeDsAuthentication => {
                 &business_profile.three_ds_decision_rule_algorithm
             }
-            // The function rejects Dispute above.
-            enums::TransactionType::Dispute => &business_profile.routing_algorithm,
         }
         .clone()
         .map(|val| val.parse_value("RoutingAlgorithmRef"))

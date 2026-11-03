@@ -4712,11 +4712,6 @@ impl ProfileWrapper {
             storage::enums::TransactionType::Payment => (Some(algorithm_id), None),
             #[cfg(feature = "payouts")]
             storage::enums::TransactionType::Payout => (None, Some(algorithm_id)),
-            storage::enums::TransactionType::Dispute => {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Dispute routing algorithms are not supported".to_string(),
-                })?
-            }
             //TODO: Handle ThreeDsAuthentication Transaction Type for Three DS Decision Rule Algorithm configuration
             storage::enums::TransactionType::ThreeDsAuthentication => todo!(),
         };
