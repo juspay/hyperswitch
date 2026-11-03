@@ -18667,10 +18667,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -20367,6 +20363,12 @@
           "merchant_tax_registration_id": {
             "type": "string",
             "example": "123456789",
+            "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
             "nullable": true
           }
         },
@@ -31943,6 +31945,24 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
             "nullable": true
           },
           "billing": {

@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, PaymentStatusData},
 };
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +36,10 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// survives for the whole recovery lifecycle of an invoice.
     #[serde(default)]
     pub static_ladder_progress: Option<StaticLadderProgress>,
+    /// The card calculate picked for the retry, which execute pays with. Only set on the EXECUTE
+    /// row, and missing on rows queued before calculate recorded its pick.
+    #[serde(default)]
+    pub payment_processor_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]

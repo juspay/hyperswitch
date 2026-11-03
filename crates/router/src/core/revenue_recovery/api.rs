@@ -85,8 +85,8 @@ pub async fn call_psync_api(
     Ok(payment_data)
 }
 
-/// The connector accounts that the retries of an invoice run through. An invoice whose last
-/// transaction was reported by the merchant has none, and its retry fails here without charging.
+/// The connector accounts that the retries of an invoice run through. Retries run only under
+/// internal triggers, where every transaction is recorded against them.
 fn get_connector_accounts_for_retry(
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
 ) -> RouterResult<RecoveryConnectorAccounts> {
@@ -222,10 +222,16 @@ pub async fn record_internal_attempt_api(
 
     let connector_accounts = get_connector_accounts_for_retry(revenue_recovery_metadata)?;
 
-    let request_payload = revenue_recovery_attempt_data.create_payment_record_request(
-        &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
-        common_enums::TriggeredBy::Internal,
-    );
+    let request_payload = revenue_recovery_attempt_data
+        .create_payment_record_request(
+            state,
+            &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
+            common_enums::TriggeredBy::Internal,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Cannot Create the payment record Request".to_string(),
+        })?;
 
     let platform_from_revenue_recovery_payment_data = Platform::new(
         revenue_recovery_payment_data.merchant_account.clone(),

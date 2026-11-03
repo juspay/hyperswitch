@@ -2321,6 +2321,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let auth_create_resp = crate::core::unified_authentication_service::authentication_create_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         auth_req
                     ).await?
                     .get_json_body()
@@ -2332,6 +2333,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let elig_resp = Box::pin(crate::core::unified_authentication_service::authentication_eligibility_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         eligibility_req,
                         auth_create_resp.authentication_id.clone(),
                     )).await?
@@ -2432,6 +2434,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         let resp = Box::pin(crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
+                            Some(business_profile.get_id().clone()),
                             services::api::AuthFlow::Merchant,
                             sync_req,
                         ))
@@ -3207,6 +3210,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,
                         shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                        value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                        value_added_tax_percent: payment_data
+                            .payment_intent
+                            .value_added_tax_percent,
+                        vat_invoice_reference_number: payment_data
+                            .payment_intent
+                            .vat_invoice_reference_number
+                            .clone(),
+                        order_commodity_code: payment_data
+                            .payment_intent
+                            .order_commodity_code
+                            .clone(),
                         duty_amount: payment_data.payment_intent.duty_amount,
                         enable_partial_authorization: payment_data
                             .payment_intent

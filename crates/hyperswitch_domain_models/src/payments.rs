@@ -143,7 +143,11 @@ pub struct PaymentIntent {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
@@ -1870,10 +1874,8 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
-                // What the merchant was last told only stands while they report the transactions.
                 external_trigger_state: revenue_recovery
                     .as_ref()
-                    .filter(|_| !connector_details.has_connector_accounts())
                     .and_then(|data| data.external_trigger_state.clone()),
             });
         Ok(Some(FeatureMetadata {

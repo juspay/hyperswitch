@@ -79,17 +79,3 @@ impl<'a> RecoveryTrigger<'a> {
         }
     }
 }
-
-/// Whether a recovery job stops instead of running. The profile alone decides who retries, and
-/// under external triggers that is the merchant, so a job left waiting from before the profile
-/// changed must not charge. A status check still runs, as its charge was already made.
-pub(crate) fn should_stop_retry_job(
-    trigger_model: common_enums::RevenueRecoveryTriggerModel,
-    job_name: Option<&str>,
-) -> bool {
-    trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
-        && matches!(
-            job_name,
-            Some(super::CALCULATE_WORKFLOW | super::EXECUTE_WORKFLOW)
-        )
-}

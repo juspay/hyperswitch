@@ -248,10 +248,6 @@ pub mod business_status {
     /// `RETRIES_EXCEEDED`, which is the budget itself running out.
     pub const GRACE_WINDOW_EXPIRED: &str = "GRACE_WINDOW_EXPIRED";
 
-    /// The profile of the invoice moved to external triggers, so the merchant triggers the retries
-    /// from here on and this task stops without charging.
-    pub const RETRIES_HANDED_TO_MERCHANT: &str = "RETRIES_HANDED_TO_MERCHANT";
-
     /// The outgoing webhook was successfully delivered in the initial attempt.
     /// Further retries of the task are not required.
     pub const INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL: &str = "INITIAL_DELIVERY_ATTEMPT_SUCCESSFUL";
