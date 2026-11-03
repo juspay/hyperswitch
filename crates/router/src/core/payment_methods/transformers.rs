@@ -1001,12 +1001,7 @@ impl
             Option<id_type::GlobalPaymentMethodId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1033,17 +1028,17 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
@@ -1112,12 +1107,7 @@ impl
             Option<id_type::CustomerId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1144,17 +1134,17 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),

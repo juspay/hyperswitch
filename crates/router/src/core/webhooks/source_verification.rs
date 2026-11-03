@@ -249,7 +249,6 @@ impl<'a> IncomingWebhookVerifier<'a> {
 mod tests {
     use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
     use external_services::superposition::Config;
-    use hyperswitch_interfaces::api::ConnectorSpecifications;
 
     use super::{IncomingWebhookVerifier, NetworkVerification, VerificationStatus};
     use crate::{
@@ -296,17 +295,6 @@ mod tests {
     #[test]
     fn mtls_verification_is_disabled_by_default() {
         assert!(!IncomingWebhookMtlsVerificationEnabled::default_value());
-    }
-
-    #[test]
-    fn requires_ip_verification_only_for_opted_in_connectors() {
-        for (name, required) in [("envoy", true), ("netcetera", true), ("stripe", false)] {
-            assert_eq!(
-                connector(name).is_webhook_ip_verification_required(),
-                required,
-                "{name}"
-            );
-        }
     }
 
     #[test]

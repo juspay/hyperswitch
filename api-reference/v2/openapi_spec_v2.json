@@ -14411,7 +14411,6 @@
           "payment_method_token",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
@@ -14435,7 +14434,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -18565,10 +18569,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -25120,7 +25120,6 @@
           "id",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "created",
           "requires_cvv",
           "is_default"
@@ -25148,7 +25147,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -31717,6 +31721,24 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
             "nullable": true
           },
           "billing": {

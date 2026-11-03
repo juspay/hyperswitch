@@ -4879,6 +4879,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
+
         fp_utils::when(payload.profile_id != self.profile_id, || {
             Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
                 .attach_printable("Profile id in JWT does not match profile id in route")
@@ -5081,6 +5086,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
 
         let profile = state
             .store()
@@ -5843,13 +5853,6 @@ impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
         self.client_secret
             .as_ref()
             .map(|client_secret| client_secret.peek())
-    }
-}
-
-#[cfg(feature = "v1")]
-impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
     }
 }
 
