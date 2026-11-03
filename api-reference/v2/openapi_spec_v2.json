@@ -19779,7 +19779,7 @@
           },
           "profile_id": {
             "type": "string",
-            "description": "Identifier for the business profile. Required and must match the authenticated X-Profile-Id header.",
+            "description": "Identifier for the profile, if not provided default will be chosen from merchant account",
             "maxLength": 64
           },
           "connector_account_details": {

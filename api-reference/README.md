@@ -45,18 +45,3 @@ npx @mintlify/scraping@latest openapi-file v1/openapi_spec_v1.json  -o v1
 This will generate files in [api-reference](api-reference) folder. These routes should be added to the [mint.json](mint.json) file under navigation, under respective group.
 
 NOTE: For working with V2 API reference, replace every occurrence of `v1` with `v2` in above commands
-
-## V2 management profile scope
-
-The following endpoints require an authenticated `X-Profile-Id` header:
-
-| Endpoint | Profile selection |
-| --- | --- |
-| `POST /v2/connector-accounts` | Body `profile_id` is required and must match the header. Validation happens before connector creation or billing-profile updates. |
-| `GET /v2/payments/list` | Rows and `total_count` are scoped to the header profile. An optional query `profile_id` must match it. |
-| `GET /v2/payments/recovery-list` | Rows and `total_count` are scoped to the header profile. An optional query `profile_id` must match it. |
-| `GET /v2/profiles/{profile_id}/connector-accounts` | Path `profile_id` must match the header. |
-
-A conflicting body, query, or path profile is rejected with HTTP 400. Existing
-merchant ownership checks and JWT support remain in place. Connector creation
-and profile connector listing also require `X-Merchant-Id`.

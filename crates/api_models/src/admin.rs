@@ -1135,7 +1135,7 @@ pub struct MerchantConnectorCreate {
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
-    /// Identifier for the business profile. Required and must match the authenticated X-Profile-Id header.
+    /// Identifier for the profile, if not provided default will be chosen from merchant account
     #[schema(max_length = 64, value_type = String)]
     pub profile_id: id_type::ProfileId,
 
