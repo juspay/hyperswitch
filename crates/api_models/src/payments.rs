@@ -9400,14 +9400,15 @@ pub struct PaymentListConstraints {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for payment
     #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub payment_id: Option<id_type::GlobalPaymentId>,
 
-    /// The identifier for business profile
-    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    /// Optional business-profile filter. Must match the authenticated X-Profile-Id header.
+    #[param(example = "pro_abcdefgh12345678", value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The identifier for customer
