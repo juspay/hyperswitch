@@ -2835,96 +2835,141 @@
         },
         "responses": {
           "200": {
-            "description": "Routing decision. Connector order and account IDs are preserved from the routing evaluation. An account ID can be null when a legacy rule identifies only a gateway.",
+            "description": "Routing decision. Connector order and account IDs are preserved from hybrid routing. An account ID can be null when a legacy rule identifies only a gateway.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HybridRoutingResponse"
+                  "$ref": "#/components/schemas/DecideResponse"
                 },
                 "example": {
-                  "static_routing": {
-                    "payment_id": "pay_demo",
-                    "status": "success",
+                  "id": "dec_1234",
+                  "payment_id": "pay_demo",
+                  "request_id": "req_1234",
+                  "created_at": "2026-10-30T09:12:44.518Z",
+                  "connectors": [
+                    {
+                      "gateway_name": "checkout",
+                      "payment_merchant_connector_id": "mca_cko"
+                    },
+                    {
+                      "gateway_name": "worldpay",
+                      "payment_merchant_connector_id": "mca_wp"
+                    }
+                  ],
+                  "outcome": {
+                    "type": "routed",
+                    "strategy": "cost",
+                    "reason": "cost_optimized",
+                    "message": "checkout has higher expected value than SR head worldpay"
+                  },
+                  "rule": {
+                    "status": "matched",
                     "output": {
                       "type": "priority",
                       "connectors": [
                         {
                           "gateway_name": "worldpay",
-                          "gateway_id": "mca_wp"
+                          "payment_merchant_connector_id": "mca_wp"
                         },
                         {
                           "gateway_name": "checkout",
-                          "gateway_id": "mca_cko"
+                          "payment_merchant_connector_id": "mca_cko"
                         }
                       ]
                     },
-                    "evaluated_output": [
+                    "selected": [
                       {
                         "gateway_name": "worldpay",
-                        "gateway_id": "mca_wp"
+                        "payment_merchant_connector_id": "mca_wp"
                       },
                       {
                         "gateway_name": "checkout",
-                        "gateway_id": "mca_cko"
+                        "payment_merchant_connector_id": "mca_cko"
                       }
                     ],
-                    "eligible_connectors": [
+                    "eligible": [
                       {
                         "gateway_name": "worldpay",
-                        "gateway_id": "mca_wp"
+                        "payment_merchant_connector_id": "mca_wp"
                       },
                       {
                         "gateway_name": "checkout",
-                        "gateway_id": "mca_cko"
+                        "payment_merchant_connector_id": "mca_cko"
                       }
                     ]
                   },
-                  "dynamic_routing": {
-                    "status": "success",
-                    "decision": {
-                      "decided_gateway": "worldpay",
-                      "fallback_gateways": [
-                        "checkout"
-                      ],
-                      "gateway_priority_map": {
-                        "checkout": 0.91,
-                        "worldpay": 0.95
+                  "success_rate": {
+                    "status": "applied",
+                    "approach": "SR_SELECTION_MULTI_OBJECTIVE",
+                    "scores": [
+                      {
+                        "gateway_name": "worldpay",
+                        "payment_merchant_connector_id": "mca_wp",
+                        "score": 0.98
+                      },
+                      {
+                        "gateway_name": "checkout",
+                        "payment_merchant_connector_id": "mca_cko",
+                        "score": 0.97
+                      }
+                    ],
+                    "scheduled_outage": false,
+                    "diagnostics": {
+                      "head_before_downtime_check": {
+                        "gateway_name": "worldpay",
+                        "payment_merchant_connector_id": "mca_wp"
+                      },
+                      "reset_approach": "NO_RESET",
+                      "dimension": {
+                        "value": "ORDER_PAYMENT, CREDIT, CARD",
+                        "level": "PM_LEVEL"
                       },
                       "filter_wise_gateways": null,
-                      "priority_logic_tag": null,
-                      "routing_approach": "SR_SELECTION_V3_ROUTING",
-                      "gateway_before_evaluation": "worldpay",
-                      "priority_logic_output": {
-                        "isEnforcement": false,
-                        "gws": [
-                          "worldpay",
-                          "checkout"
-                        ],
-                        "priorityLogicTag": null,
-                        "gatewayReferenceIds": {},
-                        "primaryLogic": null,
-                        "fallbackLogic": null
+                      "priority_logic": {
+                        "tag": null,
+                        "output": null
                       },
-                      "debit_routing_output": null,
-                      "reset_approach": "NO_RESET",
-                      "routing_dimension": "ORDER_PAYMENT,CARD,CREDIT,UNKNOWN",
-                      "routing_dimension_level": "CARD_LEVEL",
-                      "is_scheduled_outage": false,
-                      "is_dynamic_mga_enabled": false,
+                      "dynamic_mga_enabled": false,
                       "gateway_mga_id_map": null,
-                      "is_rust_based_decider": true,
-                      "latency": 2,
-                      "multi_objective_info": null,
-                      "volume_steer_info": null
-                    },
-                    "fallback_connectors": null
-                  },
-                  "evaluated_connectors": [
-                    {
-                      "gateway_name": "worldpay",
-                      "gateway_id": "mca_wp"
+                      "rust_based_decider": true,
+                      "latency_ms": 4
                     }
-                  ]
+                  },
+                  "cost": {
+                    "outcome": "COST_WON",
+                    "reason": "checkout has higher expected value than SR head worldpay",
+                    "cost_saved_bps": 1480.0,
+                    "qualified_count": 2,
+                    "margin": 1.0,
+                    "ev_gap_top2": 0.1351,
+                    "ranked": [
+                      {
+                        "gateway_name": "checkout",
+                        "payment_merchant_connector_id": "mca_cko",
+                        "auth_rate": 0.97,
+                        "cost_bps": 20.0,
+                        "cost_source": "IN_HOUSE",
+                        "cost_model": null,
+                        "ev": 0.9681,
+                        "is_sr_head": false,
+                        "is_chosen": true
+                      },
+                      {
+                        "gateway_name": "worldpay",
+                        "payment_merchant_connector_id": "mca_wp",
+                        "auth_rate": 0.98,
+                        "cost_bps": 1500.0,
+                        "cost_source": "IN_HOUSE",
+                        "cost_model": null,
+                        "ev": 0.833,
+                        "is_sr_head": true,
+                        "is_chosen": false
+                      }
+                    ]
+                  },
+                  "volume_steering": null,
+                  "debit_routing": null,
+                  "warnings": []
                 }
               }
             }
@@ -8729,6 +8774,13 @@
             ],
             "description": "Payment method subtype, e.g. credit."
           },
+          "payment_type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The `payment_type` rule key: `normal`, `new_mandate`, `update_mandate`, `setup_mandate`, `recurring_mandate`, `non_mandate` or `ppt_mandate`. A rule that tests `payment_type` matches only when it is sent."
+          },
           "authentication_type": {
             "type": [
               "string",
@@ -9070,18 +9122,497 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "evaluated_connectors",
-          "decision"
+          "id",
+          "payment_id",
+          "request_id",
+          "created_at",
+          "connectors",
+          "outcome",
+          "rule",
+          "success_rate",
+          "cost",
+          "volume_steering",
+          "debit_routing",
+          "warnings"
         ],
         "properties": {
-          "evaluated_connectors": {
+          "id": {
+            "type": "string",
+            "description": "Unique per decision (`dec_` + a time-ordered UUID), so a retried payment's decisions stay apart."
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "The `x-request-id` of the call, or the one minted for it. Matches the response header."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "connectors": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DecideResultConnector"
-            }
+            },
+            "description": "The order to try connectors in: the first is the choice, the rest the retry order. Empty when no connector is left."
           },
-          "decision": {
-            "$ref": "#/components/schemas/DecideDecision"
+          "outcome": {
+            "$ref": "#/components/schemas/DecideOutcome"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideRuleSection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rule layer's result. Null when it failed; a `warnings` entry then says why."
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideSuccessRateSection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when success-rate routing did not run (the `sr-routing` setting is off, or the A/B arm has no SR layer)."
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideCostSection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the cost step did not run."
+          },
+          "volume_steering": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideVolumeSteeringSection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when no volume commitment was considered."
+          },
+          "debit_routing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DebitRoutingOutput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideWarning"
+            },
+            "description": "Problems the decision routed around. Routing problems never fail the call."
+          }
+        }
+      },
+      "DecideOutcome": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "strategy",
+          "reason",
+          "message"
+        ],
+        "description": "How the order was reached. New values may be added to each enum; treat unknown values as their nearest documented meaning.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "routed",
+              "fallback",
+              "no_connector"
+            ]
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "success_rate",
+              "cost",
+              "volume_commitment",
+              "debit_network",
+              "candidate_order",
+              "none"
+            ],
+            "description": "The layer that set the final order."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "rule_matched",
+              "rule_default_selection",
+              "rule_output_partially_eligible",
+              "priority_logic",
+              "priority_logic_downtime",
+              "merchant_preference",
+              "experiment_rule",
+              "success_rate_ranked",
+              "success_rate_downtime",
+              "success_rate_exploration",
+              "decider_default",
+              "preferred_connector",
+              "cost_optimized",
+              "volume_commitment",
+              "debit_network_optimized",
+              "no_rule_matched",
+              "no_active_rule",
+              "rule_output_not_eligible",
+              "rule_input_invalid",
+              "success_rate_unavailable",
+              "no_eligible_connectors",
+              "no_active_rule_no_candidates"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "For people reading logs. Not stable; branch on `reason`."
+          }
+        }
+      },
+      "DecideRuleSection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "output",
+          "selected",
+          "eligible"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "matched",
+              "default_selection",
+              "no_active_rule"
+            ]
+          },
+          "output": {
+            "type": "object",
+            "description": "The algorithm's output by `type` (`straight_through`, `priority`, `volume_split`, `volume_split_priority`), laid out as in `RoutingEvaluateResponse.output` with connectors in the `DecideResultConnector` shape."
+          },
+          "selected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideResultConnector"
+            },
+            "description": "The connectors the rule layer chose, narrowed to the eligible ones."
+          },
+          "eligible": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideResultConnector"
+            },
+            "description": "The connectors the payment method can use."
+          }
+        }
+      },
+      "DecideSuccessRateSection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "approach",
+          "scores",
+          "scheduled_outage",
+          "diagnostics"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "failed"
+            ]
+          },
+          "approach": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The decider's routing approach, for example `SR_SELECTION_V3_ROUTING`."
+          },
+          "scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideConnectorScore"
+            },
+            "description": "Every scored connector, best first."
+          },
+          "scheduled_outage": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "diagnostics": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The decider's internals, for support: `head_before_downtime_check`, `reset_approach`, `dimension {value, level}`, `filter_wise_gateways`, `priority_logic {tag, output}`, `dynamic_mga_enabled`, `gateway_mga_id_map`, `rust_based_decider` and `latency_ms`. Not covered by compatibility guarantees."
+          }
+        }
+      },
+      "DecideConnectorScore": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DecideResultConnector"
+          },
+          {
+            "type": "object",
+            "required": [
+              "score"
+            ],
+            "properties": {
+              "score": {
+                "type": "number"
+              }
+            }
+          }
+        ]
+      },
+      "DecideCostSection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "outcome",
+          "reason",
+          "cost_saved_bps",
+          "qualified_count",
+          "margin",
+          "ev_gap_top2",
+          "ranked"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "COST_WON",
+              "AUTH_WON"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "cost_saved_bps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "qualified_count": {
+            "type": "integer"
+          },
+          "margin": {
+            "type": "number"
+          },
+          "ev_gap_top2": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ranked": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DecideRankedConnector"
+            },
+            "description": "Every connector ranked on expected value, best first."
+          }
+        }
+      },
+      "DecideRankedConnector": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DecideResultConnector"
+          },
+          {
+            "type": "object",
+            "required": [
+              "auth_rate",
+              "cost_bps",
+              "cost_source",
+              "cost_model",
+              "ev",
+              "is_sr_head",
+              "is_chosen"
+            ],
+            "properties": {
+              "auth_rate": {
+                "type": "number"
+              },
+              "cost_bps": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "cost_source": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "IN_HOUSE",
+                  "SEED",
+                  "HYPERSENSE"
+                ]
+              },
+              "cost_model": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "description": "`brand`, `variant`, `issuer`, `ccy`, `ic_category`, `pct_bps`, `fixed_fee`."
+              },
+              "ev": {
+                "type": "number"
+              },
+              "is_sr_head": {
+                "type": "boolean"
+              },
+              "is_chosen": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "DecideVolumeSteeringSection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "outcome",
+          "reason",
+          "sr_head",
+          "chosen",
+          "sr_gap_conceded",
+          "steer_rate",
+          "steering_count",
+          "run_id",
+          "blocked"
+        ],
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "STEERED",
+              "SR_PREVAILED"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sr_head": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideResultConnector"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chosen": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DecideResultConnector"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sr_gap_conceded": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "steer_rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "steering_count": {
+            "type": "integer"
+          },
+          "run_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "blocked": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "connector",
+                "gate"
+              ],
+              "properties": {
+                "connector": {
+                  "$ref": "#/components/schemas/DecideResultConnector"
+                },
+                "gate": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DecideWarning": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "param",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "rule_input_invalid",
+              "rule_evaluation_failed",
+              "rule_output_not_eligible",
+              "rule_output_partially_eligible",
+              "success_rate_failed"
+            ]
+          },
+          "param": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The request field the warning is about, such as `card.card_network`, when there is one."
+          },
+          "message": {
+            "type": "string"
           }
         }
       },
@@ -9100,34 +9631,8 @@
             "type": [
               "string",
               "null"
-            ]
-          }
-        }
-      },
-      "DecideDecision": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "outcome",
-          "source",
-          "decision_id"
-        ],
-        "properties": {
-          "outcome": {
-            "type": "string",
-            "enum": [
-              "routed",
-              "fallback",
-              "no_active_algorithm",
-              "no_eligible_connector"
-            ]
-          },
-          "source": {
-            "type": "string"
-          },
-          "decision_id": {
-            "type": "string",
-            "description": "The x-request-id associated with this evaluation."
+            ],
+            "description": "Null for a connector named without an account."
           }
         }
       },
