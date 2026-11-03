@@ -13778,3 +13778,94 @@ Cypress.Commands.add(
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
 });
+
+// --- OMP (merchant/profile) scoping test helpers ---
+// Used by cypress/e2e/spec/Security/OMPScoping/. None of the commands above
+// attach an X-Profile-Id header alongside a JWT or API key, which every
+// cross-profile negative test there needs, so these build the request
+// directly instead of layering on top of those commands.
+//
+// auth variants:
+//   { type: "apiKey", apiKey, profileId? }
+//   { type: "jwt", token, profileId? }
+//   { type: "none" }                      - no Authorization/api-key header
+//   { type: "invalid" }                   - garbage bearer token, substitutes
+//                                            for an expired JWT (minting a
+//                                            genuinely expired one isn't
+//                                            possible from a black-box API
+//                                            test without the signing secret)
+
+function buildOmpHeaders(auth = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+  };
+
+  switch (auth.type) {
+    case "apiKey":
+      headers["api-key"] = auth.apiKey;
+      break;
+    case "jwt":
+      headers["Authorization"] = `Bearer ${auth.token}`;
+      break;
+    case "invalid":
+      headers["Authorization"] = "Bearer not-a-real-token";
+      break;
+    case "none":
+      break;
+    default:
+      throw new Error(`ompRequest: unknown auth.type "${auth.type}"`);
+  }
+
+  if (auth.profileId) {
+    headers["X-Profile-Id"] = auth.profileId;
+  }
+
+  return headers;
+}
+
+Cypress.Commands.add(
+  "ompRequest",
+  ({ method, url, auth, body, failOnStatusCode = false }) => {
+    return cy
+      .request({
+        method,
+        url,
+        headers: buildOmpHeaders(auth),
+        body,
+        failOnStatusCode,
+      })
+      .then((response) => {
+        // Cypress.log, not cy.task: cy.task queues an async command, and
+        // returning `response` synchronously right after it trips
+        // Cypress's "mixing sync and async code" check.
+        Cypress.log({
+          name: "ompRequest",
+          message: `${method} ${url} -> ${response.status}`,
+        });
+        return response;
+      });
+  }
+);
+
+// Asserts a cross-scope request was denied (anything but 2xx) and that the
+// target resource is unchanged, per the test sheet's "evidence to retain"
+// convention: fetch -> attempt the negative request -> re-fetch -> compare.
+Cypress.Commands.add(
+  "ompAssertDeniedAndUnchanged",
+  ({ fetch, negativeRequest }) => {
+    return fetch().then((before) => {
+      return negativeRequest().then((negativeResponse) => {
+        expect(negativeResponse.status, "negative request must be denied")
+          .to.be.gte(400);
+
+        return fetch().then((after) => {
+          expect(
+            after.body,
+            "target resource must be unchanged after a denied request"
+          ).to.deep.equal(before.body);
+        });
+      });
+    });
+  }
+);
