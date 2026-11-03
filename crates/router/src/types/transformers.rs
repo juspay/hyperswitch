@@ -550,6 +550,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
         match value {
             api_models::webhooks::IncomingWebhookEvent::MandateActive => Ok(Self::Active),
             api_models::webhooks::IncomingWebhookEvent::MandateRevoked => Ok(Self::Revoked),
+            api_models::webhooks::IncomingWebhookEvent::MandateFailed => Ok(Self::Inactive),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type".into(),
             }),

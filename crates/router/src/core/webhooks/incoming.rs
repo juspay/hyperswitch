@@ -681,16 +681,19 @@ async fn process_webhook_business_logic(
 
             api::WebhookFlow::ReturnResponse => Ok(WebhookResponseTracker::NoEffect),
 
-            api::WebhookFlow::Mandate => Box::pin(mandates_incoming_webhook_flow(
-                state.clone(),
-                platform.clone(),
-                business_profile,
-                webhook_details,
-                source_verified,
+            api::WebhookFlow::Mandate => ignore_unknown_failed_mandate(
                 event_type,
-                merchant_connector_account,
-            ))
-            .await
+                Box::pin(mandates_incoming_webhook_flow(
+                    state.clone(),
+                    platform.clone(),
+                    business_profile,
+                    webhook_details,
+                    source_verified,
+                    event_type,
+                    merchant_connector_account,
+                ))
+                .await,
+            )
             .attach_printable("Incoming webhook flow for mandates failed"),
 
             api::WebhookFlow::AssociatedDataUpdate => {
@@ -2334,6 +2337,28 @@ async fn external_authentication_incoming_webhook_flow(
     }
 }
 
+/// A failed contract may carry a reference no mandate row was ever created under, so finding
+/// nothing to mark inactive is not a failure of the webhook.
+fn ignore_unknown_failed_mandate(
+    event_type: webhooks::IncomingWebhookEvent,
+    result: CustomResult<WebhookResponseTracker, errors::ApiErrorResponse>,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    match result {
+        Err(error)
+            if event_type == webhooks::IncomingWebhookEvent::MandateFailed
+                && matches!(
+                    error.current_context(),
+                    errors::ApiErrorResponse::MandateNotFound
+                        | errors::ApiErrorResponse::PaymentNotFound
+                        | errors::ApiErrorResponse::PaymentMethodNotFound
+                ) =>
+        {
+            Ok(WebhookResponseTracker::NoEffect)
+        }
+        result => result,
+    }
+}
+
 #[instrument(skip_all)]
 async fn mandates_incoming_webhook_flow(
     state: SessionState,
@@ -2345,8 +2370,9 @@ async fn mandates_incoming_webhook_flow(
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     match event_type {
-        webhooks::IncomingWebhookEvent::MandateActionRequired
-        | webhooks::IncomingWebhookEvent::MandateFailed => Ok(WebhookResponseTracker::NoEffect),
+        webhooks::IncomingWebhookEvent::MandateActionRequired => {
+            Ok(WebhookResponseTracker::NoEffect)
+        }
         _ if source_verified => {
             let db = &*state.store;
 
@@ -2547,6 +2573,12 @@ async fn update_payment_method_mandate_status(
             webhooks::IncomingWebhookEvent::MandateRevoked => Ok((
                 ConnectorMandateStatus::Inactive,
                 common_enums::MandateStatus::Revoked,
+                None,
+                enums::PaymentMethodStatus::Inactive,
+            )),
+            webhooks::IncomingWebhookEvent::MandateFailed => Ok((
+                ConnectorMandateStatus::Inactive,
+                common_enums::MandateStatus::Inactive,
                 None,
                 enums::PaymentMethodStatus::Inactive,
             )),
@@ -4138,4 +4170,52 @@ pub async fn process_uas_incoming_webhook<'a>(
         merchant_connector_account: Box::new(mca),
         ack_response,
     })
+}
+
+#[cfg(test)]
+mod mandate_failed_tests {
+    use super::*;
+    use crate::types::transformers::ForeignTryFrom;
+
+    #[test]
+    fn failed_contract_marks_the_mandate_inactive() {
+        assert_eq!(
+            common_enums::MandateStatus::foreign_try_from(
+                webhooks::IncomingWebhookEvent::MandateFailed
+            )
+            .ok(),
+            Some(common_enums::MandateStatus::Inactive)
+        );
+    }
+
+    #[test]
+    fn unknown_reference_on_a_failed_contract_has_no_effect() {
+        for error in [
+            errors::ApiErrorResponse::MandateNotFound,
+            errors::ApiErrorResponse::PaymentNotFound,
+            errors::ApiErrorResponse::PaymentMethodNotFound,
+        ] {
+            assert!(matches!(
+                ignore_unknown_failed_mandate(
+                    webhooks::IncomingWebhookEvent::MandateFailed,
+                    Err(report!(error))
+                ),
+                Ok(WebhookResponseTracker::NoEffect)
+            ));
+        }
+    }
+
+    #[test]
+    fn other_failures_and_events_still_surface() {
+        assert!(ignore_unknown_failed_mandate(
+            webhooks::IncomingWebhookEvent::MandateFailed,
+            Err(report!(errors::ApiErrorResponse::InternalServerError))
+        )
+        .is_err());
+        assert!(ignore_unknown_failed_mandate(
+            webhooks::IncomingWebhookEvent::MandateRevoked,
+            Err(report!(errors::ApiErrorResponse::MandateNotFound))
+        )
+        .is_err());
+    }
 }
