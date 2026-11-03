@@ -4975,9 +4975,18 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
+
+        fp_utils::when(payload.profile_id != profile_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("Profile id in JWT does not match profile id in header")
+        })?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
@@ -4992,6 +5001,18 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
+        let merchant = state
+            .store()
+            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
+            .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
+
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
@@ -5001,12 +5022,6 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
-            .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         check_merchant_access_for_jwt(
             state,

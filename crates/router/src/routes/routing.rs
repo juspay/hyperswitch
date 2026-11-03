@@ -116,20 +116,27 @@ pub async fn routing_create_config(
     json_payload: web::Json<routing_types::RoutingConfigRequest>,
     transaction_type: enums::TransactionType,
 ) -> impl Responder {
+    let payload = json_payload.into_inner();
+    let profile_id = payload.profile_id.clone();
     let flow = Flow::RoutingCreateConfig;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
-        |state, auth: auth::AuthenticationData, payload, _| {
+        payload,
+        |state, auth: auth::AuthenticationData, payload, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(payload.profile_id.clone()),
+                &auth.profile,
+            )?;
             routing::create_routing_algorithm_under_profile(
                 state,
                 auth.platform,
-                Some(auth.profile.get_id().clone()),
+                None,
                 payload,
                 transaction_type,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -137,16 +144,18 @@ pub async fn routing_create_config(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: profile_id.clone(),
+                required_permission: Permission::ProfileRoutingWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileRoutingWrite,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: profile_id.clone(),
+            required_permission: Permission::ProfileRoutingWrite,
             allow_connected: true,
             allow_platform: false,
         },
@@ -219,7 +228,11 @@ pub async fn routing_link_config(
         state,
         &req,
         wrapper.clone(),
-        |state, auth: auth::AuthenticationData, wrapper, _| {
+        |state, auth: auth::AuthenticationData, wrapper, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(wrapper.profile_id.clone()),
+                &auth.profile,
+            )?;
             routing::link_routing_config_under_profile(
                 state,
                 auth.platform.get_processor().clone(),
@@ -227,6 +240,7 @@ pub async fn routing_link_config(
                 wrapper.algorithm_id.routing_algorithm_id,
                 transaction_type,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -439,13 +453,18 @@ pub async fn routing_unlink_config(
         state,
         &req,
         path.clone(),
-        |state, auth: auth::AuthenticationData, path, _| {
+        |state, auth: auth::AuthenticationData, path, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(path.clone()),
+                &auth.profile,
+            )?;
             routing::unlink_routing_config_under_profile(
                 state,
                 auth.platform.get_processor().clone(),
                 path,
                 transaction_type,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -524,8 +543,9 @@ pub async fn routing_update_default_config(
     path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<Vec<routing_types::RoutableConnectorChoice>>,
 ) -> impl Responder {
+    let profile_id = path.into_inner();
     let wrapper = routing_types::ProfileDefaultRoutingConfig {
-        profile_id: path.into_inner(),
+        profile_id: profile_id.clone(),
         connectors: json_payload.into_inner(),
     };
     Box::pin(oss_api::server_wrap(
@@ -533,13 +553,18 @@ pub async fn routing_update_default_config(
         state,
         &req,
         wrapper,
-        |state, auth: auth::AuthenticationData, wrapper, _| {
+        |state, auth: auth::AuthenticationData, wrapper, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(wrapper.profile_id.clone()),
+                &auth.profile,
+            )?;
             routing::update_default_fallback_routing(
                 state,
                 auth.platform.get_processor().clone(),
                 wrapper.profile_id,
                 wrapper.connectors,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -547,16 +572,18 @@ pub async fn routing_update_default_config(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantRoutingWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: profile_id.clone(),
+                required_permission: Permission::MerchantRoutingWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::MerchantRoutingWrite,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: profile_id.clone(),
+            required_permission: Permission::MerchantRoutingWrite,
             allow_connected: true,
             allow_platform: false,
         },
@@ -616,12 +643,17 @@ pub async fn routing_retrieve_default_config(
         state,
         &req,
         path.clone(),
-        |state, auth: auth::AuthenticationData, profile_id, _| {
+        |state, auth: auth::AuthenticationData, profile_id, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(profile_id.clone()),
+                &auth.profile,
+            )?;
             routing::retrieve_default_fallback_algorithm_for_profile(
                 state,
                 auth.platform.get_processor().clone(),
                 profile_id,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -863,8 +895,10 @@ pub async fn upsert_decision_manager_config(
 pub async fn upsert_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
     json_payload: web::Json<api_models::conditional_configs::DecisionManagerRequest>,
 ) -> impl Responder {
+    let profile_id = path.into_inner();
     let flow = Flow::DecisionManagerUpsertConfig;
     Box::pin(oss_api::server_wrap(
         flow,
@@ -872,17 +906,25 @@ pub async fn upsert_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            conditional_config::upsert_conditional_config(
-                state,
-                auth.platform
-                    .get_processor()
-                    .clone()
-                    .get_key_store()
-                    .inner()
-                    .clone(),
-                update_decision,
-                auth.profile,
-            )
+            let profile_id = profile_id.clone();
+            async move {
+                crate::core::utils::validate_profile_id_from_auth_layer(
+                    Some(profile_id),
+                    &auth.profile,
+                )?;
+                conditional_config::upsert_conditional_config(
+                    state,
+                    auth.platform
+                        .get_processor()
+                        .clone()
+                        .get_key_store()
+                        .inner()
+                        .clone(),
+                    update_decision,
+                    auth.profile,
+                )
+                .await
+            }
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -890,16 +932,18 @@ pub async fn upsert_decision_manager_config(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: profile_id.clone(),
+                required_permission: Permission::ProfileThreeDsDecisionManagerWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileThreeDsDecisionManagerWrite,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: profile_id.clone(),
+            required_permission: Permission::ProfileThreeDsDecisionManagerWrite,
             allow_connected: true,
             allow_platform: false,
         },
@@ -956,14 +1000,20 @@ pub async fn delete_decision_manager_config(
 pub async fn retrieve_decision_manager_config(
     state: web::Data<AppState>,
     req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
 ) -> impl Responder {
+    let profile_id = path.into_inner();
     let flow = Flow::DecisionManagerRetrieveConfig;
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, auth: auth::AuthenticationData, _, _| {
+        profile_id.clone(),
+        |state, auth: auth::AuthenticationData, profile_id, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(profile_id),
+                &auth.profile,
+            )?;
             conditional_config::retrieve_conditional_config(
                 state,
                 auth.platform
@@ -974,6 +1024,7 @@ pub async fn retrieve_decision_manager_config(
                     .clone(),
                 auth.profile,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -981,16 +1032,18 @@ pub async fn retrieve_decision_manager_config(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             },
-            &auth::JWTAuth {
-                permission: Permission::ProfileThreeDsDecisionManagerWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: profile_id.clone(),
+                required_permission: Permission::ProfileThreeDsDecisionManagerWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
         ),
         #[cfg(feature = "release")]
-        &auth::JWTAuth {
-            permission: Permission::ProfileThreeDsDecisionManagerWrite,
+        &auth::JWTAuthProfileFromRoute {
+            profile_id: profile_id.clone(),
+            required_permission: Permission::ProfileThreeDsDecisionManagerWrite,
             allow_connected: true,
             allow_platform: false,
         },
@@ -1143,7 +1196,11 @@ pub async fn routing_retrieve_linked_config(
         state,
         &req,
         wrapper.clone(),
-        |state, auth: AuthenticationData, wrapper, _| {
+        |state, auth: AuthenticationData, wrapper, _| async move {
+            crate::core::utils::validate_profile_id_from_auth_layer(
+                Some(wrapper.profile_id.clone()),
+                &auth.profile,
+            )?;
             routing::retrieve_routing_config_under_profile(
                 state,
                 auth.platform.get_processor().clone(),
@@ -1151,6 +1208,7 @@ pub async fn routing_retrieve_linked_config(
                 wrapper.profile_id,
                 transaction_type,
             )
+            .await
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
