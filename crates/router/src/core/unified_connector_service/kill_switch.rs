@@ -874,6 +874,7 @@ pub mod shadow {
     use std::{error::Error, io::ErrorKind};
 
     use common_enums::ApiClientError;
+    use external_services::grpc_client::unified_connector_service::UcsConfigSource;
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
     use router_env::logger;
@@ -930,33 +931,33 @@ pub mod shadow {
             .comparison_service
             .as_ref()
             .map_or(1, |config| config.shadow_kill_switch_threshold);
-        if get_ucs_config_source(state)
-            != external_services::grpc_client::unified_connector_service::UcsConfigSource::Superposition
-        {
+        if get_ucs_config_source(state) != UcsConfigSource::Superposition {
             return fallback;
         }
 
-        match state
+        let value = match state
             .superposition_service
             .get_config_value::<i64>(UCS_SHADOW_KILL_SWITCH_THRESHOLD, None, None)
             .await
         {
-            Ok(value) => match u64::try_from(value) {
-                Ok(threshold) if threshold > 0 => threshold,
-                _ => {
-                    logger::warn!(
-                        value,
-                        fallback,
-                        "Invalid Superposition UCS shadow kill switch threshold; using comparison-service configuration"
-                    );
-                    fallback
-                }
-            },
+            Ok(value) => value,
             Err(error) => {
                 logger::warn!(
                     ?error,
                     fallback,
                     "Failed to read Superposition UCS shadow kill switch threshold; using comparison-service configuration"
+                );
+                return fallback;
+            }
+        };
+
+        match u64::try_from(value) {
+            Ok(threshold) if threshold > 0 => threshold,
+            _ => {
+                logger::warn!(
+                    value,
+                    fallback,
+                    "Invalid Superposition UCS shadow kill switch threshold; using comparison-service configuration"
                 );
                 fallback
             }
