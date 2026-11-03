@@ -192,6 +192,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             recipient_details: None,
             enable_avs_check: None,
             mit_category: data.mit_category,
+            enable_ani_check: None,
         }
     }
 }

@@ -414,6 +414,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 external_surcharge_applicable: intent.external_surcharge_applicable,
                 enable_avs_check: intent.enable_avs_check,
                 settlement_conclusion_applied: intent.settlement_conclusion_applied,
+                enable_ani_check: intent.enable_ani_check,
             }));
 
         let new_payment_intent = db
