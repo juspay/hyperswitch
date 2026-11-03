@@ -86,7 +86,7 @@ impl ReadLedger {
         }
     }
 
-    /// Return statements read more than once, with every location in read order.
+    /// Return statements read more than once, with locations in recording order.
     pub fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
         let reads = self
             .reads
