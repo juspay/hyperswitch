@@ -7277,7 +7277,7 @@
           {
             "name": "X-Profile-Id",
             "in": "header",
-            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. When no profile can be resolved - as with publishable-key authentication - all of the merchant's entries are returned, as before.",
+            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. Ignored when authenticating with a JWT, which carries its own profile. If no profile is resolved for an API key, all of the merchant's entries are returned.",
             "required": false,
             "schema": {
               "type": "string",
@@ -7317,9 +7317,6 @@
           },
           {
             "jwt_key": []
-          },
-          {
-            "publishable_key": []
           }
         ]
       },
@@ -10081,6 +10078,16 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "Subscription client secret; required when authenticating with a publishable key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -10104,6 +10111,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "client_secret": []
           }
         ]
       }
@@ -24067,6 +24077,11 @@
           "item_price_id"
         ],
         "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
           "plan_id": {
             "type": "string",
             "description": "Identifier for the associated subscription plan.",
@@ -27375,10 +27390,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -29617,6 +29628,12 @@
           "merchant_tax_registration_id": {
             "type": "string",
             "example": "123456789",
+            "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
             "nullable": true
           }
         },
@@ -32050,6 +32067,15 @@
             "description": "Token generated for the Apple pay"
           }
         }
+      },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
       },
       "PaylaterResponse": {
         "type": "object",
@@ -35783,12 +35809,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -36366,12 +36418,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -38268,12 +38346,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -39899,12 +40003,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -45000,9 +45130,21 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "description": "The refund amount excluding any refunded surcharge, in the currency's lowest denomination.",
             "example": 6540,
             "minimum": 100
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total refund amount, including any refunded surcharge, in the currency's lowest denomination.",
+            "nullable": true
+          },
+          "surcharge_refund_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The surcharge amount included in this refund, in the currency's lowest denomination.",
+            "nullable": true
           },
           "currency": {
             "type": "string",
@@ -45616,6 +45758,14 @@
             "type": "boolean",
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
+            "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
             "nullable": true
           }
         }

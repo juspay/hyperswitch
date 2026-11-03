@@ -15,7 +15,8 @@ use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{
     payment_method_data::ApiPaymentMethodDataMandateIds, payments::HeaderPayload,
-    router_data::ErrorResponse, router_request_types::SplitRefundsRequest,
+    refunds::RefundAmountDetails, router_data::ErrorResponse,
+    router_request_types::SplitRefundsRequest,
 };
 use hyperswitch_interfaces::{
     consts as interfaces_consts,
@@ -1745,16 +1746,12 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
+    let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-
-    validator::validate_refund_amount(
-        total_amount_captured.get_amount_as_i64(),
-        &all_refunds,
-        refund_amount.get_amount_as_i64(),
-    )
-    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount_details)
+        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
@@ -1795,6 +1792,8 @@ pub async fn validate_and_create_refund(
             req.feature_metadata,
             &all_refunds,
         )?;
+    let (refund_amount, refund_surcharge_amount, net_refund_amount) =
+        refund_amount_details.into_storage_amounts();
     let refund_create_req = diesel_refund::RefundNew {
         refund_id: refund_id.to_string(),
         internal_reference_id: utils::generate_id(consts::ID_LENGTH, "refid"),
@@ -1806,6 +1805,8 @@ pub async fn validate_and_create_refund(
         refund_type: req.refund_type.unwrap_or_default().foreign_into(),
         total_amount: payment_attempt.get_total_amount(),
         refund_amount,
+        refund_surcharge_amount,
+        net_refund_amount: Some(net_refund_amount),
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -2328,6 +2329,8 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
+            net_amount: refund.net_refund_amount,
+            surcharge_refund_amount: refund.refund_surcharge_amount,
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
@@ -2402,6 +2405,8 @@ impl
             payment_id: refund.payment_id,
             refund_id: refund.refund_id,
             amount: refund.refund_amount,
+            net_amount: refund.net_refund_amount,
+            surcharge_refund_amount: refund.refund_surcharge_amount,
             currency: refund.currency.to_string(),
             reason: refund.refund_reason,
             status: refund.refund_status.foreign_into(),
