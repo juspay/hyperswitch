@@ -3169,6 +3169,10 @@ impl
 /// `payment_method_data[type]`, `payment_method_options[card][network]`,
 /// `[request_three_d_secure]` and `payment_method_types[0]`.
 ///
+/// The one exception is a Stripe split payment: there the direct path tokenizes the card
+/// up front (`POST /v1/payment_methods`) and the SetupMandate builder sends that token as
+/// `payment_method` instead of the card, so the caller keeps the token for that case.
+///
 /// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
 /// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
 /// token; stax resolves a mandate token or errors), so an unverified connector keeps
@@ -3189,13 +3193,19 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-        // Drop the token ONLY for a raw card on an allow-listed connector. Everything else
+        // Drop the token ONLY for a raw card on an allow-listed connector, and not for a
+        // Stripe split payment, where the direct path sends the token. Everything else
         // -- wallets, mandate payments, bank debits, anything the helper below has no arm
         // for -- keeps today's behaviour, because the helper answers NotImplemented for
         // variants it cannot build and the token short-circuit is what rescues them today.
+        let is_stripe_split_payment = matches!(
+            router_data.request.split_payments,
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
+        );
         let payment_method_token = match router_data.request.payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-                if setup_mandate_accepts_raw_card(router_data.connector.as_str()) =>
+                if setup_mandate_accepts_raw_card(router_data.connector.as_str())
+                    && !is_stripe_split_payment =>
             {
                 None
             }
