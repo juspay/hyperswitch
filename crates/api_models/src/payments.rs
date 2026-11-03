@@ -30,7 +30,10 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit, TimeRange},
+    types::{
+        AmountConvertor, MinorUnit, Percentage, ScalarPercentage, SemanticVersion, StringMajorUnit,
+        TimeRange,
+    },
 };
 use error_stack::ResultExt;
 
@@ -1624,9 +1627,30 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<i64>")]
     pub shipping_amount_tax: Option<MinorUnit>,
 
+    /// Value added tax (VAT) amount applied to the order or transaction.
+    #[schema(value_type = Option<i64>, example = 54)]
+    #[smithy(value_type = "Option<i64>")]
+    pub value_added_tax_amount: Option<MinorUnit>,
+
+    /// Value added tax (VAT) rate applied to the order or transaction.
+    #[schema(value_type = Option<f64>, example = 2.5)]
+    #[smithy(value_type = "Option<f64>")]
+    pub value_added_tax_percent: Option<VatPercentage>,
+
     /// Duty or customs fee amount for international transactions.
     #[smithy(value_type = "Option<i64>")]
     pub duty_amount: Option<MinorUnit>,
+
+    /// Commodity code classifying the order as a whole, as opposed to the
+    /// per-item codes in `order_details`.
+    #[schema(value_type = Option<String>, example = "4900")]
+    #[smithy(value_type = "Option<String>")]
+    pub order_commodity_code: Option<String>,
+
+    /// Reference number of the value added tax (VAT) invoice for this order.
+    #[schema(value_type = Option<String>, example = "9999")]
+    #[smithy(value_type = "Option<String>")]
+    pub vat_invoice_reference_number: Option<String>,
 
     /// Date the payer placed the order.
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
@@ -9376,14 +9400,15 @@ pub struct PaymentListConstraints {
 
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListConstraints {
     /// The identifier for payment
     #[param(example = "pay_fafa124123", value_type = Option<String>)]
     pub payment_id: Option<id_type::GlobalPaymentId>,
 
-    /// The identifier for business profile
-    #[param(example = "pay_fafa124123", value_type = Option<String>)]
+    /// Optional business-profile filter. Must match the authenticated X-Profile-Id header.
+    #[param(example = "pro_abcdefgh12345678", value_type = Option<String>)]
     pub profile_id: Option<id_type::ProfileId>,
 
     /// The identifier for customer
@@ -10558,6 +10583,8 @@ pub struct PaymentsRetrieveRequest {
 
 /// Percentage value used to represent the discount applied on an item.
 pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
+
+pub type VatPercentage = ScalarPercentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
 
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
@@ -15231,6 +15258,14 @@ pub struct RecoveryPaymentsCreate {
     /// Category of the merchant initiated transactions made to recover this invoice. Defaults to `recurring`.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     pub mit_category: Option<api_enums::MitCategory>,
+
+    /// Set to `present` if the customer was present during the transaction. Defaults to `absent`.
+    #[schema(example = "absent", default = "absent", value_type = Option<PresenceOfCustomerDuringPayment>)]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+
+    /// Indicates how the payment method is intended to be used in the future. Defaults to `off_session`.
+    #[schema(value_type = Option<FutureUsage>, default = "off_session", example = "off_session")]
+    pub setup_future_usage: Option<api_enums::FutureUsage>,
 
     /// The billing details of the transaction.
     pub billing: Option<Address>,

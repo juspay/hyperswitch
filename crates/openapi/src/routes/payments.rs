@@ -1599,14 +1599,19 @@ pub fn list_payment_methods() {}
 
 /// Payments - List
 ///
-/// To list the *payments*
+/// List payments and their total count within the authenticated X-Profile-Id.
+/// An optional profile_id query filter must match X-Profile-Id.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
     path = "/v2/payments/list",
-    params(api_models::payments::PaymentListConstraints),
+    params(
+        api_models::payments::PaymentListConstraints,
+        ("X-Profile-Id" = String, Header, description = "Authenticated business profile used to scope payment rows and total_count."),
+    ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 400, description = "Query profile_id does not match X-Profile-Id"),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",
