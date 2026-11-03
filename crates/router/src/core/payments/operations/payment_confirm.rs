@@ -54,7 +54,7 @@ use crate::{
         },
         utils as core_utils,
     },
-    routes::{app::ReqState, SessionState},
+    routes::{app::ReqState, payments::callback_routes::PaymentCallbackRoute, SessionState},
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -2181,9 +2181,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
 
 
-            let return_url = helpers::create_authorize_url(
+            let return_url = PaymentCallbackRoute::authorize_url(
                 &state.base_url,
-                &payment_data.payment_attempt.clone(),
+                payment_data.payment_attempt.payment_id.get_string_repr(),
+                payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
                 payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
             );
 

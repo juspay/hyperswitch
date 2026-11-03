@@ -155,7 +155,10 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{app::ReqState, metrics, payment_methods::ParentPaymentMethodToken, SessionState},
+    routes::{
+        app::ReqState, metrics, payment_methods::ParentPaymentMethodToken,
+        payments::callback_routes::PaymentCallbackRoute, SessionState,
+    },
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
         self as router_types,
@@ -14071,9 +14074,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .as_ref()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing connector in payment_attempt")?;
-    let return_url = Some(helpers::create_authorize_url(
+    let return_url = Some(PaymentCallbackRoute::authorize_url(
         &state.base_url,
-        &payment_attempt.clone(),
+        payment_attempt.payment_id.get_string_repr(),
+        payment_attempt.processor_merchant_id.get_string_repr(),
         payment_connector_name,
     ));
     let mca_id_option = merchant_connector_account.get_mca_id(); // Bind temporary value

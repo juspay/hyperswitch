@@ -1389,61 +1389,6 @@ pub fn validate_customer_id_mandatory_cases(
     }
 }
 
-#[cfg(feature = "v1")]
-pub fn create_startpay_url(
-    base_url: &str,
-    payment_attempt: &PaymentAttempt,
-    payment_intent: &PaymentIntent,
-) -> String {
-    format!(
-        "{}/payments/redirect/{}/{}/{}",
-        base_url,
-        payment_intent.get_id().get_string_repr(),
-        payment_intent.processor_merchant_id.get_string_repr(),
-        payment_attempt.attempt_id
-    )
-}
-
-pub fn create_redirect_url(
-    router_base_url: &String,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-    creds_identifier: Option<&str>,
-) -> String {
-    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
-    format!(
-        "{}/payments/{}/{}/redirect/response/{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name,
-    ) + creds_identifier_path.as_ref()
-}
-
-pub fn create_authentication_url(
-    router_base_url: &str,
-    payment_attempt: &PaymentAttempt,
-) -> String {
-    format!(
-        "{router_base_url}/payments/{}/3ds/authentication",
-        payment_attempt.payment_id.get_string_repr()
-    )
-}
-
-pub fn create_authorize_url(
-    router_base_url: &str,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-) -> String {
-    format!(
-        "{}/payments/{}/{}/authorize/{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name
-    )
-}
-
 pub fn create_webhook_url(
     router_base_url: &str,
     merchant_id: &id_type::MerchantId,
@@ -1454,25 +1399,6 @@ pub fn create_webhook_url(
         router_base_url,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
-    )
-}
-
-pub fn create_complete_authorize_url(
-    router_base_url: &String,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-    creds_identifier: Option<&str>,
-) -> String {
-    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
-        format!("/{creds_identifier}")
-    });
-    format!(
-        "{}/payments/{}/{}/redirect/complete/{}{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name,
-        creds_identifier
     )
 }
 

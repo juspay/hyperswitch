@@ -17,7 +17,7 @@ use crate::{
         errors::ApiErrorResponse, payment_methods::vault, payments as payments_core,
         unified_connector_service,
     },
-    routes::SessionState,
+    routes::{payments::callback_routes::PaymentCallbackRoute, SessionState},
     types::{
         self as core_types, api,
         domain::{self},
@@ -1423,9 +1423,10 @@ async fn call_ucs_authenticate_proxy(
     );
 
     let notification_url = Some(common_utils::types::Url::wrap(
-        url::Url::parse(&payments_core::helpers::create_authorize_url(
+        url::Url::parse(&PaymentCallbackRoute::authorize_url(
             &state.base_url,
-            payment_attempt,
+            payment_attempt.payment_id.get_string_repr(),
+            payment_attempt.processor_merchant_id.get_string_repr(),
             &psp_connector_name,
         ))
         .change_context(ApiErrorResponse::InternalServerError)?,
