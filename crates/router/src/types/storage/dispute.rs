@@ -1,4 +1,3 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
@@ -6,7 +5,7 @@ use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::DatabaseConnectionWithContext, logger};
+use crate::connection::DatabaseConnectionWithContext;
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -116,13 +115,9 @@ impl DisputeDbExt for Dispute {
             dispute_list_constraints.offset,
         );
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -184,13 +179,9 @@ impl DisputeDbExt for Dispute {
             dispute_list_constraints.offset,
         );
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, _>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_results_async(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -247,13 +238,9 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()));
         }
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             db_metrics::DatabaseOperation::Count,
-            filter.get_result_async::<i64>(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -290,13 +277,9 @@ impl DisputeDbExt for Dispute {
             None => query,
         };
 
-        logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
-
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_results::<<Self as HasTable>::Table, _, (common_enums::DisputeStatus, i64)>(
             db_metrics::DatabaseOperation::Count,
-            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::NotFound)

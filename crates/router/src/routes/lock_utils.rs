@@ -92,12 +92,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateDynamicRoutingConfig
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
-            | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineRuleMigration
             | Flow::DecisionEngineMigrationStatus
-            | Flow::VolumeSplitOnRoutingType
-            | Flow::DecisionEngineDecideGatewayCall
-            | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
             Flow::CreateSubscription
             | Flow::ConfirmSubscription
             | Flow::CreateAndConfirmSubscription
@@ -213,7 +210,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSubmitEligibility
             // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
             | Flow::PaymentLinkCreate
-            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
+            | Flow::PaymentsCancelPostCaptureSync
+            // A telephone order adapter creates and confirms a payment, so it belongs in the
+            // Payments lock namespace
+            | Flow::TelephoneOrderCharge => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate

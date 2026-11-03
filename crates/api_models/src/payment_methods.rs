@@ -9,6 +9,7 @@ use cards::CardNumber;
 use common_types::payments::{
     ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
 };
+pub use common_types::{payment_methods::PayViaSingleUseToken, payments::SurchargeErrorDetails};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -551,6 +552,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -570,6 +574,9 @@ pub struct PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
@@ -2632,6 +2639,26 @@ pub struct SurchargeDetailsResponse {
     pub display_total_surcharge_amount: f64,
     /// Surcharge percentage returned by the external surcharge connector, if provided.
     pub surcharge_percentage: Option<f64>,
+    /// Connector error details when the external calculation failed; null on success.
+    pub error_details: Option<SurchargeErrorDetails>,
+}
+
+impl SurchargeDetailsResponse {
+    pub fn connector_error(code: Option<String>, message: String, reason: Option<String>) -> Self {
+        Self {
+            surcharge: SurchargeResponse::Fixed(MinorUnit::zero()),
+            tax_on_surcharge: None,
+            display_surcharge_amount: 0.0,
+            display_tax_on_surcharge_amount: 0.0,
+            display_total_surcharge_amount: 0.0,
+            surcharge_percentage: None,
+            error_details: Some(SurchargeErrorDetails {
+                error_code: code,
+                error_message: Some(message),
+                error_reason: reason,
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -2779,6 +2806,11 @@ pub struct RequestPaymentMethodTypes {
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment should be made via a single-use token.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -3731,13 +3763,18 @@ pub struct PaymentMethodResponseItem {
     )]
     pub customer_id: id_type::GlobalCustomerId,
 
+    /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "merchant_customer_123")]
+    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
+
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
@@ -3801,8 +3838,8 @@ pub struct CustomerPaymentMethodResponseItem {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]

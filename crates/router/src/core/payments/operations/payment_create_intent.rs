@@ -112,7 +112,7 @@ impl<F: Send + Clone + Sync>
 
         let cell_id = state.conf.cell_information.id.clone();
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
