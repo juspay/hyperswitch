@@ -1,10 +1,20 @@
 //! Lossless body transport and format-aware interpolation for the vault proxy.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use quick_xml::{events::Event, Reader};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
+
+use self::{
+    form::FormUrlEncodedBody, json::JsonBody, multipart::MultipartBody, placeholder::substitute,
+    xml::XmlBody,
+};
+
+mod form;
+mod json;
+mod multipart;
+pub mod placeholder;
+mod xml;
 
 /// The connector body inside the JSON proxy envelope. Binary bodies are opaque.
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
@@ -30,15 +40,9 @@ impl hyperswitch_masking::SerializableSecret for ProxyBody {}
 
 impl std::fmt::Debug for ProxyBody {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Json(_) => "ProxyBody::Json",
-            Self::Xml(_) => "ProxyBody::Xml",
-            Self::FormUrlEncoded(_) => "ProxyBody::FormUrlEncoded",
-            Self::Text(_) => "ProxyBody::Text",
-            Self::Multipart(_) => "ProxyBody::Multipart",
-            Self::RawBytes(_) => "ProxyBody::RawBytes",
-            Self::None => "ProxyBody::None",
-        })
+        f.debug_tuple("ProxyBody")
+            .field(&self.as_metric_str())
+            .finish()
     }
 }
 
@@ -68,10 +72,9 @@ pub enum ProxyMultipartPart {
 
 impl std::fmt::Debug for ProxyMultipartPart {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Text { .. } => "ProxyMultipartPart::Text",
-            Self::File { .. } => "ProxyMultipartPart::File",
-        })
+        f.debug_tuple("ProxyMultipartPart")
+            .field(&self.format().kind())
+            .finish()
     }
 }
 
@@ -166,33 +169,16 @@ pub fn media_type(header: &str) -> String {
 impl ProxyBody {
     /// Stable, bounded body format for structured logs and metric dimensions.
     pub fn as_metric_str(&self) -> &'static str {
-        match self {
-            Self::Json(_) => "json",
-            Self::Xml(_) => "xml",
-            Self::FormUrlEncoded(_) => "form_url_encoded",
-            Self::Text(_) => "text",
-            Self::Multipart(_) => "multipart",
-            Self::RawBytes(_) => "raw_bytes",
-            Self::None => "none",
-        }
+        self.format().name()
     }
 
     /// Populate the old request field for callers during a staged rollout. Only
     /// JSON is sent correctly by servers predating the typed body, so other
     /// formats travel once, in `body`, keeping the envelope within size limits.
     pub fn legacy_value(&self) -> Value {
-        match self {
-            Self::Json(value) => {
-                serde_json::from_str(value).unwrap_or_else(|_| Value::String(value.clone()))
-            }
-            Self::Xml(_)
-            | Self::FormUrlEncoded(_)
-            | Self::Text(_)
-            | Self::Multipart(_)
-            | Self::RawBytes(_)
-            | Self::None => Value::Null,
-        }
+        self.format().legacy_value()
     }
+
     /// Interpret the original API contract without changing JSON callers.
     pub fn from_legacy(body: Value, content_type: Option<&str>) -> Result<Self, ProxyBodyError> {
         let kind = content_type
@@ -216,46 +202,238 @@ impl ProxyBody {
         }
     }
 
-    /// Resolve the template and produce connector bytes, never a JSON wrapper string.
-    pub fn prepare(
+    /// Start turning this body into connector bytes. See [`ProxyBodyBuilder`].
+    pub fn builder(&self) -> ProxyBodyBuilder<'_, NeedsContentType> {
+        ProxyBodyBuilder {
+            format: self.format(),
+            state: NeedsContentType,
+        }
+    }
+
+    /// The only place that maps a variant to its format implementation.
+    fn format(&self) -> Box<dyn ProxyBodyFormat + '_> {
+        match self {
+            Self::Json(template) => Box::new(JsonBody(template)),
+            Self::Xml(template) => Box::new(XmlBody(template)),
+            Self::FormUrlEncoded(template) => Box::new(FormUrlEncodedBody(template)),
+            Self::Text(template) => Box::new(TextBody(template)),
+            Self::Multipart(parts) => Box::new(MultipartBody(parts)),
+            Self::RawBytes(encoded) => Box::new(RawBytesBody(encoded)),
+            Self::None => Box::new(NoBody),
+        }
+    }
+}
+
+/// Behaviour of one connector body format. Each [`ProxyBody`] variant has its own
+/// implementation, so supporting a new format means adding one implementation.
+trait ProxyBodyFormat {
+    /// Stable, bounded label for structured logs and metric dimensions.
+    fn name(&self) -> &'static str;
+
+    /// Content-Type sent when the caller does not declare one.
+    fn default_content_type(&self) -> Option<&'static str>;
+
+    /// Whether a declared, lower-cased media type can carry this format.
+    fn accepts(&self, media_type: &str) -> bool;
+
+    /// Templates are UTF-8, so their declared charset must agree. Opaque bytes and
+    /// absent bodies carry no template.
+    fn is_utf8_template(&self) -> bool {
+        true
+    }
+
+    /// Value for the pre-typed `request_body` field; see [`ProxyBody::legacy_value`].
+    fn legacy_value(&self) -> Value {
+        Value::Null
+    }
+
+    /// Resolve vault placeholders and produce the connector bytes.
+    fn render(
         &self,
         vault: &Value,
-        content_type: Option<&str>,
+        content_type: &CheckedContentType<'_>,
+    ) -> Result<PreparedProxyBody, ProxyBodyError>;
+}
+
+/// A declared Content-Type that is compatible with the body format.
+#[derive(Debug)]
+struct CheckedContentType<'a> {
+    header: Option<&'a str>,
+    /// Parsed only for UTF-8 templates, whose parameters are significant.
+    parsed: Option<mime::Mime>,
+}
+
+impl CheckedContentType<'_> {
+    /// The declared header, or the format's default when none was declared.
+    fn or_default(&self, default: Option<&str>) -> Option<String> {
+        self.header.or(default).map(str::to_owned)
+    }
+}
+
+struct TextBody<'a>(&'a str);
+
+impl ProxyBodyFormat for TextBody<'_> {
+    fn name(&self) -> &'static str {
+        "text"
+    }
+
+    fn default_content_type(&self) -> Option<&'static str> {
+        Some("text/plain; charset=utf-8")
+    }
+
+    fn accepts(&self, media_type: &str) -> bool {
+        media_type.starts_with("text/") && media_type != "text/xml"
+    }
+
+    fn render(
+        &self,
+        vault: &Value,
+        content_type: &CheckedContentType<'_>,
     ) -> Result<PreparedProxyBody, ProxyBodyError> {
-        let declared = content_type.map(media_type);
-        let default = match self {
-            Self::Json(_) => "application/json",
-            Self::Xml(_) => "application/xml",
-            Self::FormUrlEncoded(_) => "application/x-www-form-urlencoded",
-            Self::Text(_) => "text/plain; charset=utf-8",
-            Self::RawBytes(_) => "application/octet-stream",
-            Self::Multipart(_) => "multipart/form-data",
-            Self::None => "",
-        };
-        if let Some(kind) = declared.as_deref() {
-            let valid = match self {
-                Self::Json(_) => kind == "application/json" || kind.ends_with("+json"),
-                Self::Xml(_) => {
-                    kind == "application/xml" || kind == "text/xml" || kind.ends_with("+xml")
-                }
-                Self::FormUrlEncoded(_) => kind == "application/x-www-form-urlencoded",
-                Self::Text(_) => kind.starts_with("text/") && kind != "text/xml",
-                Self::Multipart(_) => kind == "multipart/form-data",
-                Self::RawBytes(_) | Self::None => true,
-            };
-            if !valid {
-                return Err(ProxyBodyError::InvalidContentType);
-            }
+        Ok(PreparedProxyBody {
+            bytes: Some(substitute(self.0, vault, str::to_owned)?.into_bytes()),
+            content_type: content_type.or_default(self.default_content_type()),
+        })
+    }
+}
+
+struct RawBytesBody<'a>(&'a str);
+
+impl ProxyBodyFormat for RawBytesBody<'_> {
+    fn name(&self) -> &'static str {
+        "raw_bytes"
+    }
+
+    fn default_content_type(&self) -> Option<&'static str> {
+        Some("application/octet-stream")
+    }
+
+    fn accepts(&self, _media_type: &str) -> bool {
+        true
+    }
+
+    fn is_utf8_template(&self) -> bool {
+        false
+    }
+
+    fn render(
+        &self,
+        _vault: &Value,
+        content_type: &CheckedContentType<'_>,
+    ) -> Result<PreparedProxyBody, ProxyBodyError> {
+        Ok(PreparedProxyBody {
+            bytes: Some(
+                STANDARD
+                    .decode(self.0)
+                    .map_err(|_| ProxyBodyError::InvalidBase64)?,
+            ),
+            content_type: content_type.or_default(self.default_content_type()),
+        })
+    }
+}
+
+struct NoBody;
+
+impl ProxyBodyFormat for NoBody {
+    fn name(&self) -> &'static str {
+        "none"
+    }
+
+    fn default_content_type(&self) -> Option<&'static str> {
+        None
+    }
+
+    fn accepts(&self, _media_type: &str) -> bool {
+        true
+    }
+
+    fn is_utf8_template(&self) -> bool {
+        false
+    }
+
+    fn render(
+        &self,
+        _vault: &Value,
+        content_type: &CheckedContentType<'_>,
+    ) -> Result<PreparedProxyBody, ProxyBodyError> {
+        Ok(PreparedProxyBody {
+            bytes: None,
+            content_type: content_type.or_default(self.default_content_type()),
+        })
+    }
+}
+
+/// Type-state builder that turns a [`ProxyBody`] into connector bytes. The declared
+/// Content-Type is checked first, vault data is supplied next, and only then can the
+/// body be built; each step returns a new state, so a skipped step does not compile.
+///
+/// ```ignore
+/// let prepared = body
+///     .builder()
+///     .content_type(content_type)?
+///     .vault_data(&vault_data)
+///     .build()?;
+/// ```
+pub struct ProxyBodyBuilder<'a, S> {
+    format: Box<dyn ProxyBodyFormat + 'a>,
+    state: S,
+}
+
+/// Builder state before the declared Content-Type is checked.
+#[derive(Debug)]
+pub struct NeedsContentType;
+
+/// Builder state after the Content-Type check, waiting for vault data.
+#[derive(Debug)]
+pub struct NeedsVaultData<'a> {
+    content_type: CheckedContentType<'a>,
+}
+
+/// Builder state with every input in place.
+pub struct ReadyToBuild<'a, 'v> {
+    content_type: CheckedContentType<'a>,
+    vault: &'v Value,
+}
+
+impl std::fmt::Debug for ReadyToBuild<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Vault data is never printed.
+        f.debug_struct("ReadyToBuild")
+            .field("content_type", &self.content_type)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<S: std::fmt::Debug> std::fmt::Debug for ProxyBodyBuilder<'_, S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyBodyBuilder")
+            .field("format", &self.format.name())
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
+impl<'a> ProxyBodyBuilder<'a, NeedsContentType> {
+    /// Check the declared Content-Type against the body format. Templates are
+    /// UTF-8; reject a conflicting charset rather than sending bytes that the
+    /// connector will decode using another charset.
+    pub fn content_type(
+        self,
+        header: Option<&'a str>,
+    ) -> Result<ProxyBodyBuilder<'a, NeedsVaultData<'a>>, ProxyBodyError> {
+        if header
+            .map(media_type)
+            .is_some_and(|kind| !self.format.accepts(&kind))
+        {
+            return Err(ProxyBodyError::InvalidContentType);
         }
-        // Templates are UTF-8; reject a conflicting declaration rather than
-        // sending bytes that the connector will decode using another charset.
-        let parsed_content_type = content_type
-            .filter(|_| !matches!(self, Self::RawBytes(_) | Self::None))
+        let parsed = header
+            .filter(|_| self.format.is_utf8_template())
             .map(str::parse::<mime::Mime>)
             .transpose()
             .map_err(|_| ProxyBodyError::InvalidContentType)?;
-        if parsed_content_type.as_ref().is_some_and(|content_type| {
-            content_type.params().any(|(name, value)| {
+        if parsed.as_ref().is_some_and(|parsed| {
+            parsed.params().any(|(name, value)| {
                 name == mime::CHARSET
                     && !value.as_str().eq_ignore_ascii_case("utf-8")
                     && !value.as_str().eq_ignore_ascii_case("utf8")
@@ -263,402 +441,32 @@ impl ProxyBody {
         }) {
             return Err(ProxyBodyError::InvalidContentType);
         }
-        let effective_type = content_type
-            .map(str::to_owned)
-            .or_else(|| (!default.is_empty()).then(|| default.to_owned()));
-        let bytes = match self {
-            Self::Json(template) => resolve_json_template(template, vault)?.into_bytes(),
-            Self::Xml(template) => resolve_xml(template, vault)?.into_bytes(),
-            Self::FormUrlEncoded(template) => resolve_form(template, vault)?.into_bytes(),
-            Self::Text(template) => substitute(template, vault, str::to_owned)?.into_bytes(),
-            Self::RawBytes(encoded) => STANDARD
-                .decode(encoded)
-                .map_err(|_| ProxyBodyError::InvalidBase64)?,
-            Self::Multipart(parts) => {
-                return prepare_multipart(parts, vault, content_type, parsed_content_type.as_ref())
-            }
-            Self::None => {
-                return Ok(PreparedProxyBody {
-                    bytes: None,
-                    content_type: effective_type,
-                })
-            }
-        };
-        Ok(PreparedProxyBody {
-            bytes: Some(bytes),
-            content_type: effective_type,
+        Ok(ProxyBodyBuilder {
+            format: self.format,
+            state: NeedsVaultData {
+                content_type: CheckedContentType { header, parsed },
+            },
         })
     }
 }
 
-fn find_field<'a>(vault: &'a Value, field: &str) -> Option<&'a Value> {
-    match vault {
-        Value::Object(map) => map
-            .get(field)
-            .or_else(|| map.values().find_map(|v| find_field(v, field))),
-        Value::Array(values) => values.iter().find_map(|v| find_field(v, field)),
-        _ => None,
-    }
-}
-
-fn scalar(vault: &Value, field: &str) -> Result<String, ProxyBodyError> {
-    match find_field(vault, field) {
-        Some(Value::String(s)) => Ok(s.clone()),
-        Some(Value::Number(n)) => Ok(n.to_string()),
-        Some(Value::Bool(b)) => Ok(b.to_string()),
-        _ => Err(ProxyBodyError::InvalidField(field.to_owned())),
-    }
-}
-
-fn placeholder(input: &str) -> Result<Option<(&str, usize)>, ProxyBodyError> {
-    let Some(rest) = input.strip_prefix("{{") else {
-        return Ok(None);
-    };
-    if !rest.trim_start().starts_with('$') {
-        return Ok(None);
-    }
-    let end = rest.find("}}").ok_or(ProxyBodyError::InvalidPlaceholder)?;
-    let field = rest[..end]
-        .trim()
-        .strip_prefix('$')
-        .ok_or(ProxyBodyError::InvalidPlaceholder)?;
-    if field.is_empty() || !field.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-        return Err(ProxyBodyError::InvalidPlaceholder);
-    }
-    Ok(Some((field, end + 4)))
-}
-
-fn substitute(
-    template: &str,
-    vault: &Value,
-    escape: impl Fn(&str) -> String,
-) -> Result<String, ProxyBodyError> {
-    let mut output = String::with_capacity(template.len());
-    let mut rest = template;
-    while let Some(start) = rest.find("{{") {
-        output.push_str(&rest[..start]);
-        rest = &rest[start..];
-        if let Some((field, consumed)) = placeholder(rest)? {
-            output.push_str(&escape(&scalar(vault, field)?));
-            rest = &rest[consumed..];
-        } else {
-            output.push_str("{{");
-            rest = &rest[2..];
+impl<'a> ProxyBodyBuilder<'a, NeedsVaultData<'a>> {
+    /// Supply the vault data that placeholders resolve against.
+    pub fn vault_data(self, vault: &Value) -> ProxyBodyBuilder<'a, ReadyToBuild<'a, '_>> {
+        ProxyBodyBuilder {
+            format: self.format,
+            state: ReadyToBuild {
+                content_type: self.state.content_type,
+                vault,
+            },
         }
     }
-    output.push_str(rest);
-    Ok(output)
 }
 
-fn has_reference(template: &str) -> Result<bool, ProxyBodyError> {
-    let mut rest = template;
-    while let Some(start) = rest.find("{{") {
-        rest = &rest[start..];
-        if placeholder(rest)?.is_some() {
-            return Ok(true);
-        }
-        rest = &rest[2..];
+impl ProxyBodyBuilder<'_, ReadyToBuild<'_, '_>> {
+    /// Resolve the template and produce connector bytes, never a JSON wrapper string.
+    pub fn build(self) -> Result<PreparedProxyBody, ProxyBodyError> {
+        self.format
+            .render(self.state.vault, &self.state.content_type)
     }
-    Ok(false)
-}
-
-fn resolve_json_string(value: &str, vault: &Value) -> Result<Value, ProxyBodyError> {
-    if let Some((field, consumed)) = placeholder(value)? {
-        if consumed == value.len() {
-            return find_field(vault, field)
-                .cloned()
-                .ok_or_else(|| ProxyBodyError::InvalidField(field.to_owned()));
-        }
-    }
-    substitute(value, vault, str::to_owned).map(Value::String)
-}
-
-fn resolve_json_template(template: &str, vault: &Value) -> Result<String, ProxyBodyError> {
-    // Validate structure once, then replace only string value tokens. This keeps
-    // whitespace, field order, numeric spelling and existing escapes unchanged.
-    serde_json::from_str::<Value>(template).map_err(|_| ProxyBodyError::Serialization)?;
-    let bytes = template.as_bytes();
-    let mut output = String::with_capacity(template.len());
-    let mut copied = 0;
-    let mut index = 0;
-    while let Some(&byte) = bytes.get(index) {
-        if byte != b'"' {
-            index += 1;
-            continue;
-        }
-        let start = index;
-        index += 1;
-        while let Some(&byte) = bytes.get(index) {
-            if byte == b'"' {
-                index += 1;
-                break;
-            }
-            index += if byte == b'\\' { 2 } else { 1 };
-        }
-        let token = template
-            .get(start..index)
-            .ok_or(ProxyBodyError::Serialization)?;
-        let is_key = bytes
-            .get(index..)
-            .unwrap_or_default()
-            .iter()
-            .copied()
-            .find(|b| !b.is_ascii_whitespace())
-            == Some(b':');
-        if is_key {
-            continue;
-        }
-        let original: String =
-            serde_json::from_str(token).map_err(|_| ProxyBodyError::Serialization)?;
-        let resolved = resolve_json_string(&original, vault)?;
-        if resolved.as_str() != Some(original.as_str()) {
-            output.push_str(&template[copied..start]);
-            output.push_str(
-                &serde_json::to_string(&resolved).map_err(|_| ProxyBodyError::Serialization)?,
-            );
-            copied = index;
-        }
-    }
-    output.push_str(&template[copied..]);
-    Ok(output)
-}
-
-fn xml_escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
-        .replace('\r', "&#13;")
-        .replace('\n', "&#10;")
-        .replace('\t', "&#9;")
-}
-
-fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> {
-    let valid_chars = |value: &str| {
-        value.chars().all(|c| {
-            matches!(c, '\t' | '\r' | '\n')
-                || ('\u{20}'..='\u{d7ff}').contains(&c)
-                || ('\u{e000}'..='\u{fffd}').contains(&c)
-                || ('\u{10000}'..='\u{10ffff}').contains(&c)
-        })
-    };
-    if !valid_chars(template) {
-        return Err(ProxyBodyError::InvalidXml);
-    }
-    let mut reader = Reader::from_str(template);
-    let mut output = String::with_capacity(template.len());
-    let mut position = 0;
-    let mut depth: usize = 0;
-    let mut roots = 0;
-    loop {
-        let event = reader
-            .read_event()
-            .map_err(|_| ProxyBodyError::InvalidXml)?;
-        let next = reader.buffer_position();
-        let original = &template[position..next];
-        match event {
-            Event::Start(ref element) | Event::Empty(ref element) => {
-                if element
-                    .name()
-                    .as_ref()
-                    .windows(2)
-                    .any(|value| value == b"{{")
-                {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
-                for attr in element.attributes() {
-                    let attr = attr.map_err(|_| ProxyBodyError::InvalidXml)?;
-                    if attr.key.as_ref().windows(2).any(|value| value == b"{{") {
-                        return Err(ProxyBodyError::InvalidXml);
-                    }
-                }
-                if depth == 0 {
-                    roots += 1;
-                }
-                if matches!(event, Event::Start(_)) {
-                    depth += 1;
-                }
-                output.push_str(&substitute(original, vault, xml_escape)?);
-            }
-            Event::End(_) => {
-                depth = depth.checked_sub(1).ok_or(ProxyBodyError::InvalidXml)?;
-                output.push_str(original);
-            }
-            Event::Text(_) => {
-                if depth == 0 && !original.trim().is_empty() {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
-                output.push_str(&substitute(original, vault, xml_escape)?);
-            }
-            Event::CData(_) => {
-                if depth == 0 {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
-                output.push_str(&substitute(original, vault, |s| {
-                    s.replace("]]>", "]]]]><![CDATA[>")
-                })?);
-            }
-            Event::Decl(ref declaration) => {
-                let encoding = declaration
-                    .encoding()
-                    .transpose()
-                    .map_err(|_| ProxyBodyError::InvalidXml)?;
-                if has_reference(original)?
-                    || encoding.is_some_and(|encoding| {
-                        !encoding.eq_ignore_ascii_case(b"utf-8")
-                            && !encoding.eq_ignore_ascii_case(b"utf8")
-                    })
-                {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
-                output.push_str(original);
-            }
-            Event::Eof => break,
-            _ => {
-                // Token references in comments, declarations, DTDs and processing
-                // instructions are not card data positions.
-                if has_reference(original)? {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
-                output.push_str(original);
-            }
-        }
-        position = next;
-    }
-    if roots != 1 || depth != 0 || !valid_chars(&output) {
-        return Err(ProxyBodyError::InvalidXml);
-    }
-    Ok(output)
-}
-
-fn decode_form(value: &str) -> Result<String, ProxyBodyError> {
-    // urlencoding leaves malformed escapes untouched; reject them explicitly.
-    let bytes = value.as_bytes();
-    let mut index = 0;
-    while let Some(&byte) = bytes.get(index) {
-        if byte == b'%' {
-            let valid_escape = bytes
-                .get(index + 1..index + 3)
-                .is_some_and(|hex| hex.iter().all(u8::is_ascii_hexdigit));
-            if !valid_escape {
-                return Err(ProxyBodyError::InvalidForm);
-            }
-            index += 3;
-        } else {
-            index += 1;
-        }
-    }
-    // url::form_urlencoded's public parser replaces invalid UTF-8; urlencoding
-    // rejects it instead. `+` is replaced first so that `%2B` still decodes to `+`.
-    urlencoding::decode(&value.replace('+', " "))
-        .map(std::borrow::Cow::into_owned)
-        .map_err(|_| ProxyBodyError::InvalidForm)
-}
-
-fn resolve_form(template: &str, vault: &Value) -> Result<String, ProxyBodyError> {
-    template
-        .split('&')
-        .map(|part| {
-            let (key, value) = part.split_once('=').unwrap_or((part, ""));
-            let decoded_key = decode_form(key)?;
-            if has_reference(&decoded_key)? {
-                return Err(ProxyBodyError::InvalidForm);
-            }
-            let decoded = decode_form(value)?;
-            let resolved = substitute(&decoded, vault, str::to_owned)?;
-            if resolved == decoded {
-                return Ok(part.to_owned());
-            }
-            let encoded: String =
-                url::form_urlencoded::byte_serialize(resolved.as_bytes()).collect();
-            Ok(format!("{key}={encoded}"))
-        })
-        .collect::<Result<Vec<_>, ProxyBodyError>>()
-        .map(|fields| fields.join("&"))
-}
-
-fn quoted_metadata(value: &str) -> Result<String, ProxyBodyError> {
-    if value.chars().any(|c| c.is_control()) {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
-    Ok(value.replace('\\', "\\\\").replace('"', "\\\""))
-}
-
-fn prepare_multipart(
-    parts: &[ProxyMultipartPart],
-    vault: &Value,
-    content_type: Option<&str>,
-    parsed_content_type: Option<&mime::Mime>,
-) -> Result<PreparedProxyBody, ProxyBodyError> {
-    let mut boundaries = parsed_content_type
-        .into_iter()
-        .flat_map(mime::Mime::params)
-        .filter(|(name, _)| *name == mime::BOUNDARY)
-        .map(|(_, value)| value.as_str().to_owned());
-    let specified = boundaries.next();
-    if boundaries.next().is_some() {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
-    let boundary = specified
-        .clone()
-        .unwrap_or_else(|| format!("hs-proxy-{}", crate::generate_uuid_v4()));
-    if boundary.is_empty()
-        || boundary.len() > 70
-        || boundary.ends_with(' ')
-        || !boundary
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"'()+_,-./:=? ".contains(&b))
-    {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
-    let mut bytes = Vec::new();
-    for part in parts {
-        let (headers, data) = match part {
-            ProxyMultipartPart::Text { name, value } => (
-                format!(
-                    "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
-                    quoted_metadata(name)?
-                ),
-                substitute(value, vault, str::to_owned)?.into_bytes(),
-            ),
-            ProxyMultipartPart::File {
-                name,
-                filename,
-                mime_type,
-                data_base64,
-            } => {
-                if mime_type.parse::<mime::Mime>().is_err() {
-                    return Err(ProxyBodyError::InvalidMultipart);
-                }
-                (
-                    format!("Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\nContent-Type: {}\r\n\r\n", quoted_metadata(name)?, quoted_metadata(filename)?, mime_type),
-                    STANDARD.decode(data_base64).map_err(|_| ProxyBodyError::InvalidBase64)?,
-                )
-            }
-        };
-        if data
-            .windows(boundary.len())
-            .any(|window| window == boundary.as_bytes())
-        {
-            return Err(ProxyBodyError::InvalidMultipart);
-        }
-        bytes.extend_from_slice(format!("--{boundary}\r\n{headers}").as_bytes());
-        bytes.extend_from_slice(&data);
-        bytes.extend_from_slice(b"\r\n");
-    }
-    bytes.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
-    let content_type = if specified.is_some() {
-        content_type.map(str::to_owned)
-    } else {
-        Some(format!(
-            "{}; boundary={boundary}",
-            content_type.unwrap_or("multipart/form-data")
-        ))
-    };
-    Ok(PreparedProxyBody {
-        bytes: Some(bytes),
-        content_type,
-    })
 }

@@ -69,7 +69,9 @@ pub async fn proxy_core(
         })?;
     let body_format = body.as_metric_str();
     let processed_body = body
-        .prepare(&vault_data, content_type)
+        .builder()
+        .content_type(content_type)
+        .and_then(|builder| builder.vault_data(&vault_data).build())
         .inspect_err(|_| {
             logger::warn!(
                 body_format,

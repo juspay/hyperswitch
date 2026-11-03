@@ -49,10 +49,13 @@ async fn proxy_prepared_bodies_reach_the_connector_in_their_actual_format() {
             body: response_bytes,
         });
         let prepared = body
-            .prepare(
-                &json!({"card_number":"4111111111111111"}),
-                Some(content_type),
-            )
+            .builder()
+            .content_type(Some(content_type))
+            .and_then(|builder| {
+                builder
+                    .vault_data(&json!({"card_number":"4111111111111111"}))
+                    .build()
+            })
             .unwrap();
         let request = prepared.into_request(
             &url,
@@ -100,10 +103,13 @@ async fn multipart_file_bytes_and_text_fields_survive_real_http_forwarding() {
         },
     ]);
     let prepared = body
-        .prepare(
-            &json!({"card_number":"4111111111111111"}),
-            Some("multipart/form-data; boundary=fixture-boundary"),
-        )
+        .builder()
+        .content_type(Some("multipart/form-data; boundary=fixture-boundary"))
+        .and_then(|builder| {
+            builder
+                .vault_data(&json!({"card_number":"4111111111111111"}))
+                .build()
+        })
         .unwrap();
     let (url, server) = mock_http::serve(|_| mock_http::MockResponse {
         status: 204,
@@ -151,7 +157,11 @@ async fn bodyless_get_and_raw_delete_and_get_are_not_silently_changed() {
             headers: vec![],
             body: vec![],
         });
-        let prepared = body.prepare(&json!({}), None).unwrap();
+        let prepared = body
+            .builder()
+            .content_type(None)
+            .and_then(|builder| builder.vault_data(&json!({})).build())
+            .unwrap();
         let request = prepared.into_request(&url, method, vec![]);
         send_request(&Proxy::default(), request, Some(5))
             .await

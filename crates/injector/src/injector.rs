@@ -2,15 +2,12 @@ pub mod core {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use common_utils::{
+        proxy::placeholder::{find_field, parse_placeholder},
+        request::{Method, RequestBuilder, RequestContent},
+    };
     use error_stack::{self, ResultExt};
     use hyperswitch_masking::{self, ExposeInterface};
-    use nom::{
-        bytes::complete::{tag, take_while1},
-        character::complete::{char, multispace0},
-        sequence::{delimited, preceded, terminated},
-        IResult,
-    };
     use router_env::{instrument, logger};
     use serde_json::Value;
     use thiserror::Error;
@@ -495,86 +492,6 @@ pub mod core {
     }
 
     // ---------------------------------------------------------------------------
-    // Token parsing helpers
-    // ---------------------------------------------------------------------------
-
-    #[derive(Debug)]
-    struct TokenReference {
-        /// The field name to be replaced (without the {{$}} wrapper)
-        pub field: String,
-    }
-
-    /// Parses a single token reference from a string using nom parser combinators
-    ///
-    /// Expects tokens in the format `{{$field_name}}` where field_name contains
-    /// only alphanumeric characters and underscores.
-    fn parse_token(input: &str) -> IResult<&str, TokenReference> {
-        let (input, field) = delimited(
-            tag("{{"),
-            preceded(
-                multispace0,
-                preceded(
-                    char('$'),
-                    terminated(
-                        take_while1(|c: char| c.is_alphanumeric() || c == '_'),
-                        multispace0,
-                    ),
-                ),
-            ),
-            tag("}}"),
-        )(input)?;
-        Ok((
-            input,
-            TokenReference {
-                field: field.to_string(),
-            },
-        ))
-    }
-
-    /// Finds all token references in a string using nom parser
-    ///
-    /// Scans through the entire input string and extracts all valid token references.
-    /// Returns a vector of TokenReference structs containing the field names.
-    fn find_all_tokens(input: &str) -> Vec<TokenReference> {
-        let mut tokens = Vec::new();
-        let mut current_input = input;
-
-        while !current_input.is_empty() {
-            if let Ok((remaining, token_ref)) = parse_token(current_input) {
-                tokens.push(token_ref);
-                current_input = remaining;
-            } else if let Some((_, rest)) = current_input.split_at_checked(1) {
-                current_input = rest;
-            } else {
-                break;
-            }
-        }
-
-        tokens
-    }
-
-    /// Recursively searches for a field in vault data JSON structure
-    ///
-    /// Performs a depth-first search through the JSON object hierarchy to find
-    /// a field with the specified name. Returns the first matching value found.
-    fn find_field_recursively_in_vault_data(
-        obj: &serde_json::Map<String, Value>,
-        field_name: &str,
-    ) -> Option<Value> {
-        obj.get(field_name).cloned().or_else(|| {
-            obj.values()
-                .filter_map(|val| {
-                    if let Value::Object(inner_obj) = val {
-                        find_field_recursively_in_vault_data(inner_obj, field_name)
-                    } else {
-                        None
-                    }
-                })
-                .next()
-        })
-    }
-
-    // ---------------------------------------------------------------------------
     // Public entry point
     // ---------------------------------------------------------------------------
 
@@ -744,16 +661,30 @@ pub mod core {
             vault_data: &Value,
         ) -> error_stack::Result<String, InjectorError> {
             let token_replacement_start = std::time::Instant::now();
-            let tokens = find_all_tokens(&template);
-
-            let result = tokens.into_iter().try_fold(template, |acc, token_ref| {
-                let token_str = match extract_field_from_vault_data(vault_data, &token_ref.field)? {
-                    Value::String(s) => s,
-                    other => serde_json::to_string(&other).unwrap_or_default(),
-                };
-                let pattern = format!("{{{{${}}}}}", token_ref.field);
-                Ok::<String, error_stack::Report<InjectorError>>(acc.replace(&pattern, &token_str))
-            })?;
+            let mut result = String::with_capacity(template.len());
+            let mut rest = template.as_str();
+            while let Some(start) = rest.find("{{") {
+                result.push_str(&rest[..start]);
+                rest = &rest[start..];
+                // Proxy templates are lenient: text that is not a valid placeholder,
+                // including a malformed one, is forwarded unchanged.
+                match parse_placeholder(rest) {
+                    Ok(Some((field, consumed))) => {
+                        match extract_field_from_vault_data(vault_data, field)? {
+                            Value::String(value) => result.push_str(&value),
+                            other => {
+                                result.push_str(&serde_json::to_string(&other).unwrap_or_default())
+                            }
+                        }
+                        rest = &rest[consumed..];
+                    }
+                    Ok(None) | Err(_) => {
+                        result.push_str("{{");
+                        rest = &rest[2..];
+                    }
+                }
+            }
+            result.push_str(rest);
 
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
                 token_replacement_start.elapsed().as_secs_f64(),
@@ -1007,13 +938,11 @@ pub mod core {
         logger::debug!("Extracting field '{}' from vault data", field_name);
 
         match vault_data {
-            Value::Object(obj) => {
-                find_field_recursively_in_vault_data(obj, field_name).ok_or_else(|| {
-                    error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
-                        "Field '{field_name}' not found"
-                    )))
-                })
-            }
+            Value::Object(_) => find_field(vault_data, field_name).cloned().ok_or_else(|| {
+                error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
+                    "Field '{field_name}' not found"
+                )))
+            }),
             _ => Err(error_stack::Report::new(
                 InjectorError::TokenReplacementFailed(
                     "Vault data is not a valid JSON object".to_string(),

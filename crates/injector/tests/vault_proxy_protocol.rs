@@ -109,10 +109,13 @@ async fn injector_calls_saas_with_a_json_envelope_for_every_connector_body_forma
                 .body
                 .unwrap()
                 .expose()
-                .prepare(
-                    &json!({"card_number":"4111111111111111"}),
-                    Some(content_type),
-                )
+                .builder()
+                .content_type(Some(content_type))
+                .and_then(|builder| {
+                    builder
+                        .vault_data(&json!({"card_number":"4111111111111111"}))
+                        .build()
+                })
                 .unwrap();
             let connector_bytes = prepared.bytes.unwrap_or_default();
             let reply = json!({"response":null,"status_code":422,"response_body_base64":STANDARD.encode(&connector_bytes),"response_headers":{"Content-Type":content_type},"response_headers_multi":[["Content-Type",content_type],["Set-Cookie","one=1"],["Set-Cookie","two=2"]]});
@@ -130,10 +133,13 @@ async fn injector_calls_saas_with_a_json_envelope_for_every_connector_body_forma
             .unwrap();
         assert_eq!(reply.status_code, 422);
         let expected = original
-            .prepare(
-                &json!({"card_number":"4111111111111111"}),
-                Some(content_type),
-            )
+            .builder()
+            .content_type(Some(content_type))
+            .and_then(|builder| {
+                builder
+                    .vault_data(&json!({"card_number":"4111111111111111"}))
+                    .build()
+            })
             .unwrap();
         if !matches!(original, ProxyBody::Multipart(_)) {
             assert_eq!(reply.body, expected.bytes.unwrap_or_default());
