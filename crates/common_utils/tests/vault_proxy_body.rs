@@ -236,7 +236,7 @@ fn utf8_templates_reject_conflicting_charset_and_xml_encoding_declarations() {
         (ProxyBody::Json("{}".into()), "application/json"),
         (ProxyBody::Xml("<card/>".into()), "text/xml"),
         (
-            ProxyBody::FormUrlEncoded("name=caf%C3%A9".into()),
+            ProxyBody::FormUrlEncoded("name=%C3%A9t%C3%A9".into()),
             "application/x-www-form-urlencoded",
         ),
         (ProxyBody::Text("café".into()), "text/plain"),
@@ -275,12 +275,12 @@ fn utf8_templates_reject_conflicting_charset_and_xml_encoding_declarations() {
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><card>café</card>"
     );
     assert_eq!(
-        ProxyBody::RawBytes(STANDARD.encode(b"caf\xe9"))
+        ProxyBody::RawBytes(STANDARD.encode(b"\xe9t\xe9"))
             .build_with(&vault(), Some("text/plain; charset=ISO-8859-1"))
             .unwrap()
             .bytes
             .unwrap(),
-        b"caf\xe9"
+        b"\xe9t\xe9"
     );
 }
 

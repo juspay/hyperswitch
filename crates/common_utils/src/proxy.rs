@@ -224,7 +224,7 @@ impl ProxyBody {
     }
 }
 
-/// Behaviour of one connector body format. Each [`ProxyBody`] variant has its own
+/// Behavior of one connector body format. Each [`ProxyBody`] variant has its own
 /// implementation, so supporting a new format means adding one implementation.
 trait ProxyBodyFormat {
     /// Stable, bounded label for structured logs and metric dimensions.

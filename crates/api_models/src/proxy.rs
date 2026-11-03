@@ -118,6 +118,7 @@ impl common_utils::events::ApiEventMetric for ProxyRequest {}
 impl common_utils::events::ApiEventMetric for ProxyResponse {}
 
 #[cfg(test)]
+#[allow(clippy::indexing_slicing)]
 mod tests {
     use hyperswitch_masking::PeekInterface;
     use serde_json::{json, Value};

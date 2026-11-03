@@ -48,5 +48,8 @@ common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 router_env = { version = "0.1.0", path = "../router_env" }
 
+[dev-dependencies]
+reqwest_http = { package = "http", version = "1.3.1" }
+
 [lints]
 workspace = true

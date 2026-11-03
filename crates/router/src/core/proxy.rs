@@ -133,7 +133,7 @@ mod tests {
             &b"\x00\xff\xfe"[..],
             &b""[..],
         ] {
-            let mut headers = reqwest::header::HeaderMap::new();
+            let mut headers = http::header::HeaderMap::new();
             headers.append("set-cookie", "one=1".parse().unwrap());
             headers.append("set-cookie", "two=2".parse().unwrap());
             let response = Response {
@@ -156,10 +156,10 @@ mod tests {
 
     #[test]
     fn non_ascii_connector_headers_do_not_fail_the_proxy_response() {
-        let mut headers = reqwest::header::HeaderMap::new();
+        let mut headers = http::header::HeaderMap::new();
         headers.append(
             "x-note",
-            reqwest::header::HeaderValue::from_bytes(b"caf\xe9").unwrap(),
+            http::header::HeaderValue::from_bytes(b"\xe9t\xe9").unwrap(),
         );
         let response = Response {
             status_code: 200,
@@ -170,7 +170,7 @@ mod tests {
             proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(response)).unwrap();
         assert_eq!(
             proxy.response_headers_multi.unwrap().expose(),
-            vec![("x-note".to_owned(), "caf\u{fffd}".to_owned())]
+            vec![("x-note".to_owned(), "\u{fffd}t\u{fffd}".to_owned())]
         );
     }
 }

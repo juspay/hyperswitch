@@ -718,7 +718,7 @@ mod proxy_response_tests {
     use super::*;
 
     fn response(status: u16) -> reqwest::Response {
-        http::Response::builder()
+        reqwest_http::Response::builder()
             .status(status)
             .header("set-cookie", "one=1")
             .header("set-cookie", "two=2")

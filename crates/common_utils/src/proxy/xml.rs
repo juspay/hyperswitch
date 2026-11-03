@@ -37,7 +37,7 @@ impl ProxyBodyFormat for XmlBody<'_> {
 }
 
 /// `quick_xml::escape::escape` leaves `\r`, `\n` and `\t` as-is, which XML parsers
-/// normalise to spaces inside attribute values; they are escaped here to survive.
+/// normalize to spaces inside attribute values; they are escaped here to survive.
 fn xml_escape(value: &str) -> String {
     value
         .replace('&', "&amp;")
