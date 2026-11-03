@@ -446,7 +446,7 @@ describe("Step-Up Auth payment flow test", () => {
             }
             const data = getConnectorDetails(globalState.get("connectorId"))[
               "step_up_auth"
-            ]["ThreeDSAuthentication"];
+            ]["ThreeDSAuthenticationFrictionless"];
 
             cy.threeDSAuthenticationCallTest(
               fixtures.threeDSAuthenticationBody,
