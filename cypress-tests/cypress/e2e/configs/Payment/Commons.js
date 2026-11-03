@@ -5660,6 +5660,36 @@ export const connectorDetails = {
     }),
   },
   pm_collect_link: {
+    UnsafeMerchantName: {
+      Request: { merchant_name: "</script><script>alert(1)</script>" },
+      Response: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
+    },
+    UnsafeTheme: {
+      Request: { theme: "</script><script>alert(1)</script>" },
+      Response: {
+        status: 403,
+        contentType: "text/html",
+        bodyIncludes: "403 Forbidden",
+      },
+    },
+    EscapedData: {
+      Request: {
+        merchant_name: "Example & Co",
+        theme: "#4285F4",
+        return_url: "https://example.com/return?a=1&b=2\u2028\u2029",
+      },
+      Response: {
+        status: 200,
+        scriptData: {
+          merchant_name: "Example & Co",
+          return_url: "https://example.com/return?a=1&b=2\u2028\u2029",
+        },
+      },
+    },
     pmCollectLinkCreate: {
       Request: {
         return_url: "https://example.com/return",

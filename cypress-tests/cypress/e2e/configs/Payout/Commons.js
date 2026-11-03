@@ -203,6 +203,18 @@ export const connectorDetails = {
     }),
   },
   payout_link_pm: {
+    UnsafeMerchantName: {
+      Request: { merchant_name: "</script><script>alert(1)</script>" },
+      Response: { status: 400, messageIncludes: "potential XSS or SQLi" },
+    },
+    UnsafeTheme: {
+      Request: { theme: "</script><script>alert(1)</script>" },
+      Response: { status: 400, messageIncludes: "potential XSS or SQLi" },
+    },
+    EscapedData: {
+      Request: { merchant_name: "Example & Co", theme: "#4285F4" },
+      Response: { status: 200, scriptData: { merchant_name: "Example & Co" } },
+    },
     PayoutLinkBase: getCustomExchange({
       Request: {
         payout_link: true,
