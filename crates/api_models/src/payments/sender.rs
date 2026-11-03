@@ -156,7 +156,7 @@ pub struct MaskedSenderPhoneDetails {
 
 /// A partially masked view of `IndividualSenderDetails`, safe to return in API responses.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct MaskedIndividualSenderDetails {
+pub struct IndividualSenderDetailsResponse {
     /// The sender's first name.
     #[schema(value_type = Option<String>, example = "John")]
     pub first_name: Option<Secret<String>>,
@@ -180,7 +180,7 @@ pub struct MaskedIndividualSenderDetails {
 
 /// A partially masked view of `CorporateSenderDetails`, safe to return in API responses.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct MaskedCorporateSenderDetails {
+pub struct CorporateSenderDetailsResponse {
     /// The sender's legal company name.
     #[schema(value_type = String, example = "Acme Ltd")]
     pub company_name: Secret<String>,
@@ -202,11 +202,11 @@ pub struct MaskedCorporateSenderDetails {
 /// of birth is never returned.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum MaskedSenderDetails {
+pub enum SenderDetailsResponse {
     /// The funds are provided by an individual.
-    Individual(MaskedIndividualSenderDetails),
+    Individual(IndividualSenderDetailsResponse),
     /// The funds are provided by a company.
-    Corporate(MaskedCorporateSenderDetails),
+    Corporate(CorporateSenderDetailsResponse),
 }
 
 impl From<PhoneDetails> for MaskedSenderPhoneDetails {
@@ -218,11 +218,11 @@ impl From<PhoneDetails> for MaskedSenderPhoneDetails {
     }
 }
 
-impl From<SenderDetails> for MaskedSenderDetails {
+impl From<SenderDetails> for SenderDetailsResponse {
     fn from(sender_details: SenderDetails) -> Self {
         match sender_details {
             SenderDetails::Individual(individual) => {
-                Self::Individual(MaskedIndividualSenderDetails {
+                Self::Individual(IndividualSenderDetailsResponse {
                     first_name: individual.first_name,
                     last_name: individual.last_name,
                     address: individual.address,
@@ -230,7 +230,7 @@ impl From<SenderDetails> for MaskedSenderDetails {
                     email: individual.email.map(MaskedEmail::foreign_from),
                 })
             }
-            SenderDetails::Corporate(corporate) => Self::Corporate(MaskedCorporateSenderDetails {
+            SenderDetails::Corporate(corporate) => Self::Corporate(CorporateSenderDetailsResponse {
                 company_name: corporate.company_name,
                 address: corporate.address,
                 phone: corporate.phone.map(MaskedSenderPhoneDetails::from),

@@ -20653,6 +20653,42 @@
           }
         }
       },
+      "CorporateSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
+            "nullable": true
+          }
+        }
+      },
       "Country": {
         "type": "string",
         "enum": [
@@ -27233,6 +27269,46 @@
           }
         }
       },
+      "IndividualSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name.",
+            "example": "John",
+            "nullable": true
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name.",
+            "example": "Doe",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "jo******@example.com",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -28038,82 +28114,6 @@
           }
         }
       },
-      "MaskedCorporateSenderDetails": {
-        "type": "object",
-        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
-        "required": [
-          "company_name"
-        ],
-        "properties": {
-          "company_name": {
-            "type": "string",
-            "description": "The sender's legal company name.",
-            "example": "Acme Ltd"
-          },
-          "address": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SenderAddress"
-              }
-            ],
-            "nullable": true
-          },
-          "phone": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "email": {
-            "type": "string",
-            "description": "The sender's masked email address.",
-            "example": "tr******@acme.com",
-            "nullable": true
-          }
-        }
-      },
-      "MaskedIndividualSenderDetails": {
-        "type": "object",
-        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
-        "properties": {
-          "first_name": {
-            "type": "string",
-            "description": "The sender's first name.",
-            "example": "John",
-            "nullable": true
-          },
-          "last_name": {
-            "type": "string",
-            "description": "The sender's last name.",
-            "example": "Doe",
-            "nullable": true
-          },
-          "address": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SenderAddress"
-              }
-            ],
-            "nullable": true
-          },
-          "phone": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "email": {
-            "type": "string",
-            "description": "The sender's masked email address.",
-            "example": "jo******@example.com",
-            "nullable": true
-          }
-        }
-      },
       "MaskedRecipientAccount": {
         "oneOf": [
           {
@@ -28411,56 +28411,6 @@
             ],
             "nullable": true
           }
-        }
-      },
-      "MaskedSenderDetails": {
-        "oneOf": [
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedIndividualSenderDetails"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "individual"
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/MaskedCorporateSenderDetails"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "corporate"
-                    ]
-                  }
-                }
-              }
-            ]
-          }
-        ],
-        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's date\nof birth is never returned.",
-        "discriminator": {
-          "propertyName": "type"
         }
       },
       "MaskedSenderPhoneDetails": {
@@ -37884,7 +37834,7 @@
           "sender_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MaskedSenderDetails"
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -39815,7 +39765,7 @@
           "sender_details": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/MaskedSenderDetails"
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -48130,6 +48080,56 @@
           }
         ],
         "description": "Details of the party providing the funds in an account funded transaction.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SenderDetailsResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's date\nof birth is never returned.",
         "discriminator": {
           "propertyName": "type"
         }

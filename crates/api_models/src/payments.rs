@@ -41,8 +41,8 @@ pub use self::{
         RecipientAccount, RecipientBankAccount, RecipientDetails,
     },
     sender::{
-        CorporateSenderDetails, IndividualSenderDetails, MaskedCorporateSenderDetails,
-        MaskedIndividualSenderDetails, MaskedSenderDetails, MaskedSenderPhoneDetails,
+        CorporateSenderDetails, IndividualSenderDetails, CorporateSenderDetailsResponse,
+        IndividualSenderDetailsResponse, SenderDetailsResponse, MaskedSenderPhoneDetails,
         SenderAddress, SenderDetails,
     },
 };
@@ -802,8 +802,8 @@ pub struct PaymentsIntentResponse {
 
     /// Partially masked details of the party providing the funds in an account funded
     /// transaction. The sender's date of birth is never returned.
-    #[schema(value_type = Option<MaskedSenderDetails>)]
-    pub sender_details: Option<MaskedSenderDetails>,
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
 
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
@@ -8288,8 +8288,8 @@ pub struct PaymentsResponse {
 
     /// Partially masked details of the party providing the funds in an account funded
     /// transaction. The sender's date of birth is never returned.
-    #[schema(value_type = Option<MaskedSenderDetails>)]
-    pub sender_details: Option<MaskedSenderDetails>,
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]

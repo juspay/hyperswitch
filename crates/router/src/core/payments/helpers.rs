@@ -23,7 +23,7 @@ use common_types::payments::InstallmentOption;
 use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ConfigExt, Encode, ValueExt},
     fp_utils, generate_id,
     id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
@@ -8801,8 +8801,6 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 pub fn validate_sender_details(
     sender_details: Option<&api_models::payments::SenderDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    use common_utils::ext_traits::ConfigExt;
-
     sender_details
         .map(|sender_details| sender_details.get_name_fields())
         .unwrap_or_default()

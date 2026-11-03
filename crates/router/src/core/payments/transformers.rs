@@ -3046,7 +3046,7 @@ where
             .map(api_models::payments::MaskedRecipientDetails::from);
         let masked_sender_details = payment_intent
             .get_sender_details()
-            .map(api_models::payments::MaskedSenderDetails::from);
+            .map(api_models::payments::SenderDetailsResponse::from);
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
@@ -4422,7 +4422,7 @@ where
             payment_attempt.get_setup_future_usage_with_fallback(&payment_intent);
         let masked_sender_details = payment_intent
             .get_sender_details()
-            .map(api_models::payments::MaskedSenderDetails::from);
+            .map(api_models::payments::SenderDetailsResponse::from);
         let payments_response = api::PaymentsResponse {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -4923,7 +4923,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .map(api_models::payments::MaskedRecipientDetails::from);
         let masked_sender_details = pi
             .get_sender_details()
-            .map(api_models::payments::MaskedSenderDetails::from);
+            .map(api_models::payments::SenderDetailsResponse::from);
         Self {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
