@@ -8,7 +8,7 @@ impl TryFrom<&ConnectorAuthType> for BetterpaymentAuthType {
 
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { .. } => Ok(Self),
+            ConnectorAuthType::BodyKey { .. } => Ok(Self),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }

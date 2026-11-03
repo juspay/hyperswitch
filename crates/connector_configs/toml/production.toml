@@ -9037,3 +9037,13 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[globalpayments_realex.debit]]
 payment_method_type = "UnionPay"
+
+[betterpayment]
+[[betterpayment.wallet]]
+  payment_method_type = "wero"
+[betterpayment.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "API Password"
+[betterpayment.connector_webhook_details]
+merchant_secret = "Webhook Secret"
+additional_secret = "Incoming Webhook Key"
