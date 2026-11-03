@@ -1377,8 +1377,8 @@ diesel::table! {
         enable_avs_check -> Nullable<Bool>,
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
-        enable_ani_check -> Nullable<Bool>,
         settlement_conclusion_applied -> Nullable<Bool>,
+        enable_ani_check -> Nullable<Bool>,
     }
 }
 
