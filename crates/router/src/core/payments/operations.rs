@@ -233,30 +233,6 @@ pub enum PaymentFlowKind {
 }
 
 #[cfg(feature = "v1")]
-pub(crate) fn validate_followup_payment_method_data(
-    payment_method_data: Option<&api_models::payments::PaymentMethodData>,
-) -> RouterResult<()> {
-    match payment_method_data {
-        Some(api_models::payments::PaymentMethodData::ProxyCard(card)) => {
-            if let Some(bin_number) = card.bin_number.as_ref() {
-                bin_number.parse::<::cards::CardBin>().change_context(
-                    errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data.proxy_card.bin_number".into(),
-                    },
-                )?;
-            }
-            Ok(())
-        }
-        Some(api_models::payments::PaymentMethodData::VaultCardTokenData(_)) => {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: "vault_card_token_data is not supported for capture, void, or incremental authorization; provide proxy_card data instead".to_string(),
-            })?
-        }
-        _ => Ok(()),
-    }
-}
-
-#[cfg(feature = "v1")]
 pub async fn is_payment_method_data_collection_allowed(
     state: &SessionState,
     platform: &domain::Platform,

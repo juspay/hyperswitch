@@ -1578,12 +1578,13 @@ pub fn build_unified_connector_service_payment_method(
     // Explicit vault aliases must reach the proxy even if a processor token is present.
     // Other payment methods, including wallets, can use the connector tokenization token.
     // The token message carries the payment method it was minted from.
-    if let Some(PaymentMethodToken::Token(token)) = payment_method_token.filter(|_| {
-        !matches!(
+    if let (Some(PaymentMethodToken::Token(token)), false) = (
+        payment_method_token,
+        matches!(
             &payment_method_data,
             domain_pm::PaymentMethodData::ProxyCard(_)
-        )
-    }) {
+        ),
+    ) {
         let token_payment_method_type = match &payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
                 hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),

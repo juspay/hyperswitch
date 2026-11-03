@@ -64,7 +64,6 @@ impl<F: Send + Clone + Sync>
             payments::PaymentData<F>,
         >,
     > {
-        operations::validate_followup_payment_method_data(request.payment_method_data.as_ref())?;
         let db = &*state.store;
 
         let processor_merchant_id = platform.get_processor().get_processor_merchant_id();

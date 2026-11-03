@@ -2830,9 +2830,8 @@ impl From<PaymentMethodData> for EligibilityPaymentMethodData {
                 .bin_number
                 .and_then(|bin| {
                     bin.parse::<cards::CardBin>()
-                        .inspect_err(|error| {
+                        .inspect_err(|_| {
                             router_env::logger::warn!(
-                                error = ?Secret::<String>::new(error.to_string()),
                                 "Invalid proxy card BIN while building eligibility data"
                             );
                         })
