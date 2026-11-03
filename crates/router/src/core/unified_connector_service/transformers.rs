@@ -5364,10 +5364,10 @@ impl
     }
 }
 
-/// Vault-alias MIT flow: sends the external vault card as `ProxyCardDetails` so UCS can
-/// substitute the alias via the proxy endpoint on the recurring charge.
+/// The vault-alias counterpart of the `CardDetailsForNetworkTransactionId` conversion. Infallible:
+/// the alias is already a string, so unlike a PAN there is nothing to parse.
 impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
-    for payments_grpc::ProxyCardDetails
+    for payments_grpc::ProxyCardDetailsForNetworkTransactionId
 {
     fn foreign_from(
         external_vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
@@ -5381,10 +5381,6 @@ impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCa
             card_number: Some(external_vault_card.card_number.expose().into()),
             card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
             card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-            card_cvc: Some(external_vault_card.card_cvc.expose().into()),
-            card_holder_name: external_vault_card
-                .card_holder_name
-                .map(|card_holder_name| card_holder_name.expose().into()),
             card_issuer: external_vault_card.card_issuer.clone(),
             card_network: card_network.map(|card_network| card_network.into()),
             card_type: external_vault_card.card_type.clone(),
@@ -5392,7 +5388,10 @@ impl ForeignFrom<hyperswitch_domain_models::payment_method_data::ExternalVaultCa
             bank_code: external_vault_card.bank_code.clone(),
             nick_name: external_vault_card
                 .nick_name
-                .map(|nick_name| nick_name.expose()),
+                .map(|nick_name| nick_name.expose().into()),
+            card_holder_name: external_vault_card
+                .card_holder_name
+                .map(|card_holder_name| card_holder_name.expose().into()),
         }
     }
 }
