@@ -873,7 +873,7 @@ mod tests {
 pub mod shadow {
     use std::{error::Error, io::ErrorKind};
 
-    use common_enums::ApiClientError;
+    use common_enums::{ApiClientError, UcsAvailability};
     use external_services::grpc_client::unified_connector_service::UcsConfigSource;
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
@@ -1094,9 +1094,14 @@ pub mod shadow {
         }
     }
 
-    /// Read only for a resultant shadow path, before changing any proxy settings.
-    /// An unreadable Redis counter routes shadow to Direct.
-    pub async fn is_kill_switched(state: &SessionState) -> bool {
+    /// Stop shadow when manually disabled or when the global failure counter trips.
+    /// Called only for a resultant shadow path, before changing any proxy settings.
+    /// An unreadable Redis counter also stops shadow.
+    pub async fn should_stop(state: &SessionState, ucs_availability: UcsAvailability) -> bool {
+        if ucs_availability == UcsAvailability::ShadowDisabled {
+            return true;
+        }
+
         match read_counter(state).await {
             Ok(count) => exceeds_threshold(count, threshold(state).await),
             Err(error) => {

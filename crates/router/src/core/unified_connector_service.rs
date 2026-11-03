@@ -1388,16 +1388,9 @@ async fn resolve_ucs_execution_decision(
         }
     }
 
-    if ucs_availability == UcsAvailability::ShadowDisabled
-        && matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService)
-    {
-        gateway_system = GatewaySystem::Direct;
-        execution_path = ExecutionPath::Direct;
-    }
-
-    // Apply the global shadow kill switch before any proxy override.
+    // Apply both manual and automatic shadow stops before any proxy override.
     if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService)
-        && kill_switch::shadow::is_kill_switched(state).await
+        && kill_switch::shadow::should_stop(state, ucs_availability).await
     {
         gateway_system = GatewaySystem::Direct;
         execution_path = ExecutionPath::Direct;
@@ -1405,7 +1398,7 @@ async fn resolve_ucs_execution_decision(
             payment_id = %payment_id,
             merchant_id = %merchant_id,
             key = consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY,
-            "Shadow kill switch active; routing to Direct without proxy override"
+            "Shadow stopped by availability or kill switch; routing to Direct without proxy override"
         );
     }
 
