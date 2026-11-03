@@ -1,12 +1,14 @@
 //! Gateway execution for dispute actions.
 
+pub mod accept_gateway;
+pub mod defend_gateway;
+pub mod evidence_gateway;
+
 use std::{fmt::Debug, marker::PhantomData};
 
 use async_trait::async_trait;
 use common_enums::ExecutionPath;
-use hyperswitch_domain_models::{
-    router_data_v2::flow_common_types::DisputesFlowData, router_flow_types::dispute,
-};
+use hyperswitch_domain_models::router_data_v2::flow_common_types::DisputesFlowData;
 use hyperswitch_interfaces::{
     api::gateway as interface_gateway, connector_integration_interface::RouterDataConversion,
 };
@@ -147,57 +149,6 @@ where
     }
 }
 
-macro_rules! impl_dispute_flow_gateway {
-    ($flow:ty, $request:ty, $response:ty) => {
-        impl
-            interface_gateway::DisputeFlowGateway<
-                SessionState,
-                DisputesFlowData,
-                $request,
-                $response,
-                DisputeGatewayExecutionContext,
-            > for $flow
-        {
-            fn get_dispute_gateway(
-                execution_path: ExecutionPath,
-            ) -> Box<
-                dyn interface_gateway::DisputeGateway<
-                    SessionState,
-                    DisputesFlowData,
-                    Self,
-                    $request,
-                    $response,
-                    DisputeGatewayExecutionContext,
-                >,
-            > {
-                match execution_path {
-                    ExecutionPath::Direct => Box::new(DirectDisputeGateway),
-                    ExecutionPath::UnifiedConnectorService
-                    | ExecutionPath::ShadowUnifiedConnectorService => {
-                        Box::new(UcsDisputeGateway::<Self>(PhantomData))
-                    }
-                }
-            }
-        }
-    };
-}
-
-impl_dispute_flow_gateway!(
-    dispute::Accept,
-    types::AcceptDisputeRequestData,
-    types::AcceptDisputeResponse
-);
-impl_dispute_flow_gateway!(
-    dispute::Evidence,
-    types::SubmitEvidenceRequestData,
-    types::SubmitEvidenceResponse
-);
-impl_dispute_flow_gateway!(
-    dispute::Defend,
-    types::DefendDisputeRequestData,
-    types::DefendDisputeResponse
-);
-
 /// Run a dispute action through the shared gateway executor.
 pub async fn execute_dispute_gateway<Flow, Req, Resp>(
     state: &SessionState,
@@ -231,79 +182,4 @@ where
         },
     )
     .await
-}
-
-#[async_trait]
-impl DisputeGatewayFlow<types::AcceptDisputeRequestData, types::AcceptDisputeResponse>
-    for dispute::Accept
-{
-    async fn execute_ucs(
-        state: &SessionState,
-        processor: &domain::Processor,
-        router_data: types::AcceptDisputeRouterData,
-        connector_transaction_id: Option<String>,
-        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::AcceptDisputeRouterData> {
-        unified_connector_service::call_unified_connector_service_for_dispute_accept(
-            state,
-            processor,
-            router_data,
-            connector_transaction_id,
-            rollout_settings,
-            merchant_connector_account,
-        )
-        .await
-        .map_err(|error| error.attach_printable("Failed while calling accept dispute via UCS"))
-    }
-}
-
-#[async_trait]
-impl DisputeGatewayFlow<types::SubmitEvidenceRequestData, types::SubmitEvidenceResponse>
-    for dispute::Evidence
-{
-    async fn execute_ucs(
-        state: &SessionState,
-        processor: &domain::Processor,
-        router_data: types::SubmitEvidenceRouterData,
-        connector_transaction_id: Option<String>,
-        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::SubmitEvidenceRouterData> {
-        unified_connector_service::call_unified_connector_service_for_dispute_submit_evidence(
-            state,
-            processor,
-            router_data,
-            connector_transaction_id,
-            rollout_settings,
-            merchant_connector_account,
-        )
-        .await
-        .map_err(|error| error.attach_printable("Failed while calling submit evidence via UCS"))
-    }
-}
-
-#[async_trait]
-impl DisputeGatewayFlow<types::DefendDisputeRequestData, types::DefendDisputeResponse>
-    for dispute::Defend
-{
-    async fn execute_ucs(
-        state: &SessionState,
-        processor: &domain::Processor,
-        router_data: types::DefendDisputeRouterData,
-        connector_transaction_id: Option<String>,
-        rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
-        merchant_connector_account: helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::DefendDisputeRouterData> {
-        unified_connector_service::call_unified_connector_service_for_dispute_defend(
-            state,
-            processor,
-            router_data,
-            connector_transaction_id,
-            rollout_settings,
-            merchant_connector_account,
-        )
-        .await
-        .map_err(|error| error.attach_printable("Failed while calling defend dispute via UCS"))
-    }
 }

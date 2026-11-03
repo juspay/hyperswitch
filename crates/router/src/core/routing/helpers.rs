@@ -250,6 +250,11 @@ pub async fn update_profile_active_algorithm_ref(
             #[cfg(feature = "payouts")]
             storage::enums::TransactionType::Payout => (None, Some(ref_val), None),
             storage::enums::TransactionType::ThreeDsAuthentication => (None, None, Some(ref_val)),
+            storage::enums::TransactionType::Dispute => {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Dispute routing algorithms are not supported".to_string(),
+                })?
+            }
         };
 
     let business_profile_update = domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -646,6 +651,9 @@ pub fn get_default_config_key(
 ) -> String {
     match transaction_type {
         storage::enums::TransactionType::Payment => format!("routing_default_{merchant_id}"),
+        storage::enums::TransactionType::Dispute => {
+            format!("routing_default_dispute_{merchant_id}")
+        }
         #[cfg(feature = "payouts")]
         storage::enums::TransactionType::Payout => format!("routing_default_po_{merchant_id}"),
         storage::enums::TransactionType::ThreeDsAuthentication => {

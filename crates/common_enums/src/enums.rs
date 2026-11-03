@@ -9792,6 +9792,9 @@ pub enum ConnectorStatus {
 pub enum TransactionType {
     #[default]
     Payment,
+    /// Used by the UCS rollout gate. Dispute routing algorithms are not configured through this enum.
+    #[serde(skip_deserializing)]
+    Dispute,
     #[cfg(feature = "payouts")]
     Payout,
     ThreeDsAuthentication,

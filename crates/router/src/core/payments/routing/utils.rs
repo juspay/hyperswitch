@@ -1866,6 +1866,7 @@ pub struct RoutingRule {
 pub enum AlgorithmType {
     #[default]
     Payment,
+    Dispute,
     Payout,
     ThreeDsAuthentication,
 }
@@ -1874,6 +1875,7 @@ impl From<TransactionType> for AlgorithmType {
     fn from(transaction_type: TransactionType) -> Self {
         match transaction_type {
             TransactionType::Payment => Self::Payment,
+            TransactionType::Dispute => Self::Dispute,
             TransactionType::Payout => Self::Payout,
             TransactionType::ThreeDsAuthentication => Self::ThreeDsAuthentication,
         }

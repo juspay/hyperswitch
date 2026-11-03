@@ -952,42 +952,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     previous_gateway: Option<GatewaySystem>,
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
-    rollout_key_selection: impl Into<RolloutKeySelection>,
-) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
-where
-    R: Send + Sync + Clone,
-{
-    should_call_unified_connector_service_with_rollout_keys(
-        state,
-        processor,
-        router_data,
-        previous_gateway,
-        call_connector_action,
-        shadow_ucs_call_connector_action,
-        rollout_key_selection.into(),
-    )
-    .await
-}
-
-pub enum RolloutKeySelection {
-    Derived(common_enums::TransactionType),
-    Dispute,
-}
-
-impl From<common_enums::TransactionType> for RolloutKeySelection {
-    fn from(transaction_type: common_enums::TransactionType) -> Self {
-        Self::Derived(transaction_type)
-    }
-}
-
-async fn should_call_unified_connector_service_with_rollout_keys<F: Clone, T, R>(
-    state: &SessionState,
-    processor: &Processor,
-    router_data: &RouterData<F, T, R>,
-    previous_gateway: Option<GatewaySystem>,
-    call_connector_action: CallConnectorAction,
-    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
-    rollout_key_selection: RolloutKeySelection,
+    transaction_type: common_enums::TransactionType,
 ) -> RouterResult<(ExecutionPath, SessionState, RolloutExecutionResult)>
 where
     R: Send + Sync + Clone,
@@ -1007,42 +972,26 @@ where
     let ucs_availability = check_ucs_availability(state).await;
 
     // Build rollout keys in ascending precedence order.
-    // Payments use org-level hierarchy; payouts use a single merchant-level key; disputes
-    // use only connector- and flow-scoped keys so a payment-wide rollout cannot route them.
-    let rollout_keys = match rollout_key_selection {
-        RolloutKeySelection::Derived(transaction_type) => match transaction_type {
-            common_enums::TransactionType::Payment
-            | common_enums::TransactionType::ThreeDsAuthentication => {
-                build_rollout_keys_by_precedence(
-                    org_id,
-                    merchant_id,
-                    connector_name,
-                    &flow_name,
-                    router_data.payment_method,
-                    router_data.payment_method_type,
-                )
-            }
-            common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
-                merchant_id,
-                connector_name,
-                &flow_name,
-                router_data.payment_method_type,
-            ),
-        },
-        RolloutKeySelection::Dispute => {
-            let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-            let scope = build_merchant_rollout_scope(
-                merchant_id,
-                connector_name,
-                &flow_name,
-                router_data.payment_method,
-                router_data.payment_method_type,
-            );
-            vec![
-                format!("{prefix}_{org_id}_{scope}"),
-                format!("{prefix}_{scope}"),
-            ]
+    // Dispute flows use the payment hierarchy, including org and merchant fallbacks.
+    let rollout_keys = match transaction_type {
+        common_enums::TransactionType::Payment
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
+            org_id,
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payment_method,
+            router_data.payment_method_type,
+        ),
+        common_enums::TransactionType::Dispute => {
+            build_rollout_keys_for_disputes(org_id, merchant_id, connector_name, &flow_name)
         }
+        common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payment_method_type,
+        ),
     };
 
     // Determine connector integration type
@@ -1398,8 +1347,11 @@ pub fn build_merchant_rollout_scope(
 
     match flow_name {
         // Refund and dispute keys carry no payment method.
-        "Execute" | "RSync" | "Accept" | "Evidence" | "Defend" => {
+        "Execute" | "RSync" => {
             format!("{merchant_id}_{connector_name}_{flow_name}")
+        }
+        "Accept" | "Evidence" | "Defend" => {
+            build_dispute_rollout_scope(merchant_id, connector_name, flow_name)
         }
 
         _ => match payment_method {
@@ -1443,7 +1395,6 @@ fn build_rollout_keys_by_precedence(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
 ) -> Vec<String> {
-    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
     let scope = build_merchant_rollout_scope(
         merchant_id,
         connector_name,
@@ -1452,6 +1403,26 @@ fn build_rollout_keys_by_precedence(
         payment_method_type,
     );
 
+    build_rollout_keys_for_scope(org_id, merchant_id, &scope)
+}
+
+fn build_dispute_rollout_scope(merchant_id: &str, connector_name: &str, flow_name: &str) -> String {
+    format!("{merchant_id}_{connector_name}_{flow_name}")
+}
+
+/// Dispute rollout keys use the payment precedence without payment method dimensions.
+fn build_rollout_keys_for_disputes(
+    org_id: &str,
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+) -> Vec<String> {
+    let scope = build_dispute_rollout_scope(merchant_id, connector_name, flow_name);
+    build_rollout_keys_for_scope(org_id, merchant_id, &scope)
+}
+
+fn build_rollout_keys_for_scope(org_id: &str, merchant_id: &str, scope: &str) -> Vec<String> {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
     vec![
         format!("{prefix}_{org_id}"),
         format!("{prefix}_{org_id}_{merchant_id}"),
