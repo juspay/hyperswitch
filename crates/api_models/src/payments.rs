@@ -41,9 +41,9 @@ pub use self::{
         RecipientAccount, RecipientBankAccount, RecipientDetails,
     },
     sender::{
-        CorporateSenderDetails, IndividualSenderDetails, CorporateSenderDetailsResponse,
-        IndividualSenderDetailsResponse, SenderDetailsResponse, MaskedSenderPhoneDetails,
-        SenderAddress, SenderDetails,
+        CorporateSenderDetails, CorporateSenderDetailsResponse, IndividualSenderDetails,
+        IndividualSenderDetailsResponse, MaskedSenderPhoneDetails, SenderAddress, SenderDetails,
+        SenderDetailsResponse,
     },
 };
 use crate::customers::CustomerDocumentDetails;

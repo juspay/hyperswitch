@@ -230,12 +230,14 @@ impl From<SenderDetails> for SenderDetailsResponse {
                     email: individual.email.map(MaskedEmail::foreign_from),
                 })
             }
-            SenderDetails::Corporate(corporate) => Self::Corporate(CorporateSenderDetailsResponse {
-                company_name: corporate.company_name,
-                address: corporate.address,
-                phone: corporate.phone.map(MaskedSenderPhoneDetails::from),
-                email: corporate.email.map(MaskedEmail::foreign_from),
-            }),
+            SenderDetails::Corporate(corporate) => {
+                Self::Corporate(CorporateSenderDetailsResponse {
+                    company_name: corporate.company_name,
+                    address: corporate.address,
+                    phone: corporate.phone.map(MaskedSenderPhoneDetails::from),
+                    email: corporate.email.map(MaskedEmail::foreign_from),
+                })
+            }
         }
     }
 }
