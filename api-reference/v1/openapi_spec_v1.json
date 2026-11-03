@@ -10078,6 +10078,16 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "Subscription client secret; required when authenticating with a publishable key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -10101,6 +10111,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "client_secret": []
           }
         ]
       }
@@ -24060,6 +24073,11 @@
           "item_price_id"
         ],
         "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
           "plan_id": {
             "type": "string",
             "description": "Identifier for the associated subscription plan.",

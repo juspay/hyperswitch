@@ -5977,6 +5977,13 @@ impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::EstimateSubscriptionQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
