@@ -2035,6 +2035,13 @@ impl PaymentCreate {
             order_date: request.order_date,
             discount_amount: request.discount_amount,
             duty_amount: request.duty_amount,
+            order_commodity_code: request.order_commodity_code.clone(),
+            value_added_tax_amount: request.value_added_tax_amount,
+            value_added_tax_percent: request
+                .value_added_tax_percent
+                .as_ref()
+                .map(|percentage| percentage.get_percentage()),
+            vat_invoice_reference_number: request.vat_invoice_reference_number.clone(),
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
