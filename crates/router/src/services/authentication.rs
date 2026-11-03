@@ -5887,13 +5887,6 @@ impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
-#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -5978,6 +5971,13 @@ impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest 
 
 #[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::EstimateSubscriptionQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref().map(|s| s.as_string())
     }

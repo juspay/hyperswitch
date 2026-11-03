@@ -18575,10 +18575,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -20275,6 +20271,12 @@
           "merchant_tax_registration_id": {
             "type": "string",
             "example": "123456789",
+            "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
             "nullable": true
           }
         },
@@ -22785,6 +22787,15 @@
             "description": "Token generated for the Apple pay"
           }
         }
+      },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
       },
       "PaylaterResponse": {
         "type": "object",
@@ -31733,6 +31744,24 @@
             ],
             "nullable": true
           },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -32454,6 +32483,14 @@
             "type": "boolean",
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
+            "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
             "nullable": true
           }
         }

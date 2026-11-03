@@ -6,10 +6,10 @@ use std::{
 };
 
 use cards::CardNumber;
-pub use common_types::payments::SurchargeErrorDetails;
 use common_types::payments::{
     ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
 };
+pub use common_types::{payment_methods::PayViaSingleUseToken, payments::SurchargeErrorDetails};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -2806,6 +2806,11 @@ pub struct RequestPaymentMethodTypes {
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment should be made via a single-use token.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type

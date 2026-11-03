@@ -366,6 +366,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
+        common_types::payment_methods::PayViaSingleUseToken,
         api_models::enums::AdyenSplitType,
         api_models::enums::ProductType,
         api_models::enums::PaymentType,
