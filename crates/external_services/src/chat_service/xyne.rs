@@ -120,6 +120,14 @@ impl ChatClient for XyneClient {
         self.endpoint.post_message(message).await
     }
 
+    async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId> {
+        self.endpoint.update_message(message_id, message).await
+    }
+
     async fn upload_file(&self, file: ChatFile) -> ChatResult<FileId> {
         self.endpoint.upload_file(file).await
     }
@@ -489,6 +497,91 @@ mod tests {
         let text = body["text"].as_str().unwrap();
         assert_eq!(text.chars().count(), 50);
         assert!(text.ends_with("(truncated)"));
+    }
+
+    /// Xyne drops the attachments of a message carrying top-level `mrkdwn` and still answers
+    /// `ok: true`, so a message with attachments must go without it.
+    #[tokio::test]
+    async fn a_message_with_attachments_goes_without_mrkdwn() {
+        let server = MockServer::start().await;
+        let attachments = json!([{"color": "#b71c1c", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]}]);
+        Mock::given(method("POST"))
+            .and(path(METHOD_PATH))
+            .and(body_json(json!({
+                "channel": CHANNEL,
+                "text": "*🔴 SEV1 · SR drop*",
+                "thread_ts": "1.1",
+                "attachments": attachments
+            })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.2"})),
+            )
+            .mount(&server)
+            .await;
+
+        let message_id = client_for(&server)
+            .post_message(
+                ChatMessage::reply("*🔴 SEV1 · SR drop*", MessageId::ts("1.1"))
+                    .with_attachments(attachments.as_array().unwrap().clone()),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(message_id, MessageId::ts("1.2"));
+    }
+
+    #[tokio::test]
+    async fn an_update_goes_to_the_namespaced_chat_update() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/chat.update"))
+            .and(header("authorization", format!("Bearer {TOKEN}").as_str()))
+            .and(body_json(json!({
+                "channel": CHANNEL,
+                "ts": "1.1",
+                "text": "hello",
+                "mrkdwn": true
+            })))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"ok": true, "ts": "1.1"})),
+            )
+            .mount(&server)
+            .await;
+
+        assert_eq!(
+            client_for(&server)
+                .update_message(&MessageId::ts("1.1"), ChatMessage::new("hello"))
+                .await
+                .unwrap(),
+            MessageId::ts("1.1")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_refused_update_is_a_failure() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/apps/slack/chat.update"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"ok": false, "error": "message_not_found"})),
+            )
+            .mount(&server)
+            .await;
+
+        let error = client_for(&server)
+            .update_message(&MessageId::ts("1.1"), ChatMessage::new("hello"))
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            error.current_context(),
+            ChatError::Rejected {
+                reason: ChatErrorReason::Other(code)
+            } if code == "message_not_found"
+        ));
     }
 
     #[test]

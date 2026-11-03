@@ -21,8 +21,10 @@ use url::Url;
 use super::{ChatError, ChatErrorReason, ChatFile, ChatMessage, ChatResult, FileId, MessageId};
 use crate::http_client;
 
-/// The method that posts a message. The only one this crate calls; `files.upload` is out of v1.
+/// The method that posts a message.
 const CHAT_POST_MESSAGE: &str = "chat.postMessage";
+/// The method that replaces the content of an earlier message.
+const CHAT_UPDATE: &str = "chat.update";
 const FILES_GET_UPLOAD_URL: &str = "files.getUploadURLExternal";
 const FILES_COMPLETE_UPLOAD: &str = "files.completeUploadExternal";
 
@@ -148,9 +150,40 @@ impl Endpoint {
             chars = payload.text.chars().count(),
         );
 
+        self.send_message(&url, payload).await
+    }
+
+    /// Replace the content of an earlier message, as `chat.update`.
+    pub(super) async fn update_message(
+        &self,
+        message_id: &MessageId,
+        message: ChatMessage,
+    ) -> ChatResult<MessageId> {
+        let ts = message_id
+            .as_ts()
+            .ok_or(ChatError::IncompatibleReplyTarget)?
+            .to_owned();
+        let mut payload = self.build_payload(&message)?;
+        // An edit names the message it replaces; it does not move it into a thread.
+        payload.thread_ts = None;
+        payload.ts = Some(ts);
+        let url = self.method_url(CHAT_UPDATE);
+
+        logger::info!(
+            tag = "chat_update",
+            url = %url,
+            channel = %payload.channel,
+            chars = payload.text.chars().count(),
+        );
+
+        self.send_message(&url, payload).await
+    }
+
+    /// Send a message body and read the id out of the response envelope.
+    async fn send_message(&self, url: &str, payload: PostMessagePayload) -> ChatResult<MessageId> {
         let body = self
             .send(
-                &url,
+                url,
                 RequestContent::Json(Box::new(payload)),
                 &mime::APPLICATION_JSON,
                 &self.headers.api,
@@ -328,7 +361,9 @@ impl Endpoint {
             channel: self.channel.clone(),
             text: truncate(message.text(), self.max_message_chars),
             thread_ts,
-            mrkdwn: true,
+            ts: None,
+            mrkdwn: message.attachments.is_none().then_some(true),
+            attachments: message.attachments.clone(),
         })
     }
 }
@@ -395,7 +430,7 @@ struct CompletedFile {
     id: Option<String>,
 }
 
-/// The `chat.postMessage` request body.
+/// The `chat.postMessage` and `chat.update` request body.
 #[derive(Debug, Serialize)]
 struct PostMessagePayload {
     channel: String,
@@ -403,14 +438,28 @@ struct PostMessagePayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     thread_ts: Option<String>,
 
-    /// Always sent, and never omitted.
+    /// The message an update replaces. Only on `chat.update`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ts: Option<String>,
+
+    /// `true` for a message that is text alone; omitted, never `false`, when it carries
+    /// attachments.
     ///
     /// Slack treats markup as enabled by default, so this is redundant there. Xyne does not:
     /// its adapter takes the markup path only on `mrkdwn === true`, so an omitted flag delivers
     /// `*bold*` and backticks as literal characters. Since the whole point of
     /// [`ChatMessage::text`](super::ChatMessage::text) is markup, sending it explicitly is the
     /// only spelling that behaves the same on both.
-    mrkdwn: bool,
+    ///
+    /// But that same branch is text-only: Xyne never reads `attachments` on it, so a message sent
+    /// with both arrives with no attachment at all — and still answers `ok: true` with an id.
+    /// Attachments declare their own markup per block instead.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mrkdwn: Option<bool>,
+
+    /// Slack-compatible attachments, forwarded as the caller built them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    attachments: Option<Vec<serde_json::Value>>,
 }
 
 /// The `chat.postMessage` response, exactly as it arrives.
@@ -785,5 +834,35 @@ mod tests {
 
         assert_eq!(payload.thread_ts.as_deref(), Some("1.2"));
         assert_eq!(payload.channel, "C1");
+    }
+
+    #[test]
+    fn a_text_message_turns_markup_on() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+
+        let payload = endpoint.build_payload(&ChatMessage::new("*hi*")).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(payload).unwrap(),
+            json!({"channel": "C1", "text": "*hi*", "mrkdwn": true})
+        );
+    }
+
+    /// The flag that makes Xyne drop attachments must never ride with them.
+    #[test]
+    fn a_message_with_attachments_omits_mrkdwn_and_forwards_them_unchanged() {
+        let endpoint = endpoint("https://example.com", "/", "token").unwrap();
+        let attachments = vec![json!({"color": "#b71c1c", "blocks": [
+            {"type": "section", "text": {"type": "mrkdwn", "text": "body"}}
+        ]})];
+
+        let payload = endpoint
+            .build_payload(&ChatMessage::new("*heading*").with_attachments(attachments.clone()))
+            .unwrap();
+
+        assert_eq!(
+            serde_json::to_value(payload).unwrap(),
+            json!({"channel": "C1", "text": "*heading*", "attachments": attachments})
+        );
     }
 }

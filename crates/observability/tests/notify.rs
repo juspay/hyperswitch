@@ -147,6 +147,97 @@ async fn a_chat_notification_can_reply_under_an_earlier_message() {
 }
 
 #[actix_web::test]
+async fn an_alert_notification_is_delivered_like_any_other() {
+    let (status, body) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({
+            "text": "SR fell to `42%`",
+            "alert": {
+                "state": "firing",
+                "severity": "sev1",
+                "title": "SR drop - connector (15m)",
+                "region": "eu-west-1"
+            }
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "delivered");
+    assert!(body["message_id"].as_str().is_some_and(|id| !id.is_empty()));
+}
+
+/// The body sits in a block the provider refuses when empty, so it is refused here first.
+#[actix_web::test]
+async fn an_alert_with_no_body_is_a_bad_request() {
+    let (status, _) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({
+            "text": "  ",
+            "alert": { "state": "firing", "severity": "sev1", "title": "SR drop" }
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+/// The resolve round trip: announce, keep the id, mark the original resolved.
+#[actix_web::test]
+async fn an_update_replaces_an_earlier_message_and_keeps_its_id() {
+    let alert = json!({ "state": "firing", "severity": "sev2", "title": "SR drop" });
+    let (_, first) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": "body", "alert": alert }),
+    ))
+    .await;
+
+    let (status, updated) = call(post(
+        &format!("/alerts/chat/update/{CHAT}"),
+        json!({
+            "message_id": first["message_id"],
+            "text": "body",
+            "alert": alert,
+            "resolved": true
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["status"], "delivered");
+    assert_eq!(updated["message_id"], first["message_id"]);
+}
+
+#[actix_web::test]
+async fn an_update_that_cannot_be_built_is_a_bad_request() {
+    for body in [
+        json!({ "message_id": "", "text": "body" }),
+        // Only an alert has a rail to turn green.
+        json!({ "message_id": "1.1", "text": "body", "resolved": true }),
+        json!({
+            "message_id": "1.1",
+            "text": "",
+            "alert": { "state": "firing", "severity": "sev1", "title": "SR drop" }
+        }),
+    ] {
+        let (status, _) = call(post(&format!("/alerts/chat/update/{CHAT}"), body.clone())).await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+}
+
+#[actix_web::test]
+async fn an_update_to_an_unknown_destination_is_a_404() {
+    let (status, _) = call(post(
+        "/alerts/chat/update/typo",
+        json!({ "message_id": "1.1", "text": "x" }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[actix_web::test]
 async fn a_chat_file_can_be_uploaded_into_a_thread() {
     let (status, body) = call(upload(upload_body("%PDF-test"))).await;
 
@@ -279,6 +370,10 @@ async fn both_routes_are_behind_the_guard() {
         (
             format!("/alerts/chat/notify/{CHAT}"),
             json!({ "text": "x" }),
+        ),
+        (
+            format!("/alerts/chat/update/{CHAT}"),
+            json!({ "message_id": "1.1", "text": "x" }),
         ),
         (
             format!("/alerts/email/notify/{EMAIL}"),
