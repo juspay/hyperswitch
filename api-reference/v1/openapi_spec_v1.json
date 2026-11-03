@@ -32064,6 +32064,15 @@
           }
         }
       },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
+      },
       "PaylaterResponse": {
         "type": "object",
         "properties": {
@@ -45693,6 +45702,14 @@
             "type": "boolean",
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
+            "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
             "nullable": true
           }
         }
