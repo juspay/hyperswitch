@@ -16,7 +16,7 @@ use unified_connector_service_client::payments as payments_grpc;
 use crate::{
     consts,
     grpc_client::{GrpcClientSettings, GrpcHeadersUcs},
-    utils::deserialize_hashset,
+    utils::{deserialize_hashset, deserialize_optional_hashset},
 };
 
 /// Result type for Dynamic Routing
@@ -95,9 +95,17 @@ pub struct UnifiedConnectorServiceClientConfig {
     #[serde(default)]
     pub tcp_keepalive: UcsTcpKeepAliveInSeconds,
 
-    /// Set of external services/connectors available for the unified connector service
+    /// Set of payment-domain connectors served only by the unified connector service.
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_only_connectors: HashSet<Connector>,
+
+    /// Set of payout-domain connectors served only by the unified connector service.
+    ///
+    /// When omitted, payout routing falls back to `ucs_only_connectors` for compatibility with
+    /// configurations created before payout routing had its own capability list. An explicitly
+    /// configured empty string disables that fallback.
+    #[serde(default, deserialize_with = "deserialize_optional_hashset")]
+    pub ucs_only_payout_connectors: Option<HashSet<Connector>>,
 
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]

@@ -200,6 +200,7 @@ async fn read_hash_counter(
 #[derive(Debug, Clone)]
 pub struct RolloutSettings {
     pub execution_mode: ExecutionMode,
+    pub transaction_type: common_enums::TransactionType,
     pub kill_switch_enabled: bool,
     pub kill_switch_threshold: u64,
     /// `None` means connector declines never trip this scope.
@@ -218,9 +219,13 @@ impl RolloutSettings {
     /// Settings under which the kill switch can never divert this call: used where no
     /// rollout config governs it, i.e. a shadow run or a path the gate does not gate, so
     /// nothing ever reads the counter. `kill_switch_enabled: false` here states a fact.
-    pub fn without_kill_switch(execution_mode: ExecutionMode) -> Self {
+    pub fn without_kill_switch(
+        execution_mode: ExecutionMode,
+        transaction_type: common_enums::TransactionType,
+    ) -> Self {
         Self {
             execution_mode,
+            transaction_type,
             kill_switch_enabled: false,
             kill_switch_threshold: 1,
             connector_decline_threshold: None,
@@ -377,7 +382,7 @@ async fn trippable_failure_for_reason(
     // Only the path serving merchant traffic can trip, and only a connector that has a direct
     // integration to fall back to. `&&` keeps the cheap check first.
     let scope_can_trip = matches!(settings.execution_mode, ExecutionMode::Primary)
-        && !is_ucs_only_connector(state, context.connector_name).await;
+        && !is_ucs_only_connector(state, context.connector_name, settings.transaction_type).await;
 
     // Only a connector 2xx carrying a refusal is a decline. A connector 4xx/5xx
     // (`ConnectorRejected`) stays on `kill_switch_threshold` as before: the status code
@@ -411,10 +416,14 @@ async fn trippable_failure_for_reason(
 /// A UCS-only connector has no direct integration to fall back to, so the gate never diverts one.
 /// An unparseable connector name counts as having one, rather than silently dropping a scope that
 /// can trip.
-async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bool {
+async fn is_ucs_only_connector(
+    state: &SessionState,
+    connector_name: &str,
+    transaction_type: common_enums::TransactionType,
+) -> bool {
     match Connector::from_str(connector_name) {
         Ok(connector) => matches!(
-            determine_connector_integration_type(state, connector).await,
+            determine_connector_integration_type(state, connector, transaction_type).await,
             Ok(ConnectorIntegrationType::UcsConnector)
         ),
         Err(_) => false,
