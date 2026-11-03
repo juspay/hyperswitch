@@ -4275,6 +4275,10 @@ pub async fn is_temp_locker_storage_required_for_attempt(
     else {
         return Ok(true);
     };
+    // Most connectors answer without the metadata, so they skip the lookup and cannot fail on it.
+    if connector.is_temp_locker_storage_required(&None) {
+        return Ok(true);
+    }
     let connector_meta_data = match payment_attempt.merchant_connector_id.as_ref() {
         Some(merchant_connector_id) => {
             state

@@ -495,6 +495,8 @@ pub trait ConnectorSpecifications {
     /// Whether this merchant needs the payment method data kept in the temporary locker, for a
     /// connector the `temp_locker_enable_config` lists. A connector overrides this when only some
     /// merchants take the flow that reads it back. The default is `true`: being listed is enough.
+    /// An override must answer `false` when the metadata is absent, because callers skip the
+    /// metadata lookup once this answers `true` without it.
     fn is_temp_locker_storage_required(
         &self,
         _connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
