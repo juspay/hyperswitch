@@ -14417,7 +14417,6 @@
           "payment_method_token",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "recurring_enabled",
           "created",
           "requires_cvv",
@@ -14441,7 +14440,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -18571,10 +18575,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -24386,6 +24386,39 @@
           },
           {
             "type": "object",
+            "required": [
+              "network_transaction_id_and_card_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_card_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_network_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_network_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndNetworkTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "network_transaction_id_and_decrypted_wallet_token_details"
+            ],
+            "properties": {
+              "network_transaction_id_and_decrypted_wallet_token_details": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "VaultDataCard",
             "required": [
               "vault_data_card"
@@ -25093,7 +25126,6 @@
           "id",
           "customer_id",
           "payment_method_type",
-          "payment_method_subtype",
           "created",
           "requires_cvv",
           "is_default"
@@ -25121,7 +25153,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "recurring_enabled": {
             "type": "boolean",
@@ -26560,6 +26597,14 @@
           "reason": {
             "type": "string",
             "description": "Reason for incremental authorization",
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodData"
+              }
+            ],
             "nullable": true
           }
         }
@@ -31682,6 +31727,24 @@
                 "$ref": "#/components/schemas/MitCategory"
               }
             ],
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
             "nullable": true
           },
           "billing": {

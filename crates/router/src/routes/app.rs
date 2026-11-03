@@ -482,11 +482,13 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
+        #[allow(clippy::expect_used)]
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
             &*secret_management_client,
         ))
-        .await;
+        .await
+        .expect("Failed to decrypt application configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -1314,19 +1316,6 @@ impl Routing {
                 })),
             );
 
-        #[cfg(feature = "dynamic_routing")]
-        {
-            route = route
-                .service(
-                    web::resource("/evaluate")
-                        .route(web::post().to(routing::call_decide_gateway_open_router)),
-                )
-                .service(
-                    web::resource("/feedback")
-                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
-                )
-        }
-
         #[cfg(feature = "payouts")]
         {
             route = route
@@ -1447,10 +1436,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
-            )
-            .service(
-                web::resource("/rule/evaluate")
-                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }
