@@ -664,7 +664,7 @@ pub async fn submit_evidence(
             common_enums::TransactionType::Payment,
         )
         .await?;
-    let response = gateway::execute_dispute_gateway(
+    let response = Box::pin(gateway::execute_dispute_gateway(
         &state,
         &updated_state,
         &processor,
@@ -676,7 +676,7 @@ pub async fn submit_evidence(
             merchant_connector_account: merchant_connector_account.clone(),
             connector_transaction_id: connector_transaction_id.clone(),
         },
-    )
+    ))
     .await
     .attach_printable("Failed while executing submit evidence gateway")?;
     let submit_evidence_response =
@@ -709,7 +709,7 @@ pub async fn submit_evidence(
         .await?;
         // Submit evidence and defend form one connector operation for Adyen.
         // Keep both calls on the same execution path.
-        let defend_response = gateway::execute_dispute_gateway(
+        let defend_response = Box::pin(gateway::execute_dispute_gateway(
             &state,
             &updated_state,
             &processor,
@@ -721,7 +721,7 @@ pub async fn submit_evidence(
                 merchant_connector_account,
                 connector_transaction_id,
             },
-        )
+        ))
         .await
         .attach_printable("Failed while executing defend dispute gateway")?;
         let defend_dispute_response = defend_response.response.map_err(|err| {

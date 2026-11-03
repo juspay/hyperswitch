@@ -499,12 +499,13 @@ pub async fn submit_dispute_evidence(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::submit_evidence(
+            // Evidence may execute both submit and defend; keep the flow future off the worker stack.
+            Box::pin(disputes::submit_evidence(
                 state,
                 auth.platform.get_processor().clone(),
                 profile_id,
                 req,
-            )
+            ))
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
