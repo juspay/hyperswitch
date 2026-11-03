@@ -31729,6 +31729,24 @@
             ],
             "nullable": true
           },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
