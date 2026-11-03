@@ -148,7 +148,7 @@ describe("Offer Engine", () => {
   // list response should signal the SDK to run eligibility before confirm
   // (sdk_next_action.next_action: eligibility_check,
   // should_block_confirm: true) rather than going straight to confirm. This
-  // is the actual gating mechanism the SDK relies on — 54-OfferEngine.cy.js's
+  // is the actual gating mechanism the SDK relies on — 53-OfferEngine.cy.js's
   // other contexts call /eligibility directly and never exercise this signal.
   context(
     "Payment method list signals eligibility check when offers are enabled",
