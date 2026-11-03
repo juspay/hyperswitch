@@ -218,7 +218,6 @@ fn state(max_active_rules: i64) -> AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::default()),
         email: Arc::new(Registry::default()),
-        metrics: None,
         store: Arc::new(MemoryStore {
             rows: Mutex::new(Vec::new()),
             max_active_rules: Some(max_active_rules),

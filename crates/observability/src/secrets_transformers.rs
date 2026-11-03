@@ -141,7 +141,6 @@ pub async fn fetch_raw_secrets(
         proxy: conf.proxy,
         chat,
         email: conf.email,
-        cloudwatch: conf.cloudwatch,
         database,
     }
 }

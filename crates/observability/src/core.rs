@@ -8,7 +8,6 @@
 
 pub mod alerts_info;
 pub mod blacklist;
-pub mod cloudwatch;
 pub mod dictionary;
 pub mod lifecycle_events;
 pub mod metadata;
