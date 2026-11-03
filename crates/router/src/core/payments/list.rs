@@ -14,13 +14,15 @@ use futures::future::join_all;
 #[cfg(all(feature = "v2", feature = "olap"))]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentFetchConstraints;
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+use crate::core::errors::RouterResult;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::{
     candidate_intent_statuses_for_recovery_status, get_workflow_entries,
     map_to_recovery_payment_item,
 };
 use crate::{
-    core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
     routes::{metrics, SessionState},
     services,
