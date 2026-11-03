@@ -140,6 +140,7 @@ impl AdyenTest {
                         ),
                     ))
                 }
+                enums::PayoutType::GiftCard => None,
             },
             ..Default::default()
         })

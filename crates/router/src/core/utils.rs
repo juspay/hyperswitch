@@ -4,7 +4,7 @@ pub mod refunds_validator;
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::payouts::{PayoutIndividualDetails, PayoutVendorAccountDetails};
 use api_models::{
     customers::CustomerDocumentDetails,
     enums::{Connector, DisputeStage, DisputeStatus},
