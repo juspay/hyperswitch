@@ -566,7 +566,7 @@ stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,ba
 
 # This data is used to call respective connectors for wallets and cards
 [connectors.supported]
-wallets = ["klarna", "mifinity", "braintree", "applepay", "adyen", "amazonpay", "finix", "worldpayxml"]
+wallets = ["klarna", "mifinity", "braintree", "applepay", "finix", "worldpayxml"]
 rewards = ["cashtocode", "zen"]
 cards = [
   "adyen",
