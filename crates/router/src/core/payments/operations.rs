@@ -232,44 +232,26 @@ pub enum PaymentFlowKind {
     ExternalVaultProxy,
 }
 
-#[cfg(feature = "v1")]
-pub(crate) struct OperationPaymentMethodData {
-    pub payment_method_data: Option<domain::PaymentMethodData>,
-    pub external_vault_pmd:
-        Option<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData>,
-}
-
-/// Keep external-vault aliases separate from the regular domain payment method data.
+/// Prefer supplied proxy aliases over fetched raw data while retaining the existing
+/// fetched-data precedence for ordinary payment methods.
 /// Follow-up operations cannot resolve `VaultCardTokenData`, because their requests do not
 /// include the payment token required by the saved-card confirm flow.
 #[cfg(feature = "v1")]
-pub(crate) fn split_payment_method_data_for_operation(
+pub(crate) fn resolve_payment_method_data_for_operation(
     request_payment_method_data: Option<api_models::payments::PaymentMethodData>,
     fetched_payment_method_data: Option<domain::PaymentMethodData>,
-) -> RouterResult<OperationPaymentMethodData> {
-    use hyperswitch_domain_models::payment_method_data::{
-        ExternalVaultCard, ExternalVaultPaymentMethodData,
-    };
-
+) -> RouterResult<Option<domain::PaymentMethodData>> {
     match request_payment_method_data {
-        Some(api_models::payments::PaymentMethodData::ProxyCard(card)) => {
-            Ok(OperationPaymentMethodData {
-                payment_method_data: None,
-                external_vault_pmd: Some(ExternalVaultPaymentMethodData::Card(Box::new(
-                    ExternalVaultCard::from(*card),
-                ))),
-            })
+        Some(payment_method_data @ api_models::payments::PaymentMethodData::ProxyCard(_)) => {
+            Ok(Some(domain::PaymentMethodData::from(payment_method_data)))
         }
         Some(api_models::payments::PaymentMethodData::VaultCardTokenData(_)) => {
             Err(errors::ApiErrorResponse::InvalidRequestData {
                 message: "vault_card_token_data is not supported for capture, void, or incremental authorization; provide proxy_card data instead".to_string(),
             })?
         }
-        payment_method_data => Ok(OperationPaymentMethodData {
-            payment_method_data: fetched_payment_method_data
-                .or_else(|| payment_method_data.map(domain::PaymentMethodData::from)),
-            external_vault_pmd: None,
-        }),
+        payment_method_data => Ok(fetched_payment_method_data
+            .or_else(|| payment_method_data.map(domain::PaymentMethodData::from))),
     }
 }
 

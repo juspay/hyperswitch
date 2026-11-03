@@ -7198,6 +7198,7 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
+        domain::PaymentMethodData::ProxyCard(_) => Ok(None),
     }
 }
 
@@ -8552,7 +8553,8 @@ pub fn get_key_params_for_surcharge_details(
             mobile_payment.get_payment_method_type(),
             None,
         )),
-        domain::PaymentMethodData::CardToken(_)
+        domain::PaymentMethodData::ProxyCard(_)
+        | domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)

@@ -30,6 +30,7 @@ use crate::{mandates, router_data::PaymentMethodToken};
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    ProxyCard(Box<ExternalVaultCard>),
     CardWithOptionalCVC(CardWithOptionalCVC),
     CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
@@ -430,6 +431,7 @@ impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
             Self::Card(_)
+            | Self::ProxyCard(_)
             | Self::CardWithOptionalCVC(_)
             | Self::CardWithNetworkTokenDetails(_)
             | Self::NetworkToken(_)
@@ -2491,13 +2493,12 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             ) => Self::DecryptedWalletTokenDetailsForNetworkTransactionId(
                 (*decrypted_wallet_token_details).into(),
             ),
-            // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
-            // (routed to external_vault_proxy_for_payments_core). These branches should not be
-            // reached in normal flow, but we handle them gracefully.
-            api_models::payments::PaymentMethodData::ProxyCard(_)
-            | api_models::payments::PaymentMethodData::VaultCardTokenData(_) => {
-                // These variants are intercepted at the routing layer and should not reach here.
-                // Falling back to MandatePayment as a safe no-op sentinel value.
+            api_models::payments::PaymentMethodData::ProxyCard(card) => {
+                Self::ProxyCard(Box::new(ExternalVaultCard::from(*card)))
+            }
+            api_models::payments::PaymentMethodData::VaultCardTokenData(_) => {
+                // Saved vault tokens are resolved by the external vault proxy flow before
+                // domain conversion.
                 Self::MandatePayment
             }
         }
@@ -2825,6 +2826,12 @@ impl From<api_models::payments::EligibilityPaymentMethodData> for EligibilityPay
 impl From<PaymentMethodData> for EligibilityPaymentMethodData {
     fn from(value: PaymentMethodData) -> Self {
         match value {
+            PaymentMethodData::ProxyCard(card) => card
+                .bin_number
+                .and_then(|bin| bin.parse::<cards::CardBin>().ok())
+                .map(|card_bin| Self::CardBin(EligibilityCardBin { card_bin }))
+                // Vault aliases cannot supply a PAN for fingerprint checks.
+                .unwrap_or(Self::MandatePayment),
             PaymentMethodData::Card(card) => Self::Card(EligibilityCard {
                 card_number: card.card_number,
                 card_exp_month: Some(card.card_exp_month),

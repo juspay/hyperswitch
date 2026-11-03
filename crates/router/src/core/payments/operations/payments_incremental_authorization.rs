@@ -64,7 +64,7 @@ impl<F: Send + Clone + Sync>
             payments::PaymentData<F>,
         >,
     > {
-        let operation_payment_method_data = operations::split_payment_method_data_for_operation(
+        let payment_method_data = operations::resolve_payment_method_data_for_operation(
             request.payment_method_data.clone(),
             payment_method_fetch_data
                 .payment_method_with_raw_data
@@ -161,7 +161,7 @@ impl<F: Send + Clone + Sync>
             token_data: None,
             address: PaymentAddress::new(None, None, None, None),
             confirm: None,
-            payment_method_data: operation_payment_method_data.payment_method_data,
+            payment_method_data,
             payment_method_token: None,
             payment_method_info: None,
             force_sync: None,
@@ -202,7 +202,7 @@ impl<F: Send + Clone + Sync>
             external_authentication_data: None,
             client_session_id: None,
             vault_session_details: None,
-            external_vault_pmd: operation_payment_method_data.external_vault_pmd,
+            external_vault_pmd: None,
             update_request_fields: None,
         };
 
@@ -394,10 +394,6 @@ impl<F: Clone + Send + Sync>
         Option<domain::PaymentMethodData>,
         Option<String>,
     )> {
-        if payment_data.external_vault_pmd.is_some() {
-            return Ok((Box::new(self), None, None));
-        }
-
         let payment_method_data = operations::get_or_fetch_payment_method_data_for_operation(
             state,
             platform,

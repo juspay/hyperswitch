@@ -1575,6 +1575,15 @@ pub fn build_unified_connector_service_payment_method(
     payment_method_token: Option<&PaymentMethodToken>,
     connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    // Explicit vault aliases must reach the proxy even if a processor token is present.
+    let payment_method_data = match payment_method_data {
+        domain_pm::PaymentMethodData::ProxyCard(card) => {
+            return Ok(build_unified_connector_service_proxy_card_payment_method(
+                *card,
+            ));
+        }
+        payment_method_data => payment_method_data,
+    };
     // A connector tokenization token settles for any payment method, including wallets.
     // The token message carries the payment method it was minted from.
     if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
@@ -2694,34 +2703,40 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
             external_vault_card,
-        ) => {
-            let card_network = external_vault_card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_from);
-            let card_details = payments_grpc::ProxyCardDetails {
-                card_number: Some(external_vault_card.card_number.expose().into()),
-                card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
-                card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
-                card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: external_vault_card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: external_vault_card.card_type.clone(),
-                bank_code: external_vault_card.bank_code.clone(),
-                nick_name: external_vault_card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: external_vault_card.card_issuing_country.clone(),
-            };
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::CardProxy(card_details)),
-            })
-        }
+        ) => Ok(build_unified_connector_service_proxy_card_payment_method(
+            *external_vault_card,
+        )),
         hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::VaultToken(_) => {
             Err(UnifiedConnectorServiceError::NotImplemented(format!(
                         "Unimplemented payment method subtype: {payment_method_type:?}"
             ))
             .into())
         }
+    }
+}
+
+fn build_unified_connector_service_proxy_card_payment_method(
+    card: domain_pm::ExternalVaultCard,
+) -> payments_grpc::PaymentMethod {
+    let card_network = card
+        .card_network
+        .map(payments_grpc::CardNetwork::foreign_from);
+    let card_details = payments_grpc::ProxyCardDetails {
+        card_number: Some(card.card_number.expose().into()),
+        card_exp_month: Some(card.card_exp_month.expose().into()),
+        card_exp_year: Some(card.card_exp_year.expose().into()),
+        card_cvc: Some(card.card_cvc.expose().into()),
+        card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+        card_issuer: card.card_issuer,
+        card_network: card_network.map(|card_network| card_network.into()),
+        card_type: card.card_type,
+        bank_code: card.bank_code,
+        nick_name: card.nick_name.map(|name| name.expose()),
+        card_issuing_country_alpha2: card.card_issuing_country,
+    };
+
+    payments_grpc::PaymentMethod {
+        payment_method: Some(PaymentMethod::CardProxy(card_details)),
     }
 }
 

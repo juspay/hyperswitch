@@ -209,7 +209,7 @@ where
     };
 
     let gateway_context = payments::gateway::context::RouterGatewayContext {
-        external_vault_proxy: None,
+        external_vault_proxy_metadata: None,
         creds_identifier: None,
         processor: platform.get_processor().clone(),
         header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),

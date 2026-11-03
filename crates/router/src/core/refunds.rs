@@ -229,7 +229,7 @@ pub async fn refund_reverse_core(
     let execution_mode = execution_path.get_execution_mode();
     let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
     let gateway_context = gateway_context::RouterGatewayContext {
-        external_vault_proxy: None,
+        external_vault_proxy_metadata: None,
         creds_identifier: None,
         processor: processor.clone(),
         header_payload: HeaderPayload::default(),
@@ -603,7 +603,7 @@ pub async fn trigger_refund_to_gateway(
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
-        external_vault_proxy: None,
+        external_vault_proxy_metadata: None,
         creds_identifier: creds_identifier.clone(),
         processor: platform.get_processor().clone(),
         header_payload: HeaderPayload::default(),
@@ -1301,7 +1301,7 @@ pub async fn sync_refund_with_gateway(
     };
 
     let gateway_context = gateway_context::RouterGatewayContext {
-        external_vault_proxy: None,
+        external_vault_proxy_metadata: None,
         creds_identifier: creds_identifier.clone(),
         processor: platform.get_processor().clone(),
         header_payload: HeaderPayload::default(),
