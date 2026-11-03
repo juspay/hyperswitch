@@ -993,6 +993,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -1282,6 +1283,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: None,
             payment_experience: None,
@@ -2675,6 +2677,7 @@ impl
                 .transpose()?
                 .map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance: router_data
                 .request
                 .customer_acceptance
@@ -2875,6 +2878,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -3090,6 +3094,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: None,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -3331,6 +3336,7 @@ impl
                 .map(|cost| cost.get_amount_as_i64()),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             request_incremental_authorization: router_data
                 .request
                 .request_incremental_authorization,
