@@ -16,6 +16,8 @@ use crate::{
     },
     services::authorization::permissions::Permission,
 };
+#[cfg(feature = "v1")]
+pub mod callback_routes;
 pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;

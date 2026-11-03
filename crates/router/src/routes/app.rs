@@ -1018,6 +1018,17 @@ impl Proxy {
 }
 
 #[cfg(feature = "v1")]
+fn configure_payment_callback_routes(config: &mut web::ServiceConfig) {
+    use strum::IntoEnumIterator;
+
+    use super::payments::callback_routes::PaymentCallbackRoute;
+
+    for callback in PaymentCallbackRoute::iter() {
+        config.service(callback.resource());
+    }
+}
+
+#[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -1138,31 +1149,7 @@ impl Payments {
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
-                .service(
-                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
-                        .route(web::get().to(payments::payments_start)),
-                )
-                .service(
-                    web::resource(
-                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
-                    )
-                    .route(web::get().to(payments::payments_redirect_response_with_creds_identifier)),
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments::payments_redirect_response))
-                        .route(web::post().to(payments::payments_redirect_response))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/{creds_identifier}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect)),
-                )
+                .configure(configure_payment_callback_routes)
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments::payments_complete_authorize)),
@@ -1172,14 +1159,6 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
-                        .route(web::post().to(payments::post_3ds_payments_authorize))
-                        .route(web::get().to(payments::post_3ds_payments_authorize))
-                )
-                .service(
-                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
                 )
                 .service(
                     web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),
