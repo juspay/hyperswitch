@@ -2373,20 +2373,8 @@ pub async fn revenue_recovery_invoices_list(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, _| async move {
-            if let Some(profile_id) = req.profile_id.take() {
-                crate::core::utils::validate_profile_id_from_auth_layer(
-                    Some(profile_id),
-                    &auth.profile,
-                )?;
-            }
-            payments::list::revenue_recovery_list_payments(
-                state,
-                auth.platform,
-                Some(auth.profile.get_id().clone()),
-                req,
-            )
-            .await
+        |state, auth: auth::AuthenticationData, req, _| {
+            payments::list::revenue_recovery_list_payments(state, auth.platform, None, req)
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
