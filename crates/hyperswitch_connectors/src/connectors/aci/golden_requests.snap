@@ -1,0 +1,4151 @@
+=== card/one_off/auto_capture
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/one_off/manual_capture
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=PA
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/one_off/billing_name_absent_uses_card_holder
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Card Holder
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.merchantCustomerId=cus_golden
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/three_ds/enrolled
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=true
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.javascriptEnabled=true
+customer.browser.javaEnabled=false
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/three_ds/not_enrolled
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=false
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/three_ds/enrolled_without_browser_info
+error: Missing required field: browser_info
+
+=== card/three_ds/external_authentication
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.eci=05
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/moto/mca_category
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=true
+transactionCategory=MOTO
+merchantTransactionId=pay_cof_test_1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/moto/payment_channel_telephone
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+transactionCategory=TO
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/moto/initial_cit
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+createRegistration=true
+shopperResultUrl=https://merchant.example/return
+recurringType=INITIAL
+transactionCategory=MO
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/channel/mca_wins_over_payment_channel
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+transactionCategory=EC
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/channel/unknown_mca_category_ignored
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/initial_cit
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.recurringType=STANDING_ORDER
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+recurringType=INITIAL
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/initial_cit_three_ds
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=true
+recurringType=INITIAL
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.javascriptEnabled=true
+customer.browser.javaEnabled=false
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/off_session_without_acceptance
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=INSTALLMENT
+standingInstruction.source=CIT
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/mit_raw_card
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+paymentBrand=VISA
+standingInstruction.mode=REPEATED
+standingInstruction.type=RECURRING
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=MDGXVJV4N0910
+standingInstruction.agreementId=TLID0001
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/one_click_repeat
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=REPEATED
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=true
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.javascriptEnabled=true
+customer.browser.javaEnabled=false
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/mit_network_mandate
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+paymentBrand=VISA
+standingInstruction.mode=REPEATED
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=481234567891234
+standingInstruction.industryPractice=RESUBMISSION
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/recurring/moto_mit
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+transactionCategory=TO
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/metadata/descriptor_test_mode_trim
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=r-reference-0001
+testMode=EXTERNAL
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+descriptor=PEACH SHOP ORDER 9
+
+=== card/metadata/short_order_reference_and_internal_test_mode
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=abcba781
+testMode=INTERNAL
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card/metadata/reserved_and_invalid_custom_parameters
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[nested]={"a":1}
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card_with_optional_cvc/cvc_present
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=5454545454545454
+card.holder=Jane Shopper
+card.expiryMonth=11
+card.expiryYear=2031
+card.cvv=123
+paymentBrand=MASTER
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== card_with_optional_cvc/cvc_absent_not_permitted
+error: Missing required field: payment_method_data.card.card_cvc
+
+=== card_with_optional_cvc/cvc_absent_permitted
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+card.number=5454545454545454
+card.holder=Jane Shopper
+card.expiryMonth=11
+card.expiryYear=2031
+paymentBrand=MASTER
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== network_token/one_off_external_three_ds_eci_dedupe
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AgAAAAAABk4DWZ4C28yUQAAAAAA=
+threeDSecure.eci=05
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== network_token/unknown_network_defaults_to_visa
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AgAAAAAABk4DWZ4C28yUQAAAAAA=
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== network_token/initial_cit
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AgAAAAAABk4DWZ4C28yUQAAAAAA=
+paymentBrand=MASTER
+standingInstruction.mode=INITIAL
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== network_token/mit_acquirer_packing
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AgAAAAAABk4DWZ4C28yUQAAAAAA=
+paymentBrand=MASTER
+standingInstruction.mode=REPEATED
+standingInstruction.type=RECURRING
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=0910MDGXVJV4N
+standingInstruction.agreementId=TLID0001
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== apple_pay/decrypted_token
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AppleCryptogram==
+threeDSecure.eci=07
+paymentBrand=VISA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== apple_pay/decrypted_payload_initial_cit
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AppleCryptogram==
+threeDSecure.eci=07
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+recurringType=INITIAL
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== apple_pay/encrypted_passthrough
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+applePay.paymentToken=encrypted-apple
+applePay.source=web
+paymentBrand=APPLEPAY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== apple_pay/decrypted_mit
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=4895370012003478
+tokenAccount.expiryMonth=12
+tokenAccount.expiryYear=2029
+tokenAccount.cryptogram=AppleCryptogram==
+threeDSecure.eci=07
+paymentBrand=VISA
+standingInstruction.mode=REPEATED
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=MDGXVJV4N0910
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== google_pay/decrypted_payload
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+tokenAccount.type=NETWORK
+tokenAccount.number=5204740000001002
+tokenAccount.expiryMonth=10
+tokenAccount.expiryYear=2030
+tokenAccount.cryptogram=GoogleCryptogram==
+threeDSecure.eci=02
+paymentBrand=MASTER
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== google_pay/encrypted_passthrough
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+googlePay.paymentToken={"signature":"sig"}
+googlePay.source=web
+paymentBrand=GOOGLEPAY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== samsung_pay/one_off_external_three_ds
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+samsungPay.paymentToken=samsung-token
+samsungPay.source=app
+paymentBrand=SAMSUNGPAY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.eci=05
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== samsung_pay/mit
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+samsungPay.paymentToken=samsung-token
+samsungPay.source=app
+paymentBrand=SAMSUNGPAY
+standingInstruction.mode=REPEATED
+standingInstruction.type=RECURRING
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=MDGXVJV4N0910
+standingInstruction.agreementId=TLID0001
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== wallet_redirect/mb_way
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=MBWAY
+virtualAccount.accountId=27#821234567
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== wallet_redirect/ali_pay_initial_cit_ignored
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=ALIPAY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.eci=05
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== pay_later/klarna
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=KLARNA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== pay_later/unsupported
+error: This step has not been implemented for: Selected payment method through Aci
+
+=== bank_redirect/eps
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=EPS
+bankAccount.country=ZA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/ideal
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=IDEAL
+bankAccount.country=ZA
+bankAccount.bankName=ing
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/ideal_without_bank
+error: Missing required field: ideal.bank_name
+
+=== bank_redirect/giropay
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=GIROPAY
+bankAccount.country=ZA
+bankAccount.bic=GENODETT488
+bankAccount.iban=DE36444488881234567890
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/trustly
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=TRUSTLY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/przelewy24
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=PRZELEWY
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/interac
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=INTERAC_ONLINE
+bankAccount.country=ZA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/eft
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=EFT
+bankAccount.country=ZA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== bank_redirect/sofort
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+paymentBrand=SOFORTUEBERWEISUNG
+bankAccount.country=ZA
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== mandate/mit_stamped_record
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+standingInstruction.mode=REPEATED
+standingInstruction.type=RECURRING
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=MDGXVJV4N0910
+standingInstruction.agreementId=TLID0001
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== mandate/mit_legacy_record_payment_method_fallback
+Post https://eu-test.oppwa.com/v1/registrations/8ac7a4a19a1b2c3d019a1b2c3d4e0001/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.00
+currency=ZAR
+paymentType=DB
+standingInstruction.mode=REPEATED
+standingInstruction.type=UNSCHEDULED
+standingInstruction.source=MIT
+standingInstruction.initialTransactionId=MCC1234560910
+standingInstruction.agreementId=TLID-PM
+shopperResultUrl=https://merchant.example/return
+recurringType=REPEATED
+merchantTransactionId=pay_cof_test_1
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+customer.merchantCustomerId=cus_golden
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=ord-123
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== mandate/missing_mandate_id
+error: Missing required field: mandate_id
+
+=== unsupported/crypto
+error: This step has not been implemented for: Selected payment method through Aci
+
+=== setup_mandate/card
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=0.00
+currency=ZAR
+paymentType=PA
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.recurringType=STANDING_ORDER
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=setup-order-0001
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=setup-1
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== setup_mandate/card_three_ds_external
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=0.00
+currency=ZAR
+paymentType=PA
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.recurringType=STANDING_ORDER
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+customParameters[3DS2_enrolled]=true
+merchantTransactionId=setup-order-0001
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.javascriptEnabled=true
+customer.browser.javaEnabled=false
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+threeDSecure.eci=05
+threeDSecure.verificationId=AAABBEg0VhI0VniQEjRWAAAAAAA=
+threeDSecure.dsTransactionId=ds-trans-1
+threeDSecure.acsTransactionId=acs-trans-1
+threeDSecure.authenticationStatus=Y
+threeDSecure.version=2.2
+customParameters[order_ref]=setup-1
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== setup_mandate/card_moto
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=0.00
+currency=ZAR
+paymentType=PA
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+createRegistration=true
+shopperResultUrl=https://merchant.example/return
+transactionCategory=MOTO
+merchantTransactionId=setup-order-0001
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=setup-1
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== setup_mandate/card_with_optional_cvc_permitted
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=0.00
+currency=ZAR
+paymentType=PA
+card.number=5454545454545454
+card.holder=Jane Shopper
+card.expiryMonth=11
+card.expiryYear=2031
+paymentBrand=MASTER
+standingInstruction.mode=INITIAL
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.recurringType=STANDING_ORDER
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=setup-order-0001
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=setup-1
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== setup_mandate/carrying_a_mandate_id
+Post https://eu-test.oppwa.com/v1/payments
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=0.00
+currency=ZAR
+paymentType=PA
+card.number=4111111111111111
+card.holder=Jane Shopper
+card.expiryMonth=03
+card.expiryYear=2030
+paymentBrand=VISA
+standingInstruction.mode=INITIAL
+standingInstruction.type=RECURRING
+standingInstruction.source=CIT
+createRegistration=true
+standingInstruction.recurringType=STANDING_ORDER
+standingInstruction.expiry=2028-06-30
+shopperResultUrl=https://merchant.example/return
+merchantTransactionId=setup-order-0001
+customer.browser.acceptHeader=text/html
+customer.browser.language=en-ZA
+customer.browser.screenHeight=1080
+customer.browser.screenWidth=1920
+customer.browser.timezone=-120
+customer.browser.userAgent=Mozilla/5.0
+customer.browser.screenColorDepth=24
+customer.browser.challengeWindow=5
+customer.ip=196.25.1.1
+customer.email=jane@example.com
+customer.givenName=Jane
+customer.surname=Shopper
+billing.street1=1 Long Street
+billing.city=Cape Town
+billing.state=Western Cape
+billing.country=ZA
+billing.postcode=8001
+customParameters[order_ref]=setup-1
+customParameters[orchestrator]=hyperswitch
+customParameters[paymentId]=pay_cof_test
+
+=== setup_mandate/wallet_not_supported
+error: Mandate setup for non-card payment methods is not supported by ACI
+
+=== sync
+Get https://eu-test.oppwa.com/v1/payments/8ac7a4a1sync?entityId=8ac7a4c9entity
+headers: Authorization, Content-Type, via
+
+=== capture
+Post https://eu-test.oppwa.com/v1/payments/8ac7a4a1capture
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+amount=10.50
+currency=ZAR
+paymentType=CP
+
+=== void
+Post https://eu-test.oppwa.com/v1/payments/8ac7a4a1void
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+paymentType=RV
+
+=== refund
+Post https://eu-test.oppwa.com/v1/payments/8ac7a4a1refund
+headers: Authorization, Content-Type, via
+amount=7.50
+currency=ZAR
+paymentType=RF
+entityId=8ac7a4c9entity
+
+=== pre_authentication
+Post https://eu-test.oppwa.com/v1/threeDSecure
+headers: Authorization, Content-Type, via
+entityId=8ac7a4c9entity
+paymentType=PA
+card.number=4111111111111111
+card.holder=Card Holder
+card.expiryMonth=03
+card.expiryYear=2030
+card.cvv=737
+paymentBrand=VISA
+threeDSecure.npa=true
+
+=== post_authentication
+Get https://eu-test.oppwa.com/v1/threeDSecure/8ac7a4a1threeds?entityId=8ac7a4c9entity
+headers: Authorization, via
+
+=== webhook/payment/success
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentSuccess
+resource: payment payload
+
+=== webhook/payment/pending
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentProcessing
+resource: payment payload
+
+=== webhook/payment/failure
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentFailure
+resource: payment payload
+
+=== webhook/payment/unknown_code
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentFailure
+resource: payment payload
+
+=== webhook/refund/success
+reference: RefundId(ConnectorRefundId("8ac7a4a1webhook"))
+event: RefundSuccess
+resource: payment payload
+
+=== webhook/refund/pending
+reference: RefundId(ConnectorRefundId("8ac7a4a1webhook"))
+event: EventNotSupported
+resource: payment payload
+
+=== webhook/refund/failure
+reference: RefundId(ConnectorRefundId("8ac7a4a1webhook"))
+event: RefundFailure
+resource: payment payload
+
+=== webhook/registration
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: EventNotSupported
+resource: error: Incoming webhook event type not found
+
+=== webhook/risk
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: EventNotSupported
+resource: error: Incoming webhook event type not found
+
+=== webhook/test_ping
+reference: error: Incoming webhook event resource object not found
+event: EventNotSupported
+resource: error: Incoming webhook event type not found
+
+=== webhook/not_json
+reference: error: Incoming webhook event resource object not found
+event: error: Incoming webhook event type not found
+resource: error: Incoming webhook event resource object not found
+
+=== webhook/delivery/encrypted/raw_hex
+decode: ok
+verified: true
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentSuccess
+resource: payment payload
+
+=== webhook/delivery/encrypted/json_wrapper
+decode: ok
+verified: true
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentSuccess
+resource: payment payload
+
+=== webhook/delivery/encrypted/activation_ping
+decode: ok
+verified: true
+reference: error: Incoming webhook event resource object not found
+event: EventNotSupported
+resource: error: Incoming webhook event type not found
+
+=== webhook/delivery/encrypted/wrong_secret
+decode: error: Failed to decode webhook event body
+
+=== webhook/delivery/encrypted/tampered
+decode: error: Failed to decode webhook event body
+
+=== webhook/delivery/encrypted/url_without_account
+decode: error: Failed to verify webhook source
+
+=== webhook/delivery/encrypted/missing_tag
+decode: error: Failed to decode webhook event body
+
+=== webhook/delivery/plaintext/unverified
+decode: ok
+verified: false
+reference: PaymentId(ConnectorTransactionId("8ac7a4a1webhook"))
+event: PaymentIntentSuccess
+resource: payment payload
+
+=== supported_payment_methods
+BankRedirect/Eft: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Eps: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Giropay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Ideal: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Interac: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Przelewy24: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Sofort: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+BankRedirect/Trustly: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Card/Credit: PaymentMethodDetails { mandates: Supported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: Some(Card(CardSpecificFeatures { three_ds: Supported, no_three_ds: Supported, supported_card_networks: [Visa, Mastercard, AmericanExpress, JCB, DinersClub, Discover, UnionPay, Maestro] })) }
+Card/Debit: PaymentMethodDetails { mandates: Supported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: Some(Card(CardSpecificFeatures { three_ds: Supported, no_three_ds: Supported, supported_card_networks: [Visa, Mastercard, AmericanExpress, JCB, DinersClub, Discover, UnionPay, Maestro] })) }
+PayLater/Klarna: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Wallet/AliPay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Wallet/ApplePay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Wallet/GooglePay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Wallet/MbWay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+Wallet/SamsungPay: PaymentMethodDetails { mandates: NotSupported, refunds: Supported, supported_capture_methods: [Automatic, Manual], specific_features: None }
+
+=== response/authorize/approved_auto_capture
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: None,
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/approved_manual_capture
+status: Authorized
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: None,
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/pending
+status: Authorizing
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/declined
+status: Failure
+reference_id: None
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: Some(
+            Failure,
+        ),
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        network_decline_code: None,
+        network_advice_code: Some(
+            "21",
+        ),
+        network_error_message: Some(
+            "Insufficient funds",
+        ),
+        connector_metadata: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/unknown_result_code
+error: Failed to handle connector response
+
+=== response/authorize/challenge_redirect
+status: AuthenticationPending
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: Some(
+            Form {
+                endpoint: "https://acs.example/challenge",
+                method: Post,
+                form_fields: {
+                    "PaReq": "from-precondition",
+                },
+            },
+        ),
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: None,
+            },
+        ),
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/bank_redirect
+status: AuthenticationPending
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: Some(
+            Form {
+                endpoint: "https://bank.example/pay",
+                method: Get,
+                form_fields: {
+                    "token": "t1",
+                },
+            },
+        ),
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/cit_approved
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: Some(
+                    *** serde_json::value::Value ***,
+                ),
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("cit"),
+                    "final": Bool(true),
+                    "rg": String("8ac7a4a19a1b2c3d019a1b2c3d4e0001"),
+                    "citi": String("MDGXVJV4N0910"),
+                    "agreementId": String("TLID0001"),
+                    "siType": String("UNSCHEDULED"),
+                },
+            },
+        ),
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/cit_challenge
+status: AuthenticationPending
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: Some(
+            Form {
+                endpoint: "https://acs.example/challenge",
+                method: Post,
+                form_fields: {
+                    "PaReq": "from-precondition",
+                },
+            },
+        ),
+        mandate_reference: None,
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("cit"),
+                    "final": Bool(false),
+                    "rg": String("8ac7a4a19a1b2c3d019a1b2c3d4e0001"),
+                    "siType": String("UNSCHEDULED"),
+                },
+            },
+        ),
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/mit_approved
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: Some(
+                    *** serde_json::value::Value ***,
+                ),
+                connector_mandate_request_reference_id: None,
+            },
+        ),
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("mit"),
+                    "final": Bool(false),
+                },
+            },
+        ),
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/externally_authenticated_without_echo
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-trans-1"),
+                        "acsTransactionId": String("acs-trans-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("challenge"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/authorize/not_json
+error: Failed to deserialize connector response
+
+=== response/sync/cit_finalised
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: Some(
+                    *** serde_json::value::Value ***,
+                ),
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("cit"),
+                    "final": Bool(true),
+                    "rg": String("8ac7a4a19a1b2c3d019a1b2c3d4e0001"),
+                    "citi": String("MDGXVJV4N0910"),
+                    "agreementId": String("TLID0001"),
+                    "siType": String("UNSCHEDULED"),
+                },
+            },
+        ),
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/sync/cit_still_pending
+status: Authorizing
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/sync/mit
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/sync/zero_amount_verification
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/sync/no_stash_with_registration
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: None,
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: None,
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/setup_mandate/approved
+status: Charged
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: Some(
+            MandateReference {
+                connector_mandate_id: Some(
+                    "8ac7a4a19a1b2c3d019a1b2c3d4e0001",
+                ),
+                payment_method_id: None,
+                mandate_metadata: Some(
+                    *** serde_json::value::Value ***,
+                ),
+                connector_mandate_request_reference_id: Some(
+                    "MDGXVJV4N0910",
+                ),
+            },
+        ),
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("cit"),
+                    "final": Bool(true),
+                    "rg": String("8ac7a4a19a1b2c3d019a1b2c3d4e0001"),
+                    "citi": String("MDGXVJV4N0910"),
+                    "agreementId": String("TLID0001"),
+                    "siType": String("RECURRING"),
+                },
+            },
+        ),
+        network_txn_id: Some(
+            "MDGXVJV4N0910",
+        ),
+        network_txn_link_id: Some(
+            "TLID0001",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: Some(
+            UcsAuthenticationData {
+                eci: Some(
+                    "05",
+                ),
+                cavv: Some(
+                    *** alloc::string::String ***,
+                ),
+                threeds_server_transaction_id: Some(
+                    "ds-1",
+                ),
+                message_version: Some(
+                    SemanticVersion(
+                        Version {
+                            major: 2,
+                            minor: 2,
+                            patch: 0,
+                        },
+                    ),
+                ),
+                ds_trans_id: Some(
+                    "ds-1",
+                ),
+                acs_trans_id: Some(
+                    "acs-1",
+                ),
+                trans_status: Some(
+                    Success,
+                ),
+                transaction_id: None,
+                ucaf_collection_indicator: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            },
+        ),
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: Some(
+                    Object {
+                        "eci": String("05"),
+                        "authenticationStatus": String("Y"),
+                        "dsTransactionId": String("ds-1"),
+                        "acsTransactionId": String("acs-1"),
+                        "xid": Null,
+                        "version": String("2.2"),
+                        "flow": String("frictionless"),
+                        "challengeMandatedIndicator": Null,
+                    },
+                ),
+                payment_checks: Some(
+                    Object {
+                        "cvvResponse": String("M"),
+                        "acquirerResponse": String("00"),
+                        "stan": String("000123"),
+                        "originalTransactionId": Null,
+                    },
+                ),
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: Some(
+                    "543324",
+                ),
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/setup_mandate/challenge
+status: AuthenticationPending
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: Some(
+            Form {
+                endpoint: "https://acs.example/challenge",
+                method: Post,
+                form_fields: {
+                    "PaReq": "from-precondition",
+                },
+            },
+        ),
+        mandate_reference: None,
+        connector_metadata: Some(
+            Object {
+                "aciCof": Object {
+                    "role": String("cit"),
+                    "final": Bool(false),
+                    "rg": String("8ac7a4a19a1b2c3d019a1b2c3d4e0001"),
+                    "siType": String("RECURRING"),
+                },
+            },
+        ),
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/void/approved
+status: Voided
+reference_id: None
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/void/declined
+status: Failure
+reference_id: None
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: Some(
+            Failure,
+        ),
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        network_decline_code: None,
+        network_advice_code: Some(
+            "21",
+        ),
+        network_error_message: Some(
+            "Insufficient funds",
+        ),
+        connector_metadata: None,
+    },
+)
+connector_response: Some(
+    ConnectorResponseData {
+        additional_payment_method_data: Some(
+            Card {
+                authentication_data: None,
+                payment_checks: None,
+                card_network: Some(
+                    "Visa",
+                ),
+                domestic_network: None,
+                auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
+            },
+        ),
+        extended_authorization_response_data: None,
+        is_overcapture_enabled: None,
+        mandate_reference: None,
+    },
+)
+
+=== response/capture/approved
+status: Charged
+reference_id: Some("8ac7a4a1capture")
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1capture",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: None
+
+=== response/capture/declined
+status: Failure
+reference_id: Some("8ac7a4a1capture")
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: Some(
+            Failure,
+        ),
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        network_decline_code: None,
+        network_advice_code: Some(
+            "03",
+        ),
+        network_error_message: None,
+        connector_metadata: None,
+    },
+)
+connector_response: None
+
+=== response/capture/pending
+status: Pending
+reference_id: Some("8ac7a4a1capture")
+response: Ok(
+    TransactionResponse {
+        resource_id: ConnectorTransactionId(
+            "8ac7a4a1payment",
+        ),
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        network_txn_link_id: None,
+        connector_response_reference_id: Some(
+            "8ac7a4a1capture",
+        ),
+        payment_account_reference: None,
+        incremental_authorization_allowed: None,
+        authentication_data: None,
+        charges: None,
+    },
+)
+connector_response: None
+
+=== response/refund/approved
+status: Pending
+reference_id: None
+response: Ok(
+    RefundsResponseData {
+        connector_refund_id: "8ac7a4a1payment",
+        refund_status: Success,
+    },
+)
+connector_response: None
+
+=== response/refund/pending
+status: Pending
+reference_id: None
+response: Ok(
+    RefundsResponseData {
+        connector_refund_id: "8ac7a4a1payment",
+        refund_status: Pending,
+    },
+)
+connector_response: None
+
+=== response/refund/declined
+status: Pending
+reference_id: None
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: None,
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: None,
+        network_decline_code: None,
+        network_advice_code: Some(
+            "21",
+        ),
+        network_error_message: Some(
+            "Insufficient funds",
+        ),
+        connector_metadata: None,
+    },
+)
+connector_response: None
+
+=== response/pre_authentication/declined
+status: Pending
+reference_id: None
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: None,
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        network_decline_code: None,
+        network_advice_code: Some(
+            "21",
+        ),
+        network_error_message: Some(
+            "Insufficient funds",
+        ),
+        connector_metadata: None,
+    },
+)
+connector_response: None
+
+=== response/pre_authentication/frictionless
+status: Pending
+reference_id: None
+response: Ok(
+    AuthNResponse {
+        authn_flow_type: Frictionless,
+        authentication_value: Some(
+            *** alloc::string::String ***,
+        ),
+        trans_status: Success,
+        connector_metadata: None,
+        ds_trans_id: Some(
+            "ds-1",
+        ),
+        eci: Some(
+            "05",
+        ),
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+    },
+)
+connector_response: None
+
+=== response/pre_authentication/challenge
+status: Pending
+reference_id: None
+response: Ok(
+    PreAuthNResponse {
+        threeds_server_transaction_id: "8ac7a4a1payment",
+        maximum_supported_3ds_version: SemanticVersion(
+            Version {
+                major: 2,
+                minor: 0,
+                patch: 0,
+            },
+        ),
+        connector_authentication_id: "8ac7a4a1payment",
+        three_ds_method_data: None,
+        three_ds_method_url: Some(
+            "https://acs.example/method",
+        ),
+        message_version: SemanticVersion(
+            Version {
+                major: 2,
+                minor: 0,
+                patch: 0,
+            },
+        ),
+        connector_metadata: None,
+        directory_server_id: None,
+        scheme_id: None,
+    },
+)
+connector_response: None
+
+=== response/pre_authentication/challenge_without_version
+status: Pending
+reference_id: None
+response: Ok(
+    PreAuthNResponse {
+        threeds_server_transaction_id: "8ac7a4a1payment",
+        maximum_supported_3ds_version: SemanticVersion(
+            Version {
+                major: 2,
+                minor: 0,
+                patch: 0,
+            },
+        ),
+        connector_authentication_id: "8ac7a4a1payment",
+        three_ds_method_data: None,
+        three_ds_method_url: None,
+        message_version: SemanticVersion(
+            Version {
+                major: 2,
+                minor: 0,
+                patch: 0,
+            },
+        ),
+        connector_metadata: None,
+        directory_server_id: None,
+        scheme_id: None,
+    },
+)
+connector_response: None
+
+=== response/post_authentication/approved
+status: Pending
+reference_id: None
+response: Ok(
+    PostAuthNResponse {
+        trans_status: Success,
+        authentication_value: Some(
+            *** alloc::string::String ***,
+        ),
+        eci: Some(
+            "05",
+        ),
+        challenge_cancel: None,
+        challenge_code_reason: None,
+    },
+)
+connector_response: None
+
+=== response/post_authentication/pending
+status: Pending
+reference_id: None
+response: Ok(
+    PostAuthNResponse {
+        trans_status: Failure,
+        authentication_value: None,
+        eci: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+    },
+)
+connector_response: None
+
+=== response/post_authentication/declined
+status: Pending
+reference_id: None
+response: Err(
+    ErrorResponse {
+        code: "800.100.151",
+        message: "described 800.100.151",
+        reason: Some(
+            "described 800.100.151",
+        ),
+        status_code: 200,
+        attempt_status: None,
+        connector_transaction_id: Some(
+            "8ac7a4a1payment",
+        ),
+        connector_response_reference_id: Some(
+            "8ac7a4a1payment",
+        ),
+        network_decline_code: None,
+        network_advice_code: Some(
+            "21",
+        ),
+        network_error_message: Some(
+            "Insufficient funds",
+        ),
+        connector_metadata: None,
+    },
+)
+connector_response: None
+
+=== error_response/parameter_errors
+ErrorResponse {
+    code: "200.300.404",
+    message: "invalid or missing parameter",
+    reason: Some(
+        "Field is card.number and the message is invalid card number; Field is amount and the message is missing",
+    ),
+    status_code: 400,
+    attempt_status: None,
+    connector_transaction_id: None,
+    connector_response_reference_id: None,
+    network_decline_code: None,
+    network_advice_code: None,
+    network_error_message: None,
+    connector_metadata: None,
+}
+
+=== error_response/acquirer_decline
+ErrorResponse {
+    code: "800.100.151",
+    message: "declined",
+    reason: Some(
+        "Do not honour",
+    ),
+    status_code: 400,
+    attempt_status: None,
+    connector_transaction_id: None,
+    connector_response_reference_id: Some(
+        "8ac7a4a1declined",
+    ),
+    network_decline_code: None,
+    network_advice_code: Some(
+        "21",
+    ),
+    network_error_message: Some(
+        "Do not honour",
+    ),
+    connector_metadata: None,
+}
+
+=== error_response/not_json
+error: Failed to deserialize connector response
+
