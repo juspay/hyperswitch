@@ -50,14 +50,7 @@ const citigateBillingAddress = () => {
 
 export const connectorDetails = {
   card_pm: {
-    // 3DS intents must be created on the 3DS MID (connector_2).
     PaymentIntent: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          byAuthenticationType: "three_ds",
-          value: "connector_2",
-        },
-      },
       Request: {
         currency: "USD",
         customer_acceptance: null,

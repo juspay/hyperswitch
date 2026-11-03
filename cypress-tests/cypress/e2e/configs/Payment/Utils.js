@@ -1,4 +1,9 @@
-import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
+import {
+  determineConnectorConfig,
+  execConfig,
+  getProfileAndConnectorId,
+  validateConfig,
+} from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
@@ -494,6 +499,44 @@ export function createBusinessProfilesAndMerchantConnectorAccounts(
       multipleConnector
     );
   }
+}
+
+// Creates this context's intents on the profile/MCA the connector's
+// 3DSAutoCapture config routes to (e.g. a separate 3DS MID), then restores.
+export function useThreeDSConnectorProfile(getGlobalState) {
+  let saved;
+
+  before("switch to 3DS connector profile", () => {
+    const globalState = getGlobalState();
+    const configs = getConnectorDetails(globalState.get("connectorId"))
+      ?.card_pm?.["3DSAutoCapture"]?.Configs;
+    const { profileId, connectorId } = getProfileAndConnectorId(
+      determineConnectorConfig(configs)
+    );
+    const threeDSProfileId = globalState.get(`${profileId}Id`);
+
+    if (profileId === "profile" || !threeDSProfileId) {
+      return;
+    }
+
+    saved = {
+      profileId: globalState.get("profileId"),
+      merchantConnectorId: globalState.get("merchantConnectorId"),
+    };
+    globalState.set("profileId", threeDSProfileId);
+    globalState.set("merchantConnectorId", globalState.get(`${connectorId}Id`));
+  });
+
+  after("restore connector profile", () => {
+    if (!saved) {
+      return;
+    }
+    const globalState = getGlobalState();
+    globalState.set("profileId", saved.profileId);
+    globalState.set("merchantConnectorId", saved.merchantConnectorId);
+    cy.task("setGlobalState", globalState.data);
+    saved = undefined;
+  });
 }
 
 export function updateBusinessProfile(
