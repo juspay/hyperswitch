@@ -1,7 +1,6 @@
 use actix_multipart::form::{bytes::Bytes as MultipartBytes, MultipartForm};
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::blocklist as api_blocklist;
-use error_stack::report;
 use router_env::Flow;
 
 use crate::{
@@ -134,9 +133,9 @@ pub async fn remove_entry_from_blocklist(
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
         ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
-         belonging to this business profile, plus entries with no profile. When no profile can be \
-         resolved - as with publishable-key authentication - all of the merchant's entries are \
-         returned, as before."),
+         belonging to this business profile, plus entries with no profile. Ignored when \
+         authenticating with a JWT, which carries its own profile. If no profile is resolved \
+         for an API key, all of the merchant's entries are returned."),
     ),
     responses(
         (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
@@ -144,7 +143,7 @@ pub async fn remove_entry_from_blocklist(
     ),
     tag = "Blocklist",
     operation_id = "List Blocked fingerprints of a particular kind",
-    security(("api_key" = []), ("jwt_key" = []), ("publishable_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn list_blocked_payment_methods(
     state: web::Data<AppState>,
@@ -154,29 +153,13 @@ pub async fn list_blocked_payment_methods(
     let flow = Flow::ListBlocklist;
     let payload = query_payload.into_inner();
 
-    let api_auth = auth::ApiKeyAuth {
-        allow_connected_scope_operation: true,
-        allow_platform_self_operation: false,
-    };
-
-    let (auth_type, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth)
-    {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(report!(err)),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth, mut query, _| {
-            if let Some(client_secret) = auth.client_secret {
-                query.client_secret = Some(client_secret);
-            }
-
-            // None whenever no profile is resolved - SDK/publishable-key auth, or an API key sent
-            // without X-Profile-Id - which keeps the listing merchant-wide
+        |state, auth: auth::AuthenticationData, query, _| {
+            // An API key without a resolved profile keeps the listing merchant-wide.
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             blocklist::list_blocklist_entries(
                 state,
@@ -186,7 +169,10 @@ pub async fn list_blocked_payment_methods(
             )
         },
         auth::auth_type(
-            &*auth_type,
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountRead,
                 allow_connected: true,
