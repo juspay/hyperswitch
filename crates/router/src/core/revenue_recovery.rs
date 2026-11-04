@@ -201,9 +201,16 @@ pub async fn upsert_calculate_pcr_task(
                 )
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_profile_id(business_profile.get_id().clone());
-            let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions)
-                    .await;
+            let max_hybrid_cascading_retry_count = u16::try_from(
+                dimensions
+                    .get_recovery_max_hybrid_cascading_retry_count(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        None,
+                    )
+                    .await,
+            )
+            .unwrap_or_default();
 
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
@@ -876,9 +883,16 @@ pub async fn perform_calculate_workflow(
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_profile_id(payment_intent.profile_id.clone());
-            let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions)
-                    .await;
+            let max_hybrid_cascading_retry_count = u16::try_from(
+                dimensions
+                    .get_recovery_max_hybrid_cascading_retry_count(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        None,
+                    )
+                    .await,
+            )
+            .unwrap_or_default();
             let intent_retry_count = payment_intent
                 .get_revenue_recovery_retry_count()
                 .ok_or(errors::RecoveryError::ValueNotFound)

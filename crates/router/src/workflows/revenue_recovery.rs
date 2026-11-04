@@ -275,24 +275,6 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
-/// Positions on the static ladder available to an invoice under the hybrid static + adaptive
-/// scheme. Controlled internally rather than by merchants, so both trigger models read it here.
-#[cfg(feature = "v2")]
-pub(crate) async fn get_max_hybrid_cascading_retry_count(
-    state: &SessionState,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-) -> u16 {
-    let max_hybrid_cascading_retry_count = dimensions
-        .get_recovery_max_hybrid_cascading_retry_count(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await;
-
-    u16::try_from(max_hybrid_cascading_retry_count.max(0)).unwrap_or(u16::MAX)
-}
-
 #[derive(Debug, Clone)]
 pub struct RetryDecision {
     pub retry_time: time::PrimitiveDateTime,
@@ -979,12 +961,16 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                                     )
                                     .with_provider_merchant_id(provider_merchant_id)
                                     .with_profile_id(payment_intent.profile_id.clone());
-                            i32::from(
-                                get_max_hybrid_cascading_retry_count(state, &dimensions).await,
-                            )
+                            dimensions
+                                .get_recovery_max_hybrid_cascading_retry_count(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    None,
+                                )
+                                .await
                         };
 
-                        if queried_rung <= max_hybrid_cascading_retry_count {
+                        if i64::from(queried_rung) <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
                                 state.store.as_ref(),
                                 state.superposition_service.as_ref(),
