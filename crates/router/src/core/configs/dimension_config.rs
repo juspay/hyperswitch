@@ -805,6 +805,24 @@ impl DatabaseBackedConfig for AdaptiveRetryEnabled {
 }
 
 config! {
+    superposition_key = CARD_SWITCHING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for CardSwitchingEnabled {
+    const KEY: &'static str = "card_switching_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
     superposition_key = REVENUE_RECOVERY_AB_ENABLED,
     output = bool,
     default = false,

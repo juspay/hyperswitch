@@ -1776,6 +1776,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     split_txns_enabled,
                     billing_processor_id,
                     surcharge_connector_details,
+                    revenue_recovery_config,
                 } = *update;
                 Self {
                     profile_name,
@@ -1835,6 +1836,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     surcharge_connector_details,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    revenue_recovery_config,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1897,6 +1899,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1957,6 +1960,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -2017,6 +2021,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2077,6 +2082,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2137,6 +2143,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2197,6 +2204,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2257,6 +2265,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2317,6 +2326,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2378,6 +2388,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
                 apple_pay_certificates,
@@ -2439,6 +2450,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                revenue_recovery_config: None,
             },
         }
     }
@@ -2525,6 +2537,7 @@ impl Conversion for domain::Profile {
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
             apple_pay_certificates: None,
@@ -2632,6 +2645,7 @@ impl Conversion for domain::Profile {
                     is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
+                    revenue_recovery_config: item.revenue_recovery_config,
                 }
                 .into(),
             )
@@ -2708,6 +2722,7 @@ impl Conversion for domain::Profile {
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             payment_method_blocking: None,
         })
     }
