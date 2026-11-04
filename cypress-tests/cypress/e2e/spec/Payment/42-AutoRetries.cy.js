@@ -86,6 +86,27 @@ describe("Auto Retry Tests", () => {
         }
       );
 
+      cy.step("Setup GSM retry rule for connector failure", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Setup GSM retry rule");
+          return;
+        }
+
+        // Auto-retry only fires when the connector's raw error code/message
+        // matches a gateway-status-map row with decision=retry.
+        const connectorId = globalState.get("connectorId");
+        const failData =
+          getConnectorDetails(connectorId)["card_pm"]["No3DSFailPayment"];
+
+        cy.setupGsmRetryRule({
+          connectorName: connectorId,
+          errorCode: failData.Response.body.error_code,
+          errorMessage: failData.Response.body.error_message,
+          globalState,
+          stepUpPossible: true,
+        });
+      });
+
       cy.step("Create Payment Intent", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Create Payment Intent");
