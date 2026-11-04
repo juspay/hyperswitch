@@ -226,6 +226,18 @@ for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+6. Install the Protocol Buffers compiler ("protoc"):
+
+   ```shell
+   sudo apt install protobuf-compiler
+   ```
+
+   Optionally, verify that "protoc" is successfully installed:
+
+   ```shell
+   protoc --version
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -319,6 +331,18 @@ packages for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+8. Install the Protocol Buffers compiler ("protoc"):
+
+   ```shell
+   sudo apt install protobuf-compiler
+   ```
+
+   Optionally, verify that "protoc" is successfully installed:
+
+   ```shell
+   protoc --version
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -353,6 +377,18 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    winget install openssl
+   ```
+
+6. Install the Protocol Buffers compiler ("protoc") with "winget":
+
+   ```shell
+   winget install --id Google.Protobuf
+   ```
+
+   Optionally, verify that "protoc" is successfully installed:
+
+   ```shell
+   protoc --version
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -432,6 +468,18 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    cargo install just
+   ```
+
+6. Install the Protocol Buffers compiler ("protoc"):
+
+   ```shell
+   brew install protobuf
+   ```
+
+   Optionally, verify that "protoc" is successfully installed:
+
+   ```shell
+   protoc --version
    ```
 
 Once you're done with setting up the dependencies, proceed with
