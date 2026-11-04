@@ -251,10 +251,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
         .await;
 
-    // The process tracker keeps its retry count as an `i32`. A negative one has no retry time.
-    let time_delta = u32::try_from(retry_count).ok().and_then(|retry_count| {
-        scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count)
-    });
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -273,7 +270,11 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
+    // The scheduler's lookup takes an `i32`. A rung too large for it is past the end of any ladder.
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(
+        mapping,
+        i32::try_from(queried_rung).unwrap_or(i32::MAX),
+    );
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
