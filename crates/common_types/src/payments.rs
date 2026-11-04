@@ -1019,6 +1019,29 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
+/// Payment processor on which the reported transaction was made. Any other value is refused, as
+/// the standardised error code of a transaction is looked up by its processor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnector {
+    /// Adyen.
+    Adyen,
+    /// Stripe.
+    Stripe,
+    /// PayPal.
+    Paypal,
+}
+
+impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
+    fn from(connector: RecoveryConnector) -> Self {
+        match connector {
+            RecoveryConnector::Adyen => Self::Adyen,
+            RecoveryConnector::Stripe => Self::Stripe,
+            RecoveryConnector::Paypal => Self::Paypal,
+        }
+    }
+}
+
 /// The connector accounts a recovery transaction is recorded against.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecoveryConnectorAccounts {

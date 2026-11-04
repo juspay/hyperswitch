@@ -14906,7 +14906,8 @@ impl PaymentRevenueRecoveryMetadata {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
 
-    /// The connector accounts the invoice is recorded against, when it has them.
+    /// The connector accounts the invoice is recorded against. An invoice on external triggers has
+    /// none.
     pub fn get_connector_accounts(
         &self,
     ) -> Option<common_payments_types::RecoveryConnectorAccounts> {
@@ -15036,7 +15037,7 @@ pub struct PaymentsAttemptRecordRequest {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct RecoveryPaymentsCreate {
-    /// The amount details for the payment
+    /// The amount details of the invoice. `order_amount` is the amount of the invoice, whatever this transaction captured.
     pub amount_details: AmountDetails,
 
     /// Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.
@@ -15051,19 +15052,23 @@ pub struct RecoveryPaymentsCreate {
     /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and must not be sent when it is `external_triggers`.
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub billing_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and must not be sent when it is `external_triggers`.
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and must not be sent when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
+    #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
+    pub connector: Option<common_payments_types::RecoveryConnector>,
 
     /// Status of the transaction reported.
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 

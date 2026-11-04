@@ -1029,6 +1029,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CustomRecoveryPaymentMethodData,
         api_models::payments::AdditionalCardInfo,
         common_types::payments::RecoveryTransactionStatus,
+        common_types::payments::RecoveryConnector,
         api_models::enums::RevenueRecoveryAlgorithmType,
         api_models::enums::RevenueRecoveryTriggerModel,
         api_models::enums::RevenueRecoveryABAlgorithm,

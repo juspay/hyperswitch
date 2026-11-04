@@ -105,6 +105,18 @@ pub async fn refund_create_core(
 
     tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
+    // A transaction the merchant reported has no connector account to refund it through. Refused
+    // here, as a refund saved at this point would stay pending for good.
+    utils::when(
+        payment_attempt.merchant_connector_id.is_none()
+            && !state.conf.merchant_id_auth.merchant_id_auth_enabled,
+        || {
+            Err(report!(errors::ApiErrorResponse::RefundNotPossible {
+                connector: payment_attempt.connector.clone().unwrap_or_default(),
+            }))
+        },
+    )?;
+
     let merchant_connector_details = req.merchant_connector_details.clone();
 
     Box::pin(validate_and_create_refund(

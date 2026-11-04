@@ -466,12 +466,12 @@ impl RevenueRecoveryInvoice {
 
 impl RevenueRecoveryAttempt {
     pub async fn load_recovery_attempt_from_api(
-        data: api_models::payments::RecoveryPaymentsCreate,
+        data: &api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
         req_state: &ReqState,
         platform: &domain::Platform,
         profile: &domain::Profile,
-        payment_intent: revenue_recovery::RecoveryPaymentIntent,
+        payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
     ) -> CustomResult<
         (
@@ -481,12 +481,12 @@ impl RevenueRecoveryAttempt {
         errors::RevenueRecoveryError,
     > {
         let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
-            &data,
+            data,
         ));
         // A transaction can be reported only once for an invoice, so one that is already
         // recorded is rejected instead of being recorded again.
         let existing_attempt = recovery_attempt
-            .get_payment_attempt(state, req_state, platform, profile, &payment_intent)
+            .get_payment_attempt(state, req_state, platform, profile, payment_intent)
             .await?;
         if existing_attempt.is_some() {
             return Err(report!(
@@ -499,7 +499,7 @@ impl RevenueRecoveryAttempt {
                 req_state,
                 platform,
                 profile,
-                &payment_intent,
+                payment_intent,
                 connector_details,
             )
             .await
@@ -806,19 +806,24 @@ impl RevenueRecoveryAttempt {
 
         let response = (recovery_attempt, updated_recovery_intent);
 
-        self.store_payment_processor_tokens_in_redis(
-            state,
-            &response.0,
-            connector_details.get_connector(),
-        )
-        .await
-        .map_err(|e| {
+        if let Err(error) = self
+            .store_payment_processor_tokens_in_redis(
+                state,
+                &response.0,
+                connector_details.get_connector(),
+            )
+            .await
+        {
             router_env::logger::error!(
                 "Failed to store payment processor tokens in Redis: {:?}",
-                e
+                error
             );
-            errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed
-        })?;
+            // A transaction the merchant reports is recorded by now, and reporting it again would
+            // be refused as a duplicate, so they still get an answer.
+            if connector_details.has_connector_accounts() {
+                return Err(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed.into());
+            }
+        }
 
         Ok(response)
     }
