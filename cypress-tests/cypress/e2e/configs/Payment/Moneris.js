@@ -30,6 +30,23 @@ const threeDSErrorResponse = {
   },
 };
 
+// Moneris now routes PreAuthenticate/PostAuthenticate through hyperswitch-prism
+// (UCS) for 3DS card payments (see PR #13864), but Moneris still needs to enable
+// 3DS on our sandbox merchant ID before an Authorize actually reaches the ACS
+// challenge instead of failing with a 403. Flip this to `true` once that is
+// enabled so the 3DS cases below assert the real redirect/challenge flow
+// instead of `threeDSErrorResponse`.
+const MONERIS_3DS_ENABLED = false;
+
+const threeDSAuthorizeResponse = MONERIS_3DS_ENABLED
+  ? {
+      status: 200,
+      body: {
+        status: "requires_customer_action",
+      },
+    }
+  : threeDSErrorResponse;
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -108,7 +125,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     }),
     "3DSAutoCapture": getCustomExchange({
       Request: {
@@ -121,7 +138,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     }),
     No3DSManualCapture: {
       Request: {
@@ -276,7 +293,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     MandateSingleUse3DSManualCapture: {
       Request: {
@@ -288,7 +305,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: singleUseMandateData,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
@@ -367,7 +384,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     MandateMultiUse3DSManualCapture: {
       Request: {
@@ -378,7 +395,7 @@ export const connectorDetails = {
         currency: "USD",
         mandate_data: multiUseMandateData,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     MITAutoCapture: {
       Request: { amount: 5000 },
@@ -544,7 +561,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
@@ -627,7 +644,7 @@ export const connectorDetails = {
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
@@ -641,7 +658,7 @@ export const connectorDetails = {
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
       },
-      Response: threeDSErrorResponse,
+      Response: threeDSAuthorizeResponse,
     },
     MITWithoutBillingAddress: {
       Request: {
