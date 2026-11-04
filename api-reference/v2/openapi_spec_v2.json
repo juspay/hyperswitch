@@ -216,6 +216,26 @@
         "summary": "Connector Account - Create",
         "description": "Creates a new Connector Account for the merchant account. The connector could be a payment processor/facilitator/acquirer or a provider of specialized services like Fraud/Accounting etc.",
         "operationId": "Create a Merchant Connector",
+        "parameters": [
+          {
+            "name": "X-Merchant-Id",
+            "in": "header",
+            "description": "Merchant ID of the connector account.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Authenticated business profile. Must match profile_id in the request body.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -232,7 +252,8 @@
                     },
                     "connector_label": "EU_adyen",
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_type": "payment_processor",
+                    "profile_id": "{{profile_id}}"
                   }
                 },
                 "Create a merchant connector account under a specific profile": {
@@ -255,7 +276,8 @@
                       "key1": "{{adyen_merchant_account}}"
                     },
                     "connector_name": "adyen",
-                    "connector_type": "payment_processor"
+                    "connector_type": "payment_processor",
+                    "profile_id": "{{profile_id}}"
                   }
                 }
               }
@@ -275,12 +297,15 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or profile_id does not match X-Profile-Id"
           }
         },
         "security": [
           {
             "admin_api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -885,6 +910,15 @@
             "example": {
               "X-Merchant-Id": "abc_iG5VNjsN9xuCg7Xx0uWh"
             }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Authenticated business profile. Must match the profile ID in the path.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -901,6 +935,9 @@
               }
             }
           },
+          "400": {
+            "description": "Path profile ID does not match X-Profile-Id"
+          },
           "401": {
             "description": "Unauthorized request"
           },
@@ -911,6 +948,9 @@
         "security": [
           {
             "admin_api_key": []
+          },
+          {
+            "jwt_key": []
           }
         ]
       }
@@ -2642,14 +2682,14 @@
           "Payments"
         ],
         "summary": "Payments - List",
-        "description": "To list the *payments*",
+        "description": "List payments and their total count within the authenticated X-Profile-Id.\nAn optional profile_id query filter must match X-Profile-Id.",
         "operationId": "List all Payments",
         "parameters": [
           {
             "name": "payment_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for payment",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2658,20 +2698,20 @@
           },
           {
             "name": "profile_id",
-            "in": "path",
-            "description": "The identifier for business profile",
-            "required": true,
+            "in": "query",
+            "description": "Optional business-profile filter. Must match the authenticated X-Profile-Id header.",
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
             },
-            "example": "pay_fafa124123"
+            "example": "pro_abcdefgh12345678"
           },
           {
             "name": "customer_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for customer",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true,
@@ -2682,9 +2722,9 @@
           },
           {
             "name": "starting_after",
-            "in": "path",
+            "in": "query",
             "description": "A cursor for use in pagination, fetch the next list after some object",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2693,9 +2733,9 @@
           },
           {
             "name": "ending_before",
-            "in": "path",
+            "in": "query",
             "description": "A cursor for use in pagination, fetch the previous list before some object",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
@@ -2704,27 +2744,27 @@
           },
           {
             "name": "limit",
-            "in": "path",
+            "in": "query",
             "description": "limit on the number of objects to return",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/common_utils.types.list.PageSize"
             }
           },
           {
             "name": "offset",
-            "in": "path",
+            "in": "query",
             "description": "The starting point within a list of objects",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
             }
           },
           {
             "name": "created",
-            "in": "path",
+            "in": "query",
             "description": "The time at which payment is created",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2734,9 +2774,9 @@
           },
           {
             "name": "created.lt",
-            "in": "path",
+            "in": "query",
             "description": "Time less than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2746,9 +2786,9 @@
           },
           {
             "name": "created.gt",
-            "in": "path",
+            "in": "query",
             "description": "Time greater than the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2758,9 +2798,9 @@
           },
           {
             "name": "created.lte",
-            "in": "path",
+            "in": "query",
             "description": "Time less than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2770,9 +2810,9 @@
           },
           {
             "name": "created.gte",
-            "in": "path",
+            "in": "query",
             "description": "Time greater than or equals to the payment created time",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "format": "date-time",
@@ -2782,9 +2822,9 @@
           },
           {
             "name": "start_amount",
-            "in": "path",
+            "in": "query",
             "description": "The start amount to filter list of transactions which are greater than or equal to the start amount",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -2793,9 +2833,9 @@
           },
           {
             "name": "end_amount",
-            "in": "path",
+            "in": "query",
             "description": "The end amount to filter list of transactions which are less than or equal to the end amount",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "integer",
               "format": "int64",
@@ -2804,9 +2844,9 @@
           },
           {
             "name": "connector",
-            "in": "path",
+            "in": "query",
             "description": "The connector to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2817,9 +2857,9 @@
           },
           {
             "name": "currency",
-            "in": "path",
+            "in": "query",
             "description": "The currency to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2830,9 +2870,9 @@
           },
           {
             "name": "status",
-            "in": "path",
+            "in": "query",
             "description": "The payment status to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2843,9 +2883,9 @@
           },
           {
             "name": "payment_method_type",
-            "in": "path",
+            "in": "query",
             "description": "The payment method type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2856,9 +2896,9 @@
           },
           {
             "name": "payment_method_subtype",
-            "in": "path",
+            "in": "query",
             "description": "The payment method subtype to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2869,9 +2909,9 @@
           },
           {
             "name": "authentication_type",
-            "in": "path",
+            "in": "query",
             "description": "The authentication type to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2882,9 +2922,9 @@
           },
           {
             "name": "merchant_connector_id",
-            "in": "path",
+            "in": "query",
             "description": "The merchant connector id to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2895,27 +2935,27 @@
           },
           {
             "name": "order_on",
-            "in": "path",
+            "in": "query",
             "description": "The field on which the payments list should be sorted",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/SortOn"
             }
           },
           {
             "name": "order_by",
-            "in": "path",
+            "in": "query",
             "description": "The order in which payments list should be sorted",
-            "required": true,
+            "required": false,
             "schema": {
               "$ref": "#/components/schemas/SortBy"
             }
           },
           {
             "name": "card_network",
-            "in": "path",
+            "in": "query",
             "description": "The card networks to filter payments list",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "array",
               "items": {
@@ -2926,12 +2966,21 @@
           },
           {
             "name": "merchant_order_reference_id",
-            "in": "path",
+            "in": "query",
             "description": "The identifier for merchant order reference id",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
               "nullable": true
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Authenticated business profile used to scope payment rows and total_count.",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -2945,6 +2994,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Query profile_id does not match X-Profile-Id"
           },
           "404": {
             "description": "No payments found"
@@ -12641,6 +12693,7 @@
           "bamboraapac",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -18575,10 +18628,6 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
-          },
-          "client_secret": {
-            "type": "string",
-            "nullable": true
           }
         }
       },
@@ -20275,6 +20324,12 @@
           "merchant_tax_registration_id": {
             "type": "string",
             "example": "123456789",
+            "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
             "nullable": true
           }
         },
@@ -22785,6 +22840,15 @@
             "description": "Token generated for the Apple pay"
           }
         }
+      },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
       },
       "PaylaterResponse": {
         "type": "object",
@@ -30480,6 +30544,14 @@
             ],
             "nullable": true
           },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
+              }
+            ],
+            "nullable": true
+          },
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
@@ -30800,6 +30872,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
               }
             ],
             "nullable": true
@@ -31733,6 +31813,24 @@
             ],
             "nullable": true
           },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "default": "absent",
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "default": "off_session",
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -32455,6 +32553,14 @@
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
             "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32827,6 +32933,59 @@
           "cascading"
         ]
       },
+      "RevenueRecoveryConfig": {
+        "type": "object",
+        "description": "Revenue recovery retry configuration for a profile",
+        "required": [
+          "max_retry_count",
+          "billing_connector_retry_threshold"
+        ],
+        "properties": {
+          "max_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.",
+            "example": "15",
+            "minimum": 0
+          },
+          "billing_connector_retry_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of `billing connector` retries before revenue recovery can start executing retries.",
+            "example": "10",
+            "minimum": 0
+          },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
+            "minimum": 0
+          },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period, in days from the invoice's billing start, within which retries are allowed.\nDefaults to 30 days when not provided.",
+            "default": 30,
+            "example": "30",
+            "minimum": 0
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for recovered payments. A value passed in the recovery\npayments API request takes priority over this. Defaults to `false` when not provided.",
+            "default": false,
+            "example": false
+          },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
+          }
+        }
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -32870,6 +33029,14 @@
             "description": "Allow partial authorization for payments recovered through this `billing connector`.\nA value passed in the recovery payments API request takes priority over this. Defaults to\n`false` when not provided.",
             "default": false,
             "example": false
+          },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
           },
           "billing_account_reference": {
             "type": "integer",
@@ -33016,6 +33183,7 @@
           "authorizedotnet",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bambora",

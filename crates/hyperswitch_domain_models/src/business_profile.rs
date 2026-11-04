@@ -8,13 +8,13 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
 };
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ExternalVaultConnectorDetails, PaymentMethodBlockingConfig,
     SurchargeConnectorDetails, WebhookDetails,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::{RevenueRecoveryAlgorithmData, RevenueRecoveryConfig};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
@@ -692,6 +692,7 @@ pub struct Profile {
     pub is_manual_retry_enabled: Option<bool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -752,6 +753,7 @@ pub struct ProfileSetter {
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -818,6 +820,7 @@ impl From<ProfileSetter> for Profile {
             is_manual_retry_enabled: None,
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
+            revenue_recovery_config: value.revenue_recovery_config,
         }
     }
 }
@@ -882,6 +885,7 @@ pub struct ProfileDbBuilder {
     pub is_manual_retry_enabled: Option<bool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -948,6 +952,7 @@ impl From<ProfileDbBuilder> for Profile {
             is_manual_retry_enabled: value.is_manual_retry_enabled,
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
+            revenue_recovery_config: value.revenue_recovery_config,
         }
     }
 }
@@ -1321,6 +1326,7 @@ pub struct ProfileGeneralUpdate {
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]

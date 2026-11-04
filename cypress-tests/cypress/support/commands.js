@@ -2131,6 +2131,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
+        expect(response.status).to.eq(resData.status);
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
             "application/json"
