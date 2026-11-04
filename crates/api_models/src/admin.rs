@@ -870,6 +870,11 @@ pub struct PrimaryBusinessDetails {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsRequest {
+    /// List of payment statuses that trigger a webhook for revenue recovery attempts.
+    /// Missing or empty disables them. On v1 updates, omitting it keeps the stored list;
+    /// v2 updates replace the stored webhook details.
+    #[schema(value_type = Option<Vec<IntentStatus>>, example = json!(["succeeded", "partially_captured", "failed"]))]
+    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
@@ -928,6 +933,10 @@ pub struct WebhookDetailsRequest {
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsResponse {
+    /// List of payment statuses that trigger a webhook for revenue recovery attempts.
+    /// Missing or empty means disabled.
+    #[schema(value_type = Option<Vec<IntentStatus>>, example = json!(["succeeded", "partially_captured", "failed"]))]
+    pub revenue_recovery_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
     ///The version for Webhook
     #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
@@ -985,6 +994,7 @@ pub struct WebhookDetailsResponse {
 impl From<WebhookDetailsRequest> for WebhookDetailsResponse {
     fn from(item: WebhookDetailsRequest) -> Self {
         Self {
+            revenue_recovery_statuses_enabled: item.revenue_recovery_statuses_enabled,
             webhook_version: item.webhook_version,
             webhook_username: item.webhook_username,
             webhook_password: item.webhook_password,
@@ -1058,6 +1068,9 @@ impl WebhookDetailsRequest {
 impl WebhookDetailsResponse {
     pub fn merge(self, other: Self) -> Self {
         Self {
+            revenue_recovery_statuses_enabled: other
+                .revenue_recovery_statuses_enabled
+                .or(self.revenue_recovery_statuses_enabled),
             webhook_version: other.webhook_version.or(self.webhook_version),
             webhook_username: other.webhook_username.or(self.webhook_username),
             webhook_password: other.webhook_password.or(self.webhook_password),
@@ -4096,6 +4109,47 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovery_webhook_default_and_update_semantics() {
+        use common_enums::IntentStatus;
+        let empty: WebhookDetailsRequest =
+            serde_json::from_value(serde_json::json!({})).expect("omitted setting");
+        assert!(empty.revenue_recovery_statuses_enabled.is_none());
+        let selected: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
+            "revenue_recovery_statuses_enabled": ["succeeded", "partially_captured", "failed"]
+        }))
+        .expect("valid outcomes");
+        let preserved = WebhookDetailsResponse::from(selected).merge(empty.into());
+        assert_eq!(
+            preserved.revenue_recovery_statuses_enabled,
+            Some(vec![
+                IntentStatus::Succeeded,
+                IntentStatus::PartiallyCaptured,
+                IntentStatus::Failed
+            ])
+        );
+        let clear: WebhookDetailsRequest = serde_json::from_value(serde_json::json!({
+            "revenue_recovery_statuses_enabled": []
+        }))
+        .expect("explicit empty selection");
+        let cleared = preserved.merge(clear.into());
+        assert_eq!(cleared.revenue_recovery_statuses_enabled, Some(vec![]));
+        let round_trip: WebhookDetailsResponse =
+            serde_json::from_value(serde_json::to_value(cleared).expect("serialize settings"))
+                .expect("deserialize settings");
+        assert_eq!(round_trip.revenue_recovery_statuses_enabled, Some(vec![]));
+    }
+
+    #[test]
+    fn recovery_webhook_rejects_unsupported_outcomes() {
+        assert!(
+            serde_json::from_value::<WebhookDetailsRequest>(serde_json::json!({
+                "revenue_recovery_statuses_enabled": ["success"]
+            }))
+            .is_err()
+        );
+    }
 
     #[test]
     fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {
