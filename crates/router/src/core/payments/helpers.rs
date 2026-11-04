@@ -4073,7 +4073,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                         state,
                         &payment_data.payment_intent,
                         &payment_data.payment_attempt,
-                        platform.get_provider(),
+                        platform,
                         Some(business_profile),
                     )
                     .await?;
@@ -4103,7 +4103,7 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
                     state,
                     &payment_data.payment_intent,
                     &payment_data.payment_attempt,
-                    platform.get_provider(),
+                    platform,
                     Some(business_profile),
                 )
                 .await?;
@@ -4196,7 +4196,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
     payment_method_data: &domain::PaymentMethodData,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
     todo!()
@@ -4209,7 +4209,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_intent: &PaymentIntent,
     payment_method: enums::PaymentMethod,
     payment_method_data: &domain::PaymentMethodData,
-    merchant_key_store: &domain::MerchantKeyStore,
+    platform: &domain::Platform,
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<Option<String>> {
     let should_store_google_pay_pan_only_for_three_ds = payment_attempt
@@ -4224,11 +4224,14 @@ pub async fn store_payment_method_data_in_vault(
             )
         });
 
-    if should_store_payment_method_data_in_vault(
-        &state.conf.temp_locker_enable_config,
-        payment_attempt.connector.clone(),
+    if is_temp_locker_storage_required_for_attempt(
+        state,
+        platform.get_processor(),
+        payment_attempt,
         payment_method,
-    ) || payment_intent.request_external_three_ds_authentication == Some(true)
+    )
+    .await?
+        || payment_intent.request_external_three_ds_authentication == Some(true)
         || should_store_google_pay_pan_only_for_three_ds
     {
         let parent_payment_method_token = store_in_vault_and_generate_ppmt(
@@ -4237,7 +4240,7 @@ pub async fn store_payment_method_data_in_vault(
             payment_intent,
             payment_attempt,
             payment_method,
-            merchant_key_store,
+            platform.get_provider().get_key_store(),
             business_profile,
         )
         .await?;
@@ -4246,6 +4249,56 @@ pub async fn store_payment_method_data_in_vault(
     }
 
     Ok(None)
+}
+
+/// `should_store_payment_method_data_in_vault`, narrowed by the connector's per-merchant answer
+/// read from the attempt's merchant connector account. Both the store and the check on the way
+/// back must use this, or they disagree about whether a token exists.
+#[cfg(feature = "v1")]
+pub async fn is_temp_locker_storage_required_for_attempt(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_attempt: &PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+) -> RouterResult<bool> {
+    if !should_store_payment_method_data_in_vault(
+        &state.conf.temp_locker_enable_config,
+        payment_attempt.connector.clone(),
+        payment_method,
+    ) {
+        return Ok(false);
+    }
+    let Some(connector) = payment_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector_name| api::ConnectorData::convert_connector(connector_name).ok())
+    else {
+        return Ok(true);
+    };
+    // Most connectors answer without the metadata, so they skip the lookup and cannot fail on it.
+    if connector.is_temp_locker_storage_required(&None) {
+        return Ok(true);
+    }
+    let connector_meta_data = match payment_attempt.merchant_connector_id.as_ref() {
+        Some(merchant_connector_id) => {
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    processor.get_account().get_id(),
+                    merchant_connector_id,
+                    processor.get_key_store().inner(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_connector_id.get_string_repr().to_string(),
+                    },
+                )?
+                .metadata
+        }
+        None => None,
+    };
+    Ok(connector.is_temp_locker_storage_required(&connector_meta_data))
 }
 
 pub fn should_store_payment_method_data_in_vault(

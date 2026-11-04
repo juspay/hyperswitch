@@ -488,6 +488,34 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
+
+    /// Whether the Authorize flow should continue to the authorization call after a
+    /// PreAuthenticate leg has run.
+    ///
+    /// `has_redirection_data` is true when the leg returned something the shopper must complete,
+    /// and `has_three_ds_invoke` when it returned a device-fingerprint instruction. A connector
+    /// whose PreAuthenticate leg only authenticates overrides this to continue once neither is
+    /// outstanding. The default is `false`: the payment stops after the leg.
+    fn should_continue_after_preauthenticate(
+        &self,
+        _has_redirection_data: bool,
+        _has_three_ds_invoke: bool,
+    ) -> bool {
+        false
+    }
+
+    /// Whether this merchant needs the payment method data kept in the temporary locker, for a
+    /// connector the `temp_locker_enable_config` lists. A connector overrides this when only some
+    /// merchants take the flow that reads it back. The default is `true`: being listed is enough.
+    /// An override must answer `false` when the metadata is absent, because callers skip the
+    /// metadata lookup once this answers `true` without it.
+    fn is_temp_locker_storage_required(
+        &self,
+        _connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        true
+    }
+
     /// Check if pre-authenticate cancel flow is supported
     fn is_pre_authorize_cancel_supported(
         &self,

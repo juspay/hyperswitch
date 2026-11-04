@@ -631,6 +631,28 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
         }
     }
+
+    fn should_continue_after_preauthenticate(
+        &self,
+        has_redirection_data: bool,
+        has_three_ds_invoke: bool,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .should_continue_after_preauthenticate(has_redirection_data, has_three_ds_invoke),
+            Self::New(connector) => connector
+                .should_continue_after_preauthenticate(has_redirection_data, has_three_ds_invoke),
+        }
+    }
+    fn is_temp_locker_storage_required(
+        &self,
+        connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_temp_locker_storage_required(connector_meta_data),
+            Self::New(connector) => connector.is_temp_locker_storage_required(connector_meta_data),
+        }
+    }
     fn is_settlement_split_call_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),

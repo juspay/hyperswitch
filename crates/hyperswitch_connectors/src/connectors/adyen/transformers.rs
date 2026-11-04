@@ -106,6 +106,10 @@ impl<T> TryFrom<(MinorUnit, T)> for AdyenRouterData<T> {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct AdyenConnectorMetadataObject {
     pub endpoint_prefix: Option<String>,
+    /// Opt in to Adyen's native 3D Secure 2 (standalone authentication: a device fingerprint and,
+    /// where the issuer asks for one, an embedded challenge) instead of the redirect flow. Absent
+    /// or false keeps the redirect flow, which is the default.
+    pub native_three_ds: Option<bool>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for AdyenConnectorMetadataObject {
@@ -437,6 +441,7 @@ pub enum AdyenStatus {
     Cancelled,
     ChallengeShopper,
     Error,
+    IdentifyShopper,
     Pending,
     Received,
     RedirectShopper,
@@ -496,6 +501,7 @@ fn get_adyen_payment_status(
         },
         AdyenStatus::Cancelled => storage_enums::AttemptStatus::Voided,
         AdyenStatus::ChallengeShopper
+        | AdyenStatus::IdentifyShopper
         | AdyenStatus::RedirectShopper
         | AdyenStatus::PresentToShopper => storage_enums::AttemptStatus::AuthenticationPending,
         AdyenStatus::Error | AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,

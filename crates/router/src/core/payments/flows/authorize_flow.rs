@@ -576,27 +576,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             let should_continue_after_preauthenticate = match connector.connector_name {
                 // connector specific handling to decide whether to continue with authorize or not should not be done here
-                // this is just a temporary fix for Redsys and Shift4 connectors
-                api_models::enums::Connector::Redsys => match &authorize_router_data.response {
-                    Ok(types::PaymentsResponseData::TransactionResponse {
-                        connector_metadata,
-                        redirection_data,
-                        ..
-                    }) => {
-                        let has_ucs_redirection = redirection_data.is_some();
-
-                        let has_hyperswitch_three_ds_invoke_data: bool =
-                            connector_metadata.clone().and_then(|metadata| {
-                                metadata
-                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>("PaymentsConnectorThreeDsInvokeData")
-                                    .ok()
-                            }).is_some();
-
-                        // Continue only if neither UCS nor hyperswitch indicates a redirect is needed
-                        !has_ucs_redirection && !has_hyperswitch_three_ds_invoke_data
-                    }
-                    _ => false,
-                },
+                // this is just a temporary fix for the Shift4 connector
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Paypal => true,
                 // Nuvei: never run the next leg after a failed initPayment
@@ -627,7 +607,31 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     }) => redirection_data.is_none(),
                     _ => false,
                 },
-                _ => false,
+                // Anything else asks the connector, so a connector-specific decision does
+                // not have to live in core.
+                _ => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        connector_metadata,
+                        redirection_data,
+                        ..
+                    }) => {
+                        let has_three_ds_invoke = connector_metadata
+                            .clone()
+                            .and_then(|metadata| {
+                                metadata
+                                    .parse_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>(
+                                        "PaymentsConnectorThreeDsInvokeData",
+                                    )
+                                    .ok()
+                            })
+                            .is_some();
+                        connector.connector.should_continue_after_preauthenticate(
+                            redirection_data.is_some(),
+                            has_three_ds_invoke,
+                        )
+                    }
+                    _ => false,
+                },
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
         } else {
@@ -1489,6 +1493,23 @@ fn transform_redirection_response_for_pre_authenticate_flow(
         _ => Ok(response_data),
     }
 }
+/// Serialises the 3DS invoke data over whatever connector state the gateway returned, so both
+/// survive in `connector_metadata`: the invoke fields drive the `invoke_hidden_iframe` next
+/// action, and the state lets the next leg resume the authentication ladder.
+fn merge_three_ds_invoke_data(
+    connector_state: Option<serde_json::Value>,
+    invoke_data: &api_models::payments::PaymentsConnectorThreeDsInvokeData,
+) -> Option<serde_json::Value> {
+    let invoke_value = serde_json::to_value(invoke_data).ok()?;
+    match (connector_state, invoke_value) {
+        (Some(serde_json::Value::Object(mut state)), serde_json::Value::Object(invoke)) => {
+            state.extend(invoke);
+            Some(serde_json::Value::Object(state))
+        }
+        (_, invoke_value) => Some(invoke_value),
+    }
+}
+
 fn transform_response_for_pre_authenticate_flow(
     connector: enums::connector_enums::Connector,
     response_data: router_response_types::PaymentsResponseData,
@@ -1541,7 +1562,7 @@ fn transform_response_for_pre_authenticate_flow(
                 },
             )
         }
-        // TODO: Temporary solution for Redsys 3DS invoke flow via UCS
+        // TODO: Temporary solution for the 3DS invoke flow via UCS
         //
         // Currently, UCS returns 3DS invoke data in `redirection_data.form_fields` instead of
         // `connector_metadata`. This workaround extracts the invoke data from form_fields and
@@ -1557,12 +1578,12 @@ fn transform_response_for_pre_authenticate_flow(
         // Hyperswitch, potentially through dedicated fields in the gRPC response or a unified
         // authentication data structure that covers all 3DS scenarios.
         (
-            enums::connector_enums::Connector::Redsys,
+            _,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
                 mandate_reference,
-                connector_metadata: _,
+                connector_metadata: connector_state,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -1606,19 +1627,32 @@ fn transform_response_for_pre_authenticate_flow(
                                         .map(|v| v == "true")
                                         .unwrap_or(true),
                                 };
-                            // Set connector_metadata with invoke data, clear redirection_data
-                            (serde_json::to_value(&invoke_data).ok(), Box::new(None))
+                            // Set connector_metadata with invoke data, clear redirection_data.
+                            // Keep any connector state UCS returned alongside it: a ladder that
+                            // resumes on a later API call (Adyen native 3DS2 parks its
+                            // `three_ds_data` here) is stranded if this leg drops it, and the
+                            // invoke parse ignores the extra keys.
+                            (
+                                merge_three_ds_invoke_data(connector_state, &invoke_data),
+                                Box::new(None),
+                            )
                         } else {
-                            // 3DS exempt or challenge - keep redirection_data, no special connector_metadata
-                            (None, redirection_data)
+                            // 3DS exempt or challenge - keep redirection_data, and keep the
+                            // connector state with it. A gateway that answers leg 1 with a
+                            // challenge rather than a fingerprint (Adyen native 3DS2 does for
+                            // an already-fingerprinted device) parks the rest of its ladder
+                            // here; dropping it abandons the authentication after the shopper
+                            // has completed it, and the money leg then starts a second,
+                            // unrelated 3DS flow - the shopper is challenged twice.
+                            (connector_state, redirection_data)
                         }
                     } else {
                         // Not a Form type redirect
-                        (None, redirection_data)
+                        (connector_state, redirection_data)
                     }
                 } else {
                     // No redirection data
-                    (None, redirection_data)
+                    (connector_state, redirection_data)
                 };
 
             Ok(
@@ -1907,4 +1941,424 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
 
     Ok(updated_router_data)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::panic)]
+mod multi_leg_authentication_tests {
+    use std::collections::HashMap;
+
+    use common_utils::{pii::SecretSerdeValue, request::Method, types::MinorUnit};
+    use hyperswitch_domain_models::{
+        payment_method_data::{Card, PaymentMethodData},
+        router_request_types::{AuthenticationData, CompleteAuthorizeData},
+    };
+    use hyperswitch_masking::Secret;
+    use router_response_types::{PaymentsResponseData, RedirectForm};
+    use serde_json::{json, Value};
+
+    use super::*;
+
+    fn connector(
+        name: &str,
+    ) -> hyperswitch_interfaces::connector_integration_interface::ConnectorEnum {
+        api::ConnectorData::convert_connector(name).unwrap()
+    }
+
+    fn opted_in() -> Option<SecretSerdeValue> {
+        Some(SecretSerdeValue::new(json!({ "native_three_ds": true })))
+    }
+
+    fn authorize_data() -> types::PaymentsAuthorizeData {
+        types::PaymentsAuthorizeData {
+            payment_method_data: PaymentMethodData::Card(Card::default()),
+            amount: 100,
+            minor_amount: MinorUnit::new(100),
+            order_tax_amount: None,
+            currency: enums::Currency::USD,
+            confirm: true,
+            capture_method: None,
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            setup_mandate_details: None,
+            browser_info: None,
+            order_details: None,
+            order_category: None,
+            email: None,
+            customer_name: None,
+            session_token: None,
+            enrolled_for_3ds: false,
+            related_transaction_id: None,
+            payment_experience: None,
+            payment_method_type: None,
+            router_return_url: None,
+            complete_authorize_url: None,
+            webhook_url: None,
+            customer_id: None,
+            surcharge_details: None,
+            request_incremental_authorization: false,
+            request_extended_authorization: None,
+            metadata: None,
+            authentication_data: None,
+            ucs_authentication_data: None,
+            force_3ds_challenge: None,
+            customer_acceptance: None,
+            split_payments: None,
+            guest_customer: None,
+            integrity_object: None,
+            merchant_order_reference_id: None,
+            additional_payment_method_data: None,
+            shipping_cost: None,
+            merchant_account_id: None,
+            merchant_config_currency: None,
+            connector_testing_data: None,
+            order_id: None,
+            locale: None,
+            payment_channel: None,
+            enable_partial_authorization: None,
+            enable_overcapture: None,
+            is_stored_credential: None,
+            mit_category: None,
+            billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
+            tokenization: None,
+            partner_merchant_identifier_details: None,
+            feature_metadata: None,
+            installment_details: None,
+            connector_intent_metadata: None,
+            business_country: None,
+            enable_avs_check: None,
+        }
+    }
+
+    fn pre_authenticate_required(
+        auth_type: enums::AuthenticationType,
+        request_data: types::PaymentsAuthorizeData,
+        connector_meta_data: Option<SecretSerdeValue>,
+    ) -> bool {
+        connector("adyen").is_pre_authentication_flow_required(
+            api_interface::CurrentFlowInfo::Authorize {
+                auth_type,
+                request_data: Box::new(request_data),
+                connector_meta_data,
+            },
+        )
+    }
+
+    fn complete_authorize_flow(connector_meta: Option<Value>) -> api_interface::CurrentFlowInfo {
+        api_interface::CurrentFlowInfo::CompleteAuthorize {
+            auth_type: enums::AuthenticationType::ThreeDs,
+            payment_method: Some(enums::PaymentMethod::Card),
+            request_data: Box::new(CompleteAuthorizeData {
+                payment_method_data: None,
+                amount: 100,
+                email: None,
+                currency: enums::Currency::USD,
+                confirm: true,
+                statement_descriptor_suffix: None,
+                capture_method: None,
+                setup_future_usage: None,
+                mandate_id: None,
+                off_session: None,
+                setup_mandate_details: None,
+                redirect_response: None,
+                browser_info: None,
+                connector_transaction_id: None,
+                connector_meta,
+                complete_authorize_url: None,
+                metadata: None,
+                customer_acceptance: None,
+                request_incremental_authorization: false,
+                authentication_data: None,
+                payment_method_type: None,
+                minor_amount: MinorUnit::new(100),
+                merchant_account_id: None,
+                merchant_config_currency: None,
+                threeds_method_comp_ind: None,
+                is_stored_credential: None,
+                tokenization: None,
+                router_return_url: None,
+                merchant_order_reference_id: None,
+                is_account_funded_transaction: None,
+                recipient_details: None,
+                business_country: None,
+                connector_intent_metadata: None,
+                order_id: None,
+                force_3ds_challenge: None,
+                customer_id: None,
+                billing_descriptor: None,
+                payment_channel: None,
+                enable_partial_authorization: None,
+                order_details: None,
+                enable_overcapture: None,
+                feature_metadata: None,
+            }),
+        }
+    }
+
+    fn ladder_state(stage: &str) -> Option<Value> {
+        Some(json!({ "three_ds_data": { "stage": stage, "paymentData": "state" } }))
+    }
+
+    #[test]
+    fn fingerprint_continues_to_authenticate() {
+        let adyen = connector("adyen");
+        assert!(adyen
+            .is_authentication_flow_required(complete_authorize_flow(ladder_state("fingerprint"))));
+        assert!(
+            !adyen.is_post_authentication_flow_required(complete_authorize_flow(ladder_state(
+                "fingerprint"
+            )))
+        );
+    }
+
+    #[test]
+    fn challenge_continues_to_post_authenticate() {
+        let adyen = connector("adyen");
+        assert!(
+            adyen.is_post_authentication_flow_required(complete_authorize_flow(ladder_state(
+                "challenge"
+            )))
+        );
+        assert!(!adyen
+            .is_authentication_flow_required(complete_authorize_flow(ladder_state("challenge"))));
+    }
+
+    #[test]
+    fn no_ladder_state_runs_neither_leg() {
+        let adyen = connector("adyen");
+        for state in [None, Some(json!({ "other": true }))] {
+            assert!(!adyen.is_authentication_flow_required(complete_authorize_flow(state.clone())));
+            assert!(!adyen.is_post_authentication_flow_required(complete_authorize_flow(state)));
+        }
+    }
+
+    #[test]
+    fn frictionless_continues_to_authorize() {
+        for name in ["adyen", "redsys"] {
+            let connector = connector(name);
+            assert!(connector.should_continue_after_preauthenticate(false, false));
+            assert!(!connector.should_continue_after_preauthenticate(true, false));
+            assert!(!connector.should_continue_after_preauthenticate(false, true));
+        }
+    }
+
+    #[test]
+    fn continuing_after_pre_authenticate_defaults_to_stopping() {
+        assert!(!connector("stripe").should_continue_after_preauthenticate(false, false));
+    }
+
+    #[test]
+    fn pre_authenticate_needs_the_opt_in_and_three_ds() {
+        let three_ds = enums::AuthenticationType::ThreeDs;
+        assert!(pre_authenticate_required(
+            three_ds,
+            authorize_data(),
+            opted_in()
+        ));
+        assert!(!pre_authenticate_required(three_ds, authorize_data(), None));
+        assert!(!pre_authenticate_required(
+            enums::AuthenticationType::NoThreeDs,
+            authorize_data(),
+            opted_in()
+        ));
+    }
+
+    #[test]
+    fn external_three_ds_skips_native_authentication() {
+        let mut request_data = authorize_data();
+        request_data.authentication_data = Some(AuthenticationData {
+            eci: None,
+            cavv: Secret::new("cavv".to_string()),
+            threeds_server_transaction_id: None,
+            message_version: None,
+            ds_trans_id: None,
+            created_at: common_utils::date_time::now(),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            acs_trans_id: None,
+            authentication_type: None,
+            transaction_status: None,
+            cb_network_params: None,
+            exemption_indicator: None,
+        });
+        assert!(!pre_authenticate_required(
+            enums::AuthenticationType::ThreeDs,
+            request_data,
+            opted_in()
+        ));
+    }
+
+    #[test]
+    fn temp_locker_follows_the_adyen_opt_in() {
+        let adyen = connector("adyen");
+        assert!(adyen.is_temp_locker_storage_required(&opted_in()));
+        assert!(!adyen.is_temp_locker_storage_required(&None));
+        assert!(
+            !adyen.is_temp_locker_storage_required(&Some(SecretSerdeValue::new(
+                json!({ "native_three_ds": false })
+            )))
+        );
+        assert!(
+            !adyen.is_temp_locker_storage_required(&Some(SecretSerdeValue::new(
+                json!({ "endpoint_prefix": "prefix" })
+            )))
+        );
+    }
+
+    #[test]
+    fn temp_locker_defaults_to_required_for_other_connectors() {
+        for name in ["saferpay", "cybersource", "nmi"] {
+            assert!(connector(name).is_temp_locker_storage_required(&None));
+        }
+    }
+
+    fn invoke_data() -> api_models::payments::PaymentsConnectorThreeDsInvokeData {
+        api_models::payments::PaymentsConnectorThreeDsInvokeData {
+            directory_server_id: "server-trans-id".to_string(),
+            three_ds_method_url: "https://acs.example/method".to_string(),
+            three_ds_method_data: "method-data".to_string(),
+            message_version: None,
+            three_ds_method_data_submission: true,
+        }
+    }
+
+    #[test]
+    fn merge_keeps_the_connector_state_next_to_the_invoke_data() {
+        let merged = merge_three_ds_invoke_data(
+            Some(json!({ "three_ds_data": { "stage": "fingerprint" } })),
+            &invoke_data(),
+        )
+        .unwrap();
+        assert_eq!(merged["three_ds_data"]["stage"], "fingerprint");
+        assert_eq!(merged["three_ds_method_data"], "method-data");
+    }
+
+    #[test]
+    fn merge_without_object_state_is_the_invoke_data_alone() {
+        for state in [None, Some(json!("scalar"))] {
+            assert_eq!(
+                merge_three_ds_invoke_data(state, &invoke_data()),
+                serde_json::to_value(invoke_data()).ok()
+            );
+        }
+    }
+
+    fn form(fields: &[(&str, &str)]) -> Option<RedirectForm> {
+        Some(RedirectForm::Form {
+            endpoint: "https://acs.example/endpoint".to_string(),
+            method: Method::Post,
+            form_fields: fields
+                .iter()
+                .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+                .collect::<HashMap<_, _>>(),
+        })
+    }
+
+    fn transform(
+        connector: enums::connector_enums::Connector,
+        connector_metadata: Option<Value>,
+        redirection_data: Option<RedirectForm>,
+    ) -> (Option<Value>, Option<RedirectForm>) {
+        let response = PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::NoResponseId,
+            redirection_data: Box::new(redirection_data),
+            mandate_reference: Box::new(None),
+            connector_metadata,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id: None,
+            payment_account_reference: None,
+            incremental_authorization_allowed: None,
+            authentication_data: None,
+            charges: None,
+        };
+        match transform_response_for_pre_authenticate_flow(connector, response).unwrap() {
+            PaymentsResponseData::TransactionResponse {
+                connector_metadata,
+                redirection_data,
+                ..
+            } => (connector_metadata, *redirection_data),
+            other => panic!("unexpected response: {other:?}"),
+        }
+    }
+
+    const INVOKE_FIELDS: &[(&str, &str)] = &[
+        ("threeDsMethodData", "method-data"),
+        ("threeDSServerTransID", "server-trans-id"),
+        ("threeDsMethodUrl", "https://acs.example/method"),
+    ];
+
+    #[test]
+    fn invoke_form_becomes_invoke_metadata_and_keeps_the_state() {
+        let (metadata, redirect) = transform(
+            enums::connector_enums::Connector::Adyen,
+            ladder_state("fingerprint"),
+            form(INVOKE_FIELDS),
+        );
+        assert!(redirect.is_none());
+        let metadata = metadata.unwrap();
+        assert_eq!(metadata["three_ds_data"]["stage"], "fingerprint");
+        assert_eq!(metadata["three_ds_method_data"], "method-data");
+        assert_eq!(metadata["directory_server_id"], "server-trans-id");
+        assert!(
+            serde_json::from_value::<api_models::payments::PaymentsConnectorThreeDsInvokeData>(
+                metadata
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn invoke_form_without_state_is_the_invoke_metadata() {
+        let (metadata, redirect) = transform(
+            enums::connector_enums::Connector::Redsys,
+            None,
+            form(INVOKE_FIELDS),
+        );
+        assert!(redirect.is_none());
+        assert_eq!(metadata.unwrap()["three_ds_method_data"], "method-data");
+    }
+
+    #[test]
+    fn challenge_form_keeps_both_redirect_and_state() {
+        let (metadata, redirect) = transform(
+            enums::connector_enums::Connector::Adyen,
+            ladder_state("challenge"),
+            form(&[("creq", "challenge-request")]),
+        );
+        assert!(redirect.is_some());
+        assert_eq!(metadata, ladder_state("challenge"));
+    }
+
+    #[test]
+    fn a_form_missing_either_invoke_field_is_left_alone() {
+        for fields in [
+            &[("threeDsMethodData", "method-data")][..],
+            &[("threeDSServerTransID", "server-trans-id")][..],
+        ] {
+            let (metadata, redirect) = transform(
+                enums::connector_enums::Connector::Stripe,
+                ladder_state("other"),
+                form(fields),
+            );
+            assert!(redirect.is_some());
+            assert_eq!(metadata, ladder_state("other"));
+        }
+    }
+
+    #[test]
+    fn no_redirect_passes_the_state_through() {
+        let (metadata, redirect) = transform(
+            enums::connector_enums::Connector::Nexixpay,
+            ladder_state("finished"),
+            None,
+        );
+        assert!(redirect.is_none());
+        assert_eq!(metadata, ladder_state("finished"));
+    }
 }

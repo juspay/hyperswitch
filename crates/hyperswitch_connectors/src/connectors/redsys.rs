@@ -1025,6 +1025,15 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
+    /// Continue only if neither UCS nor hyperswitch indicates a redirect is needed.
+    fn should_continue_after_preauthenticate(
+        &self,
+        has_redirection_data: bool,
+        has_three_ds_invoke: bool,
+    ) -> bool {
+        !has_redirection_data && !has_three_ds_invoke
+    }
+
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
