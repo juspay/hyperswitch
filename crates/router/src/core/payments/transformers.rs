@@ -58,7 +58,7 @@ use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
@@ -4272,9 +4272,6 @@ where
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
-            let next_action_invoke_ddc_iframe =
-                next_action_invoke_ddc_iframe(&payment_attempt, base_url)?;
-
             if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                 || bank_transfer_next_steps.is_some()
                 || next_action_voucher.is_some()
@@ -4285,7 +4282,18 @@ where
                 || next_action_containing_fetch_qr_code_url.is_some()
                 || payment_data.get_authentication().is_some()
             {
-                next_action_response = next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
+                next_action_response = next_action_invoke_ddc_iframe(
+                    payment_attempt.connector_metadata.as_ref(),
+                    base_url,
+                    callback_mode,
+                    &StartCallbackPath {
+                        payment_id: payment_intent.get_id().clone(),
+                        merchant_id: payment_intent.processor_merchant_id.clone(),
+                        attempt_id: payment_attempt.attempt_id.clone(),
+                    },
+                    sdk_callback_urls,
+                )?
+                .map(|ddc_iframe_data| {
                     api_models::payments::NextActionData::InvokeDdc {
                         ddc_data: api_models::payments::DDCData {
                             iframe_url: ddc_iframe_data.iframe_url,
@@ -4921,21 +4929,32 @@ pub fn next_action_invoke_hidden_frame(
 }
 
 pub fn next_action_invoke_ddc_iframe(
-    payment_attempt: &storage::PaymentAttempt,
+    connector_metadata: Option<&serde_json::Value>,
     base_url: &str,
+    callback_mode: PaymentCallbackMode,
+    path: &StartCallbackPath,
+    sdk_callback_urls: &mut SdkCallbackUrls,
 ) -> RouterResult<Option<api_models::payments::PaymentConnectorInvokeDDCData>> {
     let ddc_iframe_data: Option<
         error_stack::Result<
             api_models::payments::PaymentConnectorInvokeDDCData,
             common_utils::errors::ParsingError,
         >,
-    > = payment_attempt.connector_metadata.clone().map(|metadata| {
+    > = connector_metadata.cloned().map(|metadata| {
         let meta = metadata
             .parse_value::<api_models::payments::PaymentConnectorInvokeDDCMetadata>(
                 "PaymentConnectorInvokeDDCData",
             )?;
-        let full_iframe_url = format!("{}{}", base_url, meta.iframe_url);
-        let iframe_url = url::Url::parse(&full_iframe_url)
+        // Persisted iframe paths are legacy metadata; issue a fresh start URL
+        // through the response collector instead of returning that stored path.
+        let full_iframe_url = sdk_callback_urls.start_url(
+            base_url,
+            callback_mode,
+            &path.payment_id,
+            &path.merchant_id,
+            &path.attempt_id,
+        );
+        let iframe_url = url::Url::parse(full_iframe_url.peek())
             .change_context(common_utils::errors::ParsingError::UrlParsingError)
             .attach_printable("Failed to parse DDC iframe URL after joining with base_url")?;
         Ok(api_models::payments::PaymentConnectorInvokeDDCData {
@@ -5729,6 +5748,66 @@ mod sdk_callback_url_tests {
     }
     fn merchant_id(value: &str) -> common_utils::id_type::MerchantId {
         common_utils::id_type::MerchantId::wrap(value.to_string()).expect("merchant ID")
+    }
+
+    #[test]
+    fn ddc_next_action_uses_a_collected_start_url_in_every_mode() {
+        let path = StartCallbackPath {
+            payment_id: payment_id("pay"),
+            merchant_id: merchant_id("merchant"),
+            attempt_id: "attempt".into(),
+        };
+        let metadata = serde_json::json!({
+            "iframe_url": "/payments/redirect/old_pay/old_merchant/old_attempt",
+            "timeout_ms": 1000,
+        });
+        for mode in [
+            PaymentCallbackMode::Legacy,
+            PaymentCallbackMode::Migration,
+            PaymentCallbackMode::Enforced,
+        ] {
+            let mut callbacks = SdkCallbackUrls::default();
+            let ddc = next_action_invoke_ddc_iframe(
+                Some(&metadata),
+                "https://router.test",
+                mode,
+                &path,
+                &mut callbacks,
+            )
+            .expect("next action")
+            .expect("DDC");
+            assert_eq!(ddc.timeout_ms, Some(1000));
+            assert_eq!(
+                ddc.iframe_url.as_str(),
+                callbacks
+                    .start
+                    .as_ref()
+                    .expect("pending start URL")
+                    .url()
+                    .peek()
+            );
+            assert!(ddc
+                .iframe_url
+                .path()
+                .starts_with("/payments/redirect/pay/merchant/attempt"));
+            assert_eq!(
+                ddc.iframe_url.path().contains("/callback/"),
+                mode.issues_tokens()
+            );
+        }
+        for metadata in [None, Some(serde_json::json!({"unrelated": true}))] {
+            let mut callbacks = SdkCallbackUrls::default();
+            assert!(next_action_invoke_ddc_iframe(
+                metadata.as_ref(),
+                "https://router.test",
+                PaymentCallbackMode::Enforced,
+                &path,
+                &mut callbacks
+            )
+            .expect("unrelated metadata")
+            .is_none());
+            assert!(callbacks.start.is_none());
+        }
     }
 
     #[test]

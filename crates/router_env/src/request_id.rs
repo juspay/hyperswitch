@@ -197,7 +197,7 @@ pub(crate) mod boundary {
         request_id: &str,
     ) -> (ServiceRequest, IncomingHttpRecord) {
         let method = request.method().as_str().to_string();
-        let path = request.path().to_string();
+        let path = crate::request_path::mask_payment_callback_path(request.path()).into_owned();
         let query = request.query_string().to_string();
         let headers = headers_json(request.headers());
         let content_type = request
@@ -1044,7 +1044,7 @@ where
         let request_facts = RequestRecordingFacts {
             request_id: request_id.to_string(),
             method: request.method().as_str().to_owned(),
-            path: request.path().to_owned(),
+            path: crate::request_path::mask_payment_callback_path(request.path()).into_owned(),
         };
         let recording_sampler = self.recording_sampler.clone();
 
