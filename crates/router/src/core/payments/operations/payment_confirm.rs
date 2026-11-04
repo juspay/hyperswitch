@@ -27,12 +27,9 @@ use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "v1")]
+use crate::routes::payments::callback_routes::ConnectorCallbackPath;
 use crate::{
     consts,
-    core::utils::create_encrypted_data,
-    events::audit_events::{AuditEvent, AuditEventType},
-};
-use crate::{
     core::{
         authentication,
         blocklist::utils as blocklist_utils,
@@ -53,7 +50,9 @@ use crate::{
             types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
+        utils::create_encrypted_data,
     },
+    events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, payments::callback_routes::PaymentCallbackRoute, SessionState},
     services,
     types::{
@@ -2183,10 +2182,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let return_url = PaymentCallbackRoute::authorize_url(
                 &state.base_url,
-                payment_data.payment_attempt.payment_id.get_string_repr(),
-                payment_data.payment_attempt.processor_merchant_id.get_string_repr(),
-                payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
-            );
+                state.conf.payment_callback.mode,
+                &ConnectorCallbackPath {
+                    payment_id: payment_data.payment_attempt.payment_id.clone(),
+                    merchant_id: payment_data.payment_attempt.processor_merchant_id.clone(),
+                    connector: payment_data.payment_attempt.connector.as_ref()
+                        .get_required_value("connector")?.to_string(),
+                },
+            ).persist(state).await?;
 
             let domain_address  = payment_data.address.get_payment_method_billing().map(|address| address.clone().foreign_into());
             let shipping = payment_data.address.get_shipping().map(|address| address.clone().foreign_into());

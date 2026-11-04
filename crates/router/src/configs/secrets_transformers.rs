@@ -749,6 +749,7 @@ pub(crate) async fn fetch_raw_secrets(
         forex_api,
         refund: conf.refund,
         eph_key: conf.eph_key,
+        payment_callback: conf.payment_callback,
         scheduler: conf.scheduler,
         jwekey,
         webhooks: conf.webhooks,

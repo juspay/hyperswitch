@@ -105,6 +105,7 @@ pub struct Settings<S: SecretState> {
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
     pub eph_key: EphemeralConfig,
+    pub payment_callback: PaymentCallbackConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -209,6 +210,45 @@ pub struct Settings<S: SecretState> {
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
     pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
+}
+
+/// Rollout and expiry for single-use payment callback URLs.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct PaymentCallbackConfig {
+    pub mode: PaymentCallbackMode,
+    pub token_ttl_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentCallbackMode {
+    /// Preserve original URLs until all replicas support tokenized paths.
+    #[default]
+    Legacy,
+    /// Issue tokenized paths while accepting callbacks from older payment flows.
+    Migration,
+    /// Require a token on every protected payment callback.
+    Enforced,
+}
+
+impl PaymentCallbackMode {
+    pub const fn issues_tokens(self) -> bool {
+        !matches!(self, Self::Legacy)
+    }
+
+    pub const fn allows_legacy(self) -> bool {
+        !matches!(self, Self::Enforced)
+    }
+}
+
+impl Default for PaymentCallbackConfig {
+    fn default() -> Self {
+        Self {
+            mode: PaymentCallbackMode::Legacy,
+            token_ttl_seconds: 3600,
+        }
+    }
 }
 
 #[cfg(feature = "deja")]
@@ -1600,6 +1640,13 @@ impl Settings<SecuredSecret> {
 
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
+        if self.payment_callback.token_ttl_seconds == 0 {
+            return Err(ApplicationError::InvalidConfigurationValueError(
+                "payment_callback.token_ttl_seconds must be greater than zero".into(),
+            )
+            .into());
+        }
+
         self.master_database.get_inner().validate()?;
         if let Some(accounts_database) = &self.accounts_database {
             accounts_database.get_inner().validate()?;

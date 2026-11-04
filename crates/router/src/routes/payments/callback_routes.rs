@@ -6,10 +6,11 @@
 
 #[cfg(feature = "v1")]
 use actix_web::{web, Resource};
-use hyperswitch_masking::Secret;
 
 #[cfg(feature = "v1")]
 use super as payments;
+use super::callback_tokens::{self, PaymentCallbackFields, PaymentCallbackUrl};
+use crate::configs::settings::PaymentCallbackMode;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, strum::EnumIter)]
 pub enum PaymentCallbackRoute {
@@ -23,6 +24,7 @@ pub enum PaymentCallbackRoute {
 }
 
 impl PaymentCallbackRoute {
+    pub const CALLBACK_TOKEN: &'static str = "{callback_token}";
     pub const PAYMENT_ID: &'static str = "{payment_id}";
     pub const MERCHANT_ID: &'static str = "{merchant_id}";
     pub const ATTEMPT_ID: &'static str = "{attempt_id}";
@@ -46,6 +48,21 @@ impl PaymentCallbackRoute {
     }
 
     pub fn path(self) -> String {
+        match self {
+            Self::Authentication => self.legacy_path(),
+            _ => Self::with_callback_token(&self.legacy_path(), Self::CALLBACK_TOKEN),
+        }
+    }
+
+    pub(super) fn with_callback_token(path: &str, token: &str) -> String {
+        format!("{path}/callback/{token}")
+    }
+
+    pub fn legacy_name(self) -> String {
+        format!("{}_legacy", self.name())
+    }
+
+    pub fn legacy_path(self) -> String {
         match self {
             Self::Start => format!(
                 "/redirect/{}/{}/{}",
@@ -95,103 +112,134 @@ impl PaymentCallbackRoute {
 
     pub fn start_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        attempt_id: &str,
-    ) -> Secret<String> {
-        Self::Start
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::ATTEMPT_ID, attempt_id)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &StartCallbackPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::Start
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::ATTEMPT_ID, &fields.attempt_id);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::Start(fields),
+            path,
+            callback_mode,
+        )
     }
 
     pub fn redirect_response_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        connector: &str,
-    ) -> Secret<String> {
-        Self::RedirectResponse
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::CONNECTOR, connector)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &ConnectorCallbackPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::RedirectResponse
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::CONNECTOR, &fields.connector);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::RedirectResponse(fields),
+            path,
+            callback_mode,
+        )
     }
 
     pub fn redirect_response_with_credentials_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        connector: &str,
-        creds_identifier: &str,
-    ) -> Secret<String> {
-        Self::RedirectResponseWithCredentials
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::CONNECTOR, connector)
-            .replace(Self::CREDS_IDENTIFIER, creds_identifier)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &ConnectorCallbackWithCredentialsPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::RedirectResponseWithCredentials
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::CONNECTOR, &fields.connector)
+            .replace(Self::CREDS_IDENTIFIER, &fields.creds_identifier);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::RedirectResponseWithCredentials(fields),
+            path,
+            callback_mode,
+        )
     }
 
     pub fn redirect_complete_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        connector: &str,
-    ) -> Secret<String> {
-        Self::RedirectComplete
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::CONNECTOR, connector)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &ConnectorCallbackPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::RedirectComplete
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::CONNECTOR, &fields.connector);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::RedirectComplete(fields),
+            path,
+            callback_mode,
+        )
     }
 
     pub fn redirect_complete_with_credentials_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        connector: &str,
-        creds_identifier: &str,
-    ) -> Secret<String> {
-        Self::RedirectCompleteWithCredentials
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::CONNECTOR, connector)
-            .replace(Self::CREDS_IDENTIFIER, creds_identifier)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &ConnectorCallbackWithCredentialsPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::RedirectCompleteWithCredentials
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::CONNECTOR, &fields.connector)
+            .replace(Self::CREDS_IDENTIFIER, &fields.creds_identifier);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::RedirectCompleteWithCredentials(fields),
+            path,
+            callback_mode,
+        )
     }
 
     pub fn authorize_url(
         base_url: &str,
-        payment_id: &str,
-        merchant_id: &str,
-        connector: &str,
-    ) -> Secret<String> {
-        Self::Authorize
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-            .replace(Self::MERCHANT_ID, merchant_id)
-            .replace(Self::CONNECTOR, connector)
-            .into()
+        callback_mode: PaymentCallbackMode,
+        fields: &ConnectorCallbackPath,
+    ) -> PaymentCallbackUrl {
+        let path = Self::Authorize
+            .legacy_path()
+            .replace(Self::PAYMENT_ID, fields.payment_id.get_string_repr())
+            .replace(Self::MERCHANT_ID, fields.merchant_id.get_string_repr())
+            .replace(Self::CONNECTOR, &fields.connector);
+        callback_tokens::create_url(
+            base_url,
+            PaymentCallbackFields::Authorize(fields),
+            path,
+            callback_mode,
+        )
     }
 
-    pub fn authentication_url(base_url: &str, payment_id: &str) -> Secret<String> {
+    pub fn authentication_url(base_url: &str, payment_id: &str) -> String {
         Self::Authentication
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
-            .into()
     }
 
     /// Build the named resource with the methods and handlers for this callback.
     #[cfg(feature = "v1")]
     pub fn resource(self) -> Resource {
-        let resource = web::resource(self.path()).name(self.name());
+        self.routes(web::resource(self.path()).name(self.name()))
+    }
+
+    /// Build the original callback resource for the compatibility rollout.
+    #[cfg(feature = "v1")]
+    pub fn legacy_resource(self) -> Resource {
+        self.routes(web::resource(self.legacy_path()).name(&self.legacy_name()))
+    }
+
+    #[cfg(feature = "v1")]
+    fn routes(self, resource: Resource) -> Resource {
         match self {
             Self::Start => resource.route(web::get().to(payments::payments_start)),
             Self::RedirectResponse => resource
@@ -219,4 +267,33 @@ impl PaymentCallbackRoute {
             }
         }
     }
+}
+
+// The active API version supplies a concrete payment ID type.
+#[cfg(feature = "v1")]
+pub(crate) type CallbackPaymentId = common_utils::id_type::PaymentId;
+#[cfg(feature = "v2")]
+pub(crate) type CallbackPaymentId = common_utils::id_type::GlobalPaymentId;
+
+// Named extractors ignore the callback token; authentication reads it separately.
+#[derive(Debug, serde::Deserialize)]
+pub struct StartCallbackPath {
+    pub payment_id: CallbackPaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub attempt_id: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ConnectorCallbackPath {
+    pub payment_id: CallbackPaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ConnectorCallbackWithCredentialsPath {
+    pub payment_id: CallbackPaymentId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector: String,
+    pub creds_identifier: String,
 }

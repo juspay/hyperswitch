@@ -56,21 +56,33 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
-use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
+use hyperswitch_masking::ExposeOptionInterface;
+use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
+#[cfg(feature = "v2")]
+use crate::core::errors::RouterResponse;
 use crate::{
-    configs::settings::ConnectorRequestReferenceIdConfig,
+    configs::settings::{ConnectorRequestReferenceIdConfig, PaymentCallbackMode},
     core::{
-        errors::{self, RouterResponse, RouterResult},
+        errors::{self, RouterResult},
         payments::{self, helpers},
         utils as core_utils,
     },
     headers::{X_CONNECTOR_HTTP_STATUS_CODE, X_PAYMENT_CONFIRM_SOURCE},
-    routes::{metrics, payments::callback_routes::PaymentCallbackRoute, SessionState},
+    routes::{
+        metrics,
+        payments::{
+            callback_routes::{
+                CallbackPaymentId, ConnectorCallbackPath, ConnectorCallbackWithCredentialsPath,
+                PaymentCallbackRoute, StartCallbackPath,
+            },
+            callback_tokens::PaymentCallbackUrl,
+        },
+        SessionState,
+    },
     services::{self, RedirectForm},
     types::{
         self,
@@ -158,6 +170,14 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        connector_callback_urls: ConnectorCallbackUrls::redirects(
+            state,
+            &payment_data.payment_attempt.payment_id,
+            &payment_data.payment_attempt.processor_merchant_id,
+            connector_id,
+            payment_data.creds_identifier.as_deref(),
+        )
+        .await?,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
@@ -372,12 +392,19 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(PaymentCallbackRoute::redirect_complete_url(
-        router_base_url,
-        attempt.payment_id.get_string_repr(),
-        attempt.processor_merchant_id.get_string_repr(),
-        connector_id,
-    ));
+    let complete_authorize_url = Some(
+        PaymentCallbackRoute::redirect_complete_url(
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &ConnectorCallbackPath {
+                payment_id: attempt.payment_id.clone(),
+                merchant_id: attempt.processor_merchant_id.clone(),
+                connector: connector_id.to_string(),
+            },
+        )
+        .persist(state)
+        .await?,
+    );
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -674,12 +701,19 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(PaymentCallbackRoute::redirect_complete_url(
-        router_base_url,
-        attempt.payment_id.get_string_repr(),
-        attempt.processor_merchant_id.get_string_repr(),
-        connector_id,
-    ));
+    let complete_authorize_url = Some(
+        PaymentCallbackRoute::redirect_complete_url(
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &ConnectorCallbackPath {
+                payment_id: attempt.payment_id.clone(),
+                merchant_id: attempt.processor_merchant_id.clone(),
+                connector: connector_id.to_string(),
+            },
+        )
+        .persist(state)
+        .await?,
+    );
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -841,12 +875,19 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         .map(|mca_id| mca_id.get_string_repr().to_owned())
         .unwrap_or_else(|| connector_id.to_owned());
 
-    let complete_authorize_url = Some(PaymentCallbackRoute::redirect_complete_url(
-        &state.base_url,
-        attempt.payment_id.get_string_repr(),
-        attempt.processor_merchant_id.get_string_repr(),
-        connector_id,
-    ));
+    let complete_authorize_url = Some(
+        PaymentCallbackRoute::redirect_complete_url(
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &ConnectorCallbackPath {
+                payment_id: attempt.payment_id.clone(),
+                merchant_id: attempt.processor_merchant_id.clone(),
+                connector: connector_id.to_string(),
+            },
+        )
+        .persist(state)
+        .await?,
+    );
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url,
@@ -855,19 +896,33 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
     ));
 
     let router_return_url = Some(match payment_data.creds_identifier.as_deref() {
-        Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-            &state.base_url,
-            attempt.payment_id.get_string_repr(),
-            attempt.processor_merchant_id.get_string_repr(),
-            connector_id,
-            creds_identifier,
-        ),
-        None => PaymentCallbackRoute::redirect_response_url(
-            &state.base_url,
-            attempt.payment_id.get_string_repr(),
-            attempt.processor_merchant_id.get_string_repr(),
-            connector_id,
-        ),
+        Some(creds_identifier) => {
+            PaymentCallbackRoute::redirect_response_with_credentials_url(
+                &state.base_url,
+                state.conf.payment_callback.mode,
+                &ConnectorCallbackWithCredentialsPath {
+                    payment_id: attempt.payment_id.clone(),
+                    merchant_id: attempt.processor_merchant_id.clone(),
+                    connector: connector_id.to_string(),
+                    creds_identifier: creds_identifier.to_string(),
+                },
+            )
+            .persist(state)
+            .await?
+        }
+        None => {
+            PaymentCallbackRoute::redirect_response_url(
+                &state.base_url,
+                state.conf.payment_callback.mode,
+                &ConnectorCallbackPath {
+                    payment_id: attempt.payment_id.clone(),
+                    merchant_id: attempt.processor_merchant_id.clone(),
+                    connector: connector_id.to_string(),
+                },
+            )
+            .persist(state)
+            .await?
+        }
     });
 
     let amount = payment_data.payment_attempt.get_total_amount();
@@ -1798,12 +1853,19 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
     let router_base_url = &state.base_url;
     let attempt = &payment_data.payment_attempt;
 
-    let complete_authorize_url = Some(PaymentCallbackRoute::redirect_complete_url(
-        router_base_url,
-        attempt.payment_id.get_string_repr(),
-        attempt.processor_merchant_id.get_string_repr(),
-        connector_id,
-    ));
+    let complete_authorize_url = Some(
+        PaymentCallbackRoute::redirect_complete_url(
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &ConnectorCallbackPath {
+                payment_id: attempt.payment_id.clone(),
+                merchant_id: attempt.processor_merchant_id.clone(),
+                connector: connector_id.to_string(),
+            },
+        )
+        .persist(state)
+        .await?,
+    );
 
     let webhook_url = match merchant_connector_account {
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
@@ -2085,6 +2147,14 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        connector_callback_urls: ConnectorCallbackUrls::redirects(
+            state,
+            &payment_data.payment_attempt.payment_id,
+            &payment_data.payment_attempt.processor_merchant_id,
+            connector_id,
+            payment_data.creds_identifier.as_deref(),
+        )
+        .await?,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
@@ -2422,6 +2492,14 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        connector_callback_urls: ConnectorCallbackUrls::redirects(
+            state,
+            &payment_data.payment_attempt.payment_id,
+            &payment_data.payment_attempt.processor_merchant_id,
+            connector_id,
+            payment_data.creds_identifier.as_deref(),
+        )
+        .await?,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),
@@ -2583,6 +2661,9 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     Ok(router_data)
 }
 
+pub type ResponseWithCallbackUrls<T> =
+    RouterResult<(services::ApplicationResponse<T>, SdkCallbackUrls)>;
+
 pub trait ToResponse<F, D, Op>
 where
     Self: Sized,
@@ -2595,13 +2676,14 @@ where
         data: D,
         auth_flow: services::AuthFlow,
         base_url: &str,
+        callback_mode: PaymentCallbackMode,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> RouterResponse<Self>;
+    ) -> ResponseWithCallbackUrls<Self>;
 
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
@@ -2609,13 +2691,14 @@ where
         data: D,
         customer: Option<domain::Customer>,
         base_url: &str,
+        callback_mode: PaymentCallbackMode,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> RouterResponse<Self>;
+    ) -> ResponseWithCallbackUrls<Self>;
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -2828,13 +2911,14 @@ where
         payment_data: D,
         auth_flow: services::AuthFlow,
         base_url: &str,
+        callback_mode: PaymentCallbackMode,
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         let captures = payment_data
             .get_multiple_capture_data()
             .and_then(|multiple_capture_data| {
@@ -2856,6 +2940,7 @@ where
             captures,
             auth_flow,
             base_url,
+            callback_mode,
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
@@ -2879,29 +2964,33 @@ where
         payment_data: D,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                session_token: payment_data.get_sessions_token(),
-                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                client_secret: payment_data
-                    .get_payment_intent()
-                    .client_secret
-                    .clone()
-                    .get_required_value("client_secret")?
-                    .into(),
-                vault_details: payment_data
-                    .get_optional_external_vault_session_details()
-                    .and_then(Into::into),
-            },
-            vec![],
-        )))
+    ) -> ResponseWithCallbackUrls<Self> {
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    session_token: payment_data.get_sessions_token(),
+                    payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                    client_secret: payment_data
+                        .get_payment_intent()
+                        .client_secret
+                        .clone()
+                        .get_required_value("client_secret")?
+                        .into(),
+                    vault_details: payment_data
+                        .get_optional_external_vault_session_details()
+                        .and_then(Into::into),
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -2917,21 +3006,25 @@ where
         payment_data: D,
         _customer: Option<domain::Customer>,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                session_token: payment_data.get_sessions_token(),
-                payment_id: payment_data.get_payment_intent().id.clone(),
-                vault_details: payment_data.get_optional_external_vault_session_details(),
-            },
-            vec![],
-        )))
+    ) -> ResponseWithCallbackUrls<Self> {
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    session_token: payment_data.get_sessions_token(),
+                    payment_id: payment_data.get_payment_intent().id.clone(),
+                    vault_details: payment_data.get_optional_external_vault_session_details(),
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -2947,13 +3040,14 @@ where
         payment_data: D,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         let mut amount = payment_data.get_payment_intent().amount;
         let shipping_cost = payment_data.get_payment_intent().shipping_cost;
         if let Some(shipping_cost) = shipping_cost {
@@ -2977,21 +3071,24 @@ where
             .currency
             .get_required_value("currency")?;
 
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                net_amount: amount,
-                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                order_tax_amount,
-                shipping_cost,
-                display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
-                    amount,
-                    shipping_cost,
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    net_amount: amount,
+                    payment_id: payment_data.get_payment_attempt().payment_id.clone(),
                     order_tax_amount,
-                    currency,
-                ))?,
-            },
-            vec![],
-        )))
+                    shipping_cost,
+                    display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
+                        amount,
+                        shipping_cost,
+                        order_tax_amount,
+                        currency,
+                    ))?,
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3007,13 +3104,14 @@ where
         payment_data: D,
         _customer: Option<domain::Customer>,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
 
@@ -3040,68 +3138,74 @@ where
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
 
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                id: payment_intent.id.clone(),
-                profile_id: payment_intent.profile_id.clone(),
-                status: payment_intent.status,
-                amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
-                    payment_intent.amount_details.clone(),
-                ),
-                client_secret: client_secret.clone(),
-                merchant_reference_id: payment_intent.merchant_reference_id.clone(),
-                routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
-                capture_method: payment_intent.capture_method,
-                authentication_type: payment_intent.authentication_type,
-                billing: payment_intent
-                    .billing_address
-                    .clone()
-                    .map(|billing| billing.into_inner())
-                    .map(From::from),
-                shipping: payment_intent
-                    .shipping_address
-                    .clone()
-                    .map(|shipping| shipping.into_inner())
-                    .map(From::from),
-                customer_id: payment_intent.customer_id.clone(),
-                customer_present: payment_intent.customer_present,
-                description: payment_intent.description.clone(),
-                return_url: payment_intent.return_url.clone(),
-                setup_future_usage: payment_intent.setup_future_usage,
-                apply_mit_exemption: payment_intent.apply_mit_exemption,
-                statement_descriptor: payment_intent.statement_descriptor.clone(),
-                order_details: payment_intent.order_details.clone().map(|order_details| {
-                    order_details
-                        .into_iter()
-                        .map(|order_detail| order_detail.expose().convert_back())
-                        .collect()
-                }),
-                allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
-                metadata: payment_intent.metadata.clone(),
-                connector_metadata: payment_intent.connector_metadata.clone(),
-                feature_metadata: payment_intent
-                    .feature_metadata
-                    .clone()
-                    .map(|feature_metadata| feature_metadata.convert_back()),
-                payment_link_enabled: payment_intent.enable_payment_link,
-                payment_link_config: payment_intent
-                    .payment_link_config
-                    .clone()
-                    .map(ForeignFrom::foreign_from),
-                request_incremental_authorization: payment_intent.request_incremental_authorization,
-                split_txns_enabled: payment_intent.split_txns_enabled,
-                expires_on: payment_intent.session_expiry,
-                frm_metadata: payment_intent.frm_metadata.clone(),
-                request_external_three_ds_authentication: payment_intent
-                    .request_external_three_ds_authentication,
-                payment_type,
-                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
-                is_account_funded_transaction: payment_intent.is_account_funded_transaction,
-                recipient_details: masked_recipient_details,
-                enable_avs_check: payment_intent.enable_avs_check,
-            },
-            vec![],
-        )))
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    id: payment_intent.id.clone(),
+                    profile_id: payment_intent.profile_id.clone(),
+                    status: payment_intent.status,
+                    amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
+                        payment_intent.amount_details.clone(),
+                    ),
+                    client_secret: client_secret.clone(),
+                    merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+                    routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
+                    capture_method: payment_intent.capture_method,
+                    authentication_type: payment_intent.authentication_type,
+                    billing: payment_intent
+                        .billing_address
+                        .clone()
+                        .map(|billing| billing.into_inner())
+                        .map(From::from),
+                    shipping: payment_intent
+                        .shipping_address
+                        .clone()
+                        .map(|shipping| shipping.into_inner())
+                        .map(From::from),
+                    customer_id: payment_intent.customer_id.clone(),
+                    customer_present: payment_intent.customer_present,
+                    description: payment_intent.description.clone(),
+                    return_url: payment_intent.return_url.clone(),
+                    setup_future_usage: payment_intent.setup_future_usage,
+                    apply_mit_exemption: payment_intent.apply_mit_exemption,
+                    statement_descriptor: payment_intent.statement_descriptor.clone(),
+                    order_details: payment_intent.order_details.clone().map(|order_details| {
+                        order_details
+                            .into_iter()
+                            .map(|order_detail| order_detail.expose().convert_back())
+                            .collect()
+                    }),
+                    allowed_payment_method_types: payment_intent
+                        .allowed_payment_method_types
+                        .clone(),
+                    metadata: payment_intent.metadata.clone(),
+                    connector_metadata: payment_intent.connector_metadata.clone(),
+                    feature_metadata: payment_intent
+                        .feature_metadata
+                        .clone()
+                        .map(|feature_metadata| feature_metadata.convert_back()),
+                    payment_link_enabled: payment_intent.enable_payment_link,
+                    payment_link_config: payment_intent
+                        .payment_link_config
+                        .clone()
+                        .map(ForeignFrom::foreign_from),
+                    request_incremental_authorization: payment_intent
+                        .request_incremental_authorization,
+                    split_txns_enabled: payment_intent.split_txns_enabled,
+                    expires_on: payment_intent.session_expiry,
+                    frm_metadata: payment_intent.frm_metadata.clone(),
+                    request_external_three_ds_authentication: payment_intent
+                        .request_external_three_ds_authentication,
+                    payment_type,
+                    enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
+                    is_account_funded_transaction: payment_intent.is_account_funded_transaction,
+                    recipient_details: masked_recipient_details,
+                    enable_avs_check: payment_intent.enable_avs_check,
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3117,23 +3221,27 @@ where
         payment_data: D,
         _customer: Option<domain::Customer>,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                payment_attempt_list: payment_data
-                    .list_payments_attempts()
-                    .iter()
-                    .map(api_models::payments::PaymentAttemptResponse::foreign_from)
-                    .collect(),
-            },
-            vec![],
-        )))
+    ) -> ResponseWithCallbackUrls<Self> {
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    payment_attempt_list: payment_data
+                        .list_payments_attempts()
+                        .iter()
+                        .map(api_models::payments::PaymentAttemptResponse::foreign_from)
+                        .collect(),
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3646,13 +3754,14 @@ where
         payment_data: D,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         let papal_sdk_next_action =
             paypal_sdk_next_steps_check(payment_data.get_payment_attempt().clone())?;
         let next_action = papal_sdk_next_action.map(|paypal_next_action_data| {
@@ -3660,14 +3769,17 @@ where
                 next_action_data: paypal_next_action_data,
             }
         });
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                payment_id: payment_data.get_payment_intent().payment_id.clone(),
-                next_action,
-                status: payment_data.get_payment_intent().status,
-            },
-            vec![],
-        )))
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                    next_action,
+                    status: payment_data.get_payment_intent().status,
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3683,26 +3795,30 @@ where
         payment_data: D,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                payment_id: payment_data.get_payment_intent().payment_id.clone(),
-                metadata: payment_data
-                    .get_payment_intent()
-                    .metadata
-                    .clone()
-                    .map(Secret::new),
-                feature_metadata: None,
-                status: Some(payment_data.get_payment_intent().status),
-            },
-            vec![],
-        )))
+    ) -> ResponseWithCallbackUrls<Self> {
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                    metadata: payment_data
+                        .get_payment_intent()
+                        .metadata
+                        .clone()
+                        .map(Secret::new),
+                    feature_metadata: None,
+                    status: Some(payment_data.get_payment_intent().status),
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3771,13 +3887,14 @@ where
         _customer: Option<domain::Customer>,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         todo!()
     }
 
@@ -3787,13 +3904,14 @@ where
         payment_data: D,
         _auth_flow: services::AuthFlow,
         _base_url: &str,
+        _callback_mode: PaymentCallbackMode,
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> RouterResponse<Self> {
+    ) -> ResponseWithCallbackUrls<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data
                 .get_payment_attempt()
@@ -3822,36 +3940,39 @@ where
             .attach_printable("Failed to parse customer data from payment intent")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        Ok(services::ApplicationResponse::JsonWithHeaders((
-            Self {
-                verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
-                merchant_id: Some(payment_data.get_payment_intent().merchant_id.clone()),
-                client_secret: payment_data
-                    .get_payment_intent()
-                    .client_secret
-                    .clone()
-                    .map(Secret::new),
-                customer_id: payment_intent.customer_id.clone(),
-                email: customer
-                    .as_ref()
-                    .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
-                name: customer
-                    .as_ref()
-                    .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
-                phone: customer
-                    .as_ref()
-                    .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                mandate_id: payment_data
-                    .get_mandate_id()
-                    .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
-                payment_method: payment_data.get_payment_attempt().payment_method,
-                payment_method_data: payment_method_data_response,
-                payment_token: payment_data.get_token().map(ToString::to_string),
-                error_code: payment_data.get_payment_attempt().clone().error_code,
-                error_message: payment_data.get_payment_attempt().clone().error_message,
-            },
-            vec![],
-        )))
+        Ok((
+            services::ApplicationResponse::JsonWithHeaders((
+                Self {
+                    verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
+                    merchant_id: Some(payment_data.get_payment_intent().merchant_id.clone()),
+                    client_secret: payment_data
+                        .get_payment_intent()
+                        .client_secret
+                        .clone()
+                        .map(Secret::new),
+                    customer_id: payment_intent.customer_id.clone(),
+                    email: customer
+                        .as_ref()
+                        .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
+                    name: customer
+                        .as_ref()
+                        .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
+                    phone: customer
+                        .as_ref()
+                        .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
+                    mandate_id: payment_data
+                        .get_mandate_id()
+                        .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
+                    payment_method: payment_data.get_payment_attempt().payment_method,
+                    payment_method_data: payment_method_data_response,
+                    payment_token: payment_data.get_token().map(ToString::to_string),
+                    error_code: payment_data.get_payment_attempt().clone().error_code,
+                    error_message: payment_data.get_payment_attempt().clone().error_message,
+                },
+                vec![],
+            )),
+            SdkCallbackUrls::default(),
+        ))
     }
 }
 
@@ -3866,12 +3987,13 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _customer: Option<domain::Customer>,
     _auth_flow: services::AuthFlow,
     _base_url: &str,
+    _callback_mode: PaymentCallbackMode,
     _operation: &Op,
     _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     _connector_http_status_code: Option<u16>,
     _external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-) -> RouterResponse<api_models::payments::PaymentsResponse>
+) -> ResponseWithCallbackUrls<api_models::payments::PaymentsResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -3889,6 +4011,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     captures: Option<Vec<storage::Capture>>,
     _auth_flow: services::AuthFlow,
     base_url: &str,
+    callback_mode: PaymentCallbackMode,
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -3896,7 +4019,7 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _is_latency_header_enabled: Option<bool>,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
-) -> RouterResponse<api::PaymentsResponse>
+) -> ResponseWithCallbackUrls<api::PaymentsResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -3908,6 +4031,7 @@ where
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
     let payment_link_data = payment_data.get_payment_link_data();
+    let mut sdk_callback_urls = SdkCallbackUrls::default();
 
     let currency = payment_attempt
         .currency
@@ -4063,22 +4187,6 @@ where
             })
             .unwrap_or_default(),
     );
-    let connector_name = payment_attempt.connector.as_deref().unwrap_or_default();
-    let router_return_url = match payment_data.get_creds_identifier() {
-        Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-            base_url,
-            payment_attempt.payment_id.get_string_repr(),
-            payment_attempt.processor_merchant_id.get_string_repr(),
-            connector_name,
-            creds_identifier,
-        ),
-        None => PaymentCallbackRoute::redirect_response_url(
-            base_url,
-            payment_attempt.payment_id.get_string_repr(),
-            payment_attempt.processor_merchant_id.get_string_repr(),
-            connector_name,
-        ),
-    };
 
     let output = if payments::is_start_pay(&operation)
         && payment_attempt.authentication_data.is_some()
@@ -4090,15 +4198,28 @@ where
 
         let form: RedirectForm = serde_json::from_value(redirection_data)
             .map_err(|_| errors::ApiErrorResponse::InternalServerError)?;
+        let callback_url = sdk_callback_urls
+            .redirection_form_callback_url(
+                &form,
+                base_url,
+                callback_mode,
+                &payment_attempt.payment_id,
+                &payment_attempt.processor_merchant_id,
+                payment_data.get_creds_identifier(),
+            )
+            .cloned();
 
         services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
             redirect_form: form,
+            callback_url,
             payment_method_data: payment_data.get_payment_method_data().cloned(),
             amount,
             currency: currency.to_string(),
         }))
     } else {
         let mut next_action_response = None;
+        let third_party_sdk_session =
+            third_party_sdk_session_next_action(&payment_attempt, operation);
 
         // Early exit for terminal payment statuses - don't evaluate next_action at all
         if payment_intent.status.is_in_terminal_state() {
@@ -4140,95 +4261,140 @@ where
                 || payment_data.get_authentication().is_some()
             {
                 next_action_response = next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
-                                api_models::payments::NextActionData::InvokeDdc {
-                                    ddc_data: api_models::payments::DDCData {
-                                        iframe_url: ddc_iframe_data.iframe_url,
-                                        timeout_ms: ddc_iframe_data.timeout_ms,
-                                    }
-                                }
-                            }).or(
-                                payment_attempt.authentication_data.as_ref().map(|_| {
-                                // Check if iframe redirection is enabled in the business profile
-                                let redirect_url = PaymentCallbackRoute::start_url(
+                    api_models::payments::NextActionData::InvokeDdc {
+                        ddc_data: api_models::payments::DDCData {
+                            iframe_url: ddc_iframe_data.iframe_url,
+                            timeout_ms: ddc_iframe_data.timeout_ms,
+                        },
+                    }
+                });
+                if next_action_response.is_none()
+                    && payment_attempt.authentication_data.is_some()
+                    && !third_party_sdk_session
+                {
+                    let redirect_url = sdk_callback_urls
+                        .start_url(
+                            base_url,
+                            callback_mode,
+                            payment_intent.get_id(),
+                            &payment_intent.processor_merchant_id,
+                            &payment_attempt.attempt_id,
+                        )
+                        .clone();
+                    next_action_response = Some(
+                        if payment_intent
+                            .is_iframe_redirection_enabled
+                            .unwrap_or(false)
+                        {
+                            let connector = payment_attempt
+                                .connector
+                                .as_deref()
+                                .get_required_value("connector")?;
+                            let redirect_response_url = sdk_callback_urls
+                                .redirect_response_url(
                                     base_url,
-                                    payment_intent.get_id().get_string_repr(),
-                                    payment_intent.processor_merchant_id.get_string_repr(),
-                                    &payment_attempt.attempt_id,
-                                );
-                                // Check if redirection inside popup is enabled in the payment intent
-                                if payment_intent.is_iframe_redirection_enabled.unwrap_or(false) {
-                                    api_models::payments::NextActionData::RedirectInsidePopup {
-                                        popup_url: redirect_url,
-                                        redirect_response_url:router_return_url
-                                    }
-                                } else {
-                                    api_models::payments::NextActionData::RedirectToUrl {
-                                        redirect_to_url: redirect_url,
-                                    }
-                                }
-                            }))
-                            .or(bank_transfer_next_steps
-                            .map(|bank_transfer| {
-                                api_models::payments::NextActionData::DisplayBankTransferInformation {
-                                    bank_transfer_steps_and_charges_details: bank_transfer,
-                                }
-                            }))
-                            .or(next_action_voucher.map(|voucher_data| {
-                                api_models::payments::NextActionData::DisplayVoucherInformation {
-                                    voucher_details: voucher_data,
-                                }
-                            }))
-                            .or(next_action_mobile_payment.map(|mobile_payment_data| {
-                                api_models::payments::NextActionData::CollectOtp {
-                                    consent_data_required: mobile_payment_data.consent_data_required,
-                                }
-                            }))
-                            .or(next_action_containing_qr_code_url.map(|qr_code_data| {
-                                api_models::payments::NextActionData::foreign_from(qr_code_data)
-                            }))
-                            .or(next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
-                                api_models::payments::NextActionData::FetchQrCodeInformation {
-                                    qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url
-                                }
-                            }))
-                            .or(papal_sdk_next_action.map(|paypal_next_action_data| {
-                                api_models::payments::NextActionData::InvokeSdkClient{
-                                    next_action_data: paypal_next_action_data
-                                }
-                            }))
-                            .or(upi_next_action)
-                            .or(next_action_containing_wait_screen.map(|wait_screen_data| {
-                                api_models::payments::NextActionData::WaitScreenInformation {
-                                    display_from_timestamp: wait_screen_data.display_from_timestamp,
-                                    display_to_timestamp: wait_screen_data.display_to_timestamp,
-                                    poll_config: wait_screen_data.poll_config,
-                                }
-                            }))
-                            .or(match payment_data.get_authentication(){
-                                Some(authentication_store) => {
-                                    let authentication = &authentication_store.authentication;
-                                    if payment_intent.status == common_enums::IntentStatus::RequiresCustomerAction && authentication_store.cavv.is_none() && authentication.is_separate_authn_required(){
-                                        // if preAuthn and separate authentication needed.
-                                        let poll_config = payment_data.get_poll_config().unwrap_or_default();
-                                        let request_poll_id = core_utils::get_external_authentication_request_poll_id(&payment_intent.payment_id);
-                                        let payment_connector_name = payment_attempt.connector
-                                            .as_ref()
-                                            .get_required_value("connector")?;
-                                        let is_jwt_flow = authentication.is_jwt_flow()
-                                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                                            .attach_printable("Failed to determine if the authentication is JWT flow")?;
-                                        Some(api_models::payments::NextActionData::ThreeDsInvoke {
+                                    callback_mode,
+                                    &payment_attempt.payment_id,
+                                    &payment_attempt.processor_merchant_id,
+                                    connector,
+                                    payment_data.get_creds_identifier(),
+                                )
+                                .clone();
+                            api_models::payments::NextActionData::RedirectInsidePopup {
+                                popup_url: redirect_url,
+                                redirect_response_url,
+                            }
+                        } else {
+                            api_models::payments::NextActionData::RedirectToUrl {
+                                redirect_to_url: redirect_url,
+                            }
+                        },
+                    );
+                }
+                next_action_response = next_action_response
+                    .or(bank_transfer_next_steps.map(|bank_transfer| {
+                        api_models::payments::NextActionData::DisplayBankTransferInformation {
+                            bank_transfer_steps_and_charges_details: bank_transfer,
+                        }
+                    }))
+                    .or(next_action_voucher.map(|voucher_data| {
+                        api_models::payments::NextActionData::DisplayVoucherInformation {
+                            voucher_details: voucher_data,
+                        }
+                    }))
+                    .or(next_action_mobile_payment.map(|mobile_payment_data| {
+                        api_models::payments::NextActionData::CollectOtp {
+                            consent_data_required: mobile_payment_data.consent_data_required,
+                        }
+                    }))
+                    .or(next_action_containing_qr_code_url.map(|qr_code_data| {
+                        api_models::payments::NextActionData::foreign_from(qr_code_data)
+                    }))
+                    .or(
+                        next_action_containing_fetch_qr_code_url.map(|fetch_qr_code_data| {
+                            api_models::payments::NextActionData::FetchQrCodeInformation {
+                                qr_code_fetch_url: fetch_qr_code_data.qr_code_fetch_url,
+                            }
+                        }),
+                    )
+                    .or(papal_sdk_next_action.map(|paypal_next_action_data| {
+                        api_models::payments::NextActionData::InvokeSdkClient {
+                            next_action_data: paypal_next_action_data,
+                        }
+                    }))
+                    .or(upi_next_action)
+                    .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                        api_models::payments::NextActionData::WaitScreenInformation {
+                            display_from_timestamp: wait_screen_data.display_from_timestamp,
+                            display_to_timestamp: wait_screen_data.display_to_timestamp,
+                            poll_config: wait_screen_data.poll_config,
+                        }
+                    }));
+                if next_action_response.is_none() && !third_party_sdk_session {
+                    next_action_response = match payment_data.get_authentication() {
+                        Some(authentication_store) => {
+                            let authentication = &authentication_store.authentication;
+                            if payment_intent.status
+                                == common_enums::IntentStatus::RequiresCustomerAction
+                                && authentication_store.cavv.is_none()
+                                && authentication.is_separate_authn_required()
+                            {
+                                // if preAuthn and separate authentication needed.
+                                let poll_config =
+                                    payment_data.get_poll_config().unwrap_or_default();
+                                let request_poll_id =
+                                    core_utils::get_external_authentication_request_poll_id(
+                                        &payment_intent.payment_id,
+                                    );
+                                let connector = payment_attempt
+                                    .connector
+                                    .as_deref()
+                                    .get_required_value("connector")?;
+                                let is_jwt_flow = authentication
+                                    .is_jwt_flow()
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to determine if the authentication is JWT flow",
+                                    )?;
+                                let three_ds_authorize_url = sdk_callback_urls
+                                    .authorize_url(
+                                        base_url,
+                                        callback_mode,
+                                        &payment_attempt.payment_id,
+                                        &payment_attempt.processor_merchant_id,
+                                        connector,
+                                    )
+                                    .clone();
+                                let three_ds_authentication_url = sdk_callback_urls
+                                    .authentication_url(
+                                        base_url,
+                                        payment_attempt.payment_id.get_string_repr(),
+                                    )
+                                    .clone();
+                                Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                             three_ds_data: api_models::payments::ThreeDsData {
-                                                three_ds_authentication_url: PaymentCallbackRoute::authentication_url(
-                                                    base_url,
-                                                    payment_attempt.payment_id.get_string_repr(),
-                                                ),
-                                                three_ds_authorize_url: PaymentCallbackRoute::authorize_url(
-                                                    base_url,
-                                                    payment_attempt.payment_id.get_string_repr(),
-                                                    payment_attempt.processor_merchant_id.get_string_repr(),
-                                                    payment_connector_name,
-                                                ),
+                                                three_ds_authentication_url,
+                                                three_ds_authorize_url,
                                                 three_ds_method_details: authentication.three_ds_method_url.as_ref().zip(authentication.three_ds_method_data.as_ref()).map(|(three_ds_method_url,three_ds_method_data )|{
                                                     api_models::payments::ThreeDsMethodData::AcsThreeDsMethodData {
                                                         three_ds_method_data_submission: true,
@@ -4257,23 +4423,25 @@ where
                                                 three_ds_connector: authentication.authentication_connector.clone(),
                                             },
                                         })
-                                    }else{
-                                        None
-                                    }
-                                },
-                                None => None
-                            })
-                            .or(match next_action_invoke_hidden_frame{
-                                Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
-                                    threeds_invoke_data,
-                                )?),
-                                None => None
-                            });
+                            } else {
+                                None
+                            }
+                        }
+                        None => None,
+                    };
+                }
+                next_action_response =
+                    next_action_response.or(match next_action_invoke_hidden_frame {
+                        Some(threeds_invoke_data) => Some(construct_connector_invoke_hidden_frame(
+                            threeds_invoke_data,
+                        )?),
+                        None => None,
+                    });
             }
         };
 
         // next action check for third party sdk session (for ex: Apple pay through trustpay has third party sdk session response)
-        if third_party_sdk_session_next_action(&payment_attempt, operation) {
+        if third_party_sdk_session {
             next_action_response = Some(
                 api_models::payments::NextActionData::ThirdPartySdkSessionToken {
                     session_token: payment_data.get_sessions_token().first().cloned(),
@@ -4598,7 +4766,7 @@ where
         ),
     );
 
-    Ok(output)
+    Ok((output, sdk_callback_urls))
 }
 
 #[cfg(feature = "v1")]
@@ -5320,12 +5488,639 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
     }
 }
 
+/// Callback URLs ready for synchronous request/response conversions.
+#[derive(Clone)]
+pub struct ConnectorCallbackUrls {
+    pub redirect_response: Secret<String>,
+    pub redirect_complete: Secret<String>,
+}
+
+/// SDK URLs returned by response generation, pending token registration.
+#[derive(Clone, Default)]
+pub struct SdkCallbackUrls {
+    pub start: Option<PaymentCallbackUrl>,
+    pub authorize: Option<PaymentCallbackUrl>,
+    pub redirect_response: Option<PaymentCallbackUrl>,
+    pub redirect_complete: Option<PaymentCallbackUrl>,
+    pub authentication: Option<Secret<String>>,
+}
+
+impl SdkCallbackUrls {
+    pub fn redirection_form_callback_url(
+        &mut self,
+        form: &RedirectForm,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        creds_identifier: Option<&str>,
+    ) -> Option<&Secret<String>> {
+        let connector = match form {
+            RedirectForm::Braintree { .. } => "braintree",
+            RedirectForm::Mifinity { .. } => "mifinity",
+            RedirectForm::BarclaycardAuthSetup { .. } => "barclaycard",
+            RedirectForm::CybersourceAuthSetup { .. } => "cybersource",
+            RedirectForm::BlueSnap { .. } => "bluesnap",
+            RedirectForm::Payme => "payme",
+            RedirectForm::Nmi { .. } => "nmi",
+            RedirectForm::WorldpayDDCForm { .. } => "worldpay",
+            RedirectForm::WorldpayxmlDDCForm { .. } => "worldpayxml",
+            _ => return None,
+        };
+        Some(match form {
+            RedirectForm::Braintree { .. } | RedirectForm::Mifinity { .. } => self
+                .redirect_response_url(
+                    base_url,
+                    callback_mode,
+                    payment_id,
+                    merchant_id,
+                    connector,
+                    None,
+                ),
+            _ => self.redirect_complete_url(
+                base_url,
+                callback_mode,
+                payment_id,
+                merchant_id,
+                connector,
+                creds_identifier,
+            ),
+        })
+    }
+
+    pub fn authentication_url(&mut self, base_url: &str, payment_id: &str) -> &Secret<String> {
+        self.authentication.get_or_insert_with(|| {
+            PaymentCallbackRoute::authentication_url(base_url, payment_id).into()
+        })
+    }
+
+    pub fn start_url(
+        &mut self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
+    ) -> &Secret<String> {
+        self.start
+            .get_or_insert_with(|| {
+                PaymentCallbackRoute::start_url(
+                    base_url,
+                    callback_mode,
+                    &StartCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        attempt_id: attempt_id.to_string(),
+                    },
+                )
+            })
+            .url()
+    }
+
+    pub fn authorize_url(
+        &mut self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: &str,
+    ) -> &Secret<String> {
+        self.authorize
+            .get_or_insert_with(|| {
+                PaymentCallbackRoute::authorize_url(
+                    base_url,
+                    callback_mode,
+                    &ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    },
+                )
+            })
+            .url()
+    }
+
+    pub fn redirect_response_url(
+        &mut self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: &str,
+        creds_identifier: Option<&str>,
+    ) -> &Secret<String> {
+        self.redirect_response
+            .get_or_insert_with(|| match creds_identifier {
+                Some(creds) => PaymentCallbackRoute::redirect_response_with_credentials_url(
+                    base_url,
+                    callback_mode,
+                    &ConnectorCallbackWithCredentialsPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                        creds_identifier: creds.to_string(),
+                    },
+                ),
+                None => PaymentCallbackRoute::redirect_response_url(
+                    base_url,
+                    callback_mode,
+                    &ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    },
+                ),
+            })
+            .url()
+    }
+
+    pub fn redirect_complete_url(
+        &mut self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: &str,
+        creds_identifier: Option<&str>,
+    ) -> &Secret<String> {
+        self.redirect_complete
+            .get_or_insert_with(|| match creds_identifier {
+                Some(creds) => PaymentCallbackRoute::redirect_complete_with_credentials_url(
+                    base_url,
+                    callback_mode,
+                    &ConnectorCallbackWithCredentialsPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                        creds_identifier: creds.to_string(),
+                    },
+                ),
+                None => PaymentCallbackRoute::redirect_complete_url(
+                    base_url,
+                    callback_mode,
+                    &ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    },
+                ),
+            })
+            .url()
+    }
+
+    pub async fn persist(self, state: &SessionState) -> RouterResult<()> {
+        self.persist_with(
+            |callback_url| async move { callback_url.persist(state).await.map(|_| ()) },
+        )
+        .await
+    }
+
+    async fn persist_with<F, Fut>(self, mut persist: F) -> RouterResult<()>
+    where
+        F: FnMut(PaymentCallbackUrl) -> Fut,
+        Fut: std::future::Future<Output = RouterResult<()>>,
+    {
+        for callback_url in [
+            self.start,
+            self.authorize,
+            self.redirect_response,
+            self.redirect_complete,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            persist(callback_url).await?;
+        }
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod sdk_callback_url_tests {
+    use std::sync::Mutex;
+
+    use hyperswitch_masking::PeekInterface;
+
+    use super::*;
+
+    fn payment_id(value: &str) -> CallbackPaymentId {
+        CallbackPaymentId::wrap(value.to_string()).expect("payment ID")
+    }
+    fn merchant_id(value: &str) -> common_utils::id_type::MerchantId {
+        common_utils::id_type::MerchantId::wrap(value.to_string()).expect("merchant ID")
+    }
+
+    #[test]
+    fn sdk_url_methods_reuse_cached_urls_and_populate_only_their_field() {
+        let mut callbacks = SdkCallbackUrls::default();
+        let start = callbacks
+            .start_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "attempt",
+            )
+            .clone();
+        assert!(callbacks.authorize.is_none());
+        assert!(callbacks.redirect_response.is_none());
+        assert_eq!(
+            callbacks.start_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "attempt"
+            ),
+            &start
+        );
+        let authorize = callbacks
+            .authorize_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe",
+            )
+            .clone();
+        assert!(callbacks.redirect_response.is_none());
+        assert_eq!(
+            callbacks.authorize_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe"
+            ),
+            &authorize
+        );
+        let redirect = callbacks
+            .redirect_response_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe",
+                None,
+            )
+            .clone();
+        assert_eq!(
+            callbacks.redirect_response_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe",
+                None
+            ),
+            &redirect
+        );
+    }
+
+    #[test]
+    fn credential_redirect_is_cached_with_its_original_token_and_path() {
+        let mut callbacks = SdkCallbackUrls::default();
+        let redirect = callbacks
+            .redirect_response_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe",
+                Some("creds"),
+            )
+            .clone();
+        assert!(url::Url::parse(redirect.peek())
+            .expect("redirect URL")
+            .path()
+            .starts_with("/payments/pay/merchant/redirect/response/stripe/creds/callback/"));
+        assert_eq!(
+            callbacks.redirect_response_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("other_pay"),
+                &merchant_id("other_merchant"),
+                "adyen",
+                None
+            ),
+            &redirect
+        );
+        assert!(callbacks.start.is_none());
+        assert!(callbacks.authorize.is_none());
+    }
+
+    #[tokio::test]
+    async fn authentication_url_is_cached_without_token_registration() {
+        let mut callbacks = SdkCallbackUrls::default();
+        let authentication = callbacks
+            .authentication_url("https://router.test", "pay")
+            .clone();
+        assert_eq!(
+            authentication.peek(),
+            "https://router.test/payments/pay/3ds/authentication"
+        );
+        assert_eq!(
+            callbacks.authentication_url("https://router.test", "other_pay"),
+            &authentication
+        );
+        callbacks
+            .persist_with(|_| async {
+                panic!("Client-secret authentication does not register a callback token")
+            })
+            .await
+            .expect("no callback registration");
+    }
+
+    #[tokio::test]
+    async fn empty_sdk_callbacks_require_no_registration() {
+        SdkCallbackUrls::default()
+            .persist_with(|_| async { panic!("No SDK callbacks were constructed") })
+            .await
+            .expect("empty callback group");
+    }
+
+    #[tokio::test]
+    async fn redirect_registers_only_the_constructed_start_url() {
+        let mut callbacks = SdkCallbackUrls::default();
+        let expected = callbacks
+            .start_url(
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "attempt",
+            )
+            .clone();
+        let registered = Mutex::new(Vec::new());
+        callbacks
+            .persist_with(|callback| {
+                registered
+                    .lock()
+                    .expect("registered URLs")
+                    .push(callback.url().clone());
+                async { Ok(()) }
+            })
+            .await
+            .expect("registration");
+        assert_eq!(*registered.lock().expect("registered URLs"), vec![expected]);
+    }
+
+    #[tokio::test]
+    async fn browser_forms_register_only_the_required_callback_endpoint() {
+        let forms = [
+            (RedirectForm::Payme, "payme", false),
+            (
+                RedirectForm::BlueSnap {
+                    payment_fields_token: "fields".into(),
+                },
+                "bluesnap",
+                false,
+            ),
+            (
+                RedirectForm::BarclaycardAuthSetup {
+                    access_token: "token".into(),
+                    ddc_url: "https://connector.test".into(),
+                    reference_id: "reference".into(),
+                },
+                "barclaycard",
+                false,
+            ),
+            (
+                RedirectForm::CybersourceAuthSetup {
+                    access_token: "token".into(),
+                    ddc_url: "https://connector.test".into(),
+                    reference_id: "reference".into(),
+                },
+                "cybersource",
+                false,
+            ),
+            (
+                RedirectForm::Braintree {
+                    client_token: "client".into(),
+                    card_token: "card".into(),
+                    bin: "123456".into(),
+                    acs_url: "https://connector.test".to_string().into(),
+                },
+                "braintree",
+                true,
+            ),
+            (
+                RedirectForm::Mifinity {
+                    initialization_token: "initialization".into(),
+                },
+                "mifinity",
+                true,
+            ),
+            (
+                RedirectForm::Nmi {
+                    amount: "100".into(),
+                    currency: Currency::USD,
+                    public_key: "public".to_string().into(),
+                    customer_vault_id: "vault".into(),
+                    order_id: "order".into(),
+                },
+                "nmi",
+                false,
+            ),
+            (
+                RedirectForm::WorldpayDDCForm {
+                    endpoint: url::Url::parse("https://connector.test").expect("connector URL"),
+                    method: common_utils::request::Method::Post,
+                    form_fields: Default::default(),
+                    collection_id: None,
+                },
+                "worldpay",
+                false,
+            ),
+            (
+                RedirectForm::WorldpayxmlDDCForm {
+                    bin: "123456".into(),
+                    jwt: "jwt".into(),
+                },
+                "worldpayxml",
+                false,
+            ),
+        ];
+        for (form, connector, is_response) in forms {
+            let mut callbacks = SdkCallbackUrls::default();
+            let callback = callbacks
+                .redirection_form_callback_url(
+                    &form,
+                    "https://router.test",
+                    PaymentCallbackMode::Migration,
+                    &payment_id("pay"),
+                    &merchant_id("merchant"),
+                    None,
+                )
+                .expect("browser callback")
+                .clone();
+            let url = url::Url::parse(callback.peek()).expect("URL");
+            let action = if is_response { "response" } else { "complete" };
+            assert!(url.path().starts_with(&format!(
+                "/payments/pay/merchant/redirect/{action}/{connector}/callback/"
+            )));
+            assert!(url.query().is_none());
+            assert!(callbacks.start.is_none());
+            assert!(callbacks.authorize.is_none());
+            assert_eq!(callbacks.redirect_response.is_some(), is_response);
+            assert_eq!(callbacks.redirect_complete.is_some(), !is_response);
+            assert_eq!(
+                callbacks.redirection_form_callback_url(
+                    &form,
+                    "https://router.test",
+                    PaymentCallbackMode::Migration,
+                    &payment_id("other_pay"),
+                    &merchant_id("merchant"),
+                    None
+                ),
+                Some(&callback)
+            );
+            let registered = Mutex::new(Vec::new());
+            callbacks
+                .persist_with(|pending| {
+                    registered
+                        .lock()
+                        .expect("registered URLs")
+                        .push(pending.url().clone());
+                    async { Ok(()) }
+                })
+                .await
+                .expect("registered browser callback");
+            assert_eq!(*registered.lock().expect("registered URLs"), vec![callback]);
+        }
+    }
+
+    #[tokio::test]
+    async fn html_forms_do_not_generate_unused_callback_urls() {
+        let mut callbacks = SdkCallbackUrls::default();
+        assert!(callbacks
+            .redirection_form_callback_url(
+                &RedirectForm::Html {
+                    html_data: "<html></html>".to_string().into()
+                },
+                "https://router.test",
+                PaymentCallbackMode::Migration,
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                None
+            )
+            .is_none());
+        callbacks
+            .persist_with(|_| async { panic!("HTML has no generated callback") })
+            .await
+            .expect("no callback registration");
+    }
+
+    #[tokio::test]
+    async fn registration_failure_stops_before_remaining_callbacks() {
+        let mut callbacks = SdkCallbackUrls::default();
+        callbacks.start_url(
+            "https://router.test",
+            PaymentCallbackMode::Migration,
+            &payment_id("pay"),
+            &merchant_id("merchant"),
+            "attempt",
+        );
+        callbacks.redirect_response_url(
+            "https://router.test",
+            PaymentCallbackMode::Migration,
+            &payment_id("pay"),
+            &merchant_id("merchant"),
+            "stripe",
+            None,
+        );
+        let calls = Mutex::new(0);
+        let result = callbacks
+            .persist_with(|_| {
+                *calls.lock().expect("registration count") += 1;
+                async { Err(errors::ApiErrorResponse::InternalServerError.into()) }
+            })
+            .await;
+        assert!(result.is_err());
+        assert_eq!(*calls.lock().expect("registration count"), 1);
+    }
+}
+
+impl ConnectorCallbackUrls {
+    pub async fn redirects(
+        state: &SessionState,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: &str,
+        creds_identifier: Option<&str>,
+    ) -> RouterResult<Self> {
+        let redirect_response = match creds_identifier {
+            Some(creds) => {
+                PaymentCallbackRoute::redirect_response_with_credentials_url(
+                    &state.base_url,
+                    state.conf.payment_callback.mode,
+                    &ConnectorCallbackWithCredentialsPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                        creds_identifier: creds.to_string(),
+                    },
+                )
+                .persist(state)
+                .await?
+            }
+            None => {
+                PaymentCallbackRoute::redirect_response_url(
+                    &state.base_url,
+                    state.conf.payment_callback.mode,
+                    &ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    },
+                )
+                .persist(state)
+                .await?
+            }
+        };
+        let redirect_complete = match creds_identifier {
+            Some(creds) => {
+                PaymentCallbackRoute::redirect_complete_with_credentials_url(
+                    &state.base_url,
+                    state.conf.payment_callback.mode,
+                    &ConnectorCallbackWithCredentialsPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                        creds_identifier: creds.to_string(),
+                    },
+                )
+                .persist(state)
+                .await?
+            }
+            None => {
+                PaymentCallbackRoute::redirect_complete_url(
+                    &state.base_url,
+                    state.conf.payment_callback.mode,
+                    &ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    },
+                )
+                .persist(state)
+                .await?
+            }
+        };
+        Ok(Self {
+            redirect_response,
+            redirect_complete,
+        })
+    }
+}
+
 #[derive(Clone)]
 pub struct PaymentAdditionalData<'a, F>
 where
     F: Clone,
 {
     router_base_url: String,
+    connector_callback_urls: ConnectorCallbackUrls,
     connector_name: String,
     payment_data: PaymentData<F>,
     state: &'a SessionState,
@@ -5348,21 +6143,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .clone()
             .map(types::BrowserInformation::from);
 
-        let complete_authorize_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_complete_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_complete_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let complete_authorize_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_complete
+                .clone(),
+        );
 
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
@@ -5376,21 +6162,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
-        let router_return_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_response_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let router_return_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_response
+                .clone(),
+        );
 
         let payment_method_data = payment_data.payment_method_data.or_else(|| {
             if payment_data.mandate_id.is_some() {
@@ -5614,21 +6391,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             })
             .transpose()?;
 
-        let complete_authorize_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_complete_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_complete_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let complete_authorize_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_complete
+                .clone(),
+        );
 
         let merchant_connector_account_id_or_connector_name = payment_data
             .payment_attempt
@@ -5642,21 +6410,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
-        let router_return_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_response_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let router_return_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_response
+                .clone(),
+        );
 
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data.payment_attempt
@@ -6521,24 +7280,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
             .payment_intent
             .merchant_order_reference_id
             .clone();
-        let router_base_url = &additional_data.router_base_url;
-        let connector_name = &additional_data.connector_name;
-        let attempt = &payment_data.payment_attempt;
-        let router_return_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_response_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let router_return_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_response
+                .clone(),
+        );
         Ok(Self {
             amount, //need to change after we move to connector module
             order_amount: payment_data.payment_intent.amount,
@@ -7363,21 +8110,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
         let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
         let attempt = &payment_data.payment_attempt;
-        let router_return_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_response_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let router_return_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_response
+                .clone(),
+        );
         let browser_info: Option<types::BrowserInformation> = attempt
             .browser_info
             .clone()
@@ -7403,21 +8141,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             &attempt.processor_merchant_id,
             merchant_connector_account_id_or_connector_name,
         ));
-        let complete_authorize_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_complete_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_complete_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let complete_authorize_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_complete
+                .clone(),
+        );
 
         let connector = api_models::enums::Connector::from_str(connector_name)
             .change_context(errors::ConnectorError::InvalidConnectorName)
@@ -7632,9 +8361,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse payment feature metadata")?;
-        let router_base_url = &additional_data.router_base_url;
         let connector_name = &additional_data.connector_name;
-        let attempt = &payment_data.payment_attempt;
         let browser_info: Option<types::BrowserInformation> = payment_data
             .payment_attempt
             .browser_info
@@ -7652,21 +8379,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             }
         });
         let amount = payment_data.payment_attempt.get_total_amount();
-        let complete_authorize_url = Some(match payment_data.creds_identifier.as_deref() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_complete_with_credentials_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_complete_url(
-                router_base_url,
-                attempt.payment_id.get_string_repr(),
-                attempt.processor_merchant_id.get_string_repr(),
-                connector_name,
-            ),
-        });
+        let complete_authorize_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_complete
+                .clone(),
+        );
         let braintree_metadata = payment_data
             .payment_intent
             .connector_metadata
@@ -7691,27 +8409,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             payment_data.token_data.as_ref(),
         );
 
-        let router_return_url = Some(match payment_data.get_creds_identifier() {
-            Some(creds_identifier) => PaymentCallbackRoute::redirect_response_with_credentials_url(
-                &additional_data.router_base_url,
-                payment_data.payment_attempt.payment_id.get_string_repr(),
-                payment_data
-                    .payment_attempt
-                    .processor_merchant_id
-                    .get_string_repr(),
-                connector_name,
-                creds_identifier,
-            ),
-            None => PaymentCallbackRoute::redirect_response_url(
-                &additional_data.router_base_url,
-                payment_data.payment_attempt.payment_id.get_string_repr(),
-                payment_data
-                    .payment_attempt
-                    .processor_merchant_id
-                    .get_string_repr(),
-                connector_name,
-            ),
-        });
+        let router_return_url = Some(
+            additional_data
+                .connector_callback_urls
+                .redirect_response
+                .clone(),
+        );
 
         let recipient_details = payment_data
             .payment_intent
@@ -8614,6 +9317,14 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        connector_callback_urls: ConnectorCallbackUrls::redirects(
+            state,
+            &payment_data.payment_attempt.payment_id,
+            &payment_data.payment_attempt.processor_merchant_id,
+            connector_id,
+            payment_data.creds_identifier.as_deref(),
+        )
+        .await?,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
         payment_data: payment_data.clone(),

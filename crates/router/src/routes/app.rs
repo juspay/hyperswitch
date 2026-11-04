@@ -1023,7 +1023,9 @@ fn configure_payment_callback_routes(config: &mut web::ServiceConfig) {
 
     use super::payments::callback_routes::PaymentCallbackRoute;
 
-    for callback in PaymentCallbackRoute::iter() {
+    for callback in PaymentCallbackRoute::iter()
+        .filter(|callback| *callback != PaymentCallbackRoute::Authentication)
+    {
         config.service(callback.resource());
     }
 }
@@ -1096,9 +1098,14 @@ impl Payments {
         }
         #[cfg(feature = "oltp")]
         {
+            use super::payments::callback_routes::PaymentCallbackRoute;
+
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
-                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
+                .service(
+                    web::resource("/payment_link")
+                        .route(web::post().to(payments::payment_link_create)),
+                )
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),
@@ -1113,21 +1120,25 @@ impl Payments {
                         .route(web::post().to(payments::payments_update)),
                 )
                 .service(
-                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments::payments_post_session_tokens)),
+                    web::resource("/{payment_id}/post_session_tokens")
+                        .route(web::post().to(payments::payments_post_session_tokens)),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm").route(web::post().to(payments::payments_confirm)),
+                    web::resource("/{payment_id}/confirm")
+                        .route(web::post().to(payments::payments_confirm)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                    web::resource("/{payment_id}/cancel")
+                        .route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
                     web::resource("/{payment_id}/cancel_post_capture")
-                    .route(web::post().to(payments::payments_cancel_post_capture))
-                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
+                        .route(web::post().to(payments::payments_cancel_post_capture))
+                        .route(web::get().to(payments::payments_cancel_post_capture_retrieve)),
                 )
                 .service(
-                    web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
+                    web::resource("/{payment_id}/capture")
+                        .route(web::post().to(payments::payments_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/approve")
@@ -1141,31 +1152,40 @@ impl Payments {
                     web::resource("/{payment_id}/eligibility_check")
                         .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
-                .service(
-                    web::resource("/{payment_id}/client")
-                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
-                )
+                .service(web::resource("/{payment_id}/client").route(
+                    web::get().to(payment_methods::list_payment_methods_for_payments_client),
+                ))
                 .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
                 .configure(configure_payment_callback_routes)
+                .service(PaymentCallbackRoute::Start.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponse.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponseWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectComplete.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectCompleteWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::Authorize.legacy_resource())
+                .service(PaymentCallbackRoute::Authentication.resource())
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments::payments_complete_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                    web::resource("/{payment_id}/incremental_authorization")
+                        .route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
+                    web::resource("/{payment_id}/extend_authorization")
+                        .route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),
+                    web::resource("/{payment_id}/extended_card_info")
+                        .route(web::get().to(payments::retrieve_extended_card_info)),
                 )
                 .service(
-                web::resource("{payment_id}/calculate_tax")
-                    .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                    web::resource("{payment_id}/calculate_tax")
+                        .route(web::post().to(payments::payments_dynamic_tax_calculation)),
                 )
                 .service(
                     web::resource("{payment_id}/update_metadata")

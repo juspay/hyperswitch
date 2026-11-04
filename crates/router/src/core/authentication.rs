@@ -17,7 +17,10 @@ use crate::{
         errors::ApiErrorResponse, payment_methods::vault, payments as payments_core,
         unified_connector_service,
     },
-    routes::{payments::callback_routes::PaymentCallbackRoute, SessionState},
+    routes::{
+        payments::callback_routes::{ConnectorCallbackPath, PaymentCallbackRoute},
+        SessionState,
+    },
     types::{
         self as core_types, api,
         domain::{self},
@@ -1426,17 +1429,20 @@ async fn call_ucs_authenticate_proxy(
         business_profile.get_id().clone(),
     );
 
+    let notification_url = PaymentCallbackRoute::authorize_url(
+        &state.base_url,
+        state.conf.payment_callback.mode,
+        &ConnectorCallbackPath {
+            payment_id: payment_attempt.payment_id.clone(),
+            merchant_id: payment_attempt.processor_merchant_id.clone(),
+            connector: psp_connector_name.to_string(),
+        },
+    )
+    .persist(state)
+    .await?;
     let notification_url = Some(Secret::new(common_utils::types::Url::wrap(
-        url::Url::parse(
-            PaymentCallbackRoute::authorize_url(
-                &state.base_url,
-                payment_attempt.payment_id.get_string_repr(),
-                payment_attempt.processor_merchant_id.get_string_repr(),
-                &psp_connector_name,
-            )
-            .peek(),
-        )
-        .change_context(ApiErrorResponse::InternalServerError)?,
+        url::Url::parse(notification_url.peek())
+            .change_context(ApiErrorResponse::InternalServerError)?,
     )));
 
     // Prefer acquirer details set directly on the PSP connector's own metadata; fall back to the

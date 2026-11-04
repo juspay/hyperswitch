@@ -504,6 +504,7 @@ where
             let config = state.conf();
             build_redirection_form(
                 &redirection_data.redirect_form,
+                redirection_data.callback_url.as_ref(),
                 redirection_data.payment_method_data,
                 redirection_data.amount,
                 redirection_data.currency,
@@ -872,14 +873,33 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 // #[cfg(feature = "v2")]
 // impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
+fn callback_url_javascript_literal(
+    callback_url: Option<&hyperswitch_masking::Secret<String>>,
+) -> String {
+    // Serialize as a JavaScript string and prevent URL contents from closing the script.
+    serde_json::Value::String(
+        callback_url
+            .map(|url| url.peek().clone())
+            .unwrap_or_default(),
+    )
+    .to_string()
+    .replace('<', "\\u003c")
+    .replace('>', "\\u003e")
+    .replace('&', "\\u0026")
+    .replace('\u{2028}', "\\u2028")
+    .replace('\u{2029}', "\\u2029")
+}
+
 pub fn build_redirection_form(
     form: &RedirectForm,
+    callback_url: Option<&hyperswitch_masking::Secret<String>>,
     payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
+    let callback_url = callback_url_javascript_literal(callback_url);
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
@@ -1006,7 +1026,9 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                      var callback = new URL({callback_url});
+                      callback.searchParams.set(\"referenceId\", \"{reference_id}\");
+                      window.location.href = callback.toString();
                     }}
                   }}, false);
                 </script>
@@ -1108,7 +1130,9 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
+                        var callback = new URL({callback_url});
+                        callback.searchParams.set(\"paymentToken\", \"{payment_fields_token}\");
+                        f.action = callback.toString();
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1170,7 +1194,9 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                      var callback = new URL({callback_url});
+                      callback.searchParams.set(\"referenceId\", \"{reference_id}\");
+                      window.location.href = callback.toString();
                     }}
                   }}, false);
                 </script>
@@ -1272,7 +1298,7 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<script>
                     {logging_template}
                     var f = document.createElement('form');
-                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.action = {callback_url};
                     f.method='POST';
                     PayMe.clientData()
                     .then((data) => {{
@@ -1360,7 +1386,7 @@ pub fn build_redirection_form(
                                                 if(err) {{
                                                     console.error(err);
                                                     var f = document.createElement('form');
-                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    f.action = {callback_url};
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';
@@ -1448,7 +1474,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('complete', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action = {callback_url};
                         responseForm.method='POST';
 
                         var item1=document.createElement('input');
@@ -1505,7 +1531,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('failure', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action = {callback_url};
                         responseForm.method='POST';
 
                         var error_code=document.createElement('input');
@@ -1545,7 +1571,7 @@ pub fn build_redirection_form(
 			  token: '{initialization_token}',
 			  complete: function() {{
                 var f = document.createElement('form');
-                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.action = {callback_url};
                 f.method='GET';
                 document.body.appendChild(f);
                 f.submit();
@@ -1614,8 +1640,8 @@ pub fn build_redirection_form(
                                         timeoutHandle = null;
                                     }}
                                     
-                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
-                                    var redirectUrl = window.location.origin + redirectPathname;
+                                    var redirectPathname = {callback_url};
+                                    var redirectUrl = redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
                                             var form = document.createElement("form");
@@ -1747,10 +1773,7 @@ pub fn build_redirection_form(
                                     try {{
                                         var data = JSON.parse(event.data);
                                         var responseForm = document.createElement('form');
-                                        responseForm.action=window.location.pathname.replace(
-                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                            "payments/$1/$2/redirect/complete/worldpayxml"
-                                        );
+                                        responseForm.action = {callback_url};
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -1769,10 +1792,7 @@ pub fn build_redirection_form(
                                         responseForm.submit();
                                     }} catch (e) {{
                                         var responseForm = document.createElement('form');
-                                        responseForm.action=window.location.pathname.replace(
-                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                            "payments/$1/$2/redirect/complete/worldpayxml"
-                                        );
+                                        responseForm.action = {callback_url};
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -1976,5 +1996,58 @@ mod tests {
     #[test]
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
+    }
+}
+
+#[cfg(test)]
+mod callback_url_tests {
+    use hyperswitch_masking::{PeekInterface, Secret};
+
+    #[test]
+    fn callback_forms_render_the_prepared_token_url() {
+        let callback = "https://router.test/payments/pay/merchant/redirect/complete/payme/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
+        let url = Secret::new(callback.to_string());
+        let forms = [
+            super::RedirectForm::Payme,
+            super::RedirectForm::BlueSnap {
+                payment_fields_token: "fields".to_string(),
+            },
+            super::RedirectForm::WorldpayDDCForm {
+                endpoint: url::Url::parse("https://connector.test/ddc").expect("connector URL"),
+                method: common_utils::request::Method::Post,
+                form_fields: Default::default(),
+                collection_id: None,
+            },
+        ];
+        for form in forms {
+            let html = super::build_redirection_form(
+                &form,
+                Some(&url),
+                None,
+                "100".to_string(),
+                "USD".to_string(),
+                super::Settings::default(),
+            )
+            .into_string();
+            assert!(html.contains(&format!("\"{callback}\"")));
+            assert!(!html.contains("window.location.pathname.replace"));
+        }
+    }
+
+    #[test]
+    fn callback_urls_are_escaped_for_javascript_without_changing_the_url() {
+        let url = Secret::new(
+            "https://router.test/payments/</script>/callback/token?value=\"quoted\"&next=\u{2028}\u{2029}".to_string(),
+        );
+        let literal = super::callback_url_javascript_literal(Some(&url));
+        assert!(!literal.contains('<'));
+        assert!(!literal.contains('>'));
+        assert!(!literal.contains('&'));
+        assert!(!literal.contains('\u{2028}'));
+        assert!(!literal.contains('\u{2029}'));
+        assert_eq!(
+            serde_json::from_str::<String>(&literal).expect("JavaScript string"),
+            *url.peek()
+        );
     }
 }

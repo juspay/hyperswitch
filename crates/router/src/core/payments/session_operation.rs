@@ -94,17 +94,20 @@ where
         )
         .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         customer,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]

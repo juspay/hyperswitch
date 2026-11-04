@@ -156,8 +156,11 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{
-        app::ReqState, metrics, payment_methods::ParentPaymentMethodToken,
-        payments::callback_routes::PaymentCallbackRoute, SessionState,
+        app::ReqState,
+        metrics,
+        payment_methods::ParentPaymentMethodToken,
+        payments::callback_routes::{ConnectorCallbackPath, PaymentCallbackRoute},
+        SessionState,
     },
     services::{self, api::Authenticate, ConnectorRedirectResponse},
     types::{
@@ -3205,17 +3208,20 @@ where
         )
         .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         auth_flow,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[cfg(feature = "v1")]
@@ -3269,17 +3275,20 @@ where
         )
         .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         auth_flow,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[cfg(feature = "v1")]
@@ -4014,17 +4023,20 @@ where
         )
         .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         auth_flow,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 /// Whether the profile that ran the network token arm has clear-PAN retries enabled. An
@@ -4599,17 +4611,20 @@ where
     )
     .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         customer,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[cfg(feature = "v2")]
@@ -4643,17 +4658,20 @@ where
     )
     .await?;
 
-    Res::generate_response(
+    let (response, sdk_callback_urls) = Res::generate_response(
         payment_data,
         customer,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operation,
         &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -4802,7 +4820,7 @@ pub async fn payments_get_intent_using_merchant_reference(
     ))
     .await?;
 
-    transformers::ToResponse::<
+    let (response, sdk_callback_urls) = transformers::ToResponse::<
         api::PaymentGetIntent,
         PaymentIntentData<api::PaymentGetIntent>,
         operations::PaymentGetIntent,
@@ -4810,13 +4828,16 @@ pub async fn payments_get_intent_using_merchant_reference(
         payment_data,
         customer,
         &state.base_url,
+        state.conf.payment_callback.mode,
         operations::PaymentGetIntent,
         &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )
+    )?;
+    sdk_callback_urls.persist(&state).await?;
+    Ok(response)
 }
 
 #[cfg(feature = "v2")]
@@ -5480,6 +5501,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             )?;
             return Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
+                    callback_url: None,
                     redirect_form: services::RedirectForm::Html { html_data: html },
                     payment_method_data: None,
                     amount: payments_response.amount.to_string(),
@@ -5498,6 +5520,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             )?;
             Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
+                    callback_url: None,
                     redirect_form: services::RedirectForm::Html { html_data: html },
                     payment_method_data: None,
                     amount: payments_response.amount.to_string(),
@@ -5626,6 +5649,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             )?;
             return Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
+                    callback_url: None,
                     redirect_form: services::RedirectForm::Html { html_data: html },
                     payment_method_data: None,
                     amount: payments_response.amount.to_string(),
@@ -5644,6 +5668,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             )?;
             Ok(services::ApplicationResponse::Form(Box::new(
                 services::RedirectionFormData {
+                    callback_url: None,
                     redirect_form: services::RedirectForm::Html { html_data: html },
                     payment_method_data: None,
                     amount: payments_response.amount.to_string(),
@@ -6194,6 +6219,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         )?;
         Ok(services::ApplicationResponse::Form(Box::new(
             services::RedirectionFormData {
+                callback_url: None,
                 redirect_form: services::RedirectForm::Html { html_data: html },
                 payment_method_data: None,
                 amount: payments_response.amount.to_string(),
@@ -14074,12 +14100,19 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .as_ref()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing connector in payment_attempt")?;
-    let return_url = Some(PaymentCallbackRoute::authorize_url(
-        &state.base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        payment_connector_name,
-    ));
+    let return_url = Some(
+        PaymentCallbackRoute::authorize_url(
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &ConnectorCallbackPath {
+                payment_id: payment_attempt.payment_id.clone(),
+                merchant_id: payment_attempt.processor_merchant_id.clone(),
+                connector: payment_connector_name.to_string(),
+            },
+        )
+        .persist(&state)
+        .await?,
+    );
     let mca_id_option = merchant_connector_account.get_mca_id(); // Bind temporary value
     let merchant_connector_account_id_or_connector_name = mca_id_option
         .as_ref()
@@ -14368,8 +14401,22 @@ pub async fn payment_start_redirection(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing authentication_data in payment_attempt")?;
 
+    let mut sdk_callback_urls = transformers::SdkCallbackUrls::default();
+    let callback_url = sdk_callback_urls
+        .redirection_form_callback_url(
+            &redirection_data,
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            &payment_attempt.payment_id,
+            &payment_attempt.processor_merchant_id,
+            None,
+        )
+        .cloned();
+    sdk_callback_urls.persist(&state).await?;
+
     Ok(services::ApplicationResponse::Form(Box::new(
         services::RedirectionFormData {
+            callback_url,
             redirect_form: redirection_data,
             payment_method_data: None,
             amount: payment_attempt.amount_details.get_net_amount().to_string(),
