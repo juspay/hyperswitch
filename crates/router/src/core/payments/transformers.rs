@@ -5699,17 +5699,21 @@ impl SdkCallbackUrls {
     }
 
     pub async fn persist(self, state: &SessionState) -> RouterResult<()> {
-        for callback_url in [
-            self.start,
-            self.authorize,
-            self.redirect_response,
-            self.redirect_complete,
-        ]
-        .into_iter()
-        .flatten()
-        {
-            callback_url.persist(state).await?;
-        }
+        let Self {
+            start,
+            authorize,
+            redirect_response,
+            redirect_complete,
+            authentication: _,
+        } = self;
+
+        futures::future::try_join_all(
+            [start, authorize, redirect_response, redirect_complete]
+                .into_iter()
+                .flatten()
+                .map(|callback_url| callback_url.persist(state)),
+        )
+        .await?;
         Ok(())
     }
 }
@@ -6058,12 +6062,18 @@ impl ConnectorCallbackUrls {
     }
 
     pub async fn persist(self, state: &SessionState) -> RouterResult<()> {
-        for callback_url in [self.redirect_response, self.redirect_complete]
-            .into_iter()
-            .flatten()
-        {
-            callback_url.persist(state).await?;
-        }
+        let Self {
+            redirect_response,
+            redirect_complete,
+        } = self;
+
+        futures::future::try_join_all(
+            [redirect_response, redirect_complete]
+                .into_iter()
+                .flatten()
+                .map(|callback_url| callback_url.persist(state)),
+        )
+        .await?;
         Ok(())
     }
 }
