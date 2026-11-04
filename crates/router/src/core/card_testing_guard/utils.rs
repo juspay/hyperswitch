@@ -7,10 +7,7 @@ use router_env::logger;
 
 use super::errors;
 use crate::{
-    core::{
-        configs::dimension_state,
-        errors::RouterResult, payments::helpers,
-    },
+    core::{configs::dimension_state, errors::RouterResult, payments::helpers},
     routes::SessionState,
     services,
     types::domain,
