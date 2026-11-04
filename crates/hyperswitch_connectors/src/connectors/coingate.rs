@@ -630,8 +630,9 @@ impl webhooks::IncomingWebhook for Coingate {
 
 static COINGATE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods =
-            vec![CaptureMethod::Automatic, CaptureMethod::SequentialAutomatic];
+        // The Capture flow returns FlowNotSupported, so SequentialAutomatic
+        // cannot be completed. Only Automatic capture works without a follow-up call.
+        let supported_capture_methods = vec![CaptureMethod::Automatic];
 
         let mut coingate_supported_payment_methods = SupportedPaymentMethods::new();
 
@@ -669,5 +670,43 @@ impl ConnectorSpecifications for Coingate {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&COINGATE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+    use common_utils::errors::CustomResult;
+    use hyperswitch_interfaces::{api::ConnectorValidation, errors::ConnectorError};
+
+    use super::Coingate;
+
+    fn validate_capture_method(capture_method: CaptureMethod) -> CustomResult<(), ConnectorError> {
+        Coingate::new().validate_connector_against_payment_request(
+            Some(capture_method),
+            PaymentMethod::Crypto,
+            Some(PaymentMethodType::CryptoCurrency),
+        )
+    }
+
+    #[test]
+    fn rejects_sequential_automatic_capture_because_capture_flow_is_not_implemented() {
+        let result = validate_capture_method(CaptureMethod::SequentialAutomatic);
+        assert!(
+            matches!(
+                &result,
+                Err(err) if matches!(
+                    err.current_context(),
+                    ConnectorError::NotSupported { message, .. }
+                        if *message == CaptureMethod::SequentialAutomatic.to_string()
+                )
+            ),
+            "expected sequential automatic capture to be rejected as not supported for crypto, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn accepts_automatic_capture() {
+        assert!(validate_capture_method(CaptureMethod::Automatic).is_ok());
     }
 }
