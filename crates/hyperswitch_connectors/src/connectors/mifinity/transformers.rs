@@ -221,7 +221,7 @@ fn build_payouts_response(
 
     Ok(PayoutsResponseData {
         status: Some(status),
-        connector_payout_id: Some(payload.transaction_id.clone()),
+        connector_payout_id: Some(payload.transaction_reference.clone()),
         payout_eligible: None,
         should_add_next_step_to_process_tracker: false,
         error_code: None,
@@ -625,6 +625,7 @@ pub struct MifinityErrorList {
 mod tests {
     use super::*;
     use common_utils::id_type::GenerateId;
+    use common_utils::types::{AmountConvertor, FloatMajorUnitForConnector, MinorUnit};
     use hyperswitch_masking::PeekInterface;
 
     fn create_payout_router_data(
@@ -802,7 +803,7 @@ mod tests {
         let result = result.unwrap();
 
         assert_eq!(result.status, Some(PayoutStatus::Success));
-        assert_eq!(result.connector_payout_id, Some("txn_123".to_string()));
+        assert_eq!(result.connector_payout_id, Some("ref_123".to_string()));
         assert_eq!(result.payout_eligible, None);
         assert!(!result.should_add_next_step_to_process_tracker);
         assert_eq!(result.error_code, None);
@@ -835,7 +836,11 @@ mod tests {
             Some(payout_method),
         );
 
-        let connector_data = MifinityPayoutRouterData::from((FloatMajorUnit::zero(), &router_data));
+        let amount = FloatMajorUnitForConnector
+            .convert(MinorUnit::new(10_050), enums::Currency::EUR)
+            .expect("amount conversion should succeed");
+
+        let connector_data = MifinityPayoutRouterData::from((amount, &router_data));
 
         let result = MifinityPayoutCreateRequest::try_from(&connector_data).unwrap();
 
@@ -848,6 +853,7 @@ mod tests {
         let serialized = serde_json::to_value(&result).unwrap();
 
         assert_eq!(serialized["sourceAccount"], "source_account_123");
+        assert_eq!(serialized["money"]["amount"].as_f64(), Some(100.50));
         assert_eq!(serialized["destinationAccount"], "destination_account_456");
         assert_eq!(serialized["money"]["currency"], "EUR");
         assert_eq!(serialized["description"], "Test payout");
