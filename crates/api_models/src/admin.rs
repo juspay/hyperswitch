@@ -1401,10 +1401,47 @@ pub struct RevenueRecoveryMetadata {
     #[serde(default)]
     #[schema(default = false, example = false)]
     pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
     pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Revenue recovery retry configuration for a profile
+pub struct RevenueRecoveryConfig {
+    /// The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
+    /// Grace period, in days from the invoice's billing start, within which retries are allowed.
+    /// Defaults to 30 days when not provided.
+    #[serde(default = "default_grace_period_days")]
+    #[schema(value_type = u16, default = 30, example = "30")]
+    pub grace_period_days: u16,
+    /// Allow partial authorization for recovered payments. A value passed in the recovery
+    /// payments API request takes priority over this. Defaults to `false` when not provided.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2784,6 +2821,9 @@ pub struct ProfileCreate {
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -3193,6 +3233,9 @@ pub struct ProfileResponse {
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
     pub is_l2_l3_enabled: Option<bool>,
@@ -3568,6 +3611,9 @@ pub struct ProfileUpdate {
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

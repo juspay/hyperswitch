@@ -409,6 +409,8 @@ pub struct RevenueRecoveryMetadata {
     pub grace_period_days: u16,
     #[serde(default)]
     pub enable_partial_authorization: bool,
+    #[serde(default)]
+    pub max_hard_decline_retries: u16,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -864,6 +866,7 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                     .max_hybrid_cascading_retry_count,
                 grace_period_days: recovery_metadata.grace_period_days,
                 enable_partial_authorization: recovery_metadata.enable_partial_authorization,
+                max_hard_decline_retries: recovery_metadata.max_hard_decline_retries,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -891,6 +894,7 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                     .max_hybrid_cascading_retry_count,
                 grace_period_days: recovery_metadata.grace_period_days,
                 enable_partial_authorization: recovery_metadata.enable_partial_authorization,
+                max_hard_decline_retries: recovery_metadata.max_hard_decline_retries,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,
