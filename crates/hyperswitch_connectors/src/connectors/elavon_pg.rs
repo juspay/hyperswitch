@@ -14,8 +14,8 @@
 //! Scope: card one-time payments (non-3DS and external-3DS passthrough). Elavon
 //! Payment Gateway's direct API performs no gateway-driven redirect authentication,
 //! so there is no redirect and no complete-authorize leg.
-//! No wallets, no bank transfers, no BNPL. Mandates and MIT, and the flows that create a
-//! shopper and a stored card, run in UCS.
+//! Mandates and MIT, and the flows that create a shopper and a stored card, run in UCS. No bank
+//! transfers, no BNPL.
 
 pub mod transformers;
 
@@ -704,8 +704,7 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallets are one-time only (EPG does not support recurring on wallets) and are
-        // sent to EPG pre-decrypted, as the device PAN plus cryptogram.
+        // Wallets are sent to EPG pre-decrypted, as the device PAN plus cryptogram.
         for wallet in [
             enums::PaymentMethodType::ApplePay,
             enums::PaymentMethodType::GooglePay,
@@ -714,7 +713,7 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 enums::PaymentMethod::Wallet,
                 wallet,
                 PaymentMethodDetails {
-                    mandates: enums::FeatureStatus::NotSupported,
+                    mandates: enums::FeatureStatus::Supported,
                     refunds: enums::FeatureStatus::Supported,
                     supported_capture_methods: supported_capture_methods.clone(),
                     specific_features: None,
