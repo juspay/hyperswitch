@@ -106,9 +106,31 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         "connector_transaction_id": "993672945374576J",
                         "transaction_created_at": "2022-09-10T10:11:12Z",
                         "billing_started_at": "2022-09-10T10:11:12Z",
+                        "billing": {
+                            "address": {
+                                "line1": "1467 Harrison Street",
+                                "city": "San Francisco",
+                                "state": "California",
+                                "zip": "94122",
+                                "country": "US",
+                                "first_name": "John",
+                                "last_name": "Doe"
+                            },
+                            "phone": {
+                                "number": "9123456789",
+                                "country_code": "+1"
+                            },
+                            "email": "john@example.com"
+                        },
                         "error": {
                             "code": "card_declined",
-                            "message": "The card was declined."
+                            "message": "The card was declined.",
+                            "reason": "Insufficient funds",
+                            "unified_code": "card_declined",
+                            "unified_message": "The card was declined.",
+                            "network_advice_code": "01",
+                            "network_decline_code": "51",
+                            "network_error_message": "Retry after some time"
                         },
                         "payment_method_data": {
                             "primary_processor_payment_method_token": "token_1234",

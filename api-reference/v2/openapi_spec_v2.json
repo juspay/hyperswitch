@@ -5001,13 +5001,35 @@
                       "currency": "USD",
                       "order_amount": 6540
                     },
+                    "billing": {
+                      "address": {
+                        "city": "San Francisco",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "line1": "1467 Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "email": "john@example.com",
+                      "phone": {
+                        "country_code": "+1",
+                        "number": "9123456789"
+                      }
+                    },
                     "billing_started_at": "2022-09-10T10:11:12Z",
                     "connector": "stripe",
                     "connector_customer_id": "cust_12345",
                     "connector_transaction_id": "993672945374576J",
                     "error": {
                       "code": "card_declined",
-                      "message": "The card was declined."
+                      "message": "The card was declined.",
+                      "network_advice_code": "01",
+                      "network_decline_code": "51",
+                      "network_error_message": "Retry after some time",
+                      "reason": "Insufficient funds",
+                      "unified_code": "card_declined",
+                      "unified_message": "The card was declined."
                     },
                     "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                     "payment_method_data": {
