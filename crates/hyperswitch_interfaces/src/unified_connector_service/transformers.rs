@@ -826,6 +826,16 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
+                payment_checks: google_pay_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
                 device_pan_bin: google_pay_data.device_pan_bin,
                 card_bin: google_pay_data.card_bin,
                 card_subtype: google_pay_data.card_subtype,
@@ -860,6 +870,16 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
+                payment_checks: apple_pay_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
                 device_pan_bin: apple_pay_data.device_pan_bin,
                 card_bin: apple_pay_data.card_bin,
                 card_subtype: apple_pay_data.card_subtype,

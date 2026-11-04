@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.04.1
+
+### Features
+
+- **connector:**
+  - Add Betterpayment as UCS-only connector for Wero wallet payments ([#14696](https://github.com/juspay/hyperswitch/pull/14696)) ([`dbc9418`](https://github.com/juspay/hyperswitch/commit/dbc9418cf793287448467f22da99086a1f594d13))
+  - [Elavon PG] enable zero-amount setup mandate and wallet CIT for UCS ([#15124](https://github.com/juspay/hyperswitch/pull/15124)) ([`78bbd69`](https://github.com/juspay/hyperswitch/commit/78bbd69767b45bb7aa3f179ca5862c45f9d3196f))
+- **revenue_recovery:** Add merchant and profile views to recovery-list ([#15140](https://github.com/juspay/hyperswitch/pull/15140)) ([`c95994c`](https://github.com/juspay/hyperswitch/commit/c95994c280bb5fe733a2bef8610c6299e56268f9))
+
+### Bug Fixes
+
+- **refunds:** Enforce profile scoping ([#15131](https://github.com/juspay/hyperswitch/pull/15131)) ([`9f47e0e`](https://github.com/juspay/hyperswitch/commit/9f47e0e004f5fcbabe7af5b315157cd94302ed40))
+
+**Full Changelog:** [`2026.11.04.0...2026.11.04.1`](https://github.com/juspay/hyperswitch/compare/2026.11.04.0...2026.11.04.1)
+
+- - -
+
 ## 2026.11.04.0
 
 ### Features
