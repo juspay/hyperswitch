@@ -32,10 +32,6 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 ///
 /// `external_triggers` needs only the `connector`. The transaction is only recorded, with nothing
 /// scheduled for it. A transaction reported against a closed invoice is refused.
-///
-/// On `external_triggers` the `order_amount` of every transaction must be the amount of the
-/// invoice. What the transactions capture adds up towards it: reaching it closes the invoice, and
-/// going over it is refused.
 #[utoipa::path(
     post,
     path = "/v2/recovery",

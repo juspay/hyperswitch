@@ -6,7 +6,7 @@ use error_stack::report;
 
 use crate::{
     core::errors::{self, RouterResult},
-    utils::{self, OptionExt},
+    utils::OptionExt,
 };
 
 /// What a recovery API request needs under the trigger model of the profile, worked out at the very
@@ -34,12 +34,8 @@ impl<'a> RecoveryTrigger<'a> {
     ) -> RouterResult<Self> {
         match trigger_model {
             common_enums::RevenueRecoveryTriggerModel::InternalTriggers => {
-                utils::when(request.connector.is_some(), || {
-                    Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "`connector` must not be sent when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`".to_owned(),
-                    })
-                })?;
-
+                // Any `connector` in the request is ignored, as the processor comes from the payment
+                // connector account.
                 Ok(Self::Internal {
                     billing_merchant_connector_id: request
                         .billing_merchant_connector_id
@@ -52,16 +48,7 @@ impl<'a> RecoveryTrigger<'a> {
                 })
             }
             common_enums::RevenueRecoveryTriggerModel::ExternalTriggers => {
-                utils::when(
-                    request.billing_merchant_connector_id.is_some()
-                        || request.payment_merchant_connector_id.is_some(),
-                    || {
-                        Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "`billing_merchant_connector_id` and `payment_merchant_connector_id` must not be sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers`".to_owned(),
-                        })
-                    },
-                )?;
-
+                // Any connector account IDs in the request are ignored, as this model doesn't use them.
                 let connector = request.connector.get_required_value("connector")?;
 
                 // Profiles are refused without it, this holds for one saved before that check.
