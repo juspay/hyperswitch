@@ -215,6 +215,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Betterpayment => {
+                betterpayment::transformers::BetterpaymentAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Deutschebank => {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -663,10 +667,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 Ok(())
             }
             api_enums::Connector::Worldpayvantiv => {
-                worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
+                let auth_type =
+                    worldpayvantiv::transformers::WorldpayvantivAuthType::try_from(self.auth_type)?;
                 worldpayvantiv::transformers::WorldpayvantivMetadataObject::try_from(
                     self.connector_meta_data,
-                )?;
+                )?
+                .validate_for_auth_type(&auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Worldpayxml => {

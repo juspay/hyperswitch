@@ -2103,15 +2103,15 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                         .expose(),
                 })
             }
-            Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
+            Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Script form type is not implemented".to_string(),
+                    "QR data form type is not implemented".to_string(),
                 )
                 .into(),
             ),
-            Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
+            Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "QrData form type is not implemented".to_string(),
+                    "Script form type is not implemented".to_string(),
                 )
                 .into(),
             ),

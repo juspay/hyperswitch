@@ -81,6 +81,8 @@ use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
+#[cfg(feature = "v1")]
+use payment_methods::single_use_token;
 use redis_interface::errors::RedisError;
 use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
@@ -6968,17 +6970,24 @@ where
     // Internal surcharge only; external surcharge is prepared before connector selection.
     populate_surcharge_details(state, business_profile, payment_data).await?;
 
-    let (pd, tokenization_action) = Box::pin(get_connector_tokenization_action_when_confirm_true(
-        state,
-        operation,
-        payment_data,
-        validate_result,
-        platform,
-        business_profile,
-        should_retry_with_pan,
-        feature_config,
-    ))
-    .await?;
+    let (pd, tokenization_action) =
+        Box::pin(get_connector_tokenization_action_when_confirm_true(
+            state,
+            operation,
+            payment_data,
+            validate_result,
+            platform,
+            business_profile,
+            should_retry_with_pan,
+            feature_config,
+            &connector,
+            &merchant_connector_account,
+            <RouterData<F, RouterDReq, router_types::PaymentsResponseData> as Feature<
+                F,
+                RouterDReq,
+            >>::single_use_token_flow(),
+        ))
+        .await?;
     *payment_data = pd;
 
     // This is used to apply any kind of routing decision to the required data,
@@ -10309,6 +10318,56 @@ fn is_payment_method_type_allowed_for_connector(
     }
 }
 
+/// Fetches the `pay_via_single_use_token` config of the payment method type from the merchant connector account
+#[cfg(feature = "v1")]
+fn get_pay_via_single_use_token_from_mca(
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    payment_method: storage::enums::PaymentMethod,
+    payment_method_type: Option<storage::enums::PaymentMethodType>,
+) -> Option<common_types::payment_methods::PayViaSingleUseToken> {
+    let payment_methods_enabled = match merchant_connector_account {
+        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account) => {
+            merchant_connector_account.payment_methods_enabled.as_ref()
+        }
+        helpers::MerchantConnectorAccountType::CacheVal(_) => None,
+    };
+
+    payment_methods_enabled.zip(payment_method_type).and_then(
+        |(payment_methods_enabled, payment_method_type)| {
+            payment_methods_enabled
+                .iter()
+                .filter_map(|payment_methods_enabled| {
+                    payment_methods_enabled
+                        .clone()
+                        .parse_value::<api_models::admin::PaymentMethodsEnabled>(
+                            "PaymentMethodsEnabled",
+                        )
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Unable to deserialize payment methods enabled: {:?}",
+                                err
+                            )
+                        })
+                        .ok()
+                })
+                .filter(|payment_methods_enabled| {
+                    payment_methods_enabled.payment_method == payment_method
+                })
+                .flat_map(|payment_methods_enabled| {
+                    payment_methods_enabled
+                        .payment_method_types
+                        .unwrap_or_default()
+                })
+                .find(|request_payment_method_type| {
+                    request_payment_method_type.payment_method_type == payment_method_type
+                })
+                .and_then(|request_payment_method_type| {
+                    request_payment_method_type.pay_via_single_use_token
+                })
+        },
+    )
+}
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn decide_payment_method_tokenize_action(
@@ -10422,6 +10481,9 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, D>(
     business_profile: &domain::Profile,
     should_retry_with_pan: bool,
     feature_config: &core_utils::FeatureConfig,
+    connector_data: &api::ConnectorData,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    single_use_token_flow: Option<single_use_token::SingleUseTokenFlow>,
 ) -> RouterResult<(D, TokenizationAction)>
 where
     F: Send + Clone,
@@ -10480,6 +10542,19 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
+            let single_use_token_decision = single_use_token::decide_single_use_token(
+                &connector_data.connector,
+                &connector_data.connector_name.to_string(),
+                single_use_token_flow,
+                get_pay_via_single_use_token_from_mca(
+                    merchant_connector_account,
+                    payment_method,
+                    payment_method_type,
+                ),
+                payment_data.get_payment_method_data(),
+                payment_data.get_payment_method_token(),
+            )?;
+
             let is_network_transaction_id_flow = payment_data
                 .get_mandate_id()
                 .as_ref()
@@ -10487,15 +10562,16 @@ where
                 .map(|mandate_reference| mandate_reference.is_network_mandate_id())
                 .unwrap_or(false);
 
-            let payment_method_action = decide_payment_method_tokenize_action(
+            let payment_method_action = Box::pin(decide_payment_method_tokenize_action(
                 state,
                 &connector,
                 payment_method,
                 payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
-                is_connector_tokenization_enabled,
+                single_use_token_decision
+                    .is_connector_tokenization_enabled(is_connector_tokenization_enabled),
                 is_network_transaction_id_flow,
-            )
+            ))
             .await?;
 
             let connector_tokenization_action = match payment_method_action {
