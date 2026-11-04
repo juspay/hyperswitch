@@ -901,7 +901,7 @@ impl DatabaseBackedConfig for RecoveryMaxRetryCount {
 
 config! {
     superposition_key = RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT,
-    output = i64,
+    output = u32,
     default = 0,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::ProfileId

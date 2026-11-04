@@ -13,12 +13,13 @@ impl StaticLadderProgress {
     /// Opening position for an invoice entering recovery for the first time.
     pub fn seed_for_new_invoice(
         intent_retry_count: u16,
-        max_hybrid_cascading_retry_count: u16,
+        max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: intent_retry_count
-                .min(max_hybrid_cascading_retry_count)
-                .into(),
+            consumed_rungs: i32::try_from(
+                u32::from(intent_retry_count).min(max_hybrid_cascading_retry_count),
+            )
+            .unwrap_or(i32::MAX),
         }
     }
 
@@ -26,12 +27,14 @@ impl StaticLadderProgress {
     /// — a row written before this field existed.
     pub fn seed_for_existing_invoice(
         intent_retry_count: u16,
-        max_hybrid_cascading_retry_count: u16,
+        max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: intent_retry_count
-                .min(max_hybrid_cascading_retry_count.saturating_sub(1))
-                .into(),
+            consumed_rungs: i32::try_from(
+                u32::from(intent_retry_count)
+                    .min(max_hybrid_cascading_retry_count.saturating_sub(1)),
+            )
+            .unwrap_or(i32::MAX),
         }
     }
 
@@ -164,7 +167,7 @@ mod tests {
     // allowance. They differ only in whether the ladder may open fully consumed: a new invoice
     // may, an invoice already in recovery keeps one position in hand.
 
-    const HYBRID_CAP: u16 = 5;
+    const HYBRID_CAP: u32 = 5;
 
     #[test]
     fn a_new_invoice_below_the_cap_consumes_what_the_connector_spent() {
@@ -180,7 +183,7 @@ mod tests {
         // The connector used the whole allowance before recovery ever saw the invoice, so there
         // is no cascading position left and the model carries it alone.
         assert_eq!(
-            StaticLadderProgress::seed_for_new_invoice(HYBRID_CAP, HYBRID_CAP).consumed_rungs,
+            StaticLadderProgress::seed_for_new_invoice(5, HYBRID_CAP).consumed_rungs,
             5
         );
         // Beyond the cap clamps rather than running past it.
@@ -203,7 +206,7 @@ mod tests {
         // Unlike a new invoice, one position is held back — an invoice mid-recovery always has a
         // cascading retry left to offer.
         assert_eq!(
-            StaticLadderProgress::seed_for_existing_invoice(HYBRID_CAP, HYBRID_CAP).consumed_rungs,
+            StaticLadderProgress::seed_for_existing_invoice(5, HYBRID_CAP).consumed_rungs,
             4
         );
         assert_eq!(

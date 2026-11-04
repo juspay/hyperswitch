@@ -970,7 +970,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                                 .await
                         };
 
-                        if i64::from(queried_rung) <= max_hybrid_cascading_retry_count {
+                        if i64::from(queried_rung) <= i64::from(max_hybrid_cascading_retry_count) {
                             get_schedule_time_to_retry_adaptive_payments(
                                 state.store.as_ref(),
                                 state.superposition_service.as_ref(),
