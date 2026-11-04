@@ -458,6 +458,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
     pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
+    /// Card testing guard configuration key
+    pub const CARD_TESTING_GUARD_CONFIG: &str = "payments.card_testing_guard_config";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
