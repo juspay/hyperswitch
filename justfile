@@ -164,7 +164,7 @@ euclid-wasm features='dummy_connector':
 # Build the `payment_link` crate as WASM
 # Usage: just payment-link-wasm [features=''] [version='v1'] [environment='development']
 payment-link-wasm features='' version='v1' environment='development':
-    ENVIRONMENT={{ environment }} ~/.cargo/bin/wasm-pack build \
+    ENVIRONMENT={{ environment }} wasm-pack build \
         --target web \
         --out-dir {{ source_directory() }}/wasm_output \
         --out-name payment_link \
