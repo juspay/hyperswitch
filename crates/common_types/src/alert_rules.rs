@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt};
 
 use serde::{Deserialize, Serialize};
 
@@ -38,6 +38,14 @@ pub struct AlertThresholds {
     pub severities: BTreeMap<Severity, SeverityThreshold>,
 }
 
+impl AlertThresholds {
+    pub fn error_destination(&self) -> Option<&str> {
+        self.severities
+            .first_key_value()
+            .map(|(_, threshold)| threshold.destination.as_str())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SeverityThreshold {
@@ -47,14 +55,21 @@ pub struct SeverityThreshold {
     pub destination: String,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, strum::Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum MetricSource {
     GrafanaCloudwatch,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+impl fmt::Display for MetricSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::GrafanaCloudwatch => "grafana_cloudwatch",
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CloudwatchStatistic {
     Average,
     Maximum,
@@ -62,28 +77,53 @@ pub enum CloudwatchStatistic {
     Sum,
 }
 
+impl fmt::Display for CloudwatchStatistic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Average => "Average",
+            Self::Maximum => "Maximum",
+            Self::Minimum => "Minimum",
+            Self::Sum => "Sum",
+        })
+    }
+}
+
 /// Ordered highest priority first for threshold and error-destination selection.
-#[derive(
-    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, strum::Display,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
 pub enum Severity {
     Critical,
     Warning,
     Info,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
+impl fmt::Display for Severity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Critical => "critical",
+            Self::Warning => "warning",
+            Self::Info => "info",
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ComparisonOperator {
-    #[strum(to_string = ">")]
     GreaterThanThreshold,
-    #[strum(to_string = ">=")]
     GreaterThanOrEqualToThreshold,
-    #[strum(to_string = "<")]
     LessThanThreshold,
-    #[strum(to_string = "<=")]
     LessThanOrEqualToThreshold,
+}
+
+impl fmt::Display for ComparisonOperator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::GreaterThanThreshold => ">",
+            Self::GreaterThanOrEqualToThreshold => ">=",
+            Self::LessThanThreshold => "<",
+            Self::LessThanOrEqualToThreshold => "<=",
+        })
+    }
 }
 
 impl ComparisonOperator {
@@ -112,7 +152,50 @@ mod tests {
     }
 
     #[test]
+    fn error_destination_uses_highest_priority_threshold() {
+        let threshold = |destination: &str| SeverityThreshold {
+            threshold: 1.0,
+            comparison_operator: ComparisonOperator::GreaterThanThreshold,
+            description: String::new(),
+            destination: destination.to_owned(),
+        };
+        let thresholds = AlertThresholds {
+            severities: BTreeMap::from([
+                (Severity::Warning, threshold("warning")),
+                (Severity::Critical, threshold("critical")),
+            ]),
+        };
+        assert_eq!(thresholds.error_destination(), Some("critical"));
+        assert_eq!(
+            AlertThresholds {
+                severities: BTreeMap::new(),
+            }
+            .error_destination(),
+            None
+        );
+    }
+
+    #[test]
     fn comparison_display_preserves_wire_names_and_threshold_boundaries() {
+        assert_eq!(
+            MetricSource::GrafanaCloudwatch.to_string(),
+            "grafana_cloudwatch"
+        );
+        for (statistic, name) in [
+            (CloudwatchStatistic::Average, "Average"),
+            (CloudwatchStatistic::Maximum, "Maximum"),
+            (CloudwatchStatistic::Minimum, "Minimum"),
+            (CloudwatchStatistic::Sum, "Sum"),
+        ] {
+            assert_eq!(statistic.to_string(), name);
+        }
+        for (severity, name) in [
+            (Severity::Critical, "critical"),
+            (Severity::Warning, "warning"),
+            (Severity::Info, "info"),
+        ] {
+            assert_eq!(severity.to_string(), name);
+        }
         for (operator, symbol, wire, above, equal) in [
             (
                 ComparisonOperator::GreaterThanThreshold,
