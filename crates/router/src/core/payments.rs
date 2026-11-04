@@ -6856,6 +6856,15 @@ async fn build_external_vault_proxy_metadata_for_operation<F>(
     }
 }
 
+/// Data prepared before executing a payment connector flow.
+#[cfg(feature = "v1")]
+pub type ConnectorServicePrerequisites<F, RouterDReq> = (
+    helpers::MerchantConnectorAccountType,
+    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
+    TokenizationAction,
+    Option<Secret<String>>,
+);
+
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
@@ -6871,12 +6880,7 @@ pub async fn call_connector_service_prerequisites<F, RouterDReq, ApiRequest, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     feature_config: &core_utils::FeatureConfig,
     post_frm_capture_hold: bool,
-) -> RouterResult<(
-    helpers::MerchantConnectorAccountType,
-    RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
-    TokenizationAction,
-    Option<Secret<String>>,
-)>
+) -> RouterResult<ConnectorServicePrerequisites<F, RouterDReq>>
 where
     F: Send + Clone + Sync,
     RouterDReq: Send + Clone + Sync,
