@@ -178,12 +178,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -288,12 +288,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -393,12 +393,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -507,12 +507,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -633,12 +633,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -745,12 +745,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -862,12 +862,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -972,12 +972,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -1766,12 +1766,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -1850,12 +1850,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -1956,12 +1956,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -2076,12 +2076,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 },
                 {
@@ -2189,12 +2189,12 @@
               "apikey": [
                 {
                   "key": "value",
-                  "value": "{{admin_api_key}}",
+                  "value": "admin-api-key={{admin_api_key}}",
                   "type": "string"
                 },
                 {
                   "key": "key",
-                  "value": "api-key",
+                  "value": "Authorization",
                   "type": "string"
                 }
               ]
@@ -5713,12 +5713,12 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "admin-api-key={{admin_api_key}}",
                       "type": "string"
                     },
                     {
                       "key": "key",
-                      "value": "api-key",
+                      "value": "Authorization",
                       "type": "string"
                     },
                     {
@@ -5826,12 +5826,12 @@
                   "apikey": [
                     {
                       "key": "value",
-                      "value": "{{admin_api_key}}",
+                      "value": "admin-api-key={{admin_api_key}}",
                       "type": "string"
                     },
                     {
                       "key": "key",
-                      "value": "api-key",
+                      "value": "Authorization",
                       "type": "string"
                     }
                   ]

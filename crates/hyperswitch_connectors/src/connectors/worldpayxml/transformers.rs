@@ -4327,6 +4327,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4344,6 +4345,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4694,8 +4696,10 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
 fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateType {
     match mit_category {
         Some(common_enums::MitCategory::Installment) => MandateType::Instalment,
-        Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
-        Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
-        _ => MandateType::Unscheduled,
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            MandateType::Recurring
+        }
+        Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission)
+        | None => MandateType::Unscheduled,
     }
 }

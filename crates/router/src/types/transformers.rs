@@ -452,7 +452,11 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         match payment_method_data {
             payments::PaymentMethodData::Card(..)
             | payments::PaymentMethodData::CardWithNoCVC(..)
-            | payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
+            | payments::PaymentMethodData::CardToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(..) => {
+                Ok(Self::Card)
+            }
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -472,7 +476,10 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),
                 })
             }
-            payments::PaymentMethodData::NetworkToken(..) => Ok(Self::NetworkToken),
+            payments::PaymentMethodData::NetworkToken(..)
+            | payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(..) => {
+                Ok(Self::NetworkToken)
+            }
             payments::PaymentMethodData::ProxyCard(..)
             | payments::PaymentMethodData::VaultCardTokenData(..) => Ok(Self::Card),
         }
@@ -2455,6 +2462,38 @@ impl ForeignFrom<diesel_models::business_profile::SurchargeConnectorDetails>
     fn foreign_from(item: diesel_models::business_profile::SurchargeConnectorDetails) -> Self {
         Self {
             surcharge_connector_id: item.surcharge_connector_id,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::RevenueRecoveryConfig>
+    for diesel_models::business_profile::RevenueRecoveryConfig
+{
+    fn foreign_from(item: api_models::admin::RevenueRecoveryConfig) -> Self {
+        Self {
+            max_retry_count: item.max_retry_count,
+            billing_connector_retry_threshold: item.billing_connector_retry_threshold,
+            max_hybrid_cascading_retry_count: item.max_hybrid_cascading_retry_count,
+            grace_period_days: item.grace_period_days,
+            enable_partial_authorization: item.enable_partial_authorization,
+            max_hard_decline_retries: item.max_hard_decline_retries,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::business_profile::RevenueRecoveryConfig>
+    for api_models::admin::RevenueRecoveryConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::RevenueRecoveryConfig) -> Self {
+        Self {
+            max_retry_count: item.max_retry_count,
+            billing_connector_retry_threshold: item.billing_connector_retry_threshold,
+            max_hybrid_cascading_retry_count: item.max_hybrid_cascading_retry_count,
+            grace_period_days: item.grace_period_days,
+            enable_partial_authorization: item.enable_partial_authorization,
+            max_hard_decline_retries: item.max_hard_decline_retries,
         }
     }
 }

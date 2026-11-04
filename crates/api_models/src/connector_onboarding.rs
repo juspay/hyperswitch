@@ -17,6 +17,7 @@ pub enum ActionUrlResponse {
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct OnboardingSyncRequest {
+    /// Business profile that owns the connector account. A mismatch is rejected before onboarding sync.
     pub profile_id: id_type::ProfileId,
     pub connector_id: id_type::MerchantConnectorAccountId,
     pub connector: enums::Connector,

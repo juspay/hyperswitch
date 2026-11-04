@@ -27,6 +27,18 @@ use crate::{
     types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
 
+#[cfg(feature = "v1")]
+fn get_authenticated_profile_id(auth: &auth::AuthenticationData) -> Option<id_type::ProfileId> {
+    auth.profile
+        .as_ref()
+        .map(|profile| profile.get_id().clone())
+}
+
+#[cfg(feature = "v2")]
+fn get_authenticated_profile_id(auth: &auth::AuthenticationData) -> Option<id_type::ProfileId> {
+    Some(auth.profile.get_id().clone())
+}
+
 /// Payouts - Create
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
@@ -70,7 +82,6 @@ pub async fn payouts_create(
     ))
     .await
 }
-
 #[cfg(all(feature = "v1", feature = "payouts"))]
 /// Payouts - Retrieve
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsRetrieve))]
@@ -134,6 +145,7 @@ pub async fn payouts_update(
 ) -> HttpResponse {
     let flow = Flow::PayoutsUpdate;
     let payout_id = path.into_inner();
+    let locking_action = get_payout_locking_action(&payout_id, flow.clone());
     let mut payout_update_payload = json_payload.into_inner();
     payout_update_payload.payout_id = Some(payout_id);
 
@@ -153,13 +165,20 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_update_core(state, auth.platform, req, header_payload.clone())
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_update_core(
+                state,
+                auth.platform,
+                profile_id,
+                req,
+                header_payload.clone(),
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -174,6 +193,7 @@ pub async fn payouts_confirm(
     let flow = Flow::PayoutsConfirm;
     let mut payload = json_payload.into_inner();
     let payout_id = path.into_inner();
+    let locking_action = get_payout_locking_action(&payout_id, flow.clone());
     tracing::Span::current().record("payout_id", payout_id.get_string_repr());
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
@@ -216,15 +236,23 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth, mut req, _| {
+            let profile_id = get_authenticated_profile_id(&auth);
+
             #[cfg(feature = "v1")]
             if let Some(client_secret) = auth.client_secret {
                 req.client_secret = Some(client_secret);
             }
 
-            payouts_confirm_core(state, auth.platform, req, header_payload.clone())
+            payouts_confirm_core(
+                state,
+                auth.platform,
+                profile_id,
+                req,
+                header_payload.clone(),
+            )
         },
         &*auth_type,
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -267,6 +295,7 @@ pub async fn payouts_cancel(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let locking_action = payload.get_locking_input(flow.clone());
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
         Err(err) => return api::log_and_return_error_response(err),
@@ -278,13 +307,20 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.platform, header_payload.clone(), req)
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_cancel_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -299,6 +335,7 @@ pub async fn payouts_fulfill(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let locking_action = payload.get_locking_input(flow.clone());
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -311,15 +348,46 @@ pub async fn payouts_fulfill(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_fulfill_core(state, auth.platform, header_payload.clone(), req)
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_fulfill_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
+}
+
+impl GetLockingInput for payout_types::PayoutActionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        get_payout_locking_action(&self.payout_id, flow)
+    }
+}
+
+fn get_payout_locking_action<F>(payout_id: &id_type::PayoutId, flow: F) -> api_locking::LockAction
+where
+    F: router_env::types::FlowMetric,
+    lock_utils::ApiIdentifier: From<F>,
+{
+    api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payout_id.get_string_repr().to_owned(),
+            api_identifier: lock_utils::ApiIdentifier::from(flow),
+            override_lock_retries: None,
+        },
+    }
 }
 
 /// Payouts - List

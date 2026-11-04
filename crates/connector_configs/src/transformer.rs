@@ -28,6 +28,7 @@ impl DashboardRequestPayload {
             accepted_currencies: None,
             accepted_countries: None,
             payment_experience: None,
+            pay_via_single_use_token: None,
         }
     }
 
@@ -100,6 +101,7 @@ impl DashboardRequestPayload {
                     payment_method,
                     method_type.payment_experience,
                 ),
+                pay_via_single_use_token: method_type.pay_via_single_use_token,
             };
             payment_method_types.push(data)
         }
@@ -134,6 +136,7 @@ impl DashboardRequestPayload {
                                         accepted_currencies: method.accepted_currencies,
                                         accepted_countries: method.accepted_countries,
                                         payment_experience: None,
+                                        pay_via_single_use_token: None,
                                     };
                                     card_payment_method_types.push(data)
                                 }

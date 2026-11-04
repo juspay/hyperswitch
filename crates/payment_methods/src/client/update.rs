@@ -35,6 +35,7 @@ pub struct UpdatePaymentMethodV1Request {
 /// V1-facing update payload.
 #[derive(Clone, Debug, Serialize)]
 pub struct UpdatePaymentMethodV1Payload {
+    pub update_last_used_at: Option<bool>,
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
     /// Connector token details to update.
@@ -49,6 +50,7 @@ pub struct UpdatePaymentMethodV1Payload {
 /// Modular service update request payload.
 #[derive(Clone, Debug, Serialize)]
 pub struct ModularPMUpdateRequest {
+    pub update_last_used_at: Option<bool>,
     /// Payment method details to update.
     pub payment_method_data: Option<PaymentMethodUpdateData>,
     /// Connector token details to update.
@@ -161,6 +163,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
 
     fn try_from(value: &UpdatePaymentMethodV1Request) -> Result<Self, Self::Error> {
         Ok(Self {
+            update_last_used_at: value.payload.update_last_used_at,
             payment_method_data: value.payload.payment_method_data.clone(),
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),

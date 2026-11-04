@@ -256,6 +256,9 @@ impl<'a> KafkaPaymentIntent<'a> {
             is_account_funded_transaction: _,
             recipient_details: _,
             enable_avs_check: _,
+            enable_account_name_verification: _,
+            mit_category: _,
+            settlement_conclusion_applied: _,
         } = intent;
 
         let revenue_recovery_algorithm_type = feature_metadata
