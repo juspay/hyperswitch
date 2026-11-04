@@ -756,7 +756,11 @@ fn process_nexixpay_preprocessing_response(
         AttemptStatus::Failure => Err(get_error_response(
             response.operation.operation_result.clone(),
             http_code,
-            None,
+            response
+                .operation
+                .additional_data
+                .as_ref()
+                .and_then(|data| data.authorization_status.clone()),
         )),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.operation.order_id.clone()),
