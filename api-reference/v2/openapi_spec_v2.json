@@ -25950,8 +25950,6 @@
         "type": "object",
         "required": [
           "total_retry_count",
-          "billing_connector_id",
-          "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
@@ -25976,13 +25974,15 @@
           },
           "billing_connector_id": {
             "type": "string",
-            "description": "Billing Connector Id to update the invoices",
-            "example": "mca_1234567890"
+            "description": "Billing Connector Id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "active_attempt_payment_connector_id": {
             "type": "string",
-            "description": "Payment Connector Id to retry the payments",
-            "example": "mca_1234567890"
+            "description": "Payment Connector Id to retry the payments. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "billing_connector_payment_details": {
             "$ref": "#/components/schemas/BillingConnectorPaymentDetails"
@@ -31811,8 +31811,6 @@
         "required": [
           "amount_details",
           "merchant_reference_id",
-          "billing_merchant_connector_id",
-          "payment_merchant_connector_id",
           "transaction_status",
           "payment_method_type",
           "payment_method_sub_type",
@@ -31843,13 +31841,15 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "transaction_status": {
             "$ref": "#/components/schemas/RecoveryTransactionStatus"

@@ -14818,12 +14818,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
     pub payment_connector_transmission: Option<PaymentConnectorTransmission>,
-    /// Billing Connector Id to update the invoices
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    /// Payment Connector Id to retry the payments
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Payment Connector Id to retry the payments. Absent when the transaction is recorded without merchant connector accounts.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Billing Connector Payment Details
     #[schema(value_type = BillingConnectorPaymentDetails)]
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
@@ -14905,17 +14905,16 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
-        mandates::ProcessorPaymentToken {
-            processor_payment_token: self
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone(),
-            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
-        }
-    }
-    pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
-        self.active_attempt_payment_connector_id.clone()
+
+    /// The connector accounts the invoice is recorded against, when it has them.
+    pub fn get_connector_accounts(
+        &self,
+    ) -> Option<common_payments_types::RecoveryConnectorAccounts> {
+        Some(common_payments_types::RecoveryConnectorAccounts {
+            billing_connector_id: self.billing_connector_id.clone()?,
+            payment_connector_id: self.active_attempt_payment_connector_id.clone()?,
+            connector: self.connector,
+        })
     }
 
     pub fn get_connector_customer_id(&self) -> String {
@@ -14974,17 +14973,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
-    /// The name of the payment connector through which the payment attempt was made.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
-    pub connector: Option<common_enums::connector_enums::Connector>,
-
-    /// Billing connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-
-    /// Billing connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// What is known about the connector of the transaction, which decides how it is recorded.
+    #[schema(value_type = Object)]
+    pub connector_details: common_payments_types::RecoveryConnectorDetails,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
@@ -15060,13 +15051,13 @@ pub struct RecoveryPaymentsCreate {
     /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub billing_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. A request without it is refused.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Status of the transaction reported.
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]

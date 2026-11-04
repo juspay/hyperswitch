@@ -1,5 +1,6 @@
 use actix_web::{web, Responder};
 use api_models::{payments as payments_api, payments as api_payments};
+use common_types::payments::{RecoveryConnectorAccounts, RecoveryConnectorDetails};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
@@ -23,7 +24,7 @@ use crate::{
         storage::{self, revenue_recovery as revenue_recovery_types},
         transformers::ForeignFrom,
     },
-    utils,
+    utils::{self, OptionExt},
 };
 
 pub async fn call_psync_api(
@@ -83,6 +84,17 @@ pub async fn call_psync_api(
     Ok(payment_data)
 }
 
+/// The connector accounts that the retries of an invoice run through. Hyperswitch retries only
+/// the invoices recorded against them.
+fn get_connector_accounts_for_retry(
+    revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+) -> RouterResult<RecoveryConnectorAccounts> {
+    revenue_recovery_metadata
+        .get_connector_accounts()
+        .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
+        .attach_printable("Connector accounts not found in revenue recovery metadata")
+}
+
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
@@ -91,9 +103,10 @@ pub async fn call_proxy_api(
     payment_processor_token: &str,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery)?;
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
         processor_payment_token: payment_processor_token.to_string(),
-        merchant_connector_id: Some(revenue_recovery.get_merchant_connector_id_for_api_request()),
+        merchant_connector_id: Some(connector_accounts.payment_connector_id.clone()),
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
@@ -101,8 +114,8 @@ pub async fn call_proxy_api(
         recurring_details,
         shipping: None,
         browser_info: None,
-        connector: revenue_recovery.connector.to_string(),
-        merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
+        connector: connector_accounts.connector.to_string(),
+        merchant_connector_id: connector_accounts.payment_connector_id,
     };
     logger::info!(
         "Call made to payments proxy api , with the request body {:?}",
@@ -206,16 +219,12 @@ pub async fn record_internal_attempt_api(
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery_metadata)?;
+
     let request_payload = revenue_recovery_attempt_data
         .create_payment_record_request(
             state,
-            &revenue_recovery_payment_data.billing_mca.id,
-            Some(
-                revenue_recovery_metadata
-                    .active_attempt_payment_connector_id
-                    .clone(),
-            ),
-            Some(revenue_recovery_metadata.connector),
+            &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
         )
         .await
@@ -298,9 +307,16 @@ pub async fn custom_revenue_recovery_core(
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    let payment_merchant_connector_account_id = request
+        .payment_merchant_connector_id
+        .clone()
+        .get_required_value("payment_merchant_connector_id")?;
+    let billing_merchant_connector_account_id = request
+        .billing_merchant_connector_id
+        .clone()
+        .get_required_value("billing_merchant_connector_id")?;
     validate_recovery_amounts(&request)?;
     let store = state.store.as_ref();
-    let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     let profile_id = profile.get_id();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
@@ -329,22 +345,18 @@ pub async fn custom_revenue_recovery_core(
     )?;
     let billing_connector_account = store
         .find_merchant_connector_account_by_id(
-            &request.billing_merchant_connector_id.clone(),
+            &billing_merchant_connector_account_id,
             platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .billing_merchant_connector_id
-                .clone()
+            id: billing_merchant_connector_account_id
                 .get_string_repr()
                 .to_string(),
         })?;
     utils::when(&billing_connector_account.profile_id != profile_id, || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .billing_merchant_connector_id
-                .clone()
+            id: billing_merchant_connector_account_id
                 .get_string_repr()
                 .to_string(),
         })
@@ -377,7 +389,11 @@ pub async fn custom_revenue_recovery_core(
             &platform,
             &profile,
             recovery_intent.clone(),
-            payment_merchant_connector_account,
+            &RecoveryConnectorDetails::ConnectorAccounts(RecoveryConnectorAccounts {
+                billing_connector_id: billing_connector_account.get_id(),
+                payment_connector_id: payment_merchant_connector_account.get_id(),
+                connector: payment_merchant_connector_account.get_connector_name(),
+            }),
         ),
     )
     .await
