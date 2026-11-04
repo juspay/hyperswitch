@@ -130,31 +130,34 @@ describe("OMP Scoping - Connector Onboarding (#15115)", () => {
     });
   });
 
-  context("Unchanged by design - informational only, not a security assertion", () => {
-    it("TC-15115-03: action URL retrieval remains merchant-only", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/connector_onboarding/action_url`,
-        auth: { type: "jwt", token: jwtPA },
-        body: {
-          connector: connectorName,
-          connector_id: mcaPaId,
-          return_url: "https://example.com",
-        },
-      }).then((res) => {
-        expect(res.status).to.not.eq(401);
+  context(
+    "Unchanged by design - informational only, not a security assertion",
+    () => {
+      it("TC-15115-03: action URL retrieval remains merchant-only", () => {
+        cy.ompRequest({
+          method: "POST",
+          url: `${baseUrl}/connector_onboarding/action_url`,
+          auth: { type: "jwt", token: jwtPA },
+          body: {
+            connector: connectorName,
+            connector_id: mcaPaId,
+            return_url: "https://example.com",
+          },
+        }).then((res) => {
+          expect(res.status).to.not.eq(401);
+        });
       });
-    });
 
-    it("TC-15115-04: tracking-ID reset remains merchant-only", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
-        auth: { type: "jwt", token: jwtPA },
-        body: { connector: connectorName, connector_id: mcaPaId },
-      }).then((res) => {
-        expect(res.status).to.not.eq(401);
+      it("TC-15115-04: tracking-ID reset remains merchant-only", () => {
+        cy.ompRequest({
+          method: "POST",
+          url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
+          auth: { type: "jwt", token: jwtPA },
+          body: { connector: connectorName, connector_id: mcaPaId },
+        }).then((res) => {
+          expect(res.status).to.not.eq(401);
+        });
       });
-    });
-  });
+    }
+  );
 });

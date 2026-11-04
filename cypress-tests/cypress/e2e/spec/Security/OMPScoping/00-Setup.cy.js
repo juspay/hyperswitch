@@ -1,6 +1,7 @@
 import * as fixtures from "../../../../fixtures/imports";
 import State from "../../../../utils/State";
 import { payment_methods_enabled } from "../../../configs/Payment/Commons";
+import { ompCardPayoutData } from "../../../configs/Security/Commons";
 
 // Shared fixtures for the OMP (merchant/profile) scoping test matrix.
 // Downstream specs in this folder read everything this file stores in
@@ -101,6 +102,13 @@ describe("OMP Scoping - shared fixtures", () => {
   });
 
   context("Paired resources under M1 - one per profile (PA, PB)", () => {
+    // MCA_PA and MCA_PB are intentionally created with the SAME connector
+    // (whatever CYPRESS_CONNECTOR/connectorId is configured for this run).
+    // OMP scoping is about merchant/profile ownership, not connector
+    // behavior, so varying the connector per profile would add nothing here
+    // - the whole suite is parameterized by one connector per run, same as
+    // every other spec folder in this repo (Payment/Payout/etc. are each
+    // run per-connector via CI, not multi-connector in a single run).
     it("creates MCA_PA and MCA_PB", () => {
       cy.then(() => {
         globalState.set("merchantId", globalState.get("merchantIdM1"));
@@ -138,6 +146,12 @@ describe("OMP Scoping - shared fixtures", () => {
       // success - see the comment above getCustomExchange in
       // configs/Payout/Modifiers.js. A real success response must be
       // declared explicitly.
+      //
+      // These intents run against whichever single connector
+      // CYPRESS_CONNECTOR is set to for this run - the suite doesn't loop
+      // over multiple connectors, because OMP (profile/merchant) scoping is
+      // enforced in the router layer before any connector is ever reached,
+      // so the connector choice is orthogonal to what this suite verifies.
       const successResponse = {
         status: 200,
         body: { status: "requires_payment_method" },
@@ -151,7 +165,11 @@ describe("OMP Scoping - shared fixtures", () => {
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        { Configs: {}, Request: { currency: "USD" }, Response: successResponse },
+        {
+          Configs: {},
+          Request: { currency: "USD" },
+          Response: successResponse,
+        },
         "no_three_ds",
         "automatic",
         globalState
@@ -164,7 +182,11 @@ describe("OMP Scoping - shared fixtures", () => {
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        { Configs: {}, Request: { currency: "USD" }, Response: successResponse },
+        {
+          Configs: {},
+          Request: { currency: "USD" },
+          Response: successResponse,
+        },
         "no_three_ds",
         "automatic",
         globalState
@@ -229,22 +251,6 @@ describe("OMP Scoping - shared fixtures", () => {
       // createConfirmPayoutTest reads customer_id from
       // globalState.get("customerId") - must exist before a payout can be
       // created, and payouts need a customer regardless of profile.
-      // payout_type/payout_method_data below matches Adyenplatform's card_pm
-      // "Confirm" fixture shape (configs/Payout/AdyenPlatform.js) - with
-      // confirm=true, auto_fulfill=false, Adyenplatform returns
-      // "requires_fulfillment" rather than failing outright.
-      const cardPayoutData = {
-        payout_method_data: {
-          card: {
-            card_number: "4111111111111111",
-            expiry_month: "03",
-            expiry_year: "2030",
-            card_holder_name: "John Smith",
-          },
-        },
-        currency: "EUR",
-        payout_type: "card",
-      };
       const successResponse = { status: 200, body: {} };
 
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
@@ -253,7 +259,7 @@ describe("OMP Scoping - shared fixtures", () => {
         structuredClone(fixtures.createPayoutBody),
         {
           Request: {
-            ...cardPayoutData,
+            ...ompCardPayoutData,
             profile_id: globalState.get("profileIdPA"),
           },
           Response: successResponse,
@@ -271,7 +277,7 @@ describe("OMP Scoping - shared fixtures", () => {
         structuredClone(fixtures.createPayoutBody),
         {
           Request: {
-            ...cardPayoutData,
+            ...ompCardPayoutData,
             profile_id: globalState.get("profileIdPB"),
           },
           Response: successResponse,

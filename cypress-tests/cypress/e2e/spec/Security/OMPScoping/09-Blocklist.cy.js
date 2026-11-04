@@ -32,12 +32,10 @@ describe("OMP Scoping - Blocklist (#14985)", () => {
     // (created via the dashboard signup flow in 00-Setup.cy.js) never went
     // through - fetch it from the merchant account directly.
     cy.then(() => {
-      return cy.request({
-        method: "GET",
-        url: `${baseUrl}/accounts/${globalState.get("merchantIdM1")}`,
-        headers: { "api-key": globalState.get("adminApiKey") },
-        failOnStatusCode: false,
-      });
+      return cy.ompGetMerchantAccount(
+        globalState.get("merchantIdM1"),
+        globalState
+      );
     }).then((res) => {
       publishableKeyM1 = res.body?.publishable_key;
     });

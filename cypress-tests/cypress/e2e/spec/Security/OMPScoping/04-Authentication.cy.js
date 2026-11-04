@@ -18,7 +18,6 @@ let apiKeyM1;
 let merchantIdM1;
 let profileIdPA;
 let profileIdPB;
-let jwtPA;
 
 describe("OMP Scoping - Authentication (#15097)", () => {
   before("seed global state", () => {
@@ -29,7 +28,6 @@ describe("OMP Scoping - Authentication (#15097)", () => {
       merchantIdM1 = globalState.get("merchantIdM1");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
-      jwtPA = globalState.get("userInfoTokenPA");
     });
   });
 

@@ -212,41 +212,22 @@ describe("OMP Scoping - Payouts (#15049)", () => {
       // merchant's own api-key (see getManagementAuthHeaders in
       // commands.js) - the merchant key is only valid for routes that
       // operate as that merchant, and key management isn't one of them.
-      const adminApiKey = globalState.get("adminApiKey");
+      const merchantIdM1 = globalState.get("merchantIdM1");
 
-      cy.request({
-        method: "POST",
-        url: `${baseUrl}/api_keys/${globalState.get("merchantIdM1")}`,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          Authorization: `admin-api-key=${adminApiKey}`,
-        },
-        body: { name: "omp-scoping-throwaway-key", expiration: "2069-09-23T01:02:03.000Z" },
-        failOnStatusCode: false,
-      }).then((createRes) => {
-        expect(createRes.status).to.eq(200);
-        const throwawayKey = createRes.body.api_key;
-        const keyId = createRes.body.key_id;
-
-        cy.request({
-          method: "DELETE",
-          url: `${baseUrl}/api_keys/${globalState.get("merchantIdM1")}/${keyId}`,
-          headers: { Authorization: `admin-api-key=${adminApiKey}` },
-          failOnStatusCode: false,
-        }).then((revokeRes) => {
-          expect(revokeRes.status).to.eq(200);
-
-          cy.ompRequest({
-            method: "PUT",
-            url: `${baseUrl}/payouts/${payoutIdPA}`,
-            auth: { type: "apiKey", apiKey: throwawayKey },
-            body: { metadata: {} },
-          }).then((res) => {
-            expect(res.status).to.eq(401);
+      cy.ompCreateThrowawayApiKey(merchantIdM1, globalState).then(
+        ({ apiKey: throwawayKey, keyId }) => {
+          cy.ompRevokeApiKey(merchantIdM1, keyId, globalState).then(() => {
+            cy.ompRequest({
+              method: "PUT",
+              url: `${baseUrl}/payouts/${payoutIdPA}`,
+              auth: { type: "apiKey", apiKey: throwawayKey },
+              body: { metadata: {} },
+            }).then((res) => {
+              expect(res.status).to.eq(401);
+            });
           });
-        });
-      });
+        }
+      );
     });
   });
 });

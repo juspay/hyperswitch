@@ -13856,8 +13856,10 @@ Cypress.Commands.add(
   ({ fetch, negativeRequest }) => {
     return fetch().then((before) => {
       return negativeRequest().then((negativeResponse) => {
-        expect(negativeResponse.status, "negative request must be denied")
-          .to.be.gte(400);
+        expect(
+          negativeResponse.status,
+          "negative request must be denied"
+        ).to.be.gte(400);
 
         return fetch().then((after) => {
           expect(
@@ -13869,3 +13871,69 @@ Cypress.Commands.add(
     });
   }
 );
+
+// Creates a throwaway merchant API key using the admin API key (key
+// management is always admin-authenticated, never via a merchant's own
+// api-key - see getManagementAuthHeaders above). Used by the "revoked API
+// key is rejected" edge cases in cypress/e2e/spec/Security/OMPScoping/.
+Cypress.Commands.add("ompCreateThrowawayApiKey", (merchantId, globalState) => {
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/api_keys/${merchantId}`,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `admin-api-key=${adminApiKey}`,
+      },
+      body: {
+        name: "omp-scoping-throwaway-key",
+        expiration: "2069-09-23T01:02:03.000Z",
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      expect(response.status, "throwaway API key creation must succeed").to.eq(
+        200
+      );
+      return { apiKey: response.body.api_key, keyId: response.body.key_id };
+    });
+});
+
+// Revokes a merchant API key via the admin API key - pair for
+// ompCreateThrowawayApiKey above.
+Cypress.Commands.add("ompRevokeApiKey", (merchantId, keyId, globalState) => {
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  return cy
+    .request({
+      method: "DELETE",
+      url: `${baseUrl}/api_keys/${merchantId}/${keyId}`,
+      headers: { Authorization: `admin-api-key=${adminApiKey}` },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      expect(response.status, "API key revocation must succeed").to.eq(200);
+      return response;
+    });
+});
+
+// Fetches a merchant account via the admin API key, for reading fields
+// (e.g. publishable_key) that aren't captured anywhere else when the
+// merchant was created via the dashboard signup flow rather than
+// merchantCreateCallTest. Used by cypress/e2e/spec/Security/OMPScoping/.
+Cypress.Commands.add("ompGetMerchantAccount", (merchantId, globalState) => {
+  const adminApiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  return cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: { "api-key": adminApiKey },
+    failOnStatusCode: false,
+  });
+});
