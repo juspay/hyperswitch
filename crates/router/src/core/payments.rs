@@ -3768,7 +3768,7 @@ where
         ));
 
     let router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -7004,7 +7004,7 @@ where
         .await?;
 
     let router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -7432,7 +7432,7 @@ where
     .await?;
 
     let router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -7597,7 +7597,7 @@ where
         .await?;
 
     let router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -7641,7 +7641,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let mut router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -7990,7 +7990,7 @@ where
     let merchant_recipient_data = None;
 
     let mut router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -8198,7 +8198,7 @@ where
         .await?;
 
     let mut router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             platform.get_processor(),
@@ -8873,7 +8873,7 @@ where
     // To create connector flow specific interface data
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     D: ConstructFlowSpecificData<F, Req, router_types::PaymentsResponseData>,
-    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req>,
+    RouterData<F, Req, router_types::PaymentsResponseData>: Feature<F, Req> + Send,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -8897,7 +8897,7 @@ where
 
         let connector_id = session_connector_data.connector.connector.id();
         let router_data = payment_data
-            .construct_router_data(
+            .construct_router_data_with_callbacks(
                 state,
                 connector_id,
                 processor,
@@ -9027,7 +9027,7 @@ where
         ));
 
         let router_data = payment_data
-            .construct_router_data(
+            .construct_router_data_with_callbacks(
                 state,
                 connector_id,
                 processor,
@@ -9427,7 +9427,7 @@ where
                 customers::ConnectorCustomerAction::CreateCustomer => {
                     // Create customer at connector and update the customer table to store this data
                     let mut customer_router_data = payment_data
-                        .construct_router_data(
+                        .construct_router_data_with_callbacks(
                             state,
                             connector.connector.id(),
                             processor,
@@ -9542,7 +9542,7 @@ where
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
-                    .construct_router_data(
+                    .construct_router_data_with_callbacks(
                         state,
                         connector.connector.id(),
                         processor,
@@ -9672,7 +9672,7 @@ where
     D: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let mut router_data = payment_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             connector.connector.id(),
             processor,

@@ -23,7 +23,7 @@ use crate::{
         payments::{
             self, access_token, customers, gateway, gateway as payments_gateway,
             gateway::context as gateway_context, helpers, session_token, tokenization,
-            transformers, PaymentData,
+            transformers, transformers::ConnectorCallbackUrls, PaymentData,
         },
     },
     routes::SessionState,
@@ -51,6 +51,7 @@ impl
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::SetupMandateRouterData> {
         fp_utils::when(merchant_connector_account.is_disabled(), || {
             Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -70,6 +71,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -93,6 +95,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::SetupMandateRouterData> {
         Box::pin(
             transformers::construct_payment_router_data_for_setup_mandate(
@@ -104,6 +107,7 @@ impl
                 merchant_connector_account,
                 merchant_recipient_data,
                 header_payload,
+                connector_callback_urls,
             ),
         )
         .await

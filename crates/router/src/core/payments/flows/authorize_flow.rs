@@ -42,7 +42,7 @@ use crate::{
         payments::{
             self, access_token, customers, flows::gateway_context, gateway,
             gateway as payments_gateway, helpers, session_token, tokenization, transformers,
-            PaymentData,
+            transformers::ConnectorCallbackUrls, PaymentData,
         },
         unified_connector_service,
     },
@@ -71,6 +71,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -87,6 +88,7 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            connector_callback_urls,
         ))
         .await
     }
@@ -153,6 +155,7 @@ impl
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -178,6 +181,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }

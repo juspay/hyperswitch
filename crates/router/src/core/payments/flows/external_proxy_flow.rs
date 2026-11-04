@@ -19,7 +19,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{
             self, access_token, customers, gateway, gateway::context as gateway_context, helpers,
-            session_token, tokenization, transformers, PaymentData,
+            session_token, tokenization, transformers, transformers::ConnectorCallbackUrls,
+            PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },
@@ -49,6 +50,7 @@ impl
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::ExternalVaultProxy,
@@ -65,6 +67,7 @@ impl
                 merchant_connector_account,
                 merchant_recipient_data,
                 header_payload,
+                connector_callback_urls,
             ),
         )
         .await
@@ -89,6 +92,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::ExternalVaultProxy,
@@ -106,6 +110,7 @@ impl
                 merchant_connector_account,
                 merchant_recipient_data,
                 header_payload,
+                connector_callback_urls,
             ),
         )
         .await

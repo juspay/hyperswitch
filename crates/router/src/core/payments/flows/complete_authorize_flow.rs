@@ -24,7 +24,8 @@ use crate::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
             self, access_token, gateway, gateway as payments_gateway,
-            gateway::context as gateway_context, helpers, transformers, PaymentData,
+            gateway::context as gateway_context, helpers, transformers,
+            transformers::ConnectorCallbackUrls, PaymentData,
         },
         unified_connector_service as ucs_core,
     },
@@ -54,6 +55,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -75,6 +77,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -89,6 +92,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
