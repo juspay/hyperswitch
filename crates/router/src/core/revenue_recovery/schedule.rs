@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 pub struct StaticLadderProgress {
     /// Rungs already used; the next one to offer is `consumed_rungs + 1`.
     #[serde(default)]
-    pub consumed_rungs: i32,
+    pub consumed_rungs: u32,
 }
 
 impl StaticLadderProgress {
@@ -16,10 +16,7 @@ impl StaticLadderProgress {
         max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: i32::try_from(
-                u32::from(intent_retry_count).min(max_hybrid_cascading_retry_count),
-            )
-            .unwrap_or(i32::MAX),
+            consumed_rungs: u32::from(intent_retry_count).min(max_hybrid_cascading_retry_count),
         }
     }
 
@@ -30,16 +27,13 @@ impl StaticLadderProgress {
         max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: i32::try_from(
-                u32::from(intent_retry_count)
-                    .min(max_hybrid_cascading_retry_count.saturating_sub(1)),
-            )
-            .unwrap_or(i32::MAX),
+            consumed_rungs: u32::from(intent_retry_count)
+                .min(max_hybrid_cascading_retry_count.saturating_sub(1)),
         }
     }
 
     /// The rung to ask the ladder for on this decision — the one after those already used.
-    pub fn next_rung(&self) -> i32 {
+    pub fn next_rung(&self) -> u32 {
         self.consumed_rungs + 1
     }
 }
@@ -94,7 +88,7 @@ fn keep_rung(
 
 /// A decision taken off the ladder, which uses up the rung it supplied. The only way the ladder
 /// advances, and so the only way it is spent.
-fn spend_rung(queried_rung: i32, schedule_time: PrimitiveDateTime) -> ScheduleDecision {
+fn spend_rung(queried_rung: u32, schedule_time: PrimitiveDateTime) -> ScheduleDecision {
     ScheduleDecision {
         schedule_time,
         next_progress: StaticLadderProgress {
@@ -113,7 +107,7 @@ fn spend_rung(queried_rung: i32, schedule_time: PrimitiveDateTime) -> ScheduleDe
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
     ladder: StaticLadderRole,
-    queried_rung: i32,
+    queried_rung: u32,
     model_time: Option<PrimitiveDateTime>,
     static_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
@@ -157,7 +151,7 @@ mod tests {
         epoch + Duration::hours(hours)
     }
 
-    fn at_rung(consumed_rungs: i32) -> StaticLadderProgress {
+    fn at_rung(consumed_rungs: u32) -> StaticLadderProgress {
         StaticLadderProgress { consumed_rungs }
     }
 

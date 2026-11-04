@@ -264,13 +264,17 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    queried_rung: i32,
+    queried_rung: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
+    // The scheduler's lookup takes an `i32`. A rung too large for it is past the end of any ladder.
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(
+        mapping,
+        i32::try_from(queried_rung).unwrap_or(i32::MAX),
+    );
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -970,7 +974,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                                 .await
                         };
 
-                        if i64::from(queried_rung) <= i64::from(max_hybrid_cascading_retry_count) {
+                        if queried_rung <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
                                 state.store.as_ref(),
                                 state.superposition_service.as_ref(),
