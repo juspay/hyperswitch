@@ -920,6 +920,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::GooglePay => {
                 AdditionalPaymentMethodConnectorResponse::GooglePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -933,6 +934,7 @@ impl ConnectorResponseData {
             common_enums::PaymentMethodType::ApplePay => {
                 AdditionalPaymentMethodConnectorResponse::ApplePay {
                     auth_code: Some(auth_code),
+                    payment_checks: None,
                     device_pan_bin: None,
                     card_bin: None,
                     card_subtype: None,
@@ -1041,6 +1043,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     GooglePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
@@ -1060,6 +1064,8 @@ pub enum AdditionalPaymentMethodConnectorResponse {
     },
     ApplePay {
         auth_code: Option<String>,
+        /// Various payment checks that are done for a payment
+        payment_checks: Option<serde_json::Value>,
         /// Bin of the DPAN (device PAN), as returned by the connector
         device_pan_bin: Option<String>,
         /// Bin of the underlying card, as returned by the connector
