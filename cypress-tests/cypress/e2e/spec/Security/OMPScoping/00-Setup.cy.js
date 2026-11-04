@@ -1,7 +1,7 @@
 import * as fixtures from "../../../../fixtures/imports";
 import State from "../../../../utils/State";
 import { payment_methods_enabled } from "../../../configs/Payment/Commons";
-import { ompCardPayoutData } from "../../../configs/Security/Commons";
+import { PaymentIntent, CardPayout } from "../../../configs/Security/Commons";
 
 // Shared fixtures for the OMP (merchant/profile) scoping test matrix.
 // Downstream specs in this folder read everything this file stores in
@@ -141,22 +141,15 @@ describe("OMP Scoping - shared fixtures", () => {
     });
 
     it("creates PI_PA and PI_PB (payment intents)", () => {
-      // An empty/omitted Response tells the shared assertion helpers to
-      // expect a default error (e.g. 501 not-implemented) rather than
-      // success - see the comment above getCustomExchange in
-      // configs/Payout/Modifiers.js. A real success response must be
-      // declared explicitly.
+      // Request/Response come from configs/Security/Commons.js, the same
+      // bundling convention configs/Payment/Commons.js uses for its own
+      // PaymentIntent getter.
       //
       // These intents run against whichever single connector
       // CYPRESS_CONNECTOR is set to for this run - the suite doesn't loop
       // over multiple connectors, because OMP (profile/merchant) scoping is
       // enforced in the router layer before any connector is ever reached,
       // so the connector choice is orthogonal to what this suite verifies.
-      const successResponse = {
-        status: 200,
-        body: { status: "requires_payment_method" },
-      };
-
       cy.then(() => {
         globalState.set("merchantId", globalState.get("merchantIdM1"));
         globalState.set("apiKey", globalState.get("apiKeyM1"));
@@ -165,11 +158,7 @@ describe("OMP Scoping - shared fixtures", () => {
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        {
-          Configs: {},
-          Request: { currency: "USD" },
-          Response: successResponse,
-        },
+        { Configs: {}, ...PaymentIntent() },
         "no_three_ds",
         "automatic",
         globalState
@@ -182,11 +171,7 @@ describe("OMP Scoping - shared fixtures", () => {
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-        {
-          Configs: {},
-          Request: { currency: "USD" },
-          Response: successResponse,
-        },
+        { Configs: {}, ...PaymentIntent() },
         "no_three_ds",
         "automatic",
         globalState
@@ -251,18 +236,16 @@ describe("OMP Scoping - shared fixtures", () => {
       // createConfirmPayoutTest reads customer_id from
       // globalState.get("customerId") - must exist before a payout can be
       // created, and payouts need a customer regardless of profile.
-      const successResponse = { status: 200, body: {} };
-
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
 
       cy.createConfirmPayoutTest(
         structuredClone(fixtures.createPayoutBody),
         {
+          ...CardPayout(),
           Request: {
-            ...ompCardPayoutData,
+            ...CardPayout().Request,
             profile_id: globalState.get("profileIdPA"),
           },
-          Response: successResponse,
         },
         true,
         false,
@@ -276,11 +259,11 @@ describe("OMP Scoping - shared fixtures", () => {
       cy.createConfirmPayoutTest(
         structuredClone(fixtures.createPayoutBody),
         {
+          ...CardPayout(),
           Request: {
-            ...ompCardPayoutData,
+            ...CardPayout().Request,
             profile_id: globalState.get("profileIdPB"),
           },
-          Response: successResponse,
         },
         true,
         false,
