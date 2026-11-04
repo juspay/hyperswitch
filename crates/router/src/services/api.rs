@@ -725,7 +725,10 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
         .content_type(mime::APPLICATION_JSON)
         .append_header((
             "Location",
-            redirection_response.return_url_with_query_params,
+            redirection_response
+                .return_url_with_query_params
+                .peek()
+                .as_str(),
         ))
         .status(http::StatusCode::FOUND)
         .body(response)
@@ -928,9 +931,9 @@ pub fn build_redirection_form(
                 "#))
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                    form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
+                    form action=(PreEscaped(endpoint.peek())) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
-                        input type="hidden" name=(field) value=(value);
+                        input type="hidden" name=(field) value=(value.peek());
                     }
                 }
                 (PreEscaped(format!(r#"
@@ -953,9 +956,10 @@ pub fn build_redirection_form(
             }
         }
         },
-        RedirectForm::Html { html_data } => {
-            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
-        }
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{logging_template}</script>",
+            html_data.peek()
+        )),
         RedirectForm::BarclaycardAuthSetup {
             access_token,
             ddc_url,
@@ -1293,6 +1297,7 @@ pub fn build_redirection_form(
             bin,
             acs_url,
         } => {
+            let acs_url = acs_url.peek();
             maud::html! {
             (maud::DOCTYPE)
             html {

@@ -5815,7 +5815,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 
         Ok(services::ApplicationResponse::JsonForRedirection(
             api::RedirectionResponse {
-                return_url_with_query_params: return_url_str,
+                return_url_with_query_params: return_url_str.into(),
             },
         ))
     }

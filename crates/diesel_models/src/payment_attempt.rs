@@ -4735,12 +4735,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub enum RedirectForm {
     Form {
-        endpoint: String,
+        endpoint: hyperswitch_masking::Secret<String>,
         method: common_utils::request::Method,
-        form_fields: std::collections::HashMap<String, String>,
+        form_fields: std::collections::HashMap<String, hyperswitch_masking::Secret<String>>,
     },
     Html {
-        html_data: String,
+        html_data: hyperswitch_masking::Secret<String>,
     },
     BarclaycardAuthSetup {
         access_token: String,
@@ -4772,7 +4772,7 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        acs_url: String,
+        acs_url: hyperswitch_masking::Secret<String>,
     },
     Nmi {
         amount: String,

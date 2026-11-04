@@ -509,7 +509,7 @@ pub enum NexixpayPaymentIntent {
 pub struct NexixpayRedirectionRequest {
     pub three_d_s_auth_url: String,
     pub three_ds_request: String,
-    pub return_url: String,
+    pub return_url: Secret<String>,
     pub transaction_id: String,
 }
 
@@ -1539,13 +1539,16 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
 fn nexixpay_threeds_link(
     request: NexixpayRedirectionRequest,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
-    let mut form_fields = HashMap::<String, String>::new();
-    form_fields.insert(String::from("ThreeDsRequest"), request.three_ds_request);
+    let mut form_fields = HashMap::<String, Secret<String>>::new();
+    form_fields.insert(
+        String::from("ThreeDsRequest"),
+        request.three_ds_request.into(),
+    );
     form_fields.insert(String::from("ReturnUrl"), request.return_url);
-    form_fields.insert(String::from("transactionId"), request.transaction_id);
+    form_fields.insert(String::from("transactionId"), request.transaction_id.into());
 
     Ok(RedirectForm::Form {
-        endpoint: request.three_d_s_auth_url,
+        endpoint: request.three_d_s_auth_url.into(),
         method: Method::Post,
         form_fields,
     })

@@ -12,6 +12,7 @@ pub use disputes::{
     SubmitEvidenceResponse,
 };
 use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -219,16 +220,14 @@ impl CaptureSyncResponse {
     }
 }
 impl PaymentsResponseData {
-    pub fn get_connector_metadata(&self) -> Option<hyperswitch_masking::Secret<serde_json::Value>> {
+    pub fn get_connector_metadata(&self) -> Option<Secret<serde_json::Value>> {
         match self {
             Self::TransactionResponse {
                 connector_metadata, ..
             }
             | Self::PreProcessingResponse {
                 connector_metadata, ..
-            } => connector_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            } => connector_metadata.clone().map(Secret::new),
             _ => None,
         }
     }
@@ -402,12 +401,12 @@ impl PreprocessingResponseId {
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
-        endpoint: String,
+        endpoint: Secret<String>,
         method: Method,
-        form_fields: HashMap<String, String>,
+        form_fields: HashMap<String, Secret<String>>,
     },
     Html {
-        html_data: String,
+        html_data: Secret<String>,
     },
     BarclaycardAuthSetup {
         access_token: String,
@@ -439,12 +438,12 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        acs_url: String,
+        acs_url: Secret<String>,
     },
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: hyperswitch_masking::Secret<String>,
+        public_key: Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -471,14 +470,14 @@ impl From<(url::Url, Method)> for RedirectForm {
         let form_fields = HashMap::from_iter(
             redirect_url
                 .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
+                .map(|(key, value)| (key.to_string(), value.to_string().into())),
         );
 
         // Do not include query params in the endpoint
         redirect_url.set_query(None);
 
         Self::Form {
-            endpoint: redirect_url.to_string(),
+            endpoint: redirect_url.to_string().into(),
             method,
             form_fields,
         }
@@ -753,7 +752,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<hyperswitch_masking::Secret<String>>,
+        authentication_value: Option<Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
@@ -765,7 +764,7 @@ pub enum AuthenticationResponseData {
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<hyperswitch_masking::Secret<String>>,
+        authentication_value: Option<Secret<String>>,
         eci: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
@@ -856,8 +855,8 @@ impl PaymentMethodDetails {
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
-        session_id: hyperswitch_masking::Secret<String>,
-        client_secret: hyperswitch_masking::Secret<String>,
+        session_id: Secret<String>,
+        client_secret: Secret<String>,
     },
     ExternalVaultInsertResponse {
         connector_vault_id: VaultIdType,
@@ -880,16 +879,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_number: Option<Secret<String>>,
+        tokenized_card_expiry_year: Option<Secret<String>>,
+        tokenized_card_expiry_month: Option<Secret<String>>,
+        tokenized_card_cvc: Option<Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token: Option<Secret<String>>,
+        tokenized_network_token_exp_year: Option<Secret<String>>,
+        tokenized_network_token_exp_month: Option<Secret<String>>,
+        tokenized_cryptogram: Option<Secret<String>>,
     },
 }
 

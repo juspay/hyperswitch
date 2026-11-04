@@ -836,12 +836,12 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -898,7 +898,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         }
     }
 
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -952,7 +952,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
@@ -1124,7 +1124,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
@@ -1154,7 +1154,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .into(),
             )
     }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))

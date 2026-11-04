@@ -46,7 +46,7 @@ fn payment_method_details() -> Option<PaymentsAuthorizeData> {
             card_number: CardNumber::from_str("374111111111111").unwrap(),
             ..utils::CCardType::default().0
         }),
-        router_return_url: Some("https://google.com".to_string()),
+        router_return_url: Some("https://google.com".to_string().into()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }

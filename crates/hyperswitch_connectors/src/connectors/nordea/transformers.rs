@@ -496,7 +496,7 @@ impl
             })
             .and_then(|link| link.href.clone())
             .map(|redirect_url| RedirectForm::Form {
-                endpoint: redirect_url,
+                endpoint: redirect_url.into(),
                 method: Method::Get,
                 form_fields: HashMap::new(),
             });

@@ -162,14 +162,14 @@ pub(crate) mod boundary {
             .map(ToOwned::to_owned)
     }
 
-    // `headers` and `request_body` can carry auth tokens / cardholder data / PII,
+    // Queries, headers, and bodies can carry auth tokens / cardholder data / PII,
     // so they are `Secret`: the derived `Debug` redacts them, and the raw value is
     // exposed only at the deja recording boundary (`args`).
     #[derive(Debug)]
     pub(super) struct IncomingHttpRecord {
         method: String,
         path: String,
-        query: String,
+        query: Secret<String>,
         request_id: String,
         headers: Secret<serde_json::Value>,
         content_type: Option<String>,
@@ -182,7 +182,7 @@ pub(crate) mod boundary {
             json!({
                 "method": self.method.as_str(),
                 "path": self.path.as_str(),
-                "query": self.query.as_str(),
+                "query": self.query.peek().as_str(),
                 "request_id": self.request_id.as_str(),
                 "headers": self.headers.peek().clone(),
                 "content_type": self.content_type.as_deref(),
@@ -226,7 +226,7 @@ pub(crate) mod boundary {
         let record = IncomingHttpRecord {
             method,
             path,
-            query,
+            query: Secret::new(query),
             request_id: request_id.to_string(),
             headers: Secret::new(headers),
             content_type,
@@ -481,7 +481,7 @@ pub(crate) mod boundary {
         json!({
             "method": record.method.as_str(),
             "path": record.path.as_str(),
-            "query": record.query.as_str(),
+            "query": record.query.peek().as_str(),
             "request_id": record.request_id.as_str(),
             "status": response.status().as_u16(),
         })
@@ -492,7 +492,7 @@ pub(crate) mod boundary {
         json!({
             "method": record.method.as_str(),
             "path": record.path.as_str(),
-            "query": record.query.as_str(),
+            "query": record.query.peek().as_str(),
             "request_id": record.request_id.as_str(),
             "status": status.as_u16(),
             "error": error.to_string(),

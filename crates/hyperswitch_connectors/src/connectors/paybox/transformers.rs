@@ -132,9 +132,9 @@ pub struct ThreeDSPaymentsRequest {
     #[serde(rename = "CVVCode")]
     cvv_code: Secret<String>,
     #[serde(rename = "URLRetour")]
-    url_retour: String,
+    url_retour: Secret<String>,
     #[serde(rename = "URLHttpDirect")]
-    url_http_direct: String,
+    url_http_direct: Secret<String>,
     email_porteur: common_utils::pii::Email,
     first_name: Secret<String>,
     last_name: Secret<String>,
@@ -759,9 +759,7 @@ impl<F> TryFrom<ResponseRouterData<F, PayboxResponse, PaymentsAuthorizeData, Pay
                 status: enums::AttemptStatus::AuthenticationPending,
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
-                    redirection_data: Box::new(Some(RedirectForm::Html {
-                        html_data: data.peek().to_string(),
-                    })),
+                    redirection_data: Box::new(Some(RedirectForm::Html { html_data: data })),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,

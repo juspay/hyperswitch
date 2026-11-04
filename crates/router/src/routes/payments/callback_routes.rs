@@ -6,6 +6,7 @@
 
 #[cfg(feature = "v1")]
 use actix_web::{web, Resource};
+use hyperswitch_masking::Secret;
 
 #[cfg(feature = "v1")]
 use super as payments;
@@ -97,12 +98,13 @@ impl PaymentCallbackRoute {
         payment_id: &str,
         merchant_id: &str,
         attempt_id: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::Start
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::ATTEMPT_ID, attempt_id)
+            .into()
     }
 
     pub fn redirect_response_url(
@@ -110,12 +112,13 @@ impl PaymentCallbackRoute {
         payment_id: &str,
         merchant_id: &str,
         connector: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::RedirectResponse
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::CONNECTOR, connector)
+            .into()
     }
 
     pub fn redirect_response_with_credentials_url(
@@ -124,13 +127,14 @@ impl PaymentCallbackRoute {
         merchant_id: &str,
         connector: &str,
         creds_identifier: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::RedirectResponseWithCredentials
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::CONNECTOR, connector)
             .replace(Self::CREDS_IDENTIFIER, creds_identifier)
+            .into()
     }
 
     pub fn redirect_complete_url(
@@ -138,12 +142,13 @@ impl PaymentCallbackRoute {
         payment_id: &str,
         merchant_id: &str,
         connector: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::RedirectComplete
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::CONNECTOR, connector)
+            .into()
     }
 
     pub fn redirect_complete_with_credentials_url(
@@ -152,13 +157,14 @@ impl PaymentCallbackRoute {
         merchant_id: &str,
         connector: &str,
         creds_identifier: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::RedirectCompleteWithCredentials
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::CONNECTOR, connector)
             .replace(Self::CREDS_IDENTIFIER, creds_identifier)
+            .into()
     }
 
     pub fn authorize_url(
@@ -166,18 +172,20 @@ impl PaymentCallbackRoute {
         payment_id: &str,
         merchant_id: &str,
         connector: &str,
-    ) -> String {
+    ) -> Secret<String> {
         Self::Authorize
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
             .replace(Self::MERCHANT_ID, merchant_id)
             .replace(Self::CONNECTOR, connector)
+            .into()
     }
 
-    pub fn authentication_url(base_url: &str, payment_id: &str) -> String {
+    pub fn authentication_url(base_url: &str, payment_id: &str) -> Secret<String> {
         Self::Authentication
             .url(base_url)
             .replace(Self::PAYMENT_ID, payment_id)
+            .into()
     }
 
     /// Build the named resource with the methods and handlers for this callback.

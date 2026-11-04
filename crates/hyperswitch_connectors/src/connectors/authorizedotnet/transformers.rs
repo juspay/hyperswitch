@@ -127,8 +127,8 @@ enum PaymentDetails {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PayPalDetails {
-    pub success_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub cancel_url: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -2424,7 +2424,7 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 
 fn get_wallet_data(
     wallet_data: &WalletData,
-    return_url: &Option<String>,
+    return_url: &Option<Secret<String>>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
         WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {

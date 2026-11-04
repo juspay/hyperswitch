@@ -83,11 +83,11 @@ pub struct HipayPaymentsRequest {
     payment_product: String,
     amount: StringMajorUnit,
     description: String,
-    decline_url: Option<String>,
-    pending_url: Option<String>,
-    cancel_url: Option<String>,
-    accept_url: Option<String>,
-    notify_url: Option<String>,
+    decline_url: Option<Secret<String>>,
+    pending_url: Option<Secret<String>>,
+    cancel_url: Option<Secret<String>>,
+    accept_url: Option<Secret<String>>,
+    notify_url: Option<Secret<String>>,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     three_ds_data: Option<ThreeDSPaymentData>,
@@ -393,7 +393,7 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 ),
                 redirection_data: match item.data.is_three_ds() {
                     true => Box::new(Some(RedirectForm::Form {
-                        endpoint: item.response.forward_url,
+                        endpoint: item.response.forward_url.into(),
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     })),

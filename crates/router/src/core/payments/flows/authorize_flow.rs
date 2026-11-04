@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -1466,16 +1466,16 @@ fn transform_redirection_response_for_pre_authenticate_flow(
             match connector {
                 enums::connector_enums::Connector::Barclaycard => {
                     Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
-                        access_token,
-                        ddc_url,
-                        reference_id,
+                        access_token: access_token.expose(),
+                        ddc_url: ddc_url.expose(),
+                        reference_id: reference_id.expose(),
                     })
                 }
                 enums::connector_enums::Connector::Cybersource => {
                     Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                        access_token,
-                        ddc_url,
-                        reference_id,
+                        access_token: access_token.expose(),
+                        ddc_url: ddc_url.expose(),
+                        reference_id: reference_id.expose(),
                     })
                 }
                 _ => Ok(response_data),
@@ -1586,19 +1586,25 @@ fn transform_response_for_pre_authenticate_flow(
                                     directory_server_id: form_fields
                                         .get("threeDSServerTransID")
                                         .cloned()
-                                        .unwrap_or_default(),
+                                        .unwrap_or_default()
+                                        .expose(),
                                     three_ds_method_url: form_fields
                                         .get("threeDsMethodUrl")
                                         .cloned()
-                                        .unwrap_or_else(|| endpoint.clone()),
+                                        .unwrap_or_else(|| endpoint.clone())
+                                        .expose(),
                                     three_ds_method_data: form_fields
                                         .get("threeDsMethodData")
                                         .cloned()
-                                        .unwrap_or_default(),
-                                    message_version: form_fields.get("messageVersion").cloned(),
+                                        .unwrap_or_default()
+                                        .expose(),
+                                    message_version: form_fields
+                                        .get("messageVersion")
+                                        .cloned()
+                                        .map(ExposeInterface::expose),
                                     three_ds_method_data_submission: form_fields
                                         .get("threeDsMethodDataSubmission")
-                                        .map(|v| v == "true")
+                                        .map(|v| v.peek() == "true")
                                         .unwrap_or(true),
                                 };
                             // Set connector_metadata with invoke data, clear redirection_data

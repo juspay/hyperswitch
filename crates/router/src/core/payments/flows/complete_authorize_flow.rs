@@ -15,7 +15,7 @@ use hyperswitch_interfaces::{
     api as api_interface, api::ConnectorSpecifications, consts as interface_consts,
     errors as interface_errors, unified_connector_service::transformers as ucs_transformers,
 };
-use hyperswitch_masking::{self, ExposeInterface};
+use hyperswitch_masking::{self, ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -681,14 +681,14 @@ fn transform_redirection_response_for_authenticate_flow(
             match connector {
                 connector_enums::Connector::Barclaycard => Ok(
                     router_response_types::RedirectForm::BarclaycardConsumerAuth {
-                        access_token,
-                        step_up_url,
+                        access_token: access_token.expose(),
+                        step_up_url: step_up_url.expose(),
                     },
                 ),
                 connector_enums::Connector::Cybersource => Ok(
                     router_response_types::RedirectForm::CybersourceConsumerAuth {
-                        access_token,
-                        step_up_url,
+                        access_token: access_token.expose(),
+                        step_up_url: step_up_url.expose(),
                     },
                 ),
                 _ => Ok(response_data),
@@ -897,7 +897,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
     processor: &domain::Processor,
     rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     force_3ds_challenge: Option<bool>,
-    notification_url: Option<common_utils::types::Url>,
+    notification_url: Option<Secret<common_utils::types::Url>>,
     acquirer_metadata: Option<serde_json::Value>,
 ) -> errors::CustomResult<
     types::RouterData<

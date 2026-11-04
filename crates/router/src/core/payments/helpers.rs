@@ -4420,7 +4420,7 @@ pub fn get_handle_response_url_for_modular_authentication(
     business_profile: &domain::Profile,
     response: &api_models::authentication::AuthenticationAuthenticateResponse,
     connector: String,
-    return_url: Option<String>,
+    return_url: Option<hyperswitch_masking::Secret<String>>,
     client_secret: Option<&hyperswitch_masking::Secret<String>>,
     amount: Option<MinorUnit>,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -4440,7 +4440,7 @@ pub fn get_handle_response_url_for_modular_authentication(
     let return_url = make_merchant_url_with_response_for_authentication(
         business_profile,
         redirection_response,
-        authentication_return_url.as_ref(),
+        authentication_return_url.as_ref().map(PeekInterface::peek),
         client_secret,
         None,
     )
@@ -4771,13 +4771,13 @@ pub fn make_url_with_signature(
         .query_pairs()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(key, value)| (key.clone().into_owned(), value.clone().into_owned()))
+        .map(|(key, value)| (key.clone().into_owned(), value.clone().into_owned().into()))
         .collect::<Vec<_>>();
 
     Ok(api::RedirectionResponse {
         return_url: base_url.to_string(),
         params: parameters,
-        return_url_with_query_params: url.to_string(),
+        return_url_with_query_params: url.to_string().into(),
         http_method: if business_profile.redirect_to_merchant_with_http_post {
             services::Method::Post.to_string()
         } else {

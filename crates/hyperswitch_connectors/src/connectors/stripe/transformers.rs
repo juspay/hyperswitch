@@ -243,7 +243,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
     pub meta_data: HashMap<String, String>,
-    pub return_url: String,
+    pub return_url: Secret<String>,
     pub confirm: bool,
     pub payment_method: Option<Secret<String>>,
     pub customer: Option<Secret<String>>,
@@ -312,7 +312,7 @@ pub struct SetupIntentRequest {
     pub usage: Option<enums::FutureUsage>,
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
@@ -2698,7 +2698,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 .request
                 .router_return_url
                 .clone()
-                .unwrap_or_else(|| "https://juspay.in/".to_string()),
+                .unwrap_or_else(|| "https://juspay.in/".to_string().into()),
             confirm: true, // Stripe requires confirm to be true if return URL is present
             description: item.description.clone(),
             shipping: shipping_address,
@@ -4201,7 +4201,7 @@ impl Serialize for StripeNextActionResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToUrlResponse {
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     url: Url,
 }
 

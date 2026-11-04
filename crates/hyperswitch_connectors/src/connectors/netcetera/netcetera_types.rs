@@ -8,7 +8,7 @@ use hyperswitch_domain_models::router_request_types::{
     authentication::MessageCategory, BrowserInformation,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use unidecode::unidecode;
 
@@ -1210,7 +1210,7 @@ pub struct MerchantData {
     /// If not present in the request it will be filled from the notificationURL configured in the XML or database configuration.
     #[serde(rename = "notificationURL")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub notification_url: Option<String>,
+    pub notification_url: Option<Secret<String>>,
 
     /// Each DS provides rules for the 3DS Requestor ID. The 3DS Requestor is responsible for providing the 3DS Requestor ID according to the DS rules.
     ///

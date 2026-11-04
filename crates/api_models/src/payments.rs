@@ -7084,14 +7084,17 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectToUrl {
         #[smithy(value_type = "String")]
-        redirect_to_url: String,
+        #[schema(value_type = String)]
+        redirect_to_url: Secret<String>,
     },
     #[cfg(feature = "v1")]
     RedirectInsidePopup {
         #[smithy(value_type = "String")]
-        popup_url: String,
+        #[schema(value_type = String)]
+        popup_url: Secret<String>,
         #[smithy(value_type = "String")]
-        redirect_response_url: String,
+        #[schema(value_type = String)]
+        redirect_response_url: Secret<String>,
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
@@ -7240,10 +7243,12 @@ pub struct DDCData {
 pub struct ThreeDsData {
     /// ThreeDS authentication url - to initiate authentication
     #[smithy(value_type = "String")]
-    pub three_ds_authentication_url: String,
+    #[schema(value_type = String)]
+    pub three_ds_authentication_url: Secret<String>,
     /// ThreeDS authorize url - to complete the payment authorization after authentication
     #[smithy(value_type = "String")]
-    pub three_ds_authorize_url: String,
+    #[schema(value_type = String)]
+    pub three_ds_authorize_url: Secret<String>,
     /// ThreeDS method details
     #[smithy(value_type = "ThreeDsMethodData")]
     pub three_ds_method_details: ThreeDsMethodData,
@@ -10295,8 +10300,8 @@ pub struct PgRedirectResponse {
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
-    pub params: Vec<(String, String)>,
-    pub return_url_with_query_params: String,
+    pub params: Vec<(String, Secret<String>)>,
+    pub return_url_with_query_params: Secret<String>,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
 }
@@ -10304,7 +10309,7 @@ pub struct RedirectionResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
-    pub return_url_with_query_params: String,
+    pub return_url_with_query_params: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

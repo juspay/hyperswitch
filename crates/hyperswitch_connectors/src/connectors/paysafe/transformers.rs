@@ -144,7 +144,7 @@ pub struct PaysafeCustomerDetails {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDs {
-    pub merchant_url: String,
+    pub merchant_url: Secret<String>,
     pub device_channel: DeviceChannel,
     pub message_category: ThreeDsMessageCategory,
     pub authentication_purpose: ThreeDsAuthenticationPurpose,
@@ -382,7 +382,7 @@ pub struct PaysafeGiftCard {
 #[derive(Debug, Serialize)]
 pub struct ReturnLink {
     pub rel: LinkType,
-    pub href: String,
+    pub href: Secret<String>,
     pub method: String,
 }
 
@@ -738,7 +738,7 @@ pub struct PaysafePaymentHandleResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentLink {
     pub rel: String,
-    pub href: String,
+    pub href: Secret<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
@@ -862,7 +862,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
             .as_ref()
             .and_then(|links| links.first())
             .map(|link| RedirectForm::Form {
-                endpoint: link.href.clone(),
+                endpoint: link.href.clone().into(),
                 method: Method::Get,
                 form_fields: Default::default(),
             });

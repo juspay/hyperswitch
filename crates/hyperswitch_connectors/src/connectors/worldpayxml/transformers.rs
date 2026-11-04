@@ -2623,7 +2623,7 @@ struct ChallengeJwt {
     #[serde(rename = "OrgUnitId")]
     org_unit_id: Secret<String>,
     #[serde(rename = "ReturnUrl")]
-    return_url: String,
+    return_url: Secret<String>,
     #[serde(rename = "Payload")]
     payload: Payload,
     #[serde(rename = "ObjectifyPayload")]
@@ -2726,7 +2726,7 @@ fn generate_challenge_jwt(
     acs_url: String,
     payload: String,
     transaction_id: String,
-    return_url: String,
+    return_url: Secret<String>,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
     let iat: u64 = common_utils::date_time::now_unix_timestamp()

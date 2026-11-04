@@ -2011,12 +2011,17 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
         match value.form_type {
             Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
+                endpoint: form.clone().endpoint.into(),
                 method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
+                form_fields: form
+                    .clone()
+                    .form_fields
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }),
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
+                html_data: html.html_data.into(),
             }),
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
@@ -2035,7 +2040,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     client_token: braintree.client_token,
                     card_token: braintree.card_token,
                     bin: braintree.bin,
-                    acs_url: braintree.acs_url,
+                    acs_url: braintree.acs_url.into(),
                 })
             }
             Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {

@@ -2552,9 +2552,10 @@ pub fn get_modular_authentication_request_poll_id(
 }
 
 pub fn get_html_redirect_response_after_ddc(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     redirect_mode: &str, // "required" or "if_required"
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     Ok(html! {
         head {
             title { "Redirect Form" }
@@ -2593,12 +2594,14 @@ pub fn get_html_redirect_response_after_ddc(
             "#)))
         }
     }
-    .into_string())
+    .into_string()
+    .into())
 }
 
 pub fn get_html_redirect_response_popup(
-    return_url_with_query_params: String,
-) -> RouterResult<String> {
+    return_url_with_query_params: Secret<String>,
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     Ok(html! {
         head {
             title { "Redirect Form" }
@@ -2626,16 +2629,17 @@ pub fn get_html_redirect_response_popup(
                     "#)))
         }
     }
-    .into_string())
+    .into_string().into())
 }
 
 #[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     payment_response: &api_models::payments::PaymentsResponse,
     payment_id: common_utils::id_type::PaymentId,
     poll_config: &PollConfig,
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
     let html = match payment_response.status {
             IntentStatus::RequiresCustomerAction => {
@@ -2709,16 +2713,17 @@ pub fn get_html_redirect_response_for_external_authentication(
                 .into_string()
             },
         };
-    Ok(html)
+    Ok(html.into())
 }
 
 #[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_modular_authentication(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     authentication_response: &api_models::authentication::AuthenticationResponse,
     authentication_id: common_utils::id_type::AuthenticationId,
     poll_config: &PollConfig,
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     // if authentication_status is pending then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
     let html = match authentication_response.status {
             common_enums::AuthenticationStatus::Pending => {
@@ -2792,7 +2797,7 @@ pub fn get_html_redirect_response_for_external_modular_authentication(
                 .into_string()
             },
         };
-    Ok(html)
+    Ok(html.into())
 }
 
 #[inline]
