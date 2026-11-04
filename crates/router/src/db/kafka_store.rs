@@ -3127,6 +3127,51 @@ impl CaptureInterface for KafkaStore {
 #[async_trait::async_trait]
 impl RefundInterface for KafkaStore {
     #[cfg(feature = "v1")]
+    async fn insert_surcharge_refund(
+        &self,
+        refund: diesel_refund::RefundNew,
+        application_source: common_enums::ApplicationSource,
+    ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+        let refund = self
+            .diesel_store
+            .insert_surcharge_refund(refund, application_source)
+            .await?;
+        if let Err(error) = self
+            .kafka_producer
+            .log_refund(&refund, None, self.tenant_id.clone())
+            .await
+        {
+            logger::error!(?error, "Failed to publish surcharge refund creation");
+        }
+        Ok(refund)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn compare_and_swap_surcharge_refund(
+        &self,
+        refund: &diesel_refund::Refund,
+        details: common_types::refunds::ExternalSurchargeRefundDetails,
+        surcharge: Option<common_utils::types::MinorUnit>,
+        net: Option<common_utils::types::MinorUnit>,
+        rejected: bool,
+    ) -> CustomResult<Option<diesel_refund::Refund>, errors::StorageError> {
+        let updated = self
+            .diesel_store
+            .compare_and_swap_surcharge_refund(refund, details, surcharge, net, rejected)
+            .await?;
+        if let Some(updated) = updated.as_ref() {
+            if let Err(error) = self
+                .kafka_producer
+                .log_refund(updated, Some(refund.clone()), self.tenant_id.clone())
+                .await
+            {
+                logger::error!(?error, "Failed to publish surcharge refund update");
+            }
+        }
+        Ok(updated)
+    }
+
+    #[cfg(feature = "v1")]
     async fn find_refund_by_internal_reference_id_processor_merchant_id(
         &self,
         internal_reference_id: &str,

@@ -1215,6 +1215,22 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
 
+    if payment_attempt
+        .external_surcharge_details
+        .as_ref()
+        .is_some_and(|details| {
+            details.usable_connector_id().is_some()
+                || payment_attempt
+                    .amount_details
+                    .get_surcharge_amount()
+                    .is_some_and(|amount| amount > common_utils_types::MinorUnit::zero())
+        })
+    {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "External surcharge refunds are not enabled for API v2".into(),
+        }
+        .into());
+    }
     let refund_amount_details =
         hyperswitch_domain_models::refunds::RefundAmountDetails::from(refund_amount);
     refunds_validator::validate_refund_amount(
@@ -1268,6 +1284,7 @@ pub async fn validate_and_create_refund(
         feature_metadata: refund_feature_metadata,
         refund_surcharge_amount: None,
         net_refund_amount: None,
+        external_surcharge_refund_details: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,

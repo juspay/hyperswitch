@@ -1,3 +1,5 @@
+pub mod surcharge;
+
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
@@ -437,13 +439,6 @@ pub async fn refund_create_core(
         },
     )?;
 
-    payment_intent
-        .validate_amount_against_intent_state_metadata(req.amount)
-        .map_err(|err| {
-            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
-                .attach_printable("refund amount validation against payment intent failed")
-        })?;
-
     payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
@@ -470,6 +465,15 @@ pub async fn refund_create_core(
             platform.get_processor().get_key_store()
         ).await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+    if !surcharge::applies(&payment_attempt) {
+        payment_intent
+            .validate_amount_against_intent_state_metadata(req.amount)
+            .map_err(|err| {
+                err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
+                    .attach_printable("refund amount validation against payment intent failed")
+            })?;
+    }
 
     let creds_identifier = req
         .merchant_connector_details
@@ -513,6 +517,13 @@ pub async fn trigger_refund_to_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
+    let (prepared_refund, execute) =
+        surcharge::prepare_processor(state, platform, refund, payment_attempt, payment_intent)
+            .await?;
+    if !execute {
+        return Ok((prepared_refund, None));
+    }
+    let refund = &prepared_refund;
     let routed_through = payment_attempt
         .connector
         .clone()
@@ -743,11 +754,18 @@ pub async fn trigger_refund_to_gateway(
                 )
             };
 
-            let refund_status = match err.status_code {
-                // If status code is 5xx, we do not change the refund status here
-                500..=511 => None,
-                // For other errors, we mark the refund as Failure, since these are definite failures
-                _ => Some(enums::RefundStatus::Failure),
+            let refund_status = if refund.external_surcharge_refund_details.is_some()
+                && (err.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE
+                    || err.status_code == 408
+                    || err.status_code >= 500)
+            {
+                // An uncertain processor outcome continues to consume the reservation.
+                None
+            } else {
+                match err.status_code {
+                    500..=511 => None,
+                    _ => Some(enums::RefundStatus::Failure),
+                }
             };
 
             let (refund_error_message, refund_error_code) =
@@ -849,6 +867,9 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
+    if let Err(error) = surcharge::complete(state, platform, &response).await {
+        logger::error!(?error, refund_id = %response.refund_id, "Surcharge completion deferred to recovery");
+    }
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1170,6 +1191,38 @@ pub async fn refund_retrieve_core(
         unified_message: unified_translated_message,
         ..refund
     };
+
+    if let Some(op) = surcharge::operation(&refund) {
+        use common_types::refunds::SurchargeRefundStatus as Status;
+        if request.force_sync.unwrap_or(false)
+            && matches!(
+                op.surcharge_refunds_status,
+                Status::Reserved | Status::Initialized
+            )
+        {
+            return Box::pin(trigger_refund_to_gateway(
+                &state,
+                &refund,
+                &platform,
+                &payment_attempt,
+                &payment_intent,
+                creds_identifier,
+                split_refunds_req,
+                request.all_keys_required,
+                None,
+            ))
+            .await;
+        }
+        if !matches!(
+            op.surcharge_refunds_status,
+            Status::ProcessorInFlight | Status::Completed
+        ) {
+            return Ok((refund, None));
+        }
+        if let Err(error) = surcharge::complete(&state, &platform, &refund).await {
+            logger::error!(?error, "Surcharge completion will be recovered");
+        }
+    }
 
     let (response, raw_connector_response) = (if should_call_refund(
         &refund,
@@ -1503,6 +1556,9 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
+    if let Err(error) = surcharge::complete(state, platform, &response).await {
+        logger::error!(?error, refund_id = %response.refund_id, "Surcharge completion deferred to recovery");
+    }
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1719,6 +1775,48 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
+    if surcharge::applies(payment_attempt) {
+        match db
+            .find_refund_by_processor_merchant_id_refund_id(
+                platform.get_processor().get_account().get_id(),
+                &refund_id,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+        {
+            Ok(existing) => {
+                if existing.payment_id != req.payment_id
+                    || req.amount.is_some_and(|a| a != existing.refund_amount)
+                    || existing.external_surcharge_refund_details.is_none()
+                {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Refund reference was already used with different parameters"
+                            .into(),
+                    }
+                    .into());
+                }
+                let (response, _) = Box::pin(schedule_refund_execution(
+                    state,
+                    existing,
+                    refund_type,
+                    platform,
+                    payment_attempt,
+                    payment_intent,
+                    creds_identifier,
+                    split_refunds,
+                    req.all_keys_required,
+                    payment_method_data,
+                ))
+                .await?;
+                return Ok(response.foreign_into());
+            }
+            Err(error) if error.current_context().is_db_not_found() => (),
+            Err(error) => {
+                return Err(error).change_context(errors::ApiErrorResponse::InternalServerError)
+            }
+        }
+    }
+
     let connector_transaction_id = payment_attempt
         .clone()
         .connector_transaction_id.ok_or_else(|| {
@@ -1727,14 +1825,22 @@ pub async fn validate_and_create_refund(
             )
         })?;
 
-    let all_refunds = db
-        .find_refund_by_processor_merchant_id_connector_transaction_id(
+    let all_refunds = if surcharge::applies(payment_attempt) {
+        db.find_refund_by_payment_id_processor_merchant_id(
+            &payment_intent.payment_id,
+            platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+    } else {
+        db.find_refund_by_processor_merchant_id_connector_transaction_id(
             platform.get_processor().get_account().get_id(),
             &connector_transaction_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+    }
+    .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
@@ -1748,6 +1854,16 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
+    let reservation = surcharge::prepare_reservation(
+        platform,
+        payment_attempt,
+        payment_intent,
+        req.amount,
+        &all_refunds,
+    )?;
+    let (refund_amount, external_surcharge_refund_details) = reservation
+        .map(|(amount, details)| (amount, Some(details)))
+        .unwrap_or((refund_amount, None));
     let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
@@ -1808,7 +1924,10 @@ pub async fn validate_and_create_refund(
         total_amount: payment_attempt.get_total_amount(),
         refund_amount,
         refund_surcharge_amount,
-        net_refund_amount: Some(net_refund_amount),
+        net_refund_amount: external_surcharge_refund_details
+            .is_none()
+            .then_some(net_refund_amount),
+        external_surcharge_refund_details,
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -1836,16 +1955,43 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let refund = match db
-        .insert_refund(
+    let insert_result = if refund_create_req
+        .external_surcharge_refund_details
+        .is_some()
+    {
+        db.insert_surcharge_refund(refund_create_req, state.conf.application_source)
+            .await
+    } else {
+        db.insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-    {
+    };
+    let refund = match insert_result {
         Ok(refund) => refund,
         Err(err) => {
-            if err.current_context().is_db_unique_violation() {
+            if err.current_context().is_db_unique_violation() && surcharge::applies(payment_attempt)
+            {
+                let existing = db
+                    .find_refund_by_processor_merchant_id_refund_id(
+                        platform.get_processor().get_account().get_id(),
+                        &refund_id,
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                if existing.payment_id != payment_intent.payment_id
+                    || existing.refund_amount != refund_amount
+                {
+                    return Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Refund reference was already used with different parameters"
+                            .into(),
+                    }
+                    .into());
+                }
+                existing
+            } else if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)
@@ -2455,6 +2601,27 @@ pub async fn schedule_refund_execution(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
+    if refund.external_surcharge_refund_details.is_some() {
+        surcharge::ensure_recovery_task(state, &refund).await?;
+        if refund_type == api_models::refunds::RefundType::Instant
+            && !refund.sent_to_gateway
+            && refund.refund_status == enums::RefundStatus::Pending
+        {
+            return Box::pin(trigger_refund_to_gateway(
+                state,
+                &refund,
+                platform,
+                payment_attempt,
+                payment_intent,
+                creds_identifier,
+                split_refunds,
+                all_keys_required,
+                payment_method_data,
+            ))
+            .await;
+        }
+        return Ok((refund, None));
+    }
     // refunds::RefundResponse> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
@@ -2714,6 +2881,7 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
+        Some("SURCHARGE_REFUND") => surcharge::recover(state, refund_tracker).await,
         Some("EXECUTE_REFUND") => {
             Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
         }

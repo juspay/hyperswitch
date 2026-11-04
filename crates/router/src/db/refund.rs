@@ -2,7 +2,9 @@
 use std::collections::{HashMap, HashSet};
 
 #[cfg(feature = "olap")]
-use common_utils::types::{ConnectorTransactionIdTrait, MinorUnit};
+use common_utils::types::ConnectorTransactionIdTrait;
+#[cfg(any(feature = "v1", feature = "olap"))]
+use common_utils::types::MinorUnit;
 use diesel_models::{errors::DatabaseError, refund as diesel_refund};
 use hyperswitch_domain_models::refunds;
 
@@ -17,6 +19,29 @@ const MAX_LIMIT: usize = 100;
 
 #[async_trait::async_trait]
 pub trait RefundInterface {
+    #[cfg(feature = "v1")]
+    async fn insert_surcharge_refund(
+        &self,
+        refund: diesel_refund::RefundNew,
+        application_source: common_enums::ApplicationSource,
+    ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+        let _ = (refund, application_source);
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v1")]
+    async fn compare_and_swap_surcharge_refund(
+        &self,
+        refund: &diesel_refund::Refund,
+        details: common_types::refunds::ExternalSurchargeRefundDetails,
+        surcharge: Option<MinorUnit>,
+        net: Option<MinorUnit>,
+        rejected: bool,
+    ) -> CustomResult<Option<diesel_refund::Refund>, errors::StorageError> {
+        let _ = (refund, details, surcharge, net, rejected);
+        Err(errors::StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v1")]
     async fn find_refund_by_internal_reference_id_processor_merchant_id(
         &self,
@@ -163,6 +188,35 @@ mod storage {
 
     #[async_trait::async_trait]
     impl RefundInterface for Store {
+        #[cfg(feature = "v1")]
+        async fn insert_surcharge_refund(
+            &self,
+            refund: diesel_refund::RefundNew,
+            application_source: common_enums::ApplicationSource,
+        ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            refund
+                .insert_with_surcharge_task(&conn, application_source)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        async fn compare_and_swap_surcharge_refund(
+            &self,
+            refund: &diesel_refund::Refund,
+            details: common_types::refunds::ExternalSurchargeRefundDetails,
+            surcharge: Option<common_utils::types::MinorUnit>,
+            net: Option<common_utils::types::MinorUnit>,
+            rejected: bool,
+        ) -> CustomResult<Option<diesel_refund::Refund>, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            refund
+                .compare_and_swap_surcharge(&conn, details, surcharge, net, rejected)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
         #[cfg(feature = "v1")]
         #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_processor_merchant_id(
@@ -378,7 +432,7 @@ mod storage {
             processor_merchant_id: &common_utils::id_type::MerchantId,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
-            let conn = connection::pg_connection_read(self).await?;
+            let conn = connection::pg_connection_write(self).await?;
             diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
                 &conn,
                 payment_id,
@@ -565,6 +619,35 @@ mod storage {
     #[async_trait::async_trait]
     impl RefundInterface for Store {
         #[cfg(feature = "v1")]
+        async fn insert_surcharge_refund(
+            &self,
+            refund: diesel_refund::RefundNew,
+            application_source: common_enums::ApplicationSource,
+        ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            refund
+                .insert_with_surcharge_task(&conn, application_source)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
+        async fn compare_and_swap_surcharge_refund(
+            &self,
+            refund: &diesel_refund::Refund,
+            details: common_types::refunds::ExternalSurchargeRefundDetails,
+            surcharge: Option<common_utils::types::MinorUnit>,
+            net: Option<common_utils::types::MinorUnit>,
+            rejected: bool,
+        ) -> CustomResult<Option<diesel_refund::Refund>, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            refund
+                .compare_and_swap_surcharge(&conn, details, surcharge, net, rejected)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[cfg(feature = "v1")]
         #[instrument(skip_all)]
         async fn find_refund_by_internal_reference_id_processor_merchant_id(
             &self,
@@ -686,6 +769,9 @@ mod storage {
                         refund_amount: new.refund_amount,
                         refund_surcharge_amount: new.refund_surcharge_amount,
                         net_refund_amount: new.net_refund_amount,
+                        external_surcharge_refund_details: new
+                            .external_surcharge_refund_details
+                            .clone(),
                         refund_status: new.refund_status,
                         sent_to_gateway: new.sent_to_gateway,
                         refund_error_message: None,
@@ -1201,7 +1287,7 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
             let database_call = || async {
-                let conn = connection::pg_connection_read(self).await?;
+                let conn = connection::pg_connection_write(self).await?;
                 diesel_refund::Refund::find_by_payment_id_processor_merchant_id(
                     &conn,
                     payment_id,
@@ -1457,6 +1543,7 @@ impl RefundInterface for MockDb {
             refund_amount: new.refund_amount,
             refund_surcharge_amount: new.refund_surcharge_amount,
             net_refund_amount: new.net_refund_amount,
+            external_surcharge_refund_details: new.external_surcharge_refund_details.clone(),
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,
@@ -1515,6 +1602,7 @@ impl RefundInterface for MockDb {
             refund_amount: new.refund_amount,
             refund_surcharge_amount: new.refund_surcharge_amount,
             net_refund_amount: new.net_refund_amount,
+            external_surcharge_refund_details: new.external_surcharge_refund_details.clone(),
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,

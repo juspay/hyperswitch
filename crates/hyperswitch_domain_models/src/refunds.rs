@@ -29,6 +29,18 @@ impl RefundAmountDetails {
         self.refund_surcharge_amount
     }
 
+    /// Checked at the processor boundary and before persisting a surcharge reservation.
+    pub fn checked_net_refund_amount(&self) -> Option<MinorUnit> {
+        self.refund_amount
+            .get_amount_as_i64()
+            .checked_add(
+                self.refund_surcharge_amount
+                    .unwrap_or_default()
+                    .get_amount_as_i64(),
+            )
+            .map(MinorUnit::new)
+    }
+
     pub fn get_net_refund_amount(&self) -> MinorUnit {
         self.refund_amount + self.refund_surcharge_amount.unwrap_or_default()
     }
@@ -253,4 +265,30 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             refund_status,
         }
     }
+}
+
+/// Conservatively allocate partial captures: reserve all non-order components first.
+/// This never makes uncaptured order funds refundable in the absence of a per-component capture split.
+pub fn captured_order_amount(order: i64, total: i64, captured: i64) -> Option<i64> {
+    if order < 0 || captured < 0 || total < order || captured > total {
+        return None;
+    }
+    Some(order.min(captured.checked_sub(total.checked_sub(order)?)?.max(0)))
+}
+
+pub fn validate_surcharge_order_amount(
+    original: i64,
+    remaining: i64,
+    requested: i64,
+) -> Result<(), &'static str> {
+    if requested <= 0 {
+        return Err("Refund amount must be positive");
+    }
+    if requested > original {
+        return Err("Requested refund amount is greater than the original order amount.");
+    }
+    if requested > remaining {
+        return Err("Requested refund amount exceeds the remaining refundable order amount.");
+    }
+    Ok(())
 }

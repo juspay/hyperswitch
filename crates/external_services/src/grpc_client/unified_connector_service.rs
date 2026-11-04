@@ -1600,6 +1600,60 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Initiate a surcharge refund using the original surcharge transaction ID.
+    pub async fn surcharge_refund_init(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundInitRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundInitResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_init(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+    }
+
+    /// Complete a surcharge refund using the ID returned by Init.
+    pub async fn surcharge_refund_complete(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundCompleteRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_complete(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+    }
+
     /// Performs a pre-authorization risk check via the FRM Service.
     pub async fn frm_pre_risk_check(
         &self,

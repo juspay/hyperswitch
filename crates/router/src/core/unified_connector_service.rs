@@ -5079,3 +5079,78 @@ pub async fn call_unified_connector_service_for_notify_connector(
 
     Ok(notify_connector_response_data)
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_surcharge_refund_init(
+    state: &SessionState,
+    processor: &Processor,
+    account: MerchantConnectorAccountType,
+    profile_id: &id_type::ProfileId,
+    data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundInitData,
+) -> RouterResult<payments_grpc::SurchargeServiceSurchargeRefundInitResponse> {
+    let auth = build_unified_connector_service_auth_metadata(
+        account,
+        processor.get_account().get_id(),
+        "interpayments".to_owned(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let headers = state
+        .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
+        .lineage_ids(LineageIds::new(
+            processor.get_account().get_id().clone(),
+            profile_id.clone(),
+        ))
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None)
+        .resource_id(None)
+        .build();
+    let request =
+        payments_grpc::SurchargeServiceSurchargeRefundInitRequest::foreign_try_from(&data)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    get_ucs_client(state)?
+        .surcharge_refund_init(request, auth, headers)
+        .await
+        .map(|response| response.into_inner())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("SurchargeRefundInit outcome is unknown; reconcile before retrying")
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn call_unified_connector_service_for_surcharge_refund_complete(
+    state: &SessionState,
+    processor: &Processor,
+    account: MerchantConnectorAccountType,
+    profile_id: &id_type::ProfileId,
+    data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundCompleteData,
+) -> RouterResult<payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse> {
+    let auth = build_unified_connector_service_auth_metadata(
+        account,
+        processor.get_account().get_id(),
+        "interpayments".to_owned(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let headers = state
+        .get_grpc_headers_ucs(ExecutionMode::Primary)
+        .payment_method(None)
+        .payment_method_type(None)
+        .lineage_ids(LineageIds::new(
+            processor.get_account().get_id().clone(),
+            profile_id.clone(),
+        ))
+        .external_vault_proxy_metadata(None)
+        .merchant_reference_id(None)
+        .resource_id(None)
+        .build();
+    let request =
+        payments_grpc::SurchargeServiceSurchargeRefundCompleteRequest::foreign_from(&data);
+    get_ucs_client(state)?
+        .surcharge_refund_complete(request, auth, headers)
+        .await
+        .map(|response| response.into_inner())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("SurchargeRefundComplete outcome is unknown; reconcile before retrying")
+}

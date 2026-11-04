@@ -839,6 +839,7 @@ async fn update_payment_attempt_from_webhook_response(
             }
         };
         let updated_details = common_types::payments::ExternalSurchargeDetails {
+            surcharge_merchant_connector_id: existing_details.surcharge_merchant_connector_id,
             external_surcharge_id: existing_details.external_surcharge_id,
             external_surcharge_amount: existing_details.external_surcharge_amount,
             surcharge_percentage: existing_details.surcharge_percentage,

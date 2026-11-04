@@ -76,6 +76,9 @@ pub struct Refund {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 impl Refund {
@@ -168,6 +171,9 @@ pub struct Refund {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
@@ -228,6 +234,9 @@ pub struct RefundNew {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -284,6 +293,9 @@ pub struct RefundNew {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -380,7 +392,7 @@ pub enum RefundUpdate {
 #[router_derive::apply_changeset(target = Refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<ConnectorTransactionId>,
-    refund_status: Option<storage_enums::RefundStatus>,
+    pub(crate) refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<Option<String>>,
     refund_arn: Option<String>,

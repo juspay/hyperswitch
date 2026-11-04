@@ -1680,6 +1680,9 @@ pub struct SurchargeErrorDetails {
 #[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ExternalSurchargeDetails {
+    /// Account used for the original surcharge calculation. Required for refunds.
+    #[serde(default)]
+    pub surcharge_merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     /// sTxId from InterPayments (the last one received before confirm)
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
