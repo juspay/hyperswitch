@@ -1,8 +1,8 @@
 import State from "../../../../utils/State";
 
-// #15097 - "enforce authentication profile scope". These are standalone 3DS
-// AuthenticationCreateRequest records (crates/api_models/src/authentication.rs),
-// distinct from a payment's own authentication flow.
+// These are standalone 3DS AuthenticationCreateRequest records
+// (crates/api_models/src/authentication.rs), distinct from a payment's own
+// authentication flow.
 //
 // Routes (verified): POST /authentication (ApiKeyAuth), POST
 // /authentication/{id}/eligibility and POST
@@ -13,17 +13,15 @@ import State from "../../../../utils/State";
 // assert the call isn't rejected for profile-mismatch reasons, not that a
 // full 3DS flow succeeds.
 let globalState;
-let baseUrl;
 let apiKeyM1;
 let merchantIdM1;
 let profileIdPA;
 let profileIdPB;
 
-describe("OMP Scoping - Authentication (#15097)", () => {
+describe("OMP Scoping - Authentication", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      baseUrl = globalState.get("baseUrl");
       apiKeyM1 = globalState.get("apiKeyM1");
       merchantIdM1 = globalState.get("merchantIdM1");
       profileIdPA = globalState.get("profileIdPA");
@@ -38,25 +36,23 @@ describe("OMP Scoping - Authentication (#15097)", () => {
   context("Create", () => {
     // POST /authentication is ApiKeyAuth-only (HeaderAuth(ApiKeyAuth)) - no
     // JWT alternative, unlike eligibility/sync below.
-    it("TC-15097-01: create rejects explicit cross-profile request", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { amount: 1000, currency: "USD", profile_id: profileIdPB },
-      }).then((res) => {
+    it("create rejects explicit cross-profile request", () => {
+      cy.ompCreateAuthentication(
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { amount: 1000, currency: "USD", profile_id: profileIdPB },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(400);
         expect(res.body?.error?.code).to.eq("IR_16");
       });
     });
 
-    it("TC-15097-02 (positive): create with no profile_id defaults to auth profile", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { amount: 1000, currency: "USD" },
-      }).then((res) => {
+    it("create with no profile_id defaults to auth profile (positive)", () => {
+      cy.ompCreateAuthentication(
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { amount: 1000, currency: "USD" },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(200);
         expect(res.body.profile_id).to.eq(profileIdPA);
       });
@@ -68,102 +64,100 @@ describe("OMP Scoping - Authentication (#15097)", () => {
     let authPAId;
 
     before("create one authentication record under each profile", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication`,
-        auth: { type: "apiKey", apiKey: apiKeyM1 },
-        body: { amount: 1000, currency: "USD", profile_id: profileIdPB },
-      }).then((res) => {
+      cy.ompCreateAuthentication(
+        { type: "apiKey", apiKey: apiKeyM1 },
+        { amount: 1000, currency: "USD", profile_id: profileIdPB },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(200);
         authPBId = res.body.authentication_id;
       });
 
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication`,
-        auth: { type: "apiKey", apiKey: apiKeyM1 },
-        body: { amount: 1000, currency: "USD", profile_id: profileIdPA },
-      }).then((res) => {
+      cy.ompCreateAuthentication(
+        { type: "apiKey", apiKey: apiKeyM1 },
+        { amount: 1000, currency: "USD", profile_id: profileIdPA },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(200);
         authPAId = res.body.authentication_id;
       });
     });
 
-    it("TC-15097-03: eligibility on a PB authentication denied for PA auth", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/${authPBId}/eligibility`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: {},
-      }).then((res) => {
+    it("eligibility on a PB authentication denied for PA auth", () => {
+      cy.ompAuthenticationEligibility(
+        authPBId,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15097-04: sync on a PB authentication denied for PA auth", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/${merchantIdM1}/${authPBId}/sync`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: {},
-      }).then((res) => {
+    it("sync on a PB authentication denied for PA auth", () => {
+      cy.ompAuthenticationSync(
+        merchantIdM1,
+        authPBId,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15097-05: eligibility rejects conflicting request profile", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/${authPAId}/eligibility`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { profile_id: profileIdPB },
-      }).then((res) => {
+    it("eligibility rejects conflicting request profile", () => {
+      cy.ompAuthenticationEligibility(
+        authPAId,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { profile_id: profileIdPB },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15097-06 (positive): eligibility on own PA authentication isn't profile-rejected", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/${authPAId}/eligibility`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: {},
-      }).then((res) => {
+    it("eligibility on own PA authentication isn't profile-rejected (positive)", () => {
+      cy.ompAuthenticationEligibility(
+        authPAId,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((res) => {
         expect(res.status).to.not.eq(403);
       });
     });
 
-    it("TC-15097-E01: eligibility on a non-existent authentication ID is rejected, not 500", () => {
+    it("eligibility on a non-existent authentication ID is rejected, not 500", () => {
       // Server returns 400 here rather than 404 - ID format/lookup
       // validation runs before an existence check.
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/auth_nonexistent_omp_test/eligibility`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: {},
-      }).then((res) => {
+      cy.ompAuthenticationEligibility(
+        "auth_nonexistent_omp_test",
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15097-E03: malformed authentication ID returns 4xx, not 500", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication/!!bad-id!!/eligibility`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: {},
-      }).then((res) => {
+    it("malformed authentication ID returns 4xx, not 500", () => {
+      cy.ompAuthenticationEligibility(
+        "!!bad-id!!",
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15097-E04: invalid credential on create is rejected", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/authentication`,
-        auth: { type: "invalid" },
-        body: { amount: 1000, currency: "USD" },
-      }).then((res) => {
+    it("invalid credential on create is rejected", () => {
+      cy.ompCreateAuthentication(
+        { type: "invalid" },
+        { amount: 1000, currency: "USD" },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(401);
       });
     });

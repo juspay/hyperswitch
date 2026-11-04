@@ -43,3 +43,17 @@ export const CardPayout = () =>
     },
     Response: { status: 200, body: {} },
   });
+
+// Profile acquirer create/update bodies, used in 03-ProfileAcquirer.cy.js -
+// a plain object (not getCustomExchange-wrapped) since profile_acquirer has
+// no connector-specific default exchange of its own to merge onto.
+export function acquirerBody(profileId, overrides = {}) {
+  return {
+    acquirer_assigned_merchant_id: "omp_test_merchant_id",
+    merchant_name: "OMP Scoping Test Merchant",
+    network: "Visa",
+    acquirer_bin: "123456",
+    profile_id: profileId,
+    ...overrides,
+  };
+}

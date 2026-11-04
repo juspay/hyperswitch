@@ -1,17 +1,14 @@
 import State from "../../../../utils/State";
 
-// #15049 (payout half) - "enforce merchant and profile isolation". PO_PA /
-// PO_PB are payouts under M1, one per profile, created in 00-Setup.cy.js
-// (skipped there if the configured payout connector has no credentials -
-// gate on the same payoutsExecution flag here, matching the existing
-// Payout/*.cy.js convention in this repo).
+// PO_PA / PO_PB are payouts under M1, one per profile, created in
+// 00-Setup.cy.js (skipped there if the configured payout connector has no
+// credentials - gate on the same payoutsExecution flag here, matching the
+// existing Payout/*.cy.js convention in this repo).
 //
 // update/confirm/cancel/fulfill are ApiKeyAuth-only routes (verified against
 // crates/router/src/routes/app.rs) - there is no JWT alternative, so these
-// negative tests use the merchant API key plus X-Profile-Id, the same
-// combination the PR text itself uses for payouts.
+// negative tests use the merchant API key plus X-Profile-Id.
 let globalState;
-let baseUrl;
 let apiKeyM1;
 let merchantIdM2;
 let profileIdPA;
@@ -20,11 +17,10 @@ let payoutIdPA;
 let payoutIdPB;
 let payoutsExecution;
 
-describe("OMP Scoping - Payouts (#15049)", () => {
+describe("OMP Scoping - Payouts", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      baseUrl = globalState.get("baseUrl");
       apiKeyM1 = globalState.get("apiKeyM1");
       merchantIdM2 = globalState.get("merchantIdM2");
       profileIdPA = globalState.get("profileIdPA");
@@ -54,73 +50,73 @@ describe("OMP Scoping - Payouts (#15049)", () => {
   // own denied access to it.
   function fetchPayout(payoutId) {
     return () =>
-      cy.ompRequest({
-        method: "GET",
-        url: `${baseUrl}/payouts/${payoutId}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1 },
-      });
+      cy.ompRetrievePayout(
+        payoutId,
+        { type: "apiKey", apiKey: apiKeyM1 },
+        globalState
+      );
   }
 
   context("Update / confirm / cancel / fulfill - cross-profile denial", () => {
-    it("TC-15049-02: payout update blocked cross-profile", () => {
+    it("payout update blocked cross-profile", () => {
       cy.ompAssertDeniedAndUnchanged({
         fetch: fetchPayout(payoutIdPB),
         negativeRequest: () =>
-          cy.ompRequest({
-            method: "PUT",
-            url: `${baseUrl}/payouts/${payoutIdPB}`,
-            auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-            body: { metadata: { attempted_by: "PA" } },
-          }),
+          cy.ompUpdatePayout(
+            payoutIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            { metadata: { attempted_by: "PA" } },
+            globalState
+          ),
       });
     });
 
-    it("TC-15049-03: payout confirm blocked cross-profile", () => {
+    it("payout confirm blocked cross-profile", () => {
       cy.ompAssertDeniedAndUnchanged({
         fetch: fetchPayout(payoutIdPB),
         negativeRequest: () =>
-          cy.ompRequest({
-            method: "POST",
-            url: `${baseUrl}/payouts/${payoutIdPB}/confirm`,
-            auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-            body: { confirm: true },
-          }),
+          cy.ompConfirmPayout(
+            payoutIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            { confirm: true },
+            globalState
+          ),
       });
     });
 
-    it("TC-15049-04: payout cancel blocked cross-profile", () => {
+    it("payout cancel blocked cross-profile", () => {
       cy.ompAssertDeniedAndUnchanged({
         fetch: fetchPayout(payoutIdPB),
         negativeRequest: () =>
-          cy.ompRequest({
-            method: "POST",
-            url: `${baseUrl}/payouts/${payoutIdPB}/cancel`,
-            auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-            body: {},
-          }),
+          cy.ompCancelPayout(
+            payoutIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            {},
+            globalState
+          ),
       });
     });
 
-    it("TC-15049-05: payout fulfill blocked cross-profile", () => {
+    it("payout fulfill blocked cross-profile", () => {
       cy.ompAssertDeniedAndUnchanged({
         fetch: fetchPayout(payoutIdPB),
         negativeRequest: () =>
-          cy.ompRequest({
-            method: "POST",
-            url: `${baseUrl}/payouts/${payoutIdPB}/fulfill`,
-            auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-            body: {},
-          }),
+          cy.ompFulfillPayout(
+            payoutIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            {},
+            globalState
+          ),
       });
     });
 
-    it("TC-15049-14a (positive): PA updates its own PO_PA", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/${payoutIdPA}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { metadata: { attempted_by: "PA" } },
-      }).then((res) => {
+    it("PA updates its own PO_PA (positive)", () => {
+      cy.ompUpdatePayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { metadata: { attempted_by: "PA" } },
+        globalState
+      ).then((res) => {
         expect(res.status).to.not.eq(403);
         expect(res.status).to.not.eq(404);
       });
@@ -128,86 +124,86 @@ describe("OMP Scoping - Payouts (#15049)", () => {
   });
 
   context("Inconsistent merchant_id / profile_id in request body", () => {
-    it("TC-15049-06: payout update rejects inconsistent merchant_id", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/${payoutIdPA}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { merchant_id: merchantIdM2 },
-      }).then((res) => {
+    it("payout update rejects inconsistent merchant_id", () => {
+      cy.ompUpdatePayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { merchant_id: merchantIdM2 },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15049-07: payout confirm rejects inconsistent merchant_id", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/payouts/${payoutIdPA}/confirm`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { confirm: true, merchant_id: merchantIdM2 },
-      }).then((res) => {
+    it("payout confirm rejects inconsistent merchant_id", () => {
+      cy.ompConfirmPayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { confirm: true, merchant_id: merchantIdM2 },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15049-08: payout update rejects inconsistent profile_id", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/${payoutIdPA}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { profile_id: profileIdPB },
-      }).then((res) => {
+    it("payout update rejects inconsistent profile_id", () => {
+      cy.ompUpdatePayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { profile_id: profileIdPB },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15049-09: payout confirm rejects inconsistent profile_id", () => {
-      cy.ompRequest({
-        method: "POST",
-        url: `${baseUrl}/payouts/${payoutIdPA}/confirm`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { confirm: true, profile_id: profileIdPB },
-      }).then((res) => {
+    it("payout confirm rejects inconsistent profile_id", () => {
+      cy.ompConfirmPayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { confirm: true, profile_id: profileIdPB },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
   });
 
   context("Edge cases", () => {
-    it("TC-15049-E01: non-existent payout ID returns 404", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/payout_nonexistent_omp_test`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { metadata: {} },
-      }).then((res) => {
+    it("non-existent payout ID returns 404", () => {
+      cy.ompUpdatePayout(
+        "payout_nonexistent_omp_test",
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { metadata: {} },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(404);
       });
     });
 
-    it("TC-15049-E03: malformed profile_id in payout body is rejected, not 500", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/${payoutIdPA}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        body: { profile_id: "!!not-a-valid-id!!" },
-      }).then((res) => {
+    it("malformed profile_id in payout body is rejected, not 500", () => {
+      cy.ompUpdatePayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        { profile_id: "!!not-a-valid-id!!" },
+        globalState
+      ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("TC-15049-E04: invalid credential on payout update is rejected", () => {
-      cy.ompRequest({
-        method: "PUT",
-        url: `${baseUrl}/payouts/${payoutIdPA}`,
-        auth: { type: "apiKey", apiKey: "not_a_real_api_key" },
-        body: { metadata: {} },
-      }).then((res) => {
+    it("invalid credential on payout update is rejected", () => {
+      cy.ompUpdatePayout(
+        payoutIdPA,
+        { type: "apiKey", apiKey: "not_a_real_api_key" },
+        { metadata: {} },
+        globalState
+      ).then((res) => {
         expect(res.status).to.eq(401);
       });
     });
 
-    it("TC-15049-E05: revoked API key is rejected on payout update", () => {
+    it("revoked API key is rejected on payout update", () => {
       // Creating/revoking an API key needs the admin API key, not a
       // merchant's own api-key (see getManagementAuthHeaders in
       // commands.js) - the merchant key is only valid for routes that
@@ -217,12 +213,12 @@ describe("OMP Scoping - Payouts (#15049)", () => {
       cy.ompCreateThrowawayApiKey(merchantIdM1, globalState).then(
         ({ apiKey: throwawayKey, keyId }) => {
           cy.ompRevokeApiKey(merchantIdM1, keyId, globalState).then(() => {
-            cy.ompRequest({
-              method: "PUT",
-              url: `${baseUrl}/payouts/${payoutIdPA}`,
-              auth: { type: "apiKey", apiKey: throwawayKey },
-              body: { metadata: {} },
-            }).then((res) => {
+            cy.ompUpdatePayout(
+              payoutIdPA,
+              { type: "apiKey", apiKey: throwawayKey },
+              { metadata: {} },
+              globalState
+            ).then((res) => {
               expect(res.status).to.eq(401);
             });
           });

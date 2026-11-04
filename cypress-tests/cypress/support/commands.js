@@ -13937,3 +13937,415 @@ Cypress.Commands.add("ompGetMerchantAccount", (merchantId, globalState) => {
     failOnStatusCode: false,
   });
 });
+
+// --- OMP scoping: Payments (cypress/e2e/spec/Security/OMPScoping/01-Payments.cy.js) ---
+// One named command per operation, each thin wrappers over ompRequest, so
+// spec files call a purpose-built command instead of building the
+// method/url/auth object inline at every call site.
+
+Cypress.Commands.add(
+  "ompRetrievePayment",
+  (paymentId, auth, globalState, options = {}) => {
+    const baseUrl = globalState.get("baseUrl");
+    const expand = options.expandAttempts ? "&expand_attempts=true" : "";
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}?force_sync=true${expand}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompUpdatePayment",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompConfirmPayment",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}/confirm`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompCapturePayment",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}/capture`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompCancelPayment",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}/cancel`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompCreatePaymentSessionTokens",
+  (auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/session_tokens`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompCompletePaymentAuthorize",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}/complete_authorize`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Payouts (cypress/e2e/spec/Security/OMPScoping/02-Payouts.cy.js) ---
+
+Cypress.Commands.add("ompRetrievePayout", (payoutId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/payouts/${payoutId}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompUpdatePayout", (payoutId, auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "PUT",
+    url: `${baseUrl}/payouts/${payoutId}`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add(
+  "ompConfirmPayout",
+  (payoutId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payouts/${payoutId}/confirm`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add("ompCancelPayout", (payoutId, auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/payouts/${payoutId}/cancel`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add(
+  "ompFulfillPayout",
+  (payoutId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payouts/${payoutId}/fulfill`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Profile Acquirer (cypress/e2e/spec/Security/OMPScoping/03-ProfileAcquirer.cy.js) ---
+
+Cypress.Commands.add("ompCreateProfileAcquirer", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/profile_acquirer`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add(
+  "ompUpdateProfileAcquirer",
+  (profileId, acquirerId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/profile_acquirer/${profileId}/${acquirerId}`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Authentication (cypress/e2e/spec/Security/OMPScoping/04-Authentication.cy.js) ---
+
+Cypress.Commands.add("ompCreateAuthentication", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/authentication`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add(
+  "ompAuthenticationEligibility",
+  (authenticationId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/authentication/${authenticationId}/eligibility`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompAuthenticationSync",
+  (merchantId, authenticationId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/authentication/${merchantId}/${authenticationId}/sync`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Disputes (cypress/e2e/spec/Security/OMPScoping/05-Disputes.cy.js) ---
+
+Cypress.Commands.add("ompListDisputes", (auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/disputes/list`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompRetrieveDispute", (disputeId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/disputes/${disputeId}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add(
+  "ompDeleteDisputeEvidence",
+  (disputeId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "DELETE",
+      url: `${baseUrl}/disputes/evidence`,
+      auth,
+      body: { dispute_id: disputeId },
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompFetchDisputesFromConnector",
+  (connectorId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/disputes/${connectorId}/fetch`,
+      auth,
+    });
+  }
+);
+
+// --- OMP scoping: Connector Onboarding + MCA retrieve
+// (cypress/e2e/spec/Security/OMPScoping/06-ConnectorOnboarding.cy.js,
+// 13-ConnectorAccounts.cy.js) ---
+
+Cypress.Commands.add(
+  "ompRetrieveMca",
+  (merchantId, mcaId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/account/${merchantId}/connectors/${mcaId}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompConnectorOnboardingSync",
+  (auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/sync`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompConnectorOnboardingActionUrl",
+  (auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/action_url`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompConnectorOnboardingResetTrackingId",
+  (auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Apple Pay (cypress/e2e/spec/Security/OMPScoping/07-ApplePay.cy.js) ---
+
+Cypress.Commands.add(
+  "ompVerifyApplePay",
+  (merchantId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/verify/apple_pay/${merchantId}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompGetApplePayVerifiedDomains",
+  (merchantId, mcaId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/verify/applepay_verified_domains?merchant_id=${merchantId}&merchant_connector_account_id=${mcaId}`,
+      auth,
+    });
+  }
+);
+
+// --- OMP scoping: Business Profile (cypress/e2e/spec/Security/OMPScoping/08-BusinessProfile.cy.js) ---
+
+Cypress.Commands.add(
+  "ompRetrieveBusinessProfile",
+  (accountId, profileId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/account/${accountId}/business_profile/${profileId}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompToggleConnectorAgnosticMit",
+  (accountId, profileId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/account/${accountId}/business_profile/${profileId}/toggle_connector_agnostic_mit`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: Blocklist (cypress/e2e/spec/Security/OMPScoping/09-Blocklist.cy.js) ---
+
+Cypress.Commands.add("ompGetBlocklist", (auth, queryString, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/blocklist${queryString}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompCreateBlocklistEntry", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/blocklist`,
+    auth,
+    body,
+  });
+});
+
+// --- OMP scoping: Ephemeral Keys (cypress/e2e/spec/Security/OMPScoping/10-EphemeralKeys.cy.js) ---
+
+Cypress.Commands.add("ompCreateEphemeralKey", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/ephemeral_keys`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add("ompDeleteEphemeralKey", (keyId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "DELETE",
+    url: `${baseUrl}/ephemeral_keys/${keyId}`,
+    auth,
+  });
+});

@@ -1,7 +1,6 @@
 import State from "../../../../utils/State";
 
-// #15115 - "validate connector profile during onboarding sync". Sync
-// validates that its connector_id (an MCA) belongs to the request's
+// Sync validates that its connector_id (an MCA) belongs to the request's
 // profile_id before passing that profile along to the PayPal MCA update.
 // Action URL retrieval and tracking-ID reset stay merchant-only by design
 // (not part of the fix), so those two just get a light sanity check here,
@@ -11,8 +10,6 @@ import State from "../../../../utils/State";
 // /reset_tracking_id - all JWTAuth(MerchantAccountWrite) only, no ApiKeyAuth
 // alternative, cfg #[cfg(all(feature = "olap", feature = "v1"))] (default).
 let globalState;
-let baseUrl;
-let apiKeyM1;
 let merchantIdM1;
 let profileIdPA;
 let profileIdPB;
@@ -20,12 +17,10 @@ let jwtPA;
 let mcaPaId;
 let connectorName;
 
-describe("OMP Scoping - Connector Onboarding (#15115)", () => {
+describe("OMP Scoping - Connector Onboarding", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      baseUrl = globalState.get("baseUrl");
-      apiKeyM1 = globalState.get("apiKeyM1");
       merchantIdM1 = globalState.get("merchantIdM1");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
@@ -43,89 +38,85 @@ describe("OMP Scoping - Connector Onboarding (#15115)", () => {
 
   function fetchMcaPA() {
     return () =>
-      cy.ompRequest({
-        method: "GET",
-        url: `${baseUrl}/account/${merchantIdM1}/connectors/${mcaPaId}`,
-        auth: { type: "apiKey", apiKey: apiKeyM1 },
-      });
+      cy.ompRetrieveMca(
+        merchantIdM1,
+        mcaPaId,
+        { type: "apiKey", apiKey: globalState.get("apiKeyM1") },
+        globalState
+      );
   }
 
-  it("TC-15115-01: sync rejects connector/profile mismatch, MCA_PA unchanged", () => {
+  it("sync rejects connector/profile mismatch, MCA_PA unchanged", () => {
     cy.ompAssertDeniedAndUnchanged({
       fetch: fetchMcaPA(),
       negativeRequest: () =>
-        cy.ompRequest({
-          method: "POST",
-          url: `${baseUrl}/connector_onboarding/sync`,
-          auth: { type: "jwt", token: jwtPA, profileId: profileIdPA },
-          body: {
+        cy.ompConnectorOnboardingSync(
+          { type: "jwt", token: jwtPA, profileId: profileIdPA },
+          {
             connector_id: mcaPaId,
             profile_id: profileIdPB,
             connector: connectorName,
           },
-        }),
+          globalState
+        ),
     });
   });
 
-  it("TC-15115-02 (positive): sync with matching profile isn't profile-rejected", () => {
-    cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/connector_onboarding/sync`,
-      auth: { type: "jwt", token: jwtPA, profileId: profileIdPA },
-      body: {
+  it("sync with matching profile isn't profile-rejected (positive)", () => {
+    cy.ompConnectorOnboardingSync(
+      { type: "jwt", token: jwtPA, profileId: profileIdPA },
+      {
         connector_id: mcaPaId,
         profile_id: profileIdPA,
         connector: connectorName,
       },
-    }).then((res) => {
+      globalState
+    ).then((res) => {
       // Full onboarding-sync success depends on the connector actually
       // being PayPal, which it may not be in this run - only the
-      // profile-scope check is this PR's security surface.
+      // profile-scope check is this security surface.
       expect(res.status).to.not.eq(403);
     });
   });
 
-  it("TC-15115-E01: sync on a non-existent connector_id returns 404", () => {
-    cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/connector_onboarding/sync`,
-      auth: { type: "jwt", token: jwtPA, profileId: profileIdPA },
-      body: {
+  it("sync on a non-existent connector_id returns 404", () => {
+    cy.ompConnectorOnboardingSync(
+      { type: "jwt", token: jwtPA, profileId: profileIdPA },
+      {
         connector_id: "mca_nonexistent_omp_test",
         profile_id: profileIdPA,
         connector: connectorName,
       },
-    }).then((res) => {
+      globalState
+    ).then((res) => {
       expect(res.status).to.eq(404);
     });
   });
 
-  it("TC-15115-E03: malformed profile_id in sync body returns 4xx, not 500", () => {
-    cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/connector_onboarding/sync`,
-      auth: { type: "jwt", token: jwtPA, profileId: profileIdPA },
-      body: {
+  it("malformed profile_id in sync body returns 4xx, not 500", () => {
+    cy.ompConnectorOnboardingSync(
+      { type: "jwt", token: jwtPA, profileId: profileIdPA },
+      {
         connector_id: mcaPaId,
         profile_id: "!!bad!!",
         connector: connectorName,
       },
-    }).then((res) => {
+      globalState
+    ).then((res) => {
       expect(res.status).to.be.within(400, 499);
     });
   });
 
-  it("TC-15115-E04: invalid credential on sync is rejected", () => {
-    cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/connector_onboarding/sync`,
-      auth: { type: "invalid" },
-      body: {
+  it("invalid credential on sync is rejected", () => {
+    cy.ompConnectorOnboardingSync(
+      { type: "invalid" },
+      {
         connector_id: mcaPaId,
         profile_id: profileIdPA,
         connector: connectorName,
       },
-    }).then((res) => {
+      globalState
+    ).then((res) => {
       expect(res.status).to.eq(401);
     });
   });
@@ -133,28 +124,26 @@ describe("OMP Scoping - Connector Onboarding (#15115)", () => {
   context(
     "Unchanged by design - informational only, not a security assertion",
     () => {
-      it("TC-15115-03: action URL retrieval remains merchant-only", () => {
-        cy.ompRequest({
-          method: "POST",
-          url: `${baseUrl}/connector_onboarding/action_url`,
-          auth: { type: "jwt", token: jwtPA },
-          body: {
+      it("action URL retrieval remains merchant-only", () => {
+        cy.ompConnectorOnboardingActionUrl(
+          { type: "jwt", token: jwtPA },
+          {
             connector: connectorName,
             connector_id: mcaPaId,
             return_url: "https://example.com",
           },
-        }).then((res) => {
+          globalState
+        ).then((res) => {
           expect(res.status).to.not.eq(401);
         });
       });
 
-      it("TC-15115-04: tracking-ID reset remains merchant-only", () => {
-        cy.ompRequest({
-          method: "POST",
-          url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
-          auth: { type: "jwt", token: jwtPA },
-          body: { connector: connectorName, connector_id: mcaPaId },
-        }).then((res) => {
+      it("tracking-ID reset remains merchant-only", () => {
+        cy.ompConnectorOnboardingResetTrackingId(
+          { type: "jwt", token: jwtPA },
+          { connector: connectorName, connector_id: mcaPaId },
+          globalState
+        ).then((res) => {
           expect(res.status).to.not.eq(401);
         });
       });
