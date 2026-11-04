@@ -1,13 +1,12 @@
 //! Multipart form bodies: text fields are resolved, file bytes pass through unchanged,
 //! and the boundary is checked against every part.
 
-use base64::{engine::general_purpose::STANDARD, Engine};
-use serde_json::Value;
-
 use super::{
-    placeholder::substitute, CheckedContentType, PreparedProxyBody, ProxyBodyError,
-    ProxyBodyFormat, ProxyMultipartPart,
+    decode_base64,
+    placeholder::{substitute, Vault},
+    ConnectorContentType, ProxyBodyError, ProxyBodyFormat, ProxyMultipartPart, RenderedBody,
 };
+use crate::fp_utils::when;
 
 pub(super) struct MultipartBody<'a>(pub(super) &'a [ProxyMultipartPart]);
 
@@ -20,153 +19,97 @@ impl ProxyBodyFormat for MultipartBody<'_> {
         Some("multipart/form-data")
     }
 
-    fn accepts(&self, media_type: &str) -> bool {
-        media_type == "multipart/form-data"
+    fn accepts(&self, content_type: &ConnectorContentType<'_>) -> bool {
+        content_type.is_multipart_form_data()
     }
 
     fn render(
         &self,
-        vault: &Value,
-        content_type: &CheckedContentType<'_>,
-    ) -> Result<PreparedProxyBody, ProxyBodyError> {
-        prepare_multipart(self.0, vault, content_type)
+        vault: Vault<'_>,
+        content_type: Option<&ConnectorContentType<'_>>,
+    ) -> Result<RenderedBody, ProxyBodyError> {
+        render_multipart(self.0, vault, content_type)
     }
 }
 
-/// Rendering of one multipart part. Each [`ProxyMultipartPart`] variant has its own
-/// implementation; part metadata is never interpolated.
-pub(super) trait MultipartPartFormat {
-    /// Stable label used in `Debug` output.
-    fn kind(&self) -> &'static str;
-
-    /// The part's header block, ending with the blank line before its data.
-    fn headers(&self) -> Result<String, ProxyBodyError>;
-
-    /// The part's data, with vault placeholders resolved where allowed.
-    fn data(&self, vault: &Value) -> Result<Vec<u8>, ProxyBodyError>;
-}
-
 impl ProxyMultipartPart {
-    /// The only place that maps a part variant to its implementation.
-    pub(super) fn format(&self) -> Box<dyn MultipartPartFormat + '_> {
+    /// The part's header block, ending with the blank line before its data, and the
+    /// data itself. Text values may reference vault data; metadata never does, and
+    /// file bytes pass through unchanged.
+    fn render(&self, vault: Vault<'_>) -> Result<(String, Vec<u8>), ProxyBodyError> {
         match self {
-            Self::Text { name, value } => Box::new(TextPart { name, value }),
+            Self::Text { name, value } => Ok((
+                format!(
+                    "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
+                    quoted_metadata(name)?
+                ),
+                substitute(value, vault, str::to_owned)?.into_bytes(),
+            )),
             Self::File {
                 name,
                 filename,
                 mime_type,
                 data_base64,
-            } => Box::new(FilePart {
-                name,
-                filename,
-                mime_type,
-                data_base64,
-            }),
+            } => {
+                when(mime_type.parse::<mime::Mime>().is_err(), || {
+                    Err(ProxyBodyError::InvalidMultipart)
+                })?;
+                Ok((
+                    format!(
+                        "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\nContent-Type: {}\r\n\r\n",
+                        quoted_metadata(name)?,
+                        quoted_metadata(filename)?,
+                        mime_type
+                    ),
+                    decode_base64(data_base64)?,
+                ))
+            }
         }
-    }
-}
-
-/// A text field whose value may reference vaulted data.
-struct TextPart<'a> {
-    name: &'a str,
-    value: &'a str,
-}
-
-impl MultipartPartFormat for TextPart<'_> {
-    fn kind(&self) -> &'static str {
-        "text"
-    }
-
-    fn headers(&self) -> Result<String, ProxyBodyError> {
-        Ok(format!(
-            "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
-            quoted_metadata(self.name)?
-        ))
-    }
-
-    fn data(&self, vault: &Value) -> Result<Vec<u8>, ProxyBodyError> {
-        Ok(substitute(self.value, vault, str::to_owned)?.into_bytes())
-    }
-}
-
-/// A binary file whose bytes must survive the proxy unchanged.
-struct FilePart<'a> {
-    name: &'a str,
-    filename: &'a str,
-    mime_type: &'a str,
-    data_base64: &'a str,
-}
-
-impl MultipartPartFormat for FilePart<'_> {
-    fn kind(&self) -> &'static str {
-        "file"
-    }
-
-    fn headers(&self) -> Result<String, ProxyBodyError> {
-        if self.mime_type.parse::<mime::Mime>().is_err() {
-            return Err(ProxyBodyError::InvalidMultipart);
-        }
-        Ok(format!(
-            "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\nContent-Type: {}\r\n\r\n",
-            quoted_metadata(self.name)?,
-            quoted_metadata(self.filename)?,
-            self.mime_type
-        ))
-    }
-
-    fn data(&self, _vault: &Value) -> Result<Vec<u8>, ProxyBodyError> {
-        STANDARD
-            .decode(self.data_base64)
-            .map_err(|_| ProxyBodyError::InvalidBase64)
     }
 }
 
 fn quoted_metadata(value: &str) -> Result<String, ProxyBodyError> {
-    if value.chars().any(|c| c.is_control()) {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
+    when(value.chars().any(|c| c.is_control()), || {
+        Err(ProxyBodyError::InvalidMultipart)
+    })?;
     Ok(value.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-fn prepare_multipart(
+fn render_multipart(
     parts: &[ProxyMultipartPart],
-    vault: &Value,
-    checked: &CheckedContentType<'_>,
-) -> Result<PreparedProxyBody, ProxyBodyError> {
-    let content_type = checked.header;
-    let mut boundaries = checked
-        .parsed
-        .iter()
+    vault: Vault<'_>,
+    declared: Option<&ConnectorContentType<'_>>,
+) -> Result<RenderedBody, ProxyBodyError> {
+    let content_type = declared.map(|declared| declared.header);
+    let mut boundaries = declared
+        .and_then(|declared| declared.mime.as_ref())
+        .into_iter()
         .flat_map(mime::Mime::params)
         .filter(|(name, _)| *name == mime::BOUNDARY)
         .map(|(_, value)| value.as_str().to_owned());
+    let invalid = || Err(ProxyBodyError::InvalidMultipart);
     let specified = boundaries.next();
-    if boundaries.next().is_some() {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
+    when(boundaries.next().is_some(), invalid)?;
     let boundary = specified
         .clone()
         .unwrap_or_else(|| format!("hs-proxy-{}", crate::generate_uuid_v4()));
-    if boundary.is_empty()
-        || boundary.len() > 70
-        || boundary.ends_with(' ')
-        || !boundary
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"'()+_,-./:=? ".contains(&b))
-    {
-        return Err(ProxyBodyError::InvalidMultipart);
-    }
+    when(
+        boundary.is_empty()
+            || boundary.len() > 70
+            || boundary.ends_with(' ')
+            || !boundary
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"'()+_,-./:=? ".contains(&b)),
+        invalid,
+    )?;
     let mut bytes = Vec::new();
     for part in parts {
-        let part = part.format();
-        let headers = part.headers()?;
-        let data = part.data(vault)?;
-        if data
-            .windows(boundary.len())
-            .any(|window| window == boundary.as_bytes())
-        {
-            return Err(ProxyBodyError::InvalidMultipart);
-        }
+        let (headers, data) = part.render(vault)?;
+        when(
+            data.windows(boundary.len())
+                .any(|window| window == boundary.as_bytes()),
+            invalid,
+        )?;
         bytes.extend_from_slice(format!("--{boundary}\r\n{headers}").as_bytes());
         bytes.extend_from_slice(&data);
         bytes.extend_from_slice(b"\r\n");
@@ -180,7 +123,7 @@ fn prepare_multipart(
             content_type.unwrap_or("multipart/form-data")
         ))
     };
-    Ok(PreparedProxyBody {
+    Ok(RenderedBody {
         bytes: Some(bytes),
         content_type,
     })

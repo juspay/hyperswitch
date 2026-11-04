@@ -6,12 +6,11 @@ use crate::{logger, routes::SessionState, services, types::domain};
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use common_utils::proxy::PreparedProxyBody;
+use common_utils::proxy as proxy_utils;
 use error_stack::ResultExt;
 use external_services::http_client::outbound_destination;
 use hyperswitch_interfaces::types::Response;
 use hyperswitch_masking::PeekInterface;
-use serde_json::Value;
 
 pub async fn proxy_core(
     state: SessionState,
@@ -28,12 +27,9 @@ pub async fn proxy_core(
     })?;
 
     let req_wrapper = utils::ProxyRequestWrapper(req);
-    let proxy_record = req_wrapper
-        .get_proxy_record(&state, platform.get_provider())
-        .await?;
 
-    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
-
+    // Validate the connector body before the vault is read: reading the vault consumes
+    // the single-use CVC, so an invalid request must not reach it.
     let declared_format = req_wrapper
         .0
         .body
@@ -44,7 +40,7 @@ pub async fn proxy_core(
         .and_then(|content_type| {
             req_wrapper
                 .0
-                .connector_body(content_type)
+                .connector_body(content_type.as_ref())
                 .map(|body| (body, content_type))
                 .map_err(|err| {
                     errors::ApiErrorResponse::InvalidRequestData {
@@ -53,44 +49,35 @@ pub async fn proxy_core(
                     .into()
                 })
         })
-        .inspect_err(|_| {
-            logger::warn!(
-                body_format = declared_format,
-                stage = "body_format",
-                "Invalid proxy body format or Content-Type"
-            );
-            metrics::PROXY_BODY_PREPARATION_FAILURE.add(
-                1,
-                router_env::metric_attributes!(
-                    ("body_format", declared_format),
-                    ("stage", "body_format")
-                ),
-            );
-        })?;
+        .inspect_err(|_| record_body_failure(declared_format, "body_format"))?;
     let body_format = body.as_metric_str();
-    let processed_body = body
+    let validated_body = body
         .builder()
-        .content_type(content_type)
-        .and_then(|builder| builder.vault_data(&vault_data).build())
-        .inspect_err(|_| {
-            logger::warn!(
-                body_format,
-                stage = "body_preparation",
-                "Failed to prepare proxy connector body"
-            );
-            metrics::PROXY_BODY_PREPARATION_FAILURE.add(
-                1,
-                router_env::metric_attributes!(
-                    ("body_format", body_format),
-                    ("stage", "body_preparation")
-                ),
-            );
-        })
+        .validate(content_type.as_ref())
+        .inspect_err(|_| record_body_failure(body_format, "body_validation"))
         .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
             message: err.to_string(),
         })?;
 
-    let res = execute_proxy_request(&state, &req_wrapper, processed_body)
+    let proxy_record = req_wrapper
+        .get_proxy_record(&state, platform.get_provider())
+        .await?;
+
+    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
+
+    let request = validated_body
+        .build(
+            &vault_data,
+            req_wrapper.get_destination_url(),
+            req_wrapper.get_method(),
+            req_wrapper.get_headers(),
+        )
+        .inspect_err(|_| record_body_failure(body_format, "body_preparation"))
+        .map_err(|err| errors::ApiErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
+    let res = execute_proxy_request(&state, &req_wrapper, request)
         .await
         .inspect_err(|_| {
             logger::error!(
@@ -118,16 +105,20 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
+/// Log and count a connector body that cannot be sent, by format and failing stage.
+fn record_body_failure(body_format: &'static str, stage: &'static str) {
+    logger::warn!(body_format, stage, "Invalid proxy connector body");
+    metrics::PROXY_BODY_PREPARATION_FAILURE.add(
+        1,
+        router_env::metric_attributes!(("body_format", body_format), ("stage", stage)),
+    );
+}
+
 async fn execute_proxy_request(
     state: &SessionState,
     req_wrapper: &utils::ProxyRequestWrapper,
-    processed_body: PreparedProxyBody,
+    mut request: services::Request,
 ) -> RouterResult<Response> {
-    let mut request = processed_body.into_request(
-        req_wrapper.get_destination_url(),
-        req_wrapper.get_method(),
-        req_wrapper.get_headers(),
-    );
     request.certificate = req_wrapper.0.certificate.clone();
     request.certificate_key = req_wrapper.0.certificate_key.clone();
     request.ca_certificate = req_wrapper.0.ca_certificate.clone();
@@ -150,31 +141,23 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
 
     fn try_from(wrapper: ProxyResponseWrapper) -> Result<Self, Self::Error> {
         let res = wrapper.0;
-        let response_body: Value = serde_json::from_slice(&res.response).unwrap_or_else(|_| {
-            std::str::from_utf8(&res.response)
-                .map(|text| Value::String(text.to_owned()))
-                .unwrap_or(Value::Null)
-        });
+        let response_body = proxy_utils::response::body_value(&res.response);
         let response_body_base64 = Some(STANDARD.encode(&res.response).into());
 
         let status_code = res.status_code;
         let response_headers = proxy_api_models::Headers::from_header_map(res.headers.as_ref());
-        // The connector has already processed the request, so a non-ASCII header
-        // value must not turn its reply into a proxy failure.
         let response_headers_multi = res.headers.as_ref().map(|headers| {
-            headers
-                .iter()
-                .map(|(name, value)| {
-                    let value = value.to_str().map(str::to_owned).unwrap_or_else(|_| {
-                        logger::warn!(
-                            header_name = %name,
-                            "Connector response header value is not visible ASCII; converting lossily"
-                        );
-                        String::from_utf8_lossy(value.as_bytes()).into_owned()
-                    });
-                    (name.to_string(), value)
-                })
-                .collect::<Vec<_>>()
+            proxy_utils::response::headers_multi(
+                headers
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_bytes())),
+                |name| {
+                    logger::warn!(
+                        header_name = name,
+                        "Connector response header value is not visible ASCII; converting lossily"
+                    )
+                },
+            )
         });
 
         Ok(Self {

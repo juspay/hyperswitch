@@ -4,6 +4,10 @@
 mod mock_http;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
+use common_utils::{
+    proxy::ConnectorContentType,
+    request::{Method, RequestContent},
+};
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use injector::{
     injector_core, HttpMethod, HyperswitchVaultProxyRequest, InjectorRequest, InjectorResponse,
@@ -11,6 +15,26 @@ use injector::{
     VaultConnectors,
 };
 use serde_json::{json, Value};
+
+/// The connector bytes SaaS sends for `body`, using the same shared code as the handler.
+fn saas_connector_bytes(body: &ProxyBody, content_type: &str) -> Vec<u8> {
+    let request = body
+        .builder()
+        .validate(Some(&ConnectorContentType::parse(content_type)))
+        .and_then(|builder| {
+            builder.build(
+                &json!({"card_number":"4111111111111111"}),
+                "https://connector.example/pay",
+                Method::Post,
+                vec![],
+            )
+        })
+        .unwrap();
+    match request.body {
+        Some(RequestContent::RawBytes(bytes)) => bytes,
+        _ => Vec::new(),
+    }
+}
 
 fn request(endpoint: String, body: ProxyBody, content_type: &str) -> InjectorRequest {
     let mut request = InjectorRequest::new(
@@ -105,20 +129,9 @@ async fn injector_calls_saas_with_a_json_envelope_for_every_connector_body_forma
             assert_eq!(envelope.token_type, "payment_method_token");
             assert_eq!(envelope.method, "POST");
             // SaaS-side interpolation uses the same shared code as the real handler.
-            let prepared = envelope
-                .body
-                .unwrap()
-                .expose()
-                .builder()
-                .content_type(Some(content_type))
-                .and_then(|builder| {
-                    builder
-                        .vault_data(&json!({"card_number":"4111111111111111"}))
-                        .build()
-                })
-                .unwrap();
-            let connector_bytes = prepared.bytes.unwrap_or_default();
-            let reply = json!({"response":null,"status_code":422,"response_body_base64":STANDARD.encode(&connector_bytes),"response_headers":{"Content-Type":content_type},"response_headers_multi":[["Content-Type",content_type],["Set-Cookie","one=1"],["Set-Cookie","two=2"]]});
+            let connector_bytes =
+                saas_connector_bytes(&envelope.body.unwrap().expose(), content_type);
+            let reply = json!({"response":null,"status_code":422,"response_body_base64":STANDARD.encode(connector_bytes),"response_headers":{"Content-Type":content_type},"response_headers_multi":[["Content-Type",content_type],["Set-Cookie","one=1"],["Set-Cookie","two=2"]]});
             mock_http::MockResponse {
                 status: 200,
                 headers: vec![("Content-Type".into(), "application/json".into())],
@@ -132,17 +145,8 @@ async fn injector_calls_saas_with_a_json_envelope_for_every_connector_body_forma
             .into_connector_response(true)
             .unwrap();
         assert_eq!(reply.status_code, 422);
-        let expected = original
-            .builder()
-            .content_type(Some(content_type))
-            .and_then(|builder| {
-                builder
-                    .vault_data(&json!({"card_number":"4111111111111111"}))
-                    .build()
-            })
-            .unwrap();
         if !matches!(original, ProxyBody::Multipart(_)) {
-            assert_eq!(reply.body, expected.bytes.unwrap_or_default());
+            assert_eq!(reply.body, saas_connector_bytes(&original, content_type));
         } else {
             assert!(reply.body.windows(file.len()).any(|part| part == file));
         }

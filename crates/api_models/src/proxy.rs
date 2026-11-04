@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-pub use common_utils::proxy::{ProxyBody, ProxyMultipartPart};
+pub use common_utils::proxy::{ConnectorContentType, ProxyBody, ProxyMultipartPart};
 use common_utils::{pii::SecretSerdeValue, request::Method};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use reqwest::header::HeaderMap;
@@ -75,7 +75,7 @@ impl ProxyRequest {
     /// requests previously ignored request_body; a new explicit body is honored.
     pub fn connector_body(
         &self,
-        content_type: Option<&str>,
+        content_type: Option<&ConnectorContentType<'_>>,
     ) -> Result<ProxyBody, common_utils::proxy::ProxyBodyError> {
         match &self.body {
             Some(body) => Ok(body.clone().expose()),

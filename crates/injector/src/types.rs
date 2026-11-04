@@ -3,7 +3,7 @@ pub mod models {
 
     use async_trait::async_trait;
     use base64::{engine::general_purpose::STANDARD, Engine};
-    use common_utils::pii::SecretSerdeValue;
+    use common_utils::{pii::SecretSerdeValue, proxy::ConnectorContentType};
     pub use common_utils::proxy::{ProxyBody, ProxyMultipartPart};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
@@ -27,15 +27,12 @@ pub mod models {
         /// Parse a `Content-Type` header value string into a [`ContentType`].
         /// Returns the default (`ApplicationXWwwFormUrlencoded`) for unknown values.
         pub fn from_header_value(value: &str) -> Self {
-            let kind = common_utils::proxy::media_type(value);
-            match kind.as_str() {
-                "application/json" => Self::ApplicationJson,
-                "application/x-www-form-urlencoded" => Self::ApplicationXWwwFormUrlencoded,
-                "application/xml" => Self::ApplicationXml,
+            let content_type = ConnectorContentType::parse(value);
+            match content_type.media_type() {
                 "text/xml" => Self::TextXml,
                 "text/plain" => Self::TextPlain,
-                _ if kind.ends_with("+json") => Self::ApplicationJson,
-                _ if kind.ends_with("+xml") => Self::ApplicationXml,
+                _ if content_type.is_json() => Self::ApplicationJson,
+                _ if content_type.is_xml() => Self::ApplicationXml,
                 _ => Self::ApplicationXWwwFormUrlencoded,
             }
         }
@@ -308,6 +305,17 @@ pub mod models {
         }
     }
 
+    /// The SaaS vault proxy reply (`api_models::proxy::ProxyResponse`) that wraps the
+    /// connector response.
+    #[derive(Deserialize)]
+    struct VaultProxyEnvelope {
+        status_code: u16,
+        response: Value,
+        response_body_base64: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
+        response_headers_multi: Option<Vec<(String, String)>>,
+    }
+
     /// Actual connector response reconstructed from a direct or SaaS proxy reply.
     pub struct InjectorConnectorResponse {
         pub status_code: u16,
@@ -316,46 +324,55 @@ pub mod models {
     }
 
     impl InjectorResponse {
+        /// Whether the outer HTTP status is 2xx.
+        fn is_success(&self) -> bool {
+            (200..=299).contains(&self.status_code)
+        }
+
+        /// The SaaS reply wrapping the connector response. A non-2xx outer status means the
+        /// proxy call itself failed; the wrapped status must be a valid HTTP status.
+        fn vault_proxy_envelope(&self) -> Result<VaultProxyEnvelope, crate::InjectorError> {
+            if self.is_success() {
+                VaultProxyEnvelope::deserialize(&self.response)
+                    .ok()
+                    .filter(|envelope| (100..=599).contains(&envelope.status_code))
+                    .ok_or_else(|| {
+                        crate::InjectorError::InvalidTemplate("Invalid vault proxy response".into())
+                    })
+            } else {
+                Err(crate::InjectorError::HttpRequestFailed)
+            }
+        }
+
         /// Status of the connector reply, distinct from the outer SaaS HTTP status.
         pub fn connector_status_code(&self, wrapped: bool) -> Result<u16, crate::InjectorError> {
-            if !wrapped {
-                return Ok(self.status_code);
+            if wrapped {
+                self.vault_proxy_envelope()
+                    .map(|envelope| envelope.status_code)
+            } else {
+                Ok(self.status_code)
             }
-            if !(200..=299).contains(&self.status_code) {
-                return Err(crate::InjectorError::HttpRequestFailed);
-            }
-            self.response
-                .get("status_code")
-                .and_then(Value::as_u64)
-                .and_then(|value| u16::try_from(value).ok())
-                .filter(|value| (100..=599).contains(value))
-                .ok_or_else(|| {
-                    crate::InjectorError::InvalidTemplate(
-                        "Invalid vault proxy response status".into(),
-                    )
-                })
         }
 
         /// Outer status and API error code/message of a failed SaaS proxy call, so
         /// the injector error explains why. Proxy error bodies hold no card data.
         pub fn vault_proxy_failure_summary(&self) -> Option<String> {
-            if (200..=299).contains(&self.status_code) {
-                return None;
-            }
-            let error = self.response.get("error").unwrap_or(&self.response);
-            let field = |name: &str| {
-                error
-                    .get(name)
-                    .and_then(Value::as_str)
-                    .map(|value| value.chars().take(256).collect::<String>())
-                    .unwrap_or_else(|| "unknown".to_owned())
-            };
-            Some(format!(
-                "Vault proxy returned HTTP {}, error code: {}, message: {}",
-                self.status_code,
-                field("code"),
-                field("message")
-            ))
+            (!self.is_success()).then(|| {
+                let error = self.response.get("error").unwrap_or(&self.response);
+                let field = |name: &str| {
+                    error
+                        .get(name)
+                        .and_then(Value::as_str)
+                        .map(|value| value.chars().take(256).collect::<String>())
+                        .unwrap_or_else(|| "unknown".to_owned())
+                };
+                format!(
+                    "Vault proxy returned HTTP {}, error code: {}, message: {}",
+                    self.status_code,
+                    field("code"),
+                    field("message")
+                )
+            })
         }
 
         /// Unwrap only the HyperswitchVault envelope. Direct connector replies may
@@ -364,48 +381,18 @@ pub mod models {
             self,
             wrapped: bool,
         ) -> Result<InjectorConnectorResponse, crate::InjectorError> {
-            let status = self.connector_status_code(wrapped)?;
             let (status_code, headers, encoded, fallback) = if wrapped {
-                let legacy_headers = self
-                    .response
-                    .get("response_headers")
-                    .map(|value| serde_json::from_value::<HashMap<String, String>>(value.clone()))
-                    .transpose()
-                    .map_err(|_| {
-                        crate::InjectorError::InvalidTemplate(
-                            "Invalid vault proxy response headers".into(),
-                        )
-                    })?;
-                let headers = self
-                    .response
-                    .get("response_headers_multi")
-                    .filter(|value| !value.is_null())
-                    .map(|value| serde_json::from_value::<Vec<(String, String)>>(value.clone()))
-                    .transpose()
-                    .map_err(|_| {
-                        crate::InjectorError::InvalidTemplate(
-                            "Invalid vault proxy response headers".into(),
-                        )
-                    })?
-                    .or_else(|| legacy_headers.map(|headers| headers.into_iter().collect()));
-                let encoded = self
-                    .response
-                    .get("response_body_base64")
-                    .filter(|v| !v.is_null())
-                    .map(|v| {
-                        v.as_str().map(str::to_owned).ok_or_else(|| {
-                            crate::InjectorError::InvalidTemplate(
-                                "Invalid vault proxy response bytes".into(),
-                            )
-                        })
-                    })
-                    .transpose()?;
-                let fallback = self.response.get("response").cloned().ok_or_else(|| {
-                    crate::InjectorError::InvalidTemplate(
-                        "Missing vault proxy response body".into(),
-                    )
-                })?;
-                (status, headers, encoded, fallback)
+                let envelope = self.vault_proxy_envelope()?;
+                (
+                    envelope.status_code,
+                    envelope.response_headers_multi.or_else(|| {
+                        envelope
+                            .response_headers
+                            .map(|headers| headers.into_iter().collect())
+                    }),
+                    envelope.response_body_base64,
+                    envelope.response,
+                )
             } else {
                 (
                     self.status_code,
@@ -422,8 +409,7 @@ pub mod models {
                         .iter()
                         .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
                 })
-                .map(|(_, value)| common_utils::proxy::media_type(value))
-                .map(|kind| kind == "application/json" || kind.ends_with("+json"))
+                .map(|(_, value)| ConnectorContentType::parse(value).is_json())
                 .unwrap_or(wrapped);
             let body = match encoded {
                 Some(encoded) => STANDARD.decode(encoded).map_err(|_| {
@@ -467,23 +453,17 @@ pub mod models {
                 "Converting reqwest::Response to InjectorResponse"
             );
 
-            // Extract headers
-            // A non-ASCII header value must not discard a reply the connector has
-            // already processed; JSON strings cannot carry its raw bytes.
-            let response_headers_multi = self
-                .headers()
-                .iter()
-                .map(|(name, value)| {
-                    let value = value.to_str().map(str::to_owned).unwrap_or_else(|_| {
-                        logger::warn!(
-                            header_name = %name,
-                            "Response header value is not visible ASCII; converting lossily"
-                        );
-                        String::from_utf8_lossy(value.as_bytes()).into_owned()
-                    });
-                    (name.to_string(), value)
-                })
-                .collect::<Vec<_>>();
+            let response_headers_multi = common_utils::proxy::response::headers_multi(
+                self.headers()
+                    .iter()
+                    .map(|(name, value)| (name.as_str(), value.as_bytes())),
+                |name| {
+                    logger::warn!(
+                        header_name = name,
+                        "Response header value is not visible ASCII; converting lossily"
+                    )
+                },
+            );
             let headers: Option<HashMap<String, String>> = {
                 let header_map: HashMap<String, String> = self
                     .headers()
@@ -514,12 +494,7 @@ pub mod models {
                 "Processing connector response"
             );
 
-            let response_data = match serde_json::from_slice::<Value>(&response_bytes) {
-                Ok(json) => json,
-                Err(_e) => std::str::from_utf8(&response_bytes)
-                    .map(|text| Value::String(text.to_owned()))
-                    .unwrap_or(Value::Null),
-            };
+            let response_data = common_utils::proxy::response::body_value(&response_bytes);
 
             Ok(InjectorResponse {
                 status_code,

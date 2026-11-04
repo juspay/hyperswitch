@@ -1,8 +1,27 @@
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use common_utils::proxy::{PreparedProxyBody, ProxyBody, ProxyBodyError, ProxyMultipartPart};
+use common_utils::{
+    proxy::{ConnectorContentType, ProxyBody, ProxyBodyError, ProxyMultipartPart},
+    request::{Method, RequestContent},
+};
 use serde_json::{json, Value};
+
+/// The body bytes and Content-Type of a built connector request.
+struct Built {
+    bytes: Option<Vec<u8>>,
+    content_type: Option<String>,
+}
+
+impl Built {
+    fn bytes(&self) -> Option<&[u8]> {
+        self.bytes.as_deref()
+    }
+
+    fn content_type(&self) -> Option<&str> {
+        self.content_type.as_deref()
+    }
+}
 
 /// Runs every builder step, so each test states only its inputs.
 trait BuildWith {
@@ -10,7 +29,7 @@ trait BuildWith {
         &self,
         vault: &Value,
         content_type: Option<&str>,
-    ) -> Result<PreparedProxyBody, ProxyBodyError>;
+    ) -> Result<Built, ProxyBodyError>;
 }
 
 impl BuildWith for ProxyBody {
@@ -18,30 +37,36 @@ impl BuildWith for ProxyBody {
         &self,
         vault: &Value,
         content_type: Option<&str>,
-    ) -> Result<PreparedProxyBody, ProxyBodyError> {
-        self.builder()
-            .content_type(content_type)
-            .and_then(|builder| builder.vault_data(vault).build())
+    ) -> Result<Built, ProxyBodyError> {
+        let content_type = content_type.map(ConnectorContentType::parse);
+        let request = self
+            .builder()
+            .validate(content_type.as_ref())
+            .and_then(|builder| {
+                builder.build(vault, "https://connector.example/pay", Method::Post, vec![])
+            })?;
+        Ok(Built {
+            bytes: request.body.and_then(|body| match body {
+                RequestContent::RawBytes(bytes) => Some(bytes),
+                _ => None,
+            }),
+            content_type: request
+                .headers
+                .into_iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+                .map(|(_, value)| value.into_inner()),
+        })
     }
 }
 
-fn vault() -> Value {
-    json!({"card": {"card_number": "4111111111111111", "card_holder_name": "A&B <\"O'Neil\"> + café", "card_exp_month": "09", "card_exp_year": "2030", "card_cvc": "123", "number": 42}})
-}
-
 fn text(body: ProxyBody, content_type: Option<&str>) -> String {
-    String::from_utf8(
-        body.build_with(&vault(), content_type)
-            .unwrap()
-            .bytes
-            .unwrap(),
-    )
-    .unwrap()
+    let prepared = body.build_with(&vault(), content_type).unwrap();
+    String::from_utf8(prepared.bytes().unwrap().to_vec()).unwrap()
 }
 
 #[test]
 fn legacy_json_is_compatible_and_arrays_and_embedded_tokens_are_resolved() {
-    let body = ProxyBody::from_legacy(json!({"card": "{{$card_number}}", "items": [{"name": "prefix {{ $card_holder_name }} suffix", "number": "{{$number}}"}], "literal": "{{ordinary text}}", "amount": 100}), Some("Application/JSON; charset=UTF-8")).unwrap();
+    let body = ProxyBody::from_legacy(json!({"card": "{{$card_number}}", "items": [{"name": "prefix {{ $card_holder_name }} suffix", "number": "{{$number}}"}], "literal": "{{ordinary text}}", "amount": 100}), Some(&ConnectorContentType::parse("Application/JSON; charset=UTF-8"))).unwrap();
     let actual: Value =
         serde_json::from_str(&text(body, Some("application/json; charset=UTF-8"))).unwrap();
     assert_eq!(actual["card"], "4111111111111111");
@@ -63,7 +88,7 @@ fn whole_json_placeholders_preserve_objects_arrays_and_null_without_recursion() 
         ProxyBody::from_legacy(template, None).unwrap(),
     ] {
         let actual: Value =
-            serde_json::from_slice(&body.build_with(&values, None).unwrap().bytes.unwrap())
+            serde_json::from_slice(body.build_with(&values, None).unwrap().bytes().unwrap())
                 .unwrap();
         assert_eq!(actual, values);
     }
@@ -113,7 +138,7 @@ fn soap_and_cdata_survive_without_json_quotes() {
             Some("application/soap+xml; charset=UTF-8"),
         )
         .unwrap();
-    assert_eq!(String::from_utf8(body.bytes.unwrap()).unwrap(), "<soap:Envelope xmlns:soap=\"urn:soap\"><soap:Body><![CDATA[a]]]]><![CDATA[>b]]></soap:Body></soap:Envelope>");
+    assert_eq!(String::from_utf8(body.bytes().unwrap().to_vec()).unwrap(), "<soap:Envelope xmlns:soap=\"urn:soap\"><soap:Body><![CDATA[a]]]]><![CDATA[>b]]></soap:Body></soap:Envelope>");
 }
 
 #[test]
@@ -122,7 +147,7 @@ fn xml_attribute_whitespace_is_not_normalized_away() {
         .build_with(&json!({"name":"a\nb\tc\rd"}), None)
         .unwrap();
     assert_eq!(
-        String::from_utf8(body.bytes.unwrap()).unwrap(),
+        String::from_utf8(body.bytes().unwrap().to_vec()).unwrap(),
         "<card name=\"a&#10;b&#9;c&#13;d\"/>"
     );
 }
@@ -174,10 +199,10 @@ fn multipart_resolves_text_and_preserves_file_bytes_and_boundary() {
     )
     .unwrap();
     assert_eq!(
-        body.content_type.as_deref(),
+        body.content_type(),
         Some("multipart/form-data; boundary=fixture-boundary")
     );
-    let bytes = body.bytes.unwrap();
+    let bytes = body.bytes().unwrap();
     assert!(bytes.starts_with(b"--fixture-boundary\r\n"));
     assert!(bytes.ends_with(b"--fixture-boundary--\r\n"));
     assert!(bytes.windows(file.len()).any(|part| part == file));
@@ -189,12 +214,12 @@ fn multipart_adds_a_boundary_when_prism_only_supplies_the_media_type() {
     let body = ProxyBody::Multipart(vec![])
         .build_with(&vault(), Some("multipart/form-data"))
         .unwrap();
-    let boundary = body.content_type.unwrap();
+    let boundary = body.content_type().unwrap();
     let boundary = boundary
         .strip_prefix("multipart/form-data; boundary=")
         .unwrap();
     assert_eq!(
-        body.bytes.unwrap(),
+        body.bytes().unwrap(),
         format!("--{boundary}--\r\n").as_bytes()
     );
 }
@@ -219,13 +244,13 @@ fn multipart_boundary_header_and_body_cannot_disagree() {
     let body = ProxyBody::Multipart(vec![])
         .build_with(&vault(), Some(content_type))
         .unwrap();
-    assert_eq!(body.content_type.as_deref(), Some(content_type));
-    assert_eq!(body.bytes.unwrap(), b"--fixture: boundary--\r\n");
+    assert_eq!(body.content_type(), Some(content_type));
+    assert_eq!(body.bytes().unwrap(), b"--fixture: boundary--\r\n");
     let generated = ProxyBody::Multipart(vec![])
         .build_with(&vault(), Some("multipart/form-data; charset=utf-8"))
         .unwrap();
     assert!(generated
-        .content_type
+        .content_type()
         .unwrap()
         .starts_with("multipart/form-data; charset=utf-8; boundary=hs-proxy-"));
 }
@@ -278,7 +303,7 @@ fn utf8_templates_reject_conflicting_charset_and_xml_encoding_declarations() {
         ProxyBody::RawBytes(STANDARD.encode(b"\xe9t\xe9"))
             .build_with(&vault(), Some("text/plain; charset=ISO-8859-1"))
             .unwrap()
-            .bytes
+            .bytes()
             .unwrap(),
         b"\xe9t\xe9"
     );
@@ -291,8 +316,8 @@ fn quoted_mime_parameters_do_not_become_boundary_or_charset_parameters() {
     let body = ProxyBody::Multipart(vec![])
         .build_with(&vault(), Some(content_type))
         .unwrap();
-    assert_eq!(body.content_type.as_deref(), Some(content_type));
-    assert_eq!(body.bytes.unwrap(), b"--actual--\r\n");
+    assert_eq!(body.content_type(), Some(content_type));
+    assert_eq!(body.bytes().unwrap(), b"--actual--\r\n");
 }
 
 #[test]
@@ -301,17 +326,17 @@ fn raw_and_absent_bodies_are_distinct_and_binary_safe() {
     let body = ProxyBody::RawBytes(STANDARD.encode(bytes))
         .build_with(&vault(), None)
         .unwrap();
-    assert_eq!(body.bytes.unwrap(), bytes);
+    assert_eq!(body.bytes().unwrap(), bytes);
     assert!(ProxyBody::None
         .build_with(&vault(), None)
         .unwrap()
-        .bytes
+        .bytes()
         .is_none());
     assert_eq!(
         ProxyBody::Json("null".into())
             .build_with(&vault(), None)
             .unwrap()
-            .bytes
+            .bytes()
             .unwrap(),
         b"null"
     );
@@ -319,7 +344,7 @@ fn raw_and_absent_bodies_are_distinct_and_binary_safe() {
         ProxyBody::RawBytes(String::new())
             .build_with(&vault(), None)
             .unwrap()
-            .bytes
+            .bytes()
             .unwrap(),
         b""
     );
@@ -435,4 +460,32 @@ fn only_json_bodies_are_duplicated_into_the_legacy_request_field() {
     ] {
         assert_eq!(body.legacy_value(), Value::Null);
     }
+}
+
+#[test]
+fn validation_checks_the_body_before_any_vault_data_is_read() {
+    for (body, content_type) in [
+        (ProxyBody::Json("{\"card\":".into()), None),
+        (ProxyBody::Xml("<card>{{$card_number}}".into()), None),
+        (ProxyBody::FormUrlEncoded("name=%zz".into()), None),
+        (ProxyBody::Text("{{$}}".into()), None),
+        (ProxyBody::RawBytes("not base64!".into()), None),
+        (ProxyBody::Json("{}".into()), Some("text/xml")),
+    ] {
+        assert!(body
+            .builder()
+            .validate(content_type.map(ConnectorContentType::parse).as_ref())
+            .is_err());
+    }
+    // A missing vault field is only known once vault data is supplied.
+    let body = ProxyBody::Json("{\"card\":\"{{$missing}}\"}".into());
+    let validated = body.builder().validate(None).unwrap();
+    assert!(validated
+        .build(
+            &vault(),
+            "https://connector.example/pay",
+            Method::Post,
+            vec![]
+        )
+        .is_err());
 }

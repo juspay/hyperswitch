@@ -4,8 +4,8 @@
 use serde_json::Value;
 
 use super::{
-    placeholder::{find_field, parse_placeholder, substitute},
-    CheckedContentType, PreparedProxyBody, ProxyBodyError, ProxyBodyFormat,
+    placeholder::{parse_placeholder, substitute, Vault},
+    ConnectorContentType, ProxyBodyError, ProxyBodyFormat, RenderedBody,
 };
 
 pub(super) struct JsonBody<'a>(pub(super) &'a str);
@@ -19,8 +19,8 @@ impl ProxyBodyFormat for JsonBody<'_> {
         Some("application/json")
     }
 
-    fn accepts(&self, media_type: &str) -> bool {
-        media_type == "application/json" || media_type.ends_with("+json")
+    fn accepts(&self, content_type: &ConnectorContentType<'_>) -> bool {
+        content_type.is_json()
     }
 
     fn legacy_value(&self) -> Value {
@@ -29,28 +29,24 @@ impl ProxyBodyFormat for JsonBody<'_> {
 
     fn render(
         &self,
-        vault: &Value,
-        content_type: &CheckedContentType<'_>,
-    ) -> Result<PreparedProxyBody, ProxyBodyError> {
-        Ok(PreparedProxyBody {
+        vault: Vault<'_>,
+        content_type: Option<&ConnectorContentType<'_>>,
+    ) -> Result<RenderedBody, ProxyBodyError> {
+        Ok(RenderedBody {
             bytes: Some(resolve_json_template(self.0, vault)?.into_bytes()),
-            content_type: content_type.or_default(self.default_content_type()),
+            content_type: self.content_type_header(content_type),
         })
     }
 }
 
-fn resolve_json_string(value: &str, vault: &Value) -> Result<Value, ProxyBodyError> {
-    if let Some((field, consumed)) = parse_placeholder(value)? {
-        if consumed == value.len() {
-            return find_field(vault, field)
-                .cloned()
-                .ok_or_else(|| ProxyBodyError::InvalidField(field.to_owned()));
-        }
+fn resolve_json_string(value: &str, vault: Vault<'_>) -> Result<Value, ProxyBodyError> {
+    match parse_placeholder(value)? {
+        Some((field, consumed)) if consumed == value.len() => vault.value(field),
+        _ => substitute(value, vault, str::to_owned).map(Value::String),
     }
-    substitute(value, vault, str::to_owned).map(Value::String)
 }
 
-fn resolve_json_template(template: &str, vault: &Value) -> Result<String, ProxyBodyError> {
+fn resolve_json_template(template: &str, vault: Vault<'_>) -> Result<String, ProxyBodyError> {
     // Validate structure once, then replace only string value tokens. This keeps
     // whitespace, field order, numeric spelling and existing escapes unchanged.
     serde_json::from_str::<Value>(template).map_err(|_| ProxyBodyError::Serialization)?;

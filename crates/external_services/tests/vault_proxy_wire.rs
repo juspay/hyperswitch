@@ -3,7 +3,7 @@ mod mock_http;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_utils::{
-    proxy::{ProxyBody, ProxyMultipartPart},
+    proxy::{ConnectorContentType, ProxyBody, ProxyMultipartPart},
     request::Method,
 };
 use external_services::http_client::send_request;
@@ -48,23 +48,21 @@ async fn proxy_prepared_bodies_reach_the_connector_in_their_actual_format() {
             headers: vec![("Content-Type".into(), "application/octet-stream".into())],
             body: response_bytes,
         });
-        let prepared = body
+        let request = body
             .builder()
-            .content_type(Some(content_type))
+            .validate(Some(&ConnectorContentType::parse(content_type)))
             .and_then(|builder| {
-                builder
-                    .vault_data(&json!({"card_number":"4111111111111111"}))
-                    .build()
+                builder.build(
+                    &json!({"card_number":"4111111111111111"}),
+                    &url,
+                    Method::Post,
+                    vec![
+                        ("Authorization".into(), "Bearer fixture".into()),
+                        ("Content-Length".into(), "1".into()),
+                    ],
+                )
             })
             .unwrap();
-        let request = prepared.into_request(
-            &url,
-            Method::Post,
-            vec![
-                ("Authorization".into(), "Bearer fixture".into()),
-                ("Content-Length".into(), "1".into()),
-            ],
-        );
         let reply = send_request(&Proxy::default(), request, Some(5))
             .await
             .unwrap();
@@ -102,21 +100,25 @@ async fn multipart_file_bytes_and_text_fields_survive_real_http_forwarding() {
             data_base64: STANDARD.encode(file),
         },
     ]);
-    let prepared = body
-        .builder()
-        .content_type(Some("multipart/form-data; boundary=fixture-boundary"))
-        .and_then(|builder| {
-            builder
-                .vault_data(&json!({"card_number":"4111111111111111"}))
-                .build()
-        })
-        .unwrap();
     let (url, server) = mock_http::serve(|_| mock_http::MockResponse {
         status: 204,
         headers: vec![],
         body: vec![],
     });
-    let request = prepared.into_request(&url, Method::Post, vec![]);
+    let request = body
+        .builder()
+        .validate(Some(&ConnectorContentType::parse(
+            "multipart/form-data; boundary=fixture-boundary",
+        )))
+        .and_then(|builder| {
+            builder.build(
+                &json!({"card_number":"4111111111111111"}),
+                &url,
+                Method::Post,
+                vec![],
+            )
+        })
+        .unwrap();
     assert_eq!(
         send_request(&Proxy::default(), request, Some(5))
             .await
@@ -157,12 +159,11 @@ async fn bodyless_get_and_raw_delete_and_get_are_not_silently_changed() {
             headers: vec![],
             body: vec![],
         });
-        let prepared = body
+        let request = body
             .builder()
-            .content_type(None)
-            .and_then(|builder| builder.vault_data(&json!({})).build())
+            .validate(None)
+            .and_then(|builder| builder.build(&json!({}), &url, method, vec![]))
             .unwrap();
-        let request = prepared.into_request(&url, method, vec![]);
         send_request(&Proxy::default(), request, Some(5))
             .await
             .unwrap();

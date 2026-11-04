@@ -2,12 +2,13 @@
 //! escaped for each position.
 
 use quick_xml::{events::Event, Reader};
-use serde_json::Value;
 
 use super::{
-    placeholder::{has_reference, substitute},
-    CheckedContentType, PreparedProxyBody, ProxyBodyError, ProxyBodyFormat,
+    is_utf8_label,
+    placeholder::{has_reference, substitute, Vault},
+    ConnectorContentType, ProxyBodyError, ProxyBodyFormat, RenderedBody,
 };
+use crate::fp_utils::when;
 
 pub(super) struct XmlBody<'a>(pub(super) &'a str);
 
@@ -20,18 +21,18 @@ impl ProxyBodyFormat for XmlBody<'_> {
         Some("application/xml")
     }
 
-    fn accepts(&self, media_type: &str) -> bool {
-        media_type == "application/xml" || media_type == "text/xml" || media_type.ends_with("+xml")
+    fn accepts(&self, content_type: &ConnectorContentType<'_>) -> bool {
+        content_type.is_xml()
     }
 
     fn render(
         &self,
-        vault: &Value,
-        content_type: &CheckedContentType<'_>,
-    ) -> Result<PreparedProxyBody, ProxyBodyError> {
-        Ok(PreparedProxyBody {
+        vault: Vault<'_>,
+        content_type: Option<&ConnectorContentType<'_>>,
+    ) -> Result<RenderedBody, ProxyBodyError> {
+        Ok(RenderedBody {
             bytes: Some(resolve_xml(self.0, vault)?.into_bytes()),
-            content_type: content_type.or_default(self.default_content_type()),
+            content_type: self.content_type_header(content_type),
         })
     }
 }
@@ -50,7 +51,12 @@ fn xml_escape(value: &str) -> String {
         .replace('\t', "&#9;")
 }
 
-fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> {
+/// Whether an element or attribute name contains a placeholder marker.
+fn has_marker(name: &[u8]) -> bool {
+    name.windows(2).any(|pair| pair == b"{{")
+}
+
+fn resolve_xml(template: &str, vault: Vault<'_>) -> Result<String, ProxyBodyError> {
     let valid_chars = |value: &str| {
         value.chars().all(|c| {
             matches!(c, '\t' | '\r' | '\n')
@@ -59,9 +65,8 @@ fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> 
                 || ('\u{10000}'..='\u{10ffff}').contains(&c)
         })
     };
-    if !valid_chars(template) {
-        return Err(ProxyBodyError::InvalidXml);
-    }
+    let invalid = || Err(ProxyBodyError::InvalidXml);
+    when(!valid_chars(template), invalid)?;
     let mut reader = Reader::from_str(template);
     let mut output = String::with_capacity(template.len());
     let mut position = 0;
@@ -75,19 +80,10 @@ fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> 
         let original = &template[position..next];
         match event {
             Event::Start(ref element) | Event::Empty(ref element) => {
-                if element
-                    .name()
-                    .as_ref()
-                    .windows(2)
-                    .any(|value| value == b"{{")
-                {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
+                when(has_marker(element.name().as_ref()), invalid)?;
                 for attr in element.attributes() {
                     let attr = attr.map_err(|_| ProxyBodyError::InvalidXml)?;
-                    if attr.key.as_ref().windows(2).any(|value| value == b"{{") {
-                        return Err(ProxyBodyError::InvalidXml);
-                    }
+                    when(has_marker(attr.key.as_ref()), invalid)?;
                 }
                 if depth == 0 {
                     roots += 1;
@@ -102,15 +98,11 @@ fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> 
                 output.push_str(original);
             }
             Event::Text(_) => {
-                if depth == 0 && !original.trim().is_empty() {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
+                when(depth == 0 && !original.trim().is_empty(), invalid)?;
                 output.push_str(&substitute(original, vault, xml_escape)?);
             }
             Event::CData(_) => {
-                if depth == 0 {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
+                when(depth == 0, invalid)?;
                 output.push_str(&substitute(original, vault, |s| {
                     s.replace("]]>", "]]]]><![CDATA[>")
                 })?);
@@ -120,30 +112,23 @@ fn resolve_xml(template: &str, vault: &Value) -> Result<String, ProxyBodyError> 
                     .encoding()
                     .transpose()
                     .map_err(|_| ProxyBodyError::InvalidXml)?;
-                if has_reference(original)?
-                    || encoding.is_some_and(|encoding| {
-                        !encoding.eq_ignore_ascii_case(b"utf-8")
-                            && !encoding.eq_ignore_ascii_case(b"utf8")
-                    })
-                {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
+                when(
+                    has_reference(original)?
+                        || encoding.is_some_and(|encoding| !is_utf8_label(&encoding)),
+                    invalid,
+                )?;
                 output.push_str(original);
             }
             Event::Eof => break,
             _ => {
                 // Token references in comments, declarations, DTDs and processing
                 // instructions are not card data positions.
-                if has_reference(original)? {
-                    return Err(ProxyBodyError::InvalidXml);
-                }
+                when(has_reference(original)?, invalid)?;
                 output.push_str(original);
             }
         }
         position = next;
     }
-    if roots != 1 || depth != 0 || !valid_chars(&output) {
-        return Err(ProxyBodyError::InvalidXml);
-    }
+    when(roots != 1 || depth != 0 || !valid_chars(&output), invalid)?;
     Ok(output)
 }
