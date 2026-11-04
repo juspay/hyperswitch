@@ -27,7 +27,7 @@ pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
     pub email: Option<pii::Email>,
     pub name: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
 }
 
 impl From<StripeBillingDetails> for payments::Address {
@@ -46,9 +46,9 @@ impl From<StripeBillingDetails> for payments::Address {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeCard {
     pub number: cards::CardNumber,
-    pub exp_month: pii::Secret<String>,
-    pub exp_year: pii::Secret<String>,
-    pub cvc: pii::Secret<String>,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub cvc: Secret<String>,
 }
 
 // ApplePay wallet param is not available in stripe Docs
@@ -137,8 +137,8 @@ pub struct Shipping {
     pub address: Option<payments::AddressDetails>,
     pub name: Option<String>,
     pub carrier: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
-    pub tracking_number: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub tracking_number: Option<Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -170,7 +170,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<secret::SecretSerdeValue>,
-    pub client_secret: Option<pii::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     pub payment_method_options: Option<payment_intent::StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,

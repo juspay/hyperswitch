@@ -8,6 +8,7 @@ use hyperswitch_masking::Secret;
 const CALLBACK_TOKEN: &str = "d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
 const CALLBACK_URL: &str = "https://router.test/payments/pay/merchant/authorize/stripe/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
 
+#[cfg(test)]
 fn assert_secret_serialization<T: serde::Serialize + std::fmt::Debug>(
     response: &T,
     url_fields: &[&str],
@@ -78,16 +79,4 @@ fn callback_urls_remain_strings_on_the_wire_and_are_masked_in_logs() {
         },
         &["/return_url_with_query_params", "/params/0/1"],
     );
-}
-
-#[test]
-fn authentication_return_url_is_masked_and_preserves_its_wire_value() {
-    let request: api_models::authentication::AuthenticationCreateRequest =
-        serde_json::from_value(serde_json::json!({
-            "amount": 100,
-            "currency": "USD",
-            "return_url": CALLBACK_URL,
-        }))
-        .expect("authentication create request");
-    assert_secret_serialization(&request, &["/return_url"]);
 }

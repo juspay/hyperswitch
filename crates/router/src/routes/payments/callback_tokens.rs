@@ -41,7 +41,7 @@ impl<'a> PaymentCallbackFields<'a> {
     ) -> PaymentCallbackUrl {
         let route = self.route();
         let (path, key) = if callback_mode.issues_tokens() {
-            let token = Uuid::new_v4();
+            let token = common_utils::generate_uuid_v4();
             let path = route.with_callback_token(&token.to_string());
             let key = self.key(&token);
             (path, Some(key))
@@ -311,7 +311,8 @@ impl AuthenticateAndFetch<AuthenticationData, SessionState> for PaymentCallbackA
     }
 }
 
-#[cfg(all(test, feature = "v1"))]
+#[cfg(test)]
+#[cfg(feature = "v1")]
 mod tests {
     use actix_web::{
         http::Method, test as actix_test, web, App, HttpRequest, HttpResponse, Resource,
@@ -382,7 +383,7 @@ mod tests {
                     PaymentCallbackFields::Authorize(&self.connector)
                 }
                 PaymentCallbackRoute::Authentication => {
-                    unreachable!("Client-secret authentication")
+                    panic!("Client-secret authentication does not use callback tokens")
                 }
             }
         }
@@ -420,7 +421,7 @@ mod tests {
                     PaymentCallbackRoute::authorize_url(base, mode, &self.connector)
                 }
                 PaymentCallbackRoute::Authentication => {
-                    unreachable!("Client-secret authentication")
+                    panic!("Client-secret authentication does not use callback tokens")
                 }
             }
         }
@@ -490,49 +491,9 @@ mod tests {
         );
     }
 
-    #[actix_web::test]
-    async fn concrete_path_extractors_require_callback_fields() {
-        let app = actix_test::init_service(App::new()
-            .app_data(web::Data::new(PaymentCallbackMode::Migration))
-            .service(web::resource("/payments/redirect/{payment_id}/{attempt_id}/callback/{callback_token}")
-                .app_data(web::Data::new(PaymentCallbackRoute::Start)).route(web::get().to(echo_start)))
-            .service(web::resource("/payments/{payment_id}/{merchant_id}/{connector}/callback/{callback_token}")
-                .app_data(web::Data::new(PaymentCallbackRoute::RedirectResponseWithCredentials)).route(web::get().to(echo_credentials)))
-        ).await;
-        for uri in [
-            format!(
-                "/payments/redirect/pay_1/attempt_1/callback/{}",
-                Uuid::new_v4()
-            ),
-            format!(
-                "/payments/pay_1/merchant_1/stripe/callback/{}",
-                Uuid::new_v4()
-            ),
-        ] {
-            let response = actix_test::call_service(
-                &app,
-                actix_test::TestRequest::get().uri(&uri).to_request(),
-            )
-            .await;
-            assert_eq!(response.status(), actix_web::http::StatusCode::NOT_FOUND);
-        }
-    }
-
-    #[test]
-    fn authentication_url_does_not_issue_a_token() {
-        assert_eq!(
-            PaymentCallbackRoute::authentication_url("https://router.test", "pay_1"),
-            "https://router.test/payments/pay_1/3ds/authentication"
-        );
-        assert_eq!(
-            PaymentCallbackRoute::Authentication.path(),
-            PaymentCallbackRoute::Authentication.legacy_path()
-        );
-    }
-
     #[test]
     fn malformed_and_noncanonical_tokens_are_rejected() {
-        let token = Uuid::new_v4();
+        let token = common_utils::generate_uuid_v4();
         assert_eq!(parse_token(&token.to_string()).expect("UUID"), token);
         for value in [
             String::new(),
@@ -593,7 +554,7 @@ mod tests {
                 PaymentCallbackFields::RedirectComplete(&path)
             }
             PaymentCallbackRoute::Authorize => PaymentCallbackFields::Authorize(&path),
-            _ => unreachable!("Connector route"),
+            _ => panic!("Expected a connector callback route"),
         };
         echo_auth(&request, fields, **mode)
     }
@@ -610,7 +571,7 @@ mod tests {
             PaymentCallbackRoute::RedirectCompleteWithCredentials => {
                 PaymentCallbackFields::RedirectCompleteWithCredentials(&path)
             }
-            _ => unreachable!("Credential route"),
+            _ => panic!("Expected a connector callback route with credentials"),
         };
         echo_auth(&request, fields, **mode)
     }

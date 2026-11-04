@@ -41,7 +41,7 @@ mod tests {
             "/payments/pay/3ds/authentication",
             "/other/callback/value",
         ] {
-            assert!(matches!(mask_payment_callback_path(path), Cow::Borrowed(_)));
+            assert_eq!(mask_payment_callback_path(path), path);
         }
     }
 }

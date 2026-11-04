@@ -862,7 +862,7 @@ impl TryFrom<PaymentsResponseRouterData<PaysafePaymentHandleResponse>>
             .as_ref()
             .and_then(|links| links.first())
             .map(|link| RedirectForm::Form {
-                endpoint: link.href.clone().into(),
+                endpoint: link.href.clone(),
                 method: Method::Get,
                 form_fields: Default::default(),
             });

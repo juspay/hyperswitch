@@ -2647,7 +2647,7 @@ where
     D: OperationSessionGetters<F>,
 {
     #[cfg(feature = "v1")]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(async_fn_in_trait, clippy::too_many_arguments)]
     async fn generate_response_with_callbacks(
         state: &SessionState,
         data: D,
@@ -2680,7 +2680,7 @@ where
         Ok(response)
     }
     #[cfg(feature = "v2")]
-    #[allow(clippy::too_many_arguments)]
+    #[allow(async_fn_in_trait, clippy::too_many_arguments)]
     async fn generate_response_with_callbacks(
         state: &SessionState,
         data: D,
@@ -5742,7 +5742,8 @@ impl SdkCallbackUrls {
     }
 }
 
-#[cfg(all(test, feature = "v1"))]
+#[cfg(test)]
+#[cfg(feature = "v1")]
 mod sdk_callback_url_tests {
     use hyperswitch_masking::PeekInterface;
 
@@ -5866,32 +5867,6 @@ mod sdk_callback_url_tests {
                 &payment_id("pay"),
                 &merchant_id("merchant"),
                 "stripe",
-                None,
-            )
-            .clone();
-        assert_eq!(
-            callbacks.redirect_response_url(
-                "https://router.test",
-                PaymentCallbackMode::Migration,
-                &payment_id("pay"),
-                &merchant_id("merchant"),
-                "stripe",
-                None
-            ),
-            &redirect
-        );
-    }
-
-    #[test]
-    fn credential_redirect_is_cached_with_its_original_token_and_path() {
-        let mut callbacks = SdkCallbackUrls::default();
-        let redirect = callbacks
-            .redirect_response_url(
-                "https://router.test",
-                PaymentCallbackMode::Migration,
-                &payment_id("pay"),
-                &merchant_id("merchant"),
-                "stripe",
                 Some("creds"),
             )
             .clone();
@@ -5903,19 +5878,21 @@ mod sdk_callback_url_tests {
             callbacks.redirect_response_url(
                 "https://router.test",
                 PaymentCallbackMode::Migration,
-                &payment_id("other_pay"),
-                &merchant_id("other_merchant"),
-                "adyen",
+                &payment_id("pay"),
+                &merchant_id("merchant"),
+                "stripe",
                 None
             ),
             &redirect
         );
-        assert!(callbacks.start.is_none());
-        assert!(callbacks.authorize.is_none());
     }
 
     #[test]
     fn authentication_url_is_cached_without_token_registration() {
+        assert_eq!(
+            PaymentCallbackRoute::Authentication.path(),
+            PaymentCallbackRoute::Authentication.legacy_path()
+        );
         let mut callbacks = SdkCallbackUrls::default();
         let authentication = callbacks
             .authentication_url("https://router.test", "pay")

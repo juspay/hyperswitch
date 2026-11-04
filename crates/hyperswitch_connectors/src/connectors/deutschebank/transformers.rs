@@ -595,7 +595,7 @@ impl
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::NoResponseId,
                     redirection_data: Box::new(Some(RedirectForm::Form {
-                        endpoint: item.data.request.get_complete_authorize_url()?.into(),
+                        endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
                         form_fields: (HashMap::from([
                             ("reference".to_string(), reference.clone()),

@@ -163,7 +163,8 @@ mod tests {
         });
         let targets = capture.0.lock().expect("targets");
         assert_eq!(targets.len(), 1);
-        assert!(!targets[0].contains("d9dc53cc"));
-        assert!(targets[0].contains("/callback/{callback_token}?connector_param=value"));
+        let target = targets.first().expect("root span target");
+        assert!(!target.contains("d9dc53cc"));
+        assert!(target.contains("/callback/{callback_token}?connector_param=value"));
     }
 }

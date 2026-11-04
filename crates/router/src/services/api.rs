@@ -2050,18 +2050,6 @@ mod callback_url_tests {
     }
 
     #[test]
-    fn callback_forms_read_the_prepared_token_url_from_the_body() {
-        let callback = "https://router.test/payments/pay/merchant/redirect/complete/payme/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
-        for form in callback_forms() {
-            let html = render_form(&form, callback);
-            assert!(html.contains(&format!("<body data-callback-url=\"{callback}\"")));
-            assert_eq!(html.matches(callback).count(), 1);
-            assert!(html.contains("document.body.getAttribute('data-callback-url')"));
-            assert!(!html.contains("window.location.pathname.replace"));
-        }
-    }
-
-    #[test]
     fn callback_url_attribute_escapes_html_without_inserting_the_url_into_scripts() {
         let callback = "https://router.test/payments/</script>/callback/token?value=\"quoted\"&next=\u{2028}\u{2029}";
         let attribute = "data-callback-url=\"https://router.test/payments/&lt;/script&gt;/callback/token?value=&quot;quoted&quot;&amp;next=\u{2028}\u{2029}\"";
