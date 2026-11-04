@@ -166,6 +166,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
+                enums::Connector::Ecommpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ecommpay::new())))
+                }
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
@@ -371,6 +374,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
+                enums::Connector::Betterpayment => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Betterpayment::new(),
+                ))),
                 enums::Connector::Saferpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
                 }

@@ -132,6 +132,60 @@ use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
+/// Use a profile-scoped lookup when authentication supplies a profile, otherwise retain merchant scope.
+#[cfg(feature = "v1")]
+pub async fn find_payment_intent(
+    db: &dyn StorageInterface,
+    payment_id: &id_type::PaymentId,
+    processor_merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
+    profile_id_from_auth_layer: Option<&id_type::ProfileId>,
+) -> CustomResult<PaymentIntent, errors::StorageError> {
+    match profile_id_from_auth_layer {
+        Some(profile_id) => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+                payment_id,
+                processor_merchant_id,
+                profile_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+        None => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
+                payment_id,
+                processor_merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn validate_payment_profile(
+    authenticated_profile_id: Option<&id_type::ProfileId>,
+    payment_profile_id: Option<&id_type::ProfileId>,
+) -> RouterResult<()> {
+    match (authenticated_profile_id, payment_profile_id) {
+        (Some(authenticated), Some(payment)) => fp_utils::when(authenticated != payment, || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Profile id authentication failed. Please use the correct JWT token"
+                    .to_string(),
+            }
+            .into())
+        }),
+        (Some(_), None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Couldn't find profile_id in record for authentication".to_string(),
+        }
+        .into()),
+        (None, _) => Ok(()),
+    }
+}
+
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_or_update_address_for_payment_by_request(
@@ -5258,6 +5312,10 @@ mod tests {
             discount_amount: None,
             order_date: None,
             shipping_amount_tax: None,
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            vat_invoice_reference_number: None,
+            order_commodity_code: None,
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
@@ -5271,6 +5329,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5354,6 +5413,10 @@ mod tests {
             discount_amount: None,
             order_date: None,
             shipping_amount_tax: None,
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            vat_invoice_reference_number: None,
+            order_commodity_code: None,
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
@@ -5368,6 +5431,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5450,6 +5514,10 @@ mod tests {
             discount_amount: None,
             order_date: None,
             shipping_amount_tax: None,
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            vat_invoice_reference_number: None,
+            order_commodity_code: None,
             duty_amount: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
@@ -5463,6 +5531,7 @@ mod tests {
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            settlement_conclusion_applied: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -7141,6 +7210,38 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_and_update_settlement_conclusion(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+    payment_intent: &mut PaymentIntent,
+    operation: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (auth_flow, request.settlement_conclusion_applied) {
+        (services::AuthFlow::Client, Some(_)) => {
+            logger::error!(
+                error_status_code = 400,
+                error_status_class = "4xx",
+                error_category = "invalid_integration",
+                operation,
+                "Invalid integration: settlement_conclusion_applied supplied with client authentication"
+            );
+            metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
+                .add(1, router_env::metric_attributes!(("operation", operation)));
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "settlement_conclusion_applied can only be updated with merchant authentication"
+                        .to_string(),
+            })
+        }
+        (services::AuthFlow::Merchant, Some(settlement_conclusion_applied)) => {
+            payment_intent.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+            Ok(())
+        }
+        (services::AuthFlow::Client | services::AuthFlow::Merchant, None) => Ok(()),
     }
 }
 

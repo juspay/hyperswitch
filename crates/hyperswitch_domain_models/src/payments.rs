@@ -143,7 +143,11 @@ pub struct PaymentIntent {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
@@ -160,6 +164,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -576,6 +581,12 @@ impl PaymentIntent {
                 )
             })
             .transpose()
+    }
+
+    /// Whether tax and surcharge pipelines must preserve the merchant's final amounts.
+    #[cfg(feature = "v1")]
+    pub fn is_settlement_conclusion_applied(&self) -> bool {
+        self.settlement_conclusion_applied.unwrap_or(false)
     }
 
     #[cfg(feature = "v1")]
@@ -1062,6 +1073,9 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    /// Denotes the category of the merchant initiated transactions made on this intent.
+    pub mit_category: Option<common_enums::MitCategory>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -1275,6 +1289,8 @@ impl PaymentIntent {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
             enable_avs_check: request.enable_avs_check,
+            mit_category: request.mit_category,
+            settlement_conclusion_applied: None,
         })
     }
 
@@ -1578,6 +1594,8 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: PaymentIntent,
     pub payment_attempt: PaymentAttempt,
+    /// Settlement metadata for the current capture, separate from the payment metadata.
+    pub capture_feature_metadata: Option<api_models::payments::CaptureFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -1754,6 +1772,9 @@ where
                 .attach_printable("Connector not found in payment attempt")?,
         };
         Ok(Some(FeatureMetadata {
+            multi_currency_processing: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.multi_currency_processing.clone()),
             redirect_response: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.redirect_response.clone()),

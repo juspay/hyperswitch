@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon,
+    webhooks::{IncomingWebhookRequestDetails, WebhookResourceData},
+};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -305,7 +308,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector.is_webhook_source_verification_mandatory(),
             source_verified,
         ) {
-            (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
+            (true, false) => {
+                logger::warn!(
+                    connector = %connector.id(),
+                    merchant_id = ?platform.get_processor().get_account().get_id(),
+                    "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+                );
+                Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?
+            }
             _ => {
                 // Unverified webhooks fall back to syncing with the connector, so cap how many of
                 // them each merchant, profile and merchant connector account can push through

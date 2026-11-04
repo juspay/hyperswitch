@@ -702,8 +702,10 @@ impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
             payments_grpc::PaymentStatus::DeviceDataCollectionPending => {
                 Ok(Self::DeviceDataCollectionPending)
             }
-            payments_grpc::PaymentStatus::VoidedPostCapture => Ok(Self::Voided),
-            payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
+            // Deprecated in UCS in favour of `PostCaptureVoidStatus`; kept for exhaustiveness.
+            #[allow(deprecated)]
+            payments_grpc::PaymentStatus::VoidedPostCapture
+            | payments_grpc::PaymentStatus::Unspecified => Ok(prev_status),
             payments_grpc::PaymentStatus::PartiallyAuthorized => Ok(Self::PartiallyAuthorized),
             payments_grpc::PaymentStatus::Expired => Ok(Self::Expired),
             payments_grpc::PaymentStatus::Conflicted => Ok(Self::IntegrityFailure),
@@ -2096,6 +2098,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                         .expose(),
                 })
             }
+            Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "QR data form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Script form type is not implemented".to_string(),
@@ -2559,9 +2567,12 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
-            Self::RequestEncodingFailed
-            | Self::RequestEncodingFailedWithReason(_)
-            | Self::InvalidDataFormat { .. } => ConnectorError::RequestEncodingFailed,
+            Self::RequestEncodingFailed | Self::RequestEncodingFailedWithReason(_) => {
+                ConnectorError::RequestEncodingFailed
+            }
+            Self::InvalidDataFormat { field_name } => ConnectorError::InvalidDataFormat {
+                field_name: field_name.clone(),
+            },
             // Missing field errors
             Self::MissingRequiredField { field_name } => ConnectorError::MissingRequiredField {
                 field_name: field_name.clone(),

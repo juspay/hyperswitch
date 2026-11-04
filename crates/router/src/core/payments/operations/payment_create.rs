@@ -83,9 +83,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
+            business_profile: prefetched_business_profile,
             payment_method_info: prefetched_payment_method_info,
             payment_method_with_raw_data,
             ..
@@ -106,14 +108,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // If profile id is not passed, get it from the business_country and business_label.
         // The lookup is scoped to the merchant, so this also validates that the profile belongs to it.
-        let business_profile = core_utils::get_profile_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            platform.get_processor(),
-            request.profile_id.as_ref(),
-            &*state.store,
-        )
-        .await?;
+        let business_profile = match prefetched_business_profile {
+            Some(business_profile) => business_profile,
+            None => {
+                core_utils::get_profile_from_business_details(
+                    request.business_country,
+                    request.business_label.as_ref(),
+                    platform.get_processor(),
+                    request.profile_id.as_ref(),
+                    &*state.store,
+                )
+                .await?
+            }
+        };
+        helpers::validate_payment_profile(
+            profile_id_from_auth_layer,
+            Some(business_profile.get_id()),
+        )?;
         let profile_id = business_profile.get_id().to_owned();
 
         let customer_acceptance = request.customer_acceptance.clone();
@@ -689,6 +700,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .flatten();
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -839,7 +851,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -929,8 +946,21 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        let payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
+        let business_profile = core_utils::get_profile_from_business_details(
+            req.business_country,
+            req.business_label.as_ref(),
+            platform.get_processor(),
+            req.profile_id.as_ref(),
+            &*state.store,
+        )
+        .await?;
+        helpers::validate_payment_profile(
+            profile_id_from_auth_layer,
+            Some(business_profile.get_id()),
+        )?;
+        let mut payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
             logger::debug!("PM Modular Service branch selected for payment method fetch");
             utils::when(
                 req.off_session == Some(true) && req.recurring_details.is_none(),
@@ -949,6 +979,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         state,
                         req,
                         platform,
+                        business_profile.get_id(),
                         payment_method_ref,
                     )
                     .await?;
@@ -996,6 +1027,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             state,
                             req,
                             platform,
+                            business_profile.get_id(),
                             &payment_method_id,
                         )
                         .await?;
@@ -1009,6 +1041,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 operations::PaymentMethodFetchData::default()
             }
         };
+        payment_method_fetch_data.business_profile = Some(business_profile);
 
         Ok(payment_method_fetch_data)
     }
@@ -1340,22 +1373,13 @@ impl PaymentCreate {
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
+        profile_id: &common_utils::id_type::ProfileId,
         payment_method_ref: &str,
     ) -> RouterResult<PaymentMethodWithRawData> {
-        let profile_id = req
-            .profile_id
-            .clone()
-            .or(platform
-                .get_processor()
-                .get_account()
-                .get_default_profile()
-                .clone())
-            .get_required_value("profile_id")?;
-
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
             platform,
-            &profile_id,
+            profile_id,
             payment_method_ref,
             None, // CVC token data is not passed in create api
             true, // fetch raw card detail from the internal vault
@@ -2011,6 +2035,13 @@ impl PaymentCreate {
             order_date: request.order_date,
             discount_amount: request.discount_amount,
             duty_amount: request.duty_amount,
+            order_commodity_code: request.order_commodity_code.clone(),
+            value_added_tax_amount: request.value_added_tax_amount,
+            value_added_tax_percent: request
+                .value_added_tax_percent
+                .as_ref()
+                .map(|percentage| percentage.get_percentage()),
+            vat_invoice_reference_number: request.vat_invoice_reference_number.clone(),
             tax_status: request.tax_status,
             shipping_amount_tax: request.shipping_amount_tax,
             enable_partial_authorization: request.enable_partial_authorization,
@@ -2029,6 +2060,9 @@ impl PaymentCreate {
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
             enable_avs_check: request.enable_avs_check,
+            settlement_conclusion_applied: Some(
+                request.settlement_conclusion_applied.unwrap_or(false),
+            ),
         })
     }
 }
