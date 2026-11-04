@@ -181,6 +181,7 @@ pub struct PaymentsAuthorizeData {
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 impl PaymentsAuthorizeData {
@@ -1074,6 +1075,7 @@ pub struct CompleteAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     /// Payment feature metadata retained through redirect completion.
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1966,6 +1968,7 @@ pub struct SetupMandateRequestData {
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 impl SetupMandateRequestData {

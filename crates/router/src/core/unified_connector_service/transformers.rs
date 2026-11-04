@@ -564,6 +564,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             email: None,
             phone_number: None,
             phone_country_code: None,
+            state_code_iso: None,
         }
     }
 }
@@ -1122,6 +1123,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -1411,6 +1413,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2809,6 +2812,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3043,6 +3047,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3242,6 +3247,7 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3507,6 +3513,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
         })
     }
 }
@@ -5877,6 +5884,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5911,6 +5919,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5954,6 +5963,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                    state_code_iso: None,
                 }
             });
         Ok(Self {
@@ -6001,6 +6011,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
                 .as_ref()
                 .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
             phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            state_code_iso: None,
         })
     }
 }

@@ -7774,6 +7774,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         business_country: data.request.business_country,
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
         enable_avs_check: data.request.enable_avs_check,
+        enable_account_name_verification: None,
     }
 }
 

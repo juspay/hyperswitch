@@ -1178,11 +1178,20 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      var callback = new URL(document.body.getAttribute('data-callback-url'));
-                      callback.searchParams.set(\"referenceId\", \"{reference_id}\");
-                      window.location.href = callback.toString();
+                    const allowedOrigins = [
+                        \"https://centinelapistag.cardinalcommerce.com\",
+                        \"https://centinelapi.cardinalcommerce.com\",
+                        \"https://cas.client.cardinaltrusted.com\",
+                        \"https://client.cardinaltrusted.com\"
+                    ];
+
+                    if (!allowedOrigins.includes(event.origin)) {{
+                        return;
                     }}
+
+                    var callback = new URL(document.body.getAttribute('data-callback-url'));
+                    callback.searchParams.set(\"referenceId\", \"{reference_id}\");
+                    window.location.href = callback.toString();
                   }}, false);
                 </script>
                 ")))

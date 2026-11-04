@@ -1450,6 +1450,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             installment_details: None,
             connector_intent_metadata: None,
             enable_avs_check: data.request.enable_avs_check,
+            enable_account_name_verification: None,
         }
     }
 }
