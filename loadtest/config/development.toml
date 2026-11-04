@@ -841,6 +841,7 @@ globalpay = { long_lived_token = false, payment_method = "card", flow = "mandate
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 datatrans = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "google_pay" } }
 elavon_pg = { long_lived_token = false, payment_method = "card", flow = "mandates" }
+elavon_pg = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [connector_customer]
 payout_connector_list = "nomupay,wise"
