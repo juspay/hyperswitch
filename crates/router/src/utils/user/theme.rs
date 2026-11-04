@@ -3,7 +3,7 @@ use std::path::{Component, Path, PathBuf};
 use common_enums::EntityType;
 use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
 use diesel_models::user::theme::Theme;
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 
 use crate::{
@@ -288,36 +288,11 @@ pub async fn get_theme_using_optional_theme_id(
         }
     }
 }
-
-fn validate_requested_theme_entity_type(
-    user_entity_type: EntityType,
-    request_entity_type: EntityType,
-) -> UserResult<()> {
-    if request_entity_type > user_entity_type {
-        return Err(
-            report!(UserErrors::InvalidThemeLineage("entity_type".to_string())).attach_printable(
-                format!(
-                    "User with entity type {user_entity_type} cannot access {request_entity_type} lineage"
-                ),
-            ),
-        );
-    }
-    Ok(())
-}
-
 pub async fn get_theme_lineage_from_user_token(
     user_from_token: &UserFromToken,
     state: &SessionState,
     request_entity_type: &EntityType,
 ) -> UserResult<ThemeLineage> {
-    let user_entity_type = user_from_token
-        .get_role_info_from_db(state)
-        .await
-        .attach_printable("Invalid role_id in JWT")?
-        .get_entity_type();
-
-    validate_requested_theme_entity_type(user_entity_type, *request_entity_type)?;
-
     let tenant_id = user_from_token
         .tenant_id
         .clone()
