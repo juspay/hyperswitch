@@ -114,14 +114,11 @@ async fn evaluate_rule(
         Err(error) => {
             let error = format_error_report(&error);
             logger::error!(tag = "evaluator_rule_error", rule_id = %rule.id, error = %error, "Rule evaluation failed");
-            let destination = &rule
+            let destination = rule
                 .config
                 .thresholds
-                .severities
-                .first_key_value()
-                .expect("validated alert rule must have a threshold")
-                .1
-                .destination;
+                .error_destination()
+                .expect("validated alert rule must have a threshold");
             let notification = chat::create_notification(
                 rule,
                 now,

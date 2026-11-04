@@ -1,3 +1,5 @@
+use std::fmt;
+
 use common_types::alert_rules::{
     AlertQuery, AlertRuleConfig, CloudwatchStatistic, Severity, SeverityThreshold,
 };
@@ -36,15 +38,26 @@ impl RuleDefinition {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, strum::Display, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum AlertEvaluationLevel {
     Normal,
     NoData,
     Info,
     Warning,
     Critical,
+}
+
+impl fmt::Display for AlertEvaluationLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Normal => "NORMAL",
+            Self::NoData => "NO_DATA",
+            Self::Info => "INFO",
+            Self::Warning => "WARNING",
+            Self::Critical => "CRITICAL",
+        })
+    }
 }
 
 impl From<Severity> for AlertEvaluationLevel {
@@ -99,3 +112,21 @@ pub enum EvaluatorError {
 }
 
 pub type EvaluatorResult<T> = CustomResult<T, EvaluatorError>;
+
+#[cfg(test)]
+mod display_tests {
+    use super::AlertEvaluationLevel;
+
+    #[test]
+    fn alert_level_display_keeps_message_format() {
+        for (level, expected) in [
+            (AlertEvaluationLevel::Normal, "NORMAL"),
+            (AlertEvaluationLevel::NoData, "NO_DATA"),
+            (AlertEvaluationLevel::Info, "INFO"),
+            (AlertEvaluationLevel::Warning, "WARNING"),
+            (AlertEvaluationLevel::Critical, "CRITICAL"),
+        ] {
+            assert_eq!(level.to_string(), expected);
+        }
+    }
+}
