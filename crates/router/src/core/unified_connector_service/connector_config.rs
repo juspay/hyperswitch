@@ -225,6 +225,11 @@ pub struct GlobalpayMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct RapydMetadata {
+    country_of_incorporation: Option<common_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
     merchant_payment_method_route_id: Secret<String>,
@@ -473,6 +478,8 @@ pub enum ConnectorSpecificConfig {
     Rapyd {
         access_key: Secret<String>,
         secret_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        country_of_incorporation: Option<i32>,
     },
     /// Payu connector configuration
     Payu {
@@ -1285,10 +1292,29 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Powertranz requires BodyKey auth type")),
             },
             Connector::Rapyd => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
-                    access_key: api_key.clone(),
-                    secret_key: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let rapyd_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<RapydMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid rapyd metadata format"))
+                        })
+                        .transpose()?;
+                    let country_of_incorporation = rapyd_meta
+                        .and_then(|meta| meta.country_of_incorporation)
+                        .map(|country| {
+                            unified_connector_service_client::payments::CountryAlpha2::from_str_name(
+                                &country.to_string(),
+                            )
+                            .map(i32::from)
+                            .ok_or_else(|| err("Invalid rapyd country_of_incorporation"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Rapyd {
+                        access_key: api_key.clone(),
+                        secret_key: key1.clone(),
+                        country_of_incorporation,
+                    })
+                }
                 _ => Err(err("Rapyd requires BodyKey auth type")),
             },
             Connector::Peachpayments => match auth {
