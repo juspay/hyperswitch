@@ -28,9 +28,10 @@ impl<'a> Storage<'a> {
     }
 
     pub fn record_value(&mut self, key: &'a str, value: serde_json::Value) {
-        if super::formatter::IMPLICIT_KEYS.contains(key) {
-            tracing::warn!(value =? value, "{} is a reserved entry. Skipping it.", key);
-        } else {
+        // A storage visitor is itself called by tracing subscriber callbacks. Emitting another
+        // tracing event here would recursively re-enter the subscriber, so reserved fields are
+        // ignored without logging.
+        if !super::formatter::IMPLICIT_KEYS.contains(key) {
             self.values.insert(key, value);
         }
     }
