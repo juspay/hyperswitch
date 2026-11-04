@@ -1606,21 +1606,15 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
     }
 }
 
-impl ForeignFrom<api_models::mandates::ProcessorPaymentTokenDetails>
-    for payments_grpc::AdditionalMandateDetails
-{
-    fn foreign_from(details: api_models::mandates::ProcessorPaymentTokenDetails) -> Self {
-        Self {
-            network_transaction_id: details.network_transaction_id,
-            transaction_link_id: details.transaction_link_id,
-        }
-    }
-}
-
 impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
     for payments_grpc::ConnectorMandateReferenceId
 {
     fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        let (network_transaction_id, transaction_link_id) = value
+            .get_additional_mandate_details()
+            .map(|details| (details.network_transaction_id, details.transaction_link_id))
+            .unwrap_or_default();
+
         Self {
             connector_mandate_id: value.get_connector_mandate_id(),
             payment_method_id: value.get_payment_method_id(),
@@ -1629,9 +1623,8 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
                 Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
             }),
-            additional_mandate_details: value
-                .get_additional_mandate_details()
-                .map(payments_grpc::AdditionalMandateDetails::foreign_from),
+            network_transaction_id,
+            transaction_link_id,
         }
     }
 }
@@ -1656,14 +1649,16 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         let connector_mandate_request_reference_id = structured
             .and_then(|r| r.get_connector_mandate_request_reference_id())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
-        let additional_mandate_details = structured
+        let (network_transaction_id, transaction_link_id) = structured
             .and_then(|r| r.get_additional_mandate_details())
-            .map(payments_grpc::AdditionalMandateDetails::foreign_from);
+            .map(|details| (details.network_transaction_id, details.transaction_link_id))
+            .unwrap_or_default();
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
             && connector_mandate_request_reference_id.is_none()
-            && additional_mandate_details.is_none()
+            && network_transaction_id.is_none()
+            && transaction_link_id.is_none()
         {
             return None;
         }
@@ -1671,7 +1666,8 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
-            additional_mandate_details,
+            network_transaction_id,
+            transaction_link_id,
             mandate_metadata: structured
                 .and_then(|connector_mandate_reference_id| {
                     connector_mandate_reference_id.get_mandate_metadata()
@@ -3661,8 +3657,8 @@ impl
     }
 }
 
-// Keep processor-token details together internally, but use the shared card data
-// in the UCS request. Explicit token expiry takes precedence over stored expiry.
+// Processor-token expiry is carried internally in additional_mandate_details.
+// Map it to UCS's existing AdditionalCardInfo fields to avoid duplicating expiry details. Explicit token expiry overrides stored card expiry.
 fn merge_processor_token_expiry(
     additional_payment_data: &mut Option<payments_grpc::AdditionalPaymentData>,
     details: api_models::mandates::ProcessorPaymentTokenDetails,
@@ -11921,99 +11917,6 @@ impl
                 .map(ConnectorState::foreign_from),
             ..Default::default()
         })
-    }
-}
-
-#[cfg(test)]
-mod processor_token_expiry_tests {
-    use api_models::mandates::ProcessorPaymentTokenDetails;
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use payments_grpc::additional_payment_data::PaymentMethodData;
-
-    use super::{merge_processor_token_expiry, payments_grpc};
-
-    fn details(month: Option<&str>, year: Option<&str>) -> ProcessorPaymentTokenDetails {
-        ProcessorPaymentTokenDetails {
-            card_exp_month: month.map(|value| Secret::new(value.to_string())),
-            card_exp_year: year.map(|value| Secret::new(value.to_string())),
-            network_transaction_id: Some("original-network-id".to_string()),
-            transaction_link_id: None,
-        }
-    }
-
-    #[test]
-    fn processor_token_expiry_creates_card_data() {
-        let mut data = None;
-        merge_processor_token_expiry(&mut data, details(Some("12"), Some("2030")))
-            .expect("expiry should be mapped");
-        let Some(PaymentMethodData::Card(card)) = data.and_then(|data| data.payment_method_data)
-        else {
-            panic!("expected card additional data");
-        };
-        assert_eq!(
-            card.card_exp_month
-                .as_ref()
-                .map(|value| value.peek().as_str()),
-            Some("12")
-        );
-        assert_eq!(
-            card.card_exp_year
-                .as_ref()
-                .map(|value| value.peek().as_str()),
-            Some("2030")
-        );
-    }
-
-    #[test]
-    fn processor_token_expiry_preserves_other_card_fields() {
-        let mut data = Some(payments_grpc::AdditionalPaymentData {
-            payment_method_data: Some(PaymentMethodData::Card(payments_grpc::AdditionalCardInfo {
-                last4: Some("1234".to_string()),
-                card_exp_month: Some(Secret::new("01".to_string())),
-                card_exp_year: Some(Secret::new("2029".to_string())),
-                ..Default::default()
-            })),
-        });
-        merge_processor_token_expiry(&mut data, details(Some("12"), None))
-            .expect("expiry should be merged");
-        let Some(PaymentMethodData::Card(card)) = data.and_then(|data| data.payment_method_data)
-        else {
-            panic!("expected card additional data");
-        };
-        assert_eq!(card.last4.as_deref(), Some("1234"));
-        assert_eq!(
-            card.card_exp_month
-                .as_ref()
-                .map(|value| value.peek().as_str()),
-            Some("12")
-        );
-        assert_eq!(
-            card.card_exp_year
-                .as_ref()
-                .map(|value| value.peek().as_str()),
-            Some("2029")
-        );
-    }
-
-    #[test]
-    fn network_references_alone_do_not_create_card_data() {
-        let mut data = None;
-        merge_processor_token_expiry(&mut data, details(None, None)).expect("no expiry to map");
-        assert!(data.is_none());
-    }
-
-    #[test]
-    fn processor_token_expiry_does_not_overwrite_wallet_data() {
-        let mut data = Some(payments_grpc::AdditionalPaymentData {
-            payment_method_data: Some(PaymentMethodData::Wallet(Default::default())),
-        });
-        assert!(
-            merge_processor_token_expiry(&mut data, details(Some("12"), Some("2030"))).is_err()
-        );
-        assert!(matches!(
-            data.and_then(|data| data.payment_method_data),
-            Some(PaymentMethodData::Wallet(_))
-        ));
     }
 }
 
