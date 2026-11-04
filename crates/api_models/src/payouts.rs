@@ -414,11 +414,11 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Trustly(TrustlyBankTransfer),
     Sepa(SepaBankTransfer),
-    Pix(PixBankTransfer),
-    OpenBanking(OpenBanking),
     Payshap(PayshapBankTransfer),
     PayshapProxy(PayshapProxyBankTransfer),
     Ted(TedBankTransfer),
+    Pix(PixBankTransfer),
+    OpenBanking(OpenBanking),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -612,6 +612,7 @@ pub struct PixEmvBankTransfer {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapBankTransfer {
     /// Bank account number is a unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "1234567890")]
@@ -627,6 +628,7 @@ pub struct PayshapBankTransfer {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct PayshapProxyBankTransfer {
     /// Cellphone proxy. Required when proxy_type is cellphone.
     #[schema(value_type = Option<String>, example = "+27821234567")]
@@ -638,6 +640,7 @@ pub struct PayshapProxyBankTransfer {
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TedBankTransfer {
     /// Bank name
     #[schema(value_type = Option<BankNames>)]
@@ -1919,5 +1922,108 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
             },
             PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::{Bank, BankTransfer};
+
+    // --- the bug: these must stop resolving to Bank::Pix ---
+
+    #[test]
+    fn payshap_bank_account_number_deserializes_as_payshap() {
+        let parsed = serde_json::from_value::<Bank>(json!({"bank_account_number": "1234567890"}));
+        assert!(matches!(parsed, Ok(Bank::Payshap(_))), "got {parsed:?}");
+    }
+
+    #[test]
+    fn payshap_all_fields_deserialize_as_payshap() {
+        let parsed = serde_json::from_value::<Bank>(json!({
+            "bank_account_number": "1234567890",
+            "account_holder_name": "Jane Doe",
+            "bank_name": "absa"
+        }));
+        assert!(matches!(parsed, Ok(Bank::Payshap(_))), "got {parsed:?}");
+    }
+
+    #[test]
+    fn payshap_proxy_shap_id_deserializes_as_payshap_proxy() {
+        let parsed = serde_json::from_value::<Bank>(json!({"shap_id": "21e3123"}));
+        assert!(
+            matches!(parsed, Ok(Bank::PayshapProxy(_))),
+            "got {parsed:?}"
+        );
+    }
+
+    #[test]
+    fn payshap_proxy_cellphone_deserializes_as_payshap_proxy() {
+        let parsed = serde_json::from_value::<Bank>(json!({"cellphone": "+27821234567"}));
+        assert!(
+            matches!(parsed, Ok(Bank::PayshapProxy(_))),
+            "got {parsed:?}"
+        );
+    }
+
+    #[test]
+    fn ted_deserializes_as_ted() {
+        let parsed = serde_json::from_value::<Bank>(json!({
+            "bank_account_number": "000123456",
+            "bank_code": "033",
+            "ispb": "90400888"
+        }));
+        assert!(matches!(parsed, Ok(Bank::Ted(_))), "got {parsed:?}");
+    }
+
+    // --- regression guards: the fix must NOT break the good paths ---
+
+    #[test]
+    fn genuine_pix_key_still_deserializes_as_pix() {
+        let parsed = serde_json::from_value::<Bank>(json!({"pix_key": "customer@example.com"}));
+        assert!(matches!(parsed, Ok(Bank::Pix(_))), "got {parsed:?}");
+    }
+
+    #[test]
+    fn genuine_sepa_iban_still_deserializes_as_sepa() {
+        let parsed = serde_json::from_value::<Bank>(json!({"iban": "DE89370400440532013000"}));
+        assert!(matches!(parsed, Ok(Bank::Sepa(_))), "got {parsed:?}");
+    }
+
+    // --- the tagged (non-deprecated) enum must keep working after deny_unknown_fields ---
+
+    #[test]
+    fn tagged_bank_transfer_payshap_still_deserializes_as_payshap() {
+        let parsed = serde_json::from_value::<BankTransfer>(json!({
+            "payout_method_type": "payshap",
+            "bank_account_number": "1234567890"
+        }));
+        assert!(
+            matches!(parsed, Ok(BankTransfer::Payshap(_))),
+            "got {parsed:?}"
+        );
+    }
+
+    #[test]
+    fn tagged_bank_transfer_payshap_proxy_still_deserializes_as_payshap_proxy() {
+        let parsed = serde_json::from_value::<BankTransfer>(json!({
+            "payout_method_type": "payshap_proxy",
+            "cellphone": "+27821234567"
+        }));
+        assert!(
+            matches!(parsed, Ok(BankTransfer::PayshapProxy(_))),
+            "got {parsed:?}"
+        );
+    }
+
+    #[test]
+    fn tagged_bank_transfer_ted_still_deserializes_as_ted() {
+        let parsed = serde_json::from_value::<BankTransfer>(json!({
+            "payout_method_type": "ted",
+            "bank_account_number": "000123456",
+            "bank_code": "033"
+        }));
+        assert!(matches!(parsed, Ok(BankTransfer::Ted(_))), "got {parsed:?}");
     }
 }

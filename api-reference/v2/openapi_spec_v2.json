@@ -7572,12 +7572,6 @@
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
-            "$ref": "#/components/schemas/PixBankTransfer"
-          },
-          {
-            "$ref": "#/components/schemas/OpenBanking"
-          },
-          {
             "$ref": "#/components/schemas/PayshapBankTransfer"
           },
           {
@@ -7585,6 +7579,12 @@
           },
           {
             "$ref": "#/components/schemas/TedBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PixBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/OpenBanking"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -29415,7 +29415,8 @@
             ],
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapBankTransferAdditionalData": {
         "type": "object",
@@ -29461,7 +29462,8 @@
             "example": "21e3123",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PayshapProxyBankTransferAdditionalData": {
         "type": "object",
@@ -35548,7 +35550,8 @@
             "example": "João Silva",
             "nullable": true
           }
-        }
+        },
+        "additionalProperties": false
       },
       "TedBankTransferAdditionalData": {
         "type": "object",
