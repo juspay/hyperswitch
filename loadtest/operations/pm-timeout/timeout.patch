@@ -1,0 +1,61 @@
+--- a/crates/hyperswitch_interfaces/src/types.rs
++++ b/crates/hyperswitch_interfaces/src/types.rs
+@@ -539,6 +539,12 @@
+     /// The timeout duration (in seconds) for idle connections in the proxy pool.
+     pub idle_pool_connection_timeout: Option<u64>,
+ 
++    /// Maximum time in seconds to establish an outgoing HTTP connection.
++    pub connect_timeout: Option<u64>,
++
++    /// Default total outgoing HTTP request timeout in seconds.
++    pub request_timeout: Option<u64>,
++
+     /// A comma-separated list of hosts that should bypass the proxy.
+     pub bypass_proxy_hosts: Option<String>,
+ 
+@@ -555,6 +561,8 @@
+             http_url: Default::default(),
+             https_url: Default::default(),
+             idle_pool_connection_timeout: Some(90),
++            connect_timeout: None,
++            request_timeout: None,
+             bypass_proxy_hosts: Default::default(),
+             mitm_ca_certificate: None,
+             mitm_enabled: None,
+--- a/crates/external_services/src/http_client/client.rs
++++ b/crates/external_services/src/http_client/client.rs
+@@ -92,6 +92,10 @@
+                 .idle_pool_connection_timeout
+                 .unwrap_or_default(),
+         ));
++
++    if let Some(seconds) = proxy_config.connect_timeout {
++        client_builder = client_builder.connect_timeout(Duration::from_secs(seconds));
++    }
+ 
+     let proxy_exclusion_config =
+         reqwest::NoProxy::from_string(&proxy_config.bypass_proxy_hosts.clone().unwrap_or_default());
+@@ -197,7 +201,9 @@
+                 https_url: self.https_url.clone(),
+                 bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
+                 mitm_ca_certificate: self.mitm_ca_certificate.clone(),
+-                idle_pool_connection_timeout: None, // Exclude timeout from cache key
++                idle_pool_connection_timeout: None, // Exclude idle timeout from cache key
++                connect_timeout: self.connect_timeout,
++                request_timeout: self.request_timeout,
+                 mitm_enabled: self.mitm_enabled,
+             })
+         } else {
+--- a/crates/external_services/src/http_client.rs
++++ b/crates/external_services/src/http_client.rs
+@@ -167,7 +167,9 @@
+     };
+ 
+     let request = request.add_headers(headers).timeout(Duration::from_secs(
+-        option_timeout_secs.unwrap_or(consts::REQUEST_TIME_OUT),
++        option_timeout_secs
++            .or(client_proxy.request_timeout)
++            .unwrap_or(consts::REQUEST_TIME_OUT),
+     ));
+ 
+     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.

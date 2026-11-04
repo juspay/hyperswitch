@@ -1,0 +1,9 @@
+steps:
+- name: gcr.io/cloud-builders/docker
+  args: ['build', '-t', 'asia-south1-docker.pkg.dev/hyperswitch-dev/hyperswitch-modular-pm/modular-pm:2026.10.02.0-timeout15', '--build-arg', 'VERSION_FEATURE_SET=v2', '--build-arg', 'CARGO_BUILD_PROFILE=release-fast', '.']
+images:
+- asia-south1-docker.pkg.dev/hyperswitch-dev/hyperswitch-modular-pm/modular-pm:2026.10.02.0-timeout15
+options:
+  machineType: E2_HIGHCPU_32
+  diskSizeGb: 100
+timeout: 3600s
