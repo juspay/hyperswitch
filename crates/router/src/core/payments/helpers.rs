@@ -5330,6 +5330,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5432,6 +5433,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5532,6 +5534,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -6786,6 +6789,7 @@ pub async fn get_additional_payment_data(
                         funding_source: None,
                         issuer_name: None,
                         issuer_country: None,
+                        payment_checks: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6833,6 +6837,7 @@ pub async fn get_additional_payment_data(
                             card_type: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6871,6 +6876,7 @@ pub async fn get_additional_payment_data(
                             funding_source: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     paypal: None,
@@ -9038,6 +9044,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -9059,6 +9066,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     funding_source,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     ..(**apple_pay).clone()
                 })
             }),
@@ -9075,6 +9083,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -9095,6 +9104,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     card_type,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     device_pan_bin: device_pan_bin
                         .clone()
                         .or_else(|| google_pay.device_pan_bin.clone()),

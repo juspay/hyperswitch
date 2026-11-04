@@ -2060,6 +2060,7 @@ impl PaymentCreate {
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             settlement_conclusion_applied: Some(
                 request.settlement_conclusion_applied.unwrap_or(false),
             ),
