@@ -1,0 +1,29 @@
+# Application metrics only, recorded as newline-delimited OTLP JSON.
+# Set CI_METRICS_DROP_CONDITION from scripts/check_metrics.sh --collector-filter.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  filter/ci:
+    error_mode: propagate
+    metrics:
+      # Generated from ci-metrics.json before starting the collector.
+      metric:
+        - '${env:CI_METRICS_DROP_CONDITION}'
+
+exporters:
+  file:
+    path: /metrics/metrics.jsonl
+    format: json
+    append: false
+    flush_interval: 1s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [filter/ci]
+      exporters: [file]
