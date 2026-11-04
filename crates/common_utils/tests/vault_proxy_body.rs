@@ -7,7 +7,12 @@ use common_utils::{
 };
 use serde_json::{json, Value};
 
+fn vault() -> Value {
+    json!({"card": {"card_number": "4111111111111111", "card_holder_name": "A&B <\"O'Neil\"> + café", "card_exp_month": "09", "card_exp_year": "2030", "card_cvc": "123", "number": 42}})
+}
+
 /// The body bytes and Content-Type of a built connector request.
+#[derive(Debug)]
 struct Built {
     bytes: Option<Vec<u8>>,
     content_type: Option<String>,
