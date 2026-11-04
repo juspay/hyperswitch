@@ -5535,7 +5535,12 @@ impl SdkCallbackUrls {
             RedirectForm::Nmi { .. } => "nmi",
             RedirectForm::WorldpayDDCForm { .. } => "worldpay",
             RedirectForm::WorldpayxmlDDCForm { .. } => "worldpayxml",
-            _ => return None,
+            RedirectForm::Form { .. }
+            | RedirectForm::Html { .. }
+            | RedirectForm::BarclaycardConsumerAuth { .. }
+            | RedirectForm::CybersourceConsumerAuth { .. }
+            | RedirectForm::DeutschebankThreeDSChallengeFlow { .. }
+            | RedirectForm::WorldpayxmlRedirectForm { .. } => return None,
         };
         Some(match form {
             RedirectForm::Braintree { .. } | RedirectForm::Mifinity { .. } => self

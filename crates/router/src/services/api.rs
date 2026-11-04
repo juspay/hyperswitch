@@ -873,23 +873,6 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 // #[cfg(feature = "v2")]
 // impl Authenticate for api_models::payments::PaymentsIntentResponse {}
 
-fn callback_url_javascript_literal(
-    callback_url: Option<&hyperswitch_masking::Secret<String>>,
-) -> String {
-    // Serialize as a JavaScript string and prevent URL contents from closing the script.
-    serde_json::Value::String(
-        callback_url
-            .map(|url| url.peek().clone())
-            .unwrap_or_default(),
-    )
-    .to_string()
-    .replace('<', "\\u003c")
-    .replace('>', "\\u003e")
-    .replace('&', "\\u0026")
-    .replace('\u{2028}', "\\u2028")
-    .replace('\u{2029}', "\\u2029")
-}
-
 pub fn build_redirection_form(
     form: &RedirectForm,
     callback_url: Option<&hyperswitch_masking::Secret<String>>,
@@ -899,7 +882,9 @@ pub fn build_redirection_form(
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
-    let callback_url = callback_url_javascript_literal(callback_url);
+    let callback_url = callback_url
+        .map(|url| url.peek().as_str())
+        .unwrap_or_default();
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
@@ -991,7 +976,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1026,7 +1011,7 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      var callback = new URL({callback_url});
+                      var callback = new URL(document.body.getAttribute('data-callback-url'));
                       callback.searchParams.set(\"referenceId\", \"{reference_id}\");
                       window.location.href = callback.toString();
                     }}
@@ -1102,7 +1087,7 @@ pub fn build_redirection_form(
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1130,7 +1115,7 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
                         var f = document.createElement('form');
-                        var callback = new URL({callback_url});
+                        var callback = new URL(document.body.getAttribute('data-callback-url'));
                         callback.searchParams.set(\"paymentToken\", \"{payment_fields_token}\");
                         f.action = callback.toString();
                         f.method='POST';
@@ -1159,7 +1144,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1194,7 +1179,7 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      var callback = new URL({callback_url});
+                      var callback = new URL(document.body.getAttribute('data-callback-url'));
                       callback.searchParams.set(\"referenceId\", \"{reference_id}\");
                       window.location.href = callback.toString();
                     }}
@@ -1295,10 +1280,11 @@ pub fn build_redirection_form(
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
+                body data-callback-url=(callback_url) {
                 (PreEscaped(format!("<script>
                     {logging_template}
                     var f = document.createElement('form');
-                    f.action = {callback_url};
+                    f.action = document.body.getAttribute('data-callback-url');
                     f.method='POST';
                     PayMe.clientData()
                     .then((data) => {{
@@ -1315,6 +1301,7 @@ pub fn build_redirection_form(
                     }});
             </script>
                 ")))
+                }
             }
         }
         RedirectForm::Braintree {
@@ -1333,7 +1320,7 @@ pub fn build_redirection_form(
                     // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1386,7 +1373,7 @@ pub fn build_redirection_form(
                                                 if(err) {{
                                                     console.error(err);
                                                     var f = document.createElement('form');
-                                                    f.action = {callback_url};
+                                                    f.action = document.body.getAttribute('data-callback-url');
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';
@@ -1428,7 +1415,7 @@ pub fn build_redirection_form(
                     head {
                         (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
                     }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader-wrapper" {
                             div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
@@ -1474,7 +1461,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('complete', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action = {callback_url};
+                        responseForm.action = document.body.getAttribute('data-callback-url');
                         responseForm.method='POST';
 
                         var item1=document.createElement('input');
@@ -1531,7 +1518,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('failure', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action = {callback_url};
+                        responseForm.action = document.body.getAttribute('data-callback-url');
                         responseForm.method='POST';
 
                         var error_code=document.createElement('input');
@@ -1565,13 +1552,14 @@ pub fn build_redirection_form(
                             (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
+                        body data-callback-url=(callback_url) {
                         (PreEscaped(format!("<div id='widget-container'></div>
 	  <script>
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
                 var f = document.createElement('form');
-                f.action = {callback_url};
+                f.action = document.body.getAttribute('data-callback-url');
                 f.method='GET';
                 document.body.appendChild(f);
                 f.submit();
@@ -1579,6 +1567,7 @@ pub fn build_redirection_form(
 		   }});
 	   </script>")))
 
+                }
             }
         }
         RedirectForm::WorldpayDDCForm {
@@ -1605,7 +1594,7 @@ pub fn build_redirection_form(
                         "##))
                 }
 
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
                     (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
                     (PreEscaped(r#"
@@ -1627,20 +1616,20 @@ pub fn build_redirection_form(
                             r#"
                                 var ddcProcessed = false;
                                 var timeoutHandle = null;
-                                
+
                                 function submitCollectionReference(collectionReference) {{
                                     if (ddcProcessed) {{
                                         console.log("DDC already processed, ignoring duplicate submission");
                                         return;
                                     }}
                                     ddcProcessed = true;
-                                    
+
                                     if (timeoutHandle) {{
                                         clearTimeout(timeoutHandle);
                                         timeoutHandle = null;
                                     }}
-                                    
-                                    var redirectPathname = {callback_url};
+
+                                    var redirectPathname = document.body.getAttribute('data-callback-url');
                                     var redirectUrl = redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
@@ -1742,7 +1731,7 @@ pub fn build_redirection_form(
                     head {
                         meta name="viewport" content="width=device-width, initial-scale=1";
                     }
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                         h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
@@ -1773,7 +1762,7 @@ pub fn build_redirection_form(
                                     try {{
                                         var data = JSON.parse(event.data);
                                         var responseForm = document.createElement('form');
-                                        responseForm.action = {callback_url};
+                                        responseForm.action = document.body.getAttribute('data-callback-url');
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -1792,7 +1781,7 @@ pub fn build_redirection_form(
                                         responseForm.submit();
                                     }} catch (e) {{
                                         var responseForm = document.createElement('form');
-                                        responseForm.action = {callback_url};
+                                        responseForm.action = document.body.getAttribute('data-callback-url');
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -2001,16 +1990,39 @@ mod tests {
 
 #[cfg(test)]
 mod callback_url_tests {
-    use hyperswitch_masking::{PeekInterface, Secret};
+    use hyperswitch_masking::Secret;
 
-    #[test]
-    fn callback_forms_render_the_prepared_token_url() {
-        let callback = "https://router.test/payments/pay/merchant/redirect/complete/payme/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
-        let url = Secret::new(callback.to_string());
-        let forms = [
-            super::RedirectForm::Payme,
+    fn callback_forms() -> [super::RedirectForm; 9] {
+        [
+            super::RedirectForm::BarclaycardAuthSetup {
+                access_token: "token".to_string(),
+                ddc_url: "https://connector.test/ddc".to_string(),
+                reference_id: "reference".to_string(),
+            },
             super::RedirectForm::BlueSnap {
                 payment_fields_token: "fields".to_string(),
+            },
+            super::RedirectForm::CybersourceAuthSetup {
+                access_token: "token".to_string(),
+                ddc_url: "https://connector.test/ddc".to_string(),
+                reference_id: "reference".to_string(),
+            },
+            super::RedirectForm::Payme,
+            super::RedirectForm::Braintree {
+                client_token: "client".to_string(),
+                card_token: "card".to_string(),
+                bin: "123456".to_string(),
+                acs_url: Secret::new("https://connector.test/acs".to_string()),
+            },
+            super::RedirectForm::Nmi {
+                amount: "100".to_string(),
+                currency: common_enums::Currency::USD,
+                public_key: Secret::new("public".to_string()),
+                customer_vault_id: "vault".to_string(),
+                order_id: "order".to_string(),
+            },
+            super::RedirectForm::Mifinity {
+                initialization_token: "initialization".to_string(),
             },
             super::RedirectForm::WorldpayDDCForm {
                 endpoint: url::Url::parse("https://connector.test/ddc").expect("connector URL"),
@@ -2018,36 +2030,46 @@ mod callback_url_tests {
                 form_fields: Default::default(),
                 collection_id: None,
             },
-        ];
-        for form in forms {
-            let html = super::build_redirection_form(
-                &form,
-                Some(&url),
-                None,
-                "100".to_string(),
-                "USD".to_string(),
-                super::Settings::default(),
-            )
-            .into_string();
-            assert!(html.contains(&format!("\"{callback}\"")));
+            super::RedirectForm::WorldpayxmlDDCForm {
+                bin: "123456".to_string(),
+                jwt: "jwt".to_string(),
+            },
+        ]
+    }
+
+    fn render_form(form: &super::RedirectForm, callback: &str) -> String {
+        super::build_redirection_form(
+            form,
+            Some(&Secret::new(callback.to_string())),
+            None,
+            "100".to_string(),
+            "USD".to_string(),
+            super::Settings::default(),
+        )
+        .into_string()
+    }
+
+    #[test]
+    fn callback_forms_read_the_prepared_token_url_from_the_body() {
+        let callback = "https://router.test/payments/pay/merchant/redirect/complete/payme/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
+        for form in callback_forms() {
+            let html = render_form(&form, callback);
+            assert!(html.contains(&format!("<body data-callback-url=\"{callback}\"")));
+            assert_eq!(html.matches(callback).count(), 1);
+            assert!(html.contains("document.body.getAttribute('data-callback-url')"));
             assert!(!html.contains("window.location.pathname.replace"));
         }
     }
 
     #[test]
-    fn callback_urls_are_escaped_for_javascript_without_changing_the_url() {
-        let url = Secret::new(
-            "https://router.test/payments/</script>/callback/token?value=\"quoted\"&next=\u{2028}\u{2029}".to_string(),
-        );
-        let literal = super::callback_url_javascript_literal(Some(&url));
-        assert!(!literal.contains('<'));
-        assert!(!literal.contains('>'));
-        assert!(!literal.contains('&'));
-        assert!(!literal.contains('\u{2028}'));
-        assert!(!literal.contains('\u{2029}'));
-        assert_eq!(
-            serde_json::from_str::<String>(&literal).expect("JavaScript string"),
-            *url.peek()
-        );
+    fn callback_url_attribute_escapes_html_without_inserting_the_url_into_scripts() {
+        let callback = "https://router.test/payments/</script>/callback/token?value=\"quoted\"&next=\u{2028}\u{2029}";
+        let attribute = "data-callback-url=\"https://router.test/payments/&lt;/script&gt;/callback/token?value=&quot;quoted&quot;&amp;next=\u{2028}\u{2029}\"";
+        for form in callback_forms() {
+            let html = render_form(&form, callback);
+            assert_eq!(html.matches(attribute).count(), 1);
+            assert!(!html.contains(callback));
+            assert!(html.contains("document.body.getAttribute('data-callback-url')"));
+        }
     }
 }
