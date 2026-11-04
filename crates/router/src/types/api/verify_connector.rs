@@ -82,6 +82,7 @@ impl VerifyConnectorData {
             installment_details: None,
             connector_intent_metadata: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         }
     }
 
