@@ -12,6 +12,7 @@ pub struct BlacklistEntryNew {
     pub rule_id: String,
     pub merchant_id: String,
     pub profile_id: String,
+    pub scope: serde_json::Value,
     pub reason: String,
     pub created_by: String,
     pub is_deleted: bool,
@@ -22,6 +23,7 @@ pub struct BlacklistEntry {
     pub rule_id: String,
     pub merchant_id: String,
     pub profile_id: String,
+    pub scope: serde_json::Value,
     pub reason: String,
     pub created_by: String,
     pub last_updated_at: PrimitiveDateTime,
@@ -30,7 +32,7 @@ pub struct BlacklistEntry {
 
 #[derive(Debug)]
 pub enum BlacklistUpsertOutcome {
-    Stored(BlacklistEntry),
+    Stored(Box<BlacklistEntry>),
     ActiveRuleLimitReached,
 }
 
@@ -54,6 +56,14 @@ fn validate_request(
     Ok(())
 }
 
+fn validate_scope(scope: &serde_json::Value) -> ObservabilityApiResult<()> {
+    if !scope.is_object() {
+        return Err(report!(ObservabilityError::InvalidRequest))
+            .attach_printable("scope must be a JSON object of alert dimensions");
+    }
+    Ok(())
+}
+
 impl TryFrom<api::BlacklistUpsertRequest> for BlacklistEntryNew {
     type Error = error_stack::Report<ObservabilityError>;
 
@@ -63,10 +73,12 @@ impl TryFrom<api::BlacklistUpsertRequest> for BlacklistEntryNew {
         let profile_id = request.profile_id.trim().to_owned();
         let created_by = request.created_by.trim().to_owned();
         validate_request(&rule_id, &merchant_id, &created_by)?;
+        validate_scope(&request.scope)?;
         Ok(Self {
             rule_id,
             merchant_id,
             profile_id,
+            scope: request.scope,
             reason: request.reason,
             created_by,
             is_deleted: false,
@@ -83,10 +95,12 @@ impl TryFrom<api::BlacklistDeleteRequest> for BlacklistEntryNew {
         let profile_id = request.profile_id.trim().to_owned();
         let created_by = request.created_by.trim().to_owned();
         validate_request(&rule_id, &merchant_id, &created_by)?;
+        validate_scope(&request.scope)?;
         Ok(Self {
             rule_id,
             merchant_id,
             profile_id,
+            scope: request.scope,
             reason: String::new(),
             created_by,
             is_deleted: true,
@@ -100,6 +114,7 @@ impl From<BlacklistEntryNew> for storage::BlacklistEntryNew {
             rule_id: row.rule_id,
             merchant_id: row.merchant_id,
             profile_id: row.profile_id,
+            scope: row.scope,
             reason: row.reason,
             created_by: row.created_by,
             is_deleted: row.is_deleted,
@@ -113,6 +128,7 @@ impl From<storage::BlacklistEntry> for BlacklistEntry {
             rule_id: row.rule_id,
             merchant_id: row.merchant_id,
             profile_id: row.profile_id,
+            scope: row.scope,
             reason: row.reason,
             created_by: row.created_by,
             last_updated_at: row.last_updated_at,
@@ -127,6 +143,7 @@ impl From<BlacklistEntry> for api::BlacklistEntry {
             rule_id: row.rule_id,
             merchant_id: row.merchant_id,
             profile_id: row.profile_id,
+            scope: row.scope,
             reason: row.reason,
             created_by: row.created_by,
             last_updated_at: row.last_updated_at,
@@ -144,6 +161,7 @@ mod tests {
             rule_id: "all".into(),
             merchant_id: " merchant_1 ".into(),
             profile_id: " profile_1 ".into(),
+            scope: serde_json::json!({}),
             reason: String::new(),
             created_by: "dashboard".into(),
         })
@@ -159,11 +177,31 @@ mod tests {
                 rule_id: rule_id.into(),
                 merchant_id: merchant_id.into(),
                 profile_id: String::new(),
+                scope: serde_json::json!({}),
                 created_by: created_by.into(),
             };
         assert!(BlacklistEntryNew::try_from(request("all", "  ", "dashboard")).is_err());
         assert!(BlacklistEntryNew::try_from(request("  ", "merchant", "dashboard")).is_err());
         assert!(BlacklistEntryNew::try_from(request("all", "merchant", "  ")).is_err());
         assert!(BlacklistEntryNew::try_from(request("all", "merchant", "dashboard")).is_ok());
+    }
+
+    #[test]
+    fn preserves_all_selected_dimensions_in_scope() {
+        let row = BlacklistEntryNew::try_from(api::BlacklistUpsertRequest {
+            rule_id: "all".into(),
+            merchant_id: "merchant_1".into(),
+            profile_id: "profile_1".into(),
+            scope: serde_json::json!({
+                "organization_id": "org_1",
+                "connector": "adyen",
+                "payment_method_type": ["card", "wallet"]
+            }),
+            reason: String::new(),
+            created_by: "dashboard".into(),
+        })
+        .unwrap();
+        assert_eq!(row.scope["organization_id"], "org_1");
+        assert_eq!(row.scope["payment_method_type"][0], "card");
     }
 }
