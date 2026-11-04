@@ -711,6 +711,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplyPaymentMethodDataSurchargeResponseItem,
         api_models::enums::PaymentConnectorTransmission,
         api_models::enums::TriggeredBy,
+        api_models::enums::TransactionInitiator,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::PaymentAttemptRecordResponse,
         api_models::payments::PaymentAttemptAmountDetails,

@@ -4924,7 +4924,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`, and the merchant makes the retries within the\nlimits in the `revenue_recovery_config` of the profile, which this model requires. `next_retry`\nin the response says when to trigger the next one. Trigger it at that time and report its result\nthrough this same API, until `next_retry` says no retry is scheduled and why. A transaction\nreported against a closed invoice is refused.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`, and the merchant makes the retries within the\nlimits in the `revenue_recovery_config` of the profile, which this model requires. For a\ntransaction made off session with the customer absent, which is what a request leaving out\n`setup_future_usage` and `customer_present` means, `next_retry` in the response says when to\ntrigger the next one. Trigger it at that time and report its result through this same API, until\n`next_retry` says no retry is scheduled and why. Any other transaction is only recorded, and its\nresponse has no `next_retry`. A transaction reported against a closed invoice is refused.\n\nOn `external_triggers` the `order_amount` of every transaction must be the amount of the\ninvoice. What the transactions capture adds up towards it: reaching it closes the invoice, and\ngoing over it is refused.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
@@ -5062,6 +5062,13 @@
                         "reason": "retries_exhausted",
                         "status": "not_scheduled"
                       }
+                    }
+                  },
+                  "Only recorded on a profile with external triggers, as the customer was present": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
                     }
                   },
                   "Recorded on a profile with internal triggers": {
@@ -23383,6 +23390,14 @@
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
+          },
+          "transaction_initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionInitiator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31997,7 +32012,7 @@
           "amount_captured": {
             "type": "integer",
             "format": "int64",
-            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.",
+            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.",
             "example": 6540,
             "nullable": true
           },
@@ -36259,6 +36274,14 @@
             "nullable": true
           }
         }
+      },
+      "TransactionInitiator": {
+        "type": "string",
+        "description": "Who started a transaction of a revenue recovery invoice.",
+        "enum": [
+          "customer_initiated",
+          "merchant_initiated"
+        ]
       },
       "TransactionStatus": {
         "type": "string",

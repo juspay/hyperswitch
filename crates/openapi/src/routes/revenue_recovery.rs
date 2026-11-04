@@ -31,10 +31,16 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 /// schedules and makes the retries.
 ///
 /// `external_triggers` needs only the `connector`, and the merchant makes the retries within the
-/// limits in the `revenue_recovery_config` of the profile, which this model requires. `next_retry`
-/// in the response says when to trigger the next one. Trigger it at that time and report its result
-/// through this same API, until `next_retry` says no retry is scheduled and why. A transaction
-/// reported against a closed invoice is refused.
+/// limits in the `revenue_recovery_config` of the profile, which this model requires. For a
+/// transaction made off session with the customer absent, which is what a request leaving out
+/// `setup_future_usage` and `customer_present` means, `next_retry` in the response says when to
+/// trigger the next one. Trigger it at that time and report its result through this same API, until
+/// `next_retry` says no retry is scheduled and why. Any other transaction is only recorded, and its
+/// response has no `next_retry`. A transaction reported against a closed invoice is refused.
+///
+/// On `external_triggers` the `order_amount` of every transaction must be the amount of the
+/// invoice. What the transactions capture adds up towards it: reaching it closes the invoice, and
+/// going over it is refused.
 #[utoipa::path(
     post,
     path = "/v2/recovery",
@@ -175,6 +181,15 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                                 "status": "not_scheduled",
                                 "reason": "retries_exhausted"
                             }
+                        })
+                    )
+                ),
+                (
+                    "Only recorded on a profile with external triggers, as the customer was present" = (
+                        value = json!({
+                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                            "intent_status": "failed",
+                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
                         })
                     )
                 ),

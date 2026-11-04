@@ -803,7 +803,7 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
 
-    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries.
+    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries and has reported a transaction made off session with the customer absent.
     #[schema(value_type = Option<RecoveryNextRetry>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
@@ -2475,7 +2475,7 @@ pub struct RecoveryPaymentsResponse {
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 
-    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers`.
+    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers` and the transaction was made off session with the customer absent. Any other transaction is only recorded.
     #[schema(value_type = Option<RecoveryNextRetry>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
@@ -2497,6 +2497,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Who started the transaction of this attempt. Absent on attempts recorded before this was kept.
+    #[schema(value_type = Option<TransactionInitiator>, example = "merchant_initiated")]
+    pub transaction_initiator: Option<common_enums::TransactionInitiator>,
 }
 
 #[derive(
@@ -15017,7 +15020,7 @@ pub struct PaymentsAttemptRecordRequest {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct RecoveryPaymentsCreate {
-    /// The amount details for the payment
+    /// The amount details of the invoice. `order_amount` is the amount of the invoice, whatever this transaction captured.
     pub amount_details: AmountDetails,
 
     /// Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.
@@ -15048,7 +15051,7 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 
@@ -15106,6 +15109,20 @@ pub struct RecoveryPaymentsCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v2")]
+impl RecoveryPaymentsCreate {
+    /// Who started the reported transaction. A request that leaves out `customer_present` or
+    /// `setup_future_usage` gets the defaults the invoice is created with.
+    pub fn get_transaction_initiator(&self) -> common_enums::TransactionInitiator {
+        common_enums::TransactionInitiator::new(
+            self.customer_present
+                .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent),
+            self.setup_future_usage
+                .unwrap_or(api_enums::FutureUsage::OffSession),
+        )
+    }
 }
 
 /// Error details for the payment

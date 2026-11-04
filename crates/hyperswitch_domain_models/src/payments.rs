@@ -1687,14 +1687,18 @@ fn get_next_retry_for_intent_status(
     }
 }
 
-/// The status of an invoice after recording a transaction that no connector sync confirms. Money
-/// already collected stays collected when a later transaction fails.
+/// The status of an invoice after recording a transaction that no connector sync confirms. The
+/// invoice is paid once what it collected reaches its amount, and money already collected stays
+/// collected when a later transaction fails.
 #[cfg(feature = "v2")]
 fn get_intent_status_from_reported_transaction(
     attempt_status: common_enums::AttemptStatus,
     intent_amount_captured: Option<MinorUnit>,
+    order_amount: MinorUnit,
 ) -> common_enums::IntentStatus {
-    if attempt_status == common_enums::AttemptStatus::Failure
+    if intent_amount_captured >= Some(order_amount) {
+        common_enums::IntentStatus::Succeeded
+    } else if attempt_status == common_enums::AttemptStatus::Failure
         && intent_amount_captured > Some(MinorUnit::zero())
     {
         common_enums::IntentStatus::PartiallyCaptured
@@ -1712,11 +1716,13 @@ fn get_amount_captured_from_reported_transaction(
     intent_amount_captured: Option<MinorUnit>,
 ) -> Option<MinorUnit> {
     match attempt_status {
-        // A partial charge adds to what the earlier partial charges collected.
-        common_enums::AttemptStatus::PartialCharged => intent_amount_captured
-            .map(|amount| amount + attempt_amount_captured.unwrap_or(MinorUnit::zero()))
-            .or(attempt_amount_captured),
-        // A charged transaction reports the whole order amount, a failed one captures nothing.
+        // A charge adds to what the earlier partial charges collected.
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
+            intent_amount_captured
+                .map(|amount| amount + attempt_amount_captured.unwrap_or(MinorUnit::zero()))
+                .or(attempt_amount_captured)
+        }
+        // A failed transaction captures nothing.
         _ => attempt_amount_captured,
     }
 }
@@ -1738,16 +1744,18 @@ where
         {
             // No connector sync runs for this transaction, so the reported status and amount are
             // final.
+            let amount_captured = get_amount_captured_from_reported_transaction(
+                self.payment_attempt.status,
+                self.payment_attempt.amount_details.get_amount_captured(),
+                self.payment_intent.amount_captured,
+            );
             return (
                 get_intent_status_from_reported_transaction(
                     self.payment_attempt.status,
-                    self.payment_intent.amount_captured,
+                    amount_captured.or(self.payment_intent.amount_captured),
+                    self.payment_intent.amount_details.order_amount,
                 ),
-                get_amount_captured_from_reported_transaction(
-                    self.payment_attempt.status,
-                    self.payment_attempt.amount_details.get_amount_captured(),
-                    self.payment_intent.amount_captured,
-                ),
+                amount_captured,
             );
         }
 

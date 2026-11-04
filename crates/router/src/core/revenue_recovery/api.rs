@@ -227,6 +227,7 @@ pub async fn record_internal_attempt_api(
             state,
             &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
+            common_enums::TransactionInitiator::MerchantInitiated,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -336,18 +337,16 @@ pub async fn custom_revenue_recovery_core(
             connector,
             retry_config,
         } => {
-            let (updated_recovery_intent, next_retry) =
-                Box::pin(external_triggers::record_transaction_and_get_next_retry(
-                    &state,
-                    &req_state,
-                    &platform,
-                    &profile,
-                    &request,
-                    connector,
-                    retry_config,
-                ))
-                .await?;
-            (updated_recovery_intent, Some(next_retry))
+            Box::pin(external_triggers::record_transaction_and_get_next_retry(
+                &state,
+                &req_state,
+                &platform,
+                &profile,
+                &request,
+                connector,
+                retry_config,
+            ))
+            .await?
         }
     };
 

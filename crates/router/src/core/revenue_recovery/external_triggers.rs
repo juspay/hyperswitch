@@ -1,8 +1,10 @@
 use api_models::payments::RecoveryPaymentsCreate;
+use common_enums::TransactionInitiator;
 use common_types::payments::{
     ExternalTriggerState, RecoveryConnector, RecoveryConnectorDetails, RecoveryNextRetry,
     RecoveryNoRetryReason, RecoveryTransactionStatus,
 };
+use common_utils::types::MinorUnit;
 use diesel_models::business_profile::RevenueRecoveryConfig;
 use error_stack::report;
 use hyperswitch_domain_models::{
@@ -40,7 +42,6 @@ use crate::{
 
 /// What the next retry of an invoice is decided from.
 struct NextRetryInputs<'a> {
-    transaction_status: RecoveryTransactionStatus,
     payment_intent: &'a PaymentIntent,
     dimensions: &'a DimensionsWithProcessorMerchantIdAndConnector,
     retry_config: &'a RevenueRecoveryConfig,
@@ -77,9 +78,10 @@ impl NextRetryDecision {
     }
 }
 
-/// Records a transaction the merchant reports and works out when they should trigger the next
-/// retry. The reports of an invoice are handled one at a time, as each one builds on the state the
-/// last one left, and no connector sync is there to correct a report handled out of turn.
+/// Records a transaction the merchant reports and, when it was made off session with the customer
+/// absent, works out when they should trigger the next retry. The reports of an invoice are handled
+/// one at a time, as each one builds on the state the last one left, and no connector sync is there
+/// to correct a report handled out of turn.
 pub(super) async fn record_transaction_and_get_next_retry(
     state: &SessionState,
     req_state: &ReqState,
@@ -88,7 +90,7 @@ pub(super) async fn record_transaction_and_get_next_retry(
     request: &RecoveryPaymentsCreate,
     connector: RecoveryConnector,
     retry_config: &RevenueRecoveryConfig,
-) -> RouterResult<(RecoveryPaymentIntent, RecoveryNextRetry)> {
+) -> RouterResult<(RecoveryPaymentIntent, Option<RecoveryNextRetry>)> {
     let invoice_lock = LockAction::Hold {
         input: LockingInput {
             unique_locking_key: request.merchant_reference_id.get_string_repr().to_owned(),
@@ -121,7 +123,9 @@ pub(super) async fn record_transaction_and_get_next_retry(
     result
 }
 
-/// Records the transaction, keeps the cluster data up to date and decides the next retry.
+/// Records the transaction, keeps the cluster data up to date and decides the next retry. A
+/// transaction made on session or with the customer present is only recorded: it is not a retry, so
+/// the cluster data and what the invoice last told the merchant stay as they were.
 ///
 /// Once the transaction is recorded the merchant must get an answer, because reporting it again is
 /// refused as a duplicate. So the steps after recording log their failures rather than fail the
@@ -134,7 +138,7 @@ async fn handle_merchant_report(
     request: &RecoveryPaymentsCreate,
     connector: RecoveryConnector,
     retry_config: &RevenueRecoveryConfig,
-) -> RouterResult<(RecoveryPaymentIntent, RecoveryNextRetry)> {
+) -> RouterResult<(RecoveryPaymentIntent, Option<RecoveryNextRetry>)> {
     // A value sent in the request takes priority over the one on the profile.
     let request = &RecoveryPaymentsCreate {
         enable_partial_authorization: request
@@ -155,6 +159,20 @@ async fn handle_merchant_report(
                 ),
             })
         })?;
+
+    let invoice_before_report = state
+        .store
+        .find_payment_intent_by_id(
+            &invoice.payment_id,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let request = &RecoveryPaymentsCreate {
+        amount_captured: get_amount_captured_of_report(request, &invoice_before_report)?,
+        ..request.clone()
+    };
 
     let previous_recovery_metadata = invoice
         .feature_metadata
@@ -186,8 +204,12 @@ async fn handle_merchant_report(
     ))
     .await?;
 
+    let is_merchant_initiated =
+        request.get_transaction_initiator() == TransactionInitiator::MerchantInitiated;
+
     if let Some((failure_code, success)) =
         get_retry_outcome(previous_trigger_state.as_ref(), request.transaction_status)
+            .filter(|_| is_merchant_initiated)
     {
         RetryOutcomeEvent::from_retry_outcome(recovery_attempt.created_at, failure_code, success)
             .record(state)
@@ -206,6 +228,10 @@ async fn handle_merchant_report(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     let updated_invoice = RecoveryPaymentIntent::from(&payment_intent);
+
+    if !is_merchant_initiated {
+        return Ok((updated_invoice, None));
+    }
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
@@ -236,7 +262,6 @@ async fn handle_merchant_report(
         platform,
         profile,
         NextRetryInputs {
-            transaction_status: request.transaction_status,
             payment_intent: &payment_intent,
             dimensions: &dimensions,
             retry_config,
@@ -267,7 +292,37 @@ async fn handle_merchant_report(
     )
     .await;
 
-    Ok((updated_invoice, decision.next_retry))
+    Ok((updated_invoice, Some(decision.next_retry)))
+}
+
+/// What a report collected. The order amount of every report is the amount of the invoice, and what
+/// the transactions collect adds up towards it, so a charged transaction collects whatever is left.
+/// A report that does not fit is refused here, before anything is recorded.
+fn get_amount_captured_of_report(
+    request: &RecoveryPaymentsCreate,
+    invoice: &PaymentIntent,
+) -> RouterResult<Option<MinorUnit>> {
+    let invoice_amount = invoice.amount_details.order_amount;
+    let invalid = |message: &str| {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: message.to_owned(),
+        }))
+    };
+
+    if MinorUnit::from(request.amount_details.order_amount()) != invoice_amount {
+        return invalid("`order_amount` must be the amount of the invoice on every transaction");
+    }
+
+    let amount_left = invoice_amount - invoice.amount_captured.unwrap_or(MinorUnit::zero());
+    match (request.transaction_status, request.amount_captured) {
+        (RecoveryTransactionStatus::Charged, _) => Ok(Some(amount_left)),
+        (RecoveryTransactionStatus::PartialCharged, Some(amount_captured))
+            if amount_captured > amount_left =>
+        {
+            invalid("`amount_captured` must not be more than what is left of the invoice")
+        }
+        (_, amount_captured) => Ok(amount_captured),
+    }
 }
 
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
@@ -310,7 +365,6 @@ async fn decide_next_retry(
     inputs: NextRetryInputs<'_>,
 ) -> NextRetryDecision {
     let NextRetryInputs {
-        transaction_status,
         payment_intent,
         dimensions,
         retry_config,
@@ -336,7 +390,7 @@ async fn decide_next_retry(
             .filter(|grace_window_end| *grace_window_end > now);
 
     if let Some(reason) = get_no_retry_reason(
-        transaction_status,
+        payment_intent.status,
         retry_algorithm_type,
         RetryLimitChecks {
             is_retry_budget_spent: is_retry_budget_exhausted(
@@ -536,7 +590,7 @@ fn get_ladder_progress(
         Some(trigger_state) => StaticLadderProgress {
             consumed_rungs: trigger_state.consumed_ladder_rungs,
         },
-        // The last report could not save its state.
+        // The reports so far were only recorded, or the last one could not save its state.
         None if is_existing_invoice => StaticLadderProgress::seed_for_existing_invoice(
             retry_count,
             max_hybrid_cascading_retry_count,
@@ -597,11 +651,11 @@ fn get_retry_outcome(
 
 /// Why no retry should follow this transaction, before any retry time is worked out.
 fn get_no_retry_reason(
-    transaction_status: RecoveryTransactionStatus,
+    invoice_status: common_enums::IntentStatus,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     limit_checks: RetryLimitChecks,
 ) -> Option<RecoveryNoRetryReason> {
-    if matches!(transaction_status, RecoveryTransactionStatus::Charged) {
+    if invoice_status == common_enums::IntentStatus::Succeeded {
         Some(RecoveryNoRetryReason::Recovered)
     } else if retry_algorithm_type == common_enums::RevenueRecoveryAlgorithmType::Monitoring {
         Some(RecoveryNoRetryReason::Monitoring)
