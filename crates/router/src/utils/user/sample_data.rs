@@ -451,6 +451,8 @@ pub async fn generate_sample_data(
                     .unwrap_or(&common_enums::Currency::USD),
                 total_amount: MinorUnit::new(amount * 100),
                 refund_amount: MinorUnit::new(amount * 100),
+                refund_surcharge_amount: None,
+                net_refund_amount: Some(MinorUnit::new(amount * 100)),
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,

@@ -1615,6 +1615,8 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         feature_metadata -> Nullable<Jsonb>,
+        refund_surcharge_amount -> Nullable<Int8>,
+        net_refund_amount -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]

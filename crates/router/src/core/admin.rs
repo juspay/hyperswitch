@@ -2823,6 +2823,7 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&processor, store)
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
@@ -2836,7 +2837,6 @@ pub async fn create_connector(
             )
             .await?;
     }
-    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,

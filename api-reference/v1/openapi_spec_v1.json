@@ -19728,6 +19728,7 @@
           "bamboraapac",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -32063,6 +32064,15 @@
             "description": "Token generated for the Apple pay"
           }
         }
+      },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
       },
       "PaylaterResponse": {
         "type": "object",
@@ -45077,9 +45087,21 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "description": "The refund amount excluding any refunded surcharge, in the currency's lowest denomination.",
             "example": 6540,
             "minimum": 100
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total refund amount, including any refunded surcharge, in the currency's lowest denomination.",
+            "nullable": true
+          },
+          "surcharge_refund_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The surcharge amount included in this refund, in the currency's lowest denomination.",
+            "nullable": true
           },
           "currency": {
             "type": "string",
@@ -45694,6 +45716,14 @@
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
             "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -46255,6 +46285,7 @@
           "authorizedotnet",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bambora",
