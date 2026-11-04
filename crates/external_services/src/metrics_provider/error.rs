@@ -1,5 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum MetricsError {
+    #[error("Grafana base URL is not configured")]
+    MissingGrafanaBaseUrl,
     #[error("failed to send the metric request")]
     Transport,
     #[error("the metric request timed out")]

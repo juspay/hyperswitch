@@ -8,6 +8,7 @@ use error_stack::Report;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use hyperswitch_masking::{Mask as _, PeekInterface, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use url::Url;
 
 use super::{MetricsError, MetricsResult};
 use crate::http_client;
@@ -16,7 +17,7 @@ const QUERY_TIMEOUT_SECONDS: u64 = 10;
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct GrafanaConfig {
-    pub base_url: String,
+    pub base_url: Option<Url>,
     pub api_token: Secret<String>,
 }
 
@@ -35,11 +36,16 @@ impl GrafanaClient {
         MetricsRequest: Serialize + Send + 'static,
         MetricsResponse: DeserializeOwned,
     {
+        let base_url = self
+            .config
+            .base_url
+            .as_ref()
+            .ok_or_else(|| Report::new(MetricsError::MissingGrafanaBaseUrl))?;
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&format!(
                 "{}/api/ds/query",
-                self.config.base_url.as_str().trim_end_matches('/')
+                base_url.as_str().trim_end_matches('/')
             ))
             .attach_default_headers()
             .headers(vec![
