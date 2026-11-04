@@ -192,7 +192,7 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
-            let retry_count_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(
                     recovery_intent_from_payment_intent
                         .merchant_id
@@ -202,11 +202,8 @@ pub async fn upsert_calculate_pcr_task(
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_profile_id(business_profile.get_id().clone());
             let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
-                    state,
-                    &retry_count_dimensions,
-                )
-                .await;
+                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions)
+                    .await;
 
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
@@ -875,16 +872,13 @@ pub async fn perform_calculate_workflow(
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
-            let retry_count_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                 .with_profile_id(payment_intent.profile_id.clone());
             let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
-                    state,
-                    &retry_count_dimensions,
-                )
-                .await;
+                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions)
+                    .await;
             let intent_retry_count = payment_intent
                 .get_revenue_recovery_retry_count()
                 .ok_or(errors::RecoveryError::ValueNotFound)
