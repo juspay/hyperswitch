@@ -157,7 +157,8 @@ impl BlacklistInterface for MemoryStore {
                 == (&new.rule_id, &new.merchant_id, &new.profile_id)
         });
         let already_active = existing.is_some_and(|index| !rows[index].is_deleted);
-        let active_count = rows.iter().filter(|row| !row.is_deleted).count() as i64;
+        let active_count =
+            i64::try_from(rows.iter().filter(|row| !row.is_deleted).count()).unwrap();
         if !already_active && active_count >= max_active_rules {
             return Ok(blacklist::BlacklistUpsertOutcome::ActiveRuleLimitReached);
         }

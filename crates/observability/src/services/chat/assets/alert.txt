@@ -1,0 +1,31 @@
+{heading}: {rule_name}
+
+Severity: {severity}
+State: {heading}
+Evaluated: {evaluated_at} UTC
+
+Description:
+{description}
+
+Metric: {metric}
+Namespace: {namespace}
+Statistic: {statistic}
+Region: {region}
+
+Dimensions:
+{dimensions}
+
+Condition: {condition}
+Evaluation: {evaluation}
+Period: {period} seconds
+Missing data policy: NoData (no notification)
+Latest value: {value}
+Query range: {range}
+
+Datapoints — timestamp | value | evaluation:
+{datapoints}
+
+Error:
+{error}
+
+Definition: {rule_id}
