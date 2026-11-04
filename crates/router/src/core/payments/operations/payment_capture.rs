@@ -117,17 +117,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             )?;
         }
 
-        let is_proxy_card = matches!(
-            request.payment_method_data.as_ref(),
-            Some(api_models::payments::PaymentMethodData::ProxyCard(_))
-        ) || matches!(
-            payment_method_fetch_data
-                .payment_method_with_raw_data
-                .as_ref()
-                .and_then(|pm| pm.raw_payment_method_data.as_ref()),
-            Some(domain::PaymentMethodData::ProxyCard(_))
-        );
-        helpers::validate_capture_method(capture_method, is_proxy_card)?;
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
+        helpers::validate_capture_method(capture_method, payment_method_data.as_ref())?;
 
         let payment_feature_metadata = payment_intent
             .get_optional_feature_metadata()
@@ -263,14 +260,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
-
-        let payment_method_data = payment_method_fetch_data
-            .payment_method_with_raw_data
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(request
-                .payment_method_data
-                .clone()
-                .map(domain::PaymentMethodData::from));
 
         let payment_data = payments::PaymentData {
             capture_feature_metadata,
