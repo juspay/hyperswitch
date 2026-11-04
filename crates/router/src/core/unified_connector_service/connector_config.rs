@@ -903,6 +903,16 @@ pub enum ConnectorSpecificConfig {
     /// Pay.com connector configuration
     /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
     Paydotcom { api_key: Secret<String> },
+    /// Better Payment connector configuration
+    Betterpayment {
+        /// API key (HTTP Basic Auth username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic Auth password)
+        api_password: Secret<String>,
+        /// Incoming key used for webhook HMAC-SHA256 signature verification
+        #[serde(skip_serializing_if = "Option::is_none")]
+        webhook_key: Option<Secret<String>>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1105,6 +1115,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Paydotcom requires HeaderKey auth type")),
+            },
+            Connector::Betterpayment => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                    api_key: api_key.clone(),
+                    api_password: key1.clone(),
+                    webhook_key: None,
+                }),
+                _ => Err(err("Betterpayment requires BodyKey auth type")),
             },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
