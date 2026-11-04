@@ -36,6 +36,7 @@
                 "pages": [
                   "v1/payments/setup--instructions",
                   "v1/payments/payment--flows",
+                  "v1/payments/payments--server-to-server",
                   {
                     "group": "Payments",
                     "pages": [
