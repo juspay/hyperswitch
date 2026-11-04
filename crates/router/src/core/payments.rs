@@ -4807,11 +4807,11 @@ pub async fn payments_get_intent_using_merchant_reference(
     ))
     .await?;
 
-    transformers::ToResponse::<
+    <api::PaymentsIntentResponse as transformers::ToResponse<
         api::PaymentGetIntent,
         PaymentIntentData<api::PaymentGetIntent>,
         operations::PaymentGetIntent,
-    >::generate_response_with_callbacks(
+    >>::generate_response_with_callbacks(
         &state,
         payment_data,
         customer,
