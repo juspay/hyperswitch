@@ -62,12 +62,10 @@ use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
-#[cfg(feature = "v2")]
-use crate::core::errors::RouterResponse;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, PaymentCallbackMode},
     core::{
-        errors::{self, RouterResult},
+        errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
         utils as core_utils,
     },
@@ -2671,15 +2669,79 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     Ok(router_data)
 }
 
-pub type ResponseWithCallbackUrls<T> =
-    RouterResult<(services::ApplicationResponse<T>, SdkCallbackUrls)>;
-
 pub trait ToResponse<F, D, Op>
 where
-    Self: Sized,
+    Self: Sized + Send,
     Op: Debug,
     D: OperationSessionGetters<F>,
 {
+    #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
+    async fn generate_response_with_callbacks(
+        state: &SessionState,
+        data: D,
+        auth_flow: services::AuthFlow,
+        operation: Op,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        platform: &domain::Platform,
+    ) -> RouterResponse<Self>
+    where
+        D: Send,
+        Op: Send,
+    {
+        let mut sdk_callback_urls = SdkCallbackUrls::default();
+        let response = Self::generate_response(
+            data,
+            auth_flow,
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            operation,
+            &state.conf.connector_request_reference_id_config,
+            connector_http_status_code,
+            external_latency,
+            is_latency_header_enabled,
+            platform,
+            &mut sdk_callback_urls,
+        )?;
+        sdk_callback_urls.persist(state).await?;
+        Ok(response)
+    }
+    #[cfg(feature = "v2")]
+    #[allow(clippy::too_many_arguments)]
+    async fn generate_response_with_callbacks(
+        state: &SessionState,
+        data: D,
+        customer: Option<domain::Customer>,
+        operation: Op,
+        connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
+        platform: &domain::Platform,
+    ) -> RouterResponse<Self>
+    where
+        D: Send,
+        Op: Send,
+    {
+        let mut sdk_callback_urls = SdkCallbackUrls::default();
+        let response = Self::generate_response(
+            data,
+            customer,
+            &state.base_url,
+            state.conf.payment_callback.mode,
+            operation,
+            &state.conf.connector_request_reference_id_config,
+            connector_http_status_code,
+            external_latency,
+            is_latency_header_enabled,
+            platform,
+            &mut sdk_callback_urls,
+        )?;
+        sdk_callback_urls.persist(state).await?;
+        Ok(response)
+    }
+
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     fn generate_response(
@@ -2693,7 +2755,8 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self>;
+        sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self>;
 
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
@@ -2708,7 +2771,8 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self>;
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self>;
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -2928,7 +2992,8 @@ where
         external_latency: Option<u128>,
         is_latency_header_enabled: Option<bool>,
         platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         let captures = payment_data
             .get_multiple_capture_data()
             .and_then(|multiple_capture_data| {
@@ -2958,6 +3023,7 @@ where
             is_latency_header_enabled,
             platform.get_processor(),
             platform.get_initiator(),
+            sdk_callback_urls,
         )
     }
 }
@@ -2981,26 +3047,24 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    session_token: payment_data.get_sessions_token(),
-                    payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                    client_secret: payment_data
-                        .get_payment_intent()
-                        .client_secret
-                        .clone()
-                        .get_required_value("client_secret")?
-                        .into(),
-                    vault_details: payment_data
-                        .get_optional_external_vault_session_details()
-                        .and_then(Into::into),
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                session_token: payment_data.get_sessions_token(),
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                client_secret: payment_data
+                    .get_payment_intent()
+                    .client_secret
+                    .clone()
+                    .get_required_value("client_secret")?
+                    .into(),
+                vault_details: payment_data
+                    .get_optional_external_vault_session_details()
+                    .and_then(Into::into),
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3023,18 +3087,16 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    session_token: payment_data.get_sessions_token(),
-                    payment_id: payment_data.get_payment_intent().id.clone(),
-                    vault_details: payment_data.get_optional_external_vault_session_details(),
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                session_token: payment_data.get_sessions_token(),
+                payment_id: payment_data.get_payment_intent().id.clone(),
+                vault_details: payment_data.get_optional_external_vault_session_details(),
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3057,7 +3119,8 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         let mut amount = payment_data.get_payment_intent().amount;
         let shipping_cost = payment_data.get_payment_intent().shipping_cost;
         if let Some(shipping_cost) = shipping_cost {
@@ -3081,24 +3144,21 @@ where
             .currency
             .get_required_value("currency")?;
 
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    net_amount: amount,
-                    payment_id: payment_data.get_payment_attempt().payment_id.clone(),
-                    order_tax_amount,
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                net_amount: amount,
+                payment_id: payment_data.get_payment_attempt().payment_id.clone(),
+                order_tax_amount,
+                shipping_cost,
+                display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
+                    amount,
                     shipping_cost,
-                    display_amount: api_models::payments::DisplayAmountOnSdk::foreign_try_from((
-                        amount,
-                        shipping_cost,
-                        order_tax_amount,
-                        currency,
-                    ))?,
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+                    order_tax_amount,
+                    currency,
+                ))?,
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3121,7 +3181,8 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         let payment_intent = payment_data.get_payment_intent();
         let client_secret = payment_data.get_client_secret();
 
@@ -3148,74 +3209,68 @@ where
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
 
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    id: payment_intent.id.clone(),
-                    profile_id: payment_intent.profile_id.clone(),
-                    status: payment_intent.status,
-                    amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
-                        payment_intent.amount_details.clone(),
-                    ),
-                    client_secret: client_secret.clone(),
-                    merchant_reference_id: payment_intent.merchant_reference_id.clone(),
-                    routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
-                    capture_method: payment_intent.capture_method,
-                    authentication_type: payment_intent.authentication_type,
-                    billing: payment_intent
-                        .billing_address
-                        .clone()
-                        .map(|billing| billing.into_inner())
-                        .map(From::from),
-                    shipping: payment_intent
-                        .shipping_address
-                        .clone()
-                        .map(|shipping| shipping.into_inner())
-                        .map(From::from),
-                    customer_id: payment_intent.customer_id.clone(),
-                    customer_present: payment_intent.customer_present,
-                    description: payment_intent.description.clone(),
-                    return_url: payment_intent.return_url.clone(),
-                    setup_future_usage: payment_intent.setup_future_usage,
-                    apply_mit_exemption: payment_intent.apply_mit_exemption,
-                    statement_descriptor: payment_intent.statement_descriptor.clone(),
-                    order_details: payment_intent.order_details.clone().map(|order_details| {
-                        order_details
-                            .into_iter()
-                            .map(|order_detail| order_detail.expose().convert_back())
-                            .collect()
-                    }),
-                    allowed_payment_method_types: payment_intent
-                        .allowed_payment_method_types
-                        .clone(),
-                    metadata: payment_intent.metadata.clone(),
-                    connector_metadata: payment_intent.connector_metadata.clone(),
-                    feature_metadata: payment_intent
-                        .feature_metadata
-                        .clone()
-                        .map(|feature_metadata| feature_metadata.convert_back()),
-                    payment_link_enabled: payment_intent.enable_payment_link,
-                    payment_link_config: payment_intent
-                        .payment_link_config
-                        .clone()
-                        .map(ForeignFrom::foreign_from),
-                    request_incremental_authorization: payment_intent
-                        .request_incremental_authorization,
-                    split_txns_enabled: payment_intent.split_txns_enabled,
-                    expires_on: payment_intent.session_expiry,
-                    frm_metadata: payment_intent.frm_metadata.clone(),
-                    request_external_three_ds_authentication: payment_intent
-                        .request_external_three_ds_authentication,
-                    payment_type,
-                    enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
-                    is_account_funded_transaction: payment_intent.is_account_funded_transaction,
-                    recipient_details: masked_recipient_details,
-                    enable_avs_check: payment_intent.enable_avs_check,
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                id: payment_intent.id.clone(),
+                profile_id: payment_intent.profile_id.clone(),
+                status: payment_intent.status,
+                amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
+                    payment_intent.amount_details.clone(),
+                ),
+                client_secret: client_secret.clone(),
+                merchant_reference_id: payment_intent.merchant_reference_id.clone(),
+                routing_algorithm_id: payment_intent.routing_algorithm_id.clone(),
+                capture_method: payment_intent.capture_method,
+                authentication_type: payment_intent.authentication_type,
+                billing: payment_intent
+                    .billing_address
+                    .clone()
+                    .map(|billing| billing.into_inner())
+                    .map(From::from),
+                shipping: payment_intent
+                    .shipping_address
+                    .clone()
+                    .map(|shipping| shipping.into_inner())
+                    .map(From::from),
+                customer_id: payment_intent.customer_id.clone(),
+                customer_present: payment_intent.customer_present,
+                description: payment_intent.description.clone(),
+                return_url: payment_intent.return_url.clone(),
+                setup_future_usage: payment_intent.setup_future_usage,
+                apply_mit_exemption: payment_intent.apply_mit_exemption,
+                statement_descriptor: payment_intent.statement_descriptor.clone(),
+                order_details: payment_intent.order_details.clone().map(|order_details| {
+                    order_details
+                        .into_iter()
+                        .map(|order_detail| order_detail.expose().convert_back())
+                        .collect()
+                }),
+                allowed_payment_method_types: payment_intent.allowed_payment_method_types.clone(),
+                metadata: payment_intent.metadata.clone(),
+                connector_metadata: payment_intent.connector_metadata.clone(),
+                feature_metadata: payment_intent
+                    .feature_metadata
+                    .clone()
+                    .map(|feature_metadata| feature_metadata.convert_back()),
+                payment_link_enabled: payment_intent.enable_payment_link,
+                payment_link_config: payment_intent
+                    .payment_link_config
+                    .clone()
+                    .map(ForeignFrom::foreign_from),
+                request_incremental_authorization: payment_intent.request_incremental_authorization,
+                split_txns_enabled: payment_intent.split_txns_enabled,
+                expires_on: payment_intent.session_expiry,
+                frm_metadata: payment_intent.frm_metadata.clone(),
+                request_external_three_ds_authentication: payment_intent
+                    .request_external_three_ds_authentication,
+                payment_type,
+                enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
+                is_account_funded_transaction: payment_intent.is_account_funded_transaction,
+                recipient_details: masked_recipient_details,
+                enable_avs_check: payment_intent.enable_avs_check,
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3238,20 +3293,18 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    payment_attempt_list: payment_data
-                        .list_payments_attempts()
-                        .iter()
-                        .map(api_models::payments::PaymentAttemptResponse::foreign_from)
-                        .collect(),
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_attempt_list: payment_data
+                    .list_payments_attempts()
+                    .iter()
+                    .map(api_models::payments::PaymentAttemptResponse::foreign_from)
+                    .collect(),
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3771,7 +3824,8 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         let papal_sdk_next_action =
             paypal_sdk_next_steps_check(payment_data.get_payment_attempt().clone())?;
         let next_action = papal_sdk_next_action.map(|paypal_next_action_data| {
@@ -3779,17 +3833,14 @@ where
                 next_action_data: paypal_next_action_data,
             }
         });
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    payment_id: payment_data.get_payment_intent().payment_id.clone(),
-                    next_action,
-                    status: payment_data.get_payment_intent().status,
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                next_action,
+                status: payment_data.get_payment_intent().status,
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3812,23 +3863,21 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    payment_id: payment_data.get_payment_intent().payment_id.clone(),
-                    metadata: payment_data
-                        .get_payment_intent()
-                        .metadata
-                        .clone()
-                        .map(Secret::new),
-                    feature_metadata: None,
-                    status: Some(payment_data.get_payment_intent().status),
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                payment_id: payment_data.get_payment_intent().payment_id.clone(),
+                metadata: payment_data
+                    .get_payment_intent()
+                    .metadata
+                    .clone()
+                    .map(Secret::new),
+                feature_metadata: None,
+                status: Some(payment_data.get_payment_intent().status),
+            },
+            vec![],
+        )))
     }
 }
 
@@ -3904,7 +3953,8 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         todo!()
     }
 
@@ -3921,7 +3971,8 @@ where
         _external_latency: Option<u128>,
         _is_latency_header_enabled: Option<bool>,
         _platform: &domain::Platform,
-    ) -> ResponseWithCallbackUrls<Self> {
+        _sdk_callback_urls: &mut SdkCallbackUrls,
+    ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             payment_data
                 .get_payment_attempt()
@@ -3950,39 +4001,36 @@ where
             .attach_printable("Failed to parse customer data from payment intent")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        Ok((
-            services::ApplicationResponse::JsonWithHeaders((
-                Self {
-                    verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
-                    merchant_id: Some(payment_data.get_payment_intent().merchant_id.clone()),
-                    client_secret: payment_data
-                        .get_payment_intent()
-                        .client_secret
-                        .clone()
-                        .map(Secret::new),
-                    customer_id: payment_intent.customer_id.clone(),
-                    email: customer
-                        .as_ref()
-                        .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
-                    name: customer
-                        .as_ref()
-                        .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
-                    phone: customer
-                        .as_ref()
-                        .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
-                    mandate_id: payment_data
-                        .get_mandate_id()
-                        .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
-                    payment_method: payment_data.get_payment_attempt().payment_method,
-                    payment_method_data: payment_method_data_response,
-                    payment_token: payment_data.get_token().map(ToString::to_string),
-                    error_code: payment_data.get_payment_attempt().clone().error_code,
-                    error_message: payment_data.get_payment_attempt().clone().error_message,
-                },
-                vec![],
-            )),
-            SdkCallbackUrls::default(),
-        ))
+        Ok(services::ApplicationResponse::JsonWithHeaders((
+            Self {
+                verify_id: Some(payment_data.get_payment_intent().payment_id.clone()),
+                merchant_id: Some(payment_data.get_payment_intent().merchant_id.clone()),
+                client_secret: payment_data
+                    .get_payment_intent()
+                    .client_secret
+                    .clone()
+                    .map(Secret::new),
+                customer_id: payment_intent.customer_id.clone(),
+                email: customer
+                    .as_ref()
+                    .and_then(|cus| cus.email.as_ref().map(|s| s.to_owned())),
+                name: customer
+                    .as_ref()
+                    .and_then(|cus| cus.name.as_ref().map(|s| s.to_owned())),
+                phone: customer
+                    .as_ref()
+                    .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
+                mandate_id: payment_data
+                    .get_mandate_id()
+                    .and_then(|mandate_ids| mandate_ids.mandate_id.clone()),
+                payment_method: payment_data.get_payment_attempt().payment_method,
+                payment_method_data: payment_method_data_response,
+                payment_token: payment_data.get_token().map(ToString::to_string),
+                error_code: payment_data.get_payment_attempt().clone().error_code,
+                error_message: payment_data.get_payment_attempt().clone().error_message,
+            },
+            vec![],
+        )))
     }
 }
 
@@ -4003,7 +4051,8 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _connector_http_status_code: Option<u16>,
     _external_latency: Option<u128>,
     _is_latency_header_enabled: Option<bool>,
-) -> ResponseWithCallbackUrls<api_models::payments::PaymentsResponse>
+    _sdk_callback_urls: &mut SdkCallbackUrls,
+) -> RouterResponse<api_models::payments::PaymentsResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -4029,7 +4078,8 @@ pub fn payments_to_payments_response<Op, F: Clone, D>(
     _is_latency_header_enabled: Option<bool>,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
-) -> ResponseWithCallbackUrls<api::PaymentsResponse>
+    sdk_callback_urls: &mut SdkCallbackUrls,
+) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
     D: OperationSessionGetters<F>,
@@ -4041,7 +4091,6 @@ where
     let payment_attempt = payment_data.get_payment_attempt().clone();
     let payment_intent = payment_data.get_payment_intent().clone();
     let payment_link_data = payment_data.get_payment_link_data();
-    let mut sdk_callback_urls = SdkCallbackUrls::default();
 
     let currency = payment_attempt
         .currency
@@ -4776,7 +4825,7 @@ where
         ),
     );
 
-    Ok((output, sdk_callback_urls))
+    Ok(output)
 }
 
 #[cfg(feature = "v1")]

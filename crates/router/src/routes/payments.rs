@@ -3148,41 +3148,33 @@ where
                                 (None, None) => None,
                             };
                             return {
-                                let (response, sdk_callback_urls) =
-                                    payment_types::PaymentsResponse::generate_response(
-                                        pd,
-                                        auth_flow,
-                                        &state.base_url,
-                                        state.conf.payment_callback.mode,
-                                        operation,
-                                        &state.conf.connector_request_reference_id_config,
-                                        connector_status_code,
-                                        total_ext_latency,
-                                        header_payload.x_hs_latency,
-                                        &platform,
-                                    )?;
-                                sdk_callback_urls.persist(&state).await?;
-                                Ok(response)
+                                payment_types::PaymentsResponse::generate_response_with_callbacks(
+                                    &state,
+                                    pd,
+                                    auth_flow,
+                                    operation,
+                                    connector_status_code,
+                                    total_ext_latency,
+                                    header_payload.x_hs_latency,
+                                    &platform,
+                                )
+                                .await
                             };
                         }
                     }
 
                     {
-                        let (response, sdk_callback_urls) =
-                            payment_types::PaymentsResponse::generate_response(
-                                payment_data,
-                                auth_flow,
-                                &state.base_url,
-                                state.conf.payment_callback.mode,
-                                operation,
-                                &state.conf.connector_request_reference_id_config,
-                                connector_http_status_code,
-                                external_latency,
-                                header_payload.x_hs_latency,
-                                &platform,
-                            )?;
-                        sdk_callback_urls.persist(&state).await?;
-                        Ok(response)
+                        payment_types::PaymentsResponse::generate_response_with_callbacks(
+                            &state,
+                            payment_data,
+                            auth_flow,
+                            operation,
+                            connector_http_status_code,
+                            external_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        )
+                        .await
                     }
                 }
             }

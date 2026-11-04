@@ -3210,20 +3210,17 @@ where
         )
         .await?;
 
-    let (response, sdk_callback_urls) = Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         auth_flow,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operation,
-        &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -3277,20 +3274,17 @@ where
         )
         .await?;
 
-    let (response, sdk_callback_urls) = Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         auth_flow,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operation,
-        &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 #[cfg(feature = "v1")]
@@ -4025,20 +4019,17 @@ where
         )
         .await?;
 
-    let (response, sdk_callback_urls) = Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         auth_flow,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operation,
-        &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 /// Whether the profile that ran the network token arm has clear-PAN retries enabled. An
@@ -4613,20 +4604,17 @@ where
     )
     .await?;
 
-    let (response, sdk_callback_urls) = Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         customer,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operation,
-        &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -4660,20 +4648,17 @@ where
     )
     .await?;
 
-    let (response, sdk_callback_urls) = Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         customer,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operation,
-        &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -4822,24 +4807,21 @@ pub async fn payments_get_intent_using_merchant_reference(
     ))
     .await?;
 
-    let (response, sdk_callback_urls) = transformers::ToResponse::<
+    transformers::ToResponse::<
         api::PaymentGetIntent,
         PaymentIntentData<api::PaymentGetIntent>,
         operations::PaymentGetIntent,
-    >::generate_response(
+    >::generate_response_with_callbacks(
+        &state,
         payment_data,
         customer,
-        &state.base_url,
-        state.conf.payment_callback.mode,
         operations::PaymentGetIntent,
-        &state.conf.connector_request_reference_id_config,
         None,
         None,
         header_payload.x_hs_latency,
         &platform,
-    )?;
-    sdk_callback_urls.persist(&state).await?;
-    Ok(response)
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
