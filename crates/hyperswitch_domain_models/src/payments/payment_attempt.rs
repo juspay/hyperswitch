@@ -860,6 +860,7 @@ pub struct PaymentAttempt {
     pub payment_account_reference: Option<String>,
     /// Active fraud-check record associated with this payment attempt.
     pub active_frm_id: Option<String>,
+    pub connector_label: Option<String>,
 }
 
 impl PaymentAttempt {
@@ -1031,6 +1032,7 @@ impl PaymentAttempt {
             applied_offer_details: None,
             payment_account_reference: None,
             active_frm_id: None,
+            connector_label: None,
         })
     }
 
@@ -1129,6 +1131,7 @@ impl PaymentAttempt {
             applied_offer_details: None,
             payment_account_reference: None,
             active_frm_id: None,
+            connector_label: None,
         })
     }
 
@@ -1234,6 +1237,7 @@ impl PaymentAttempt {
             applied_offer_details: None,
             payment_account_reference: None,
             active_frm_id: None,
+            connector_label: None,
         })
     }
 
@@ -1367,6 +1371,7 @@ impl PaymentAttempt {
             applied_offer_details: None,
             payment_account_reference: None,
             active_frm_id: None,
+            connector_label: None,
         })
     }
 
@@ -1498,6 +1503,7 @@ pub struct PaymentAttempt {
     pub sender_payment_instrument_id: Option<String>,
     /// Fraud-check id currently associated with this attempt.
     pub active_frm_id: Option<String>,
+    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2241,6 +2247,7 @@ pub enum PaymentAttemptUpdate {
         card_network: Option<storage_enums::CardNetwork>,
         sender_payment_instrument_id: Option<String>,
         payment_account_reference: Option<String>,
+        connector_label: Option<String>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -2282,6 +2289,7 @@ pub enum PaymentAttemptUpdate {
         advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
+        connector_label: Option<String>,
     },
     CaptureUpdate {
         amount_to_capture: Option<MinorUnit>,
@@ -2628,6 +2636,7 @@ impl PaymentAttemptUpdate {
                 card_network,
                 sender_payment_instrument_id,
                 payment_account_reference,
+                connector_label,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2695,6 +2704,7 @@ impl PaymentAttemptUpdate {
                     error_details,
                     sender_payment_instrument_id,
                     payment_account_reference,
+                    connector_label,
                 }
             }
             Self::UnresolvedResponseUpdate {
@@ -2774,6 +2784,7 @@ impl PaymentAttemptUpdate {
                 encrypted_payment_method_data,
                 recommended_action,
                 card_network,
+                connector_label,
             } => {
                 let connector_details = ConnectorErrorDetails::new(
                     error_code.clone(),
@@ -2826,6 +2837,7 @@ impl PaymentAttemptUpdate {
                     encrypted_payment_method_data: encrypted_payment_method_data
                         .map(Encryption::from),
                     error_details,
+                    connector_label,
                 }
             }
             Self::CaptureUpdate {

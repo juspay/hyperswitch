@@ -1781,6 +1781,7 @@ impl PaymentCreate {
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
                 active_frm_id: None,
+                connector_label: None,
             },
             additional_pm_data,
 

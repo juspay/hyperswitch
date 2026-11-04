@@ -248,6 +248,7 @@ impl PaymentAttemptInterface for MockDb {
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
             payment_account_reference: payment_attempt.payment_account_reference,
             active_frm_id: payment_attempt.active_frm_id,
+            connector_label: payment_attempt.connector_label,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

@@ -291,6 +291,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             applied_offer_details: _,
             payment_account_reference: _,
             active_frm_id: _,
+            connector_label: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id

@@ -601,5 +601,6 @@ pub async fn create_domain_model_for_split_payment(
         applied_offer_details: None,
         payment_account_reference: None,
         active_frm_id: None,
+        connector_label: None,
     })
 }
