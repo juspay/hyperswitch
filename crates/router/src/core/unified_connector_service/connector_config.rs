@@ -71,6 +71,11 @@ pub struct JpmorganMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct WorldpayvantivMetadata {
+    merchant_id: Option<HashMap<Currency, Secret<String>>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct SantanderPayoutMetadata {
     client_id: Secret<String>,
     client_secret: Secret<String>,
@@ -806,7 +811,12 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Merchant ID from the connector credentials, for `SignatureKey` / `MultiAuthKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency from the connector metadata, for `BodyKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id_by_currency: Option<HashMap<Currency, Secret<String>>>,
     },
     /// Trustly connector configuration
     Trustly {
@@ -1980,7 +1990,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -1990,10 +2001,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let merchant_id_by_currency = metadata
+                        .map(|m| {
+                            m.clone()
+                                .parse_value::<WorldpayvantivMetadata>("WorldpayvantivMetadata")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Worldpayvantiv metadata format")
+                        })
+                        .transpose()?
+                        .and_then(|m| m.merchant_id);
+                    Ok(Self::Worldpayvantiv {
+                        user: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: None,
+                        merchant_id_by_currency,
+                    })
+                }
                 _ => Err(err(
-                    "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
+                    "Worldpayvantiv requires SignatureKey, MultiAuthKey or BodyKey auth type",
                 )),
             },
             Connector::Payme => match auth {

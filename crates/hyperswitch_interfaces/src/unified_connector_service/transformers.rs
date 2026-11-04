@@ -668,8 +668,6 @@ impl ForeignTryFrom<payments_grpc::MandateReferenceDetails>
 impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    // UCS still sends this legacy status; preserve its existing HS mapping until the wire value is retired.
-    #[allow(deprecated)]
     fn foreign_try_from(
         (grpc_status, prev_status): (payments_grpc::PaymentStatus, Self),
     ) -> Result<Self, Self::Error> {
@@ -2108,7 +2106,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             ),
             Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "QR data form type is not implemented".to_string(),
+                    "QrData form type is not implemented".to_string(),
                 )
                 .into(),
             ),

@@ -34,6 +34,7 @@ pub mod routes {
     };
     use common_enums::EntityType;
     use common_utils::{pii::Email, types::TimeRange};
+    use diesel_models::enums::UserStatus;
     use error_stack::{report, ResultExt};
     use futures::{stream::FuturesUnordered, StreamExt};
     use hyperswitch_masking::ExposeInterface;
@@ -2530,7 +2531,7 @@ pub mod routes {
                                 profile_id: None,
                                 entity_id: None,
                                 version: None,
-                                status: None,
+                                status: Some(UserStatus::Active),
                                 limit: None,
                             })
                             .await
@@ -2552,7 +2553,7 @@ pub mod routes {
                                     profile_id: None,
                                     entity_id: None,
                                     version: None,
-                                    status: None,
+                                    status: Some(UserStatus::Active),
                                     limit: None,
                                 })
                                 .await
@@ -2562,6 +2563,13 @@ pub mod routes {
                                 .collect()
                         }
                     };
+
+                    logger::info!(
+                        user_id = %auth.user_id,
+                        count = user_roles.len(),
+                        user_roles = ?user_roles,
+                        "Fetched active user roles for search scope construction"
+                    );
 
                     let role_info_map: HashMap<String, RoleInfo> = user_roles
                         .iter()
@@ -2704,7 +2712,7 @@ pub mod routes {
                                 profile_id: None,
                                 entity_id: None,
                                 version: None,
-                                status: None,
+                                status: Some(UserStatus::Active),
                                 limit: None,
                             })
                             .await
@@ -2726,7 +2734,7 @@ pub mod routes {
                                     profile_id: None,
                                     entity_id: None,
                                     version: None,
-                                    status: None,
+                                    status: Some(UserStatus::Active),
                                     limit: None,
                                 })
                                 .await
@@ -2736,6 +2744,13 @@ pub mod routes {
                                 .collect()
                         }
                     };
+
+                    logger::info!(
+                        user_id = %auth.user_id,
+                        count = user_roles.len(),
+                        user_roles = ?user_roles,
+                        "Fetched active user roles for search scope construction"
+                    );
 
                     let role_info_map: HashMap<String, RoleInfo> = user_roles
                         .iter()
