@@ -110,10 +110,12 @@ pub(crate) fn deserialize_optional_hashset<'a, D, T>(
     deserializer: D,
 ) -> Result<Option<HashSet<T>>, D::Error>
 where
-    D: Deserializer<'a>,
-    T: FromStr + Eq + Hash,
-    <T as FromStr>::Err: Debug,
+    D: serde::Deserializer<'a>,
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
 {
+    use serde::de::Error;
+
     Option::<String>::deserialize(deserializer)?
         .map(deserialize_hashset_inner)
         .transpose()

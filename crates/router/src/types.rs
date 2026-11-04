@@ -1624,6 +1624,7 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                     grace_period_days: revenue_recovery_metadata.grace_period_days,
                     enable_partial_authorization: revenue_recovery_metadata
                         .enable_partial_authorization,
+                    max_hard_decline_retries: revenue_recovery_metadata.max_hard_decline_retries,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1658,6 +1659,7 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     grace_period_days: revenue_recovery_metadata.grace_period_days,
                     enable_partial_authorization: revenue_recovery_metadata
                         .enable_partial_authorization,
+                    max_hard_decline_retries: revenue_recovery_metadata.max_hard_decline_retries,
                     mca_reference,
                 })
             })
