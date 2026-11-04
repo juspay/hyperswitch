@@ -711,6 +711,7 @@ gocardless = { long_lived_token = true, payment_method = "bank_debit" }
 billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
+elavon_pg = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [debit_routing_config]                                       # Debit Routing configs
 supported_currencies = "USD"                                 # Supported currencies for debit routing
