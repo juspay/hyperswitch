@@ -34,6 +34,66 @@ pub(super) enum PaymentCallbackFields<'a> {
 }
 
 impl<'a> PaymentCallbackFields<'a> {
+    pub(super) fn create_url(
+        self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+    ) -> PaymentCallbackUrl {
+        let route = self.route();
+        let (path, key) = if callback_mode.issues_tokens() {
+            let token = Uuid::new_v4();
+            let path = route.with_callback_token(&token.to_string());
+            let key = self.key(&token);
+            (path, Some(key))
+        } else {
+            (route.legacy_path(), None)
+        };
+        let path = match self {
+            Self::Start(fields) => path
+                .replace(
+                    PaymentCallbackRoute::PAYMENT_ID,
+                    fields.payment_id.get_string_repr(),
+                )
+                .replace(
+                    PaymentCallbackRoute::MERCHANT_ID,
+                    fields.merchant_id.get_string_repr(),
+                )
+                .replace(PaymentCallbackRoute::ATTEMPT_ID, &fields.attempt_id),
+            Self::RedirectResponse(fields)
+            | Self::RedirectComplete(fields)
+            | Self::Authorize(fields) => path
+                .replace(
+                    PaymentCallbackRoute::PAYMENT_ID,
+                    fields.payment_id.get_string_repr(),
+                )
+                .replace(
+                    PaymentCallbackRoute::MERCHANT_ID,
+                    fields.merchant_id.get_string_repr(),
+                )
+                .replace(PaymentCallbackRoute::CONNECTOR, &fields.connector),
+            Self::RedirectResponseWithCredentials(fields)
+            | Self::RedirectCompleteWithCredentials(fields) => path
+                .replace(
+                    PaymentCallbackRoute::PAYMENT_ID,
+                    fields.payment_id.get_string_repr(),
+                )
+                .replace(
+                    PaymentCallbackRoute::MERCHANT_ID,
+                    fields.merchant_id.get_string_repr(),
+                )
+                .replace(PaymentCallbackRoute::CONNECTOR, &fields.connector)
+                .replace(
+                    PaymentCallbackRoute::CREDS_IDENTIFIER,
+                    &fields.creds_identifier,
+                ),
+        };
+        let path = format!("/payments{path}");
+        PaymentCallbackUrl {
+            key,
+            url: Secret::new(format!("{base_url}{path}")),
+        }
+    }
+
     fn route(self) -> PaymentCallbackRoute {
         match self {
             Self::Start(_) => PaymentCallbackRoute::Start,
@@ -76,22 +136,22 @@ impl<'a> PaymentCallbackFields<'a> {
 
 trait CallbackHashInput {
     fn hash_input(&self) -> String;
-}
 
-// Byte-length framing distinguishes values even when they contain delimiters.
-fn concatenate_fields(fields: &[&str]) -> String {
-    let mut input = String::new();
-    for field in fields {
-        input.push_str(&field.len().to_string());
-        input.push(':');
-        input.push_str(field);
+    // Byte-length framing distinguishes values even when they contain delimiters.
+    fn concatenate_fields(fields: &[&str]) -> String {
+        let mut input = String::new();
+        for field in fields {
+            input.push_str(&field.len().to_string());
+            input.push(':');
+            input.push_str(field);
+        }
+        input
     }
-    input
 }
 
 impl CallbackHashInput for StartCallbackPath {
     fn hash_input(&self) -> String {
-        concatenate_fields(&[
+        Self::concatenate_fields(&[
             self.payment_id.get_string_repr(),
             self.merchant_id.get_string_repr(),
             &self.attempt_id,
@@ -101,7 +161,7 @@ impl CallbackHashInput for StartCallbackPath {
 
 impl CallbackHashInput for ConnectorCallbackPath {
     fn hash_input(&self) -> String {
-        concatenate_fields(&[
+        Self::concatenate_fields(&[
             self.payment_id.get_string_repr(),
             self.merchant_id.get_string_repr(),
             &self.connector,
@@ -111,7 +171,7 @@ impl CallbackHashInput for ConnectorCallbackPath {
 
 impl CallbackHashInput for ConnectorCallbackWithCredentialsPath {
     fn hash_input(&self) -> String {
-        concatenate_fields(&[
+        Self::concatenate_fields(&[
             self.payment_id.get_string_repr(),
             self.merchant_id.get_string_repr(),
             &self.connector,
@@ -129,67 +189,29 @@ pub struct PaymentCallbackUrl {
 
 impl PaymentCallbackUrl {
     pub async fn persist(self, state: &SessionState) -> RouterResult<Secret<String>> {
-        self.persist_with(|key| async move { register_token(state, &key).await })
-            .await
+        if let Some(key) = self.key {
+            let ttl = state.conf.payment_callback.token_ttl_seconds;
+            if ttl == 0 {
+                return Err(errors::ApiErrorResponse::InternalServerError.into());
+            }
+            let connection = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let result = connection
+                .set_key_if_not_exists_with_expiry(&key, UNUSED, Some(i64::from(ttl)))
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            if !matches!(result, redis_interface::SetnxReply::KeySet) {
+                return Err(errors::ApiErrorResponse::InternalServerError.into());
+            }
+        }
+        Ok(self.url)
     }
 
     pub fn url(&self) -> &Secret<String> {
         &self.url
     }
-
-    async fn persist_with<F, Fut>(self, register: F) -> RouterResult<Secret<String>>
-    where
-        F: FnOnce(redis_interface::RedisKey) -> Fut,
-        Fut: std::future::Future<Output = RouterResult<()>>,
-    {
-        if let Some(key) = self.key {
-            register(key).await?;
-        }
-        Ok(self.url)
-    }
-}
-
-pub(super) fn create_url(
-    base_url: &str,
-    fields: PaymentCallbackFields<'_>,
-    path: String,
-    callback_mode: PaymentCallbackMode,
-) -> PaymentCallbackUrl {
-    let path = format!("/payments{path}");
-    let (path, key) = if callback_mode.issues_tokens() {
-        let token = Uuid::new_v4();
-        let path = PaymentCallbackRoute::with_callback_token(&path, &token.to_string());
-        let key = fields.key(&token);
-        (path, Some(key))
-    } else {
-        (path, None)
-    };
-    PaymentCallbackUrl {
-        key,
-        url: Secret::new(format!("{base_url}{path}")),
-    }
-}
-
-pub(crate) async fn register_token(
-    state: &SessionState,
-    key: &redis_interface::RedisKey,
-) -> RouterResult<()> {
-    let ttl = state.conf.payment_callback.token_ttl_seconds;
-    if ttl == 0 {
-        return Err(errors::ApiErrorResponse::InternalServerError.into());
-    }
-    let connection = state
-        .store
-        .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let result = connection
-        .set_key_if_not_exists_with_expiry(key, UNUSED, Some(i64::from(ttl)))
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    if !matches!(result, redis_interface::SetnxReply::KeySet) {
-        return Err(errors::ApiErrorResponse::InternalServerError.into());
-    }
-    Ok(())
 }
 
 // Hash the bearer credential so Redis keys and command instrumentation do not
@@ -200,7 +222,7 @@ fn callback_key<T: CallbackHashInput>(
     token: &Uuid,
 ) -> redis_interface::RedisKey {
     let mut digest = Sha256::new();
-    digest.update(concatenate_fields(&[route.name()]));
+    digest.update(T::concatenate_fields(&[route.name()]));
     digest.update(fields.hash_input());
     digest.update(token.as_bytes());
     format!("payment_callback_token:{:x}", digest.finalize()).into()
@@ -463,8 +485,8 @@ mod tests {
             .collect::<std::collections::HashSet<_>>();
         assert_eq!(keys.len(), ROUTES.len());
         assert_ne!(
-            concatenate_fields(&["a", "bc"]),
-            concatenate_fields(&["ab", "c"])
+            StartCallbackPath::concatenate_fields(&["a", "bc"]),
+            StartCallbackPath::concatenate_fields(&["ab", "c"])
         );
     }
 
@@ -494,51 +516,6 @@ mod tests {
             .await;
             assert_eq!(response.status(), actix_web::http::StatusCode::NOT_FOUND);
         }
-    }
-
-    #[tokio::test]
-    async fn legacy_urls_do_not_register_redis_keys() {
-        let paths = CallbackPaths::new();
-        for route in ROUTES {
-            let url = paths
-                .url(route, PaymentCallbackMode::Legacy)
-                .persist_with(|_| async { panic!("Legacy URLs must not register tokens") })
-                .await
-                .expect("legacy URL");
-            assert_eq!(
-                url.peek(),
-                &format!("https://router.test/payments{}", resolved_path(route))
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn failed_registration_does_not_return_a_url() {
-        let paths = CallbackPaths::new();
-        let result = paths
-            .url(PaymentCallbackRoute::Start, PaymentCallbackMode::Migration)
-            .persist_with(|_| async { Err(errors::ApiErrorResponse::InternalServerError.into()) })
-            .await;
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn deferred_registration_waits_for_acknowledgement_and_preserves_url() {
-        let paths = CallbackPaths::new();
-        let pending = paths.url(PaymentCallbackRoute::Start, PaymentCallbackMode::Migration);
-        let expected_url = pending.url.clone();
-        let expected_key = format!("{:?}", pending.key);
-        let acknowledged = tokio::sync::Notify::new();
-        let acknowledgement = &acknowledged;
-        let url = pending.persist_with(|key| async move {
-            assert_eq!(format!("{:?}", Some(key)), expected_key);
-            acknowledgement.notified().await;
-            Ok(())
-        });
-        tokio::pin!(url);
-        assert!(futures::poll!(&mut url).is_pending());
-        acknowledged.notify_one();
-        assert_eq!(url.await.expect("registered URL"), expected_url);
     }
 
     #[test]

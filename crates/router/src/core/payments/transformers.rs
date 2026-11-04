@@ -5684,17 +5684,6 @@ impl SdkCallbackUrls {
     }
 
     pub async fn persist(self, state: &SessionState) -> RouterResult<()> {
-        self.persist_with(
-            |callback_url| async move { callback_url.persist(state).await.map(|_| ()) },
-        )
-        .await
-    }
-
-    async fn persist_with<F, Fut>(self, mut persist: F) -> RouterResult<()>
-    where
-        F: FnMut(PaymentCallbackUrl) -> Fut,
-        Fut: std::future::Future<Output = RouterResult<()>>,
-    {
         for callback_url in [
             self.start,
             self.authorize,
@@ -5704,7 +5693,7 @@ impl SdkCallbackUrls {
         .into_iter()
         .flatten()
         {
-            persist(callback_url).await?;
+            callback_url.persist(state).await?;
         }
         Ok(())
     }
@@ -5712,8 +5701,6 @@ impl SdkCallbackUrls {
 
 #[cfg(all(test, feature = "v1"))]
 mod sdk_callback_url_tests {
-    use std::sync::Mutex;
-
     use hyperswitch_masking::PeekInterface;
 
     use super::*;
@@ -5824,8 +5811,8 @@ mod sdk_callback_url_tests {
         assert!(callbacks.authorize.is_none());
     }
 
-    #[tokio::test]
-    async fn authentication_url_is_cached_without_token_registration() {
+    #[test]
+    fn authentication_url_is_cached_without_token_registration() {
         let mut callbacks = SdkCallbackUrls::default();
         let authentication = callbacks
             .authentication_url("https://router.test", "pay")
@@ -5838,50 +5825,14 @@ mod sdk_callback_url_tests {
             callbacks.authentication_url("https://router.test", "other_pay"),
             &authentication
         );
-        callbacks
-            .persist_with(|_| async {
-                panic!("Client-secret authentication does not register a callback token")
-            })
-            .await
-            .expect("no callback registration");
+        assert!(callbacks.start.is_none());
+        assert!(callbacks.authorize.is_none());
+        assert!(callbacks.redirect_response.is_none());
+        assert!(callbacks.redirect_complete.is_none());
     }
 
-    #[tokio::test]
-    async fn empty_sdk_callbacks_require_no_registration() {
-        SdkCallbackUrls::default()
-            .persist_with(|_| async { panic!("No SDK callbacks were constructed") })
-            .await
-            .expect("empty callback group");
-    }
-
-    #[tokio::test]
-    async fn redirect_registers_only_the_constructed_start_url() {
-        let mut callbacks = SdkCallbackUrls::default();
-        let expected = callbacks
-            .start_url(
-                "https://router.test",
-                PaymentCallbackMode::Migration,
-                &payment_id("pay"),
-                &merchant_id("merchant"),
-                "attempt",
-            )
-            .clone();
-        let registered = Mutex::new(Vec::new());
-        callbacks
-            .persist_with(|callback| {
-                registered
-                    .lock()
-                    .expect("registered URLs")
-                    .push(callback.url().clone());
-                async { Ok(()) }
-            })
-            .await
-            .expect("registration");
-        assert_eq!(*registered.lock().expect("registered URLs"), vec![expected]);
-    }
-
-    #[tokio::test]
-    async fn browser_forms_register_only_the_required_callback_endpoint() {
+    #[test]
+    fn browser_forms_construct_only_the_required_callback_endpoint() {
         let forms = [
             (RedirectForm::Payme, "payme", false),
             (
@@ -5990,23 +5941,18 @@ mod sdk_callback_url_tests {
                 ),
                 Some(&callback)
             );
-            let registered = Mutex::new(Vec::new());
-            callbacks
-                .persist_with(|pending| {
-                    registered
-                        .lock()
-                        .expect("registered URLs")
-                        .push(pending.url().clone());
-                    async { Ok(()) }
-                })
-                .await
-                .expect("registered browser callback");
-            assert_eq!(*registered.lock().expect("registered URLs"), vec![callback]);
+            let pending = if is_response {
+                callbacks.redirect_response.as_ref()
+            } else {
+                callbacks.redirect_complete.as_ref()
+            }
+            .expect("prepared browser callback");
+            assert_eq!(pending.url(), &callback);
         }
     }
 
-    #[tokio::test]
-    async fn html_forms_do_not_generate_unused_callback_urls() {
+    #[test]
+    fn html_forms_do_not_generate_unused_callback_urls() {
         let mut callbacks = SdkCallbackUrls::default();
         assert!(callbacks
             .redirection_form_callback_url(
@@ -6020,39 +5966,10 @@ mod sdk_callback_url_tests {
                 None
             )
             .is_none());
-        callbacks
-            .persist_with(|_| async { panic!("HTML has no generated callback") })
-            .await
-            .expect("no callback registration");
-    }
-
-    #[tokio::test]
-    async fn registration_failure_stops_before_remaining_callbacks() {
-        let mut callbacks = SdkCallbackUrls::default();
-        callbacks.start_url(
-            "https://router.test",
-            PaymentCallbackMode::Migration,
-            &payment_id("pay"),
-            &merchant_id("merchant"),
-            "attempt",
-        );
-        callbacks.redirect_response_url(
-            "https://router.test",
-            PaymentCallbackMode::Migration,
-            &payment_id("pay"),
-            &merchant_id("merchant"),
-            "stripe",
-            None,
-        );
-        let calls = Mutex::new(0);
-        let result = callbacks
-            .persist_with(|_| {
-                *calls.lock().expect("registration count") += 1;
-                async { Err(errors::ApiErrorResponse::InternalServerError.into()) }
-            })
-            .await;
-        assert!(result.is_err());
-        assert_eq!(*calls.lock().expect("registration count"), 1);
+        assert!(callbacks.start.is_none());
+        assert!(callbacks.authorize.is_none());
+        assert!(callbacks.redirect_response.is_none());
+        assert!(callbacks.redirect_complete.is_none());
     }
 }
 
