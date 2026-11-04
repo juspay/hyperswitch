@@ -3,8 +3,8 @@ pub mod models {
 
     use async_trait::async_trait;
     use base64::{engine::general_purpose::STANDARD, Engine};
-    use common_utils::{pii::SecretSerdeValue, proxy::ConnectorContentType};
     pub use common_utils::proxy::{ProxyBody, ProxyMultipartPart};
+    use common_utils::{pii::SecretSerdeValue, proxy::ConnectorContentType};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
