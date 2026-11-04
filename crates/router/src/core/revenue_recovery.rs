@@ -202,7 +202,10 @@ pub async fn upsert_calculate_pcr_task(
                                 .clone()
                                 .into(),
                         )
-                        .with_connector(billing_connector_account.connector_name),
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_profile_id(business_profile.get_id().clone()),
                 )
                 .await;
 
@@ -878,7 +881,10 @@ pub async fn perform_calculate_workflow(
                     state,
                     &crate::core::configs::dimension_state::Dimensions::new()
                         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                        .with_connector(revenue_recovery_payment_data.billing_mca.connector_name),
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_profile_id(payment_intent.profile_id.clone()),
                 )
                 .await;
             let intent_retry_count = payment_intent

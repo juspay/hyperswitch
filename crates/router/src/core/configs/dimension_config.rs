@@ -903,17 +903,16 @@ config! {
     superposition_key = RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT,
     output = i64,
     default = 0,
-    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    targeting_key = id_type::PaymentId
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
 }
 
 impl DatabaseBackedConfig for RecoveryMaxHybridCascadingRetryCount {
     const KEY: &'static str = "recovery_max_hybrid_cascading_retry_count";
 
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep this internal count in Superposition without a database fallback.
+        None
     }
 }
 

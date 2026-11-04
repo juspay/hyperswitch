@@ -280,7 +280,7 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
 #[cfg(feature = "v2")]
 pub(crate) async fn get_max_hybrid_cascading_retry_count(
     state: &SessionState,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> u16 {
     let max_hybrid_cascading_retry_count = dimensions
         .get_recovery_max_hybrid_cascading_retry_count(
@@ -894,7 +894,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(provider_merchant_id)
+                .with_provider_merchant_id(provider_merchant_id.clone())
                 .with_organization_id(payment_intent.organization_id.clone())
                 .with_profile_id(payment_intent.profile_id.clone());
 
@@ -972,7 +972,16 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
                         let max_hybrid_cascading_retry_count = i32::from(
-                            get_max_hybrid_cascading_retry_count(state, &dimensions).await,
+                            get_max_hybrid_cascading_retry_count(
+                                state,
+                                &crate::core::configs::dimension_state::Dimensions::new()
+                                    .with_processor_merchant_id(
+                                        payment_intent.merchant_id.clone().into(),
+                                    )
+                                    .with_provider_merchant_id(provider_merchant_id)
+                                    .with_profile_id(payment_intent.profile_id.clone()),
+                            )
+                            .await,
                         );
 
                         if queried_rung <= max_hybrid_cascading_retry_count {
