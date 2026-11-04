@@ -1691,6 +1691,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
                 };
+                // Tie-break on id so paging is stable.
+                query = match params.order.by {
+                    SortBy::Asc => query.then_order_by(pi_dsl::id.asc()),
+                    SortBy::Desc => query.then_order_by(pi_dsl::id.desc()),
+                };
 
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));

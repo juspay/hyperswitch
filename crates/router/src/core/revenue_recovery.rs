@@ -33,6 +33,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use scheduler::errors as sch_errors;
+use strum::IntoEnumIterator;
 
 use crate::{
     core::{
@@ -2155,7 +2156,7 @@ pub fn map_recovery_status(
             execute_process_tracker_status,
             || {
                 if attempt_count > max_retry_threshold {
-                    RecoveryStatus::NoPicked
+                    RecoveryStatus::Terminated
                 } else {
                     RecoveryStatus::Monitoring
                 }
@@ -2173,23 +2174,79 @@ pub fn map_recovery_status(
         }
 
         // For all other intent statuses, return the mapped recovery status
-        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Succeeded => RecoveryStatus::Succeeded,
         IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
             RecoveryStatus::Processing
         }
-        IntentStatus::Cancelled
-        | IntentStatus::CancelledPostCapture
+        IntentStatus::Cancelled => RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
 
-        // For statuses that don't need recovery
         IntentStatus::RequiresCustomerAction
         | IntentStatus::RequiresMerchantAction
         | IntentStatus::RequiresPaymentMethod
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
-        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Monitoring,
+    }
+}
+
+/// Intent statuses that can resolve to any of the given recovery statuses (see
+/// [`map_recovery_status`]), a superset used to narrow the database query.
+pub fn candidate_intent_statuses_for_recovery_status(
+    recovery_statuses: &[RecoveryStatus],
+    allowed: Option<&[IntentStatus]>,
+) -> Vec<IntentStatus> {
+    IntentStatus::iter()
+        .filter(|intent_status| allowed.is_none_or(|allowed| allowed.contains(intent_status)))
+        .filter(|intent_status| {
+            recovery_statuses
+                .iter()
+                .any(|recovery_status| can_map_to_recovery_status(*intent_status, *recovery_status))
+        })
+        .collect()
+}
+
+fn can_map_to_recovery_status(
+    intent_status: IntentStatus,
+    recovery_status: RecoveryStatus,
+) -> bool {
+    match intent_status {
+        IntentStatus::Failed => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::Monitoring
+        ),
+        IntentStatus::PartiallyCaptured | IntentStatus::PartiallyCapturedAndCapturable => matches!(
+            recovery_status,
+            RecoveryStatus::Queued
+                | RecoveryStatus::Scheduled
+                | RecoveryStatus::Processing
+                | RecoveryStatus::Terminated
+                | RecoveryStatus::PartiallyRecovered
+        ),
+        IntentStatus::Succeeded => recovery_status == RecoveryStatus::Succeeded,
+        IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
+            recovery_status == RecoveryStatus::Processing
+        }
+        IntentStatus::Cancelled => recovery_status == RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
+        | IntentStatus::Conflicted
+        | IntentStatus::Expired
+        | IntentStatus::Review => recovery_status == RecoveryStatus::Terminated,
+        IntentStatus::RequiresCustomerAction
+        | IntentStatus::RequiresMerchantAction
+        | IntentStatus::RequiresPaymentMethod
+        | IntentStatus::RequiresConfirmation
+        | IntentStatus::RequiresCapture
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+            recovery_status == RecoveryStatus::Monitoring
+        }
     }
 }
 

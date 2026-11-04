@@ -1,5 +1,10 @@
+#[cfg(all(feature = "v2", feature = "olap"))]
+use std::collections::{HashMap, HashSet};
+
 #[cfg(feature = "v2")]
 use api_models::payments as payments_api;
+#[cfg(all(feature = "v2", feature = "olap"))]
+use common_utils::consts::LIST_MAX_LIMIT;
 #[cfg(feature = "v1")]
 use common_utils::id_type;
 #[cfg(feature = "v1")]
@@ -7,8 +12,13 @@ use error_stack::report;
 use error_stack::ResultExt;
 use futures::future::join_all;
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+use crate::core::errors::RouterResult;
 #[cfg(feature = "v2")]
-use crate::core::revenue_recovery::{get_workflow_entries, map_to_recovery_payment_item};
+use crate::core::revenue_recovery::{
+    candidate_intent_statuses_for_recovery_status, get_workflow_entries,
+    map_to_recovery_payment_item,
+};
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
     db::StorageInterface,
@@ -234,6 +244,189 @@ pub async fn list_payments(
         )),
     )
     .await
+}
+
+/// Maps intents to recovery list items using their workflow entries and billing retry threshold.
+/// `retry_thresholds` keeps each billing connector's threshold, so it is fetched only once.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn build_recovery_list_items(
+    state: &SessionState,
+    platform: &domain::Platform,
+    list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>,
+    retry_thresholds: &mut HashMap<common_utils::id_type::MerchantConnectorAccountId, u16>,
+) -> Vec<payments_api::RecoveryPaymentsListResponseItem> {
+    let db: &dyn StorageInterface = state.store.as_ref();
+
+    let workflow_futures: Vec<_> = list
+        .iter()
+        .map(|(payment_intent, _)| get_workflow_entries(state, &payment_intent.id))
+        .collect();
+
+    let missing_billing_connector_ids: HashSet<_> = list
+        .iter()
+        .filter_map(|(payment_intent, _)| {
+            payment_intent.get_billing_merchant_connector_account_id()
+        })
+        .filter(|billing_mca_id| !retry_thresholds.contains_key(billing_mca_id))
+        .collect();
+
+    let billing_connector_futures: Vec<_> = missing_billing_connector_ids
+        .into_iter()
+        .map(|billing_mca_id| async move {
+            let retry_threshold = db
+                .find_merchant_connector_account_by_id(
+                    &billing_mca_id,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .ok()
+                .and_then(|mca| mca.get_retry_threshold())
+                .unwrap_or(0); // Default fallback
+            (billing_mca_id, retry_threshold)
+        })
+        .collect();
+
+    let workflow_results = join_all(workflow_futures).await;
+    retry_thresholds.extend(join_all(billing_connector_futures).await);
+
+    list.into_iter()
+        .zip(workflow_results)
+        .map(|((payment_intent, payment_attempt), workflow_result)| {
+            let (calculate_workflow, execute_workflow) = workflow_result.unwrap_or((None, None));
+
+            let max_retry_threshold = payment_intent
+                .get_billing_merchant_connector_account_id()
+                .and_then(|billing_mca_id| retry_thresholds.get(&billing_mca_id).copied())
+                .unwrap_or(0); // Default fallback
+
+            map_to_recovery_payment_item(
+                payment_intent,
+                payment_attempt,
+                calculate_workflow,
+                execute_workflow,
+                max_retry_threshold.try_into().unwrap_or(0),
+            )
+        })
+        .collect()
+}
+
+/// Fetches, page by page, the recovery invoices whose intent status is one of
+/// `candidate_statuses`, with the recovery status derived for each of them.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn scan_recovery_items(
+    state: &SessionState,
+    platform: &domain::Platform,
+    constraints: payments_api::PaymentListConstraints,
+    candidate_statuses: Vec<common_enums::enums::IntentStatus>,
+) -> RouterResult<Vec<payments_api::RecoveryPaymentsListResponseItem>> {
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let scan_page_size = common_utils::types::list::PageSize::from(LIST_MAX_LIMIT);
+    let scan_constraints = payments_api::PaymentListConstraints {
+        status: Some(candidate_statuses),
+        limit: scan_page_size,
+        ..constraints
+    };
+
+    let mut items: Vec<payments_api::RecoveryPaymentsListResponseItem> = Vec::new();
+    let mut retry_thresholds = HashMap::new();
+    let mut scan_offset: usize = 0;
+    loop {
+        let page_offset = common_utils::types::list::PageOffset::from(
+            u32::try_from(scan_offset).unwrap_or(u32::MAX),
+        );
+        // `PageOffset` clamps at its maximum; stop rather than re-read the same page.
+        if page_offset.as_usize() != scan_offset {
+            break;
+        }
+        let page_constraints = payments_api::PaymentListConstraints {
+            offset: page_offset,
+            ..scan_constraints.clone()
+        };
+        let fetch_constraints = page_constraints.into();
+        let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
+            .get_filtered_payment_intents_attempt(
+                &platform.get_processor().get_processor_merchant_id(),
+                &fetch_constraints,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let fetched = list.len();
+        items.extend(build_recovery_list_items(state, platform, list, &mut retry_thresholds).await);
+
+        if fetched < scan_page_size.as_usize() {
+            break;
+        }
+        scan_offset += fetched;
+    }
+    Ok(items)
+}
+
+/// Counts the recovery invoices created in `time_range` in each recovery status, for the whole
+/// merchant or, when `profile_id` is passed, for that profile only.
+///
+/// Like the list, the recovery status is derived from the intent status and the recovery
+/// workflows rather than stored, so the invoices are scanned and counted by the derived status.
+#[cfg(all(feature = "v2", feature = "olap"))]
+pub async fn revenue_recovery_aggregates(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    time_range: common_utils::types::TimeRange,
+) -> RouterResponse<payments_api::RecoveryAggregateResponse> {
+    use strum::IntoEnumIterator;
+
+    let constraints = payments_api::PaymentListConstraints {
+        payment_id: None,
+        profile_id,
+        customer_id: None,
+        starting_after: None,
+        ending_before: None,
+        limit: common_utils::types::list::PageSize::from(LIST_MAX_LIMIT),
+        offset: common_utils::types::list::PageOffset::default(),
+        created: None,
+        created_lt: None,
+        created_gt: None,
+        created_lte: time_range.end_time,
+        created_gte: Some(time_range.start_time),
+        start_amount: None,
+        end_amount: None,
+        connector: None,
+        currency: None,
+        status: None,
+        payment_method_type: None,
+        payment_method_subtype: None,
+        authentication_type: None,
+        merchant_connector_id: None,
+        order_on: Default::default(),
+        order_by: Default::default(),
+        card_network: None,
+        merchant_order_reference_id: None,
+    };
+
+    let all_recovery_statuses: Vec<_> = common_enums::enums::RecoveryStatus::iter().collect();
+    let candidate_statuses =
+        candidate_intent_statuses_for_recovery_status(&all_recovery_statuses, None);
+
+    let items = scan_recovery_items(&state, &platform, constraints, candidate_statuses).await?;
+
+    let mut status_with_count: HashMap<_, i64> = all_recovery_statuses
+        .into_iter()
+        .map(|status| (status, 0))
+        .collect();
+    for item in &items {
+        *status_with_count.entry(item.status).or_default() += 1;
+    }
+    let total_count = status_with_count.values().sum();
+
+    Ok(services::ApplicationResponse::Json(
+        payments_api::RecoveryAggregateResponse {
+            status_with_count,
+            total_count,
+        },
+    ))
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
