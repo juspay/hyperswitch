@@ -971,17 +971,16 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
+                        let retry_count_dimensions =
+                            crate::core::configs::dimension_state::Dimensions::new()
+                                .with_processor_merchant_id(
+                                    payment_intent.merchant_id.clone().into(),
+                                )
+                                .with_provider_merchant_id(provider_merchant_id)
+                                .with_profile_id(payment_intent.profile_id.clone());
                         let max_hybrid_cascading_retry_count = i32::from(
-                            get_max_hybrid_cascading_retry_count(
-                                state,
-                                &crate::core::configs::dimension_state::Dimensions::new()
-                                    .with_processor_merchant_id(
-                                        payment_intent.merchant_id.clone().into(),
-                                    )
-                                    .with_provider_merchant_id(provider_merchant_id)
-                                    .with_profile_id(payment_intent.profile_id.clone()),
-                            )
-                            .await,
+                            get_max_hybrid_cascading_retry_count(state, &retry_count_dimensions)
+                                .await,
                         );
 
                         if queried_rung <= max_hybrid_cascading_retry_count {

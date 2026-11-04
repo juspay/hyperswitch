@@ -192,20 +192,19 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
+            let retry_count_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(
+                    recovery_intent_from_payment_intent
+                        .merchant_id
+                        .clone()
+                        .into(),
+                )
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
             let max_hybrid_cascading_retry_count =
                 revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
                     state,
-                    &crate::core::configs::dimension_state::Dimensions::new()
-                        .with_processor_merchant_id(
-                            recovery_intent_from_payment_intent
-                                .merchant_id
-                                .clone()
-                                .into(),
-                        )
-                        .with_provider_merchant_id(
-                            platform.get_provider().get_provider_merchant_id(),
-                        )
-                        .with_profile_id(business_profile.get_id().clone()),
+                    &retry_count_dimensions,
                 )
                 .await;
 
@@ -876,15 +875,14 @@ pub async fn perform_calculate_workflow(
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
+            let retry_count_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(payment_intent.profile_id.clone());
             let max_hybrid_cascading_retry_count =
                 revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
                     state,
-                    &crate::core::configs::dimension_state::Dimensions::new()
-                        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                        .with_provider_merchant_id(
-                            platform.get_provider().get_provider_merchant_id(),
-                        )
-                        .with_profile_id(payment_intent.profile_id.clone()),
+                    &retry_count_dimensions,
                 )
                 .await;
             let intent_retry_count = payment_intent
