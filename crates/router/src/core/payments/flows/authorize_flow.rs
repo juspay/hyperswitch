@@ -167,7 +167,7 @@ impl
             Err(ApiErrorResponse::MerchantConnectorAccountDisabled)
         })?;
 
-        Box::pin(transformers::construct_payment_router_data::<
+        let mut router_data = Box::pin(transformers::construct_payment_router_data::<
             api::Authorize,
             types::PaymentsAuthorizeData,
         >(
@@ -183,7 +183,12 @@ impl
             None,
             connector_callback_urls,
         ))
-        .await
+        .await?;
+        router_data.request.return_url = router_data
+            .request
+            .return_url
+            .or_else(|| business_profile.return_url.clone());
+        Ok(router_data)
     }
 
     async fn get_merchant_recipient_data<'a>(

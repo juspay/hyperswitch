@@ -480,6 +480,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
+        return_url: payment_data
+            .payment_intent
+            .return_url
+            .as_ref()
+            .map(|url| url.get_string_repr().to_owned()),
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
@@ -6357,6 +6362,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let shipping_cost = payment_data.payment_intent.amount_details.shipping_cost;
 
         Ok(Self {
+            return_url: payment_data
+                .payment_intent
+                .return_url
+                .as_ref()
+                .map(|url| url.get_string_repr().to_owned()),
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
             amount,
@@ -6661,6 +6671,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .attach_printable("Failed to parse recipient details")?;
 
         Ok(Self {
+            return_url: payment_data.payment_intent.return_url.clone(),
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data
                 .payment_attempt

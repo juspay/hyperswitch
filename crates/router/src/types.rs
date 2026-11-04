@@ -1394,6 +1394,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             setup_future_usage: data.request.setup_future_usage,
             off_session: data.request.off_session,
             setup_mandate_details: data.request.setup_mandate_details.clone(),
+            return_url: data.request.return_url.clone(),
             router_return_url: data.request.router_return_url.clone(),
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),

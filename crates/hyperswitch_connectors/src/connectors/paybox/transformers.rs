@@ -407,7 +407,13 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         cc_number: req_card.card_number,
                         cc_exp_date: expiration_date,
                         cvv_code: req_card.card_cvc,
-                        url_retour: item.router_data.request.get_complete_authorize_url()?,
+                        url_retour: item
+                            .router_data
+                            .request
+                            .return_url
+                            .clone()
+                            .ok_or_else(utils::missing_field_err("return_url"))?
+                            .into(),
                         url_http_direct: item.router_data.request.get_complete_authorize_url()?,
                         email_porteur: item.router_data.request.get_email()?,
                         first_name: address.get_first_name()?.clone(),

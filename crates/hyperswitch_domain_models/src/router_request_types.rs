@@ -111,6 +111,8 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Merchant's final landing page URL, separate from router callback URLs.
+    pub return_url: Option<String>,
     pub router_return_url: Option<Secret<String>>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<Secret<String>>,
