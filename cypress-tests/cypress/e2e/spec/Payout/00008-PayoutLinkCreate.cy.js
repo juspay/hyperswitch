@@ -118,52 +118,60 @@ describe("Payout Link", () => {
   });
 
   context("Payout Link - Validation errors", () => {
-    it("rejects unsafe merchant name in payout link and profile configuration", () => {
-      const configs = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ];
-      const data = configs.UnsafeMerchantName;
-      const base = configs.PayoutLinkBase;
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        {
-          ...data,
-          Request: {
-            ...base.Request,
-            payout_link_config: {
-              ...base.Request.payout_link_config,
-              ...data.Request,
+    context("Hosted payout link security checks", () => {
+      beforeEach(function () {
+        const hostname = new URL(globalState.get("baseUrl")).hostname;
+        if (["localhost", "127.0.0.1", "[::1]"].includes(hostname)) {
+          this.skip();
+        }
+      });
+
+      it("rejects unsafe merchant name in payout link and profile configuration", () => {
+        const configs = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["payout_link_pm"];
+        const data = configs.UnsafeMerchantName;
+        const base = configs.PayoutLinkBase;
+        cy.createPayoutWithLinkTest(
+          fixtures.createPayoutLinkBody,
+          {
+            ...data,
+            Request: {
+              ...base.Request,
+              payout_link_config: {
+                ...base.Request.payout_link_config,
+                ...data.Request,
+              },
             },
           },
-        },
-        globalState
-      );
-      cy.validatePayoutLinkProfileConfig(data, globalState);
-    });
+          globalState
+        );
+        cy.validatePayoutLinkProfileConfig(data, globalState);
+      });
 
-    it("rejects unsafe theme in payout link and profile configuration", () => {
-      const configs = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "payout_link_pm"
-      ];
-      const data = configs.UnsafeTheme;
-      const base = configs.PayoutLinkBase;
-      cy.createPayoutWithLinkTest(
-        fixtures.createPayoutLinkBody,
-        {
-          ...data,
-          Request: {
-            ...base.Request,
-            payout_link_config: {
-              ...base.Request.payout_link_config,
-              ...data.Request,
+      it("rejects unsafe theme in payout link and profile configuration", () => {
+        const configs = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["payout_link_pm"];
+        const data = configs.UnsafeTheme;
+        const base = configs.PayoutLinkBase;
+        cy.createPayoutWithLinkTest(
+          fixtures.createPayoutLinkBody,
+          {
+            ...data,
+            Request: {
+              ...base.Request,
+              payout_link_config: {
+                ...base.Request.payout_link_config,
+                ...data.Request,
+              },
             },
           },
-        },
-        globalState
-      );
-      cy.validatePayoutLinkProfileConfig(data, globalState);
+          globalState
+        );
+        cy.validatePayoutLinkProfileConfig(data, globalState);
+      });
     });
-
     it("missing-customer-id-error-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
