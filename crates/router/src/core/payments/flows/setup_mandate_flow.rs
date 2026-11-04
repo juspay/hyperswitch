@@ -12,6 +12,7 @@ use hyperswitch_interfaces::{
     api::{self as api_interface, ConnectorSpecifications},
     consts as interface_consts,
 };
+use payment_methods::single_use_token;
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -111,6 +112,10 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::SetupMandate)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::SetupMandate {
             auth_type: self.auth_type,

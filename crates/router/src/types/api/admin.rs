@@ -388,6 +388,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             surcharge_connector_details: item
                 .surcharge_connector_details
                 .map(ForeignInto::foreign_into),
+            revenue_recovery_config: item.revenue_recovery_config.map(ForeignInto::foreign_into),
         })
     }
 }
