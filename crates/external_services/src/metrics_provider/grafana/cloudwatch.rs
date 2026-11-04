@@ -71,9 +71,9 @@ impl MetricsProvider for GrafanaCloudwatch {
                     kind: "cloudwatch",
                     uid: query.datasource_uid,
                 },
-                query_mode: "Metrics",
-                metric_query_type: 0,
-                metric_editor_mode: 0,
+                query_mode: QueryMode::Metrics,
+                metric_query_type: MetricQueryType::Search,
+                metric_editor_mode: MetricEditorMode::Builder,
                 region: query.region,
                 namespace: query.namespace,
                 metric_name: query.metric_name,
@@ -85,8 +85,6 @@ impl MetricsProvider for GrafanaCloudwatch {
                 statistic: query.statistic,
                 period: query.period.to_string(),
                 match_exact: true,
-                id: "",
-                expression: "",
             }],
         })
     }
@@ -149,13 +147,44 @@ impl MetricsProvider for GrafanaCloudwatch {
 }
 
 #[derive(Debug, Serialize)]
+enum QueryMode {
+    Metrics,
+}
+
+#[derive(Debug)]
+enum MetricQueryType {
+    Search,
+}
+
+impl Serialize for MetricQueryType {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Search => serializer.serialize_u8(0),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum MetricEditorMode {
+    Builder,
+}
+
+impl Serialize for MetricEditorMode {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Builder => serializer.serialize_u8(0),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct GrafanaCloudwatchQuery {
     ref_id: &'static str,
     datasource: GrafanaDatasource,
-    query_mode: &'static str,
-    metric_query_type: u8,
-    metric_editor_mode: u8,
+    query_mode: QueryMode,
+    metric_query_type: MetricQueryType,
+    metric_editor_mode: MetricEditorMode,
     region: String,
     namespace: String,
     metric_name: String,
@@ -163,8 +192,6 @@ struct GrafanaCloudwatchQuery {
     statistic: CloudwatchStatistic,
     period: String,
     match_exact: bool,
-    id: &'static str,
-    expression: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -305,7 +332,7 @@ mod tests {
     fn provider(server: &MockServer) -> GrafanaCloudwatch {
         GrafanaCloudwatch::new(
             GrafanaConfig {
-                base_url: server.uri(),
+                base_url: Some(server.uri().parse().unwrap()),
                 api_token: Secret::new(TOKEN.to_owned()),
             },
             Proxy::default(),
@@ -342,9 +369,7 @@ mod tests {
                     "dimensions": {"LoadBalancer": ["app/test/123"]},
                     "statistic": "Sum",
                     "period": "60",
-                    "matchExact": true,
-                    "id": "",
-                    "expression": ""
+                    "matchExact": true
                 }]
             })))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -376,6 +401,17 @@ mod tests {
                 ],
             }]
         );
+    }
+
+    #[tokio::test]
+    async fn missing_grafana_url_is_rejected() {
+        let provider = GrafanaCloudwatch::new(GrafanaConfig::default(), Proxy::default());
+        let request = GrafanaCloudwatch::build_request(query(), range()).unwrap();
+        let error = provider.fetch_metrics(request).await.unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            MetricsError::MissingGrafanaBaseUrl
+        ));
     }
 
     #[tokio::test]

@@ -29,8 +29,11 @@ impl AlertSettings {
     pub(crate) fn validate(&self, chat: &ChatSettings) -> Result<(), ConfigurationError> {
         if !self.rules.is_empty() {
             when(
-                !url::Url::parse(&self.grafana.base_url)
-                    .is_ok_and(|url| matches!(url.scheme(), "http" | "https")),
+                !self
+                    .grafana
+                    .base_url
+                    .as_ref()
+                    .is_some_and(|url| matches!(url.scheme(), "http" | "https")),
                 || {
                     Err(ConfigurationError::ConfigParsingError(
                         "invalid alert configuration: field `grafana.base_url` must be a valid http or https URL".to_owned(),
@@ -119,7 +122,45 @@ mod tests {
         let settings: AlertSettings = serde_json::from_str("{}").unwrap();
         assert!(settings.rules.is_empty());
         assert!(settings.datasources.is_empty());
-        assert!(settings.grafana.base_url.is_empty());
+        assert!(settings.grafana.base_url.is_none());
+        assert!(serde_json::from_value::<AlertSettings>(serde_json::json!({
+            "grafana": {"base_url": "not a URL", "api_token": "test"}
+        }))
+        .is_err());
+    }
+
+    #[test]
+    fn configured_rules_require_an_http_grafana_url() {
+        let rule = serde_json::from_value(serde_json::json!({
+            "id": "cpu", "name": "CPU",
+            "config": {
+                "interval_seconds": 60,
+                "query": {
+                    "datasource": "grafana_cloudwatch", "region": "us-east-1",
+                    "namespace": "AWS/EC2", "metric_name": "CPUUtilization",
+                    "statistic": "Average", "period": 60, "end_offset_seconds": 180
+                },
+                "thresholds": {"severities": {"critical": {
+                    "threshold": 90,
+                    "comparison_operator": "GreaterThanOrEqualToThreshold",
+                    "destination": "smoke", "description": "CPU high"
+                }}}
+            }
+        }))
+        .unwrap();
+        let mut settings = AlertSettings {
+            rules: vec![rule],
+            ..Default::default()
+        };
+        assert!(matches!(
+            settings.validate(&ChatSettings::default()),
+            Err(ConfigurationError::ConfigParsingError(detail)) if detail.contains("grafana.base_url")
+        ));
+        settings.grafana.base_url = Some(url::Url::parse("ftp://grafana.example.com").unwrap());
+        assert!(matches!(
+            settings.validate(&ChatSettings::default()),
+            Err(ConfigurationError::ConfigParsingError(detail)) if detail.contains("grafana.base_url")
+        ));
     }
 
     #[test]
