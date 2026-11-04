@@ -1165,9 +1165,18 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                    const allowedOrigins = [
+                        \"https://centinelapistag.cardinalcommerce.com\",
+                        \"https://centinelapi.cardinalcommerce.com\",
+                        \"https://cas.client.cardinaltrusted.com\",
+                        \"https://client.cardinaltrusted.com\"
+                    ];
+
+                    if (!allowedOrigins.includes(event.origin)) {{
+                        return;
                     }}
+
+                    window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
                   }}, false);
                 </script>
                 ")))
