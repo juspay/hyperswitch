@@ -3807,6 +3807,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model.unwrap_or_default(),
+            self.revenue_recovery_config.is_some(),
+        )?;
+
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_profile_id_of_default_length();
@@ -3965,6 +3970,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            revenue_recovery_trigger_model: self.revenue_recovery_trigger_model.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self
                 .surcharge_connector_details
@@ -4430,6 +4436,24 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     }
 }
 
+/// A profile that follows external triggers has no billing connector account to hold its retry
+/// limits, so they have to be on the profile.
+#[cfg(feature = "v2")]
+fn validate_retry_config_of_trigger_model(
+    trigger_model: common_enums::RevenueRecoveryTriggerModel,
+    has_retry_config: bool,
+) -> RouterResult<()> {
+    utils::when(
+        trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+            && !has_retry_config,
+        || {
+            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "revenue_recovery_config".into(),
+            }))
+        },
+    )
+}
+
 #[cfg(all(feature = "olap", feature = "v2"))]
 #[async_trait::async_trait]
 impl ProfileUpdateBridge for api::ProfileUpdate {
@@ -4442,6 +4466,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
+
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model
+                .unwrap_or(business_profile.revenue_recovery_trigger_model),
+            self.revenue_recovery_config.is_some()
+                || business_profile.revenue_recovery_config.is_some(),
+        )?;
 
         if let Some(url) = self
             .webhook_details
@@ -4591,6 +4622,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
+                revenue_recovery_trigger_model: self.revenue_recovery_trigger_model,
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details

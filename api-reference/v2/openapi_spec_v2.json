@@ -30531,6 +30531,15 @@
             "default": "skip",
             "nullable": true
           },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers",
+            "nullable": true
+          },
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
@@ -30594,7 +30603,8 @@
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "split_txns_enabled"
+          "split_txns_enabled",
+          "revenue_recovery_trigger_model"
         ],
         "properties": {
           "merchant_id": {
@@ -30854,6 +30864,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers"
           },
           "revenue_recovery_retry_algorithm_type": {
             "allOf": [
@@ -33081,6 +33099,14 @@
             "type": "string"
           }
         }
+      },
+      "RevenueRecoveryTriggerModel": {
+        "type": "string",
+        "description": "Decides who triggers the retries of a failed invoice under revenue recovery, and so which\nmodel the recovery API follows.",
+        "enum": [
+          "internal_triggers",
+          "external_triggers"
+        ]
       },
       "RevokeApiKeyResponse": {
         "type": "object",
