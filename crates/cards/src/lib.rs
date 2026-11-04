@@ -79,7 +79,7 @@ impl CardExpirationYear {
 
     pub fn two_digits(&self) -> String {
         let year = self.peek() % 100;
-        year.to_string()
+        format!("{year:02}")
     }
 }
 
@@ -188,5 +188,29 @@ impl Deref for CardExpirationYear {
     type Target = StrongSecret<u16>;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expiration_year_two_digits_zero_pads_single_digit_remainder() {
+        let year = CardExpirationYear::try_from(2105).unwrap();
+        assert_eq!(year.two_digits(), "05");
+    }
+
+    #[test]
+    fn expiration_year_two_digits_handles_century_boundary() {
+        let year = CardExpirationYear::try_from(2100).unwrap();
+        assert_eq!(year.two_digits(), "00");
+    }
+
+    #[test]
+    fn expiration_year_two_digits_keeps_two_digit_remainder() {
+        let year = CardExpirationYear::try_from(2126).unwrap();
+        assert_eq!(year.two_digits(), "26");
     }
 }
