@@ -1,4 +1,8 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  standardBillingAddress,
+} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Card details for non-3DS payment
@@ -284,6 +288,7 @@ export const connectorDetails = {
       },
       Request: {
         amount: 6000,
+        billing: standardBillingAddress,
         currency: "USD",
         customer_acceptance: {
           acceptance_type: "offline",

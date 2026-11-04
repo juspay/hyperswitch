@@ -525,6 +525,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
+        billing: billingAddress,
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
