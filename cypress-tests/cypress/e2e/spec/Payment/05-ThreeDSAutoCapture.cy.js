@@ -15,6 +15,8 @@ describe("Card - ThreeDS payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  utils.useThreeDSConnectorProfile(() => globalState);
+
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
       let shouldContinue = true;
