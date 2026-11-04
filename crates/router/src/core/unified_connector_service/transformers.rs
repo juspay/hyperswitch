@@ -56,8 +56,9 @@ use router_env::tracing;
 use time::Duration;
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, client_authentication_token_data,
-    recipient_account::AccountType as RecipientAccountType,
+    self as payments_grpc,
+    additional_payment_data::PaymentMethodData as AdditionalPaymentMethodData,
+    client_authentication_token_data, recipient_account::AccountType as RecipientAccountType,
     recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
     EventServiceHandleRequest, EventServiceParseRequest,
 };
@@ -564,6 +565,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             email: None,
             phone_number: None,
             phone_country_code: None,
+            state_code_iso: None,
         }
     }
 }
@@ -1109,6 +1111,7 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            enable_account_name_verification: None,
         })
     }
 }
@@ -1386,6 +1389,7 @@ impl
             risk_assessment_data: None,
             split_payments: None,
             split_settlement: None,
+            enable_account_name_verification: None,
         })
     }
 }
@@ -2759,6 +2763,7 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            enable_account_name_verification: None,
         })
     }
 }
@@ -2985,6 +2990,7 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            enable_account_name_verification: None,
         })
     }
 }
@@ -3176,6 +3182,7 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            enable_account_name_verification: None,
         })
     }
 }
@@ -3430,6 +3437,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            enable_account_name_verification: None,
         })
     }
 }
@@ -3671,33 +3679,32 @@ fn merge_processor_token_expiry(
     additional_payment_data: &mut Option<payments_grpc::AdditionalPaymentData>,
     details: api_models::mandates::ProcessorPaymentTokenDetails,
 ) -> Result<(), error_stack::Report<UnifiedConnectorServiceError>> {
-    if details.card_exp_month.is_none() && details.card_exp_year.is_none() {
-        return Ok(());
-    }
-
-    use payments_grpc::additional_payment_data::PaymentMethodData;
-
-    let payment_data = additional_payment_data.get_or_insert_with(Default::default);
-    let card = match payment_data
-        .payment_method_data
-        .get_or_insert_with(|| PaymentMethodData::Card(Default::default()))
-    {
-        PaymentMethodData::Card(card) => card,
-        PaymentMethodData::Wallet(_) => {
-            return Err(UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+    if details.card_exp_month.is_some() || details.card_exp_year.is_some() {
+        let payment_data = additional_payment_data.get_or_insert_with(Default::default);
+        match payment_data
+            .payment_method_data
+            .get_or_insert_with(|| AdditionalPaymentMethodData::Card(Default::default()))
+        {
+            AdditionalPaymentMethodData::Card(card) => {
+                if let Some(month) = details.card_exp_month {
+                    card.card_exp_month = Some(month);
+                }
+                if let Some(year) = details.card_exp_year {
+                    card.card_exp_year = Some(year);
+                }
+                Ok(())
+            }
+            AdditionalPaymentMethodData::Wallet(_) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                 "Processor token card expiry cannot be combined with wallet additional payment data"
                     .to_string(),
-            )
-            .into());
+                )
+                .into(),
+            ),
         }
-    };
-    if details.card_exp_month.is_some() {
-        card.card_exp_month = details.card_exp_month;
+    } else {
+        Ok(())
     }
-    if details.card_exp_year.is_some() {
-        card.card_exp_year = details.card_exp_year;
-    }
-    Ok(())
 }
 
 impl
@@ -5818,6 +5825,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5852,6 +5860,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5895,6 +5904,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                    state_code_iso: None,
                 }
             });
         Ok(Self {
@@ -5942,6 +5952,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
                 .as_ref()
                 .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
             phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            state_code_iso: None,
         })
     }
 }
