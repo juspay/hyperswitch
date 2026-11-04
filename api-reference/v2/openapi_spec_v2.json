@@ -4924,7 +4924,7 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against an invoice. The\n`revenue_recovery_trigger_model` of the profile decides what is needed and what follows.\n\n`internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch\nschedules and makes the retries.\n\n`external_triggers` needs only the `connector`. The transaction is only recorded, with nothing\nscheduled for it. A transaction reported against a closed invoice is refused.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {

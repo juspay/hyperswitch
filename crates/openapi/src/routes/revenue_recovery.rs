@@ -24,14 +24,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Create
 ///
-/// Record a transaction made outside of Hyperswitch against an invoice. The
-/// `revenue_recovery_trigger_model` of the profile decides what is needed and what follows.
-///
-/// `internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch
-/// schedules and makes the retries.
-///
-/// `external_triggers` needs only the `connector`. The transaction is only recorded, with nothing
-/// scheduled for it. A transaction reported against a closed invoice is refused.
+/// Record a transaction made outside of Hyperswitch against an invoice.
 #[utoipa::path(
     post,
     path = "/v2/recovery",
