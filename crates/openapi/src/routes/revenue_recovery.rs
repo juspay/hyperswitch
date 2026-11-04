@@ -126,8 +126,6 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                             "code": "card_declined",
                             "message": "The card was declined.",
                             "reason": "Insufficient funds",
-                            "unified_code": "card_declined",
-                            "unified_message": "The card was declined.",
                             "network_advice_code": "01",
                             "network_decline_code": "51",
                             "network_error_message": "Retry after some time"

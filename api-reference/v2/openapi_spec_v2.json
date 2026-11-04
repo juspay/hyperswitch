@@ -5027,9 +5027,7 @@
                       "network_advice_code": "01",
                       "network_decline_code": "51",
                       "network_error_message": "Retry after some time",
-                      "reason": "Insufficient funds",
-                      "unified_code": "card_declined",
-                      "unified_message": "The card was declined."
+                      "reason": "Insufficient funds"
                     },
                     "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                     "payment_method_data": {
