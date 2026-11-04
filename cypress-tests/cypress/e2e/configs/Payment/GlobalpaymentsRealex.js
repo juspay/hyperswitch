@@ -154,7 +154,7 @@ export const connectorDetails = {
           status: "partially_captured",
           amount: 6000,
           amount_capturable: 0,
-          amount_received: 3000,
+          amount_received: 3000, // the partially captured amount
         },
       },
     },
