@@ -949,7 +949,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let queried_rung = static_ladder_progress.next_rung();
 
                 // Read only where it can win, and only while the merchant's configured length
-                // still has the rung being asked for. Rungs run 1..=max.
+                // still has the rung being asked for. Rungs run 1..max.
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
@@ -970,7 +970,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                                 .await
                         };
 
-                        if i64::from(queried_rung) <= max_hybrid_cascading_retry_count {
+                        if i64::from(queried_rung) < max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
                                 state.store.as_ref(),
                                 state.superposition_service.as_ref(),
