@@ -35930,9 +35930,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Request account name inquiry for supported payments.",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -36559,9 +36559,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Request account name inquiry for supported payments.",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -37405,9 +37405,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Whether account name inquiry was requested for this payment.",
+            "description": "Whether account name verification was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -38487,9 +38487,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Request account name inquiry for supported payments.",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -39359,9 +39359,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Whether account name inquiry was requested for this payment.",
+            "description": "Whether account name verification was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -40144,9 +40144,9 @@
             "example": true,
             "nullable": true
           },
-          "enable_ani_check": {
+          "enable_account_name_verification": {
             "type": "boolean",
-            "description": "Request account name inquiry for supported payments.",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true

@@ -396,9 +396,9 @@ pub struct PaymentsCreateIntentRequest {
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Request account name inquiry for supported payments.
+    /// Request account name verification for supported payments.
     #[schema(default = false, example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
@@ -596,9 +596,9 @@ pub struct PaymentsUpdateIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Request account name inquiry for supported payments.
+    /// Request account name verification for supported payments.
     #[schema(default = false, example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -635,7 +635,7 @@ impl PaymentsUpdateIntentRequest {
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
-            enable_ani_check: None,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -796,9 +796,9 @@ pub struct PaymentsIntentResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Whether account name inquiry was requested for this payment.
+    /// Whether account name verification was requested for this payment.
     #[schema(example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1726,10 +1726,10 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
 
-    /// Request account name inquiry for supported payments.
+    /// Request account name verification for supported payments.
     #[schema(default = false, example = true)]
     #[smithy(value_type = "Option<bool>")]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 
     /// Indicates that the merchant has concluded settlement and supplied final amounts.
     /// When true, Hyperswitch skips tax and surcharge calculations that would change
@@ -8333,10 +8333,10 @@ pub struct PaymentsResponse {
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
-    /// Whether account name inquiry was requested for this payment.
+    /// Whether account name verification was requested for this payment.
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8643,9 +8643,9 @@ pub struct PaymentsConfirmIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Request account name inquiry for supported payments.
+    /// Request account name verification for supported payments.
     #[schema(default = false, example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8896,9 +8896,9 @@ pub struct PaymentsRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Request account name inquiry for supported payments.
+    /// Request account name verification for supported payments.
     #[schema(default = false, example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8938,7 +8938,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
             enable_avs_check: request.enable_avs_check,
-            enable_ani_check: request.enable_ani_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             mit_category: None,
         }
     }
@@ -8962,7 +8962,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
             enable_avs_check: request.enable_avs_check,
-            enable_ani_check: request.enable_ani_check,
+            enable_account_name_verification: request.enable_account_name_verification,
         }
     }
 }
@@ -9276,9 +9276,9 @@ pub struct PaymentsResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
-    /// Whether account name inquiry was requested for this payment.
+    /// Whether account name verification was requested for this payment.
     #[schema(example = true)]
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]

@@ -270,7 +270,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             is_account_funded_transaction: _,
             recipient_details: _,
             enable_avs_check: _,
-            enable_ani_check: _,
+            enable_account_name_verification: _,
             mit_category: _,
             settlement_conclusion_applied: _,
         } = intent;

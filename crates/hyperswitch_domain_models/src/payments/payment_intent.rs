@@ -276,7 +276,7 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
     pub enable_avs_check: Option<bool>,
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -336,7 +336,7 @@ pub struct PaymentIntentUpdateFields {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub enable_avs_check: Option<bool>,
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -578,7 +578,7 @@ pub struct PaymentIntentUpdateInternal {
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
     pub enable_avs_check: Option<bool>,
-    pub enable_ani_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -638,7 +638,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
 
@@ -693,7 +693,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
@@ -746,7 +746,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
@@ -799,7 +799,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
@@ -855,7 +855,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
@@ -901,7 +901,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     external_surcharge_strategy,
                     external_surcharge_applicable,
                     enable_avs_check,
-                    enable_ani_check,
+                    enable_account_name_verification,
                     settlement_conclusion_applied,
                 } = *boxed_intent;
                 Ok(Self {
@@ -956,7 +956,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     external_surcharge_strategy,
                     external_surcharge_applicable,
                     enable_avs_check,
-                    enable_ani_check,
+                    enable_account_name_verification,
                     settlement_conclusion_applied,
                 })
             }
@@ -1012,7 +1012,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
@@ -1062,7 +1062,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
@@ -1115,7 +1115,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
@@ -1164,7 +1164,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             }),
         }
@@ -1458,7 +1458,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_account_funded_transaction: None,
                 recipient_details: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
@@ -1524,7 +1524,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 is_account_funded_transaction: None,
                 recipient_details: None,
                 enable_avs_check: None,
-                enable_ani_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             },
         }
@@ -1647,7 +1647,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     is_account_funded_transaction: value.is_account_funded_transaction,
                     recipient_details: value.recipient_details.map(Encryption::from),
                     enable_avs_check: value.enable_avs_check,
-                    enable_ani_check: value.enable_ani_check,
+                    enable_account_name_verification: value.enable_account_name_verification,
                     settlement_conclusion_applied: value.settlement_conclusion_applied,
                 }))
             }
@@ -1849,7 +1849,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_account_funded_transaction,
             recipient_details,
             enable_avs_check,
-            enable_ani_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         } = value;
         Self {
@@ -1922,7 +1922,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
             enable_avs_check,
-            enable_ani_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         }
     }
@@ -2381,7 +2381,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction,
             recipient_details,
             enable_avs_check,
-            enable_ani_check,
+            enable_account_name_verification,
             mit_category,
             settlement_conclusion_applied,
         } = self;
@@ -2503,7 +2503,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
             enable_avs_check,
-            enable_ani_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         })
     }
@@ -2665,7 +2665,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
                 enable_avs_check: storage_model.enable_avs_check,
-                enable_ani_check: storage_model.enable_ani_check,
+                enable_account_name_verification: storage_model.enable_account_name_verification,
                 mit_category: storage_model.mit_category,
                 settlement_conclusion_applied: storage_model.settlement_conclusion_applied,
             })
@@ -2787,7 +2787,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
-            enable_ani_check: self.enable_ani_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
@@ -2895,7 +2895,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
-            enable_ani_check: self.enable_ani_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
@@ -3033,7 +3033,7 @@ impl behaviour::Conversion for PaymentIntent {
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
                 enable_avs_check: storage_model.enable_avs_check,
-                enable_ani_check: storage_model.enable_ani_check,
+                enable_account_name_verification: storage_model.enable_account_name_verification,
                 settlement_conclusion_applied: storage_model.settlement_conclusion_applied,
             })
         }
@@ -3139,7 +3139,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
-            enable_ani_check: self.enable_ani_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
