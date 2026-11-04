@@ -12,7 +12,8 @@ let shouldContinue = true;
 
 // A payment on profile A must only be refundable by a JWT scoped to profile A.
 // Runs on a throwaway user + merchant so it has a real profile-scoped JWT.
-describe("Cross-profile refunds", () => {
+// Refunds and profile switches change state, so a retry can't repeat a step.
+describe("Cross-profile refunds", { retries: 0 }, () => {
   before("set up a throwaway merchant with two profiles", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -22,6 +23,8 @@ describe("Cross-profile refunds", () => {
       cy.userLogin(globalState);
       cy.terminate2Fa(globalState);
       cy.userInfo(globalState);
+      // Login leaves a JWT cookie; drop it so api-key calls aren't routed to JWT auth.
+      cy.clearAllCookies();
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       cy.createConnectorCallTest(
         "payment_processor",
@@ -58,7 +61,7 @@ describe("Cross-profile refunds", () => {
   });
 
   context("Refund of a profile A payment from profile B", () => {
-    it("create and confirm a payment on profile A", () => {
+    it("create and confirm a profile A payment for the profile B attempt", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSAutoCapture"];
@@ -78,11 +81,30 @@ describe("Cross-profile refunds", () => {
 
     it("profile B JWT cannot refund the profile A payment", () => {
       cy.switchProfileCall(globalState.get("otherProfileId"), globalState);
+      cy.clearAllCookies();
       cy.jwtRefundCallTest(
         fixtures.refundBody,
         connectorDetails.cross_profile_refund.RefundFromOtherProfile,
         globalState
       );
+    });
+
+    it("create and confirm another profile A payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+      }
     });
 
     it("merchant api-key refunds the payment regardless of profile", () => {
@@ -108,6 +130,7 @@ describe("Cross-profile refunds", () => {
 
     it("profile A JWT retrieves its own refund", () => {
       cy.switchProfileCall(globalState.get("profileId"), globalState);
+      cy.clearAllCookies();
       cy.jwtRefundCallTest(
         fixtures.refundBody,
         connectorDetails.cross_profile_refund.RetrieveRefundFromOwnProfile,

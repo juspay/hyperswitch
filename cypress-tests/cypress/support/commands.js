@@ -8409,6 +8409,9 @@ Cypress.Commands.add("switchProfileCall", (profileId, globalState) => {
         expect(response.body, "token").to.have.property("token").and.to.not.be
           .empty;
         globalState.set("userInfoToken", response.body.token);
+      } else if (response.body.error?.code === "UR_33") {
+        // Token is already scoped to this profile.
+        cy.task("cli_log", `Already on profile ${profileId}`);
       } else {
         throw new Error(
           `Switch profile call failed with status: "${response.status}" and message: "${response.body.error?.message}"`
