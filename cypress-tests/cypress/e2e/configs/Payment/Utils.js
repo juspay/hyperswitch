@@ -620,6 +620,7 @@ export const CONNECTOR_LISTS = {
     UCS_CONNECTORS: [
       "authorizedotnet",
       "fiservcommercehub",
+      "fiuu",
       "givepayments",
       "ilixium",
       "stripe",

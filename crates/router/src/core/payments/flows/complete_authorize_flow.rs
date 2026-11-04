@@ -462,32 +462,13 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             let post_authenticate_request_data =
                 types::PaymentsPostAuthenticateData::try_from(router_data.request.to_owned())?;
 
-            let post_authenticate_response_data: Result<
-                types::PaymentsResponseData,
-                types::ErrorResponse,
-            > = Err(types::ErrorResponse::default());
-            let post_authenticate_router_data =
-                helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
-                    router_data.clone(),
-                    post_authenticate_request_data,
-                    post_authenticate_response_data,
-                );
-
-            let post_authenticate_router_data = Box::pin(payments_gateway::handle_gateway_call::<
-                _,
-                _,
-                _,
-                PaymentFlowData,
-                _,
-            >(
+            let post_authenticate_router_data = super::call_post_authenticate(
                 state,
-                post_authenticate_router_data,
+                router_data,
+                post_authenticate_request_data,
                 connector,
                 gateway_context,
-                payments::CallConnectorAction::Trigger,
-                None,
-                None,
-            ))
+            )
             .await?;
             // Convert back to CompleteAuthorize router data while preserving preprocessing response data
             let post_authenticate_response = post_authenticate_router_data.response.clone();
