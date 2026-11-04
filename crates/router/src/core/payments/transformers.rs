@@ -535,7 +535,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         recipient_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
-        enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+        enable_account_name_verification: payment_data
+            .payment_intent
+            .enable_account_name_verification,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1901,7 +1903,9 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         recipient_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
-        enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+        enable_account_name_verification: payment_data
+            .payment_intent
+            .enable_account_name_verification,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5472,7 +5476,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: None,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
-            enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -5782,7 +5788,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
-            enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -7493,7 +7501,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
-            enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -7741,7 +7751,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             feature_metadata,
-            enable_account_name_verification: payment_data.payment_intent.enable_account_name_verification,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }

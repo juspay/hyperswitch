@@ -315,7 +315,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .clone()
                 .or(payment_intent.recipient_details.clone()),
             enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
-            enable_account_name_verification: enable_account_name_verification.or(payment_intent.enable_account_name_verification),
+            enable_account_name_verification: enable_account_name_verification
+                .or(payment_intent.enable_account_name_verification),
             ..payment_intent
         };
 
