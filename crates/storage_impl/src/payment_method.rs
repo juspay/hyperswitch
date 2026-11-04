@@ -115,6 +115,28 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.router_store
+            .clear_locker_fingerprint_ids_by_payment_method_ids(payment_method_ids)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn clear_locker_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        self.router_store
+            .clear_locker_ids_by_payment_method_ids(payment_method_ids)
+            .await
+    }
+
     // not supported in kv
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
@@ -603,6 +625,36 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        PaymentMethod::clear_locker_fingerprint_ids_by_payment_method_ids(&conn, payment_method_ids)
+            .await
+            .map_err(|error| {
+                let new_error = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_error)
+            })
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn clear_locker_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        PaymentMethod::clear_locker_ids_by_payment_method_ids(&conn, payment_method_ids)
+            .await
+            .map_err(|error| {
+                let new_error = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_error)
+            })
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -1012,6 +1064,53 @@ impl PaymentMethodInterface for MockDb {
             "cannot find payment method".to_string(),
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn clear_locker_fingerprint_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let ids: HashSet<_> = payment_method_ids.iter().collect();
+        let mut payment_methods = self.payment_methods.lock().await;
+        let mut updated_ids = Vec::new();
+
+        for payment_method in payment_methods.iter_mut() {
+            if ids.contains(&payment_method.payment_method_id)
+                && payment_method.locker_id.is_none()
+                && matches!(
+                    payment_method.payment_method_type,
+                    Some(
+                        storage_enums::PaymentMethodType::ApplePay
+                            | storage_enums::PaymentMethodType::GooglePay
+                    )
+                )
+            {
+                payment_method.locker_fingerprint_id = None;
+                updated_ids.push(payment_method.payment_method_id.clone());
+            }
+        }
+
+        Ok(updated_ids)
+    }
+
+    #[cfg(feature = "v1")]
+    async fn clear_locker_ids_by_payment_method_ids(
+        &self,
+        payment_method_ids: &[String],
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
+        let ids: HashSet<_> = payment_method_ids.iter().collect();
+        let mut payment_methods = self.payment_methods.lock().await;
+        let mut updated_ids = Vec::new();
+
+        for payment_method in payment_methods.iter_mut() {
+            if ids.contains(&payment_method.payment_method_id) {
+                payment_method.locker_id = None;
+                updated_ids.push(payment_method.payment_method_id.clone());
+            }
+        }
+
+        Ok(updated_ids)
     }
 
     #[cfg(feature = "v1")]
