@@ -15,6 +15,7 @@
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:platform": "cypress run --headless --spec 'cypress/e2e/spec/Platform/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
+    "cypress:security": "cypress run --headless --spec 'cypress/e2e/spec/Security/**/*'",
     "cypress:specs": "node scripts/run-cypress.js",
     "report:generate": "node scripts/report-generator.js",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",

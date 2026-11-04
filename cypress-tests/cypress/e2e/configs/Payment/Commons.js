@@ -6045,3 +6045,22 @@ connectorDetails.offer_engine.ConfirmWithOfferAppliedSavedCard =
 connectorDetails.offer_engine.AppliedOfferOnRetrieveSavedCard =
   connectorDetails.offer_engine.AppliedOfferOnRetrieve;
 connectorDetails.offer_engine.SavedCardDetails = offerEngineSavedCardDetails;
+
+// Refund calls made with a JWT scoped to a different profile than the payment's.
+const profileIdAuthFailedError = {
+  type: "invalid_request",
+  message: "Profile id authentication failed. Please use the correct JWT token",
+  code: "IR_16",
+};
+connectorDetails.cross_profile_refund = {
+  RefundFromOtherProfile: {
+    Request: { amount: 6000 },
+    Response: { status: 400, body: { error: profileIdAuthFailedError } },
+  },
+  RetrieveRefundFromOtherProfile: {
+    Response: { status: 400, body: { error: profileIdAuthFailedError } },
+  },
+  RetrieveRefundFromOwnProfile: {
+    Response: { status: 200, body: {} },
+  },
+};

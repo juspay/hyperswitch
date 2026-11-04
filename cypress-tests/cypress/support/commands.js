@@ -8387,6 +8387,81 @@ Cypress.Commands.add("userInfo", (globalState) => {
   });
 });
 
+// Re-issues userInfoToken scoped to the given profile of the user's merchant.
+Cypress.Commands.add("switchProfileCall", (profileId, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const userInfoToken = globalState.get("userInfoToken");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/user/switch/profile`,
+    headers: {
+      Authorization: `Bearer ${userInfoToken}`,
+      "Content-Type": "application/json",
+    },
+    body: { profile_id: profileId },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body, "token").to.have.property("token").and.to.not.be
+          .empty;
+        globalState.set("userInfoToken", response.body.token);
+      } else {
+        throw new Error(
+          `Switch profile call failed with status: "${response.status}" and message: "${response.body.error?.message}"`
+        );
+      }
+    });
+  });
+});
+
+// Refund create (no refundId) or retrieve (with refundId) using the
+// profile-scoped JWT in userInfoToken instead of the merchant api-key.
+Cypress.Commands.add(
+  "jwtRefundCallTest",
+  (requestBody, data, globalState, refundId) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const body = { ...requestBody, ...reqData };
+    body.payment_id = globalState.get("paymentID");
+
+    cy.request({
+      method: refundId ? "GET" : "POST",
+      url: refundId
+        ? `${globalState.get("baseUrl")}/refunds/${refundId}`
+        : `${globalState.get("baseUrl")}/refunds`,
+      headers: {
+        Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+        "Content-Type": "application/json",
+      },
+      body: refundId ? undefined : body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status").to.equal(resData.status);
+        if (response.status === 200) {
+          if (!refundId) {
+            globalState.set("refundId", response.body.refund_id);
+          }
+          for (const key in resData.body) {
+            expect(response.body[key], key).to.equal(resData.body[key]);
+          }
+        } else {
+          for (const key in resData.body.error) {
+            expect(response.body.error[key], `error.${key}`).to.equal(
+              resData.body.error[key]
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
 // Specific to routing tests
 Cypress.Commands.add("ListMcaByMid", (globalState) => {
   const merchantId = globalState.get("merchantId");
