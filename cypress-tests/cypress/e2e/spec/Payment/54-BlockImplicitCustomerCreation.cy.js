@@ -25,7 +25,17 @@ describe("Block Implicit Customer Creation", () => {
           "Superposition credentials not set — skipping BlockImplicitCustomerCreation spec"
         );
         specShouldSkip = true;
+        return;
       }
+      cy.checkSuperpositionAvailability(globalState).then(() => {
+        if (!globalState.get("superpositionAvailable")) {
+          cy.task(
+            "cli_log",
+            "Superposition not reachable — skipping BlockImplicitCustomerCreation spec"
+          );
+          specShouldSkip = true;
+        }
+      });
     });
   });
 
@@ -36,6 +46,10 @@ describe("Block Implicit Customer Creation", () => {
   });
 
   after("cleanup superposition config + flush global state", () => {
+    if (specShouldSkip) {
+      cy.task("setGlobalState", globalState?.data);
+      return;
+    }
     cy.setSuperpositionConfig(
       globalState,
       "payments.block_implicit_customer_creation",
