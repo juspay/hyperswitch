@@ -4970,7 +4970,7 @@ label = "Rapyd country of incorporation"
 placeholder = "Select the country assigned by Rapyd during onboarding"
 required = true
 type = "Select"
-options = ["AD", "AM", "AU", "AT", "BY", "BE", "BA", "BR", "BG", "CO", "HR", "CY", "CZ", "DK", "EE", "FO", "FI", "FR", "GE", "DE", "GI", "GR", "GL", "VA", "HU", "IS", "IN", "IE", "IM", "IL", "IT", "JP", "LV", "LI", "LT", "LU", "MO", "MK", "MY", "MT", "MX", "MD", "MC", "ME", "NL", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SG", "SK", "SI", "ES", "SE", "CH", "TH", "TR", "UA", "GB", "US", "XK"]
+options = ["AD", "AM", "AU", "AT", "BY", "BE", "BA", "BR", "BG", "CO", "HR", "CY", "CZ", "DK", "EE", "FO", "FI", "FR", "GE", "DE", "GI", "GR", "GL", "VA", "HU", "IS", "IN", "IE", "IM", "IL", "IT", "JP", "LV", "LI", "LT", "LU", "MO", "MK", "MY", "MT", "MX", "MD", "MC", "ME", "NL", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SG", "SK", "SI", "ES", "SE", "CH", "TH", "TR", "UA", "GB", "US"]
 
 [[rapyd.metadata.google_pay]]
 name = "merchant_name"
