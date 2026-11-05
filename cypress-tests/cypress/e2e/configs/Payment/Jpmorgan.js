@@ -189,9 +189,10 @@ export const connectorDetails = {
         value_added_tax_amount: 95,
         value_added_tax_percent: 5.0,
         vat_invoice_reference_number: "VAT-INV-001",
+        // NOTE: name/email/phone are intentionally omitted from customer —
+        // the shared fixtures already send top-level email/name, and sending
+        // both is rejected (IR_16: "email and customer.email is ambiguous").
         customer: {
-          name: "John Doe",
-          email: "john.doe@example.com",
           tax_registration_id: "GB123456789",
         },
         billing: {
