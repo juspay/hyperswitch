@@ -28,12 +28,9 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
-use diesel_models::{
-    ephemeral_key,
-    payment_attempt::{
-        ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
-        NetworkDetails as DieselNetworkDetails,
-    },
+use diesel_models::payment_attempt::{
+    ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+    NetworkDetails as DieselNetworkDetails,
 };
 #[cfg(all(feature = "v1", feature = "olap"))]
 use diesel_models::{
@@ -5160,18 +5157,6 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
             authorization_count: pi.authorization_count,
             modified_at: pa.as_ref().map(|p| p.modified_at),
             is_split_payment,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
-impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
-    fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
-        Self {
-            customer_id: from.customer_id,
-            created_at: from.created_at,
-            expires: from.expires,
-            secret: from.secret,
         }
     }
 }
