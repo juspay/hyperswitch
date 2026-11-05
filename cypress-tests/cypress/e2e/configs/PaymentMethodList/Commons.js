@@ -58,6 +58,31 @@ export const cardCreditEnabledInUs = [
   },
 ];
 
+export const openBankingEnabledInGb = [
+  {
+    payment_method: "bank_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["GBP"],
+        },
+        accepted_countries: {
+          type: "enable_only",
+          list: ["GB"],
+        },
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+];
+
 export const cardCreditEnabledInEur = [
   {
     payment_method: "card",

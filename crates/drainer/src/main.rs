@@ -5,8 +5,7 @@ use router_env::tracing::Instrument;
 
 #[tokio::main]
 async fn main() -> DrainerResult<()> {
-    // Pin the rustls crypto backend
-    #[cfg(feature = "gcp_kms")]
+    // Pin the rustls crypto backend;
     #[allow(clippy::expect_used)]
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()

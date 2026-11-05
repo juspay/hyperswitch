@@ -51,6 +51,7 @@ use crate::{
     },
     utils::ValueExt,
 };
+pub mod access_token;
 pub mod flows;
 #[cfg(feature = "v1")]
 pub mod gateway;
@@ -187,20 +188,24 @@ where
     // for which `decide_execution_path` returns UCS unconditionally and the kill
     // switch is skipped — there is no direct integration to divert to.
     // Everything else resolves to Direct.
-    let execution_path = if is_pre_risk_evaluation {
-        crate::core::unified_connector_service::should_call_unified_connector_service(
-            state,
-            platform.get_processor(),
-            &router_data,
-            None,
-            payments::CallConnectorAction::Trigger,
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await?
-        .0
+    let (execution_path, rollout_result) = if is_pre_risk_evaluation {
+        let (execution_path, _updated_state, rollout_result) =
+            crate::core::unified_connector_service::should_call_unified_connector_service(
+                state,
+                platform.get_processor(),
+                &router_data,
+                None,
+                payments::CallConnectorAction::Trigger,
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
+        (execution_path, rollout_result)
     } else {
-        common_enums::ExecutionPath::Direct
+        (
+            common_enums::ExecutionPath::Direct,
+            payments::helpers::RolloutExecutionResult::default(),
+        )
     };
 
     let gateway_context = payments::gateway::context::RouterGatewayContext {
@@ -213,6 +218,10 @@ where
         ),
         merchant_connector_account,
         execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
         execution_mode: match execution_path {
             common_enums::ExecutionPath::UnifiedConnectorService => {
                 common_enums::ExecutionMode::Primary
@@ -250,7 +259,16 @@ pub async fn get_frm_merchant_connector_account_and_routing_algorithm(
         FrmRoutingAlgorithm,
     )>,
 > {
-    match &platform.get_processor().get_account().frm_routing_algorithm {
+    match payout_data
+        .business_profile
+        .frm_routing_algorithm
+        .as_ref()
+        .or(platform
+            .get_processor()
+            .get_account()
+            .frm_routing_algorithm
+            .as_ref())
+    {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm: FrmRoutingAlgorithm = frm_routing_algorithm_value
                 .to_owned()
@@ -282,7 +300,7 @@ pub async fn get_payout_frm_applicability(
     frm_merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
     frm_routing_algorithm: FrmRoutingAlgorithm,
 ) -> RouterResult<Option<PayoutFrmApplicability>> {
-    if !frm_merchant_connector_account.is_disabled() {
+    let applicability = if !frm_merchant_connector_account.is_disabled() {
         let frm_configs_value = frm_merchant_connector_account.get_frm_configs().ok_or(
             errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "frm_configs".into(),
@@ -325,17 +343,29 @@ pub async fn get_payout_frm_applicability(
         }
 
         if connectors.is_empty() {
-            Ok(None)
+            None
         } else {
-            Ok(Some(PayoutFrmApplicability {
+            Some(PayoutFrmApplicability {
                 connectors,
                 frm_merchant_connector_account: Box::new(frm_merchant_connector_account),
                 frm_routing_algorithm,
-            }))
+            })
         }
     } else {
-        Ok(None)
+        None
+    };
+
+    if let Some(ref applicability) = applicability {
+        logger::info!(
+            "Payout FRM applicable connectors: {:?}, FRM connector: {}",
+            applicability.connectors,
+            applicability.frm_routing_algorithm.data
+        );
+    } else {
+        logger::info!("FRM is not applicable for this payout");
     }
+
+    Ok(applicability)
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
@@ -418,6 +448,7 @@ pub async fn pre_payouts_frm_core(
 pub async fn should_call_frm<F, D>(
     _platform: &domain::Platform,
     _payment_data: &D,
+    _business_profile: &domain::Profile,
     _state: &SessionState,
 ) -> RouterResult<(
     bool,
@@ -473,6 +504,7 @@ pub async fn pre_payouts_frm_core(
 pub async fn should_call_frm<F, D>(
     platform: &domain::Platform,
     payment_data: &D,
+    business_profile: &domain::Profile,
     state: &SessionState,
 ) -> RouterResult<(
     bool,
@@ -487,11 +519,11 @@ where
     use common_utils::ext_traits::OptionExt;
 
     let db = &*state.store;
-    match platform
+    match business_profile.frm_routing_algorithm.clone().or(platform
         .get_processor()
         .get_account()
         .frm_routing_algorithm
-        .clone()
+        .clone())
     {
         Some(frm_routing_algorithm_value) => {
             let frm_routing_algorithm_struct: FrmRoutingAlgorithm = frm_routing_algorithm_value
@@ -840,7 +872,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -883,6 +915,7 @@ async fn decide_and_run_pre_frm<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     platform: &domain::Platform,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
     state: &SessionState,
     frm_info: &mut Option<FrmInfo<F, D>>,
     should_continue_transaction: &mut bool,
@@ -898,7 +931,7 @@ where
         + Clone,
 {
     let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(platform, payment_data, state).await?;
+        should_call_frm(platform, payment_data, business_profile, state).await?;
     if let Some((frm_routing_algorithm_val, profile_id)) =
         frm_routing_algorithm.zip(frm_connector_label)
     {
@@ -971,7 +1004,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -1004,7 +1037,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -1026,6 +1059,7 @@ pub async fn call_frm_before_connector_call<F, Req, D>(
     operation: &BoxedOperation<'_, F, Req, D>,
     platform: &domain::Platform,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
     state: &SessionState,
     frm_info: &mut Option<FrmInfo<F, D>>,
     should_continue_transaction: &mut bool,
@@ -1052,6 +1086,7 @@ where
         operation,
         platform,
         payment_data,
+        business_profile,
         state,
         frm_info,
         should_continue_transaction,
@@ -1149,9 +1184,9 @@ pub async fn frm_fulfillment_core(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &req.payment_id.clone(),
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1164,9 +1199,9 @@ pub async fn frm_fulfillment_core(
             let payment_attempt = db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &payment_intent.payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
@@ -1309,9 +1344,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_intent = match db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
     {
@@ -1324,9 +1359,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_attempt = match db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await

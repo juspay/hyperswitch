@@ -46,12 +46,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsCancelRequest, PaymentData<F>>>
     {
         let db = &*state.store;
 
-        let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let processor_merchant_id = platform.get_processor().get_processor_merchant_id();
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -59,7 +60,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let payment_intent = db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 platform.get_processor().get_key_store(),
                 storage_scheme,
             )
@@ -82,7 +83,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                processor_merchant_id,
+                &processor_merchant_id,
                 attempt_id.clone().as_str(),
                 storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -95,7 +96,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_intent.shipping_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -105,7 +106,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_intent.billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -115,7 +116,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             payment_attempt.payment_method_billing_address_id.clone(),
             platform.get_processor().get_key_store(),
             &payment_intent.payment_id,
-            processor_merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_account().storage_scheme,
         )
         .await?;
@@ -160,7 +161,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             })?;
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
+            previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
             payment_attempt,
             currency,
@@ -246,13 +249,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
     where
         F: 'b + Send,
     {
-        let storage_scheme = processor.get_account().storage_scheme;
+        let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
 
         let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
             merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
         };
         let (error_code, error_message) =
             payment_data
@@ -276,7 +279,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
             status: enums::AttemptStatus::Failure,
             error_code,
             error_message,
-            updated_by: storage_scheme.to_string(),
+            updated_by: storage_scheme.inner().to_string(),
         };
 
         payment_data.payment_intent = state

@@ -216,6 +216,10 @@ pub enum Flow {
     PaymentsStart,
     /// Payments list flow.
     PaymentsList,
+    /// Aggregated payments list flow for a platform across its connected merchants.
+    PlatformPaymentsList,
+    /// Aggregated payments filter-values flow for a platform across its connected merchants.
+    PlatformPaymentsFilters,
     /// Payments filters flow
     PaymentsFilters,
     /// Payments aggregates flow
@@ -275,6 +279,10 @@ pub enum Flow {
     RefundsReverse,
     /// Refunds list flow.
     RefundsList,
+    /// Aggregated refunds list flow for a platform across its connected merchants.
+    PlatformRefundsList,
+    /// Aggregated refunds filter-values flow for a platform across its connected merchants.
+    PlatformRefundsFilters,
     /// Refunds filters flow
     RefundsFilters,
     /// Refunds aggregates flow
@@ -385,6 +393,10 @@ pub enum Flow {
     DisputesList,
     /// Dispute Filters flow
     DisputesFilters,
+    /// Aggregated disputes list flow for a platform across its connected merchants.
+    PlatformDisputesList,
+    /// Aggregated disputes filter-values flow for a platform across its connected merchants.
+    PlatformDisputesFilters,
     /// Cards Info flow
     CardsInfo,
     /// Create File flow
@@ -661,8 +673,11 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
-    /// Manually update payment status from dashboard (Review → Succeeded/Failed)
+    /// Manually update payment status from dashboard (Review → Succeeded/Failed, or Conflicted →
+    /// one of the statuses eligible for its capture method/amounts)
     PaymentsManualStatusUpdate,
+    /// List the statuses a conflicted payment is currently eligible for a manual status update to
+    PaymentsManualStatusUpdateEligibleStatuses,
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
@@ -677,8 +692,6 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
-    /// Routing evaluate rule flow
-    RoutingEvaluateRule,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover
@@ -729,6 +742,8 @@ pub enum Flow {
     RevenueRecoveryRetrieve,
     /// Process Tracker Revenue Recovery Workflow Resume
     RevenueRecoveryResume,
+    /// Revenue Recovery invoice cancel
+    RevenueRecoveryCancel,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
@@ -761,10 +776,6 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
-    /// Decision Engine Decide Gateway Call
-    DecisionEngineDecideGatewayCall,
-    /// Decision Engine Gateway Feedback Call
-    DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
@@ -817,6 +828,8 @@ pub enum Flow {
     ListMembersForEntity,
     /// Authorize external token
     AuthorizeUserToken,
+    /// Generic pay inbound charge flow, for any provider
+    TelephoneOrderCharge,
 }
 
 /// Trait for providing generic behaviour to flow metric

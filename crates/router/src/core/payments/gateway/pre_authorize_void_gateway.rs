@@ -67,11 +67,11 @@ where
         RouterData<Self, types::PaymentsPreAuthorizeCancelData, types::PaymentsResponseData>,
         ConnectorError,
     > {
+        let rollout_settings = context.rollout_settings();
         let merchant_connector_account = context.merchant_connector_account;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
-        let unified_connector_service_execution_mode = context.execution_mode;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -109,7 +109,9 @@ where
             .map(ucs_types::UcsResourceId::PaymentAttempt);
 
         let header_payload = state
-            .get_grpc_headers_ucs(unified_connector_service_execution_mode)
+            .get_grpc_headers_ucs(rollout_settings.execution_mode)
+            .payment_method(Some(router_data.payment_method))
+            .payment_method_type(router_data.payment_method_type)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
@@ -120,7 +122,7 @@ where
             state,
             payment_void_request,
             header_payload,
-            unified_connector_service_execution_mode,
+            rollout_settings,
             |mut router_data, payment_void_request, grpc_headers| async move {
                 let response = match client
                     .payment_void(payment_void_request, connector_auth_metadata, grpc_headers)

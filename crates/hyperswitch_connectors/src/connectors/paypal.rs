@@ -21,20 +21,19 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{
             Authorize, Capture, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostSessionTokens, PreProcessing, SdkSessionUpdate, Session,
-            SetupMandate, Void,
+            PaymentMethodToken, PostSessionTokens, SdkSessionUpdate, Session, SetupMandate, Void,
         },
         refunds::{Execute, RSync},
-        unified_authentication_service::PostAuthenticate,
+        unified_authentication_service::{PostAuthenticate, PreAuthenticate},
         CompleteAuthorize, VerifyWebhookSource,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSyncData, RefundsData, SdkPaymentsSessionUpdateData,
-        SetupMandateRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, ResponseId,
+        SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -44,7 +43,7 @@ use hyperswitch_domain_models::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsExtendAuthorizationRouterData,
         PaymentsIncrementalAuthorizationRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsPreProcessingRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsPreAuthenticateRouterData,
         PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
         RefundSyncRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
         SetupMandateRouterData, VerifyWebhookSourceRouterData,
@@ -70,7 +69,7 @@ use hyperswitch_interfaces::{
     types::{
         ExtendedAuthorizationType, IncrementalAuthorizationType, PaymentsAuthorizeType,
         PaymentsCaptureType, PaymentsCompleteAuthorizeType, PaymentsPostAuthenticateType,
-        PaymentsPostSessionTokensType, PaymentsPreProcessingType, PaymentsSessionType,
+        PaymentsPostSessionTokensType, PaymentsPreAuthenticateType, PaymentsSessionType,
         PaymentsSyncType, PaymentsVoidType, RefreshTokenType, RefundExecuteType, RefundSyncType,
         Response, SdkSessionUpdateType, SetupMandateType, VerifyWebhookSourceType,
     },
@@ -136,6 +135,20 @@ impl api::PayoutFulfill for Paypal {}
 impl api::PayoutSync for Paypal {}
 
 impl Paypal {
+    fn get_client_metadata_id_header(
+        metadata: Option<&api_models::payments::ConnectorMetadata>,
+    ) -> Option<(String, Maskable<String>)> {
+        metadata
+            .and_then(|metadata| metadata.paypal.as_ref())
+            .and_then(|paypal| paypal.paypal_client_metadata_id.as_ref())
+            .map(|metadata_id| {
+                (
+                    auth_headers::PAYPAL_CLIENT_METADATA_ID.to_string(),
+                    metadata_id.peek().clone().into_masked(),
+                )
+            })
+    }
+
     pub fn get_order_error_response(
         &self,
         res: Response,
@@ -1199,7 +1212,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        if let Some(header) =
+            Self::get_client_metadata_id_header(req.request.connector_intent_metadata.as_ref())
+        {
+            headers.push(header);
+        }
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -1544,47 +1563,59 @@ impl
     }
 }
 
-impl api::PaymentsPreProcessing for Paypal {}
+impl api::PaymentsPreAuthenticate for Paypal {}
 
-impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
+impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
     for Paypal
 {
     fn get_headers(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
 
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
     fn get_url(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        _req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let order_id = req
-            .request
-            .connector_transaction_id
-            .to_owned()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
         Ok(format!(
-            "{}v2/checkout/orders/{}?fields=payment_source",
-            self.base_url(connectors),
-            order_id,
+            "{}v1/risk/transaction-contexts",
+            self.base_url(connectors)
         ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsPreAuthenticateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = paypal::PaypalSetTransactionContextRequest::build(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
     fn build_request(
         &self,
-        req: &PaymentsPreProcessingRouterData,
+        req: &PaymentsPreAuthenticateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
-                .method(Method::Get)
-                .url(&PaymentsPreProcessingType::get_url(self, req, connectors)?)
+                .method(Method::Post)
+                .url(&PaymentsPreAuthenticateType::get_url(
+                    self, req, connectors,
+                )?)
                 .attach_default_headers()
-                .headers(PaymentsPreProcessingType::get_headers(
+                .headers(PaymentsPreAuthenticateType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPreAuthenticateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -1593,30 +1624,39 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
 
     fn handle_response(
         &self,
-        data: &PaymentsPreProcessingRouterData,
+        data: &PaymentsPreAuthenticateRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsPreProcessingRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalPreProcessingResponse = res
-            .response
-            .parse_struct("paypal PaypalPreProcessingResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        let (status, response) = match PaymentsResponseData::try_from(response) {
-            Ok(data) => (enums::AttemptStatus::AuthenticationSuccessful, Ok(data)),
-            Err(error) => {
-                let mut error: ErrorResponse = error;
-                error.status_code = res.status_code;
-                (enums::AttemptStatus::Failure, Err(error))
-            }
+    ) -> CustomResult<PaymentsPreAuthenticateRouterData, errors::ConnectorError> {
+        // The Set Transaction Context API can respond with an empty body or a body echoing back
+        // the transaction context. Either way, the response contents are informational only -
+        // the fraud risk assessment is performed by PayPal during payment authorization.
+        let connector_response_reference_id = if res.response.is_empty() {
+            None
+        } else {
+            let response: paypal::PaypalSetTransactionContextResponse = res
+                .response
+                .parse_struct("paypal PaypalSetTransactionContextResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            event_builder.map(|i| i.set_response_body(&response));
+            router_env::logger::info!(connector_response=?response);
+            response.tracking_id
         };
 
-        Ok(PaymentsPreProcessingRouterData {
-            status,
-            response,
+        Ok(PaymentsPreAuthenticateRouterData {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+                payment_account_reference: None,
+            }),
             ..data.clone()
         })
     }
@@ -1726,7 +1766,13 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut headers = self.build_headers(req, connectors)?;
+        if let Some(header) =
+            Self::get_client_metadata_id_header(req.request.connector_intent_metadata.as_ref())
+        {
+            headers.push(header);
+        }
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -2544,6 +2590,7 @@ impl IncomingWebhook for Paypal {
                     challenge_required_by: None,
                     created_at: payload.create_time,
                     updated_at: payload.update_time,
+                    additional_details: None,
                 })
             }
         }
@@ -2814,6 +2861,34 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
+    /// The Set Transaction Context (STC) call to PayPal's Risk-as-a-Service API is required
+    /// as a pre-authentication step for paypal wallet payments (redirect, sdk and saved-token
+    /// payments by a returning customer, where the payment method data is `MandatePayment`)
+    /// when the merchant has opted in via `enable_stc` in the merchant connector account metadata.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                connector_meta_data,
+                auth_type: _,
+            } => {
+                // Match on payment method type so that both fresh paypal wallet
+                // (PaypalRedirect / PaypalSdk) payments and returning-customer payments with a
+                // saved paypal token (PaymentMethodData::MandatePayment) are covered.
+                let is_paypal_pm = matches!(
+                    request_data.payment_method_type,
+                    Some(enums::PaymentMethodType::Paypal)
+                );
+                is_paypal_pm && paypal::is_stc_enabled(&connector_meta_data)
+            }
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
     fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,

@@ -1,3 +1,17 @@
 ---
 openapi: post /payouts/create
 ---
+
+Create a payout with `payout_method_data` (including raw card details) or a saved `payout_method_id`.
+
+## External-vault card payouts
+
+Use a card saved during a payment. Provide a unique `payout_id`, the saved `payout_method_id`, and the card owner's `customer_id` or `customer.id`.
+
+Set `confirm=true`, `auto_fulfill=true`, `payout_type=card`, and `recurring=false`. These values apply when omitted for external-vault payouts. Send the request from your server; no separate confirmation call is required. For this flow, use the saved `payout_method_id` instead of inline `payout_method_data`. Do not send vault tokens or credentials.
+
+## Retry handling
+
+After a timeout, retrieve the payout using its `payout_id` before submitting another request. Do not create a new payout ID to retry the same payout.
+
+Creating a payout with an existing `payout_id` returns a duplicate-payout error. Use `merchant_order_reference_id` for reconciliation, not retry protection.

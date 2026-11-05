@@ -12,7 +12,7 @@
 //!
 //! Own test binary: `set_global_runtime_hook` is a one-shot `OnceLock`, so the
 //! recording install here cannot share a process with the replay install in
-//! `deja_jwt_novel_token_fail_stops.rs`.
+//! `deja_jwt_novel_token_drops_only_the_clock.rs`.
 #![cfg(feature = "deja")]
 
 use router::services::authentication::{decode_jwt_verified, JwtDecodeOutcome};

@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
     payments as domain_payments,
     router_request_types::{CurrentFlowInfo, PaymentsCaptureData},
 };
+use payment_methods::single_use_token;
 
 use crate::{
     core::{
@@ -95,6 +96,14 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[async_trait]
 pub trait Feature<F, T> {
     fn current_flow_info(&self) -> Option<CurrentFlowInfo> {
+        None
+    }
+
+    /// Flow used to decide whether the payment should be made via a single-use token, `None` if not applicable
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow>
+    where
+        Self: Sized,
+    {
         None
     }
 
@@ -328,7 +337,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -347,7 +356,7 @@ pub trait Feature<F, T> {
         _merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
-        _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     ) -> RouterResult<()>
     where
         F: Clone,

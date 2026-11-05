@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
         },
         unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
         Accept, AccessTokenAuth, Authorize, Capture, CreateOrder, Defend, Dsync, Evidence,
-        ExtendAuthorization, Fetch, PSync, PostProcessing, PreProcessing, Retrieve, Session,
+        ExtendAuthorization, Fetch, PSync, PostProcessing, Retrieve, Session,
         SettlementSplitCreate, Upload, Void,
     },
     router_request_types::{
@@ -22,9 +22,9 @@ use hyperswitch_domain_models::{
         DefendDisputeRequestData, DisputeSyncData, FetchDisputesRequestData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsExtendAuthorizationData, PaymentsPostAuthenticateData, PaymentsPostProcessingData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, RetrieveFileRequestData, SettlementSplitRequestData,
-        SubmitEvidenceRequestData, UploadFileRequestData,
+        PaymentsPreAuthenticateData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        RetrieveFileRequestData, SettlementSplitRequestData, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
         AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
@@ -63,8 +63,6 @@ pub(crate) type PaymentsPreAuthenticateResponseRouterData<R> =
     ResponseRouterData<PreAuthenticate, R, PaymentsPreAuthenticateData, PaymentsResponseData>;
 pub(crate) type PaymentsSettlementSplitCreateResponseRouterData<R> =
     ResponseRouterData<SettlementSplitCreate, R, SettlementSplitRequestData, PaymentsResponseData>;
-pub(crate) type PaymentsPreprocessingResponseRouterData<R> =
-    ResponseRouterData<PreProcessing, R, PaymentsPreProcessingData, PaymentsResponseData>;
 pub(crate) type PaymentsSessionResponseRouterData<R> =
     ResponseRouterData<Session, R, PaymentsSessionData, PaymentsResponseData>;
 pub(crate) type CreateOrderResponseRouterData<R> =

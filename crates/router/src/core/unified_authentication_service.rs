@@ -712,28 +712,25 @@ pub async fn create_new_authentication(
 pub async fn authentication_create_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
     let db = &*state.store;
     let processor_merchant_account = platform.get_processor().get_account();
     let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
-        req.profile_id.as_ref(),
+        req.profile_id
+            .as_ref()
+            .or(profile_id_from_auth_layer.as_ref()),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &business_profile)?;
+    let profile_id = business_profile.get_id().to_owned();
     let organization_id = processor_merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -1038,6 +1035,7 @@ impl
 pub async fn authentication_eligibility_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
@@ -1063,6 +1061,8 @@ pub async fn authentication_eligibility_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &authentication)?;
+
     req.client_secret
         .clone()
         .map(|client_secret| {
@@ -1075,22 +1075,26 @@ pub async fn authentication_eligibility_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
+    common_utils::fp_utils::when(
+        req.profile_id
+            .as_ref()
+            .is_some_and(|profile_id| profile_id != &authentication.profile_id),
+        || {
+            Err(error_stack::report!(ApiErrorResponse::InvalidRequestData {
+                message: "profile_id must match the authentication's profile_id".to_owned(),
+            }))
+        },
+    )?;
+
+    let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
-        req.profile_id.as_ref(),
+        Some(&authentication.profile_id),
         db,
-        true,
     )
     .await?;
-
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
-        .await
-        .to_not_found_response(ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let profile_id = business_profile.get_id().to_owned();
 
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
@@ -1973,7 +1977,7 @@ async fn execute_post_authentication_flow(
 
     let payment_method_data = utils::get_authentication_payment_method_data(&post_auth_response);
 
-    let auth_update_response = utils::external_authentication_update_trackers(
+    let auth_update_response = Box::pin(utils::external_authentication_update_trackers(
         state,
         post_auth_response,
         authentication.clone(),
@@ -1987,7 +1991,7 @@ async fn execute_post_authentication_flow(
         None,
         None,
         merchant_account.storage_scheme,
-    )
+    ))
     .await?;
 
     Ok((
@@ -2068,6 +2072,7 @@ async fn use_stored_authentication_value(
 pub async fn authentication_sync_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     auth_flow: AuthFlow,
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
@@ -2088,6 +2093,8 @@ pub async fn authentication_sync_core(
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
         })?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &authentication)?;
 
     req.client_secret
         .map(|client_secret| {
@@ -2441,7 +2448,7 @@ pub async fn authentication_post_sync_core(
         )
         .await?;
 
-    let updated_authentication = utils::external_authentication_update_trackers(
+    let updated_authentication = Box::pin(utils::external_authentication_update_trackers(
         &state,
         post_auth_response,
         authentication.clone(),
@@ -2455,7 +2462,7 @@ pub async fn authentication_post_sync_core(
         None,
         None,
         processor_merchant_account.storage_scheme,
-    )
+    ))
     .await?;
 
     let authentication_details = business_profile

@@ -1210,6 +1210,7 @@ impl IncomingWebhook for Bluesnap {
             connector_status: dispute_details.cb_status,
             created_at: None,
             updated_at: None,
+            additional_details: None,
         })
     }
 

@@ -14,7 +14,9 @@ crate::impl_debug_id_type!(TenantId);
 crate::impl_try_from_cow_str_id_type!(TenantId, "tenant_id");
 
 crate::impl_serializable_secret_id_type!(TenantId);
+#[cfg(feature = "diesel")]
 crate::impl_queryable_id_type!(TenantId);
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_id_type!(TenantId);
 
 impl TenantId {

@@ -2,9 +2,9 @@ pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
 pub use dimension_config::{
-    BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv,
-    ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
-    ShouldStoreEligibilityCheckDataForAuthentication,
+    BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate,
+    PaymentBlocklistGuard, RequiresCvv, ShouldCallGsm, ShouldEnableMitWithLimitedCardData,
+    ShouldPerformEligibility, ShouldStoreEligibilityCheckDataForAuthentication,
 };
 use error_stack::ResultExt;
 use external_services::superposition;

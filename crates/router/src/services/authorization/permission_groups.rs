@@ -12,6 +12,7 @@ pub trait PermissionGroupExt {
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
     fn get_role_product_category(&self) -> RoleProductCategory;
+    fn is_internal_permission_group(&self) -> bool;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -31,7 +32,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
             | Self::ReconRulesView
-            | Self::OffersView => PermissionScope::Read,
+            | Self::ReconApiKeyView
+            | Self::OffersView
+            | Self::AlertsView
+            | Self::MonitoringView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -47,7 +51,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
             | Self::ReconRulesManage
-            | Self::OffersManage => PermissionScope::Write,
+            | Self::ReconApiKeyManage
+            | Self::OffersManage
+            | Self::AlertsManage
+            | Self::MonitoringManage => PermissionScope::Write,
         }
     }
 
@@ -71,7 +78,10 @@ impl PermissionGroupExt for PermissionGroup {
                 ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
+            Self::ReconApiKeyView | Self::ReconApiKeyManage => ParentGroup::ReconApiKey,
             Self::OffersView | Self::OffersManage => ParentGroup::Offers,
+            Self::AlertsView | Self::AlertsManage => ParentGroup::Alerts,
+            Self::MonitoringView | Self::MonitoringManage => ParentGroup::Monitoring,
         }
     }
 
@@ -116,7 +126,11 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ApiKeysView => vec![Self::ApiKeysView, Self::AccountView],
             Self::ApiKeysManage => vec![Self::ApiKeysView, Self::ApiKeysManage, Self::AccountView],
 
-            Self::CloneConnectorManage => vec![Self::CloneConnectorManage],
+            Self::CloneConnectorManage => vec![
+                Self::CloneConnectorManage,
+                Self::ConnectorsManage,
+                Self::ConnectorsView,
+            ],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
 
@@ -161,8 +175,15 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconTransactionsView,
             ],
 
+            Self::ReconApiKeyView => vec![Self::ReconApiKeyView],
+            Self::ReconApiKeyManage => vec![Self::ReconApiKeyView, Self::ReconApiKeyManage],
+
             Self::OffersView => vec![Self::OffersView],
             Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
+            Self::AlertsView => vec![Self::AlertsView],
+            Self::AlertsManage => vec![Self::AlertsView, Self::AlertsManage],
+            Self::MonitoringView => vec![Self::MonitoringView],
+            Self::MonitoringManage => vec![Self::MonitoringView, Self::MonitoringManage],
         }
     }
 
@@ -191,7 +212,11 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ConfigurationsView
             | Self::ConfigurationsManage
             | Self::OffersView
-            | Self::OffersManage => RoleProductCategory::Orchestration,
+            | Self::OffersManage
+            | Self::AlertsView
+            | Self::AlertsManage
+            | Self::MonitoringView
+            | Self::MonitoringManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -201,7 +226,50 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsView
             | Self::ReconTransactionsManage
             | Self::ReconRulesView
-            | Self::ReconRulesManage => RoleProductCategory::Recon,
+            | Self::ReconRulesManage
+            | Self::ReconApiKeyView
+            | Self::ReconApiKeyManage => RoleProductCategory::Recon,
+        }
+    }
+
+    fn is_internal_permission_group(&self) -> bool {
+        match self {
+            Self::AlertsView
+            | Self::AlertsManage
+            | Self::MonitoringView
+            | Self::MonitoringManage => true,
+            Self::OperationsView
+            | Self::OperationsManage
+            | Self::ConnectorsView
+            | Self::ConnectorsManage
+            | Self::WorkflowsView
+            | Self::WorkflowsManage
+            | Self::AnalyticsView
+            | Self::UsersView
+            | Self::UsersManage
+            | Self::AccountView
+            | Self::AccountManage
+            | Self::WebhooksView
+            | Self::WebhooksManage
+            | Self::ApiKeysView
+            | Self::ApiKeysManage
+            | Self::CloneConnectorManage
+            | Self::ThemeView
+            | Self::ThemeManage
+            | Self::ConfigurationsView
+            | Self::ConfigurationsManage
+            | Self::ReconSourcesView
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsView
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsView
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesView
+            | Self::ReconRulesManage
+            | Self::ReconApiKeyView
+            | Self::ReconApiKeyManage
+            | Self::OffersView
+            | Self::OffersManage => false,
         }
     }
 }
@@ -233,7 +301,10 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
+            Self::ReconApiKey => RECON_API_KEY.to_vec(),
             Self::Offers => OFFERS.to_vec(),
+            Self::Alerts => ALERTS.to_vec(),
+            Self::Monitoring => MONITORING.to_vec(),
         }
     }
 
@@ -327,4 +398,10 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
 
+pub static RECON_API_KEY: [Resource; 1] = [Resource::ReconApiKey];
+
 pub static OFFERS: [Resource; 1] = [Resource::Offers];
+
+pub static ALERTS: [Resource; 1] = [Resource::Alert];
+
+pub static MONITORING: [Resource; 1] = [Resource::Monitoring];

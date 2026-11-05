@@ -30,7 +30,12 @@ pub async fn authentication_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            unified_authentication_service::authentication_create_core(state, auth.platform, req)
+            unified_authentication_service::authentication_create_core(
+                state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                req,
+            )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -73,6 +78,7 @@ pub async fn authentication_eligibility(
             unified_authentication_service::authentication_eligibility_core(
                 state,
                 auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 req,
                 authentication_id.clone(),
             )
@@ -242,6 +248,7 @@ pub async fn authentication_sync(
             unified_authentication_service::authentication_sync_core(
                 state,
                 auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
                 auth_flow,
                 req,
             )

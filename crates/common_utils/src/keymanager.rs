@@ -5,9 +5,13 @@ use std::str::FromStr;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
+use http::Method;
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    StatusCode,
+};
 use router_env::{
     global_meter, histogram_metric_f64, instrument, logger, metric_attributes, tracing,
 };
@@ -106,6 +110,8 @@ where
         .change_context(errors::KeyManagerClientError::UrlEncodingFailed)?;
 
     let method_str = method.to_string();
+    let method = reqwest::Method::from_bytes(method_str.as_bytes())
+        .change_context(errors::KeyManagerClientError::ClientConstructionFailed)?;
     let start_time = std::time::Instant::now();
 
     let response_result = client
@@ -183,6 +189,8 @@ where
 // Deja: the one seam every keymanager operation crosses. Substituted on replay
 // so recorded ciphertext comes back verbatim and replay does not depend on a
 // live keymanager.
+// A miss answers with a transport failure: no response body can be synthesized
+// honestly, and callers already handle the error.
 #[cfg_attr(
     feature = "deja",
     deja::boundary(
@@ -200,6 +208,11 @@ where
             "endpoint": endpoint,
             "request": request_body.wire_image(),
         }),
+        on_miss = Err(errors::KeyManagerClientError::RequestNotSent(format!(
+            "deja: no recorded key manager response for {endpoint} (occurrence {})",
+            __deja_miss.occurrence,
+        ))
+        .into()),
     )
 )]
 pub async fn call_encryption_service<T, R>(
