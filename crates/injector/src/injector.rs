@@ -2,15 +2,12 @@ pub mod core {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use common_utils::{
+        proxy::placeholder::{find_field, parse_placeholder},
+        request::{Method, RequestBuilder, RequestContent},
+    };
     use error_stack::{self, ResultExt};
     use hyperswitch_masking::{self, ExposeInterface};
-    use nom::{
-        bytes::complete::{tag, take_while1},
-        character::complete::{char, multispace0},
-        sequence::{delimited, preceded, terminated},
-        IResult,
-    };
     use router_env::{instrument, logger};
     use serde_json::Value;
     use thiserror::Error;
@@ -481,101 +478,17 @@ pub mod core {
 
     impl From<&InjectorRequest> for Box<dyn VaultConnectorStrategy> {
         fn from(request: &InjectorRequest) -> Self {
-            match (
-                &request.connection_config.vault_connector_type,
-                &request.connection_config.vault_connector_id,
-            ) {
-                (
-                    Some(injector_types::VaultConnectorType::Transformation),
-                    Some(injector_types::VaultConnectors::HyperswitchVault),
-                ) => Box::new(HyperswitchVaultStrategy),
-                (Some(injector_types::VaultConnectorType::Proxy), _) => Box::new(ProxyStrategy),
-                (Some(injector_types::VaultConnectorType::Transformation), _) => {
+            match &request.connection_config.vault_connector_type {
+                _ if request.connection_config.uses_hyperswitch_vault_proxy() => {
+                    Box::new(HyperswitchVaultStrategy)
+                }
+                Some(injector_types::VaultConnectorType::Proxy) => Box::new(ProxyStrategy),
+                Some(injector_types::VaultConnectorType::Transformation) => {
                     Box::new(FallbackTransformationStrategy)
                 }
                 _ => Box::new(ProxyStrategy), //by default, the token replacement is done in the forward proxy (e.g. VGS), so ProxyStrategy is the safe default
             }
         }
-    }
-
-    // ---------------------------------------------------------------------------
-    // Token parsing helpers
-    // ---------------------------------------------------------------------------
-
-    #[derive(Debug)]
-    struct TokenReference {
-        /// The field name to be replaced (without the {{$}} wrapper)
-        pub field: String,
-    }
-
-    /// Parses a single token reference from a string using nom parser combinators
-    ///
-    /// Expects tokens in the format `{{$field_name}}` where field_name contains
-    /// only alphanumeric characters and underscores.
-    fn parse_token(input: &str) -> IResult<&str, TokenReference> {
-        let (input, field) = delimited(
-            tag("{{"),
-            preceded(
-                multispace0,
-                preceded(
-                    char('$'),
-                    terminated(
-                        take_while1(|c: char| c.is_alphanumeric() || c == '_'),
-                        multispace0,
-                    ),
-                ),
-            ),
-            tag("}}"),
-        )(input)?;
-        Ok((
-            input,
-            TokenReference {
-                field: field.to_string(),
-            },
-        ))
-    }
-
-    /// Finds all token references in a string using nom parser
-    ///
-    /// Scans through the entire input string and extracts all valid token references.
-    /// Returns a vector of TokenReference structs containing the field names.
-    fn find_all_tokens(input: &str) -> Vec<TokenReference> {
-        let mut tokens = Vec::new();
-        let mut current_input = input;
-
-        while !current_input.is_empty() {
-            if let Ok((remaining, token_ref)) = parse_token(current_input) {
-                tokens.push(token_ref);
-                current_input = remaining;
-            } else if let Some((_, rest)) = current_input.split_at_checked(1) {
-                current_input = rest;
-            } else {
-                break;
-            }
-        }
-
-        tokens
-    }
-
-    /// Recursively searches for a field in vault data JSON structure
-    ///
-    /// Performs a depth-first search through the JSON object hierarchy to find
-    /// a field with the specified name. Returns the first matching value found.
-    fn find_field_recursively_in_vault_data(
-        obj: &serde_json::Map<String, Value>,
-        field_name: &str,
-    ) -> Option<Value> {
-        obj.get(field_name).cloned().or_else(|| {
-            obj.values()
-                .filter_map(|val| {
-                    if let Value::Object(inner_obj) = val {
-                        find_field_recursively_in_vault_data(inner_obj, field_name)
-                    } else {
-                        None
-                    }
-                })
-                .next()
-        })
     }
 
     // ---------------------------------------------------------------------------
@@ -593,10 +506,18 @@ pub mod core {
         let vault_connector_str = request.connection_config.vault_connector_metric_str();
         let http_method_str = request.connection_config.http_method.as_metric_str();
         let endpoint_host = request.connection_config.endpoint_host();
+        let body_format = request
+            .connector_payload
+            .body
+            .as_ref()
+            .map_or("legacy", |body| body.as_metric_str());
 
         metrics::INJECTOR_INVOCATIONS_COUNT.add(
             1,
-            router_env::metric_attributes!(("vault_connector", vault_connector_str)),
+            router_env::metric_attributes!(
+                ("vault_connector", vault_connector_str),
+                ("body_format", body_format)
+            ),
         );
 
         let injector = Injector::new();
@@ -609,18 +530,20 @@ pub mod core {
             router_env::metric_attributes!(
                 ("vault_connector", vault_connector_str),
                 ("http_method", http_method_str),
-                ("endpoint_host", endpoint_host.clone())
+                ("endpoint_host", endpoint_host.clone()),
+                ("body_format", body_format)
             ),
         );
 
         result.inspect_err(|e| {
-            logger::error!("Injector core failed: {:?}", e);
+            logger::error!(body_format, error = ?e, "Injector core failed");
             metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
                     ("vault_connector", vault_connector_str),
                     ("http_method", http_method_str),
-                    ("endpoint_host", endpoint_host)
+                    ("endpoint_host", endpoint_host),
+                    ("body_format", body_format)
                 ),
             );
         })
@@ -646,9 +569,15 @@ pub mod core {
             let start_time = std::time::Instant::now();
 
             let vault_data = request.token_data.specific_token_data.clone().expose();
+            let body_format = request
+                .connector_payload
+                .body
+                .as_ref()
+                .map_or("legacy", |body| body.as_metric_str());
 
             logger::debug!(
                 template_length = request.connector_payload.template.len(),
+                body_format,
                 vault_connector_type = ?request.connection_config.vault_connector_type,
                 "Processing token injection request"
             );
@@ -671,7 +600,9 @@ pub mod core {
             let content_type = request
                 .connection_config
                 .headers
-                .get("Content-Type")
+                .iter()
+                .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+                .map(|(_, value)| value)
                 .map(|ct| ContentType::from_header_value(&ct.clone().expose()))
                 .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
 
@@ -679,11 +610,22 @@ pub mod core {
             let response = strategy
                 .send(self, &request, &processed_payload, &content_type)
                 .await?;
+            let wrapped = request.connection_config.uses_hyperswitch_vault_proxy();
+            let connector_status_code =
+                response.connector_status_code(wrapped).map_err(|error| {
+                    let report = error_stack::Report::new(error);
+                    match response.vault_proxy_failure_summary().filter(|_| wrapped) {
+                        Some(summary) => report.attach_printable(summary),
+                        None => report,
+                    }
+                })?;
 
             let elapsed = start_time.elapsed();
             logger::info!(
                 duration_ms = elapsed.as_millis(),
-                status_code = response.status_code,
+                status_code = connector_status_code,
+                http_status_code = response.status_code,
+                body_format,
                 response_size = serde_json::to_string(&response.response)
                     .map(|s| s.len())
                     .unwrap_or(0),
@@ -694,7 +636,8 @@ pub mod core {
             metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
-                    ("status_code", response.status_code.to_string()),
+                    ("status_code", connector_status_code.to_string()),
+                    ("body_format", body_format),
                     (
                         "vault_connector",
                         request.connection_config.vault_connector_metric_str()
@@ -718,16 +661,30 @@ pub mod core {
             vault_data: &Value,
         ) -> error_stack::Result<String, InjectorError> {
             let token_replacement_start = std::time::Instant::now();
-            let tokens = find_all_tokens(&template);
-
-            let result = tokens.into_iter().try_fold(template, |acc, token_ref| {
-                let token_str = match extract_field_from_vault_data(vault_data, &token_ref.field)? {
-                    Value::String(s) => s,
-                    other => serde_json::to_string(&other).unwrap_or_default(),
-                };
-                let pattern = format!("{{{{${}}}}}", token_ref.field);
-                Ok::<String, error_stack::Report<InjectorError>>(acc.replace(&pattern, &token_str))
-            })?;
+            let mut result = String::with_capacity(template.len());
+            let mut rest = template.as_str();
+            while let Some(start) = rest.find("{{") {
+                result.push_str(&rest[..start]);
+                rest = &rest[start..];
+                // Proxy templates are lenient: text that is not a valid placeholder,
+                // including a malformed one, is forwarded unchanged.
+                match parse_placeholder(rest) {
+                    Ok(Some((field, consumed))) => {
+                        match extract_field_from_vault_data(vault_data, field)? {
+                            Value::String(value) => result.push_str(&value),
+                            other => {
+                                result.push_str(&serde_json::to_string(&other).unwrap_or_default())
+                            }
+                        }
+                        rest = &rest[consumed..];
+                    }
+                    Ok(None) | Err(_) => {
+                        result.push_str("{{");
+                        rest = &rest[2..];
+                    }
+                }
+            }
+            result.push_str(rest);
 
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
                 token_replacement_start.elapsed().as_secs_f64(),
@@ -889,13 +846,18 @@ pub mod core {
                     ))
                 })?;
 
-            let vault_proxy_request =
+            let mut vault_proxy_request =
                 injector_types::HyperswitchVaultProxyRequest::try_from_injector_request(
                     processed_payload,
                     &request.connection_config,
                     &request.token_data,
                 )
                 .map_err(error_stack::Report::new)?;
+            if let Some(body) = &request.connector_payload.body {
+                // Only a JSON body is duplicated into the legacy field.
+                vault_proxy_request.request_body = body.legacy_value().into();
+                vault_proxy_request.body = Some(body.clone().into());
+            }
 
             logger::info!(
                 vault_endpoint = %vault_endpoint,
@@ -976,13 +938,11 @@ pub mod core {
         logger::debug!("Extracting field '{}' from vault data", field_name);
 
         match vault_data {
-            Value::Object(obj) => {
-                find_field_recursively_in_vault_data(obj, field_name).ok_or_else(|| {
-                    error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
-                        "Field '{field_name}' not found"
-                    )))
-                })
-            }
+            Value::Object(_) => find_field(vault_data, field_name).cloned().ok_or_else(|| {
+                error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
+                    "Field '{field_name}' not found"
+                )))
+            }),
             _ => Err(error_stack::Report::new(
                 InjectorError::TokenReplacementFailed(
                     "Vault data is not a valid JSON object".to_string(),
@@ -1025,6 +985,7 @@ mod tests {
 
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
+                body: None,
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
@@ -1101,6 +1062,7 @@ mod tests {
 
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
+                body: None,
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
             },
             token_data: TokenData {
