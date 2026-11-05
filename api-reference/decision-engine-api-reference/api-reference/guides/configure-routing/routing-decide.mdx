@@ -5,7 +5,7 @@ description: "Curl example for /decide, the unified payment payload for hybrid r
 
 # Decide
 
-`POST /decide` accepts a flat payment payload with nested `card` and `routing_config` objects. It runs the same hybrid evaluator as [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) — rule selection, Auth Rate routing, A/B experiments, scoring, and fallback handling.
+`POST /decide` accepts a flat payment payload with nested `card` and `routing_config` objects. It runs the rule layer and then success-rate routing, with A/B experiments, cost optimisation, volume commitments, scoring, and fallback handling. [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) runs the same evaluation and keeps its existing request and response.
 
 Send the same authentication and tenant headers used for `/routing/hybrid` (`Authorization: Bearer <token>` or `x-api-key: <key>`). Merchant sessions and API keys may only name their own `merchant_id`. A cross-merchant request returns `403`. Service callers can use the existing `x-admin-secret` header to act for the named routing scope. `/routing/hybrid` continues to accept its existing request and return its existing response.
 
@@ -66,25 +66,100 @@ Country codes use ISO alpha-2 values. The adapter translates them to the configu
 
 `amount` is the single payment amount in this contract. It supplies both existing rule parameters, `amount` and `payment_amount`, without changing stored rule definitions. `metadata` supplies custom rule parameters without overwriting configured or reserved fields. `authentication_type` supplies both rule and dynamic authentication data. Preferred accounts and ranking/elimination options are forwarded to the existing decider. Feature and experiment gates still control whether it runs. `country` takes precedence over `billing_country`, then `business_country`.
 
-The removed fields (`payment_type`, `transaction_type`, EMI fields, `internal_metadata`, `order_amount`, `payment_amount`, `udfs`, `payment_metadata`, `payment_source`, `auth_type`, and `channel`), old `context` / `created_by`, top-level card fields, and `fallback_connectors` are not accepted by `/decide`. Other endpoints retain their existing contracts. Missing required fields, unknown fields, and incorrect JSON types return `400` in the standard invalid-request format.
+`payment_type` is the rule key of the same name (`non_mandate`, `setup_mandate`, `ppt_mandate`, and so on), which rules use to route mandate payments, for example a processor-token charge to the processor that holds the token. A rule that tests it matches only when it is sent. It does not set the success-rate decider's transaction type.
+
+The removed fields (`transaction_type`, EMI fields, `internal_metadata`, `order_amount`, `payment_amount`, `udfs`, `payment_metadata`, `payment_source`, `auth_type`, and `channel`), old `context` / `created_by`, top-level card fields, and `fallback_connectors` are not accepted by `/decide`. Other endpoints retain their existing contracts. Missing required fields, unknown fields, and incorrect JSON types return `400` in the standard invalid-request format.
 
 ## Response
 
 ```json
 {
-  "evaluated_connectors": [
+  "id": "dec_1234",
+  "payment_id": "pay_demo",
+  "request_id": "req_1234",
+  "created_at": "2026-10-30T09:12:44.518Z",
+  "connectors": [
+    { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko" },
     { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" }
   ],
-  "decision": {
-    "outcome": "routed",
-    "source": "volume_split",
-    "decision_id": "req_1234"
-  }
+  "outcome": {
+    "type": "routed",
+    "strategy": "cost",
+    "reason": "cost_optimized",
+    "message": "checkout has higher expected value than SR head worldpay"
+  },
+  "rule": {
+    "status": "matched",
+    "output": {
+      "type": "priority",
+      "connectors": [
+        { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" },
+        { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko" }
+      ]
+    },
+    "selected": [
+      { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" },
+      { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko" }
+    ],
+    "eligible": [
+      { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" },
+      { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko" }
+    ]
+  },
+  "success_rate": {
+    "status": "applied",
+    "approach": "SR_SELECTION_MULTI_OBJECTIVE",
+    "scores": [
+      { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp", "score": 0.98 },
+      { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko", "score": 0.97 }
+    ],
+    "scheduled_outage": false,
+    "diagnostics": {
+      "head_before_downtime_check": { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp" },
+      "reset_approach": "NO_RESET",
+      "dimension": { "value": "ORDER_PAYMENT, CREDIT, CARD", "level": "PM_LEVEL" },
+      "filter_wise_gateways": null,
+      "priority_logic": { "tag": null, "output": null },
+      "dynamic_mga_enabled": false,
+      "gateway_mga_id_map": null,
+      "rust_based_decider": true,
+      "latency_ms": 4
+    }
+  },
+  "cost": {
+    "outcome": "COST_WON",
+    "reason": "checkout has higher expected value than SR head worldpay",
+    "cost_saved_bps": 1480.0,
+    "qualified_count": 2,
+    "margin": 1.0,
+    "ev_gap_top2": 0.1351,
+    "ranked": [
+      { "gateway_name": "checkout", "payment_merchant_connector_id": "mca_cko", "auth_rate": 0.97, "cost_bps": 20.0,
+        "cost_source": "IN_HOUSE", "cost_model": null, "ev": 0.9681, "is_sr_head": false, "is_chosen": true },
+      { "gateway_name": "worldpay", "payment_merchant_connector_id": "mca_wp", "auth_rate": 0.98, "cost_bps": 1500.0,
+        "cost_source": "IN_HOUSE", "cost_model": null, "ev": 0.833, "is_sr_head": true, "is_chosen": false }
+    ]
+  },
+  "volume_steering": null,
+  "debit_routing": null,
+  "warnings": []
 }
 ```
 
-`decision_id` matches the `x-request-id` response header. `source` identifies the static algorithm or dynamic routing approach. A `source` of `eligible_connectors` means hybrid used the supplied candidates after static evaluation failed. `outcome` is `routed` for a selection, `fallback` when hybrid uses a fallback, or `no_active_algorithm` / `no_eligible_connector` for an empty successful result.
+`connectors` is the order to try. The first is the choice and the rest the retry order. Every connector in the response, in every section, has the same `{gateway_name, payment_merchant_connector_id}` shape. `payment_merchant_connector_id` is null for a connector named without an account.
 
-The endpoint preserves hybrid's connector order, selection, and errors. When there is no active rule, hybrid can still return the supplied candidates as a fallback. Existing hybrid candidate filtering still applies: a rule output outside the supplied candidate list falls back to eligible candidates. If a legacy rule returns only a gateway name, its response account ID is null. A dynamic success returns the same winning connector that hybrid puts in `evaluated_connectors`.
+`outcome` says how the order was reached:
 
-The response omits the legacy static/dynamic diagnostic envelopes. Analytics retain those internal details, add the original `/decide` request and response, and identify the API route as `decide`. Decisions remain in the hybrid analytics and A/B experiment family.
+| `type` | Meaning |
+| --- | --- |
+| `routed` | The configured routing produced the order. |
+| `fallback` | Routing could not apply, so the candidates in request order, or the rule output unranked, answered. |
+| `no_connector` | No connector is left to try and `connectors` is empty. The call still returns `200`. |
+
+`strategy` names the layer that set the order (`rule`, `success_rate`, `cost`, `volume_commitment`, `debit_network`, `candidate_order`, `none`) and `reason` the specific case, for example `rule_matched`, `success_rate_ranked`, `cost_optimized`, `no_active_rule`, `rule_output_not_eligible`, `rule_input_invalid`, or `success_rate_unavailable`. New values may be added to these enums. `message` is for people reading logs, so branch on `reason`.
+
+Each routing layer has a section, null when that layer did not run: `rule` (null when the rule layer failed), `success_rate` (null when the `sr-routing` setting is off or the A/B arm has no SR layer, with `status: failed` when the decider failed and the order fell back), `cost`, `volume_steering`, and `debit_routing`. `success_rate.diagnostics` carries the decider's internals for support and is not covered by compatibility guarantees.
+
+`warnings` lists problems the decision routed around: `rule_input_invalid` (a request value the routing configuration does not allow, where `param` names the request field such as `card.card_network`, and there is one warning per invalid value), `rule_evaluation_failed` (the rule could not be evaluated for another reason), `rule_output_not_eligible` and `rule_output_partially_eligible` (the rule chose connectors outside `eligible_connectors`), and `success_rate_failed`. Routing problems never fail the call.
+
+`id` is unique per decision. `request_id` matches the `x-request-id` response header.
