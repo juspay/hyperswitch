@@ -865,7 +865,7 @@ pub async fn update_gateway_score_helper_with_open_router(
 
     logger::debug!(
         "decision_engine: performing update-gateway-score for gateway with id {} in open_router for profile: {}",
-        routable_connector,
+        routing::format_connector_for_logging(routable_connector.connector, routable_connector.merchant_connector_id.as_ref()),
         profile_id.get_string_repr()
     );
     routing::payments_routing::update_gateway_score_with_open_router(
@@ -1505,8 +1505,10 @@ pub async fn push_metrics_with_update_window_for_contract_based_routing(
                 )?;
 
             logger::debug!(
-                "contract based routing: matched LabelInformation - {:?}",
-                final_label_info
+                connector = %routing::format_connector_for_logging(payment_connector, Some(&final_label_info.mca_id)),
+                target_count = final_label_info.target_count,
+                target_time = final_label_info.target_time,
+                "contract based routing: matched LabelInformation"
             );
 
             let request_label_info = routing_types::LabelInformation {

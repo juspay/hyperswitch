@@ -8,6 +8,7 @@ pub(super) mod refunds;
 #[cfg(feature = "v2")]
 pub(super) mod token;
 
+#[cfg(feature = "diesel")]
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
 use error_stack::ResultExt;
 use thiserror::Error;
@@ -171,6 +172,7 @@ impl GlobalId {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<sql_types::Text, DB> for GlobalId
 where
     DB: Backend,
@@ -184,6 +186,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> FromSql<sql_types::Text, DB> for GlobalId
 where
     DB: Backend,

@@ -11,6 +11,10 @@ use common_utils::{
     types::TimeRange,
 };
 use error_stack::ResultExt;
+use hyperswitch_interfaces::secrets_interface::{
+    SecretManagementInterface, SecretsManagementError,
+};
+use hyperswitch_masking::ExposeInterface;
 use opensearch::{
     auth::Credentials,
     cert::CertificateValidation,
@@ -37,8 +41,13 @@ mod recording;
 #[serde(tag = "auth")]
 #[serde(rename_all = "lowercase")]
 pub enum OpenSearchAuth {
-    Basic { username: String, password: String },
-    Aws { region: String },
+    Basic {
+        username: String,
+        primary_password: String,
+    },
+    Aws {
+        region: String,
+    },
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -86,7 +95,7 @@ impl Default for OpenSearchConfig {
             host: "https://localhost:9200".to_string(),
             auth: OpenSearchAuth::Basic {
                 username: "admin".to_string(),
-                password: "admin".to_string(),
+                primary_password: "admin".to_string(),
             },
             indexes: OpenSearchIndexes {
                 payment_attempts: "hyperswitch-payment-attempt-events".to_string(),
@@ -209,8 +218,12 @@ impl OpenSearchClient {
     pub async fn create(conf: &OpenSearchConfig) -> CustomResult<Self, OpenSearchError> {
         let url = Url::parse(&conf.host).map_err(|_| OpenSearchError::ConnectionError)?;
         let transport = match &conf.auth {
-            OpenSearchAuth::Basic { username, password } => {
-                let credentials = Credentials::Basic(username.clone(), password.clone());
+            OpenSearchAuth::Basic {
+                username,
+                primary_password,
+                ..
+            } => {
+                let credentials = Credentials::Basic(username.clone(), primary_password.clone());
                 TransportBuilder::new(SingleNodeConnectionPool::new(url))
                     .cert_validation(CertificateValidation::None)
                     .auth(credentials)
@@ -422,14 +435,17 @@ impl OpenSearchAuth {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
         match self {
-            Self::Basic { username, password } => {
+            Self::Basic {
+                username,
+                primary_password,
+            } => {
                 when(username.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth username must not be empty".into(),
                     ))
                 })?;
 
-                when(password.is_default_or_empty(), || {
+                when(primary_password.is_default_or_empty(), || {
                     Err(ApplicationError::InvalidConfigurationValueError(
                         "Opensearch Basic auth password must not be empty".into(),
                     ))
@@ -450,6 +466,30 @@ impl OpenSearchAuth {
 }
 
 impl OpenSearchConfig {
+    pub async fn decrypt_credentials(
+        self,
+        client: &dyn SecretManagementInterface,
+    ) -> CustomResult<Self, SecretsManagementError> {
+        if !self.enabled {
+            return Ok(self);
+        }
+        let auth = match self.auth {
+            OpenSearchAuth::Basic {
+                username,
+                primary_password,
+            } => OpenSearchAuth::Basic {
+                username,
+                primary_password: client
+                    .get_secret(primary_password.into())
+                    .await
+                    .map_err(|error| error.attach_printable("opensearch.auth.primary_password"))?
+                    .expose(),
+            },
+            auth @ OpenSearchAuth::Aws { .. } => auth,
+        };
+        Ok(Self { auth, ..self })
+    }
+
     pub async fn get_opensearch_client(&self) -> StorageResult<Option<OpenSearchClient>> {
         if !self.enabled {
             return Ok(None);

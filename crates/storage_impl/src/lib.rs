@@ -76,6 +76,9 @@ pub struct RouterStore<T: DatabaseStore> {
     caches: Arc<Caches>,
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
+    /// Records this session has already read. Shared with its other stores, so
+    /// one record read through two of them is one record.
+    pub read_ledger: Option<Arc<common_utils::read_ledger::ReadLedger>>,
     key_manager_state: Option<KeyManagerState>,
 }
 
@@ -187,6 +190,10 @@ impl<T: DatabaseStore> RequestContext for RouterStore<T> {
     fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
+
+    fn read_ledger(&self) -> Option<&Arc<common_utils::read_ledger::ReadLedger>> {
+        self.read_ledger.as_ref()
+    }
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
@@ -226,6 +233,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             caches,
             master_encryption_key: encryption_key,
             request_id: None,
+            read_ledger: None,
             key_manager_state,
         })
     }
@@ -472,6 +480,7 @@ impl<T: DatabaseStore> RouterStore<T> {
             caches,
             master_encryption_key: encryption_key,
             request_id: None,
+            read_ledger: None,
             key_manager_state,
         })
     }

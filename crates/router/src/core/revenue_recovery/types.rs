@@ -1308,6 +1308,10 @@ impl Action {
             .error
             .as_ref()
             .map(|details| details.code.clone());
+        let network_decline_code = payment_attempt
+            .error
+            .as_ref()
+            .and_then(|details| details.network_decline_code.clone());
         let connector_name = payment_attempt
             .connector
             .clone()
@@ -1320,8 +1324,8 @@ impl Action {
             consts::DEFAULT_SUBFLOW_STR,
             error_code,
             error_message,
-            None, // issuer_error_code not available in recovery context
-            None, // card_network
+            network_decline_code,
+            payment_attempt.extract_card_network(),
         )
         .await;
         let is_hard_decline = gsm_record
@@ -1387,6 +1391,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         billing_mca_id: old_tracking_data.billing_mca_id.clone(),
         invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
         static_ladder_progress: old_tracking_data.static_ladder_progress,
+        payment_processor_token: None,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)
@@ -1566,6 +1571,16 @@ async fn record_back_to_billing_connector(
     logger::info!("Entering record_back_to_billing_connector");
 
     let billing_mca = &revenue_recovery_payment_data.billing_mca;
+    let connector = billing_mca.connector_name;
+    let invoice_record_back_config = &state.conf.billing_connectors_invoice_record_back;
+    if !invoice_record_back_config.is_connector_eligible(connector) {
+        logger::info!(
+            %connector,
+            "Skipping invoice record-back because the billing connector is not eligible"
+        );
+        return Ok(());
+    }
+
     let connector_name = billing_mca.connector_name.to_string();
     let connector_data = api_types::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -1651,18 +1666,21 @@ async fn persist_billing_connector_transaction_id(
     };
     revenue_recovery.billing_connector_transaction_id = Some(connector_transaction_id.to_string());
 
-    let storage_scheme = revenue_recovery_payment_data
-        .merchant_account
-        .storage_scheme;
+    let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+        revenue_recovery_payment_data.merchant_account.clone(),
+    );
+    let processor_key_store =
+        domain::ProcessorKeyStore::from_untagged(revenue_recovery_payment_data.key_store.clone());
+    let storage_scheme = processor_account.get_storage_scheme();
     let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
         feature_metadata: Some(feature_metadata),
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
 
     if let Err(error) = state
         .store
         .update_payment_attempt(
-            &revenue_recovery_payment_data.key_store,
+            &processor_key_store,
             payment_attempt.clone(),
             update,
             storage_scheme,

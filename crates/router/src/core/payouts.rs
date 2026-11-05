@@ -1,5 +1,7 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
@@ -29,6 +31,7 @@ use common_utils::{
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
+    validation::ValidateXSSOrSQLi,
 };
 use diesel_models::{
     enums as storage_enums,
@@ -41,7 +44,6 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
@@ -762,6 +764,7 @@ pub async fn payouts_create_core(
 pub async fn payouts_confirm_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -772,7 +775,7 @@ pub async fn payouts_confirm_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -831,6 +834,7 @@ pub async fn payouts_confirm_core(
 pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -842,7 +846,7 @@ pub async fn payouts_update_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
     ))
@@ -962,13 +966,14 @@ pub async fn payouts_retrieve_core(
 pub async fn payouts_cancel_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -1073,13 +1078,14 @@ pub async fn payouts_cancel_core(
 pub async fn payouts_fulfill_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
     ))
@@ -1219,6 +1225,7 @@ pub async fn payouts_list_core(
                             merchant_id,
                             platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
+                            false,
                         )
                         .await
                         .map_err(|err| {
@@ -1348,7 +1355,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1370,7 +1377,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -3798,6 +3805,24 @@ pub async fn make_payout_data(
 }
 
 #[cfg(feature = "v1")]
+fn authenticate_payout_client_secret(
+    request_client_secret: Option<&str>,
+    stored_client_secret: Option<&str>,
+) -> Result<(), errors::ApiErrorResponse> {
+    match request_client_secret {
+        Some(request_client_secret)
+            if stored_client_secret.is_some_and(|secret| secret == request_client_secret) =>
+        {
+            Ok(())
+        }
+        Some(_) => Err(errors::ApiErrorResponse::ClientSecretInvalid),
+        // Merchant-authenticated requests do not carry a client secret. Client-authenticated
+        // requests are required to provide one before reaching this validation.
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v1")]
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
@@ -3857,7 +3882,32 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        authenticate_payout_client_secret(
+            request.client_secret.as_deref(),
+            payouts.client_secret.as_deref(),
+        )?;
+    }
+
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        validator::validate_payout_condition(
+            request
+                .merchant_id
+                .as_ref()
+                .is_some_and(|request_merchant_id| request_merchant_id != merchant_id),
+            "Payout merchant does not match the authenticated merchant",
+        )?;
+        validator::validate_payout_condition(
+            request
+                .profile_id
+                .as_ref()
+                .is_some_and(|request_profile_id| request_profile_id != &payouts.profile_id),
+            "Payout profile does not match the existing payout",
+        )?;
+    }
 
     let payout_attempt_id =
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
@@ -3911,6 +3961,7 @@ pub async fn make_payout_data(
                 merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
@@ -4233,6 +4284,9 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     let test_mode_in_config = payout_link_config_req
         .as_ref()

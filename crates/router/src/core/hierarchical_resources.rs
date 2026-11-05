@@ -716,8 +716,7 @@ fn parse_apple_merchant_identifier(
         .next()
         .ok_or_else(openssl::error::ErrorStack::get)?
         .data()
-        .as_utf8()?
-        .to_string();
+        .to_string()?;
 
     Ok(common_name
         .rsplit(':')

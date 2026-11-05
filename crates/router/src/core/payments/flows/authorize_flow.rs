@@ -18,11 +18,12 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, gateway, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications},
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
 use hyperswitch_masking::ExposeInterface;
+use payment_methods::single_use_token;
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -39,8 +40,9 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, gateway as payments_gateway,
-            helpers, session_token, tokenization, transformers, PaymentData,
+            self, access_token, customers, flows::gateway_context, gateway,
+            gateway as payments_gateway, helpers, session_token, tokenization, transformers,
+            PaymentData,
         },
         unified_connector_service,
     },
@@ -214,10 +216,15 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::Authorize)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         })
     }
 
@@ -305,6 +312,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -416,6 +424,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let current_flow = Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         });
         Box::pin(access_token::add_access_token(
             state,
@@ -440,6 +449,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         let current_flow = api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
+            connector_meta_data: self.connector_meta_data.clone(),
         };
         self.session_token = session_token::add_session_token_if_needed(
             self,
@@ -486,6 +496,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -587,7 +598,9 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
-                api_models::enums::Connector::Nuvei => true,
+                api_models::enums::Connector::Paypal => true,
+                // Nuvei: never run the next leg after a failed initPayment
+                api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
                 // redirect (frictionless / no challenge), continue straight to the settle Authorize
                 // in this flow; when it returns a redirect, break so the shopper completes the
@@ -635,6 +648,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -783,6 +797,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -845,6 +860,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -1002,6 +1018,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         ) {
             logger::info!(
@@ -1073,6 +1090,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             api_interface::CurrentFlowInfo::Authorize {
                 auth_type: self.auth_type,
                 request_data: Box::new(self.request.clone()),
+                connector_meta_data: self.connector_meta_data.clone(),
             },
         );
         if (connector
@@ -1354,6 +1372,10 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
+            payment_feature_metadata: item.request.feature_metadata,
+            // Full automatic capture uses the original payment settlement values.
+            feature_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,
@@ -1367,6 +1389,8 @@ impl<F>
             is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
+            payment_method_data: None,
+            mandate_id: item.request.mandate_id,
         })
     }
 }
@@ -1396,7 +1420,7 @@ async fn process_capture_flow(
     );
 
     // Call capture request
-    let post_capture_router_data = super::call_capture_request(
+    let post_capture_router_data = Box::pin(super::call_capture_request(
         capture_router_data,
         state,
         connector,
@@ -1404,7 +1428,7 @@ async fn process_capture_flow(
         business_profile,
         header_payload,
         context,
-    )
+    ))
     .await;
 
     // Process capture response
@@ -1693,12 +1717,12 @@ pub async fn call_unified_connector_service_pre_authenticate(
         headers_builder,
         rollout_settings,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
-            let response = client
+            let response = Box::pin(client
                 .payment_pre_authenticate(
                     payment_pre_authenticate_request,
                     connector_auth_metadata,
                     grpc_headers,
-                )
+                ))
                 .await
                 .attach_printable("Failed to pre authenticate payment")?;
 

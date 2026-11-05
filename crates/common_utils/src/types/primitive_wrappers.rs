@@ -2,16 +2,16 @@ pub(crate) mod bool_wrappers {
     use serde::{Deserialize, Serialize};
 
     /// Bool that represents if Extended Authorization is Applied or not
-    #[derive(
-        Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,
-    )]
-    #[diesel(sql_type = diesel::sql_types::Bool)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+    #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Bool))]
     pub struct ExtendedAuthorizationAppliedBool(bool);
     impl From<bool> for ExtendedAuthorizationAppliedBool {
         fn from(value: bool) -> Self {
             Self(value)
         }
     }
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for ExtendedAuthorizationAppliedBool
     where
         DB: diesel::backend::Backend,
@@ -24,6 +24,7 @@ pub(crate) mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
         for ExtendedAuthorizationAppliedBool
     where
@@ -36,10 +37,9 @@ pub(crate) mod bool_wrappers {
     }
 
     /// Bool that represents if Extended Authorization is Requested or not
-    #[derive(
-        Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, diesel::expression::AsExpression,
-    )]
-    #[diesel(sql_type = diesel::sql_types::Bool)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+    #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Bool))]
     pub struct RequestExtendedAuthorizationBool(bool);
     impl From<bool> for RequestExtendedAuthorizationBool {
         fn from(value: bool) -> Self {
@@ -52,6 +52,7 @@ pub(crate) mod bool_wrappers {
             self.0
         }
     }
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB> for RequestExtendedAuthorizationBool
     where
         DB: diesel::backend::Backend,
@@ -64,6 +65,7 @@ pub(crate) mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
         for RequestExtendedAuthorizationBool
     where
@@ -76,11 +78,11 @@ pub(crate) mod bool_wrappers {
     }
 
     /// Bool that represents if Extended Authorization is always Requested or not
-    #[derive(
-        Clone, Copy, Debug, Eq, PartialEq, diesel::expression::AsExpression, Serialize, Deserialize,
-    )]
-    #[diesel(sql_type = diesel::sql_types::Bool)]
+    #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+    #[cfg_attr(feature = "diesel", derive(diesel::expression::AsExpression))]
+    #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Bool))]
     pub struct AlwaysRequestExtendedAuthorization(bool);
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::serialize::ToSql<diesel::sql_types::Bool, DB>
         for AlwaysRequestExtendedAuthorization
     where
@@ -94,6 +96,7 @@ pub(crate) mod bool_wrappers {
             self.0.to_sql(out)
         }
     }
+    #[cfg(feature = "diesel")]
     impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Bool, DB>
         for AlwaysRequestExtendedAuthorization
     where

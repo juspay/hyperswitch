@@ -67,6 +67,12 @@ pub struct AdyenMetadata {
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+    merchant_id: HashMap<Currency, Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct WorldpayvantivMetadata {
+    merchant_id: Option<HashMap<Currency, Secret<String>>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -694,7 +700,10 @@ pub enum ConnectorSpecificConfig {
     /// Jpmorgan connector configuration
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
+        merchant_id: Option<HashMap<Currency, Secret<String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -768,6 +777,14 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Ecommpay connector configuration (Gate API v2).
+    /// Field names must match `EcommpayConfig` in the connector-service repo.
+    /// `project_id` = `general.project_id` (from `key1`)
+    /// `secret_key` = HMAC-SHA512 signing key (from `api_key`); never transmitted
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+    },
     /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
     /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
     /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
@@ -794,7 +811,12 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Merchant ID from the connector credentials, for `SignatureKey` / `MultiAuthKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency from the connector metadata, for `BodyKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id_by_currency: Option<HashMap<Currency, Secret<String>>>,
     },
     /// Trustly connector configuration
     Trustly {
@@ -881,6 +903,16 @@ pub enum ConnectorSpecificConfig {
     /// Pay.com connector configuration
     /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
     Paydotcom { api_key: Secret<String> },
+    /// Better Payment connector configuration
+    Betterpayment {
+        /// API key (HTTP Basic Auth username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic Auth password)
+        api_password: Secret<String>,
+        /// Incoming key used for webhook HMAC-SHA256 signature verification
+        #[serde(skip_serializing_if = "Option::is_none")]
+        webhook_key: Option<Secret<String>>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1084,6 +1116,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Paydotcom requires HeaderKey auth type")),
             },
+            Connector::Betterpayment => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                    api_key: api_key.clone(),
+                    api_password: key1.clone(),
+                    webhook_key: None,
+                }),
+                _ => Err(err("Betterpayment requires BodyKey auth type")),
+            },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
                     api_key: api_key.clone(),
@@ -1193,25 +1233,41 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
-            Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let jpm_meta = metadata
-                        .map(|m| {
-                            m.clone()
-                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Invalid Jpmorgan metadata format")
-                        })
-                        .transpose()?;
-                    Ok(Self::Jpmorgan {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
-                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+            Connector::Jpmorgan => {
+                let (client_id, thumbprint, private_key, resource_id) = match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => (
+                        api_key.clone(),
+                        key1.clone(),
+                        api_secret.clone(),
+                        key2.clone(),
+                    ),
+                    _ => return Err(err("Jpmorgan requires MultiAuthKey auth type")),
+                };
+                let jpm_meta = metadata
+                    .map(|m| {
+                        m.clone()
+                            .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid Jpmorgan metadata format")
                     })
-                }
-                _ => Err(err("Jpmorgan requires BodyKey auth type")),
-            },
+                    .transpose()?;
+                Ok(Self::Jpmorgan {
+                    client_id,
+                    thumbprint,
+                    private_key,
+                    resource_id,
+                    merchant_id: jpm_meta
+                        .as_ref()
+                        .map(|m| m.merchant_id.clone()),
+                    company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                    product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                })
+            }
             Connector::Loonio => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                     merchant_id: api_key.clone(),
@@ -1405,6 +1461,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
+            },
+            Connector::Ecommpay => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                    project_id: key1.clone(),
+                    secret_key: api_key.clone(),
+                }),
+                _ => Err(err("Ecommpay requires BodyKey auth type")),
             },
             Connector::JpmorganOrbital => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1945,7 +2008,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -1955,10 +2019,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let merchant_id_by_currency = metadata
+                        .map(|m| {
+                            m.clone()
+                                .parse_value::<WorldpayvantivMetadata>("WorldpayvantivMetadata")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Worldpayvantiv metadata format")
+                        })
+                        .transpose()?
+                        .and_then(|m| m.merchant_id);
+                    Ok(Self::Worldpayvantiv {
+                        user: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: None,
+                        merchant_id_by_currency,
+                    })
+                }
                 _ => Err(err(
-                    "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
+                    "Worldpayvantiv requires SignatureKey, MultiAuthKey or BodyKey auth type",
                 )),
             },
             Connector::Payme => match auth {

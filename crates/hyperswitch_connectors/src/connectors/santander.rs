@@ -1552,6 +1552,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             }
             // No amount is sent back in Boleto response
             SantanderPaymentsSyncResponse::Boleto(_)
+            | SantanderPaymentsSyncResponse::BoletoWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_)
             | SantanderPaymentsSyncResponse::PixQrWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(_)
@@ -2114,8 +2115,8 @@ impl webhooks::IncomingWebhook for Santander {
         _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
         _connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Source verification for Santander is MTLS which is handled at the transport layer. No additional verification is needed here in application side
-        Ok(true)
+        // The router establishes source verification only after successful mTLS validation.
+        Ok(false)
     }
 
     fn get_webhook_object_reference_id(
@@ -2196,6 +2197,12 @@ impl webhooks::IncomingWebhook for Santander {
                 Ok(ObjectReferenceId::PaymentId(
                     PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
                 ))
+            }
+            SantanderWebhookBody::Boleto(boleto_data) => Ok(ObjectReferenceId::PaymentId(
+                PaymentIdType::ConnectorTransactionId(boleto_data.bank_number),
+            )),
+            SantanderWebhookBody::BoletoEndpointVerification(_) => {
+                Err(errors::ConnectorError::WebhookReferenceIdNotFound.into())
             }
         }
     }
@@ -2301,6 +2308,12 @@ impl webhooks::IncomingWebhook for Santander {
                     }
                 }
             }
+            // Santander's Billing API sends this notification only after a boleto
+            // has been paid; it does not include a separate payment status.
+            SantanderWebhookBody::Boleto(_) => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
+            SantanderWebhookBody::BoletoEndpointVerification(_) => {
+                Ok(IncomingWebhookEvent::EndpointVerification)
+            }
         }
     }
 
@@ -2389,7 +2402,9 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(None),
                 }
             }
-            SantanderWebhookBody::RecurringCharge(_) => Ok(None),
+            SantanderWebhookBody::RecurringCharge(_)
+            | SantanderWebhookBody::Boleto(_)
+            | SantanderWebhookBody::BoletoEndpointVerification(_) => Ok(None),
         }
     }
 
@@ -2470,6 +2485,10 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
+    fn is_webhook_mtls_required(&self) -> bool {
+        true
+    }
+
     fn is_payment_recurrence_operation_needed(
         &self,
         setup_future_usage: Option<common_enums::FutureUsage>,

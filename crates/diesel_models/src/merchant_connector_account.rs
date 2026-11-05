@@ -345,6 +345,9 @@ pub struct RevenueRecoveryMetadata {
     /// Whether payments recovered through this billing connector allow partial authorization.
     #[serde(default)]
     pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not set.
+    #[serde(default)]
+    pub max_hard_decline_retries: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding  
     /// account reference IDs for each `billing connector`.

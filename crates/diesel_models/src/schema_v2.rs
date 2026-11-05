@@ -333,6 +333,7 @@ diesel::table! {
         revenue_recovery_retry_algorithm_data -> Nullable<Jsonb>,
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
+        revenue_recovery_config -> Nullable<Jsonb>,
     }
 }
 
@@ -385,6 +386,7 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -1283,6 +1285,10 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
+        value_added_tax_details -> Nullable<Jsonb>,
+        order_commodity_code -> Nullable<Varchar>,
+        settlement_conclusion_applied -> Nullable<Bool>,
+        enable_account_name_verification -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1607,6 +1613,9 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
+        refund_surcharge_amount -> Nullable<Int8>,
+        net_refund_amount -> Nullable<Int8>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]

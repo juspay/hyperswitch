@@ -56,7 +56,7 @@ use crate::{
                 MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
                 WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
-            OperationSessionGetters, OperationSessionSetters,
+            multi_currency_processing, OperationSessionGetters, OperationSessionSetters,
         },
         utils::get_flow_name,
         webhooks::types::FeatureTrackingData,
@@ -548,6 +548,7 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                     email: paypal_redirect
                         .email
                         .and_then(|email| common_utils::pii::Email::try_from(email.expose()).ok()),
+                    payer_id: None,
                 }),
             )),
             PaymentMethod::Crypto(crypto) => Some(Self::Crypto(domain_pm::CryptoData {
@@ -1102,6 +1103,20 @@ where
         }
     }
 
+    // Apply the global shadow kill switch before any proxy override.
+    if matches!(execution_path, ExecutionPath::ShadowUnifiedConnectorService)
+        && kill_switch::shadow::is_kill_switched(state).await
+    {
+        gateway_system = GatewaySystem::Direct;
+        execution_path = ExecutionPath::Direct;
+        router_env::logger::warn!(
+            payment_id = %router_data.payment_id,
+            merchant_id = %merchant_id,
+            key = consts::UCS_SHADOW_KILL_SWITCH_REDIS_KEY,
+            "Shadow kill switch active; routing to Direct without proxy override"
+        );
+    }
+
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
@@ -1543,7 +1558,10 @@ pub fn reconstruct_payment_method_data_for_redirect_completion(
         Some(PaymentMethodType::Paypal) => Some(
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
-                    hyperswitch_domain_models::payment_method_data::PaypalRedirection { email },
+                    hyperswitch_domain_models::payment_method_data::PaypalRedirection {
+                        email,
+                        payer_id: None,
+                    },
                 ),
             ),
         ),
@@ -2365,6 +2383,13 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::NetellerRedirect(
                             payments_grpc::NetellerRedirectWallet {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::WeroRedirect {} => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::WeroRedirect(
+                            payments_grpc::WeroRedirectWallet {},
                         )),
                     })
                 }
@@ -3606,6 +3631,22 @@ pub fn handle_unified_connector_service_response_for_payment_cancel(
     Ok((router_data_response, status_code))
 }
 
+/// Handles the unified connector service response for payment post capture void
+pub fn handle_unified_connector_service_response_for_payment_post_capture_void(
+    response: payments_grpc::PaymentServiceReverseResponse,
+    prev_status: AttemptStatus,
+) -> UnifiedConnectorServiceResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+
+    let router_data_response =
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
+
+    Ok((router_data_response, status_code))
+}
+
 /// Handles the unified connector service response for create access token
 pub fn handle_unified_connector_service_response_for_create_access_token(
     response: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -4068,7 +4109,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4109,7 +4150,7 @@ where
                 // Fire kill switch for non-connector UCS errors
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),
@@ -4309,7 +4350,7 @@ where
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
-                    kill_switch::record_failure(
+                    kill_switch::check_record_failure(
                         state,
                         kill_switch::UcsFailureContext {
                             merchant_id: merchant_id.get_string_repr(),
@@ -4351,7 +4392,7 @@ where
                 // typed, so this is the one place the kill switch has to observe.
                 match get_flow_name::<T>() {
                     Ok(flow_name) => {
-                        kill_switch::record_failure(
+                        kill_switch::check_record_failure(
                             state,
                             kill_switch::UcsFailureContext {
                                 merchant_id: merchant_id.get_string_repr(),
@@ -4527,9 +4568,21 @@ pub async fn call_unified_connector_service_for_refund_execute(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund execute")?;
 
+    let settlement = multi_currency_processing::resolve_operation_multi_currency_processing(
+        &router_data.connector,
+        router_data.request.payment_feature_metadata.as_ref(),
+        router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.multi_currency_processing.as_ref()),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Invalid MCP data for UCS refund dispatch")?;
+
     // Transform router data to UCS refund request
     let ucs_refund_request =
-        payments_grpc::PaymentServiceRefundRequest::foreign_try_from(&router_data)
+        payments_grpc::PaymentServiceRefundRequest::foreign_try_from((&router_data, settlement))
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to transform router data to UCS refund request")?;
 
@@ -4798,8 +4851,12 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
     payment_id: &id_type::PaymentId,
     profile_id: &id_type::ProfileId,
     connector_name: String,
-) -> RouterResult<hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData>
-{
+) -> RouterResult<
+    Result<
+        hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData,
+        ErrorResponse,
+    >,
+> {
     let ucs_client = get_ucs_client(state)?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
@@ -4860,15 +4917,33 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
 
     let response = ucs_client
         .surcharge_calculate(surcharge_request, connector_auth_metadata, grpc_headers)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS surcharge_calculate gRPC call failed")?;
+        .await;
+    match response {
+        Ok(response) => {
+            let surcharge_response = Result::<
+                hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData,
+                ErrorResponse,
+            >::foreign_try_from(response.into_inner())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse UCS surcharge calculate response")?;
 
-    hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData::foreign_try_from(
-        response.into_inner(),
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to parse UCS surcharge calculate response")
+            Ok(surcharge_response)
+        }
+        Err(error) => {
+            let error_response = match error.current_context() {
+                UnifiedConnectorServiceError::ConnectorError(inner) => inner.as_ref().into(),
+                error => {
+                    let api_error: errors::ApiErrorResponse = error.switch();
+                    let status_code = api_error.status_code().as_u16();
+                    ErrorResponse {
+                        status_code,
+                        ..api_error.into()
+                    }
+                }
+            };
+            Ok(Err(error_response))
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

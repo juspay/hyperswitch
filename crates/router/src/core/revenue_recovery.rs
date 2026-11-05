@@ -1,4 +1,5 @@
 pub mod api;
+pub mod card_selection;
 pub mod retry_stats;
 pub mod schedule;
 pub mod transformers;
@@ -30,6 +31,7 @@ use hyperswitch_domain_models::{
     },
     platform, revenue_recovery as domain_revenue_recovery, ApiModelToDieselModelConvertor,
 };
+use hyperswitch_masking::{PeekInterface, Secret};
 use scheduler::errors as sch_errors;
 
 use crate::{
@@ -56,6 +58,7 @@ use crate::{
         },
         transformers::{ForeignFrom, ForeignInto},
     },
+    utils,
     workflows::revenue_recovery as revenue_recovery_workflow,
 };
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
@@ -210,6 +213,7 @@ pub async fn upsert_calculate_pcr_task(
                     intent_retry_count,
                     max_hybrid_cascading_retry_count,
                 )),
+                payment_processor_token: None,
             };
 
             let tag = ["PCR"];
@@ -288,7 +292,7 @@ pub async fn upsert_calculate_pcr_task(
                     let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
                         merchant_account: platform.get_processor().get_account().clone(),
                         profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().clone(),
+                        key_store: platform.get_processor().get_key_store().inner().clone(),
                         billing_mca: billing_connector_account.clone(),
                         retry_algorithm: revenue_recovery_retry,
                         psync_data: None,
@@ -420,45 +424,67 @@ pub async fn perform_execute_payment(
         types::Decision::Execute => {
             let connector_customer_id = revenue_recovery_metadata.get_connector_customer_id();
 
-            let last_token_used =
-                revenue_recovery_workflow::get_invoice_payment_processor_token(payment_intent);
+            let processor_token = match tracking_data.payment_processor_token.as_ref() {
+                // Calculate records the card it picked on the task, so the payment is made with
+                // exactly that card
+                Some(payment_processor_token) => {
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::get_retryable_token_using_token_id(
+                        state,
+                        &connector_customer_id,
+                        payment_processor_token.peek(),
+                    )
+                    .await
+                }
 
-            // Same dimensions calculate resolves the flag on
-            let adaptive_retry_enabled = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_connector(revenue_recovery_payment_data.billing_mca.connector_name)
-                .get_adaptive_retry_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await;
+                // Queued before calculate recorded its pick, so the card is resolved the way it was
+                // when the task was queued
+                None => {
+                    let last_token_used =
+                        revenue_recovery_workflow::get_invoice_payment_processor_token(
+                            payment_intent,
+                        );
 
-            // Same dimensions calculate resolves the flag on
-            let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-                .with_organization_id(payment_intent.organization_id.clone())
-                .with_profile_id(payment_intent.profile_id.clone())
-                .get_revenue_recovery_ab_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await;
+                    // Same dimensions calculate resolves the flag on
+                    let adaptive_retry_enabled =
+                        crate::core::configs::dimension_state::Dimensions::new()
+                            .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                            .with_connector(revenue_recovery_payment_data.billing_mca.connector_name)
+                            .get_adaptive_retry_enabled(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                None,
+                            )
+                            .await;
 
-            // Calculate schedules the invoice's own token on both the A/B and adaptive paths, and
-            // hands the invoice to the decider only when neither is on.
-            let smart_retry_uses_invoice_token = ab_enabled || adaptive_retry_enabled;
+                    // Same dimensions calculate resolves the flag on
+                    let ab_enabled = crate::core::configs::dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_organization_id(payment_intent.organization_id.clone())
+                        .with_profile_id(payment_intent.profile_id.clone())
+                        .get_revenue_recovery_ab_enabled(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            None,
+                        )
+                        .await;
 
-            let processor_token = storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
-                state,
-                &connector_customer_id,
-                tracking_data.revenue_recovery_retry,
-                last_token_used.as_deref(),
-                smart_retry_uses_invoice_token,
-            )
-            .await
+                    // Calculate schedules the invoice's own token on both the A/B and adaptive
+                    // paths, and hands the invoice to the decider only when neither is on.
+                    let smart_retry_uses_invoice_token = ab_enabled || adaptive_retry_enabled;
+
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::get_token_based_on_retry_type(
+                        state,
+                        &connector_customer_id,
+                        tracking_data.revenue_recovery_retry,
+                        last_token_used.as_deref(),
+                        smart_retry_uses_invoice_token,
+                    )
+                    .await
+                }
+            }
             .change_context(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "Failed to fetch token details from redis".to_string(),
             })?;
@@ -645,6 +671,7 @@ async fn insert_psync_pcr_task_to_pt(
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
         static_ladder_progress,
+        payment_processor_token: None,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -989,6 +1016,7 @@ pub async fn perform_calculate_workflow(
     match payment_processor_token_response {
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
             scheduled_time,
+            payment_processor_token,
         } => {
             logger::info!(
                 process_id = %process.id,
@@ -1017,6 +1045,7 @@ pub async fn perform_calculate_workflow(
                 retry_algorithm_type,
                 scheduled_time,
                 next_static_ladder_progress.clone(),
+                payment_processor_token,
             )
             .await?;
 
@@ -1326,6 +1355,7 @@ async fn insert_execute_pcr_task_to_pt(
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
     static_ladder_progress: Option<schedule::StaticLadderProgress>,
+    payment_processor_token: String,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -1372,6 +1402,7 @@ async fn insert_execute_pcr_task_to_pt(
             tracking_data.revenue_recovery_retry = revenue_recovery_retry;
             tracking_data.static_ladder_progress = static_ladder_progress;
             tracking_data.prev_attempt_error_code = prev_attempt_error_code;
+            tracking_data.payment_processor_token = Some(Secret::new(payment_processor_token));
 
             let tracking_data_json = serde_json::to_value(&tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
@@ -1438,6 +1469,7 @@ async fn insert_execute_pcr_task_to_pt(
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
                 static_ladder_progress,
+                payment_processor_token: Some(Secret::new(payment_processor_token)),
             };
 
             let tag = ["PCR"];
@@ -1492,6 +1524,8 @@ async fn insert_execute_pcr_task_to_pt(
 
 pub async fn retrieve_revenue_recovery_process_tracker(
     state: SessionState,
+    platform: domain::Platform,
+    profile: domain::Profile,
     id: GlobalPaymentId,
 ) -> RouterResponse<revenue_recovery::RevenueRecoveryResponse> {
     let db = &*state.store;
@@ -1515,6 +1549,18 @@ pub async fn retrieve_revenue_recovery_process_tracker(
         .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("unable to deserialize  Pcr Workflow Tracking Data")?;
+
+    // The process tracker is looked up by payment id alone, so make sure it belongs to the caller
+    if !utils::is_owned_by_merchant_and_profile(
+        &platform,
+        &profile,
+        &tracking_data.merchant_id,
+        &tracking_data.profile_id,
+    ) {
+        return Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "Entry For the following id doesn't exists".to_owned(),
+        }));
+    }
 
     let psync_task = PSYNC_WORKFLOW;
 
@@ -1586,7 +1632,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         revenue_recovery_payment_data.key_store.clone(),
         None,
     );
-    let create_intent_response = payments::payments_intent_core::<
+    let create_intent_response = Box::pin(payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
         router_api_types::payments::PaymentsIntentResponse,
         _,
@@ -1601,7 +1647,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         request,
         tracking_data.global_payment_id.clone(),
         hyperswitch_domain_models::payments::HeaderPayload::default(),
-    )
+    ))
     .await?;
 
     let response = create_intent_response
@@ -1654,13 +1700,17 @@ pub async fn resume_revenue_recovery_process_tracker(
         IntentStatus::Succeeded => {
             // Sync the intent's *active* (charged) attempt, NOT tracking_data's attempt — the latter
             // is the original failed attempt; the successful retry lives on `active_attempt_id`.
+            let processor_account = domain::ProcessorMerchantAccount::from_untagged(
+                revenue_recovery_payment_data.merchant_account.clone(),
+            );
+            let processor_key_store = domain::ProcessorKeyStore::from_untagged(
+                revenue_recovery_payment_data.key_store.clone(),
+            );
             let payment_intent = db
                 .find_payment_intent_by_id(
                     &id,
-                    &revenue_recovery_payment_data.key_store,
-                    revenue_recovery_payment_data
-                        .merchant_account
-                        .storage_scheme,
+                    &processor_key_store,
+                    processor_account.get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -1958,8 +2008,8 @@ pub fn decide_invoice_cancellation(
 /// the decision returned and returns it. Otherwise returns the refusal without changing anything.
 pub async fn cancel_invoice_workflows(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
     payment_intent: PaymentIntent,
 ) -> CustomResult<Result<PaymentIntent, CancelInvoiceRefusal>, errors::RevenueRecoveryError> {
     let db = &*state.store;
@@ -1998,7 +2048,7 @@ pub async fn cancel_invoice_workflows(
 
     let intent_update = PaymentIntentUpdate::VoidUpdate {
         status: cancelled_status,
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     let cancelled_intent = db
         .update_payment_intent(payment_intent, intent_update, key_store, storage_scheme)

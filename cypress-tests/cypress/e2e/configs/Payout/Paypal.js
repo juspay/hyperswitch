@@ -145,5 +145,158 @@ export const connectorDetails = {
         },
       },
     },
+    Confirm: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    Fulfill: {
+      Request: {
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: wallet_data,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    RetrieveAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    SyncAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    CreateVenmo: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+          payout_type: "wallet",
+        },
+      },
+    },
+    ConfirmVenmo: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    FulfillVenmo: {
+      Request: {
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            venmo: wallet_data,
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "wallet",
+        },
+      },
+    },
+    MissingReceiverDataConfirm: {
+      Request: {
+        amount: 100,
+        currency: "GBP",
+        payout_type: "wallet",
+        payout_method_data: {
+          wallet: {
+            paypal: {},
+          },
+        },
+        entity_type: "NaturalPerson",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
+    MissingReceiverDataFulfill: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message: "Missing required param: receiver_data",
+          },
+        },
+      },
+    },
+    MissingReceiverDataRetrieveAfterFulfill: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          payout_type: "wallet",
+        },
+      },
+    },
   },
 };

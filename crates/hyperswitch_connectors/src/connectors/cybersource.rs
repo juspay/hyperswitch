@@ -2411,6 +2411,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => {
                 if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
@@ -2431,6 +2432,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => self.is_3ds_setup_required(&request_data, auth_type),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,

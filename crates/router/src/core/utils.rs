@@ -25,6 +25,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
+    mandates,
     merchant_connector_account::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
@@ -37,11 +38,11 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::configs::Connectors;
+#[cfg(feature = "payouts")]
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::Secret;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
@@ -55,6 +56,8 @@ use super::payouts::{helpers as payout_helpers, PayoutData};
 use crate::core::payments;
 #[cfg(feature = "v2")]
 use crate::core::payments::helpers as payment_helpers;
+#[cfg(feature = "v2")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     configs::Settings,
     consts,
@@ -73,6 +76,34 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<String> {
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            router_env::logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            super::metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
@@ -263,15 +294,27 @@ pub(super) async fn construct_payout_router_data_common<F>(
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
-            api_models::enums::PayoutConnectors::Stripe => {
-                payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-                    metadata
-                        .peek()
-                        .to_owned()
-                        .parse_value("PayoutVendorAccountDetails")
-                        .ok()
+            api_models::enums::PayoutConnectors::Stripe => payout_data
+                .payouts
+                .metadata
+                .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
                 })
-            }
+                .map(|metadata| {
+                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
+                        .map_err(|error| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("Invalid payout metadata: {error}"),
+                            })
+                        })
+                })
+                .transpose()?,
             _ => None,
         };
 
@@ -519,6 +562,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.id.get_string_repr().to_string(),
+            payment_feature_metadata: payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -538,6 +586,8 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -630,6 +680,8 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a diesel_refund::Refund,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    payment_method_data: Option<domain::PaymentMethodData>,
+    mandate_id: Option<mandates::MandateIds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -746,6 +798,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
+            payment_feature_metadata: payment_intent
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -765,6 +822,8 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_method_data,
+            mandate_id,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -2855,6 +2914,12 @@ impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
 impl GetProfileId for domain::Profile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(self.get_id())
+    }
+}
+
+impl GetProfileId for hyperswitch_domain_models::authentication::Authentication {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
     }
 }
 
