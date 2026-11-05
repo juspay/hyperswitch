@@ -4453,12 +4453,10 @@ where
                                         connector,
                                     )
                                     .clone();
-                                let three_ds_authentication_url = sdk_callback_urls
-                                    .authentication_url(
-                                        base_url,
-                                        payment_attempt.payment_id.get_string_repr(),
-                                    )
-                                    .clone();
+                                let three_ds_authentication_url = Secret::new(format!(
+                                    "{base_url}/payments/{}/3ds/authentication",
+                                    payment_attempt.payment_id.get_string_repr(),
+                                ));
                                 Some(api_models::payments::NextActionData::ThreeDsInvoke {
                                             three_ds_data: api_models::payments::ThreeDsData {
                                                 three_ds_authentication_url,

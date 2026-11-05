@@ -1036,9 +1036,7 @@ fn configure_payment_callback_routes(config: &mut web::ServiceConfig) {
 
     use super::payments::callback_routes::PaymentCallbackRoute;
 
-    for callback in PaymentCallbackRoute::iter()
-        .filter(|callback| *callback != PaymentCallbackRoute::Authentication)
-    {
+    for callback in PaymentCallbackRoute::iter() {
         config.service(callback.resource());
     }
 }
@@ -1179,7 +1177,10 @@ impl Payments {
                 .service(PaymentCallbackRoute::RedirectComplete.legacy_resource())
                 .service(PaymentCallbackRoute::RedirectCompleteWithCredentials.legacy_resource())
                 .service(PaymentCallbackRoute::Authorize.legacy_resource())
-                .service(PaymentCallbackRoute::Authentication.resource())
+                .service(
+                    web::resource("/{payment_id}/3ds/authentication")
+                        .route(web::post().to(payments::payments_external_authentication)),
+                )
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments::payments_complete_authorize)),

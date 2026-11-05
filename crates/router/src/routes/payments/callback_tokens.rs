@@ -387,9 +387,6 @@ mod tests {
                 PaymentCallbackRoute::Authorize => {
                     PaymentCallbackFields::Authorize(&self.connector)
                 }
-                PaymentCallbackRoute::Authentication => {
-                    panic!("Client-secret authentication does not use callback tokens")
-                }
             }
         }
         fn url(
@@ -424,9 +421,6 @@ mod tests {
                 }
                 PaymentCallbackRoute::Authorize => {
                     PaymentCallbackRoute::authorize_url(base, mode, &self.connector)
-                }
-                PaymentCallbackRoute::Authentication => {
-                    panic!("Client-secret authentication does not use callback tokens")
                 }
             }
         }
@@ -687,7 +681,7 @@ mod tests {
                 .app_data(web::Data::new(PaymentCallbackMode::Migration))
                 .service(
                     web::resource(PaymentCallbackRoute::Start.path())
-                        .name(PaymentCallbackRoute::Authentication.name())
+                        .name("unprotected_route")
                         .route(web::get().to(echo_start)),
                 ),
         )

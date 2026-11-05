@@ -20,7 +20,6 @@ pub enum PaymentCallbackRoute {
     RedirectComplete,
     RedirectCompleteWithCredentials,
     Authorize,
-    Authentication,
 }
 
 impl PaymentCallbackRoute {
@@ -43,15 +42,11 @@ impl PaymentCallbackRoute {
                 "payment_callback_redirect_complete_with_credentials"
             }
             Self::Authorize => "payment_callback_authorize",
-            Self::Authentication => "payment_callback_authentication",
         }
     }
 
     pub fn path(self) -> String {
-        match self {
-            Self::Authentication => self.legacy_path(),
-            _ => self.with_callback_token(Self::CALLBACK_TOKEN),
-        }
+        self.with_callback_token(Self::CALLBACK_TOKEN)
     }
 
     pub(super) fn with_callback_token(self, token: &str) -> String {
@@ -102,12 +97,7 @@ impl PaymentCallbackRoute {
                 Self::MERCHANT_ID,
                 Self::CONNECTOR,
             ),
-            Self::Authentication => format!("/{}/3ds/authentication", Self::PAYMENT_ID),
         }
-    }
-
-    fn url(self, base_url: &str) -> String {
-        format!("{base_url}/payments{}", self.path())
     }
 
     pub fn start_url(
@@ -160,12 +150,6 @@ impl PaymentCallbackRoute {
         PaymentCallbackFields::Authorize(fields).create_url(base_url, callback_mode)
     }
 
-    pub fn authentication_url(base_url: &str, payment_id: &str) -> String {
-        Self::Authentication
-            .url(base_url)
-            .replace(Self::PAYMENT_ID, payment_id)
-    }
-
     /// Build the named resource with the methods and handlers for this callback.
     #[cfg(feature = "v1")]
     pub fn resource(self) -> Resource {
@@ -202,9 +186,6 @@ impl PaymentCallbackRoute {
             Self::Authorize => resource
                 .route(web::post().to(payments::post_3ds_payments_authorize))
                 .route(web::get().to(payments::post_3ds_payments_authorize)),
-            Self::Authentication => {
-                resource.route(web::post().to(payments::payments_external_authentication))
-            }
         }
     }
 }

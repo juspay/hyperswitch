@@ -32,7 +32,6 @@ pub struct SdkCallbackUrls {
     pub authorize: Option<PaymentCallbackUrl>,
     pub redirect_response: Option<PaymentCallbackUrl>,
     pub redirect_complete: Option<PaymentCallbackUrl>,
-    pub authentication: Option<Secret<String>>,
 }
 
 impl SdkCallbackUrls {
@@ -61,12 +60,6 @@ impl SdkCallbackUrls {
                 &path.connector,
                 creds_identifier,
             ),
-        })
-    }
-
-    pub fn authentication_url(&mut self, base_url: &str, payment_id: &str) -> &Secret<String> {
-        self.authentication.get_or_insert_with(|| {
-            PaymentCallbackRoute::authentication_url(base_url, payment_id).into()
         })
     }
 
@@ -190,7 +183,6 @@ impl SdkCallbackUrls {
             authorize,
             redirect_response,
             redirect_complete,
-            authentication: _,
         } = self;
 
         futures::future::try_join_all(

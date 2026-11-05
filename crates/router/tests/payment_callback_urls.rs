@@ -14,9 +14,7 @@ mod sdk_callback_url_tests {
                 callback_urls::SdkCallbackUrls, transformers::next_action_invoke_ddc_iframe,
             },
         },
-        routes::payments::callback_routes::{
-            ConnectorCallbackPath, PaymentCallbackRoute, StartCallbackPath,
-        },
+        routes::payments::callback_routes::{ConnectorCallbackPath, StartCallbackPath},
         types::api::ConnectorData,
     };
 
@@ -156,30 +154,6 @@ mod sdk_callback_url_tests {
             ),
             &redirect
         );
-    }
-
-    #[test]
-    fn authentication_url_is_cached_without_token_registration() {
-        assert_eq!(
-            PaymentCallbackRoute::Authentication.path(),
-            PaymentCallbackRoute::Authentication.legacy_path()
-        );
-        let mut callbacks = SdkCallbackUrls::default();
-        let authentication = callbacks
-            .authentication_url("https://router.test", "pay")
-            .clone();
-        assert_eq!(
-            authentication.peek(),
-            "https://router.test/payments/pay/3ds/authentication"
-        );
-        assert_eq!(
-            callbacks.authentication_url("https://router.test", "other_pay"),
-            &authentication
-        );
-        assert!(callbacks.start.is_none());
-        assert!(callbacks.authorize.is_none());
-        assert!(callbacks.redirect_response.is_none());
-        assert!(callbacks.redirect_complete.is_none());
     }
 
     #[test]
