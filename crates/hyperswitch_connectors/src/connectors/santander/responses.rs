@@ -300,8 +300,8 @@ pub struct SantanderPixVoidResponse {
 pub struct SantanderPixAutomaticoCobrReceiverResponse {
     pub agencia: Option<Secret<String>>,
     pub conta: Secret<String>,
-    #[serde(rename = "tipoConta")]
-    pub tipo_conta: requests::SantanderAccountType,
+    #[serde(rename = "tipoConta", skip_serializing_if = "Option::is_none")]
+    pub tipo_conta: Option<requests::SantanderAccountType>,
     pub cnpj: Secret<String>,
     pub nome: Secret<String>,
 }

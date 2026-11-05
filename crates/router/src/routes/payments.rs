@@ -2022,7 +2022,7 @@ pub async fn payments_cancel(
                             connector_data.connector.is_pre_authorize_cancel_supported(
                                 payment_pre_fetched_info.payment_attempt.payment_method_type,
                                 payment_pre_fetched_info.payment_intent.status,
-                                payment_pre_fetched_info.payment_attempt.mandate_id.is_some(),
+                                payment_pre_fetched_info.payment_attempt.payment_method_id.is_some(),
                             )
                         })
                         .unwrap_or(false)
