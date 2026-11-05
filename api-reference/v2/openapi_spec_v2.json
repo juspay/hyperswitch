@@ -5328,9 +5328,6 @@
         },
         "security": [
           {
-            "ephemeral_key": []
-          },
-          {
             "api_key": []
           }
         ]
@@ -5384,9 +5381,6 @@
           }
         },
         "security": [
-          {
-            "ephemeral_key": []
-          },
           {
             "api_key": []
           }
@@ -7097,6 +7091,10 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
             "nullable": true
           }
         }
@@ -12693,6 +12691,7 @@
           "bamboraapac",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -26247,6 +26246,13 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -26484,6 +26490,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -26890,6 +26903,12 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Whether account name verification was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -27401,6 +27420,13 @@
             "default": false,
             "example": true,
             "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
+            "default": false,
+            "example": true,
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -27629,6 +27655,12 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Whether account name verification was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -27919,6 +27951,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -30530,6 +30569,15 @@
             "default": "skip",
             "nullable": true
           },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers",
+            "nullable": true
+          },
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
@@ -30539,6 +30587,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
               }
             ],
             "nullable": true
@@ -30585,7 +30641,8 @@
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "split_txns_enabled"
+          "split_txns_enabled",
+          "revenue_recovery_trigger_model"
         ],
         "properties": {
           "merchant_id": {
@@ -30846,6 +30903,14 @@
             ],
             "default": "skip"
           },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers"
+          },
           "revenue_recovery_retry_algorithm_type": {
             "allOf": [
               {
@@ -30863,6 +30928,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "revenue_recovery_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryConfig"
               }
             ],
             "nullable": true
@@ -32916,6 +32989,59 @@
           "cascading"
         ]
       },
+      "RevenueRecoveryConfig": {
+        "type": "object",
+        "description": "Revenue recovery retry configuration for a profile",
+        "required": [
+          "max_retry_count",
+          "billing_connector_retry_threshold"
+        ],
+        "properties": {
+          "max_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.",
+            "example": "15",
+            "minimum": 0
+          },
+          "billing_connector_retry_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of `billing connector` retries before revenue recovery can start executing retries.",
+            "example": "10",
+            "minimum": 0
+          },
+          "max_hybrid_cascading_retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of cascading (static) retries an invoice may use under the hybrid static + adaptive\nscheme.",
+            "example": "5",
+            "minimum": 0
+          },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period, in days from the invoice's billing start, within which retries are allowed.\nDefaults to 30 days when not provided.",
+            "default": 30,
+            "example": "30",
+            "minimum": 0
+          },
+          "enable_partial_authorization": {
+            "type": "boolean",
+            "description": "Allow partial authorization for recovered payments. A value passed in the recovery\npayments API request takes priority over this. Defaults to `false` when not provided.",
+            "default": false,
+            "example": false
+          },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
+          }
+        }
+      },
       "RevenueRecoveryMetadata": {
         "type": "object",
         "description": "Revenue recovery metadata for merchant connector account",
@@ -32960,6 +33086,14 @@
             "default": false,
             "example": false
           },
+          "max_hard_decline_retries": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not\nprovided.",
+            "default": 0,
+            "example": "0",
+            "minimum": 0
+          },
           "billing_account_reference": {
             "type": "integer",
             "format": "int32",
@@ -33003,6 +33137,14 @@
             "type": "string"
           }
         }
+      },
+      "RevenueRecoveryTriggerModel": {
+        "type": "string",
+        "description": "Decides who triggers the retries of a failed invoice under revenue recovery, and so which\nmodel the recovery API follows.",
+        "enum": [
+          "internal_triggers",
+          "external_triggers"
+        ]
       },
       "RevokeApiKeyResponse": {
         "type": "object",
@@ -33105,6 +33247,7 @@
           "authorizedotnet",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bambora",
@@ -37017,6 +37160,10 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
             "nullable": true
           },
           "auth_code": {

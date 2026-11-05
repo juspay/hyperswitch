@@ -315,6 +315,7 @@ pub async fn generate_sample_data(
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
             settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
@@ -451,6 +452,8 @@ pub async fn generate_sample_data(
                     .unwrap_or(&common_enums::Currency::USD),
                 total_amount: MinorUnit::new(amount * 100),
                 refund_amount: MinorUnit::new(amount * 100),
+                refund_surcharge_amount: None,
+                net_refund_amount: Some(MinorUnit::new(amount * 100)),
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,
