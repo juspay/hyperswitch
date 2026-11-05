@@ -234,6 +234,27 @@ pub struct RapydMetadata {
     country_of_incorporation: Option<common_enums::CountryAlpha2>,
 }
 
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for RapydMetadata {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(meta_data) => meta_data
+                .clone()
+                .expose()
+                .parse_value::<Self>("RapydMetadata")
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "country_of_incorporation",
+                }),
+            None => Ok(Self {
+                country_of_incorporation: None,
+            }),
+        }
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
@@ -2353,4 +2374,61 @@ pub fn build_connector_config_header(
         .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
 
     Ok(Some(config_string))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common_utils::pii::SecretSerdeValue;
+    use serde_json::json;
+
+    fn metadata(value: serde_json::Value) -> Option<SecretSerdeValue> {
+        Some(Secret::new(value))
+    }
+
+    #[test]
+    fn rapyd_metadata_allows_absent_metadata() {
+        let parsed = RapydMetadata::try_from(&None).expect("absent metadata is valid");
+        assert!(parsed.country_of_incorporation.is_none());
+    }
+
+    #[test]
+    fn rapyd_metadata_allows_missing_country() {
+        let parsed =
+            RapydMetadata::try_from(&metadata(json!({}))).expect("empty metadata is valid");
+        assert!(parsed.country_of_incorporation.is_none());
+    }
+
+    #[test]
+    fn rapyd_metadata_parses_supported_country() {
+        let parsed = RapydMetadata::try_from(&metadata(json!({
+            "country_of_incorporation": "IS"
+        })))
+        .expect("documented country is valid");
+        assert_eq!(
+            parsed.country_of_incorporation,
+            Some(common_enums::CountryAlpha2::IS)
+        );
+    }
+
+    #[test]
+    fn rapyd_metadata_ignores_unrelated_keys() {
+        let parsed = RapydMetadata::try_from(&metadata(json!({
+            "country_of_incorporation": "US",
+            "unrelated": true
+        })))
+        .expect("unrelated keys are ignored");
+        assert_eq!(
+            parsed.country_of_incorporation,
+            Some(common_enums::CountryAlpha2::US)
+        );
+    }
+
+    #[test]
+    fn rapyd_metadata_rejects_unrepresented_country() {
+        assert!(RapydMetadata::try_from(&metadata(json!({
+            "country_of_incorporation": "XK"
+        })))
+        .is_err());
+    }
 }
