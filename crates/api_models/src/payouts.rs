@@ -170,15 +170,10 @@ pub struct PayoutCreateRequest {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Connector-specific payout configuration that affects how the payout is processed.
-    /// This is separate from merchant-defined `metadata` and is persisted for subsequent payout
-    /// operations such as fulfillment and synchronization.
     #[schema(value_type = Option<ConnectorPayoutMetadata>)]
     pub connector_metadata: Option<ConnectorPayoutMetadata>,
 
     /// Identity of the party providing the funds. Persisted on the payout and echoed
-    /// in the response; Hyperswitch converts it into common payout vendor details at
-    /// the domain boundary. Explicit sender input takes precedence over legacy vendor
-    /// metadata without merging identities. UCS receives only the converted vendor details.
     pub sender_details: Option<crate::sender::SenderDetails>,
 
     /// Provide a reference to a stored payout method, used to process the payout.
