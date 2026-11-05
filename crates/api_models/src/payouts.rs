@@ -2047,10 +2047,10 @@ impl From<crate::sender::SenderAddress> for PayoutVendorAddress {
 /// domain and connector code. Explicit sender input takes precedence over legacy vendor
 /// metadata without merging identities. Every field is listed explicitly so that adding a
 /// vendor field forces a deliberate mapping decision here.
-impl From<crate::sender::SenderDetails> for PayoutVendorAccountDetails {
-    fn from(value: crate::sender::SenderDetails) -> Self {
+impl From<SenderDetails> for PayoutVendorAccountDetails {
+    fn from(value: SenderDetails) -> Self {
         match value {
-            crate::sender::SenderDetails::Individual(sender) => Self {
+            SenderDetails::Individual(sender) => Self {
                 vendor_details: PayoutVendorDetails {
                     account_type: String::new(),
                     business_type: "individual".to_owned(),
@@ -2093,7 +2093,7 @@ impl From<crate::sender::SenderDetails> for PayoutVendorAccountDetails {
                     source_of_funds: sender.source_of_funds,
                 },
             },
-            crate::sender::SenderDetails::Corporate(sender) => {
+            SenderDetails::Corporate(sender) => {
                 let address = sender.address.unwrap_or_default();
                 Self {
                     vendor_details: PayoutVendorDetails {
