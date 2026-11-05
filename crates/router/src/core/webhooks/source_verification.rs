@@ -54,10 +54,11 @@ pub(super) struct NetworkVerification {
 }
 
 impl NetworkVerification {
-    /// A required check disabled by config keeps the source unverified even when another check passes.
-    /// Use connector source verification only when no network check is required.
+    /// A disabled mTLS check keeps the source unverified even when another check passes.
+    /// A disabled IP check is ignored, so turning it off restores connector source verification.
+    /// Use connector source verification only when no network check verified the source.
     pub(super) fn resolve_source_verified(self, connector_source_verified: bool) -> bool {
-        if self.mtls.is_required_but_disabled() || self.source_ip.is_required_but_disabled() {
+        if self.mtls.is_required_but_disabled() {
             false
         } else if self.mtls.is_verified() || self.source_ip.is_verified() {
             true
@@ -93,7 +94,8 @@ impl<'a> IncomingWebhookVerifier<'a> {
     /// this connector.
     ///
     /// Only connectors requiring IP verification consult the config.
-    /// The global IP verification toggle defaults to false and bypasses policy lookup when disabled.
+    /// The global IP verification toggle defaults to false; when disabled, policy lookup is skipped
+    /// and the remaining checks decide whether the source is verified.
     /// A missing or invalid policy or current connector's IP ranges is a configuration error.
     /// Malformed entries invalidate the entire policy during deserialization.
     async fn verify_source_ip(

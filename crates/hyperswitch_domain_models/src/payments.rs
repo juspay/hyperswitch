@@ -143,7 +143,11 @@ pub struct PaymentIntent {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<EnableOvercaptureBool>,
     pub mit_category: Option<common_enums::MitCategory>,
@@ -160,6 +164,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -1069,6 +1074,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
@@ -1285,6 +1291,7 @@ impl PaymentIntent {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             mit_category: request.mit_category,
             settlement_conclusion_applied: None,
         })

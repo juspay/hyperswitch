@@ -337,6 +337,7 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 impl Profile {
@@ -417,6 +418,7 @@ pub struct ProfileNew {
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -483,6 +485,7 @@ pub struct ProfileUpdateInternal {
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
@@ -698,6 +701,27 @@ pub struct RevenueRecoveryAlgorithmData {
 }
 
 common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+
+fn default_grace_period_days() -> u16 {
+    30
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryConfig {
+    pub max_retry_count: u16,
+    pub billing_connector_retry_threshold: u16,
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
+    #[serde(default = "default_grace_period_days")]
+    pub grace_period_days: u16,
+    #[serde(default)]
+    pub enable_partial_authorization: bool,
+    #[serde(default)]
+    pub max_hard_decline_retries: u16,
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryConfig);
 
 /// Configuration for payment method blocking based on card attributes
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]

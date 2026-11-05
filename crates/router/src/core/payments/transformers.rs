@@ -535,6 +535,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         recipient_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+        enable_account_name_verification: payment_data
+            .payment_intent
+            .enable_account_name_verification,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1900,6 +1903,9 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         recipient_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+        enable_account_name_verification: payment_data
+            .payment_intent
+            .enable_account_name_verification,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2165,6 +2171,8 @@ where
             let billing_address = unified_address.get_payment_billing();
             let merchant_tax_registration_id =
                 processor.get_account().get_merchant_tax_registration_id();
+            let merchant_vat_registration_id =
+                processor.get_account().get_merchant_vat_registration_id();
 
             Box::new(types::L2L3Data {
                 order_info: Some(types::OrderInfo {
@@ -2177,6 +2185,7 @@ where
                     discount_amount: payment_data.payment_intent.discount_amount,
                     shipping_cost: payment_data.payment_intent.shipping_cost,
                     duty_amount: payment_data.payment_intent.duty_amount,
+                    order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 }),
                 tax_info: Some(types::TaxInfo {
                     tax_status: payment_data.payment_intent.tax_status,
@@ -2184,7 +2193,14 @@ where
                         .as_ref()
                         .and_then(|customer| customer.tax_registration_id.clone()),
                     merchant_tax_registration_id,
+                    merchant_vat_registration_id,
                     shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                    value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                    value_added_tax_percent: payment_data.payment_intent.value_added_tax_percent,
+                    vat_invoice_reference_number: payment_data
+                        .payment_intent
+                        .vat_invoice_reference_number
+                        .clone(),
                     order_tax_amount: payment_data
                         .payment_attempt
                         .net_amount
@@ -3090,6 +3106,7 @@ where
                 is_account_funded_transaction: payment_intent.is_account_funded_transaction,
                 recipient_details: masked_recipient_details,
                 enable_avs_check: payment_intent.enable_avs_check,
+                enable_account_name_verification: payment_intent.enable_account_name_verification,
             },
             vec![],
         )))
@@ -3267,6 +3284,7 @@ where
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
             enable_avs_check: payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_intent.enable_account_name_verification,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3424,6 +3442,7 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
             enable_avs_check: payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_intent.enable_account_name_verification,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -3551,6 +3570,7 @@ where
                 .map(|feature_metadata| feature_metadata.convert_back()),
             metadata: payment_intent.metadata,
             enable_avs_check: payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_intent.enable_account_name_verification,
         };
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
@@ -4560,6 +4580,7 @@ where
             connector_response_metadata,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id.clone(),
             enable_avs_check: payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_intent.enable_account_name_verification,
         };
 
         services::ApplicationResponse::JsonWithHeaders((payments_response, headers))
@@ -5062,6 +5083,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             installment_data: pa.installment_data,
             sender_payment_instrument_id: pa.sender_payment_instrument_id.clone(),
             enable_avs_check: pi.enable_avs_check,
+            enable_account_name_verification: pi.enable_account_name_verification,
         }
     }
 }
@@ -5454,6 +5476,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: None,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -5763,6 +5788,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -7473,6 +7501,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             recipient_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }
@@ -7720,6 +7751,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             order_details,
             enable_overcapture: payment_data.payment_intent.enable_overcapture,
             feature_metadata,
+            enable_account_name_verification: payment_data
+                .payment_intent
+                .enable_account_name_verification,
         })
     }
 }

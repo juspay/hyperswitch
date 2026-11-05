@@ -168,7 +168,13 @@ pub async fn refunds_create(
         &req,
         internal_refund_create_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_create_core(state, auth.platform, req.payload, global_refund_id.clone())
+            refund_create_core(
+                state,
+                auth.platform,
+                auth.profile,
+                req.payload,
+                global_refund_id.clone(),
+            )
         },
         auth_type,
         locking_action,

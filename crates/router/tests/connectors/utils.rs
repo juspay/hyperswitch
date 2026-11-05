@@ -1053,6 +1053,7 @@ impl Default for PaymentAuthorizeType {
             connector_intent_metadata: None,
             business_country: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         };
         Self(data)
     }
