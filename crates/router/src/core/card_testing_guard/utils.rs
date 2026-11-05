@@ -10,7 +10,7 @@ use crate::{
     core::{configs::dimension_state, errors::RouterResult, payments::helpers},
     routes::SessionState,
     services,
-    types::domain,
+    types::{domain, transformers::ForeignInto},
     utils::crypto::{self, SignMessage},
 };
 
@@ -35,11 +35,12 @@ pub async fn validate_card_testing_guard_checks(
         business_profile.card_testing_guard_config.clone()
     } else {
         Some(
-            serde_json::from_value(superposition_config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Invalid card testing guard config received from Superposition",
-                )?,
+            serde_json::from_value::<api_models::admin::CardTestingGuardConfig>(
+                superposition_config,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid card testing guard config received from Superposition")?
+            .foreign_into(),
         )
     };
 
