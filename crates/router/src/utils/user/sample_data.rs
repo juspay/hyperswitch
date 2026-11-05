@@ -216,8 +216,10 @@ pub async fn generate_sample_data(
             created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY));
 
         // After some set of payments sample data will have a failed attempt
-        let is_failed_payment =
-            (random_array.get(num - 1).unwrap_or(&0) % failure_after_attempts) == 0;
+        let is_failed_payment = random_array
+            .get(num - 1)
+            .unwrap_or(&0)
+            .is_multiple_of(failure_after_attempts);
 
         let payment_intent = PaymentIntent {
             payment_id: payment_id.clone(),
@@ -295,6 +297,10 @@ pub async fn generate_sample_data(
             duty_amount: None,
             tax_status: None,
             shipping_amount_tax: None,
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            order_commodity_code: None,
+            vat_invoice_reference_number: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
             mit_category: None,
@@ -308,6 +314,9 @@ pub async fn generate_sample_data(
             profile_acquirer_id: None,
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
+            enable_avs_check: None,
+            enable_account_name_verification: None,
+            settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -421,6 +430,7 @@ pub async fn generate_sample_data(
             let (connector_transaction_id, processor_transaction_data) =
                 ConnectorTransactionId::form_id_and_data(attempt_id.clone());
             Some(RefundNew {
+                feature_metadata: None,
                 refund_id: common_utils::generate_id_with_default_len("test"),
                 internal_reference_id: common_utils::generate_id_with_default_len("test"),
                 external_reference_id: None,
@@ -442,6 +452,8 @@ pub async fn generate_sample_data(
                     .unwrap_or(&common_enums::Currency::USD),
                 total_amount: MinorUnit::new(amount * 100),
                 refund_amount: MinorUnit::new(amount * 100),
+                refund_surcharge_amount: None,
+                net_refund_amount: Some(MinorUnit::new(amount * 100)),
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,

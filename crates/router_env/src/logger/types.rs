@@ -692,8 +692,6 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
-    /// Routing evaluate rule flow
-    RoutingEvaluateRule,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover
@@ -744,6 +742,8 @@ pub enum Flow {
     RevenueRecoveryRetrieve,
     /// Process Tracker Revenue Recovery Workflow Resume
     RevenueRecoveryResume,
+    /// Revenue Recovery invoice cancel
+    RevenueRecoveryCancel,
     /// Tokenization flow
     TokenizationCreate,
     /// Tokenization retrieve flow
@@ -776,10 +776,6 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
-    /// Decision Engine Decide Gateway Call
-    DecisionEngineDecideGatewayCall,
-    /// Decision Engine Gateway Feedback Call
-    DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
     /// Tokenization delete flow
@@ -832,6 +828,8 @@ pub enum Flow {
     ListMembersForEntity,
     /// Authorize external token
     AuthorizeUserToken,
+    /// Generic pay inbound charge flow, for any provider
+    TelephoneOrderCharge,
 }
 
 /// Trait for providing generic behaviour to flow metric

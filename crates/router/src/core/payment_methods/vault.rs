@@ -3,6 +3,8 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{BankNames, PaymentMethodType};
 #[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::encryption::Encryption;
+#[cfg(feature = "v2")]
+use common_utils::ext_traits::AsyncExt;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::{BytesExt, Encode},
@@ -18,6 +20,8 @@ use hyperswitch_domain_models::router_flow_types::{
 use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
+#[cfg(feature = "v2")]
+use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v2")]
 use payment_methods::controller::DeleteCardResp;
@@ -634,6 +638,16 @@ impl Vaultable for api::WalletPayout {
                 expiry_year: Some(google_pay_decrypt_data.expiry_year.clone()),
                 card_holder_name: google_pay_decrypt_data.card_holder_name.clone(),
             },
+            Self::Mifinity(mifinity_data) => TokenizedWalletSensitiveValues {
+                email: None,
+                telephone_number: None,
+                wallet_id: Some(mifinity_data.destination_account.clone()),
+                wallet_type: PaymentMethodType::Mifinity,
+                dpan: None,
+                expiry_month: None,
+                expiry_year: None,
+                card_holder_name: None,
+            },
         };
 
         value1
@@ -662,6 +676,10 @@ impl Vaultable for api::WalletPayout {
             Self::GooglePayDecrypt(google_pay_decrypt_data) => TokenizedWalletInsensitiveValues {
                 customer_id,
                 card_network: google_pay_decrypt_data.card_network.clone(),
+            },
+            Self::Mifinity(_) => TokenizedWalletInsensitiveValues {
+                customer_id,
+                card_network: None,
             },
         };
 
@@ -708,6 +726,11 @@ impl Vaultable for api::WalletPayout {
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
                 }
             }
+            PaymentMethodType::Mifinity => Self::Mifinity(api_models::payouts::Mifinity {
+                destination_account: value1
+                    .wallet_id
+                    .ok_or(errors::VaultError::ResponseDeserializationFailed)?,
+            }),
             _ => Err(errors::VaultError::PayoutMethodNotSupported)?,
         };
         let supp_data = SupplementaryVaultData {
@@ -867,6 +890,20 @@ impl Vaultable for api::BankPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -968,6 +1005,17 @@ impl Vaultable for api::BankPayout {
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.clone(),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
+            },
         };
 
         bank_insensitive_data
@@ -1063,6 +1111,22 @@ impl Vaultable for api::BankPayout {
                     bank_code: bank_insensitive_data.bank_code,
                     bank_account_type: bank_insensitive_data.bank_account_type,
                     account_holder_name: bank_sensitive_data.account_holder_name,
+                })
+            }
+            (Some(ban), None, None, None, None, None, tax_id, _, Some(PaymentMethodType::Ted)) => {
+                Self::Ted(payouts::TedBankTransfer {
+                    bank_account_number: ban,
+                    bank_branch: bank_insensitive_data.bank_branch,
+                    bank_name: bank_insensitive_data
+                        .bank_name
+                        .map(|bank_name| BankNames::from_str(&bank_name))
+                        .transpose()
+                        .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                    bank_code: bank_insensitive_data.bank_code,
+                    bank_account_type: bank_insensitive_data.bank_account_type,
+                    tax_id,
+                    account_holder_name: bank_sensitive_data.account_holder_name,
+                    ispb: bank_insensitive_data.ispb,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1224,6 +1288,20 @@ impl Vaultable for api::BankTransferPayout {
                 cellphone: bank_details.cellphone.clone(),
                 shap_id: bank_details.shap_id.clone(),
             },
+            Self::Ted(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: bank_details.tax_id.clone(),
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
         };
 
         bank_sensitive_data
@@ -1349,6 +1427,17 @@ impl Vaultable for api::BankTransferPayout {
                 bank_code: None,
                 bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
+            },
+            Self::Ted(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details.bank_name.as_ref().map(|b| b.to_string()),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: bank_details.bank_branch.clone(),
+                ispb: bank_details.ispb.clone(),
+                bank_code: bank_details.bank_code.clone(),
+                bank_account_type: bank_details.bank_account_type,
+                payout_method_type: Some(PaymentMethodType::Ted),
             },
         };
 
@@ -1486,6 +1575,24 @@ impl Vaultable for api::BankTransferPayout {
                     shap_id: bank_sensitive_data.shap_id,
                 })
             }
+            Some(PaymentMethodType::Ted) => Self::Ted(payouts::TedBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number".into(),
+                    },
+                )?,
+                bank_branch: bank_insensitive_data.bank_branch,
+                bank_name: bank_insensitive_data
+                    .bank_name
+                    .map(|bank_name| BankNames::from_str(&bank_name))
+                    .transpose()
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                tax_id: bank_sensitive_data.tax_id,
+                account_holder_name: bank_sensitive_data.account_holder_name,
+                ispb: bank_insensitive_data.ispb,
+            }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 
@@ -2320,17 +2427,189 @@ pub async fn get_fingerprint_id_for_payment_method(
 }
 
 #[cfg(feature = "v2")]
-pub async fn get_auxiliary_fingerprint_id_for_payment_method(
+pub type FingerprintTask = tokio::task::JoinHandle<RouterResult<Option<String>>>;
+
+/// Auxiliary and merchant fingerprints use the same data, scoped by a different key.
+#[cfg(feature = "v2")]
+pub fn spawn_fingerprint_task(
+    state: &routes::SessionState,
+    payment_method_data: &domain::PaymentMethodVaultingData,
+    key: hyperswitch_masking::Secret<String>,
+    kind: &'static str,
+) -> FingerprintTask {
+    use router_env::tracing::Instrument;
+
+    let state = state.clone();
+    let data = payment_method_data.to_auxiliary_fingerprint_data();
+    tokio::spawn(
+        async move {
+            data.as_ref()
+                .async_map(|data| get_fingerprint_id_from_vault(&state, data, key.expose()))
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!("Failed to generate {kind} fingerprint"))
+        }
+        .in_current_span(),
+    )
+}
+
+/// Batched fingerprints are already available; non-batched ones are awaited at their use site.
+#[cfg(feature = "v2")]
+pub async fn resolve_fingerprint_task(
+    task: Option<FingerprintTask>,
+    fingerprint: Option<String>,
+) -> RouterResult<Option<String>> {
+    match task {
+        Some(task) => task
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to join fingerprint task")?,
+        None => Ok(fingerprint),
+    }
+}
+
+/// The fingerprints a single vaulting derives.
+#[cfg(feature = "v2")]
+pub struct PaymentMethodFingerprints {
+    pub vault_fingerprint_id: String,
+    pub auxiliary_fingerprint_id: Option<String>,
+    pub merchant_fingerprint_id: Option<String>,
+}
+
+/// Derives the vault, auxiliary and merchant fingerprints concurrently: in one batched call to the
+/// vault's fingerprint API when `use_batched_fingerprint` is set, and in one call each otherwise.
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn get_fingerprints_for_payment_method(
     state: &routes::SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
     customer_id: String,
-) -> CustomResult<String, errors::VaultError> {
-    let fingerprint_data = payment_method_data
-        .to_auxiliary_fingerprint_data()
-        .ok_or(errors::VaultError::GenerateFingerprintFailed)
-        .attach_printable("Failed to generate auxiliary fingerprint data")?;
+    merchant_fingerprint_secret: Option<hyperswitch_masking::Secret<String>>,
+) -> CustomResult<PaymentMethodFingerprints, errors::VaultError> {
+    let vault_data = payment_method_data.to_fingerprint_data();
+    // Absent for payment methods that carry nothing to fingerprint beyond the vault payload.
+    let auxiliary_data = payment_method_data.to_auxiliary_fingerprint_data();
+    // The merchant fingerprint is the auxiliary data keyed by the merchant's secret.
+    let merchant_request = auxiliary_data.as_ref().zip(merchant_fingerprint_secret);
 
-    get_fingerprint_id_from_vault(state, &fingerprint_data, customer_id).await
+    match state.conf.locker.use_batched_fingerprint {
+        true => {
+            let fingerprints = [
+                Some(batch_fingerprint_entry(
+                    consts::VAULT_FINGERPRINT_LABEL,
+                    &vault_data,
+                    hyperswitch_masking::Secret::new(customer_id.clone()),
+                )),
+                auxiliary_data.as_ref().map(|data| {
+                    batch_fingerprint_entry(
+                        consts::AUXILIARY_FINGERPRINT_LABEL,
+                        data,
+                        hyperswitch_masking::Secret::new(customer_id.clone()),
+                    )
+                }),
+                merchant_request.map(|(data, key)| {
+                    batch_fingerprint_entry(consts::MERCHANT_FINGERPRINT_LABEL, data, key)
+                }),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Result<Vec<_>, _>>()?;
+
+            let mut fingerprint_ids =
+                get_fingerprint_ids_from_vault_batch(state, fingerprints).await?;
+            let auxiliary_fingerprint_id =
+                fingerprint_ids.remove(consts::AUXILIARY_FINGERPRINT_LABEL);
+
+            match (
+                fingerprint_ids.remove(consts::VAULT_FINGERPRINT_LABEL),
+                auxiliary_data.is_some() == auxiliary_fingerprint_id.is_some(),
+            ) {
+                (Some(vault_fingerprint_id), true) => Ok(PaymentMethodFingerprints {
+                    vault_fingerprint_id,
+                    auxiliary_fingerprint_id,
+                    merchant_fingerprint_id: fingerprint_ids
+                        .remove(consts::MERCHANT_FINGERPRINT_LABEL),
+                }),
+                _ => Err(report!(errors::VaultError::GenerateFingerprintFailed))
+                    .attach_printable("Vault did not return every requested fingerprint"),
+            }
+        }
+        false => {
+            let (vault_fingerprint_id, auxiliary_fingerprint_id, merchant_fingerprint_id) = tokio::join!(
+                get_fingerprint_id_from_vault(state, &vault_data, customer_id.clone()),
+                auxiliary_data.as_ref().async_map(|data| {
+                    get_fingerprint_id_from_vault(state, data, customer_id.clone())
+                }),
+                merchant_request.async_map(|(data, key)| {
+                    get_fingerprint_id_from_vault(state, data, key.expose())
+                }),
+            );
+
+            Ok(PaymentMethodFingerprints {
+                vault_fingerprint_id: vault_fingerprint_id?,
+                auxiliary_fingerprint_id: auxiliary_fingerprint_id.transpose()?,
+                merchant_fingerprint_id: merchant_fingerprint_id.transpose()?,
+            })
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+fn batch_fingerprint_entry<D: serde::Serialize>(
+    label: &str,
+    data: &D,
+    key: hyperswitch_masking::Secret<String>,
+) -> CustomResult<pm_types::VaultBatchFingerprintEntry, errors::VaultError> {
+    serde_json::to_string(data)
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode fingerprint data to string")
+        .map(|data| pm_types::VaultBatchFingerprintEntry {
+            label: label.to_owned(),
+            data: hyperswitch_masking::Secret::new(data),
+            key,
+        })
+}
+
+#[cfg(feature = "v2")]
+fn fingerprint_response_headers(state: &routes::SessionState) -> Option<HashMap<String, String>> {
+    state.conf.locker.plain_fingerprint_response.then(|| {
+        HashMap::from([(
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
+        )])
+    })
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn get_fingerprint_ids_from_vault_batch(
+    state: &routes::SessionState,
+    fingerprints: Vec<pm_types::VaultBatchFingerprintEntry>,
+) -> CustomResult<HashMap<String, String>, errors::VaultError> {
+    let payload = pm_types::VaultBatchFingerprintRequest {
+        batch_data: fingerprints,
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)
+    .attach_printable("Failed to encode VaultBatchFingerprintRequest")?;
+
+    let response = call_to_vault::<pm_types::GetVaultFingerprint>(
+        state,
+        payload,
+        None,
+        fingerprint_response_headers(state),
+    )
+    .await
+    .change_context(errors::VaultError::VaultAPIError)
+    .attach_printable("Call to vault failed")?;
+
+    let batch_response: pm_types::VaultBatchFingerprintResponse = response
+        .parse_struct("VaultBatchFingerprintResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse data into VaultBatchFingerprintResponse")?;
+
+    Ok(batch_response.fingerprints)
 }
 
 #[cfg(feature = "v2")]
@@ -2349,18 +2628,15 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let additional_headers = state.conf.locker.plain_fingerprint_response.then(|| {
-        HashMap::from([(
-            consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
-            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
-        )])
-    });
-
-    let resp =
-        call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, additional_headers)
-            .await
-            .change_context(errors::VaultError::VaultAPIError)
-            .attach_printable("Call to vault failed")?;
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(
+        state,
+        payload,
+        None,
+        fingerprint_response_headers(state),
+    )
+    .await
+    .change_context(errors::VaultError::VaultAPIError)
+    .attach_printable("Call to vault failed")?;
 
     let fingerprint_resp: pm_types::VaultFingerprintResponse = resp
         .parse_struct("VaultFingerprintResponse")

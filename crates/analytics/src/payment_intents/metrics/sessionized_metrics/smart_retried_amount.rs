@@ -135,6 +135,8 @@ where
                         i.card_last_4.clone(),
                         i.card_issuer.clone(),
                         i.error_reason.clone(),
+                        i.off_session,
+                        i.setup_future_usage.as_ref().map(|i| i.0),
                         TimeRange {
                             start_time: match (granularity, i.start_bucket) {
                                 (Some(g), Some(st)) => g.clip_to_start(st)?,

@@ -57,10 +57,10 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(
+        Box::pin(self.call_database(
             key_store,
             Invoice::update_invoice_entry(&conn, invoice_id, inv_new),
-        )
+        ))
         .await
     }
 
@@ -71,18 +71,17 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
         subscription_id: String,
     ) -> CustomResult<DomainInvoice, StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let invoices: Vec<DomainInvoice> = self
-            .find_resources(
-                key_store,
-                Invoice::list_invoices_by_subscription_id(
-                    &conn,
-                    subscription_id.clone(),
-                    Some(1),
-                    None,
-                    false,
-                ),
-            )
-            .await?;
+        let invoices: Vec<DomainInvoice> = Box::pin(self.find_resources(
+            key_store,
+            Invoice::list_invoices_by_subscription_id(
+                &conn,
+                subscription_id.clone(),
+                Some(1),
+                None,
+                false,
+            ),
+        ))
+        .await?;
 
         invoices
             .last()

@@ -1580,6 +1580,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(vec![], card_basic(), vec![]),
         ),
         (
+            Connector::GlobalpaymentsRealex,
+            fields(vec![], card_basic(), vec![]),
+        ),
+        (
             Connector::Hipay,
             fields(
                 vec![],
@@ -3092,6 +3096,13 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         (
             enums::PaymentMethodType::Vipps,
             connectors(vec![(Connector::Adyen, fields(vec![], vec![], vec![]))]),
+        ),
+        (
+            enums::PaymentMethodType::Wero,
+            connectors(vec![(
+                Connector::Betterpayment,
+                fields(vec![], vec![], vec![]),
+            )]),
         ),
         (
             enums::PaymentMethodType::Dana,

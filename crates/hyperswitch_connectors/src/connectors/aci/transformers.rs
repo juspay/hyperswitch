@@ -227,6 +227,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::Paze(_)
             | WalletData::TwintRedirect { .. }
             | WalletData::VippsRedirect { .. }
+            | WalletData::WeroRedirect { .. }
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)
@@ -1183,7 +1184,7 @@ fn get_instruction_details(
 
         let transaction_type = match item.router_data.request.mit_category.as_ref() {
             Some(MitCategory::Installment) => InstructionType::Installment,
-            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Recurring | MitCategory::Subscription) => InstructionType::Recurring,
             Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
                 InstructionType::Unscheduled
             }

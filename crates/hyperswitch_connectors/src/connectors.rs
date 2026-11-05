@@ -12,6 +12,7 @@ pub mod bambora;
 pub mod bamboraapac;
 pub mod bankofamerica;
 pub mod barclaycard;
+pub mod betterpayment;
 pub mod billwerk;
 pub mod bitpay;
 pub mod blackhawknetwork;
@@ -42,6 +43,7 @@ pub mod dlocal;
 pub mod dummyconnector;
 pub mod dwolla;
 pub mod ebanx;
+pub mod ecommpay;
 pub mod elavon;
 pub mod elavon_pg;
 pub mod envoy;
@@ -59,6 +61,7 @@ pub mod gigadat;
 pub mod givepayments;
 pub mod globalpay;
 pub mod globalpayments_heartland;
+pub mod globalpayments_realex;
 pub mod globepay;
 pub mod gocardless;
 pub mod gotyme_sanlam;
@@ -170,19 +173,20 @@ pub use self::{
     absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
     airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
-    bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
-    blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
-    breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
-    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, citigate::Citigate,
-    coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
-    custombilling::Custombilling, cybersource::Cybersource,
+    bankofamerica::Bankofamerica, barclaycard::Barclaycard, betterpayment::Betterpayment,
+    billwerk::Billwerk, bitpay::Bitpay, blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap,
+    boku::Boku, braintree::Braintree, breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode,
+    celero::Celero, chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout,
+    citigate::Citigate, coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay,
+    ctp_mastercard::CtpMastercard, custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, d24::D24, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
-    ebanx::Ebanx, elavon::Elavon, elavon_pg::ElavonPg, envoy::Envoy, etisalat::Etisalat,
-    facilitapay::Facilitapay, finix::Finix, fiserv::Fiserv, fiservcommercehub::Fiservcommercehub,
-    fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti, forte::Forte, getnet::Getnet,
-    gigadat::Gigadat, givepayments::Givepayments, globalpay::Globalpay,
-    globalpayments_heartland::GlobalpaymentsHeartland, globepay::Globepay, gocardless::Gocardless,
+    ebanx::Ebanx, ecommpay::Ecommpay, elavon::Elavon, elavon_pg::ElavonPg, envoy::Envoy,
+    etisalat::Etisalat, facilitapay::Facilitapay, finix::Finix, fiserv::Fiserv,
+    fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti,
+    forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
+    globalpay::Globalpay, globalpayments_heartland::GlobalpaymentsHeartland,
+    globalpayments_realex::GlobalpaymentsRealex, globepay::Globepay, gocardless::Gocardless,
     gotyme_sanlam::GotymeSanlam, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
     hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet,
     iatapay::Iatapay, ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,

@@ -9,9 +9,10 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, gateway, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications},
     consts as interface_consts,
 };
+use payment_methods::single_use_token;
 use router_env::logger;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -20,7 +21,7 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway as payments_gateway,
+            self, access_token, customers, gateway, gateway as payments_gateway,
             gateway::context as gateway_context, helpers, session_token, tokenization,
             transformers, PaymentData,
         },
@@ -111,6 +112,10 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::SetupMandate)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::SetupMandate {
             auth_type: self.auth_type,

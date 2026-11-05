@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS blocklist_merchant_fingerprint_profile_transaction_type_index;

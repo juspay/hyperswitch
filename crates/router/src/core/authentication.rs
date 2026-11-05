@@ -443,7 +443,7 @@ where
             provider_account,
             provider_key_store,
             processor.get_account().clone(),
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             initiator.cloned(),
         );
         let provider_business_profile =
@@ -642,7 +642,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
             .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.get_total_amount(),
         email: None,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         currency: payment_data.payment_intent.currency,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
         router_return_url: payment_data.payment_intent.return_url.clone(),
@@ -886,7 +886,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         minor_amount: Some(amount),
         email: None,
         currency: payment_data.payment_intent.currency,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
         redirect_response: authentication
@@ -1060,7 +1060,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 > {
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let authentication = state
         .store
@@ -1069,7 +1069,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1152,7 +1152,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             None,
             key_store,
             authentication_info,
-            storage_scheme,
+            storage_scheme.inner(),
         ))
         .await?
     } else {
@@ -1229,8 +1229,8 @@ async fn call_ucs_authenticate_proxy(
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
-    let processor_merchant_id = processor.get_account().get_id();
+    let storage_scheme = processor.get_storage_scheme();
+    let processor_merchant_id = processor.get_processor_merchant_id();
 
     let payment_token = payment_attempt
         .payment_token
@@ -1296,11 +1296,11 @@ async fn call_ucs_authenticate_proxy(
     let authentication = state
         .store
         .find_authentication_by_processor_merchant_id_authentication_id(
-            processor_merchant_id,
+            &processor_merchant_id,
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1342,12 +1342,13 @@ async fn call_ucs_authenticate_proxy(
         complete_authorize_url: None,
         browser_info: browser_info.clone(),
         redirect_response: None,
-        capture_method: payment_attempt.capture_method,
+        capture_method: payment_attempt.get_effective_capture_method(),
         authentication_data: Some(ucs_authentication_data),
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
         force_3ds_challenge: None,
+        router_return_url: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -1677,7 +1678,7 @@ pub async fn perform_authentication_proxy(
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let AuthenticateProxyContext {
         authenticate_router_data,
@@ -1769,7 +1770,7 @@ pub async fn perform_authentication_proxy(
         None,
         key_store,
         authentication_info,
-        storage_scheme,
+        storage_scheme.inner(),
     ))
     .await?;
 
@@ -1779,7 +1780,7 @@ pub async fn perform_authentication_proxy(
         external_threeds_authentication_type: Some(authentication_type),
         authentication_connector: authentication.authentication_connector.clone(),
         authentication_id: Some(authentication_id),
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     state
         .store

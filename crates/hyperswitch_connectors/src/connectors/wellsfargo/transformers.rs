@@ -233,6 +233,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
                 | WalletData::AmazonPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1348,6 +1349,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                         | WalletData::AmazonPay(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
+                        | WalletData::WeroRedirect {}
                         | WalletData::TouchNGoRedirect(_)
                         | WalletData::WeChatPayRedirect(_)
                         | WalletData::WeChatPayQr(_)

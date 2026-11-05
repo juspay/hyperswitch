@@ -234,6 +234,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for common_enums::Authenticati
             | common_enums::TransactionStatus::NotVerified => Self::Failed,
             common_enums::TransactionStatus::ChallengeRequired
             | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::SecurePaymentConfirmationRequired
             | common_enums::TransactionStatus::InformationOnly => Self::Pending,
         }
     }

@@ -17,7 +17,7 @@ redis-rs = ["redis_interface/redis-rs", "storage_impl/redis-rs"]
 
 [dependencies]
 # Third party crates
-async-trait = "0.1.88"
+async-trait = "0.1.92"
 error-stack = "0.4.1"
 futures = "0.3.31"
 num_cpus = "1.16.0"

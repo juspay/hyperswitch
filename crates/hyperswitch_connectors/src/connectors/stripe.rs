@@ -1892,6 +1892,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Stripe 
             req.request.currency,
         )?;
         let request_body = match req.request.split_refunds.as_ref() {
+            // `ChargeRefundRequest` falls back to `payment_intent` when the charge id is unknown;
+            // the `Stripe-Account` header added in `get_headers` is what routes either shape to
+            // the connected account, which is what makes the refund resolvable at all.
             Some(SplitRefundsRequest::StripeSplitRefund(_)) => RequestContent::FormUrlEncoded(
                 Box::new(stripe::ChargeRefundRequest::try_from(req)?),
             ),
@@ -2869,11 +2872,7 @@ impl IncomingWebhook for Stripe {
                 ))
             }
             stripe::WebhookEventObjectType::Source => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PreprocessingId(
-                        details.event_data.event_object.id,
-                    ),
-                ))
+                Err(ConnectorError::WebhookReferenceIdNotFound)?
             }
             stripe::WebhookEventObjectType::Refund => {
                 match details
@@ -3865,5 +3864,87 @@ impl ConnectorSpecifications for Stripe {
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
         api::ConnectorCustomerAction::CallConnectorCustomer
+    }
+
+    fn get_single_use_token_support(
+        &self,
+        payment_method_data: &PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match (payment_method_data, payment_method_token) {
+            // Pre-decrypted token can be sent either via a single-use token or directly as a network token
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+                ),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    _,
+                )),
+            )
+            | (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+                ),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                    _,
+                )),
+            ) => Some(api::SingleUseTokenSupport::Supported),
+            // Encrypted Apple Pay token has to be exchanged for a single-use token
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+                ),
+                _,
+            ) => Some(api::SingleUseTokenSupport::Required),
+            // Encrypted Google Pay token is already a Stripe token, it is sent directly
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+                ),
+                _,
+            ) => Some(api::SingleUseTokenSupport::NotSupported),
+            _ => None,
+        }
+    }
+
+    fn get_single_use_token_support_for_setup_mandate(
+        &self,
+        payment_method_data: &PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match (payment_method_data, payment_method_token) {
+            // Pre-decrypted token can be sent either via a single-use token or directly as a network token
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+                ),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::ApplePayDecrypt(
+                    _,
+                )),
+            )
+            | (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+                ),
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::GooglePayDecrypt(
+                    _,
+                )),
+            ) => Some(api::SingleUseTokenSupport::Supported),
+            // Encrypted Apple Pay token has to be exchanged for a single-use token
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_),
+                ),
+                _,
+            ) => Some(api::SingleUseTokenSupport::Required),
+            // Encrypted Google Pay token is already a Stripe token, it is sent directly
+            (
+                PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_),
+                ),
+                _,
+            ) => Some(api::SingleUseTokenSupport::NotSupported),
+            _ => None,
+        }
     }
 }

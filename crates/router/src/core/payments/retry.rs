@@ -60,6 +60,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     types::RouterData<F, FData, types::PaymentsResponseData>,
     Option<domain::Customer>,
@@ -137,6 +138,7 @@ where
             None,
             initial_gsm.clone(),
             feature_config,
+            post_frm_capture_hold,
         ))
         .await?;
 
@@ -247,6 +249,7 @@ where
                         routing_decision,
                         gsm.clone(),
                         feature_config,
+                        post_frm_capture_hold,
                     ))
                     .await?;
 
@@ -410,6 +413,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
     feature_config: &core_utils::FeatureConfig,
+    post_frm_capture_hold: bool,
 ) -> RouterResult<(
     types::RouterData<F, FData, types::PaymentsResponseData>,
     Option<domain::Customer>,
@@ -438,7 +442,7 @@ where
         connector.connector_name.to_string(),
         payment_data,
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
         router_data,
         is_step_up,
         initial_gsm,
@@ -457,6 +461,7 @@ where
             should_retry_with_pan,
             routing_decision,
             feature_config,
+            post_frm_capture_hold,
         ))
         .await?;
 
@@ -543,8 +548,8 @@ pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
     connector: String,
     payment_data: &mut D,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
     is_step_up: bool,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
@@ -638,7 +643,7 @@ where
                 } else {
                     None
                 },
-                updated_by: storage_scheme.to_string(),
+                updated_by: storage_scheme.inner().to_string(),
                 authentication_data,
                 encoded_data,
                 unified_code: None,
@@ -733,7 +738,7 @@ where
                 status: storage_enums::AttemptStatus::Failure,
                 error_reason: Some(error_response.reason.clone()),
                 amount_capturable: Some(MinorUnit::new(0)),
-                updated_by: storage_scheme.to_string(),
+                updated_by: storage_scheme.inner().to_string(),
                 unified_code: initial_gsm.clone().map(|gsm| gsm.unified_code),
                 unified_message: initial_gsm.clone().map(|gsm| gsm.unified_message),
                 standardised_code: Some(initial_gsm.as_ref().and_then(|gsm| gsm.standardised_code)),
@@ -801,7 +806,7 @@ where
             storage::PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id: payment_data.get_payment_attempt().get_id().to_owned(),
                 attempt_count: new_attempt_count,
-                updated_by: storage_scheme.to_string(),
+                updated_by: storage_scheme.inner().to_string(),
             },
             key_store,
             storage_scheme,
@@ -888,7 +893,7 @@ pub fn make_new_auto_retry_payment_attempt(
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
         fingerprint_type: Default::default(),
-        customer_acceptance: Default::default(),
+        customer_acceptance: old_payment_attempt.customer_acceptance,
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
         extended_authorization_applied: Default::default(),
@@ -920,6 +925,8 @@ pub fn make_new_auto_retry_payment_attempt(
         external_surcharge_details: Default::default(),
         // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
         applied_offer_details: old_payment_attempt.applied_offer_details,
+        // Recomputed for the connector this retry is routed to.
+        applied_overrides: None,
         sender_payment_instrument_id: Default::default(),
         payment_account_reference: Default::default(),
         active_frm_id: old_payment_attempt.active_frm_id,

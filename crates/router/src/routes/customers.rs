@@ -396,12 +396,12 @@ pub async fn customers_update(
         |state, auth: auth::AuthenticationData, request_internal, _| {
             Box::pin(async move {
                 core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
-                update_customer(
+                Box::pin(update_customer(
                     state,
                     auth.platform.get_provider().clone(),
                     auth.platform.get_initiator().cloned(),
                     request_internal,
-                )
+                ))
                 .await
             })
         },

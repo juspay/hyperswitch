@@ -301,12 +301,128 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         Ok(())
     }
     #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
     async fn execute_workflow<'a>(
         &'a self,
-        _state: &'a SessionState,
-        _process: storage::ProcessTracker,
+        state: &'a SessionState,
+        process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        todo!()
+        let delivery_attempt = storage::enums::WebhookDeliveryAttempt::AutomaticRetry;
+        let tracking_data: OutgoingWebhookTrackingData = process
+            .tracking_data
+            .clone()
+            .parse_value("OutgoingWebhookTrackingData")?;
+
+        let db = &*state.store;
+        let master_key = &db.get_master_key().to_vec().into();
+        let provider_merchant_id = tracking_data.merchant_id.clone();
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
+        // The recipient owns the keystore the event is encrypted with.
+        let webhook_recipient_merchant_id = tracking_data
+            .initiator_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
+
+        let webhook_key_store = db
+            .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
+            .await?;
+        let business_profile = db
+            .find_business_profile_by_profile_id(
+                &webhook_key_store,
+                &tracking_data.business_profile_id,
+            )
+            .await?;
+
+        let event_id = webhooks_core::utils::generate_event_id();
+        let idempotent_event_id = webhooks_core::utils::get_idempotent_event_id(
+            &tracking_data.primary_object_id,
+            tracking_data.event_type,
+            delivery_attempt,
+        )
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("Failed to generate idempotent event ID")?;
+
+        let initial_attempt_id = tracking_data.initial_attempt_id.clone().unwrap_or_else(|| {
+            format!(
+                "{}_{}",
+                tracking_data.primary_object_id, tracking_data.event_type
+            )
+        });
+        let initial_event = db
+            .find_event_by_event_id(&initial_attempt_id, &webhook_key_store)
+            .await?;
+
+        let request_content: OutgoingWebhookRequestContent = match &initial_event.request {
+            Some(request) => request
+                .get_inner()
+                .peek()
+                .parse_struct("OutgoingWebhookRequestContent")?,
+            None => {
+                // v2 always persists the request on the initial event, so there is nothing to
+                // rebuild the payload from.
+                logger::error!(
+                    %initial_event.event_id,
+                    "Initial outgoing webhook event has no request content, finishing task"
+                );
+                db.as_scheduler()
+                    .finish_process_with_business_status(process, business_status::FAILURE)
+                    .await?;
+                return Ok(());
+            }
+        };
+
+        let new_event = domain::Event {
+            event_id,
+            event_type: initial_event.event_type,
+            event_class: initial_event.event_class,
+            is_webhook_notified: false,
+            primary_object_id: initial_event.primary_object_id,
+            primary_object_type: initial_event.primary_object_type,
+            created_at: common_utils::date_time::now(),
+            merchant_id: Some(provider_merchant_id.clone()),
+            business_profile_id: Some(business_profile.get_id().to_owned()),
+            primary_object_created_at: initial_event.primary_object_created_at,
+            idempotent_event_id: Some(idempotent_event_id),
+            initial_attempt_id: Some(initial_event.event_id.clone()),
+            request: initial_event.request,
+            response: None,
+            delivery_attempt: Some(delivery_attempt),
+            metadata: initial_event.metadata,
+            is_overall_delivery_successful: Some(false),
+            processor_merchant_id: initial_event
+                .processor_merchant_id
+                .or(Some(processor_merchant_id.clone())),
+            initiator_merchant_id: initial_event
+                .initiator_merchant_id
+                .or(Some(webhook_key_store.merchant_id.clone())),
+            recipient: initial_event.recipient,
+        };
+
+        let event = db
+            .insert_event(new_event, &webhook_key_store)
+            .await
+            .inspect_err(|error| {
+                logger::error!(?error, "Failed to insert event in events table");
+            })?;
+
+        Box::pin(webhooks_core::trigger_webhook_and_raise_event(
+            state.clone(),
+            business_profile,
+            &webhook_key_store,
+            provider_merchant_id,
+            processor_merchant_id,
+            event,
+            request_content,
+            delivery_attempt,
+            None,
+            Some(process),
+        ))
+        .await;
+
+        Ok(())
     }
 
     #[instrument(skip_all)]
@@ -339,7 +455,6 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
 ///   default.
 /// - `default_mapping.frequency` and `count`: The next 5 retries should have an interval of 300
 ///   seconds between them by default.
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     db: &dyn StorageInterface,
@@ -378,6 +493,48 @@ pub(crate) async fn get_connector_webhook_delivery_retry_schedule_time(
         scheduler_utils::get_outgoing_webhook_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
+}
+
+/// Schedule the webhook delivery task for retry
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub(crate) async fn retry_webhook_delivery_task(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    merchant_id: &id_type::MerchantId,
+    process: storage::ProcessTracker,
+) -> errors::CustomResult<(), errors::StorageError> {
+    // The initial schedule is looked up with the processor merchant id, so use the same one
+    // here (it is persisted in the tracking data) to keep the retry schedule consistent.
+    let processor_merchant_id = process
+        .tracking_data
+        .clone()
+        .parse_value::<OutgoingWebhookTrackingData>("OutgoingWebhookTrackingData")
+        .ok()
+        .and_then(|tracking_data| tracking_data.processor_merchant_id)
+        .unwrap_or_else(|| merchant_id.clone());
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor_merchant_id.into());
+    let schedule_time = get_webhook_delivery_retry_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        process.retry_count + 1,
+    )
+    .await;
+
+    match schedule_time {
+        Some(schedule_time) => {
+            db.as_scheduler()
+                .retry_process(process, schedule_time)
+                .await
+        }
+        None => {
+            db.as_scheduler()
+                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
+                .await
+        }
+    }
 }
 
 /// Schedule the webhook delivery task for retry
