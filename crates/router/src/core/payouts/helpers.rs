@@ -1492,7 +1492,6 @@ pub async fn update_payouts_and_payout_attempt(
     // Update payout state with resolved billing address
     payout_data.billing_address = billing_address;
 
-    super::validate_sender_details(req.sender_details.as_ref())?;
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));

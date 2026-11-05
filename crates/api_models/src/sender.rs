@@ -12,7 +12,7 @@ use common_utils::{
     pii::Email,
     transformers::ForeignFrom,
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use time::Date;
 use utoipa::ToSchema;
 
@@ -197,17 +197,6 @@ impl SenderDetails {
         match self {
             Self::Individual(sender) => sender.reference_id.as_ref(),
             Self::Corporate(sender) => sender.reference_id.as_ref(),
-        }
-    }
-
-    /// Whether any explicitly supplied sender name is blank.
-    pub fn has_blank_name(&self) -> bool {
-        match self {
-            Self::Individual(sender) => [&sender.first_name, &sender.last_name]
-                .into_iter()
-                .flatten()
-                .any(|name| name.peek().trim().is_empty()),
-            Self::Corporate(sender) => sender.company_name.peek().trim().is_empty(),
         }
     }
 }

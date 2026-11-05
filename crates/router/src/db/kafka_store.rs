@@ -2840,7 +2840,13 @@ impl PayoutsInterface for KafkaStore {
     ) -> CustomResult<storage::Payouts, errors::StorageError> {
         let payout = self
             .diesel_store
-            .update_payout(this, payout_update, payout_attempt, merchant_key_store, storage_scheme)
+            .update_payout(
+                this,
+                payout_update,
+                payout_attempt,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await?;
         if let Err(err) = self
             .kafka_producer

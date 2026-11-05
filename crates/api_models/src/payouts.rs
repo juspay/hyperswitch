@@ -25,7 +25,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{
+    admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments, sender::SenderDetails,
+};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -174,7 +176,8 @@ pub struct PayoutCreateRequest {
     pub connector_metadata: Option<ConnectorPayoutMetadata>,
 
     /// Identity of the party providing the funds. Persisted on the payout and echoed
-    pub sender_details: Option<crate::sender::SenderDetails>,
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
 
     /// Provide a reference to a stored payout method, used to process the payout.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432", value_type = Option<String>)]
@@ -986,8 +989,13 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Connector-specific payout configuration, as supplied in the payout request.
+    #[schema(value_type = Option<ConnectorPayoutMetadata>)]
+    pub connector_metadata: Option<ConnectorPayoutMetadata>,
+
     /// Identity of the party providing the funds, as supplied in the payout request
-    pub sender_details: Option<crate::sender::SenderDetails>,
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
 
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]

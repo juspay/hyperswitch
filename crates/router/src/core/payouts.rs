@@ -698,7 +698,6 @@ pub async fn payouts_create_core(
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-    validate_sender_details(req.sender_details.as_ref())?;
     // Validate create request
     let (payout_id, payout_method_data, business_profile, customer, payment_method) = Box::pin(
         validator::validate_create_request(&state, &platform, &req, &dimensions),
@@ -833,25 +832,6 @@ pub async fn payouts_confirm_core(
     trigger_webhook_and_handle_response(&state, &platform, &payout_data).await
 }
 
-fn validate_sender_details(sender: Option<&api_models::sender::SenderDetails>) -> RouterResult<()> {
-    if sender
-        .and_then(api_models::sender::SenderDetails::reference_id)
-        .is_some_and(|reference| reference.peek().chars().count() > 15)
-    {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "sender_details.reference_id must not exceed 15 characters".to_owned(),
-        }
-        .into());
-    }
-    if sender.is_some_and(api_models::sender::SenderDetails::has_blank_name) {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "sender_details names must not be blank".to_owned(),
-        }
-        .into());
-    }
-    Ok(())
-}
-
 pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
@@ -864,7 +844,6 @@ pub async fn payouts_update_core(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
-    validate_sender_details(req.sender_details.as_ref())?;
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
@@ -3509,6 +3488,7 @@ pub async fn response_handler(
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
+        connector_metadata: payouts.connector_metadata.clone(),
         sender_details: payouts.sender_details().cloned(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),

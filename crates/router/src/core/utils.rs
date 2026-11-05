@@ -290,41 +290,40 @@ pub(super) async fn construct_payout_router_data_common<F>(
         })
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
-    let vendor_details: Option<PayoutVendorAccountDetails> =
-        if let Some(sender_details) = payout_data.payouts.sender_details() {
-            // Persisted sender input is normalized to the vendor type only at this
-            // domain boundary; the raw sender identity stays on the payout row.
-            Some(sender_details.clone().into())
-        } else {
-            match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
-                |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
-            )? {
-                api_models::enums::PayoutConnectors::Stripe => payout_data
-                    .payouts
-                    .metadata
-                    .as_ref()
-                    // Parse only metadata that carries vendor details; unrelated
-                    // merchant metadata keeps the previous behavior and is treated
-                    // as absent.
-                    .filter(|metadata| {
-                        let value = metadata.peek();
-                        value.get("vendor_details").is_some()
-                            || value.get("individual_details").is_some()
-                    })
-                    .map(|metadata| {
-                        serde_json::from_value::<PayoutVendorAccountDetails>(
-                            metadata.peek().to_owned(),
-                        )
+    let vendor_details: Option<PayoutVendorAccountDetails> = if let Some(sender_details) =
+        payout_data.payouts.sender_details()
+    {
+        // Persisted sender input is normalized to the vendor type only at this
+        // domain boundary; the raw sender identity stays on the payout row.
+        Some(sender_details.clone().into())
+    } else {
+        match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
+            |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
+        )? {
+            api_models::enums::PayoutConnectors::Stripe => payout_data
+                .payouts
+                .metadata
+                .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
+                })
+                .map(|metadata| {
+                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
                         .map_err(|error| {
                             report!(errors::ApiErrorResponse::InvalidRequestData {
                                 message: format!("Invalid payout metadata: {error}"),
                             })
                         })
-                    })
-                    .transpose()?,
-                _ => None,
-            }
-        };
+                })
+                .transpose()?,
+            _ => None,
+        }
+    };
 
     let webhook_url = helpers::create_webhook_url(
         &state.base_url,

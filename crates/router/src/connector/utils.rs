@@ -2,14 +2,14 @@ use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts;
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments,
 };
 use base64::Engine;
 use cards::NetworkToken;
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutVendorAccountDetails;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},
