@@ -4497,7 +4497,11 @@ pub async fn record_attempt_core(
         merchant_connector_details: None,
     };
 
-    let payment_status_data = (req.triggered_by == common_enums::TriggeredBy::Internal)
+    // A transaction recorded without connector accounts has no connector to be synced with.
+    let should_skip_connector_sync = req.triggered_by == common_enums::TriggeredBy::Internal
+        || !req.connector_details.has_connector_accounts();
+
+    let payment_status_data = should_skip_connector_sync
     .then(|| default_payment_status_data.clone())
     .async_unwrap_or_else(|| async {
         match Box::pin(proxy_for_payments_operation_core::<
