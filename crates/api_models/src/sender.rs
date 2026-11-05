@@ -16,6 +16,8 @@ use hyperswitch_masking::Secret;
 use time::Date;
 use utoipa::ToSchema;
 
+use crate::common::PhoneDetails;
+
 /// The address of the party providing the funds.
 #[derive(Eq, PartialEq, Clone, Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SenderAddress {
@@ -49,18 +51,6 @@ impl SenderAddress {
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
-}
-
-/// Sender phone contact.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct SenderPhone {
-    /// The sender's phone number.
-    #[schema(value_type = Option<String>, example = "9123456789")]
-    pub number: Option<Secret<String>>,
-
-    /// The international dialing code attached to the number.
-    #[schema(example = "+44")]
-    pub country_code: Option<String>,
 }
 
 /// Origin of the funds, supplied by the merchant.
@@ -109,8 +99,8 @@ pub struct IndividualSenderDetails {
     pub email: Option<Email>,
 
     /// The sender's phone number.
-    #[schema(value_type = Option<SenderPhone>)]
-    pub phone: Option<SenderPhone>,
+    #[schema(value_type = Option<PhoneDetails>)]
+    pub phone: Option<PhoneDetails>,
 
     /// The merchant's stable identifier for the sender
     #[schema(value_type = Option<String>)]
@@ -137,8 +127,8 @@ pub struct CorporateSenderDetails {
     pub email: Option<Email>,
 
     /// The sender's phone number.
-    #[schema(value_type = Option<SenderPhone>)]
-    pub phone: Option<SenderPhone>,
+    #[schema(value_type = Option<PhoneDetails>)]
+    pub phone: Option<PhoneDetails>,
 
     /// The merchant's stable identifier for the sender.
     #[schema(value_type = Option<String>)]
@@ -201,7 +191,7 @@ impl SenderDetails {
     }
 }
 
-/// A partially masked view of `SenderPhone`, safe to return in API responses.
+/// A partially masked view of [`PhoneDetails`], safe to return in API responses.
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MaskedSenderPhoneDetails {
     /// The sender's partially masked phone number.
@@ -268,8 +258,8 @@ pub enum SenderDetailsResponse {
     Corporate(CorporateSenderDetailsResponse),
 }
 
-impl From<SenderPhone> for MaskedSenderPhoneDetails {
-    fn from(phone: SenderPhone) -> Self {
+impl From<PhoneDetails> for MaskedSenderPhoneDetails {
+    fn from(phone: PhoneDetails) -> Self {
         Self {
             number: phone.number.map(MaskedPhoneNumber::from),
             country_code: phone.country_code,
