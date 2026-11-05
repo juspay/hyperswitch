@@ -3,13 +3,14 @@ use super::{
     metrics,
 };
 use crate::{logger, routes::SessionState, services, types::domain};
+mod body;
 pub mod utils;
 use api_models::proxy as proxy_api_models;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use common_utils::proxy as proxy_utils;
 use error_stack::ResultExt;
 use external_services::http_client::outbound_destination;
 use hyperswitch_interfaces::types::Response;
+use serde_json::Value;
 
 pub async fn proxy_core(
     state: SessionState,
@@ -30,11 +31,9 @@ pub async fn proxy_core(
     // Validate the connector body before the vault is read: reading the vault consumes
     // the single-use CVC, so an invalid request must not reach it.
     let content_type = req_wrapper.get_content_type()?;
-    let body = proxy_utils::ProxyBody::new(
-        req_wrapper.0.request_body.clone(),
-        req_wrapper.get_method(),
-        content_type.as_ref(),
-    );
+    let body = body::ProxyBody::new(req_wrapper.0.request_body.clone(), content_type.as_ref())
+        .inspect_err(|_| record_body_failure("unknown", "content_type"))
+        .map_err(invalid_body)?;
     let body_format = body.as_metric_str();
     let validated_body = body
         .builder()
@@ -88,7 +87,7 @@ pub async fn proxy_core(
 }
 
 /// A connector body that cannot be sent is a client error.
-fn invalid_body(error: proxy_utils::ProxyBodyError) -> errors::ApiErrorResponse {
+fn invalid_body(error: body::ProxyBodyError) -> errors::ApiErrorResponse {
     errors::ApiErrorResponse::InvalidRequestData {
         message: error.to_string(),
     }
@@ -131,9 +130,17 @@ impl From<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
         let res = wrapper.0;
         Self {
             response_body_base64: Some(STANDARD.encode(&res.response)),
-            response: proxy_utils::response::body_value(&res.response),
+            response: response_value(&res.response),
             status_code: res.status_code,
             response_headers: proxy_api_models::Headers::from_header_map(res.headers.as_ref()),
         }
     }
+}
+
+/// The connector body as JSON, else as UTF-8 text, else `null`. The exact bytes always
+/// travel in `response_body_base64`.
+fn response_value(body: &[u8]) -> Value {
+    serde_json::from_slice(body).unwrap_or_else(|_| {
+        std::str::from_utf8(body).map_or(Value::Null, |text| Value::String(text.to_owned()))
+    })
 }

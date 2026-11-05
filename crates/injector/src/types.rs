@@ -3,11 +3,13 @@ pub mod models {
 
     use async_trait::async_trait;
     use base64::{engine::general_purpose::STANDARD, Engine};
-    use common_utils::{pii::SecretSerdeValue, proxy::ConnectorContentType};
+    use common_utils::{pii::SecretSerdeValue, request::ConnectorContentType};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
+
+    use crate::InjectorError;
 
     // Enums for the injector - making it standalone
 
@@ -191,7 +193,7 @@ pub mod models {
             processed_payload: &str,
             connection_config: &ConnectionConfig,
             token_data: &TokenData,
-        ) -> Result<Self, crate::injector::core::InjectorError> {
+        ) -> Result<Self, InjectorError> {
             // Extract the single token from card_number field in specific_token_data
             let vault_data = token_data.specific_token_data.clone().expose();
             let token = vault_data
@@ -200,7 +202,7 @@ pub mod models {
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .ok_or_else(|| {
-                    crate::injector::core::InjectorError::InvalidTemplate(
+                    InjectorError::InvalidTemplate(
                         "card_number field is required in specific_token_data for HyperswitchVault"
                             .to_string(),
                     )
@@ -273,16 +275,16 @@ pub mod models {
     impl InjectorResponse {
         /// The SaaS reply wrapping the connector response. A non-2xx outer status means the
         /// proxy call itself failed; the wrapped status must be a valid HTTP status.
-        fn vault_proxy_envelope(&self) -> Result<VaultProxyEnvelope, crate::InjectorError> {
+        fn vault_proxy_envelope(&self) -> Result<VaultProxyEnvelope, InjectorError> {
             if (200..=299).contains(&self.status_code) {
                 VaultProxyEnvelope::deserialize(&self.response)
                     .ok()
                     .filter(|envelope| (100..=599).contains(&envelope.status_code))
                     .ok_or_else(|| {
-                        crate::InjectorError::InvalidTemplate("Invalid vault proxy response".into())
+                        InjectorError::InvalidTemplate("Invalid vault proxy response".into())
                     })
             } else {
-                Err(crate::InjectorError::HttpRequestFailed)
+                Err(InjectorError::HttpRequestFailed)
             }
         }
 
@@ -292,7 +294,7 @@ pub mod models {
         pub fn into_connector_response(
             self,
             wrapped: bool,
-        ) -> Result<InjectorConnectorResponse, crate::InjectorError> {
+        ) -> Result<InjectorConnectorResponse, InjectorError> {
             let (status_code, headers, encoded, fallback) = if wrapped {
                 let envelope = self.vault_proxy_envelope()?;
                 (
@@ -315,21 +317,21 @@ pub mod models {
                 })
                 .map(|(_, value)| {
                     matches!(
-                        ConnectorContentType::parse(value).kind(),
+                        ConnectorContentType::parse(value)
+                            .as_ref()
+                            .and_then(ConnectorContentType::kind),
                         Some(common_utils::request::ContentType::Json)
                     )
                 })
                 .unwrap_or(wrapped);
             let body = match encoded {
                 Some(encoded) => STANDARD.decode(encoded).map_err(|_| {
-                    crate::InjectorError::InvalidTemplate(
-                        "Invalid base64 connector response".into(),
-                    )
+                    InjectorError::InvalidTemplate("Invalid base64 connector response".into())
                 })?,
                 None => match fallback {
                     Value::String(text) if !fallback_is_json => text.into_bytes(),
                     value => serde_json::to_vec(&value).map_err(|_| {
-                        crate::InjectorError::InvalidTemplate("Invalid connector response".into())
+                        InjectorError::InvalidTemplate("Invalid connector response".into())
                     })?,
                 },
             };
@@ -345,16 +347,12 @@ pub mod models {
     #[async_trait]
     pub trait IntoInjectorResponse {
         /// Convert to InjectorResponse with proper error handling
-        async fn into_injector_response(
-            self,
-        ) -> Result<InjectorResponse, crate::injector::core::InjectorError>;
+        async fn into_injector_response(self) -> Result<InjectorResponse, InjectorError>;
     }
 
     #[async_trait]
     impl IntoInjectorResponse for reqwest::Response {
-        async fn into_injector_response(
-            self,
-        ) -> Result<InjectorResponse, crate::injector::core::InjectorError> {
+        async fn into_injector_response(self) -> Result<InjectorResponse, InjectorError> {
             let status_code = self.status().as_u16();
 
             logger::info!(
@@ -385,7 +383,7 @@ pub mod models {
             let response_text = self
                 .text()
                 .await
-                .map_err(|_| crate::injector::core::InjectorError::HttpRequestFailed)?;
+                .map_err(|_| InjectorError::HttpRequestFailed)?;
 
             logger::debug!(
                 response_length = response_text.len(),

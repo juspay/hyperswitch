@@ -164,11 +164,11 @@ impl ProxyRequestWrapper {
     }
 
     /// The connector Content-Type, parsed once for the whole proxy flow. Header names
-    /// are case-insensitive; conflicting duplicate Content-Types are rejected instead of
-    /// selecting a nondeterministic HashMap entry.
+    /// are case-insensitive; an invalid Content-Type, or conflicting duplicates, are rejected
+    /// instead of selecting a nondeterministic HashMap entry.
     pub fn get_content_type(
         &self,
-    ) -> RouterResult<Option<common_utils::proxy::ConnectorContentType<'_>>> {
+    ) -> RouterResult<Option<common_utils::request::ConnectorContentType<'_>>> {
         let values: Vec<&str> = self
             .0
             .headers
@@ -183,7 +183,16 @@ impl ProxyRequestWrapper {
                 message: "Conflicting connector Content-Type headers".into(),
             })
         })?;
-        Ok(first.map(common_utils::proxy::ConnectorContentType::parse))
+        first
+            .map(|value| {
+                common_utils::request::ConnectorContentType::parse(value).ok_or_else(|| {
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid connector Content-Type header".into(),
+                    }
+                    .into()
+                })
+            })
+            .transpose()
     }
 
     pub fn get_destination_url(&self) -> &str {

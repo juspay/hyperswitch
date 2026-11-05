@@ -29,8 +29,8 @@ impl Headers {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
-    /// The request body that needs to be forwarded. An XML document is sent as a string with
-    /// an XML Content-Type; anything else is sent as JSON.
+    /// The request body that needs to be forwarded: JSON, or an XML document as a string with
+    /// an XML Content-Type. Other Content-Types are rejected.
     pub request_body: Value,
     /// The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.
     /// IP literals must be publicly routable.

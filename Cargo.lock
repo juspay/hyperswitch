@@ -8270,6 +8270,7 @@ dependencies = [
  "payment_methods",
  "pm_auth",
  "prost-types 0.14.3",
+ "quick-xml",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rdkafka",
