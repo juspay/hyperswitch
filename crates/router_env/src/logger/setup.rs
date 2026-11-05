@@ -179,20 +179,21 @@ fn deja_correlation_layer() -> Option<deja::DejaCorrelationLayer> {
     }
 }
 
-fn get_opentelemetry_exporter_config(
+fn configure_opentelemetry_exporter<B: opentelemetry_otlp::WithExportConfig>(
+    builder: B,
     config: &config::LogTelemetry,
-) -> opentelemetry_otlp::ExportConfig {
-    let mut exporter_config = opentelemetry_otlp::ExportConfig {
-        protocol: opentelemetry_otlp::Protocol::Grpc,
-        endpoint: config.otel_exporter_otlp_endpoint.clone(),
-        ..Default::default()
-    };
+) -> B {
+    let mut builder = builder
+        .with_protocol(opentelemetry_otlp::Protocol::Grpc)
+        .with_timeout(Duration::from_millis(
+            config.otel_exporter_otlp_timeout.unwrap_or(10_000),
+        ));
 
-    if let Some(timeout) = config.otel_exporter_otlp_timeout {
-        exporter_config.timeout = Duration::from_millis(timeout);
+    if let Some(endpoint) = &config.otel_exporter_otlp_endpoint {
+        builder = builder.with_endpoint(endpoint);
     }
 
-    exporter_config
+    builder
 }
 
 #[derive(Debug, Clone)]
@@ -254,7 +255,7 @@ impl<T: opentelemetry_sdk::trace::ShouldSample + Clone + 'static>
         span_kind: &opentelemetry::trace::SpanKind,
         attributes: &[opentelemetry::KeyValue],
         links: &[opentelemetry::trace::Link],
-    ) -> opentelemetry::trace::SamplingResult {
+    ) -> opentelemetry_sdk::trace::SamplingResult {
         use opentelemetry::trace::TraceContextExt;
 
         match attributes
@@ -267,8 +268,8 @@ impl<T: opentelemetry_sdk::trace::ShouldSample + Clone + 'static>
                 self.1
                     .should_sample(parent_context, trace_id, name, span_kind, attributes, links)
             }
-            false => opentelemetry::trace::SamplingResult {
-                decision: opentelemetry::trace::SamplingDecision::Drop,
+            false => opentelemetry_sdk::trace::SamplingResult {
+                decision: opentelemetry_sdk::trace::SamplingDecision::Drop,
                 attributes: Vec::new(),
                 trace_state: match parent_context {
                     Some(ctx) => ctx.span().span_context().trace_state().clone(),
@@ -285,11 +286,10 @@ fn setup_tracing_pipeline(
 ) -> Option<
     tracing_opentelemetry::OpenTelemetryLayer<
         tracing_subscriber::Registry,
-        opentelemetry_sdk::trace::Tracer,
+        opentelemetry_sdk::trace::SdkTracer,
     >,
 > {
     use opentelemetry::trace::TracerProvider;
-    use opentelemetry_otlp::WithExportConfig;
     use opentelemetry_sdk::trace;
 
     opentelemetry::global::set_text_map_propagator(
@@ -301,10 +301,11 @@ fn setup_tracing_pipeline(
         .with_scheduled_delay(Duration::from_millis(1000))
         .build();
 
-    let exporter_result = opentelemetry_otlp::SpanExporter::builder()
-        .with_tonic()
-        .with_export_config(get_opentelemetry_exporter_config(config))
-        .build();
+    let exporter_result = configure_opentelemetry_exporter(
+        opentelemetry_otlp::SpanExporter::builder().with_tonic(),
+        config,
+    )
+    .build();
 
     let exporter = if config.ignore_errors {
         #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
@@ -317,9 +318,9 @@ fn setup_tracing_pipeline(
         exporter_result.expect("Failed to build traces exporter")
     };
 
-    let mut provider_builder = trace::TracerProvider::builder()
+    let mut provider_builder = trace::SdkTracerProvider::builder()
         .with_span_processor(
-            trace::BatchSpanProcessor::builder(
+            trace::span_processor_with_async_runtime::BatchSpanProcessor::builder(
                 exporter,
                 // The runtime would have to be updated if a different web framework is used
                 opentelemetry_sdk::runtime::TokioCurrentThread,
@@ -337,9 +338,14 @@ fn setup_tracing_pipeline(
             },
             trace::Sampler::TraceIdRatioBased(config.sampling_rate.unwrap_or(1.0)),
         ))))
-        .with_resource(opentelemetry_sdk::Resource::new(vec![
-            opentelemetry::KeyValue::new("service.name", service_name.to_owned()),
-        ]));
+        .with_resource(
+            opentelemetry_sdk::Resource::builder_empty()
+                .with_attributes([opentelemetry::KeyValue::new(
+                    "service.name",
+                    service_name.to_owned(),
+                )])
+                .build(),
+        );
 
     if config.use_xray_generator {
         provider_builder = provider_builder
@@ -353,13 +359,13 @@ fn setup_tracing_pipeline(
 }
 
 fn setup_metrics_pipeline(config: &config::LogTelemetry) {
-    use opentelemetry_otlp::WithExportConfig;
-
-    let exporter_result = opentelemetry_otlp::MetricExporter::builder()
-        .with_tonic()
-        .with_temporality(opentelemetry_sdk::metrics::Temporality::Cumulative)
-        .with_export_config(get_opentelemetry_exporter_config(config))
-        .build();
+    let exporter_result = configure_opentelemetry_exporter(
+        opentelemetry_otlp::MetricExporter::builder()
+            .with_tonic()
+            .with_temporality(opentelemetry_sdk::metrics::Temporality::Cumulative),
+        config,
+    )
+    .build();
 
     let exporter = if config.ignore_errors {
         #[allow(clippy::print_stderr)] // The logger hasn't been initialized yet
@@ -373,23 +379,26 @@ fn setup_metrics_pipeline(config: &config::LogTelemetry) {
         exporter_result.expect("Failed to build metrics exporter")
     };
 
-    let reader = opentelemetry_sdk::metrics::PeriodicReader::builder(
-        exporter,
-        // The runtime would have to be updated if a different web framework is used
-        opentelemetry_sdk::runtime::TokioCurrentThread,
-    )
-    .with_interval(Duration::from_secs(3))
-    .with_timeout(Duration::from_secs(10))
-    .build();
+    let reader =
+        opentelemetry_sdk::metrics::periodic_reader_with_async_runtime::PeriodicReader::builder(
+            exporter,
+            // The runtime would have to be updated if a different web framework is used
+            opentelemetry_sdk::runtime::TokioCurrentThread,
+        )
+        .with_interval(Duration::from_secs(3))
+        .with_timeout(Duration::from_secs(10))
+        .build();
 
     let provider = opentelemetry_sdk::metrics::SdkMeterProvider::builder()
         .with_reader(reader)
-        .with_resource(opentelemetry_sdk::Resource::new([
-            opentelemetry::KeyValue::new(
-                "pod",
-                std::env::var("POD_NAME").unwrap_or(String::from("hyperswitch-server-default")),
-            ),
-        ]))
+        .with_resource(
+            opentelemetry_sdk::Resource::builder_empty()
+                .with_attributes([opentelemetry::KeyValue::new(
+                    "pod",
+                    std::env::var("POD_NAME").unwrap_or(String::from("hyperswitch-server-default")),
+                )])
+                .build(),
+        )
         .build();
 
     opentelemetry::global::set_meter_provider(provider);
