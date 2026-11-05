@@ -6,6 +6,17 @@
 //
 // auth variants:
 //   { type: "apiKey", apiKey, profileId? }
+//   { type: "adminApiKey", apiKey }       - AdminApiAuth/V2AdminApiAuth.
+//                                            NOT the same header as
+//                                            "apiKey" - confirmed live that
+//                                            a plain api-key header on an
+//                                            admin-only route returns 401,
+//                                            since V2AdminApiAuth parses
+//                                            the key from Authorization in
+//                                            the exact form
+//                                            "admin-api-key=<key>"
+//                                            (services/authentication.rs:
+//                                            1748-1755), not api-key.
 //   { type: "jwt", token, profileId? }
 //   { type: "none" }                      - no Authorization/api-key header
 //   { type: "invalid" }                   - garbage bearer token, substitutes
@@ -23,6 +34,9 @@ function buildOmpHeaders(auth = {}) {
   switch (auth.type) {
     case "apiKey":
       headers["api-key"] = auth.apiKey;
+      break;
+    case "adminApiKey":
+      headers["Authorization"] = `admin-api-key=${auth.apiKey}`;
       break;
     case "jwt":
       headers["Authorization"] = `Bearer ${auth.token}`;
@@ -741,33 +755,6 @@ Cypress.Commands.add("ompDeactivateRouting", (auth, body, globalState) => {
   });
 });
 
-// --- OMP scoping: Webhook delivery attempts (cypress/e2e/spec/Security/OMPScoping/16-Webhooks.cy.js) ---
-
-Cypress.Commands.add(
-  "ompListWebhookDeliveryAttempts",
-  (merchantId, auth, body, globalState) => {
-    const baseUrl = globalState.get("baseUrl");
-    return cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/events/${merchantId}`,
-      auth,
-      body,
-    });
-  }
-);
-
-Cypress.Commands.add(
-  "ompRetryWebhookDeliveryAttempt",
-  (merchantId, initialAttemptId, auth, globalState) => {
-    const baseUrl = globalState.get("baseUrl");
-    return cy.ompRequest({
-      method: "POST",
-      url: `${baseUrl}/events/${merchantId}/${initialAttemptId}/retry`,
-      auth,
-    });
-  }
-);
-
 // --- OMP scoping: Analytics (cypress/e2e/spec/Security/OMPScoping/17-Analytics.cy.js) ---
 
 // get_merchant_payment_metrics (crates/router/src/analytics.rs) deserializes
@@ -880,4 +867,114 @@ Cypress.Commands.add(
       body,
     });
   }
+);
+
+// --- OMP scoping: MCA update/delete/list
+// (cypress/e2e/spec/Security/OMPScoping/22-MCA.cy.js) - ompRetrieveMca
+// already exists above, added for 06-ConnectorOnboarding.cy.js. ---
+
+Cypress.Commands.add(
+  "ompUpdateMca",
+  (merchantId, mcaId, auth, body, globalState) =>
+    ompCall(
+      "POST",
+      `/account/${merchantId}/connectors/${mcaId}`,
+      auth,
+      body,
+      globalState
+    )
+);
+
+Cypress.Commands.add("ompDeleteMca", (merchantId, mcaId, auth, globalState) =>
+  ompCall(
+    "DELETE",
+    `/account/${merchantId}/connectors/${mcaId}`,
+    auth,
+    undefined,
+    globalState
+  )
+);
+
+Cypress.Commands.add("ompListMca", (merchantId, auth, globalState) =>
+  ompCall(
+    "GET",
+    `/account/${merchantId}/connectors`,
+    auth,
+    undefined,
+    globalState
+  )
+);
+
+Cypress.Commands.add(
+  "ompListProfileConnectors",
+  (accountId, auth, globalState) =>
+    ompCall(
+      "GET",
+      `/account/${accountId}/profile/connectors`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+// --- OMP scoping: API Keys
+// (cypress/e2e/spec/Security/OMPScoping/23-ApiKeys.cy.js) - distinct from
+// ompCreateThrowawayApiKey/ompRevokeApiKey above, which are fixed to the
+// admin-key auth scheme for test-fixture housekeeping; these take an
+// arbitrary auth (JWT or admin key) for cross-merchant negative tests. ---
+
+Cypress.Commands.add("ompCreateApiKey", (merchantId, auth, body, globalState) =>
+  ompCall("POST", `/api_keys/${merchantId}`, auth, body, globalState)
+);
+
+Cypress.Commands.add(
+  "ompRetrieveApiKey",
+  (merchantId, keyId, auth, globalState) =>
+    ompCall(
+      "GET",
+      `/api_keys/${merchantId}/${keyId}`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add(
+  "ompUpdateApiKey",
+  (merchantId, keyId, auth, body, globalState) =>
+    ompCall("POST", `/api_keys/${merchantId}/${keyId}`, auth, body, globalState)
+);
+
+Cypress.Commands.add(
+  "ompRevokeApiKeyAs",
+  (merchantId, keyId, auth, globalState) =>
+    ompCall(
+      "DELETE",
+      `/api_keys/${merchantId}/${keyId}`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add("ompListApiKeys", (merchantId, auth, globalState) =>
+  ompCall("GET", `/api_keys/${merchantId}/list`, auth, undefined, globalState)
+);
+
+// --- OMP scoping: Merchant Account
+// (cypress/e2e/spec/Security/OMPScoping/24-MerchantAccount.cy.js) - distinct
+// from ompGetMerchantAccount above, which is fixed to the admin-key auth
+// scheme for test-fixture housekeeping (e.g. fetching publishable_key);
+// these take an arbitrary auth for cross-merchant negative tests. ---
+
+Cypress.Commands.add(
+  "ompRetrieveMerchantAccount",
+  (merchantId, auth, globalState) =>
+    ompCall("GET", `/accounts/${merchantId}`, auth, undefined, globalState)
+);
+
+Cypress.Commands.add(
+  "ompUpdateMerchantAccount",
+  (merchantId, auth, body, globalState) =>
+    ompCall("POST", `/accounts/${merchantId}`, auth, body, globalState)
 );

@@ -592,33 +592,73 @@ describe("OMP Scoping - shared fixtures", () => {
       });
     });
 
-    it("creates PAYOUT_LINK_PA, if the connector supports payout links", () => {
-      // Payout Link is hard-restricted to the "wise" connector in this
-      // repo's own CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK (configs/Payout/Utils.js)
-      // - our payout connector is forced to "adyenplatform" (see the CIT
-      // payout step above), which doesn't support it. Skip gracefully
-      // rather than force an unsupported connector, matching the existing
-      // Payout/00008-PayoutLinkCreate.cy.js convention.
-      if (globalState.get("connectorId") !== "wise") {
-        cy.task(
-          "cli_log",
-          "Skipping PAYOUT_LINK_PA: payout links are only supported by the " +
-            "wise connector in this repo, not the adyenplatform connector " +
-            "this suite's payouts use. 20-PayoutLink.cy.js must gate on the " +
-            "same payoutLinkExecution flag."
-        );
-        globalState.set("payoutLinkExecution", false);
-        return;
-      }
-
+    it("creates PAYOUT_LINK_PA", () => {
+      // This repo's Cypress config restricts Payout Link to "wise"
+      // (CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK, configs/Payout/Utils.js), but
+      // that's not an actual backend restriction - core/payout_link.rs
+      // builds its connector list dynamically from whichever
+      // payout_processor MCAs are enabled and support the requested payout
+      // method, not a fixed allowlist. config/development.toml's
+      // [payout_method_filters.adyenplatform] explicitly supports
+      // credit/debit card payouts for EUR/USD/GBP/CAD/JPY across many
+      // countries - exactly the card/EUR combination this suite's own
+      // CardPayout() fixture already uses for PO_PA/PO_PB. adyenplatform is
+      // hardcoded as this suite's payout connector regardless of
+      // CYPRESS_CONNECTOR (see the payout_processor MCA step above), so
+      // just attempt it directly rather than gating on a wise-only check
+      // that - by the time this step runs - was comparing against the
+      // restored Payments connectorId anyway, not the payout one, making
+      // the old gate unconditionally true (PAYOUT_LINK_PA never created,
+      // regardless of CYPRESS_CONNECTOR). If adyenplatform genuinely
+      // doesn't support it, let this fail honestly rather than silently
+      // skip - that's real, actionable information.
+      //
+      // Must use fixtures.createPayoutLinkBody, not the generic
+      // fixtures.createPayoutBody - the dedicated fixture sets
+      // payout_link: true and confirm: false (the payout method is
+      // deferred to the customer filling in the hosted link, not supplied
+      // upfront). Using the generic body (confirmed live) omits
+      // payout_link entirely, so the server tries normal eligible-connector
+      // routing with no payout_type/payout_method_data at all and fails
+      // with IR_39 "No eligible connector was found" - a test-fixture bug,
+      // not a real adyenplatform capability gap.
+      //
+      // Also needs payout_link_config set on PA's business profile first -
+      // confirmed live in two steps: (1) 400 IR_40 "Payout links cannot be
+      // used without setting allowed_domains in profile... set test_mode
+      // to true..." without it, then (2) a plain deserialize error for a
+      // field named "test_mode" - the actual request struct
+      // (BusinessPayoutLinkConfig, api_models/src/admin.rs:3584-3595, via
+      // its flattened BusinessGenericLinkConfig at :3635-3645) names the
+      // boolean field payout_test_mode, not test_mode (the error message's
+      // prose doesn't match the real field name), and allowed_domains
+      // (HashSet<String>, no default) is required regardless of
+      // payout_test_mode - both together, matching this repo's own
+      // Payout/00008-PayoutLinkCreate.cy.js bpWithPayoutLink fixture.
       globalState.set("payoutLinkExecution", true);
       cy.then(() => {
         globalState.set("profileId", globalState.get("profileIdPA"));
       });
 
+      cy.UpdateBusinessProfileTest(
+        {
+          payout_link_config: {
+            payout_test_mode: true,
+            allowed_domains: ["*.hyperswitch.io"],
+          },
+        },
+        false,
+        false,
+        false,
+        false,
+        false,
+        globalState,
+        "pa"
+      );
+
       cy.createPayoutWithLinkTest(
-        structuredClone(fixtures.createPayoutBody),
-        { Request: {}, Response: { status: 200 } },
+        structuredClone(fixtures.createPayoutLinkBody),
+        { Request: { currency: "EUR" }, Response: { status: 200 } },
         globalState
       );
 

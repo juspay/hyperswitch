@@ -11,9 +11,14 @@ import State from "../../../../utils/State";
 // path merchant_id that doesn't own this payout_id still resolve," which
 // should be denied.
 //
-// Payout Link is hard-restricted to the "wise" connector in this repo's
-// own CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK (configs/Payout/Utils.js) -
-// gated on the same payoutLinkExecution flag 00-Setup.cy.js sets.
+// This repo's Cypress config lists Payout Link as "wise"-only
+// (CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK, configs/Payout/Utils.js), but
+// that's not an actual backend restriction - see the PAYOUT_LINK_PA step
+// in 00-Setup.cy.js for why adyenplatform (this suite's payout connector)
+// should work too. Still gated on payoutLinkExecution/payoutLinkPayoutId
+// in case it doesn't - if PAYOUT_LINK_PA creation fails there, this whole
+// file skips rather than running against a payout_id that was never
+// created.
 //
 // Route (verified): GET /payout_link/{merchant_id}/{payout_id}.
 let globalState;
@@ -34,10 +39,8 @@ describe("OMP Scoping - Payout Link", () => {
       if (!payoutLinkExecution || !payoutLinkPayoutId) {
         cy.task(
           "cli_log",
-          "Skipping this suite: payout links are only supported by the " +
-            "wise connector in this repo, not the connector this suite's " +
-            "payouts actually use. See the PAYOUT_LINK_PA step in " +
-            "00-Setup.cy.js."
+          "Skipping this suite: PAYOUT_LINK_PA was not created in " +
+            "00-Setup.cy.js - check that step's live result."
         );
       }
     });
