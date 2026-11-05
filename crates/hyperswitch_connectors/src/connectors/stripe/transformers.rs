@@ -79,6 +79,19 @@ pub mod auth_headers {
 const APPLE_PAY_TOKENIZATION_METHOD: &str = "apple_pay";
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
 const GOOGLE_PAY_DPAN_TOKENIZATION_METHOD: &str = "google_pay_dpan";
+const STRIPE_ECI_LENGTH: usize = 2;
+
+/// Apple Pay / Google Pay tokens may carry a single-digit ECI ("6"); Stripe expects it
+/// zero-padded to `STRIPE_ECI_LENGTH`.
+fn get_stripe_wallet_eci(eci: Option<&String>) -> Option<String> {
+    eci.filter(|eci| !eci.is_empty()).map(|eci| {
+        if eci.len() < STRIPE_ECI_LENGTH {
+            format!("{eci:0>width$}", width = STRIPE_ECI_LENGTH)
+        } else {
+            eci.clone()
+        }
+    })
+}
 
 trait GetRequestIncrementalAuthorization {
     fn get_request_incremental_authorization(&self) -> Option<bool>;
@@ -854,7 +867,7 @@ impl From<&common_types::payments::ApplePayPredecryptData> for StripeWalletNetwo
             network_token_exp_year: expiry_year_4_digit,
             tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
             cryptogram: decrypt_data.payment_data.online_payment_cryptogram.clone(),
-            eci: decrypt_data.payment_data.eci_indicator.clone(),
+            eci: get_stripe_wallet_eci(decrypt_data.payment_data.eci_indicator.as_ref()),
         }
     }
 }
@@ -889,7 +902,7 @@ impl StripeWalletNetworkTokenPayment {
                         network_token_exp_year: expiry_year_4_digit,
                         tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
                         cryptogram,
-                        eci: decrypt_data.eci_indicator.clone(),
+                        eci: get_stripe_wallet_eci(decrypt_data.eci_indicator.as_ref()),
                     })
             })
             .transpose()
@@ -1942,7 +1955,7 @@ impl
                                 number: decrypt_data.clone().application_primary_account_number,
                                 exp_year: expiry_year_4_digit,
                                 exp_month: decrypt_data.application_expiration_month,
-                                eci: decrypt_data.payment_data.eci_indicator,
+                                eci: get_stripe_wallet_eci(decrypt_data.payment_data.eci_indicator.as_ref()),
                                 cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
                             }),
@@ -2160,7 +2173,7 @@ impl
                             exp_year: expiry_year_4_digit,
                             exp_month: predecrypted_data.card_exp_month.clone(),
                             cryptogram,
-                            eci: predecrypted_data.eci_indicator.clone(),
+                            eci: get_stripe_wallet_eci(predecrypted_data.eci_indicator.as_ref()),
                             tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
                         }),
                     ))),
