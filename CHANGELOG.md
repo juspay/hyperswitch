@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.05.0
+
+### Features
+
+- **connector:** [Elavon PG] create shopper and stored card through UCS ([#15145](https://github.com/juspay/hyperswitch/pull/15145)) ([`f31398f`](https://github.com/juspay/hyperswitch/commit/f31398fe37ddcb978c670411afd862d6cc19d97c))
+- **core:** Add ANI check support and extend payment check to wallets ([#15138](https://github.com/juspay/hyperswitch/pull/15138)) ([`880312d`](https://github.com/juspay/hyperswitch/commit/880312d0f5f06434c88ea76afc5fbb3d6824ccf9))
+
+### Bug Fixes
+
+- **connector:** [cybersource] validate redirect messages against exact origins ([#15149](https://github.com/juspay/hyperswitch/pull/15149)) ([`5c0803d`](https://github.com/juspay/hyperswitch/commit/5c0803d482883db24ff66365cff6f4cc8cfb1913))
+
+**Full Changelog:** [`2026.11.04.1...2026.11.05.0`](https://github.com/juspay/hyperswitch/compare/2026.11.04.1...2026.11.05.0)
+
+- - -
+
 ## 2026.11.04.1
 
 ### Features
