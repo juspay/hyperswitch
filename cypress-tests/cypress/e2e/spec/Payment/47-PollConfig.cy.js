@@ -129,6 +129,24 @@ describe("Poll Config - Payment status polling", () => {
             "card_pm"
           ]["PollConfigNotFound"];
 
+          for (const [query, errorCode] of [
+            [{}, "IR_04"],
+            [{ client_secret: "invalid_client_secret" }, "IR_09"],
+          ]) {
+            cy.request({
+              method: "GET",
+              url: `${globalState.get("baseUrl")}/poll/status/${pollId}`,
+              headers: {
+                "api-key": globalState.get("publishableKey"),
+              },
+              qs: query,
+              failOnStatusCode: false,
+            }).then((response) => {
+              expect(response.status).to.equal(400);
+              expect(response.body.error.code).to.equal(errorCode);
+            });
+          }
+
           cy.pollStatusCallTest(pollId, data, globalState, true);
         });
       });
