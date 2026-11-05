@@ -11,6 +11,7 @@ pub mod logger;
 pub mod metrics;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
+#[cfg(feature = "actix_web")]
 pub mod request_path;
 #[cfg(feature = "actix_web")]
 pub mod root_span;

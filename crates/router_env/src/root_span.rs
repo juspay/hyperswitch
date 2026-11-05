@@ -17,12 +17,12 @@ pub struct CustomRootSpanBuilder;
 
 // Override only the URI observed by the tracing macro. The actual request,
 // including its body, headers, and routing data, remains untouched.
-struct MaskedCallbackRequest<'a> {
+struct RouteTargetRequest<'a> {
     request: &'a ServiceRequest,
     uri: actix_web::http::Uri,
 }
 
-impl std::ops::Deref for MaskedCallbackRequest<'_> {
+impl std::ops::Deref for RouteTargetRequest<'_> {
     type Target = ServiceRequest;
 
     fn deref(&self) -> &Self::Target {
@@ -30,7 +30,7 @@ impl std::ops::Deref for MaskedCallbackRequest<'_> {
     }
 }
 
-impl MaskedCallbackRequest<'_> {
+impl RouteTargetRequest<'_> {
     fn uri(&self) -> &actix_web::http::Uri {
         &self.uri
     }
@@ -46,29 +46,22 @@ impl RootSpanBuilder for CustomRootSpanBuilder {
             .map(|id| id.to_string())
             .unwrap_or_default();
 
-        let target = crate::request_path::mask_payment_callback_path(request.path());
-        if let std::borrow::Cow::Owned(path) = target {
-            // Creating the default span and overwriting http.target afterwards
-            // would still expose the original URI to subscribers on span creation.
-            let target = if request.query_string().is_empty() {
-                path
-            } else {
-                format!("{path}?{}", request.query_string())
-            };
-            let masked_request = MaskedCallbackRequest {
-                request,
-                uri: target.parse().unwrap_or_else(|_| {
-                    actix_web::http::Uri::from_static("/payments/callback/masked")
-                }),
-            };
-            let request = &masked_request;
+        // root_span! records http.target as soon as the span is created.
+        let target = crate::request_path::path_for_telemetry(request.request());
+        if target.as_ref() == request.path() {
             return root_span!(
                 level = crate::Level::INFO,
                 request,
                 request_id = request_id.as_str()
             );
         }
-
+        let route_request = RouteTargetRequest {
+            request,
+            uri: target
+                .parse()
+                .unwrap_or_else(|_| actix_web::http::Uri::from_static("/unmatched")),
+        };
+        let request = &route_request;
         root_span!(
             level = crate::Level::INFO,
             request,
@@ -145,12 +138,12 @@ mod tests {
     }
 
     #[test]
-    fn callback_target_is_masked_before_subscribers_observe_the_span() {
+    fn unmatched_callback_target_is_generic_before_subscribers_observe_the_span() {
         let capture = CaptureTarget(Arc::new(Mutex::new(Vec::new())));
         let subscriber = Registry::default().with(capture.clone());
         tracing::subscriber::with_default(subscriber, || {
             let request = actix_web::test::TestRequest::get()
-                .uri("/payments/pay/merchant/redirect/complete/paybox/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa?connector_param=value")
+                .uri("/payments/pay/merchant/redirect/complete/paybox/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa/callback/extra?connector_param=value")
                 .to_srv_request();
             request
                 .extensions_mut()
@@ -158,13 +151,46 @@ mod tests {
             let _span = CustomRootSpanBuilder::on_request_start(&request);
             assert!(request
                 .path()
-                .ends_with("d9dc53cc-d1a1-4f57-9077-d20c2d614daa"));
+                .contains("d9dc53cc-d1a1-4f57-9077-d20c2d614daa"));
             assert_eq!(request.query_string(), "connector_param=value");
         });
         let targets = capture.0.lock().expect("targets");
         assert_eq!(targets.len(), 1);
         let target = targets.first().expect("root span target");
         assert!(!target.contains("d9dc53cc"));
-        assert!(target.contains("/callback/{callback_token}?connector_param=value"));
+        assert!(target.contains("/unmatched"));
+        assert!(!target.contains("connector_param"));
+    }
+
+    #[actix_web::test]
+    async fn matched_callback_target_keeps_ids_and_masks_only_the_token() {
+        use actix_web::{test, web, App, HttpResponse};
+
+        let capture = CaptureTarget(Arc::new(Mutex::new(Vec::new())));
+        let subscriber = Registry::default().with(capture.clone());
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let app = test::init_service(
+            App::new()
+                .wrap(tracing_actix_web::TracingLogger::<CustomRootSpanBuilder>::new())
+                .service(web::scope("/payments").service(
+                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/callback/{callback_token}")
+                        .route(web::get().to(|| async { HttpResponse::Ok().finish() })),
+                )),
+        )
+        .await;
+
+        let request = test::TestRequest::get()
+            .uri("/payments/pay/merchant/redirect/complete/paybox/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa?connector_param=value")
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        assert!(response.status().is_success());
+
+        let targets = capture.0.lock().expect("targets");
+        assert_eq!(targets.len(), 1);
+        let target = targets.first().expect("root span target");
+        assert!(!target.contains("d9dc53cc"));
+        assert!(target
+            .contains("/payments/pay/merchant/redirect/complete/paybox/callback/{callback_token}"));
+        assert!(!target.contains("connector_param"));
     }
 }

@@ -89,8 +89,7 @@ impl ApiEvent {
                 .headers()
                 .get("user-agent")
                 .and_then(|user_agent_value| user_agent_value.to_str().ok().map(ToOwned::to_owned)),
-            url_path: router_env::request_path::mask_payment_callback_path(http_req.path())
-                .into_owned(),
+            url_path: router_env::request_path::path_for_telemetry(http_req).into_owned(),
             event_type,
             hs_latency,
             http_method: http_method.to_string(),

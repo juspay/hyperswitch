@@ -422,7 +422,7 @@ where
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
     let request_method = request.method().as_str();
-    let url_path = router_env::request_path::mask_payment_callback_path(request.path());
+    let url_path = router_env::request_path::path_for_telemetry(request);
 
     let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
 

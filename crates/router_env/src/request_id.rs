@@ -162,13 +162,14 @@ pub(crate) mod boundary {
             .map(ToOwned::to_owned)
     }
 
-    // Queries, headers, and bodies can carry auth tokens / cardholder data / PII,
+    // Paths, queries, headers, and bodies can carry auth tokens / cardholder data / PII,
     // so they are `Secret`: the derived `Debug` redacts them, and the raw value is
     // exposed only at the deja recording boundary (`args`).
     #[derive(Debug)]
     pub(super) struct IncomingHttpRecord {
         method: String,
-        path: String,
+        path: Secret<String>,
+        logged_path: String,
         query: Secret<String>,
         request_id: String,
         headers: Secret<serde_json::Value>,
@@ -181,7 +182,7 @@ pub(crate) mod boundary {
         fn args(&self) -> serde_json::Value {
             json!({
                 "method": self.method.as_str(),
-                "path": self.path.as_str(),
+                "path": self.path.peek().as_str(),
                 "query": self.query.peek().as_str(),
                 "request_id": self.request_id.as_str(),
                 "headers": self.headers.peek().clone(),
@@ -197,7 +198,8 @@ pub(crate) mod boundary {
         request_id: &str,
     ) -> (ServiceRequest, IncomingHttpRecord) {
         let method = request.method().as_str().to_string();
-        let path = crate::request_path::mask_payment_callback_path(request.path()).into_owned();
+        let path = Secret::new(request.path().to_owned());
+        let logged_path = crate::request_path::path_for_telemetry(request.request()).into_owned();
         let query = request.query_string().to_string();
         let headers = headers_json(request.headers());
         let content_type = request
@@ -226,6 +228,7 @@ pub(crate) mod boundary {
         let record = IncomingHttpRecord {
             method,
             path,
+            logged_path,
             query: Secret::new(query),
             request_id: request_id.to_string(),
             headers: Secret::new(headers),
@@ -480,7 +483,7 @@ pub(crate) mod boundary {
     ) -> serde_json::Value {
         json!({
             "method": record.method.as_str(),
-            "path": record.path.as_str(),
+            "path": record.logged_path.as_str(),
             "query": record.query.peek().as_str(),
             "request_id": record.request_id.as_str(),
             "status": response.status().as_u16(),
@@ -491,7 +494,7 @@ pub(crate) mod boundary {
         let status = error.as_response_error().status_code();
         json!({
             "method": record.method.as_str(),
-            "path": record.path.as_str(),
+            "path": record.logged_path.as_str(),
             "query": record.query.peek().as_str(),
             "request_id": record.request_id.as_str(),
             "status": status.as_u16(),
@@ -631,7 +634,7 @@ pub struct RequestRecordingFacts {
     pub request_id: String,
     /// HTTP method observed at ingress.
     pub method: String,
-    /// HTTP path observed at ingress.
+    /// HTTP path with callback tokens hidden, or "/unmatched".
     pub path: String,
 }
 
@@ -1044,7 +1047,7 @@ where
         let request_facts = RequestRecordingFacts {
             request_id: request_id.to_string(),
             method: request.method().as_str().to_owned(),
-            path: crate::request_path::mask_payment_callback_path(request.path()).into_owned(),
+            path: crate::request_path::path_for_telemetry(request.request()).into_owned(),
         };
         let recording_sampler = self.recording_sampler.clone();
 
