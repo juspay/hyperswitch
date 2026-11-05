@@ -20486,16 +20486,15 @@
           "phone": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SenderPhone"
+                "$ref": "#/components/schemas/PhoneDetails"
               }
             ],
             "nullable": true
           },
           "reference_id": {
             "type": "string",
-            "description": "The merchant's stable identifier for the sender, at most 15 characters.",
-            "nullable": true,
-            "maxLength": 15
+            "description": "The merchant's stable identifier for the sender.",
+            "nullable": true
           },
           "source_of_funds": {
             "allOf": [
@@ -26963,16 +26962,15 @@
           "phone": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SenderPhone"
+                "$ref": "#/components/schemas/PhoneDetails"
               }
             ],
             "nullable": true
           },
           "reference_id": {
             "type": "string",
-            "description": "The merchant's stable identifier for the sender, at most 15 characters.",
-            "nullable": true,
-            "maxLength": 15
+            "description": "The merchant's stable identifier for the sender",
+            "nullable": true
           },
           "source_of_funds": {
             "allOf": [
@@ -47683,24 +47681,6 @@
         "description": "Details of the party providing the funds.",
         "discriminator": {
           "propertyName": "type"
-        }
-      },
-      "SenderPhone": {
-        "type": "object",
-        "description": "Sender phone contact.",
-        "properties": {
-          "number": {
-            "type": "string",
-            "description": "The sender's phone number.",
-            "example": "9123456789",
-            "nullable": true
-          },
-          "country_code": {
-            "type": "string",
-            "description": "The international dialing code attached to the number.",
-            "example": "+44",
-            "nullable": true
-          }
         }
       },
       "SepaAndBacsBillingDetails": {

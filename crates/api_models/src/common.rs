@@ -4,7 +4,6 @@ use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-/// Phone contact details of a party.
 #[derive(
     Debug,
     Clone,
