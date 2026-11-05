@@ -31177,7 +31177,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded. An XML document is sent as a string with\nan XML Content-Type; anything else is sent as JSON."
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected."
           },
           "destination_url": {
             "type": "string",
