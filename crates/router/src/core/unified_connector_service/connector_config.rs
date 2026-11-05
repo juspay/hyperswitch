@@ -9,7 +9,7 @@ use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
