@@ -2689,7 +2689,7 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
 "vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
 "payments.payment_blocklist_guard" = { value = false, schema = { type = "boolean" }, description = "Whether the blocklist guard runs during payment confirm, eligibility checks, and saved-card filtering; supports merchant and profile overrides", change_reason = "Initial setup" }
-"payments.card_testing_guard_config" = { value = { card_ip_blocking_status = "enabled", card_ip_blocking_threshold = 5, guest_user_card_blocking_status = "enabled", guest_user_card_blocking_threshold = 5, customer_id_blocking_status = "enabled", customer_id_blocking_threshold = 5, card_testing_guard_expiry = 2678400, guest_ip_blocking_status = "enabled", guest_ip_blocking_threshold = 5 }, schema = { type = "object" }, description = "Default card testing guard configuration", change_reason = "Initial setup" }
+"payments.card_testing_guard_config" = { value = {}, schema = { type = "object" }, description = "Default card testing guard configuration", change_reason = "Initial setup" }
 "system.payment_integration_type" = { value = "client", schema = { type = "string", enum = [
     "client",
     "server",
