@@ -877,10 +877,20 @@ where
     payment_data.set_previous_db_records(previous_attempt, previous_intent);
 
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
+    let dimensions_with_org = dimensions
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
+        .without_provider_merchant_id()
+        .clone();
 
     operation
         .to_get_tracker()?
-        .validate_request_with_state(state, &req, &mut payment_data, &business_profile)
+        .validate_request_with_state(
+            state,
+            &req,
+            &mut payment_data,
+            &business_profile,
+            &dimensions_with_org,
+        )
         .await?;
 
     core_utils::validate_profile_id_from_auth_layer(
@@ -15177,10 +15187,15 @@ impl EligibilityCheck for CardTestingCheck {
     async fn execute_check(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
+            .with_profile_id(business_profile.get_id().clone());
+
         match &payment_elgibility_data.payment_method_data {
             Some(domain::EligibilityPaymentMethodData::Card(card)) => {
                 match card_testing_guard_utils::validate_card_testing_guard_checks(
@@ -15192,6 +15207,7 @@ impl EligibilityCheck for CardTestingCheck {
                     card.card_number.clone(),
                     &payment_elgibility_data.payment_intent.customer_id,
                     business_profile,
+                    &dimensions,
                 )
                 .await
                 {
