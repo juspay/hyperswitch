@@ -50,7 +50,27 @@ impl PaymentCallbackRoute {
     }
 
     pub(super) fn with_callback_token(self, token: &str) -> String {
-        format!("{}/callback/{token}", self.legacy_path())
+        let prefix = format!(
+            "/{}/{}/redirect/token/{token}",
+            Self::PAYMENT_ID,
+            Self::MERCHANT_ID,
+        );
+        match self {
+            Self::Start => format!("{prefix}/start/{}", Self::ATTEMPT_ID),
+            Self::RedirectResponse => format!("{prefix}/response/{}", Self::CONNECTOR),
+            Self::RedirectResponseWithCredentials => format!(
+                "{prefix}/response/{}/{}",
+                Self::CONNECTOR,
+                Self::CREDS_IDENTIFIER,
+            ),
+            Self::RedirectComplete => format!("{prefix}/complete/{}", Self::CONNECTOR),
+            Self::RedirectCompleteWithCredentials => format!(
+                "{prefix}/complete/{}/{}",
+                Self::CONNECTOR,
+                Self::CREDS_IDENTIFIER,
+            ),
+            Self::Authorize => format!("{prefix}/authorize/{}", Self::CONNECTOR),
+        }
     }
 
     pub fn legacy_name(self) -> String {

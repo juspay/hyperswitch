@@ -8465,7 +8465,7 @@ mod callback_query_tests {
     fn appended_status_preserves_callback_token_and_fragment() {
         let token = "d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
         let base = Secret::new(format!(
-            "https://router.test/payments/path/callback/{token}?result=ok#result"
+            "https://router.test/payments/pay/merchant/redirect/token/{token}/response/connector?result=ok#result"
         ));
         let result = append_url_query_param(&base, "status", "success").expect("URL");
         let parsed = url::Url::parse(result.peek()).expect("URL");
@@ -8476,7 +8476,10 @@ mod callback_query_tests {
         assert!(pairs
             .iter()
             .any(|(key, value)| key == "status" && value == "success"));
-        assert!(parsed.path().ends_with(&format!("/callback/{token}")));
+        assert_eq!(
+            parsed.path(),
+            format!("/payments/pay/merchant/redirect/token/{token}/response/connector")
+        );
         assert_eq!(parsed.fragment(), Some("result"));
         assert_eq!(
             append_url_query_param(

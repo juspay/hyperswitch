@@ -114,12 +114,12 @@ impl<'a> PaymentCallbackFields<'a> {
     fn key(self, token: &Uuid) -> redis_interface::RedisKey {
         let route = self.route();
         match self {
-            Self::Start(path) => callback_key(route, path, token),
+            Self::Start(path) => path.callback_key(route, token),
             Self::RedirectResponse(path) | Self::RedirectComplete(path) | Self::Authorize(path) => {
-                callback_key(route, path, token)
+                path.callback_key(route, token)
             }
             Self::RedirectResponseWithCredentials(path)
-            | Self::RedirectCompleteWithCredentials(path) => callback_key(route, path, token),
+            | Self::RedirectCompleteWithCredentials(path) => path.callback_key(route, token),
         }
     }
 
@@ -138,6 +138,16 @@ impl<'a> PaymentCallbackFields<'a> {
 
 trait CallbackHashInput {
     fn hash_input(&self) -> String;
+
+    // Hash the bearer credential so Redis keys and command instrumentation do not
+    // contain usable tokens. RedisConnectionWithContext applies the tenant prefix.
+    fn callback_key(&self, route: PaymentCallbackRoute, token: &Uuid) -> redis_interface::RedisKey {
+        let mut digest = Sha256::new();
+        digest.update(Self::concatenate_fields(&[route.name()]));
+        digest.update(self.hash_input());
+        digest.update(token.as_bytes());
+        format!("payment_callback_token:{:x}", digest.finalize()).into()
+    }
 
     // Byte-length framing distinguishes values even when they contain delimiters.
     fn concatenate_fields(fields: &[&str]) -> String {
@@ -213,49 +223,6 @@ impl PaymentCallbackUrl {
     }
 }
 
-// Hash the bearer credential so Redis keys and command instrumentation do not
-// contain usable tokens. RedisConnectionWithContext applies the tenant prefix.
-fn callback_key<T: CallbackHashInput>(
-    route: PaymentCallbackRoute,
-    fields: &T,
-    token: &Uuid,
-) -> redis_interface::RedisKey {
-    let mut digest = Sha256::new();
-    digest.update(T::concatenate_fields(&[route.name()]));
-    digest.update(fields.hash_input());
-    digest.update(token.as_bytes());
-    format!("payment_callback_token:{:x}", digest.finalize()).into()
-}
-
-#[cfg(feature = "v1")]
-fn parse_token(value: &str) -> RouterResult<Uuid> {
-    let token = Uuid::parse_str(value).change_context(errors::ApiErrorResponse::Unauthorized)?;
-    if token.get_version_num() != 4 || token.to_string() != value {
-        return Err(errors::ApiErrorResponse::Unauthorized.into());
-    }
-    Ok(token)
-}
-
-#[cfg(feature = "v1")]
-fn request_key(
-    fields: PaymentCallbackFields<'_>,
-    request: &actix_web::HttpRequest,
-) -> RouterResult<Option<redis_interface::RedisKey>> {
-    let route = fields.route();
-    match request.match_name() {
-        Some(name) if name == route.name() => (),
-        Some(name) if name == route.legacy_name() => return Ok(None),
-        _ => return Err(errors::ApiErrorResponse::Unauthorized.into()),
-    }
-    let token = parse_token(
-        request
-            .match_info()
-            .get("callback_token")
-            .ok_or(errors::ApiErrorResponse::Unauthorized)?,
-    )?;
-    Ok(Some(fields.key(&token)))
-}
-
 /// Opt-in authentication for protected callback handlers. Consume the token
 /// after merchant authentication succeeds and before server_wrap takes a lock.
 /// Original URLs are accepted only in legacy and migration modes.
@@ -267,13 +234,41 @@ pub struct PaymentCallbackAuth {
 
 #[cfg(feature = "v1")]
 impl PaymentCallbackAuth {
+    fn parse_token(value: &str) -> RouterResult<Uuid> {
+        let token =
+            Uuid::parse_str(value).change_context(errors::ApiErrorResponse::Unauthorized)?;
+        if token.get_version_num() != 4 || token.to_string() != value {
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
+        }
+        Ok(token)
+    }
+
+    fn request_key(
+        fields: PaymentCallbackFields<'_>,
+        request: &actix_web::HttpRequest,
+    ) -> RouterResult<Option<redis_interface::RedisKey>> {
+        let route = fields.route();
+        match request.match_name() {
+            Some(name) if name == route.name() => (),
+            Some(name) if name == route.legacy_name() => return Ok(None),
+            _ => return Err(errors::ApiErrorResponse::Unauthorized.into()),
+        }
+        let token = Self::parse_token(
+            request
+                .match_info()
+                .get("callback_token")
+                .ok_or(errors::ApiErrorResponse::Unauthorized)?,
+        )?;
+        Ok(Some(fields.key(&token)))
+    }
+
     pub(super) fn from_request(
         fields: PaymentCallbackFields<'_>,
         request: &actix_web::HttpRequest,
     ) -> RouterResult<Self> {
         Ok(Self {
             merchant_auth: MerchantIdAuth(fields.merchant_id().clone()),
-            key: request_key(fields, request)?,
+            key: Self::request_key(fields, request)?,
         })
     }
 
@@ -293,11 +288,11 @@ impl AuthenticateAndFetch<AuthenticationData, SessionState> for PaymentCallbackA
         request_headers: &actix_web::http::header::HeaderMap,
         state: &SessionState,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
+        self.validate_mode(state.payment_callback_config().await?.mode)?;
         let auth = self
             .merchant_auth
             .authenticate_and_fetch(request_headers, state)
             .await?;
-        self.validate_mode(state.payment_callback_config().await?.mode)?;
         let Some(key) = self.key.as_ref() else {
             return Ok(auth);
         };
@@ -435,6 +430,22 @@ mod tests {
             .replace(PaymentCallbackRoute::CREDS_IDENTIFIER, "creds_1")
     }
 
+    fn resolved_token_path(route: PaymentCallbackRoute, token: &str) -> String {
+        let prefix = format!("/payments/pay_1/merchant_1/redirect/token/{token}");
+        match route {
+            PaymentCallbackRoute::Start => format!("{prefix}/start/attempt_1"),
+            PaymentCallbackRoute::RedirectResponse => format!("{prefix}/response/stripe"),
+            PaymentCallbackRoute::RedirectResponseWithCredentials => {
+                format!("{prefix}/response/stripe/creds_1")
+            }
+            PaymentCallbackRoute::RedirectComplete => format!("{prefix}/complete/stripe"),
+            PaymentCallbackRoute::RedirectCompleteWithCredentials => {
+                format!("{prefix}/complete/stripe/creds_1")
+            }
+            PaymentCallbackRoute::Authorize => format!("{prefix}/authorize/stripe"),
+        }
+    }
+
     #[tokio::test]
     async fn issuance_obeys_rollout_mode_for_every_protected_route() {
         let paths = CallbackPaths::new();
@@ -449,15 +460,15 @@ mod tests {
                     assert_eq!(url.path(), format!("/payments{path}"));
                     assert!(pending.key.is_none());
                 } else {
-                    let token = parse_token(
+                    let token = PaymentCallbackAuth::parse_token(
                         url.path_segments()
                             .expect("segments")
-                            .next_back()
+                            .nth(5)
                             .expect("token"),
                     )
                     .expect("UUID");
                     assert!(seen.insert(token));
-                    assert_eq!(url.path(), format!("/payments{path}/callback/{token}"));
+                    assert_eq!(url.path(), resolved_token_path(route, &token.to_string()));
                     assert_eq!(
                         format!("{:?}", pending.key),
                         format!("{:?}", Some(paths.fields(route).key(&token)))
@@ -493,7 +504,10 @@ mod tests {
     #[test]
     fn malformed_and_noncanonical_tokens_are_rejected() {
         let token = common_utils::generate_uuid_v4();
-        assert_eq!(parse_token(&token.to_string()).expect("UUID"), token);
+        assert_eq!(
+            PaymentCallbackAuth::parse_token(&token.to_string()).expect("UUID"),
+            token
+        );
         for value in [
             String::new(),
             "invalid".into(),
@@ -502,7 +516,7 @@ mod tests {
             format!("{{{token}}}"),
             "6ba7b810-9dad-11d1-80b4-00c04fd430c8".into(),
         ] {
-            assert!(parse_token(&value).is_err());
+            assert!(PaymentCallbackAuth::parse_token(&value).is_err());
         }
     }
 
@@ -659,7 +673,7 @@ mod tests {
                     let response = actix_test::call_service(
                         &app,
                         actix_test::TestRequest::get()
-                            .uri(&format!("/payments{path}/callback/{token}?{query}"))
+                            .uri(&format!("{}?{query}", resolved_token_path(route, &token)))
                             .to_request(),
                     )
                     .await;
@@ -675,7 +689,11 @@ mod tests {
         let request = actix_test::TestRequest::get()
             .uri("/other")
             .to_http_request();
-        assert!(request_key(PaymentCallbackFields::Start(&paths.start), &request).is_err());
+        assert!(PaymentCallbackAuth::request_key(
+            PaymentCallbackFields::Start(&paths.start),
+            &request
+        )
+        .is_err());
         let app = actix_test::init_service(
             App::new()
                 .app_data(web::Data::new(PaymentCallbackMode::Migration))

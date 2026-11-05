@@ -6,7 +6,7 @@ use api_models::payments::{
 use hyperswitch_masking::Secret;
 
 const CALLBACK_TOKEN: &str = "d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
-const CALLBACK_URL: &str = "https://router.test/payments/pay/merchant/authorize/stripe/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa";
+const CALLBACK_URL: &str = "https://router.test/payments/pay/merchant/redirect/token/d9dc53cc-d1a1-4f57-9077-d20c2d614daa/authorize/stripe";
 
 #[cfg(test)]
 fn assert_secret_serialization<T: serde::Serialize + std::fmt::Debug>(

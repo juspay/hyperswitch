@@ -143,7 +143,7 @@ mod tests {
         let subscriber = Registry::default().with(capture.clone());
         tracing::subscriber::with_default(subscriber, || {
             let request = actix_web::test::TestRequest::get()
-                .uri("/payments/pay/merchant/redirect/complete/paybox/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa/callback/extra?connector_param=value")
+                .uri("/payments/pay/merchant/redirect/token/d9dc53cc-d1a1-4f57-9077-d20c2d614daa/complete/paybox/extra?connector_param=value")
                 .to_srv_request();
             request
                 .extensions_mut()
@@ -173,14 +173,14 @@ mod tests {
             App::new()
                 .wrap(tracing_actix_web::TracingLogger::<CustomRootSpanBuilder>::new())
                 .service(web::scope("/payments").service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/callback/{callback_token}")
+                    web::resource("/{payment_id}/{merchant_id}/redirect/token/{callback_token}/complete/{connector}")
                         .route(web::get().to(|| async { HttpResponse::Ok().finish() })),
                 )),
         )
         .await;
 
         let request = test::TestRequest::get()
-            .uri("/payments/pay/merchant/redirect/complete/paybox/callback/d9dc53cc-d1a1-4f57-9077-d20c2d614daa?connector_param=value")
+            .uri("/payments/pay/merchant/redirect/token/d9dc53cc-d1a1-4f57-9077-d20c2d614daa/complete/paybox?connector_param=value")
             .to_request();
         let response = test::call_service(&app, request).await;
         assert!(response.status().is_success());
@@ -190,7 +190,7 @@ mod tests {
         let target = targets.first().expect("root span target");
         assert!(!target.contains("d9dc53cc"));
         assert!(target
-            .contains("/payments/pay/merchant/redirect/complete/paybox/callback/{callback_token}"));
+            .contains("/payments/pay/merchant/redirect/token/{callback_token}/complete/paybox"));
         assert!(!target.contains("connector_param"));
     }
 }

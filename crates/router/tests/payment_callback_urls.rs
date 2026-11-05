@@ -1,5 +1,14 @@
 #![cfg(feature = "v1")]
 
+fn callback_path_and_token(path: &str) -> (String, &str) {
+    let (prefix, remaining) = path.split_once("/redirect/token/").expect("token path");
+    let (token, suffix) = remaining.split_once('/').expect("callback action");
+    (
+        format!("{prefix}/redirect/token/{{callback_token}}/{suffix}"),
+        token,
+    )
+}
+
 #[cfg(test)]
 mod sdk_callback_url_tests {
     use common_enums::Currency;
@@ -17,6 +26,8 @@ mod sdk_callback_url_tests {
         routes::payments::callback_routes::{ConnectorCallbackPath, StartCallbackPath},
         types::api::ConnectorData,
     };
+
+    use super::callback_path_and_token;
 
     fn payment_id(value: &str) -> PaymentId {
         PaymentId::wrap(value.to_string()).expect("payment ID")
@@ -61,14 +72,17 @@ mod sdk_callback_url_tests {
                     .url()
                     .peek()
             );
-            assert!(ddc
-                .iframe_url
-                .path()
-                .starts_with("/payments/redirect/pay/merchant/attempt"));
-            assert_eq!(
-                ddc.iframe_url.path().contains("/callback/"),
-                mode.issues_tokens()
-            );
+            if mode.issues_tokens() {
+                assert_eq!(
+                    callback_path_and_token(ddc.iframe_url.path()).0,
+                    "/payments/pay/merchant/redirect/token/{callback_token}/start/attempt"
+                );
+            } else {
+                assert_eq!(
+                    ddc.iframe_url.path(),
+                    "/payments/redirect/pay/merchant/attempt"
+                );
+            }
         }
         for metadata in [None, Some(serde_json::json!({"unrelated": true}))] {
             let mut callbacks = SdkCallbackUrls::default();
@@ -139,10 +153,15 @@ mod sdk_callback_url_tests {
                 Some("creds"),
             )
             .clone();
-        assert!(url::Url::parse(redirect.peek())
-            .expect("redirect URL")
-            .path()
-            .starts_with("/payments/pay/merchant/redirect/response/stripe/creds/callback/"));
+        assert_eq!(
+            callback_path_and_token(
+                url::Url::parse(redirect.peek())
+                    .expect("redirect URL")
+                    .path()
+            )
+            .0,
+            "/payments/pay/merchant/redirect/token/{callback_token}/response/stripe/creds"
+        );
         assert_eq!(
             callbacks.redirect_response_url(
                 "https://router.test",
@@ -262,9 +281,12 @@ mod sdk_callback_url_tests {
                 .clone();
             let url = url::Url::parse(callback.peek()).expect("URL");
             let action = if is_response { "response" } else { "complete" };
-            assert!(url.path().starts_with(&format!(
-                "/payments/pay/merchant/redirect/{action}/{connector}/callback/"
-            )));
+            assert_eq!(
+                callback_path_and_token(url.path()).0,
+                format!(
+                    "/payments/pay/merchant/redirect/token/{{callback_token}}/{action}/{connector}"
+                )
+            );
             assert!(url.query().is_none());
             assert!(callbacks.start.is_none());
             assert!(callbacks.authorize.is_none());
@@ -338,6 +360,8 @@ mod connector_callback_url_tests {
         types::api::ConnectorData,
     };
 
+    use super::callback_path_and_token;
+
     #[test]
     fn browser_and_notification_callbacks_have_independent_tokens() {
         let payment_id = PaymentId::wrap("pay_1".to_string()).expect("payment ID");
@@ -398,14 +422,12 @@ mod connector_callback_url_tests {
                         "https://router.test/payments/pay_1/merchant_1/redirect/{action}/{connector}{creds_path}"
                     );
                     if mode.issues_tokens() {
-                        let (browser_path, browser_token) = browser
-                            .peek()
-                            .rsplit_once("/callback/")
-                            .expect("browser token");
-                        let (notification_path, notification_token) = notification
-                            .peek()
-                            .rsplit_once("/callback/")
-                            .expect("notification token");
+                        let (browser_path, browser_token) = callback_path_and_token(browser.peek());
+                        let (notification_path, notification_token) =
+                            callback_path_and_token(notification.peek());
+                        let expected = format!(
+                            "https://router.test/payments/pay_1/merchant_1/redirect/token/{{callback_token}}/{action}/{connector}{creds_path}"
+                        );
                         assert_eq!(browser_path, expected);
                         assert_eq!(notification_path, expected);
                         assert_ne!(browser_token, notification_token);
@@ -484,9 +506,9 @@ mod connector_callback_url_tests {
                     None,
                 )
                 .expect("notification callback");
-            assert!(url.peek().starts_with(&format!(
-                "https://router.test/payments/pay_1/merchant_1/redirect/{action}/custom_processor/callback/"
-            )));
+            assert_eq!(callback_path_and_token(url.peek()).0, format!(
+                "https://router.test/payments/pay_1/merchant_1/redirect/token/{{callback_token}}/{action}/custom_processor"
+            ));
         }
     }
 
@@ -563,9 +585,10 @@ mod connector_callback_url_tests {
                     if mode == PaymentCallbackMode::Legacy {
                         assert_eq!(url.path(), expected);
                     } else {
-                        let (path, token) =
-                            url.path().rsplit_once("/callback/").expect("token path");
-                        assert_eq!(path, expected);
+                        let (path, token) = callback_path_and_token(url.path());
+                        assert_eq!(path, format!(
+                            "/payments/pay_1/merchant_1/redirect/token/{{callback_token}}/{action}/stripe{creds_path}"
+                        ));
                         assert_eq!(
                             uuid::Uuid::parse_str(token)
                                 .expect("UUID")

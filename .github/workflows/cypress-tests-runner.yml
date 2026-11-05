@@ -407,7 +407,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
@@ -684,7 +684,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
@@ -975,7 +975,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
@@ -1403,7 +1403,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
@@ -1595,7 +1595,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
@@ -1868,7 +1868,7 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate_v2 run --locked-schema
 
-      - name: Configure payment callbacks
+      - name: Configure enforced payment callbacks
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
