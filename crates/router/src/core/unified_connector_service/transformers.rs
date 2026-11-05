@@ -10273,7 +10273,7 @@ impl<F>
                     .map(|email| Secret::new(email.peek().clone())),
                 phone_number: vendor_details.company_phone.clone(),
                 phone_country_code: vendor_details.phone_country_code.clone(),
-                reference_id: vendor_details.reference_id.clone(),
+                merchant_sender_reference_id: vendor_details.reference_id.clone(),
                 source_of_funds: vendor_details
                     .source_of_funds
                     .map(payments_grpc::PayoutSourceOfFunds::foreign_from)
@@ -10342,7 +10342,7 @@ impl<F>
                     .as_ref()
                     .map(|email| Secret::new(email.peek().clone())),
                 phone_country_code: individual_details.phone_country_code.clone(),
-                reference_id: individual_details.reference_id.clone(),
+                merchant_sender_reference_id: individual_details.reference_id.clone(),
                 source_of_funds: individual_details
                     .source_of_funds
                     .map(payments_grpc::PayoutSourceOfFunds::foreign_from)

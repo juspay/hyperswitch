@@ -2038,14 +2038,20 @@ type = "Text"
 [[checkout_payout.wallet]]
 payment_method_type = "apple_pay"
 [checkout_payout.connector_auth.SignatureKey]
-api_key = "Currency Account ID"
+api_key = "Checkout Public Key"
 key1 = "Processing Channel ID"
 api_secret = "Checkout API Secret Key"
 [checkout_payout.metadata.client_id]
 name = "client_id"
 label = "Checkout Client ID"
 placeholder = "Enter Checkout Client ID"
-required = false
+required = true
+type = "Text"
+[checkout_payout.metadata.currency_account_id]
+name = "currency_account_id"
+label = "Currency Account ID"
+placeholder = "Enter Currency Account ID (ca_...)"
+required = true
 type = "Text"
 
 [coinbase]
