@@ -334,6 +334,8 @@ diesel::table! {
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
         revenue_recovery_config -> Nullable<Jsonb>,
+        #[max_length = 64]
+        revenue_recovery_trigger_model -> Nullable<Varchar>,
     }
 }
 
