@@ -31177,7 +31177,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected."
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body."
           },
           "destination_url": {
             "type": "string",
@@ -31210,12 +31210,7 @@
         ],
         "properties": {
           "response": {
-            "description": "The response received from the destination: JSON when the body is JSON, otherwise\nits UTF-8 text, otherwise `null`"
-          },
-          "response_body_base64": {
-            "type": "string",
-            "description": "The exact response body bytes, base64-encoded. Prefer this to `response`, which\ncannot carry bytes that are neither JSON nor UTF-8 text.",
-            "nullable": true
+            "$ref": "#/components/schemas/ProxyResponseBody"
           },
           "status_code": {
             "type": "integer",
@@ -31228,6 +31223,18 @@
             "description": "The headers of the response"
           }
         }
+      },
+      "ProxyResponseBody": {
+        "oneOf": [
+          {
+            "description": "A JSON body"
+          },
+          {
+            "type": "string",
+            "description": "Any other body, as text"
+          }
+        ],
+        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document."
       },
       "PspTokenization": {
         "type": "object",
