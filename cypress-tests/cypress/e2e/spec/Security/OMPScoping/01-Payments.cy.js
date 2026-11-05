@@ -160,14 +160,20 @@ describe("OMP Scoping - Payments", () => {
 
     it("PA's confirm on its own PI_PA is accepted into processing (positive)", () => {
       // client_secret is only valid on the publishable-key/SDK confirm path;
-      // server-to-server confirm via api-key must omit it.
+      // server-to-server confirm via api-key must omit it. PI_PA has no
+      // payment method attached (00-Setup.cy.js never confirmed it with real
+      // card data), so this can't assert a single exact success status -
+      // the business outcome legitimately varies (e.g. a missing-payment-
+      // method 400). What this test actually has to prove is narrower: the
+      // profile check passed, i.e. none of the denial statuses a
+      // cross-profile request would get (401/403/404/412) showed up here.
       cy.ompConfirmPayment(
         paymentIdPA,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
         { confirm: true },
         globalState
       ).then((res) => {
-        expect(res.status).to.not.eq(403);
+        expect([401, 403, 404, 412]).to.not.include(res.status);
       });
     });
 
@@ -228,6 +234,38 @@ describe("OMP Scoping - Payments", () => {
             paymentIdPB,
             { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
             {},
+            globalState
+          ),
+      });
+    });
+
+    // No positive control for either of these two, same as capture/cancel/
+    // session/complete_authorize above: PI_PA was never confirmed with a
+    // real payment method, and incremental_authorization additionally needs
+    // the payment created with request_incremental_authorization enabled
+    // and sitting in requires_capture - neither precondition exists in this
+    // suite's fixtures. The profile check runs before any of that state is
+    // even inspected, so the denial case alone still proves the fix works.
+    it("incremental_authorization for cross-profile PI_PB denied", () => {
+      cy.ompAssertDeniedAndUnchanged({
+        fetch: fetchPayment(paymentIdPB),
+        negativeRequest: () =>
+          cy.ompIncrementalAuthorization(
+            paymentIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            { amount: 200 },
+            globalState
+          ),
+      });
+    });
+
+    it("extend_authorization for cross-profile PI_PB denied", () => {
+      cy.ompAssertDeniedAndUnchanged({
+        fetch: fetchPayment(paymentIdPB),
+        negativeRequest: () =>
+          cy.ompExtendAuthorization(
+            paymentIdPB,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
             globalState
           ),
       });

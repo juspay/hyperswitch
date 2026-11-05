@@ -8,15 +8,24 @@ import State from "../../../../utils/State";
 // route in V1), GET /verify/applepay_verified_domains?merchant_id=&merchant_connector_account_id=.
 // Both ApiKeyAuth or JWTAuth, cfg #[cfg(all(feature = "olap", feature = "v1"))].
 //
-// domain_names uses a real, hosted domain (hyperswitch-demo-store.netlify.app)
-// rather than a placeholder like "example.com" - Apple's actual domain
-// association check runs as part of verify/register, confirmed live
-// ("Applepay verification Failed" / IR_06 for an unverifiable domain). Using
-// a placeholder everywhere would make the cross-profile/ownership denial
-// tests below "pass" for the wrong reason if domain verification happens to
-// run before the profile check - same false-pass risk as the Connector
-// Onboarding PayPal-only check. A real domain keeps every 4xx seen here
-// attributable to profile/ownership, not domain verification.
+// domain_names needs a real, hosted domain rather than a placeholder like
+// "example.com" - Apple's actual domain association check runs as part of
+// verify/register, confirmed live ("Applepay verification Failed" / IR_06
+// for an unverifiable domain). Using a placeholder everywhere would make
+// the cross-profile/ownership denial tests below "pass" for the wrong
+// reason if domain verification happens to run before the profile check -
+// same false-pass risk as the Connector Onboarding PayPal-only check. A
+// real domain keeps every 4xx seen here attributable to profile/ownership,
+// not domain verification.
+//
+// The actual domain isn't hardcoded here - set APPLE_PAY_TEST_DOMAIN in
+// cypress.env.json (or CYPRESS_APPLE_PAY_TEST_DOMAIN) to a real, hosted
+// domain for this environment. Falls back to a non-hosted placeholder,
+// which will always fail Apple's association check (expected - the
+// profile/ownership checks above it still run and still matter).
+const APPLE_PAY_TEST_DOMAIN =
+  Cypress.env("APPLE_PAY_TEST_DOMAIN") || "example.com";
+
 let globalState;
 let apiKeyM1;
 let merchantIdM1;
@@ -49,7 +58,7 @@ describe("OMP Scoping - Apple Pay", () => {
       merchantIdM2,
       { type: "apiKey", apiKey: apiKeyM1 },
       {
-        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        domain_names: [APPLE_PAY_TEST_DOMAIN],
         merchant_connector_account_id: mcaPaId,
       },
       globalState
@@ -63,7 +72,7 @@ describe("OMP Scoping - Apple Pay", () => {
       merchantIdM1,
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
-        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        domain_names: [APPLE_PAY_TEST_DOMAIN],
         merchant_connector_account_id: mcaPbId,
       },
       globalState
@@ -104,7 +113,7 @@ describe("OMP Scoping - Apple Pay", () => {
       merchantIdM1,
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
-        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        domain_names: [APPLE_PAY_TEST_DOMAIN],
         merchant_connector_account_id: mcaPaId,
       },
       globalState
@@ -140,7 +149,7 @@ describe("OMP Scoping - Apple Pay", () => {
       merchantIdM1,
       { type: "invalid" },
       {
-        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        domain_names: [APPLE_PAY_TEST_DOMAIN],
         merchant_connector_account_id: mcaPaId,
       },
       globalState

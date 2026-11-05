@@ -135,9 +135,25 @@ describe("OMP Scoping - Disputes", () => {
         expect(res.status).to.be.within(400, 499);
       });
     });
+
+    it("invalid credential on evidence deletion is rejected", () => {
+      cy.ompDeleteDisputeEvidence(
+        "dp_nonexistent_omp_test",
+        { type: "invalid" },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(401);
+      });
+    });
   });
 
   context("Connector fetch", () => {
+    // ompFetchDisputesFromConnector supplies a default fetch_from/fetch_till
+    // window itself - omitting those required query params returns 400
+    // "missing field `fetch_from`" before auth even runs, which would make
+    // every test below pass for the wrong reason regardless of profile or
+    // credentials (confirmed live, same false-pass risk as the Connector
+    // Onboarding PayPal-only check).
     it("fetch disputes on cross-profile MCA_PB denied", () => {
       cy.ompFetchDisputesFromConnector(
         mcaPbId,
@@ -149,12 +165,18 @@ describe("OMP Scoping - Disputes", () => {
     });
 
     it("fetch disputes on own MCA_PA isn't profile-rejected (positive)", () => {
+      // Can't assert a single exact success status here - the real
+      // business outcome depends on whether the connector sandbox actually
+      // has dispute data to fetch, which this suite doesn't control. What
+      // this test actually has to prove is narrower: the profile check
+      // passed, i.e. none of the denial statuses a cross-profile request
+      // would get (401/403/404/412) showed up here.
       cy.ompFetchDisputesFromConnector(
         mcaPaId,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
         globalState
       ).then((res) => {
-        expect(res.status).to.not.eq(403);
+        expect([401, 403, 404, 412]).to.not.include(res.status);
       });
     });
 
@@ -167,6 +189,16 @@ describe("OMP Scoping - Disputes", () => {
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    it("invalid credential on connector fetch is rejected", () => {
+      cy.ompFetchDisputesFromConnector(
+        mcaPaId,
+        { type: "invalid" },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(401);
       });
     });
   });

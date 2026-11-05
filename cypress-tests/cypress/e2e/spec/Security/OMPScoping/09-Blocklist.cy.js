@@ -85,6 +85,64 @@ describe("OMP Scoping - Blocklist", () => {
     });
   });
 
+  it("create with JWT-PA + conflicting X-Profile-Id uses the JWT's own profile, not the header", () => {
+    // Mirrors the GET test above for the write path: the fix must use the
+    // JWT's own profile (PA) to scope where the entry is created, never the
+    // conflicting header value (PB).
+    const paOnlyBin = String(Date.now()).slice(-6);
+
+    cy.ompCreateBlocklistEntry(
+      { type: "jwt", token: jwtPA, profileId: profileIdPB },
+      { type: "card_bin", data: paOnlyBin },
+      globalState
+    ).then((createRes) => {
+      expect(createRes.status).to.eq(200);
+      expect(createRes.body?.profile_id).to.eq(profileIdPA);
+    });
+  });
+
+  it("delete rejects a bin that belongs to a different profile, entry unchanged", () => {
+    // delete_entry_from_blocklist resolves profile_id from the caller
+    // (header/JWT, defaulting if omitted) and queries by
+    // (merchant_id, bin, profile_id) - a PA-scoped delete for a PB-owned
+    // bin simply won't match that row (core/blocklist/utils.rs:513-524,
+    // GenericNotFoundError), not because of an explicit profile check but
+    // because the row lookup itself is profile-scoped. Confirm the entry
+    // survives via /blocklist/lookup, which reports BlocklistResponse's
+    // omitted raw bin value as a blocked:true/false flag instead.
+    // Must be a plain 6-digit number - "card_bin" (unlike "generic_card_bin")
+    // validates exactly 6 digits server-side (IR_05 otherwise, confirmed
+    // live). Date.now() alone is enough to avoid colliding with the bin the
+    // "JWT + conflicting X-Profile-Id" test above creates, since tests run
+    // at different timestamps.
+    const pbOnlyBin = String(Date.now()).slice(-6);
+
+    cy.ompCreateBlocklistEntry(
+      { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPB },
+      { type: "card_bin", data: pbOnlyBin },
+      globalState
+    ).then((createRes) => {
+      expect(createRes.status).to.eq(200);
+    });
+
+    cy.ompDeleteBlocklistEntry(
+      { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+      { type: "card_bin", data: pbOnlyBin },
+      globalState
+    ).then((deleteRes) => {
+      expect(deleteRes.status).to.eq(404);
+    });
+
+    cy.ompLookupBlocklist(
+      { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPB },
+      pbOnlyBin,
+      globalState
+    ).then((res) => {
+      expect(res.status).to.eq(200);
+      expect(res.body?.blocked).to.eq(true);
+    });
+  });
+
   it("merchant API key with no profile header stays merchant-wide (positive/compat)", () => {
     cy.ompGetBlocklist(
       { type: "apiKey", apiKey: apiKeyM1 },

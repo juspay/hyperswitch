@@ -13,7 +13,9 @@ let apiKeyM1;
 let apiKeyM2;
 let merchantIdM1;
 let merchantIdM2;
+let profileIdPA;
 let profileIdPB;
+let jwtPA;
 
 describe("OMP Scoping - Business Profile", () => {
   before("seed global state", () => {
@@ -23,7 +25,9 @@ describe("OMP Scoping - Business Profile", () => {
       apiKeyM2 = globalState.get("apiKeyM2");
       merchantIdM1 = globalState.get("merchantIdM1");
       merchantIdM2 = globalState.get("merchantIdM2");
+      profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
+      jwtPA = globalState.get("userInfoTokenPA");
     });
   });
 
@@ -74,6 +78,36 @@ describe("OMP Scoping - Business Profile", () => {
           { enabled: true },
           globalState
         ),
+    });
+  });
+
+  it("update rejects cross-profile path, PB unchanged (JWT, same merchant)", () => {
+    // Everything above is M1-vs-M2 (cross-merchant, API key). This is the
+    // PA-vs-PB case within the SAME merchant - JWTAuthMerchantAndProfileFromRoute
+    // requires the JWT's own profile to equal the path profile_id, so PA's
+    // JWT must be denied here even though the account_id (M1) matches.
+    cy.ompAssertDeniedAndUnchanged({
+      fetch: fetchProfilePB(),
+      negativeRequest: () =>
+        cy.ompUpdateBusinessProfile(
+          merchantIdM1,
+          profileIdPB,
+          { type: "jwt", token: jwtPA, profileId: profileIdPA },
+          { profile_name: "Should be rejected" },
+          globalState
+        ),
+    });
+  });
+
+  it("PA can update its own business profile (JWT, positive)", () => {
+    cy.ompUpdateBusinessProfile(
+      merchantIdM1,
+      profileIdPA,
+      { type: "jwt", token: jwtPA, profileId: profileIdPA },
+      { profile_name: "OMP Scoping Test PA" },
+      globalState
+    ).then((res) => {
+      expect(res.status).to.eq(200);
     });
   });
 
