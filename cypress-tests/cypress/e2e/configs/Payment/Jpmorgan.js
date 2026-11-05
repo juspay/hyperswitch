@@ -169,25 +169,13 @@ export const connectorDetails = {
         },
       },
     },
-    // Merchant-account prerequisite for the L2/L3 spec: JPMorgan pairs
-    // customer VAT data with the merchant's VAT registration and expects
-    // merchant tax registration for taxable transactions. The connector's
-    // UCS transformers read these from merchant_account.merchant_details.
-    L2L3MerchantUpdate: {
-      Request: {
-        merchant_details: {
-          merchant_tax_registration_id: "123456789",
-          merchant_vat_registration_id: "GB987654321",
-        },
-      },
-    },
     L2L3Data: {
       Request: {
         currency: "USD",
         payment_method: "card",
         payment_method_data: {
-          // Visa card matching the PR's proven-good L2/L3 payload — JPMorgan
-          // applies network-specific rules to retailAddenda data.
+          // Visa card matching the connector PR's proven-good L2/L3 payload —
+          // JPMorgan applies network-specific rules to retailAddenda data.
           card: {
             card_number: "4012000033330026",
             card_exp_month: "12",
@@ -196,17 +184,20 @@ export const connectorDetails = {
             card_cvc: "123",
           },
         },
-        amount: 2015,
-        shipping_cost: 200,
-        order_tax_amount: 95,
+        // IMPORTANT — amount arithmetic must reconcile with the payment intent.
+        // JPMorgan validates L3 as: amount == Σ(taxInclusiveLineItemTotalAmount)
+        // + totalShippingAmount + dutyAmount + shippingValueAddedTaxAmount
+        // − totalTransactionDiscountAmount, and rejects the whole payment with
+        // a generic "Request contains validation error" when it doesn't hold.
+        // The intent in this spec is created with amount 6000 and no
+        // shipping/tax, and confirm-time amount/shipping_cost/order_tax_amount
+        // changes are ignored, so the addenda here is built to sum to 6000:
+        // no duty/discount/shipping tax, single line item totalling 6000.
         merchant_order_reference_id: "PO-JPM-L2L3-001",
         // Current timestamp: JPMorgan's host may reject stale order dates.
         order_date: new Date().toISOString(),
         order_commodity_code: "1234",
         tax_status: "taxable",
-        shipping_amount_tax: 10,
-        duty_amount: 50,
-        discount_amount: 30,
         value_added_tax_amount: 95,
         value_added_tax_percent: 5.0,
         vat_invoice_reference_number: "VAT-INV-001",
@@ -245,14 +236,13 @@ export const connectorDetails = {
             description: "JPMorgan L2/L3 test item",
             product_id: "SKU-041",
             commodity_code: "1234",
-            quantity: 2,
+            quantity: 1,
             unit_of_measure: "EAC",
-            amount: 1000,
-            unit_discount_amount: 50,
+            amount: 6000,
             tax_rate: 5.0,
-            total_tax_amount: 95,
+            total_tax_amount: 285,
             product_tax_code: "01",
-            total_amount: 1995,
+            total_amount: 6000,
           },
         ],
         customer_acceptance: null,
@@ -260,13 +250,14 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
+        // merchant_order_reference_id is not asserted: like amount, a value
+        // sent at confirm time is not persisted onto the intent (the intent
+        // was created without it), so the response echoes null even though
+        // the value does reach JPMorgan as purchaseOrderNumber.
         body: {
           status: "succeeded",
-          amount: 2015,
-          net_amount: 2310,
-          shipping_cost: 200,
-          order_tax_amount: 95,
-          merchant_order_reference_id: "PO-JPM-L2L3-001",
+          amount: 6000,
+          net_amount: 6000,
         },
       },
     },
