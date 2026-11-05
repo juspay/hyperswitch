@@ -1955,7 +1955,9 @@ impl
                                 number: decrypt_data.clone().application_primary_account_number,
                                 exp_year: expiry_year_4_digit,
                                 exp_month: decrypt_data.application_expiration_month,
-                                eci: get_stripe_wallet_eci(decrypt_data.payment_data.eci_indicator.as_ref()),
+                                eci: get_stripe_wallet_eci(
+                                    decrypt_data.payment_data.eci_indicator.as_ref(),
+                                ),
                                 cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
                             }),
