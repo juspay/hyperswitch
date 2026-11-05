@@ -508,6 +508,7 @@ taxjar.base_url = "https://api.sandbox.taxjar.com/v2/"
 tesouro.base_url = "https://api.sandbox.tesouro.com"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
+betterpayment.base_url = "https://testapi.betterpayment.de"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
 truelayer.base_url = "https://api.truelayer-sandbox.com"
@@ -1297,6 +1298,7 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,google_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds", apple_pay_pre_decrypt_flow = "connector_tokenization", google_pay_pre_decrypt_flow = "connector_tokenization"}
+elavon_pg = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [temp_locker_enable_config]
 saferpay = { payment_method = "card" }
@@ -1368,8 +1370,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
 bank_debit.bacs = { connector_list = "gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
-card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan"
-card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan"
+card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon_pg"
+card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon_pg"
 pay_later.klarna.connector_list = "adyen"
 wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,nmi,tesouro,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan"
 wallet.samsung_pay.connector_list = "aci,cybersource"
@@ -1396,12 +1398,12 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft"
-card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft"
+card.credit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
+card.debit.connector_list = "aci,checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments,fiservcommercehub,imerchantsolutions,givepayments,tsys_transit,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub"
+wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nuvei,nexinets,novalnet,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub,elavon_pg"
 wallet.samsung_pay.connector_list = "aci,cybersource"
-wallet.google_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub"
+wallet.google_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,nuvei,authorizedotnet,wellsfargo,worldpayvantiv,finix,nmi,tesouro,worldpaymodular,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub,elavon_pg"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -1696,7 +1698,7 @@ request_timeout = 35
 keep_alive_interval = 30
 keep_alive_timeout = 20
 tcp_keepalive = 60
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex, ecommpay"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, globalpayments_realex, ecommpay, betterpayment"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]

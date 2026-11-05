@@ -44,6 +44,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     platform: domain::Platform,
+    profile: domain::Profile,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
@@ -58,6 +59,10 @@ pub async fn refund_create_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    utils::when(payment_intent.profile_id != *profile.get_id(), || {
+        Err(report!(errors::ApiErrorResponse::PaymentNotFound))
+    })?;
 
     utils::when(
         !(payment_intent.status == enums::IntentStatus::Succeeded
@@ -1210,10 +1215,12 @@ pub async fn validate_and_create_refund(
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
 
+    let refund_amount_details =
+        hyperswitch_domain_models::refunds::RefundAmountDetails::from(refund_amount);
     refunds_validator::validate_refund_amount(
-        total_amount_captured.get_amount_as_i64(),
+        total_amount_captured,
         &all_refunds,
-        refund_amount.get_amount_as_i64(),
+        refund_amount_details,
     )
     .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
@@ -1241,6 +1248,7 @@ pub async fn validate_and_create_refund(
             req.feature_metadata,
             &all_refunds,
         )?;
+    let (refund_amount, _, _) = refund_amount_details.into_storage_amounts();
     let refund_create_req = diesel_refund::RefundNew {
         id: global_refund_id,
         merchant_reference_id: merchant_reference_id.clone(),
@@ -1258,6 +1266,8 @@ pub async fn validate_and_create_refund(
         refund_status: enums::RefundStatus::Pending,
         metadata: req.metadata,
         feature_metadata: refund_feature_metadata,
+        refund_surcharge_amount: None,
+        net_refund_amount: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
@@ -1283,26 +1293,14 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let (refund, raw_connector_response) = match db
+    let refund = match db
         .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
         .await
     {
-        Ok(refund) => {
-            Box::pin(schedule_refund_execution(
-                state,
-                refund.clone(),
-                refund_type,
-                platform.get_processor(),
-                payment_attempt,
-                payment_intent,
-                merchant_connector_details,
-                req.return_raw_connector_response,
-            ))
-            .await?
-        }
+        Ok(refund) => refund,
         Err(err) => {
             if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
@@ -1313,6 +1311,17 @@ pub async fn validate_and_create_refund(
             }
         }
     };
+    let (refund, raw_connector_response) = Box::pin(schedule_refund_execution(
+        state,
+        refund,
+        refund_type,
+        platform.get_processor(),
+        payment_attempt,
+        payment_intent,
+        merchant_connector_details,
+        req.return_raw_connector_response,
+    ))
+    .await?;
 
     let unified_translated_message =
         match (refund.unified_code.clone(), refund.unified_message.clone()) {

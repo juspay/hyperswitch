@@ -15,43 +15,61 @@ use crate::{
     types::{self, domain, storage},
 };
 
-pub async fn check_existence_and_add_domain_to_db(
+pub async fn get_apple_pay_merchant_connector_account(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    merchant_id: &common_utils::id_type::MerchantId,
     profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
-    merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
-    domain_from_req: Vec<String>,
-) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
+    merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+) -> CustomResult<
+    (domain::MerchantKeyStore, domain::MerchantConnectorAccount),
+    errors::ApiErrorResponse,
+> {
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
+            merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            &merchant_connector_id,
+            merchant_id,
+            merchant_connector_id,
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     #[cfg(feature = "v2")]
     let merchant_connector_account = state
         .store
-        .find_merchant_connector_account_by_id(&merchant_connector_id, &key_store)
+        .find_merchant_connector_account_by_id(merchant_connector_id, &key_store)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    utils::validate_profile_id_from_auth_layer(
-        profile_id_from_auth_layer,
-        &merchant_connector_account,
-    )?;
+        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    match &merchant_connector_account.merchant_id {
+        merchant_connector_account_id if merchant_connector_account_id == merchant_id => {
+            utils::validate_profile_id_from_auth_layer(
+                profile_id_from_auth_layer,
+                &merchant_connector_account,
+            )?;
+
+            Ok((key_store, merchant_connector_account))
+        }
+        _ => Err(errors::ApiErrorResponse::ResourceIdNotFound.into()),
+    }
+}
+
+pub async fn add_domain_to_apple_pay_merchant_connector_account(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    domain_from_req: Vec<String>,
+) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
     let mut already_verified_domains = merchant_connector_account
         .applepay_verified_domains
         .clone()
@@ -99,19 +117,20 @@ pub async fn check_existence_and_add_domain_to_db(
         additional_merchant_data: Box::new(None),
         feature_metadata: Box::new(None),
     };
+    let merchant_connector_id = merchant_connector_account.get_id();
     state
         .store
         .update_merchant_connector_account(
             merchant_connector_account,
             updated_mca.foreign_into(),
-            &key_store,
+            key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
-
+                "Failed while updating MerchantConnectorAccount: id: {:?}",
+                merchant_connector_id,
             )
         })?;
 

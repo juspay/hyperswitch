@@ -4909,6 +4909,11 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
+
         fp_utils::when(payload.profile_id != self.profile_id, || {
             Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
                 .attach_printable("Profile id in JWT does not match profile id in route")
@@ -4975,9 +4980,18 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
+
+        fp_utils::when(payload.profile_id != profile_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("Profile id in JWT does not match profile id in header")
+        })?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
@@ -5111,6 +5125,11 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
+
+        fp_utils::when(merchant.get_org_id() != &payload.org_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("JWT merchant does not belong to JWT organization")
+        })?;
 
         let profile = state
             .store()
@@ -5877,13 +5896,6 @@ impl ClientSecretFetch for payments::PaymentsEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-impl ClientSecretFetch for api_models::blocklist::ListBlocklistQuery {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
-#[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRetrieveRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
@@ -5968,6 +5980,13 @@ impl ClientSecretFetch for api_models::subscription::ConfirmSubscriptionRequest 
 
 #[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::EstimateSubscriptionQuery {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref().map(|s| s.as_string())
     }

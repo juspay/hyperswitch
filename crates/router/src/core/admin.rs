@@ -2823,6 +2823,7 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&processor, store)
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
@@ -2836,7 +2837,6 @@ pub async fn create_connector(
             )
             .await?;
     }
-    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
@@ -3969,6 +3969,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             surcharge_connector_details: self
                 .surcharge_connector_details
                 .map(ForeignInto::foreign_into),
+            revenue_recovery_config: self.revenue_recovery_config.map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4122,11 +4123,20 @@ pub async fn retrieve_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    Ok(service_api::ApplicationResponse::Json(
-        api_models::admin::ProfileResponse::foreign_try_from(business_profile)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse business profile details")?,
-    ))
+    // Cache hits must preserve the same ownership constraint as the database query.
+    match business_profile {
+        business_profile if business_profile.merchant_id == merchant_id => {
+            Ok(service_api::ApplicationResponse::Json(
+                api_models::admin::ProfileResponse::foreign_try_from(business_profile)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse business profile details")?,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        }
+        .into()),
+    }
 }
 
 pub async fn delete_profile(
@@ -4585,6 +4595,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 surcharge_connector_details: self
                     .surcharge_connector_details
                     .map(ForeignInto::foreign_into),
+                revenue_recovery_config: self
+                    .revenue_recovery_config
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4858,50 +4871,53 @@ pub async fn extended_card_info_toggle(
 
 pub async fn connector_agnostic_mit_toggle(
     state: SessionState,
+    processor: domain::Processor,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-        .attach_printable("Error while fetching the key store by merchant_id")?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    match processor.get_account().get_id() {
+        processor_merchant_id if processor_merchant_id == merchant_id => {
+            let key_store = processor.get_key_store();
 
-    if business_profile.merchant_id != *merchant_id {
-        Err(errors::ApiErrorResponse::AccessForbidden {
+            let business_profile = db
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
+
+            if business_profile.merchant_id != *merchant_id {
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: profile_id.get_string_repr().to_owned(),
+                })?
+            }
+
+            if business_profile.is_connector_agnostic_mit_enabled
+                != Some(connector_agnostic_mit_choice.enabled)
+            {
+                let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
+                    is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
+                };
+
+                db.update_profile_by_profile_id(key_store, business_profile, profile_update)
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_id.get_string_repr().to_owned(),
+                    })?;
+            }
+
+            Ok(service_api::ApplicationResponse::Json(
+                connector_agnostic_mit_choice,
+            ))
+        }
+        _ => Err(errors::ApiErrorResponse::AccessForbidden {
             resource: profile_id.get_string_repr().to_owned(),
-        })?
+        }
+        .into()),
     }
-
-    if business_profile.is_connector_agnostic_mit_enabled
-        != Some(connector_agnostic_mit_choice.enabled)
-    {
-        let profile_update = domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
-            is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
-        };
-
-        db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-    }
-
-    Ok(service_api::ApplicationResponse::Json(
-        connector_agnostic_mit_choice,
-    ))
 }
 
 pub async fn transfer_key_store_to_key_manager(

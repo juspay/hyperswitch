@@ -392,6 +392,7 @@ pub(super) fn build_ucs_order_details(
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
                     product_link: None,
+                    total_amount: detail.total_amount.map(|amount| amount.get_amount_as_i64()),
                 })
                 .collect()
         })
@@ -417,7 +418,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
     let shipping_cost = l2_l3_data.and_then(|data| data.get_shipping_cost());
     let duty_amount = l2_l3_data.and_then(|data| data.get_duty_amount());
+    let order_commodity_code = l2_l3_data.and_then(|data| data.get_order_commodity_code());
     let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let value_added_tax_amount = l2_l3_data.and_then(|data| data.get_value_added_tax_amount());
+    let value_added_tax_percent = l2_l3_data.and_then(|data| data.get_value_added_tax_percent());
+    let vat_invoice_reference_number =
+        l2_l3_data.and_then(|data| data.get_vat_invoice_reference_number());
     let tax_status = l2_l3_data.and_then(|data| data.get_tax_status());
     let order_tax_amount = l2_l3_data.and_then(|data| data.get_order_tax_amount());
     let customer_tax_registration_id = l2_l3_data
@@ -426,6 +432,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let merchant_tax_registration_id = l2_l3_data
         .and_then(|data| data.get_merchant_tax_registration_id())
         .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_vat_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_vat_registration_id())
+        .map(|vat_id| vat_id.peek().to_owned().into());
 
     let order_info = l2_l3_data
         .and_then(|data| data.order_info.as_ref())
@@ -437,6 +446,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
             shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
             duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
+            order_commodity_code,
         });
 
     let tax_info = l2_l3_data
@@ -447,8 +457,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
                 .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
             customer_tax_registration_id,
             merchant_tax_registration_id,
+            merchant_vat_registration_id,
             shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
             order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
+            value_added_tax_amount: value_added_tax_amount.map(|amount| amount.get_amount_as_i64()),
+            value_added_tax_percent,
+            vat_invoice_reference_number,
         });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -545,10 +559,12 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             city: details.city.as_ref().map(|s| s.clone().into()),
             state: details.state.clone(),
             zip_code: details.zip.clone(),
+            origin_zip: details.origin_zip.clone(),
             country_alpha2_code,
             email: None,
             phone_number: None,
             phone_country_code: None,
+            state_code_iso: None,
         }
     }
 }
@@ -986,6 +1002,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -1090,6 +1107,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -1275,6 +1293,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: None,
             payment_experience: None,
@@ -1366,6 +1385,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2668,6 +2688,7 @@ impl
                 .transpose()?
                 .map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance: router_data
                 .request
                 .customer_acceptance
@@ -2723,6 +2744,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2868,6 +2890,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -2948,6 +2971,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3083,6 +3107,7 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: None,
             customer_acceptance,
             order_category: router_data.request.order_category.clone(),
             payment_experience: None,
@@ -3138,6 +3163,7 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3311,7 +3337,12 @@ impl
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
-            order_category: None,
+            order_category: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|cm| cm.noon.as_ref())
+                .and_then(|noon| noon.order_category.clone()),
             merchant_order_id: None,
             shipping_cost: router_data
                 .request
@@ -3319,6 +3350,7 @@ impl
                 .map(|cost| cost.get_amount_as_i64()),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
+            is_stored_credential: router_data.request.is_stored_credential,
             request_incremental_authorization: router_data
                 .request
                 .request_incremental_authorization,
@@ -3352,7 +3384,12 @@ impl
                 .as_ref()
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref()),
-            setup_mandate_details: None,
+            setup_mandate_details: router_data
+                .request
+                .setup_mandate_details
+                .as_ref()
+                .map(payments_grpc::SetupMandateDetails::foreign_try_from)
+                .transpose()?,
             partner_merchant_identifier_details: router_data
                 .request
                 .partner_merchant_identifier_details
@@ -3384,6 +3421,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
         })
     }
 }
@@ -4075,7 +4113,10 @@ impl
             }),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             merchant_authorization_id: Some(router_data.connector_request_reference_id.clone()),
-            additional_amount: None,
+            additional_amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.additional_amount,
+                currency: currency.into(),
+            }),
             network_transaction_id: None,
             reason: router_data.request.reason.clone(),
             connector_feature_data: router_data
@@ -5723,6 +5764,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.clone().expose().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.clone().expose().into())),
+                origin_zip: details
+                    .and_then(|d| d.origin_zip.as_ref().map(|s| s.clone().expose().into())),
                 country_alpha2_code: country,
                 email: address
                     .email
@@ -5733,6 +5776,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5758,6 +5802,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                 city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
                 state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                 zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                origin_zip: details
+                    .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                 country_alpha2_code: country,
                 email: address.email.as_ref().map(|e| e.peek().to_string().into()),
                 phone_number: address
@@ -5765,6 +5811,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5796,6 +5843,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
                     zip_code: details
                         .and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+                    origin_zip: details
+                        .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
                     country_alpha2_code: country,
                     email: address
                         .email
@@ -5806,6 +5855,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                    state_code_iso: None,
                 }
             });
         Ok(Self {
@@ -5844,6 +5894,8 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
             city: details.and_then(|d| d.city.as_ref().map(|s| s.clone().into())),
             state: details.and_then(|d| d.state.as_ref().map(|s| s.peek().to_string().into())),
             zip_code: details.and_then(|d| d.zip.as_ref().map(|s| s.peek().to_string().into())),
+            origin_zip: details
+                .and_then(|d| d.origin_zip.as_ref().map(|s| s.peek().to_string().into())),
             country_alpha2_code: country,
             email: address.email.as_ref().map(|e| e.peek().to_string().into()),
             phone_number: address
@@ -5851,6 +5903,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
                 .as_ref()
                 .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
             phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            state_code_iso: None,
         })
     }
 }
@@ -9242,6 +9295,26 @@ impl
             })
             .transpose()?;
 
+        let payment_method = router_data
+            .request
+            .payment_method_data
+            .clone()
+            .map(|payment_method_data| {
+                unified_connector_service::build_unified_connector_service_payment_method(
+                    payment_method_data,
+                    router_data.payment_method_type,
+                    router_data.payment_method_token.as_ref(),
+                    router_data.connector_meta_data.as_ref(),
+                )
+            })
+            .transpose()?;
+
+        let capture_method = router_data
+            .request
+            .capture_method
+            .map(payments_grpc::CaptureMethod::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_reverse_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
@@ -9260,6 +9333,8 @@ impl
             merchant_request_id: None,
             test_mode: router_data.test_mode,
             amount,
+            payment_method,
+            capture_method: capture_method.map(Into::into),
         })
     }
 }
