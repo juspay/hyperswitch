@@ -2782,9 +2782,11 @@ impl RolloutExecutionResult {
     /// scope and thresholds the gate used rather than recomputing either.
     pub fn rollout_settings(
         &self,
+        transaction_type: common_enums::TransactionType,
     ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
         crate::core::unified_connector_service::kill_switch::RolloutSettings {
             execution_mode: self.execution_mode,
+            transaction_type,
             kill_switch_enabled: self.kill_switch_enabled,
             kill_switch_threshold: self.kill_switch_threshold,
             connector_decline_threshold: self.connector_decline_threshold,

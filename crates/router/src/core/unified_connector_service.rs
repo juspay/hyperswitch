@@ -5,7 +5,8 @@ use api_models::admin;
 use base64::Engine;
 use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
-    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
+    ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, TransactionType,
+    UcsAvailability,
 };
 use common_utils::{
     consts::BASE64_ENGINE,
@@ -908,26 +909,144 @@ pub(crate) async fn check_ucs_availability(state: &SessionState) -> UcsAvailabil
     }
 }
 
-/// Determines the connector integration type based on UCS configuration or on both
+fn is_ucs_only_connector_for_transaction(
+    connector: Connector,
+    transaction_type: TransactionType,
+    payment_connectors: &std::collections::HashSet<Connector>,
+    payout_connectors: Option<&std::collections::HashSet<Connector>>,
+) -> bool {
+    match transaction_type {
+        TransactionType::Payment | TransactionType::ThreeDsAuthentication => {
+            payment_connectors.contains(&connector)
+        }
+        TransactionType::Payout => payout_connectors
+            .unwrap_or(payment_connectors)
+            .contains(&connector),
+    }
+}
+
+#[cfg(test)]
+mod ucs_only_connector_tests {
+    use std::collections::HashSet;
+
+    use common_enums::{connector_enums::Connector, TransactionType};
+
+    use super::is_ucs_only_connector_for_transaction;
+
+    #[test]
+    fn selects_the_connector_list_for_each_transaction_domain() {
+        let payment_connectors = HashSet::from([Connector::Stripe, Connector::Adyen]);
+        let payout_connectors = HashSet::from([Connector::Wise, Connector::Adyen]);
+
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Stripe,
+            TransactionType::Payment,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Stripe,
+            TransactionType::ThreeDsAuthentication,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(!is_ucs_only_connector_for_transaction(
+            Connector::Stripe,
+            TransactionType::Payout,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(!is_ucs_only_connector_for_transaction(
+            Connector::Wise,
+            TransactionType::Payment,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Wise,
+            TransactionType::Payout,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Adyen,
+            TransactionType::Payment,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Adyen,
+            TransactionType::Payout,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(!is_ucs_only_connector_for_transaction(
+            Connector::Checkout,
+            TransactionType::Payment,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+        assert!(!is_ucs_only_connector_for_transaction(
+            Connector::Checkout,
+            TransactionType::Payout,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+    }
+
+    #[test]
+    fn omitted_payout_list_preserves_legacy_behavior() {
+        let payment_connectors = HashSet::from([Connector::Stripe]);
+
+        assert!(is_ucs_only_connector_for_transaction(
+            Connector::Stripe,
+            TransactionType::Payout,
+            &payment_connectors,
+            None,
+        ));
+    }
+
+    #[test]
+    fn explicit_empty_payout_list_disables_legacy_fallback() {
+        let payment_connectors = HashSet::from([Connector::Stripe]);
+        let payout_connectors = HashSet::new();
+
+        assert!(!is_ucs_only_connector_for_transaction(
+            Connector::Stripe,
+            TransactionType::Payout,
+            &payment_connectors,
+            Some(&payout_connectors),
+        ));
+    }
+}
+
+/// Determines the connector integration type for the requested transaction domain.
 pub async fn determine_connector_integration_type(
     state: &SessionState,
     connector: Connector,
+    transaction_type: TransactionType,
 ) -> RouterResult<ConnectorIntegrationType> {
     match state.conf.grpc_client.unified_connector_service.as_ref() {
         Some(ucs_config) => {
-            let is_ucs_only = ucs_config.ucs_only_connectors.contains(&connector);
+            let is_ucs_only = is_ucs_only_connector_for_transaction(
+                connector,
+                transaction_type,
+                &ucs_config.ucs_only_connectors,
+                ucs_config.ucs_only_payout_connectors.as_ref(),
+            );
 
             if is_ucs_only {
                 router_env::logger::debug!(
                     connector = ?connector,
-                    ucs_only_list = is_ucs_only,
+                    ?transaction_type,
                     "Using UcsConnector"
                 );
                 Ok(ConnectorIntegrationType::UcsConnector)
             } else {
                 router_env::logger::debug!(
                     connector = ?connector,
-                    "Using DirectandUCSConnector - not in ucs_only_list"
+                    ?transaction_type,
+                    "Using DirectandUCSConnector - not in the domain's UCS-only list"
                 );
                 Ok(ConnectorIntegrationType::DirectandUCSConnector)
             }
@@ -935,6 +1054,7 @@ pub async fn determine_connector_integration_type(
         None => {
             router_env::logger::debug!(
                 connector = ?connector,
+                ?transaction_type,
                 "UCS config not present, using DirectandUCSConnector"
             );
             Ok(ConnectorIntegrationType::DirectandUCSConnector)
@@ -990,7 +1110,7 @@ where
 
     // Determine connector integration type
     let connector_integration_type =
-        determine_connector_integration_type(state, connector_enum).await?;
+        determine_connector_integration_type(state, connector_enum, transaction_type).await?;
 
     // Try keys highest → lowest precedence, use first match found
     let mut rollout_result =
@@ -1079,7 +1199,7 @@ where
         if Box::pin(kill_switch::is_kill_switched(
             state,
             &rollout_scope,
-            rollout_result.rollout_settings(),
+            rollout_result.rollout_settings(transaction_type),
         ))
         .await
         {
@@ -1237,8 +1357,12 @@ pub async fn is_ucs_execution_path_for_external_vault_proxy(
             let rollout_result =
                 should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
-            let connector_integration_type =
-                determine_connector_integration_type(state, connector_enum).await?;
+            let connector_integration_type = determine_connector_integration_type(
+                state,
+                connector_enum,
+                TransactionType::Payment,
+            )
+            .await?;
 
             // `previous_gateway` is left unset deliberately: this asks whether the configuration
             // admits UCS at all, which is what decides whether both arms can run there.

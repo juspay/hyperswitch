@@ -1396,7 +1396,12 @@ pub async fn notify_frm_of_chargeback(
     // decision is built from: is the connector UCS-only, and is UCS up.
     let is_ucs_backed = match common_enums::connector_enums::Connector::from_str(&connector_name) {
         Ok(connector) => matches!(
-            unified_connector_service::determine_connector_integration_type(state, connector).await,
+            unified_connector_service::determine_connector_integration_type(
+                state,
+                connector,
+                common_enums::TransactionType::Payment,
+            )
+            .await,
             Ok(common_enums::ConnectorIntegrationType::UcsConnector)
         ),
         Err(_) => false,

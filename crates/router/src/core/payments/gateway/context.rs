@@ -133,6 +133,7 @@ impl RouterGatewayContext {
     ) -> crate::core::unified_connector_service::kill_switch::RolloutSettings {
         crate::core::unified_connector_service::kill_switch::RolloutSettings {
             execution_mode: self.execution_mode,
+            transaction_type: common_enums::TransactionType::Payment,
             kill_switch_enabled: self.kill_switch_enabled,
             kill_switch_threshold: self.kill_switch_threshold,
             connector_decline_threshold: self.connector_decline_threshold,

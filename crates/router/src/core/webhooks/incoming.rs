@@ -267,6 +267,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 unified_connector_service::determine_connector_integration_type(
                     &state,
                     connector_enum,
+                    common_enums::TransactionType::Payment,
                 )
                 .await?;
 

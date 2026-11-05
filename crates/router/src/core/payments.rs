@@ -3872,6 +3872,7 @@ where
                     platform.get_processor(),
                     crate::core::unified_connector_service::kill_switch::RolloutSettings {
                         execution_mode,
+                        transaction_type: common_enums::TransactionType::Payment,
                         kill_switch_enabled: rollout_result.kill_switch_enabled,
                         kill_switch_threshold: rollout_result.kill_switch_threshold,
                         connector_decline_threshold: rollout_result.connector_decline_threshold,
@@ -7909,6 +7910,7 @@ where
                 // No rollout config governs the external-vault proxy path, so nothing can divert it.
                 crate::core::unified_connector_service::kill_switch::RolloutSettings::without_kill_switch(
                     ExecutionMode::Primary,
+                    common_enums::TransactionType::Payment,
                 ),
             )
             .await?;

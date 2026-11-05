@@ -101,6 +101,27 @@ where
     deserialize_hashset_inner(<String>::deserialize(deserializer)?).map_err(D::Error::custom)
 }
 
+/// Deserializes an optional comma-separated string into an optional [`HashSet`].
+///
+/// A missing field remains `None`, while an explicitly configured empty string becomes
+/// `Some(HashSet::new())`. This distinction lets callers provide backward-compatible behavior
+/// for omitted configuration without treating an explicit empty list as omitted.
+pub(crate) fn deserialize_optional_hashset<'a, D, T>(
+    deserializer: D,
+) -> Result<Option<HashSet<T>>, D::Error>
+where
+    D: serde::Deserializer<'a>,
+    T: Eq + std::str::FromStr + std::hash::Hash,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    use serde::de::Error;
+
+    Option::<String>::deserialize(deserializer)?
+        .map(deserialize_hashset_inner)
+        .transpose()
+        .map_err(D::Error::custom)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
