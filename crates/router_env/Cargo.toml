@@ -18,10 +18,10 @@ gethostname = "0.4.3"
 # so bodies/headers are redacted in Debug/logs. Feature-off it is absent, so the
 # default build is byte-identical.
 hyperswitch_masking = { version = "0.0.1", optional = true }
-opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
-opentelemetry-aws = { version = "0.15.0", default-features = false, features = ["internal-logs", "trace"] }
-opentelemetry-otlp = { version = "0.27.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
-opentelemetry_sdk = { version = "0.27.1", default-features = false, features = ["rt-tokio-current-thread", "metrics", "trace"] }
+opentelemetry = { version = "0.32", default-features = false, features = ["internal-logs", "metrics", "trace"] }
+opentelemetry-aws = { version = "0.20", default-features = false, features = ["internal-logs", "trace"] }
+opentelemetry-otlp = { version = "0.32", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
+opentelemetry_sdk = { version = "0.32.1", default-features = false, features = ["rt-tokio-current-thread", "metrics", "trace", "experimental_metrics_periodicreader_with_async_runtime", "experimental_trace_batch_span_processor_with_async_runtime"] }
 rustc-hash = "1.1"
 serde = { version = "1.0.219", features = ["derive"] }
 bytes = { version = "1.10.1", optional = true }
@@ -32,10 +32,10 @@ time = { version = "0.3.41", default-features = false, features = ["formatting"]
 tokio = { version = "1.48.0" }
 tracing = { workspace = true }
 actix-web = { version = "4.11.0", optional = true }
-tracing-actix-web = { version = "0.7.18", features = ["opentelemetry_0_27", "uuid_v7"], optional = true }
+tracing-actix-web = { version = "0.7.25", features = ["opentelemetry_0_32", "uuid_v7"], optional = true }
 tracing-appender = { version = "0.2.3" }
 tracing-attributes = "0.1.28"
-tracing-opentelemetry = { version = "0.28.0", default-features = false }
+tracing-opentelemetry = { version = "0.33", default-features = false }
 tracing-subscriber = { version = "0.3.19", default-features = true, features = ["env-filter", "json", "registry"] }
 uuid = { version = "1.17.0", features = ["v7"], optional = true }
 vergen = { version = "8.3.2", optional = true, features = ["cargo", "git", "git2", "rustc"] }
