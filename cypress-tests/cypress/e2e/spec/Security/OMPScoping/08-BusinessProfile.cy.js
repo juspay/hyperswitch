@@ -1,4 +1,5 @@
 import State from "../../../../utils/State";
+import { OMP_ERRORS } from "../../../configs/Security/Commons";
 
 // Covers cached profile reads and the connector-agnostic MIT toggle.
 // Profile reads are cached; cached profile reads must still enforce
@@ -96,6 +97,9 @@ describe("OMP Scoping - Business Profile", () => {
           { profile_name: "Should be rejected" },
           globalState
         ),
+      // Confirmed live - same generic JWT profile-mismatch path as the
+      // Payments retrieve test, not specific to Business Profile.
+      expectedError: OMP_ERRORS.JWT_PROFILE_MISMATCH,
     });
   });
 

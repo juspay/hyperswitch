@@ -1,4 +1,5 @@
 import State from "../../../../utils/State";
+import { OMP_ERRORS } from "../../../configs/Security/Commons";
 
 // PI_PA / PI_PB are two payment intents under the same merchant (M1) but
 // different profiles (PA / PB), created in 00-Setup.cy.js. A user
@@ -18,6 +19,7 @@ let profileIdPA;
 let jwtPA;
 let paymentIdPA;
 let paymentIdPB;
+let paymentIdIncrementalPC;
 
 describe("OMP Scoping - Payments", () => {
   before("seed global state", () => {
@@ -29,6 +31,7 @@ describe("OMP Scoping - Payments", () => {
       jwtPA = globalState.get("userInfoTokenPA");
       paymentIdPA = globalState.get("paymentIdPA");
       paymentIdPB = globalState.get("paymentIdPB");
+      paymentIdIncrementalPC = globalState.get("paymentIdIncrementalPC");
     });
   });
 
@@ -71,6 +74,13 @@ describe("OMP Scoping - Payments", () => {
             { type: "jwt", token: jwtPA, profileId: profileIdPA },
             globalState
           ),
+        // Confirmed live on current main: PR #15080 moved this check to a
+        // profile-scoped DB query, so a cross-profile payment is a plain
+        // not-found (HE_02), not the generic auth-layer IR_16 mismatch seen
+        // on other resources - see the comment on
+        // OMP_ERRORS.PAYMENT_PROFILE_SCOPED_NOT_FOUND for why this differs
+        // from Business Profile's equivalent check.
+        expectedError: OMP_ERRORS.PAYMENT_PROFILE_SCOPED_NOT_FOUND,
       });
     });
 
@@ -239,32 +249,43 @@ describe("OMP Scoping - Payments", () => {
       });
     });
 
-    // No positive control for either of these two, same as capture/cancel/
-    // session/complete_authorize above: PI_PA was never confirmed with a
-    // real payment method, and incremental_authorization additionally needs
-    // the payment created with request_incremental_authorization enabled
-    // and sitting in requires_capture - neither precondition exists in this
-    // suite's fixtures. The profile check runs before any of that state is
-    // even inspected, so the denial case alone still proves the fix works.
-    it("incremental_authorization for cross-profile PI_PB denied", () => {
+    // PI_PB can't be used for these two: both operations' own get_trackers
+    // has an early payment-status gate that runs BEFORE the generic
+    // cross-profile check (core_utils::validate_profile_id_from_auth_layer,
+    // payments.rs:886) - incremental_authorization requires status
+    // RequiresCapture plus incremental_authorization_allowed=true
+    // (operations/payments_incremental_authorization.rs:85-96);
+    // extend_authorization requires RequiresCapture or
+    // PartiallyAuthorizedAndRequiresCapture
+    // (operations/payments_extend_authorization.rs:78-85). PI_PB sits in
+    // requires_payment_method (never confirmed), so a test against it would
+    // short-circuit on that status gate instead of the real profile check -
+    // a false pass, confirmed live (same pattern as the Connector Onboarding
+    // and Dispute-fetch comments elsewhere in this folder).
+    //
+    // PI_INCREMENTAL_PC (00-Setup.cy.js) is a dedicated cybersource-backed
+    // payment actually sitting in requires_capture with
+    // incremental_authorization_allowed=true, so these two reach the real
+    // check: PA's auth against a payment that belongs to profile PC.
+    it("incremental_authorization for cross-profile PI_INCREMENTAL_PC denied", () => {
       cy.ompAssertDeniedAndUnchanged({
-        fetch: fetchPayment(paymentIdPB),
+        fetch: fetchPayment(paymentIdIncrementalPC),
         negativeRequest: () =>
           cy.ompIncrementalAuthorization(
-            paymentIdPB,
+            paymentIdIncrementalPC,
             { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-            { amount: 200 },
+            { amount: 9000 },
             globalState
           ),
       });
     });
 
-    it("extend_authorization for cross-profile PI_PB denied", () => {
+    it("extend_authorization for cross-profile PI_INCREMENTAL_PC denied", () => {
       cy.ompAssertDeniedAndUnchanged({
-        fetch: fetchPayment(paymentIdPB),
+        fetch: fetchPayment(paymentIdIncrementalPC),
         negativeRequest: () =>
           cy.ompExtendAuthorization(
-            paymentIdPB,
+            paymentIdIncrementalPC,
             { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
             globalState
           ),

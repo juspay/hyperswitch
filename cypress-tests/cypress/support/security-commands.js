@@ -67,12 +67,31 @@ Cypress.Commands.add(
   }
 );
 
+// Housekeeping timestamps that get bumped as a side effect of merely
+// reading a resource (e.g. force_sync=true re-touching a payment on every
+// GET) - confirmed live on PI_INCREMENTAL_PC (a real confirmed/captured
+// payment; PI_PA/PI_PB never left requires_payment_method, so this never
+// surfaced there). Not meaningful mutation evidence for a security check -
+// a denied request that merely caused a read-driven timestamp bump isn't a
+// scoping bug.
+const VOLATILE_RESOURCE_FIELDS = ["modified_at", "updated"];
+
 // Asserts a cross-scope request was denied (anything but 2xx) and that the
 // target resource is unchanged, per the test sheet's "evidence to retain"
 // convention: fetch -> attempt the negative request -> re-fetch -> compare.
+//
+// Checks the full denial response, not just the status code:
+// - Always: the body is a well-formed Hyperswitch error envelope
+//   ({ error: { type, code, message } }, all non-empty strings) - catches a
+//   "denial" that's actually an empty/malformed body rather than a real
+//   error response, which `status >= 400` alone would miss.
+// - If `expectedError` is given ({ status?, code?, message? }), each
+//   provided field must match exactly - use this when the exact error is
+//   known and worth pinning down (e.g. a specific IR_xx code), not just
+//   "some 4xx happened."
 Cypress.Commands.add(
   "ompAssertDeniedAndUnchanged",
-  ({ fetch, negativeRequest }) => {
+  ({ fetch, negativeRequest, expectedError }) => {
     return fetch().then((before) => {
       return negativeRequest().then((negativeResponse) => {
         expect(
@@ -80,11 +99,66 @@ Cypress.Commands.add(
           "negative request must be denied"
         ).to.be.gte(400);
 
+        const errorBody = negativeResponse.body?.error;
+        expect(
+          errorBody,
+          "denial response must carry a well-formed error envelope: " +
+            JSON.stringify(negativeResponse.body)
+        ).to.exist;
+        expect(errorBody?.type, "error.type").to.be.a("string").and.not.be
+          .empty;
+        expect(errorBody?.code, "error.code").to.be.a("string").and.not.be
+          .empty;
+        expect(errorBody?.message, "error.message").to.be.a("string").and.not.be
+          .empty;
+
+        if (expectedError?.status !== undefined) {
+          expect(negativeResponse.status, "expected exact status").to.eq(
+            expectedError.status
+          );
+        }
+        if (expectedError?.code !== undefined) {
+          expect(errorBody?.code, "expected exact error.code").to.eq(
+            expectedError.code
+          );
+        }
+        if (expectedError?.message !== undefined) {
+          expect(errorBody?.message, "expected exact error.message").to.eq(
+            expectedError.message
+          );
+        }
+
         return fetch().then((after) => {
+          // Chai's deep.equal failure dump gets truncated in the Cypress
+          // reporter UI on anything but a small object, making it hard to
+          // tell which field actually differs. Log that explicitly first so
+          // a failure here is diagnosable without needing devtools.
+          const changedKeys = Object.keys({ ...before.body, ...after.body })
+            .filter((key) => !VOLATILE_RESOURCE_FIELDS.includes(key))
+            .filter(
+              (key) =>
+                JSON.stringify(before.body?.[key]) !==
+                JSON.stringify(after.body?.[key])
+            )
+            .map((key) => ({
+              key,
+              before: before.body?.[key],
+              after: after.body?.[key],
+            }));
+
+          if (changedKeys.length > 0) {
+            Cypress.log({
+              name: "ompAssertDeniedAndUnchanged",
+              message: `fields changed despite denial: ${JSON.stringify(changedKeys)}`,
+            });
+          }
+
           expect(
-            after.body,
-            "target resource must be unchanged after a denied request"
-          ).to.deep.equal(before.body);
+            changedKeys,
+            "target resource must be unchanged after a denied request - " +
+              "changed fields: " +
+              JSON.stringify(changedKeys)
+          ).to.deep.equal([]);
         });
       });
     });
@@ -152,7 +226,11 @@ Cypress.Commands.add("ompGetMerchantAccount", (merchantId, globalState) => {
   return cy.request({
     method: "GET",
     url: `${baseUrl}/accounts/${merchantId}`,
-    headers: { "api-key": adminApiKey },
+    // V2AdminApiAuth parses the admin key from Authorization in the exact
+    // form "admin-api-key=<key>" (services/authentication.rs:1748-1755) - a
+    // plain api-key header returns 401, confirmed live. Same scheme as
+    // ompCreateThrowawayApiKey/ompRevokeApiKey above.
+    headers: { Authorization: `admin-api-key=${adminApiKey}` },
     failOnStatusCode: false,
   });
 });

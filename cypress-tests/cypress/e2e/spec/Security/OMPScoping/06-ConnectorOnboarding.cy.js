@@ -62,6 +62,16 @@ describe("OMP Scoping - Connector Onboarding", () => {
   }
 
   it("sync rejects connector/profile mismatch, MCA_PAYPAL_PB unchanged", () => {
+    // Not OMP_ERRORS.JWT_PROFILE_MISMATCH (configs/Security/Commons.js):
+    // that constant is the generic "JWT's own profile vs. the resource's
+    // own stored profile" check (validate_profile_id_from_auth_layer,
+    // confirmed on Payments retrieve and Business Profile update). This
+    // check is different - it compares the request body's profile_id
+    // against the MCA_PAYPAL_PB's real stored profile
+    // (utils/connector_onboarding.rs:73), not the JWT's own profile - so
+    // its exact error may carry a different message even if it shares the
+    // same underlying function. Needs its own live confirmation before
+    // asserting an exact expectedError here.
     cy.ompAssertDeniedAndUnchanged({
       fetch: fetchMcaPaypalPB(),
       negativeRequest: () =>

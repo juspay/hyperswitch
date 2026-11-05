@@ -1,6 +1,7 @@
 import * as fixtures from "../../../../fixtures/imports";
 import State from "../../../../utils/State";
 import { payment_methods_enabled } from "../../../configs/Payment/Commons";
+import getConnectorDetails from "../../../configs/Payment/Utils";
 import { PaymentIntent, CardPayout } from "../../../configs/Security/Commons";
 
 // Shared fixtures for the OMP (merchant/profile) scoping test matrix.
@@ -398,6 +399,124 @@ describe("OMP Scoping - shared fixtures", () => {
         "No dispute-fabrication command exists in this suite; 05-Disputes.cy.js " +
           "will list disputes per profile at runtime and skip cases if none exist."
       );
+    });
+  });
+
+  context("PC - dedicated profile for incremental/extend authorization", () => {
+    // incremental_authorization and extend_authorization both gate on
+    // payment status (requires_capture, plus incremental_authorization_allowed
+    // for the former) in their own get_trackers, BEFORE the generic
+    // cross-profile check ever runs - a payment stuck in
+    // requires_payment_method (like PI_PA/PI_PB, never confirmed) can't
+    // reach that check at all, confirmed live (01-Payments.cy.js's two
+    // tests on PI_PB returned 400/412 from the status gate itself, not a
+    // real profile-mismatch denial). Reaching the real check needs a
+    // payment genuinely confirmed into requires_capture with incremental
+    // auth enabled, which in this repo's test matrix is cybersource-only
+    // (see 29-IncrementalAuth.cy.js). A dedicated profile with ONLY
+    // cybersource enabled avoids routing ambiguity with PA/PB's existing
+    // stripe/paypal connectors.
+    it("creates profile PC and a dedicated cybersource MCA", () => {
+      const originalConnectorId = globalState.get("connectorId");
+
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+      });
+
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState,
+        "pc"
+      );
+
+      cy.then(() => {
+        globalState.set("profileIdPC", globalState.get("pcId"));
+        globalState.set("connectorId", "cybersource");
+        globalState.set("profileId", globalState.get("profileIdPC"));
+      });
+
+      cy.createConnectorCallTest(
+        "payment_processor",
+        structuredClone(fixtures.createConnectorBody),
+        payment_methods_enabled,
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("connectorId", originalConnectorId);
+      });
+    });
+
+    it("creates PI_INCREMENTAL_PC - a cybersource payment confirmed into requires_capture with incremental auth enabled", () => {
+      cy.then(() => {
+        return cy.ompGetMerchantAccount(
+          globalState.get("merchantIdM1"),
+          globalState
+        );
+      }).then((res) => {
+        globalState.set("publishableKeyM1", res.body?.publishable_key);
+      });
+
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("profileIdPC"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("publishableKey", globalState.get("publishableKeyM1"));
+      });
+
+      const cybersourceCardPm = getConnectorDetails("cybersource")["card_pm"];
+
+      const intentData = {
+        ...cybersourceCardPm["PaymentIntentOffSession"],
+        Request: {
+          ...cybersourceCardPm["PaymentIntentOffSession"].Request,
+          request_incremental_authorization: true,
+        },
+      };
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        intentData,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
+
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        cybersourceCardPm["SaveCardUseNo3DSManualCaptureOffSession"],
+        true,
+        globalState
+      );
+
+      // Not cy.incrementalAuth: that command strictly asserts the
+      // connector-side amount increase actually lands (amount_capturable
+      // equals the requested bump) - cybersource's sandbox accepted this
+      // call (200) but didn't apply the increase, confirmed live. That's a
+      // connector-sandbox quirk unrelated to what this fixture needs: only
+      // incremental_authorization_allowed=true and status=requires_capture
+      // matter for the OMP cross-profile tests that consume this payment,
+      // not whether the increment itself numerically succeeded.
+      cy.then(() => {
+        const paymentId = globalState.get("paymentID");
+        return cy.ompIncrementalAuthorization(
+          paymentId,
+          { type: "apiKey", apiKey: globalState.get("apiKeyM1") },
+          { amount: 8000 },
+          globalState
+        );
+      }).then((res) => {
+        expect(res.status, "incremental_authorization call").to.eq(200);
+        expect(
+          res.body?.incremental_authorization_allowed,
+          "incremental_authorization_allowed"
+        ).to.eq(true);
+        expect(res.body?.status, "status").to.eq("requires_capture");
+      });
+
+      cy.then(() => {
+        globalState.set("paymentIdIncrementalPC", globalState.get("paymentID"));
+      });
     });
   });
 });
