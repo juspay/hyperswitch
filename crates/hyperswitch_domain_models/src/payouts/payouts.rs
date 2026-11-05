@@ -117,6 +117,10 @@ pub struct Payouts {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Merchant-supplied, connector-specific payout configuration.
+    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    pub sender_details: Option<common_types::payouts::SenderDetails>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
@@ -149,6 +153,10 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// Merchant-supplied, connector-specific payout configuration.
+    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    pub sender_details: Option<common_types::payouts::SenderDetails>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
@@ -176,6 +184,8 @@ pub enum PayoutsUpdate {
         return_url: Option<String>,
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
+        connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+        sender_details: Option<common_types::payouts::SenderDetails>,
         profile_id: Option<id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
@@ -216,6 +226,9 @@ pub struct PayoutsUpdateInternal {
     pub return_url: Option<String>,
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    pub sender_details: Option<common_types::payouts::SenderDetails>,
     pub payout_method_id: Option<String>,
     pub profile_id: Option<id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,
@@ -240,6 +253,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type,
                 metadata,
+                connector_metadata,
+                sender_details,
                 profile_id,
                 status,
                 confirm,
@@ -257,6 +272,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type: Some(entity_type),
                 metadata,
+                connector_metadata,
+                sender_details,
                 profile_id,
                 status,
                 confirm,

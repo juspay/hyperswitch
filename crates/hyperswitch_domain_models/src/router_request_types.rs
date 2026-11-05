@@ -1744,7 +1744,9 @@ pub struct PayoutsData {
     pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
-    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+    /// Common party details converted from explicit sender input or legacy vendor metadata.
+    /// Domain consumers never deserialize the API vendor DTO or accept SenderDetails.
+    pub vendor_details: Option<common_types::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
@@ -1752,6 +1754,9 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    /// Typed merchant-supplied connector configuration persisted on the payout.
+    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// Connector-generated state persisted on the payout attempt for later payout steps.
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,

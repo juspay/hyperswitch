@@ -2034,6 +2034,20 @@ placeholder = "Enter Acquirer Country Code"
 required = false
 type = "Text"
 
+[checkout_payout]
+[[checkout_payout.wallet]]
+payment_method_type = "apple_pay"
+[checkout_payout.connector_auth.SignatureKey]
+api_key = "Currency Account ID"
+key1 = "Processing Channel ID"
+api_secret = "Checkout API Secret Key"
+[checkout_payout.metadata.client_id]
+name = "client_id"
+label = "Checkout Client ID"
+placeholder = "Enter Checkout Client ID"
+required = false
+type = "Text"
+
 [coinbase]
 [[coinbase.crypto]]
 payment_method_type = "crypto_currency"

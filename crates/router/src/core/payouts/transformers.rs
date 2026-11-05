@@ -89,6 +89,7 @@ impl
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
+            sender_details: payout.sender_details,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,

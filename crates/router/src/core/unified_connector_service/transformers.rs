@@ -230,6 +230,103 @@ impl transformers::ForeignTryFrom<&payments_grpc::Money>
     }
 }
 
+impl ForeignFrom<&common_types::payouts::CheckoutPayoutMetadata>
+    for payments_grpc::AdditionalPayoutConnectorDetails
+{
+    fn foreign_from(metadata: &common_types::payouts::CheckoutPayoutMetadata) -> Self {
+        Self {
+            connector: Some(
+                payments_grpc::additional_payout_connector_details::Connector::Checkout(
+                    payments_grpc::CheckoutAdditionalPayoutInformation::foreign_from(metadata),
+                ),
+            ),
+        }
+    }
+}
+
+impl ForeignFrom<common_types::payouts::PayoutSourceOfFunds>
+    for payments_grpc::PayoutSourceOfFunds
+{
+    fn foreign_from(value: common_types::payouts::PayoutSourceOfFunds) -> Self {
+        use common_types::payouts::PayoutSourceOfFunds;
+        match value {
+            PayoutSourceOfFunds::Credit => Self::Credit,
+            PayoutSourceOfFunds::Debit => Self::Debit,
+            PayoutSourceOfFunds::Prepaid => Self::Prepaid,
+            PayoutSourceOfFunds::DepositAccount => Self::DepositAccount,
+            PayoutSourceOfFunds::MobileMoneyAccount => Self::MobileMoneyAccount,
+            PayoutSourceOfFunds::Cash => Self::Cash,
+        }
+    }
+}
+
+impl ForeignFrom<&common_types::payouts::PayoutVendorAddress> for payments_grpc::Address {
+    fn foreign_from(value: &common_types::payouts::PayoutVendorAddress) -> Self {
+        Self {
+            line1: value.line1.clone(),
+            line2: value.line2.clone(),
+            city: value.city.clone(),
+            state: value.state.clone(),
+            zip_code: value.zip.clone(),
+            country_alpha2_code: value
+                .country
+                .and_then(|country| {
+                    payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
+                })
+                .map(i32::from),
+            ..Default::default()
+        }
+    }
+}
+
+fn additional_payout_connector_details_for_ucs(
+    connector: common_enums::connector_enums::Connector,
+    metadata: Option<&common_types::payouts::ConnectorPayoutMetadata>,
+) -> Option<payments_grpc::AdditionalPayoutConnectorDetails> {
+    match connector {
+        common_enums::connector_enums::Connector::Checkout => metadata
+            .and_then(|metadata| metadata.checkout.as_ref())
+            .map(payments_grpc::AdditionalPayoutConnectorDetails::foreign_from),
+        _ => None,
+    }
+}
+
+impl ForeignFrom<&common_types::payouts::CheckoutPayoutMetadata>
+    for payments_grpc::CheckoutAdditionalPayoutInformation
+{
+    fn foreign_from(metadata: &common_types::payouts::CheckoutPayoutMetadata) -> Self {
+        Self {
+            funds_transfer_type: metadata.funds_transfer_type
+                .map(payments_grpc::checkout_additional_payout_information::FundsTransferType::foreign_from)
+                .map(i32::from),
+        }
+    }
+}
+
+impl ForeignFrom<common_types::payouts::CheckoutPayoutFundsTransferType>
+    for payments_grpc::checkout_additional_payout_information::FundsTransferType
+{
+    fn foreign_from(ftt: common_types::payouts::CheckoutPayoutFundsTransferType) -> Self {
+        use common_types::payouts::CheckoutPayoutFundsTransferType as Ftt;
+        match ftt {
+            Ftt::AccountToAccount => Self::AccountToAccount,
+            Ftt::FundsTransfer => Self::FundsTransfer,
+            Ftt::CrossBorderMoneyTransfer => Self::CrossBorderMoneyTransfer,
+            Ftt::PeerToPeer => Self::PeerToPeer,
+            Ftt::StagedDigitalWalletTransfer => Self::StagedDigitalWalletTransfer,
+            Ftt::FundsDisbursement => Self::FundsDisbursement,
+            Ftt::LoyaltyPayments => Self::LoyaltyPayments,
+            Ftt::PayrollAndPensionDisbursements => Self::PayrollAndPensionDisbursements,
+            Ftt::OnlineGambling => Self::OnlineGambling,
+            Ftt::MastercardPersonToPerson => Self::MastercardPersonToPerson,
+            Ftt::MastercardTransferToOwnAccount => Self::MastercardTransferToOwnAccount,
+            Ftt::MastercardBusinessDisbursement => Self::MastercardBusinessDisbursement,
+            Ftt::MastercardBusinessToBusiness => Self::MastercardBusinessToBusiness,
+            Ftt::MastercardGamingRepay => Self::MastercardGamingRepay,
+        }
+    }
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -9921,6 +10018,15 @@ impl
                 .attach_printable("Missing customer details in Payout Transfer Request"),
             )?;
         let payout_method_data = payout_method_for_ucs(router_data)?;
+        let connector = common_enums::connector_enums::Connector::from_str(&router_data.connector)
+            .map_err(|error| {
+                report!(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                        "invalid payout connector '{}': {error}",
+                        router_data.connector
+                    ))
+                )
+            })?;
         let browser_info = router_data
             .request
             .browser_info
@@ -9929,6 +10035,21 @@ impl
             .transpose()?;
 
         Ok(Self {
+            additional_payout_connector_details: additional_payout_connector_details_for_ucs(
+                connector,
+                router_data.request.connector_metadata.as_ref(),
+            ),
+            vendor_account_details: router_data
+                .request
+                .vendor_details
+                .as_ref()
+                .map(|details| {
+                    payments_grpc::PayoutVendorAccountDetails::foreign_try_from((
+                        details,
+                        router_data,
+                    ))
+                })
+                .transpose()?,
             merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
@@ -10045,7 +10166,7 @@ impl
 #[cfg(feature = "payouts")]
 impl<F>
     transformers::ForeignTryFrom<(
-        &api_models::payouts::PayoutVendorAccountDetails,
+        &common_types::payouts::PayoutVendorAccountDetails,
         &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
     )> for payments_grpc::PayoutVendorAccountDetails
 {
@@ -10053,7 +10174,7 @@ impl<F>
 
     fn foreign_try_from(
         (vendor_account_details, router_data): (
-            &api_models::payouts::PayoutVendorAccountDetails,
+            &common_types::payouts::PayoutVendorAccountDetails,
             &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
         ),
     ) -> Result<Self, Self::Error> {
@@ -10101,20 +10222,52 @@ impl<F>
                 },
                 card_payments_enabled: vendor_details.capabilities_card_payments,
                 transfers_enabled: vendor_details.capabilities_transfers,
+                company_tax_id: vendor_details.company_tax_id.clone(),
+                address: Some(payments_grpc::Address {
+                    line1: vendor_details.company_address_line1.clone(),
+                    line2: vendor_details.company_address_line2.clone(),
+                    city: vendor_details.company_address_city.clone(),
+                    state: vendor_details.company_address_state.clone(),
+                    zip_code: vendor_details.company_address_postal_code.clone(),
+                    country_alpha2_code: vendor_details
+                        .company_address_country
+                        .and_then(|country| {
+                            payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
+                        })
+                        .map(i32::from),
+                    ..Default::default()
+                }),
+                email: vendor_details
+                    .email
+                    .as_ref()
+                    .map(|email| Secret::new(email.peek().clone())),
+                phone_number: vendor_details.company_phone.clone(),
+                phone_country_code: vendor_details.phone_country_code.clone(),
+                reference_id: vendor_details.reference_id.clone(),
+                source_of_funds: vendor_details
+                    .source_of_funds
+                    .map(payments_grpc::PayoutSourceOfFunds::foreign_from)
+                    .map(i32::from),
             }),
             individual_details: Some(payments_grpc::IndividualDetails {
-                first_name: billing_details
-                    .and_then(|billing_details| billing_details.first_name.as_ref())
-                    .map(|first_name| first_name.peek().to_string().into()),
-                last_name: billing_details
-                    .and_then(|billing_details| billing_details.last_name.as_ref())
-                    .map(|last_name| last_name.peek().to_string().into()),
-                phone: router_data
-                    .request
-                    .customer_details
-                    .as_ref()
-                    .and_then(|customer_details| customer_details.phone.as_ref())
-                    .map(|phone| phone.peek().to_string().into()),
+                first_name: individual_details.first_name.clone().or_else(|| {
+                    billing_details
+                        .and_then(|billing_details| billing_details.first_name.as_ref())
+                        .map(|first_name| first_name.peek().to_string().into())
+                }),
+                last_name: individual_details.last_name.clone().or_else(|| {
+                    billing_details
+                        .and_then(|billing_details| billing_details.last_name.as_ref())
+                        .map(|last_name| last_name.peek().to_string().into())
+                }),
+                phone: individual_details.phone_number.clone().or_else(|| {
+                    router_data
+                        .request
+                        .customer_details
+                        .as_ref()
+                        .and_then(|customer_details| customer_details.phone.as_ref())
+                        .map(|phone| phone.peek().to_string().into())
+                }),
                 ssn_last_4: individual_details
                     .individual_ssn_last_4
                     .as_ref()
@@ -10150,6 +10303,20 @@ impl<F>
                     _ => None,
                 },
                 tos_acceptance_date: individual_details.tos_acceptance_date,
+                address: individual_details
+                    .address
+                    .as_ref()
+                    .map(payments_grpc::Address::foreign_from),
+                email: individual_details
+                    .email
+                    .as_ref()
+                    .map(|email| Secret::new(email.peek().clone())),
+                phone_country_code: individual_details.phone_country_code.clone(),
+                reference_id: individual_details.reference_id.clone(),
+                source_of_funds: individual_details
+                    .source_of_funds
+                    .map(payments_grpc::PayoutSourceOfFunds::foreign_from)
+                    .map(i32::from),
             }),
         })
     }

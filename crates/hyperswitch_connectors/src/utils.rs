@@ -1,7 +1,5 @@
 use std::{collections::HashMap, marker::PhantomData, str::FromStr, sync::LazyLock};
 
-#[cfg(feature = "payouts")]
-use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     payments,
     payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
@@ -32,6 +30,8 @@ use common_enums::{
         UsStatesAbbreviation,
     },
 };
+#[cfg(feature = "payouts")]
+use common_types::payouts::PayoutVendorAccountDetails;
 use common_types::primitive_wrappers;
 use common_utils::{
     consts::{

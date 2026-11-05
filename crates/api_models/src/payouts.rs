@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use cards::CardNumber;
 use common_enums::{BankNames, CardNetwork};
 use common_types::payouts::PayoutsBillingDescriptor;
+pub use common_types::payouts::{
+    CheckoutPayoutFundsTransferType, CheckoutPayoutMetadata, ConnectorPayoutMetadata,
+};
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -160,9 +163,23 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, default = false)]
     pub recurring: Option<bool>,
 
+    /// Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.
+    /// Explicit sender_details takes precedence and is never merged with that identity.
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// Connector-specific payout configuration that affects how the payout is processed.
+    /// This is separate from merchant-defined `metadata` and is persisted for subsequent payout
+    /// operations such as fulfillment and synchronization.
+    #[schema(value_type = Option<ConnectorPayoutMetadata>)]
+    pub connector_metadata: Option<ConnectorPayoutMetadata>,
+
+    /// Identity of the party providing the funds. Persisted on the payout and echoed
+    /// in the response; Hyperswitch converts it into common payout vendor details at
+    /// the domain boundary. Explicit sender input takes precedence over legacy vendor
+    /// metadata without merging identities. UCS receives only the converted vendor details.
+    pub sender_details: Option<crate::sender::SenderDetails>,
 
     /// Provide a reference to a stored payout method, used to process the payout.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432", value_type = Option<String>)]
@@ -974,6 +991,9 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// Identity of the party providing the funds, as supplied in the payout request
+    pub sender_details: Option<crate::sender::SenderDetails>,
+
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
@@ -1163,6 +1183,9 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
+/// Legacy vendor metadata accepted for API compatibility only.
+/// Converted to the common payout vendor type when explicit sender input is absent.
+/// Domain and connector models must not consume this API DTO.
 #[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
@@ -1918,6 +1941,55 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
+}
+
+impl From<PayoutVendorAccountDetails> for common_types::payouts::PayoutVendorAccountDetails {
+    fn from(value: PayoutVendorAccountDetails) -> Self {
+        Self {
+            vendor_details: value.vendor_details.into(),
+            individual_details: value.individual_details.into(),
+        }
+    }
+}
+
+impl From<PayoutVendorDetails> for common_types::payouts::PayoutVendorDetails {
+    fn from(value: PayoutVendorDetails) -> Self {
+        Self {
+            account_type: value.account_type,
+            business_type: value.business_type,
+            business_profile_mcc: value.business_profile_mcc,
+            business_profile_url: value.business_profile_url,
+            business_profile_name: value.business_profile_name,
+            company_address_line1: value.company_address_line1,
+            company_address_line2: value.company_address_line2,
+            company_address_postal_code: value.company_address_postal_code,
+            company_address_city: value.company_address_city,
+            company_address_state: value.company_address_state,
+            company_phone: value.company_phone,
+            company_tax_id: value.company_tax_id,
+            company_owners_provided: value.company_owners_provided,
+            capabilities_card_payments: value.capabilities_card_payments,
+            capabilities_transfers: value.capabilities_transfers,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PayoutIndividualDetails> for common_types::payouts::PayoutIndividualDetails {
+    fn from(value: PayoutIndividualDetails) -> Self {
+        Self {
+            tos_acceptance_date: value.tos_acceptance_date,
+            tos_acceptance_ip: value.tos_acceptance_ip,
+            individual_dob_day: value.individual_dob_day,
+            individual_dob_month: value.individual_dob_month,
+            individual_dob_year: value.individual_dob_year,
+            date_of_birth: value.date_of_birth,
+            individual_id_number: value.individual_id_number,
+            individual_ssn_last_4: value.individual_ssn_last_4,
+            external_account_account_holder_type: value.external_account_account_holder_type,
+            ..Default::default()
         }
     }
 }

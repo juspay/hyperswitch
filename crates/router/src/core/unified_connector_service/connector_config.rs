@@ -63,6 +63,12 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
+/// Checkout payout hostname configuration stored on the merchant connector account.
+#[derive(Debug, serde::Deserialize)]
+pub struct CheckoutMetadata {
+    client_id: Option<Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
@@ -345,6 +351,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        client_id: Option<Secret<String>>,
     },
     /// Authorize.net connector configuration
     Authorizedotnet {
@@ -1469,11 +1477,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Checkout {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    processing_channel_id: key1.clone(),
-                }),
+                } => {
+                    let checkout_metadata = metadata
+                        .map(|metadata| {
+                            serde_json::from_value::<CheckoutMetadata>(metadata.clone())
+                                .map_err(|_| err("Invalid Checkout metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        client_id: checkout_metadata.and_then(|metadata| metadata.client_id),
+                    })
+                }
                 _ => Err(err("Checkout requires SignatureKey auth type")),
             },
             Connector::Dlocal => match auth {

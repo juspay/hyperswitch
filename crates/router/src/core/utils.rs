@@ -290,32 +290,41 @@ pub(super) async fn construct_payout_router_data_common<F>(
         })
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
-    let vendor_details: Option<PayoutVendorAccountDetails> =
-        match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
-            |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
-        )? {
-            api_models::enums::PayoutConnectors::Stripe => payout_data
-                .payouts
-                .metadata
-                .as_ref()
-                // Parse only metadata that carries vendor details; unrelated
-                // merchant metadata keeps the previous behavior and is treated
-                // as absent.
-                .filter(|metadata| {
-                    let value = metadata.peek();
-                    value.get("vendor_details").is_some()
-                        || value.get("individual_details").is_some()
-                })
-                .map(|metadata| {
-                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
+    let vendor_details: Option<common_types::payouts::PayoutVendorAccountDetails> =
+        if let Some(sender_details) = payout_data.payouts.sender_details.clone() {
+            // Persisted sender input is normalized to the common vendor type only at
+            // this domain boundary; the raw sender identity stays on the payout row.
+            Some(sender_details.into())
+        } else {
+            match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
+                |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
+            )? {
+                api_models::enums::PayoutConnectors::Stripe => payout_data
+                    .payouts
+                    .metadata
+                    .as_ref()
+                    // Parse only metadata that carries vendor details; unrelated
+                    // merchant metadata keeps the previous behavior and is treated
+                    // as absent.
+                    .filter(|metadata| {
+                        let value = metadata.peek();
+                        value.get("vendor_details").is_some()
+                            || value.get("individual_details").is_some()
+                    })
+                    .map(|metadata| {
+                        serde_json::from_value::<PayoutVendorAccountDetails>(
+                            metadata.peek().to_owned(),
+                        )
+                        .map(Into::into)
                         .map_err(|error| {
                             report!(errors::ApiErrorResponse::InvalidRequestData {
                                 message: format!("Invalid payout metadata: {error}"),
                             })
                         })
-                })
-                .transpose()?,
-            _ => None,
+                    })
+                    .transpose()?,
+                _ => None,
+            }
         };
 
     let webhook_url = helpers::create_webhook_url(
@@ -401,6 +410,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
+            connector_metadata: payouts.connector_metadata.clone(),
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
