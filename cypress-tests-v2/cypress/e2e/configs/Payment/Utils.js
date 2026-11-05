@@ -1,9 +1,11 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
+import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
   noon: noonConnectorDetails,
+  cybersource: cybersourceConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
