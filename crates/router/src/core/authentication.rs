@@ -1431,7 +1431,7 @@ async fn call_ucs_authenticate_proxy(
 
     let notification_url = PaymentCallbackRoute::authorize_url(
         &state.base_url,
-        state.conf.payment_callback.mode,
+        state.payment_callback_config().await?.mode,
         &ConnectorCallbackPath {
             payment_id: payment_attempt.payment_id.clone(),
             merchant_id: payment_attempt.processor_merchant_id.clone(),

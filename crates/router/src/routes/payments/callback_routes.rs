@@ -8,7 +8,7 @@
 use actix_web::{web, Resource};
 
 use super::callback_tokens::{PaymentCallbackFields, PaymentCallbackUrl};
-use crate::configs::settings::PaymentCallbackMode;
+use crate::core::configs::payment_callback::PaymentCallbackMode;
 #[cfg(feature = "v1")]
 use crate::routes::payments;
 

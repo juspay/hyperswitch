@@ -2185,7 +2185,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let return_url = PaymentCallbackRoute::authorize_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &ConnectorCallbackPath {
                     payment_id: payment_data.payment_attempt.payment_id.clone(),
                     merchant_id: payment_data.payment_attempt.processor_merchant_id.clone(),

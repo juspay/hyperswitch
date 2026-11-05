@@ -737,7 +737,6 @@ pub async fn payments_start(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::Start(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),
@@ -1694,7 +1693,6 @@ pub async fn payments_redirect_response(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::RedirectResponse(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),
@@ -1750,7 +1748,6 @@ pub async fn payments_redirect_response_with_creds_identifier(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::RedirectResponseWithCredentials(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),
@@ -1810,7 +1807,6 @@ pub async fn payments_complete_authorize_redirect(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::RedirectComplete(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),
@@ -1868,7 +1864,6 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::RedirectCompleteWithCredentials(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),
@@ -3414,7 +3409,6 @@ pub async fn post_3ds_payments_authorize(
     let callback_auth = match callback_tokens::PaymentCallbackAuth::from_request(
         callback_tokens::PaymentCallbackFields::Authorize(&path),
         &req,
-        state.conf.payment_callback.mode,
     ) {
         Ok(auth) => auth,
         Err(error) => return api::log_and_return_error_response(error),

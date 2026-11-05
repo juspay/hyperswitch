@@ -36,7 +36,7 @@ use storage_impl::{
     redis::{cache::Caches, RedisStore},
     MockDb,
 };
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, OnceCell};
 
 use self::settings::Tenant;
 #[cfg(any(feature = "olap", feature = "oltp"))]
@@ -94,8 +94,6 @@ use crate::analytics::routes::{
 };
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-#[cfg(feature = "partial-auth")]
-use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
 use crate::routes::authentication;
 #[cfg(feature = "v1")]
@@ -120,7 +118,9 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings},
+    core::configs::payment_callback::PaymentCallbackConfig,
     db::kafka_store::{KafkaStore, TenantID},
+    errors::RouterResult,
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
@@ -157,6 +157,7 @@ pub struct SessionState {
     pub superposition_service: Arc<SuperpositionClient>,
     /// Bounded request context used to correlate v1 payment I/O metrics.
     pub payment_metrics_context: Option<PaymentMetricsContext>,
+    payment_callback_config: Arc<OnceCell<PaymentCallbackConfig>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -183,6 +184,13 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
 }
 impl SessionState {
+    /// Resolve the runtime callback policy once for this request and its clones.
+    pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
+        self.payment_callback_config
+            .get_or_try_init(|| PaymentCallbackConfig::load(self))
+            .await
+    }
+
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
         self.store = store;
     }
@@ -752,6 +760,7 @@ impl AppState {
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
             payment_metrics_context: None,
+            payment_callback_config: Arc::default(),
         })
     }
 

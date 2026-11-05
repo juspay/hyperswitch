@@ -66,8 +66,9 @@ use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, PaymentCallbackMode},
+    configs::settings::ConnectorRequestReferenceIdConfig,
     core::{
+        configs::payment_callback::PaymentCallbackMode,
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
         utils as core_utils,
@@ -173,6 +174,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        callback_mode: state.payment_callback_config().await?.mode,
         connector_callback_urls,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
@@ -393,7 +395,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_callback_urls
             .redirect_complete_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &attempt.payment_id,
                 &attempt.processor_merchant_id,
                 connector_id,
@@ -710,7 +712,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
         connector_callback_urls
             .redirect_complete_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &attempt.payment_id,
                 &attempt.processor_merchant_id,
                 connector_id,
@@ -884,7 +886,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         connector_callback_urls
             .redirect_complete_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &attempt.payment_id,
                 &attempt.processor_merchant_id,
                 connector_id,
@@ -903,7 +905,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         connector_callback_urls
             .redirect_response_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &attempt.payment_id,
                 &attempt.processor_merchant_id,
                 connector_id,
@@ -1845,7 +1847,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_callback_urls
             .redirect_complete_url(
                 &state.base_url,
-                state.conf.payment_callback.mode,
+                state.payment_callback_config().await?.mode,
                 &attempt.payment_id,
                 &attempt.processor_merchant_id,
                 connector_id,
@@ -2138,6 +2140,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        callback_mode: state.payment_callback_config().await?.mode,
         connector_callback_urls,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
@@ -2487,6 +2490,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        callback_mode: state.payment_callback_config().await?.mode,
         connector_callback_urls,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),
@@ -2676,7 +2680,7 @@ where
             data,
             auth_flow,
             &state.base_url,
-            state.conf.payment_callback.mode,
+            state.payment_callback_config().await?.mode,
             operation,
             &state.conf.connector_request_reference_id_config,
             connector_http_status_code,
@@ -2709,7 +2713,7 @@ where
             data,
             customer,
             &state.base_url,
-            state.conf.payment_callback.mode,
+            state.payment_callback_config().await?.mode,
             operation,
             &state.conf.connector_request_reference_id_config,
             connector_http_status_code,
@@ -5836,6 +5840,7 @@ pub struct PaymentAdditionalData<'a, F>
 where
     F: Clone,
 {
+    callback_mode: PaymentCallbackMode,
     router_base_url: String,
     connector_callback_urls: &'a mut ConnectorCallbackUrls,
     connector_name: String,
@@ -5865,7 +5870,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .connector_callback_urls
                 .redirect_complete_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -5891,7 +5896,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .connector_callback_urls
                 .redirect_response_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -6135,7 +6140,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .connector_callback_urls
                 .redirect_complete_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -6161,7 +6166,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .connector_callback_urls
                 .redirect_response_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -7042,7 +7047,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPostSess
                 .connector_callback_urls
                 .redirect_response_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -7879,7 +7884,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .connector_callback_urls
                 .redirect_response_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -7917,7 +7922,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .connector_callback_urls
                 .redirect_complete_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -8165,7 +8170,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .connector_callback_urls
                 .redirect_complete_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -8202,7 +8207,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .connector_callback_urls
                 .redirect_response_url(
                     &additional_data.router_base_url,
-                    additional_data.state.conf.payment_callback.mode,
+                    additional_data.callback_mode,
                     &payment_data.payment_attempt.payment_id,
                     &payment_data.payment_attempt.processor_merchant_id,
                     &additional_data.connector_name,
@@ -9116,6 +9121,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let additional_data = PaymentAdditionalData {
+        callback_mode: state.payment_callback_config().await?.mode,
         connector_callback_urls,
         router_base_url: state.base_url.clone(),
         connector_name: connector_id.to_string(),

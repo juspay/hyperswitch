@@ -17,7 +17,6 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  ROUTER__PAYMENT_CALLBACK__MODE: migration
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
@@ -408,6 +407,11 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
+      - name: Configure payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
+
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
@@ -679,6 +683,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -966,6 +974,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1390,6 +1403,10 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
 
+      - name: Configure payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
+
       - name: Insert card info into the database
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy cards_info FROM '.github/data/cards_info.csv' DELIMITER ',' CSV HEADER;"
@@ -1577,6 +1594,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1845,6 +1867,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate_v2 run --locked-schema
+
+      - name: Configure payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}

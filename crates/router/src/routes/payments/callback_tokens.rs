@@ -16,8 +16,10 @@ use crate::services::authentication::{
     AuthenticateAndFetch, AuthenticationData, AuthenticationType, MerchantIdAuth,
 };
 use crate::{
-    configs::settings::PaymentCallbackMode,
-    core::errors::{self, RouterResult},
+    core::{
+        configs::payment_callback::PaymentCallbackMode,
+        errors::{self, RouterResult},
+    },
     routes::SessionState,
 };
 const UNUSED: &str = "unused";
@@ -190,16 +192,13 @@ pub struct PaymentCallbackUrl {
 impl PaymentCallbackUrl {
     pub async fn persist(self, state: &SessionState) -> RouterResult<Secret<String>> {
         if let Some(key) = self.key {
-            let ttl = state.conf.payment_callback.token_ttl_seconds;
-            if ttl == 0 {
-                return Err(errors::ApiErrorResponse::InternalServerError.into());
-            }
+            let ttl = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
             let connection = state
                 .store
                 .get_redis_conn()
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
             let result = connection
-                .set_key_if_not_exists_with_expiry(&key, UNUSED, Some(i64::from(ttl)))
+                .set_key_if_not_exists_with_expiry(&key, UNUSED, Some(ttl))
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
             if !matches!(result, redis_interface::SetnxReply::KeySet) {
@@ -241,12 +240,11 @@ fn parse_token(value: &str) -> RouterResult<Uuid> {
 fn request_key(
     fields: PaymentCallbackFields<'_>,
     request: &actix_web::HttpRequest,
-    mode: PaymentCallbackMode,
 ) -> RouterResult<Option<redis_interface::RedisKey>> {
     let route = fields.route();
     match request.match_name() {
         Some(name) if name == route.name() => (),
-        Some(name) if name == route.legacy_name() && mode.allows_legacy() => return Ok(None),
+        Some(name) if name == route.legacy_name() => return Ok(None),
         _ => return Err(errors::ApiErrorResponse::Unauthorized.into()),
     }
     let token = parse_token(
@@ -272,12 +270,18 @@ impl PaymentCallbackAuth {
     pub(super) fn from_request(
         fields: PaymentCallbackFields<'_>,
         request: &actix_web::HttpRequest,
-        mode: PaymentCallbackMode,
     ) -> RouterResult<Self> {
         Ok(Self {
             merchant_auth: MerchantIdAuth(fields.merchant_id().clone()),
-            key: request_key(fields, request, mode)?,
+            key: request_key(fields, request)?,
         })
+    }
+
+    fn validate_mode(&self, mode: PaymentCallbackMode) -> RouterResult<()> {
+        if self.key.is_none() && !mode.allows_legacy() {
+            return Err(errors::ApiErrorResponse::Unauthorized.into());
+        }
+        Ok(())
     }
 }
 
@@ -293,6 +297,7 @@ impl AuthenticateAndFetch<AuthenticationData, SessionState> for PaymentCallbackA
             .merchant_auth
             .authenticate_and_fetch(request_headers, state)
             .await?;
+        self.validate_mode(state.payment_callback_config().await?.mode)?;
         let Some(key) = self.key.as_ref() else {
             return Ok(auth);
         };
@@ -507,26 +512,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn rollout_defaults_to_legacy_and_rejects_unknown_modes() {
-        let config: crate::configs::settings::PaymentCallbackConfig =
-            serde_json::from_str("{}").expect("defaults");
-        assert_eq!(config.mode, PaymentCallbackMode::Legacy);
-        assert_eq!(config.token_ttl_seconds, 3600);
-        assert!(
-            serde_json::from_str::<crate::configs::settings::PaymentCallbackConfig>(
-                r#"{"mode":"unknown"}"#
-            )
-            .is_err()
-        );
-    }
-
     fn echo_auth(
         request: &HttpRequest,
         fields: PaymentCallbackFields<'_>,
         mode: PaymentCallbackMode,
     ) -> HttpResponse {
-        match PaymentCallbackAuth::from_request(fields, request, mode) {
+        match PaymentCallbackAuth::from_request(fields, request).and_then(|auth| {
+            auth.validate_mode(mode)?;
+            Ok(auth)
+        }) {
             Ok(auth) => {
                 HttpResponse::Ok().body(format!("{:?}|{}", auth.key, request.query_string()))
             }
@@ -687,11 +681,7 @@ mod tests {
         let request = actix_test::TestRequest::get()
             .uri("/other")
             .to_http_request();
-        for mode in MODES {
-            assert!(
-                request_key(PaymentCallbackFields::Start(&paths.start), &request, mode).is_err()
-            );
-        }
+        assert!(request_key(PaymentCallbackFields::Start(&paths.start), &request).is_err());
         let app = actix_test::init_service(
             App::new()
                 .app_data(web::Data::new(PaymentCallbackMode::Migration))

@@ -1277,7 +1277,7 @@ where
             captures,
             services::AuthFlow::Merchant,
             &state.base_url,
-            state.conf.payment_callback.mode,
+            state.payment_callback_config().await?.mode,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,

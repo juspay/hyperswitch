@@ -1735,13 +1735,3 @@ use_legacy_locker = false           # Boolean to enable legacy locker
 # Override using ROUTER__COMPARISON_SERVICE__SHADOW_KILL_SWITCH_THRESHOLD.
 # Counts request timeouts, DNS failures, connection refused, and proxy authentication failures.
 # Classifies the original shadow request result without additional network checks.
-
-# Single-use payment callback URL expiry. Authentication retains its existing auth.
-[payment_callback]
-# legacy: original URLs; deploy this until every replica supports tokenized paths.
-# migration: issue path tokens, accepting original callbacks from in-flight payments.
-# After migration begins, roll back only to versions that support tokenized paths.
-# enforced: reject original callbacks once those older payment flows have drained.
-# Original URLs have no token TTL; token_ttl_seconds does not bound their lifetime.
-mode = "legacy"
-token_ttl_seconds = 3600

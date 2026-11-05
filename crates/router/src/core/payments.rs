@@ -14161,7 +14161,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let return_url = Some(
         PaymentCallbackRoute::authorize_url(
             &state.base_url,
-            state.conf.payment_callback.mode,
+            state.payment_callback_config().await?.mode,
             &ConnectorCallbackPath {
                 payment_id: payment_attempt.payment_id.clone(),
                 merchant_id: payment_attempt.processor_merchant_id.clone(),
@@ -14469,7 +14469,7 @@ pub async fn payment_start_redirection(
         .redirection_form_callback_url(
             connector.get_redirect_callback(&redirection_data),
             &state.base_url,
-            state.conf.payment_callback.mode,
+            state.payment_callback_config().await?.mode,
             &ConnectorCallbackPath {
                 payment_id: payment_attempt.payment_id.clone(),
                 merchant_id: payment_attempt.processor_merchant_id.clone(),

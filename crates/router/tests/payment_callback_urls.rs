@@ -8,8 +8,10 @@ mod sdk_callback_url_tests {
     use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorRedirectResponse};
     use hyperswitch_masking::PeekInterface;
     use router::{
-        configs::settings::PaymentCallbackMode,
-        core::payments::transformers::{next_action_invoke_ddc_iframe, SdkCallbackUrls},
+        core::{
+            configs::payment_callback::PaymentCallbackMode,
+            payments::transformers::{next_action_invoke_ddc_iframe, SdkCallbackUrls},
+        },
         routes::payments::callback_routes::{
             ConnectorCallbackPath, PaymentCallbackRoute, StartCallbackPath,
         },
@@ -348,8 +350,10 @@ mod connector_callback_url_tests {
     use common_utils::id_type::PaymentId;
     use hyperswitch_masking::PeekInterface;
     use router::{
-        configs::settings::PaymentCallbackMode,
-        core::payments::transformers::ConnectorCallbackUrls,
+        core::{
+            configs::payment_callback::PaymentCallbackMode,
+            payments::transformers::ConnectorCallbackUrls,
+        },
         routes::payments::callback_tokens::PaymentCallbackUrl,
     };
 
