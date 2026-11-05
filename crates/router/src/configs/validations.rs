@@ -484,3 +484,17 @@ impl super::settings::JuspayAccountUpdaterConfig {
         Ok(())
     }
 }
+
+impl super::settings::SuperpositionProxySettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        // A trailing or doubled comma in the config parses as an empty key.
+        when(self.allowed_config_keys.contains(""), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "superposition_proxy.allowed_config_keys must not contain empty keys".into(),
+            ))
+        })
+    }
+}
+

@@ -7,9 +7,10 @@ use crate::{
     core::{
         api_locking,
         superposition_proxy::{
-            self, GetDefaultConfigRequest, GetDimensionRequest, ListAuditLogsQuery,
-            ListContextsQuery, ListDefaultConfigsQuery, ListDimensionsQuery,
-            ResolveConfigExplanationRequest, ResolveDetailedConfigRequest,
+            self, BulkOperationsBody, DeleteContextRequest, GetDefaultConfigRequest,
+            GetDimensionRequest, ListAuditLogsQuery, ListContextsQuery, ListDefaultConfigsQuery,
+            ListDimensionsQuery, ResolveConfigExplanationRequest, ResolveDetailedConfigRequest,
+            UpdateContextOverrideBody,
         },
     },
     services::{api, authentication as auth, authorization::permissions::Permission},
@@ -242,6 +243,138 @@ pub async fn create_context(
     body: web::Json<ContextPutRequest>,
 ) -> HttpResponse {
     let flow = Flow::SuperpositionCreateContext;
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
+    let request = body.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, user, _, _| {
+            let request = request.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
+            async move {
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    superposition_org_id,
+                    superposition_workspace_id,
+                )
+                .await
+            }
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileSuperpositionConfigWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionUpdateContextOverride))]
+pub async fn update_context_override(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Json<UpdateContextOverrideBody>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionUpdateContextOverride;
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
+    let request = body.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, user, _, _| {
+            let request = request.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
+            async move {
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    superposition_org_id,
+                    superposition_workspace_id,
+                )
+                .await
+            }
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileSuperpositionConfigWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionDeleteContext))]
+pub async fn delete_context(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionDeleteContext;
+    let (superposition_org_id, superposition_workspace_id) =
+        match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
+            Ok(headers) => headers,
+            Err(response) => return response,
+        };
+    let request = DeleteContextRequest(path.into_inner());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, user, _, _| {
+            let request = request.clone();
+            let superposition_org_id = superposition_org_id.clone();
+            let superposition_workspace_id = superposition_workspace_id.clone();
+            async move {
+                superposition_proxy::handle_superposition_proxy_flow(
+                    state,
+                    user,
+                    request,
+                    superposition_org_id,
+                    superposition_workspace_id,
+                )
+                .await
+            }
+        },
+        &auth::JWTAuth {
+            permission: Permission::ProfileSuperpositionConfigWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::SuperpositionBulkOperations))]
+pub async fn bulk_operations(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    body: web::Json<BulkOperationsBody>,
+) -> HttpResponse {
+    let flow = Flow::SuperpositionBulkOperations;
     let (superposition_org_id, superposition_workspace_id) =
         match superposition_proxy::extract_proxy_headers(&req, &state.superposition_service) {
             Ok(headers) => headers,
