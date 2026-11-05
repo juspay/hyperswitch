@@ -36,6 +36,27 @@ describe("L2/L3 Data Processing Tests", () => {
     it("Update Business Profile (L2/L3 enabled) -> Create Payment Intent -> Payment Methods Call -> Confirm Payment with L2/L3 -> Retrieve Payment", () => {
       let shouldContinue = true;
 
+      cy.step("Update Merchant Account (L2/L3 merchant details)", () => {
+        // Some connectors (e.g. jpmorgan) require merchant_details such as
+        // merchant_tax_registration_id / merchant_vat_registration_id to be set
+        // on the merchant account before the connector forwards commercial
+        // card data to its scheme. Optional: connectors without an
+        // L2L3MerchantUpdate config skip this step.
+        const merchantUpdate = getConnectorDetails(
+          globalState.get("connectorId")
+        )["card_pm"]["L2L3MerchantUpdate"];
+
+        if (!merchantUpdate) {
+          cy.task(
+            "cli_log",
+            "Skipping step: no L2L3MerchantUpdate config for connector"
+          );
+          return;
+        }
+
+        cy.merchantUpdateCall({ ...merchantUpdate.Request }, globalState);
+      });
+
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
         const body = {
           ...fixtures.businessProfile.bpUpdate,

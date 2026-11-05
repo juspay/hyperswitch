@@ -169,18 +169,39 @@ export const connectorDetails = {
         },
       },
     },
+    // Merchant-account prerequisite for the L2/L3 spec: JPMorgan pairs
+    // customer VAT data with the merchant's VAT registration and expects
+    // merchant tax registration for taxable transactions. The connector's
+    // UCS transformers read these from merchant_account.merchant_details.
+    L2L3MerchantUpdate: {
+      Request: {
+        merchant_details: {
+          merchant_tax_registration_id: "123456789",
+          merchant_vat_registration_id: "GB987654321",
+        },
+      },
+    },
     L2L3Data: {
       Request: {
         currency: "USD",
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          // Visa card matching the PR's proven-good L2/L3 payload — JPMorgan
+          // applies network-specific rules to retailAddenda data.
+          card: {
+            card_number: "4012000033330026",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "John Doe",
+            card_cvc: "123",
+          },
         },
         amount: 2015,
         shipping_cost: 200,
         order_tax_amount: 95,
         merchant_order_reference_id: "PO-JPM-L2L3-001",
-        order_date: "2026-10-21T10:00:00Z",
+        // Current timestamp: JPMorgan's host may reject stale order dates.
+        order_date: new Date().toISOString(),
         order_commodity_code: "1234",
         tax_status: "taxable",
         shipping_amount_tax: 10,
