@@ -239,7 +239,6 @@ pub async fn list_customer_payment_method_api(
                 auth.platform,
                 Some(req),
                 Some(&customer_id),
-                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

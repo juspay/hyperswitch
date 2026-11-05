@@ -104,7 +104,7 @@ impl Default for super::settings::Refund {
     }
 }
 
-impl Default for super::settings::EphemeralConfig {
+impl Default for super::settings::ClientSecretConfig {
     fn default() -> Self {
         Self { validity: 1 }
     }

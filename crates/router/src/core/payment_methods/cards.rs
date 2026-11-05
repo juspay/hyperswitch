@@ -79,8 +79,6 @@ use crate::core::payment_methods::{
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "v1")]
 use crate::core::payments::tokenization;
-#[cfg(feature = "v1")]
-use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
@@ -6352,26 +6350,11 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     platform: domain::Platform,
     req: Option<api::PaymentMethodListRequest>,
     customer_id: Option<&id_type::CustomerId>,
-    ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
-
-    let auth_cust = if let Some(key) = ephemeral_api_key {
-        let key = state
-            .store()
-            .get_ephemeral_key(key)
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-        Some(key.customer_id.clone())
-    } else {
-        None
-    };
-
-    let customer_id = customer_id.or(auth_cust.as_ref());
 
     if let Some(customer_id) = customer_id {
         Box::pin(list_customer_payment_method(

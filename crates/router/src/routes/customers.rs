@@ -107,22 +107,19 @@ pub async fn customers_retrieve(
 
     let customer_id = path.into_inner();
 
-    let auth = if auth::is_jwt_auth(req.headers()) {
-        Box::new(auth::JWTAuth {
-            permission: Permission::MerchantCustomerRead,
-            allow_connected: true,
-            allow_platform: true,
-        })
-    } else {
-        let api_auth = auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: true,
+    let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+        if auth::is_jwt_auth(req.headers()) {
+            Box::new(auth::JWTAuth {
+                permission: Permission::MerchantCustomerRead,
+                allow_connected: true,
+                allow_platform: true,
+            })
+        } else {
+            Box::new(auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: true,
+            }))
         };
-        match auth::is_ephemeral_auth(req.headers(), api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(err),
-        }
-    };
 
     Box::pin(api::server_wrap(
         flow,
