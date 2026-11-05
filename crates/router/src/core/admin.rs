@@ -2823,6 +2823,7 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&processor, store)
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
@@ -2836,7 +2837,6 @@ pub async fn create_connector(
             )
             .await?;
     }
-    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
@@ -3969,6 +3969,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             surcharge_connector_details: self
                 .surcharge_connector_details
                 .map(ForeignInto::foreign_into),
+            revenue_recovery_config: self.revenue_recovery_config.map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4593,6 +4594,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
+                revenue_recovery_config: self
+                    .revenue_recovery_config
                     .map(ForeignInto::foreign_into),
             },
         )))

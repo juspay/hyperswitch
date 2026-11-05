@@ -243,6 +243,26 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Wallet flow, based on who decrypts the wallet token
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletFlow {
+    /// The wallet token is decrypted by the connector
+    Encrypt,
+    /// The wallet token is decrypted by Hyperswitch or Merchant
+    Decrypt,
+}
+
+/// Input to be collected for `pay_via_single_use_token` of a payment method type
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PayViaSingleUseTokenInputData {
+    /// Wallet flows for which the value has to be collected
+    pub flows: Vec<WalletFlow>,
+    #[serde(flatten)]
+    pub input_data: InputData,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
@@ -269,6 +289,9 @@ pub struct ConnectorTomlConfig {
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
     pub network_token: Option<Vec<Provider>>,
+    /// Inputs to be collected for `pay_via_single_use_token`, keyed by payment method type
+    pub pay_via_single_use_token:
+        Option<HashMap<api_models::enums::PaymentMethodType, PayViaSingleUseTokenInputData>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -422,6 +445,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub betterpayment: Option<ConnectorTomlConfig>,
     pub saferpay: Option<ConnectorTomlConfig>,
     pub sanlam_payshield: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
@@ -703,6 +727,7 @@ impl ConnectorConfig {
             Connector::Redsys => Ok(connector_data.redsys),
             Connector::Revolv3 => Ok(connector_data.revolv3),
             Connector::Riskified => Ok(connector_data.riskified),
+            Connector::Betterpayment => Ok(connector_data.betterpayment),
             Connector::Saferpay => Ok(connector_data.saferpay),
             Connector::SanlamPayshield => Ok(connector_data.sanlam_payshield),
             Connector::Santander => Ok(connector_data.santander),

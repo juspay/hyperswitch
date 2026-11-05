@@ -6,6 +6,8 @@ pub mod authentication;
 pub mod blocklist;
 pub mod card_issuer;
 pub mod cards_info;
+#[cfg(feature = "v2")]
+pub mod client_secret;
 pub mod conditional_configs;
 pub mod connector_enums;
 pub mod connector_onboarding;
@@ -14,7 +16,6 @@ pub mod currency;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
-pub mod ephemeral_key;
 #[cfg(feature = "errors")]
 pub mod errors;
 pub mod events;

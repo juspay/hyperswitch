@@ -43,7 +43,6 @@ pub struct MockDb {
     /// take them from.
     pub caches: Arc<Caches>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
-    pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
     pub events: Arc<Mutex<Vec<store::Event>>>,
     pub disputes: Arc<Mutex<Vec<store::Dispute>>>,
@@ -106,7 +105,6 @@ impl MockDb {
             ),
             caches: Arc::new(Caches::default()),
             api_keys: Default::default(),
-            ephemeral_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
             disputes: Default::default(),

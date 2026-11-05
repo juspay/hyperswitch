@@ -488,6 +488,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -1408,6 +1411,13 @@ impl PaymentUpdate {
                 discount_amount: payment_data.payment_intent.discount_amount,
                 order_date: payment_data.payment_intent.order_date,
                 shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                value_added_tax_percent: payment_data.payment_intent.value_added_tax_percent,
+                vat_invoice_reference_number: payment_data
+                    .payment_intent
+                    .vat_invoice_reference_number
+                    .clone(),
+                order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 duty_amount: payment_data.payment_intent.duty_amount,
                 enable_partial_authorization: payment_data
                     .payment_intent
@@ -1423,6 +1433,9 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                enable_account_name_verification: payment_data
+                    .payment_intent
+                    .enable_account_name_verification,
                 settlement_conclusion_applied: payment_data
                     .payment_intent
                     .settlement_conclusion_applied,
