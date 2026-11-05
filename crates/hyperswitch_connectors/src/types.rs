@@ -180,7 +180,7 @@ pub(crate) trait PayoutIndividualDetailsExt {
 }
 
 #[cfg(feature = "payouts")]
-impl PayoutIndividualDetailsExt for common_types::payouts::PayoutIndividualDetails {
+impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
     type Error = error_stack::Report<hyperswitch_interfaces::errors::ConnectorError>;
     fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
         self.external_account_account_holder_type

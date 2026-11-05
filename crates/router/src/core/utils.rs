@@ -290,11 +290,11 @@ pub(super) async fn construct_payout_router_data_common<F>(
         })
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
-    let vendor_details: Option<common_types::payouts::PayoutVendorAccountDetails> =
-        if let Some(sender_details) = payout_data.payouts.sender_details.clone() {
-            // Persisted sender input is normalized to the common vendor type only at
-            // this domain boundary; the raw sender identity stays on the payout row.
-            Some(sender_details.into())
+    let vendor_details: Option<PayoutVendorAccountDetails> =
+        if let Some(sender_details) = payout_data.payouts.sender_details() {
+            // Persisted sender input is normalized to the vendor type only at this
+            // domain boundary; the raw sender identity stays on the payout row.
+            Some(sender_details.clone().into())
         } else {
             match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
                 |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
@@ -315,7 +315,6 @@ pub(super) async fn construct_payout_router_data_common<F>(
                         serde_json::from_value::<PayoutVendorAccountDetails>(
                             metadata.peek().to_owned(),
                         )
-                        .map(Into::into)
                         .map_err(|error| {
                             report!(errors::ApiErrorResponse::InvalidRequestData {
                                 message: format!("Invalid payout metadata: {error}"),

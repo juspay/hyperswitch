@@ -1,4 +1,4 @@
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -29,7 +29,8 @@ pub struct Payouts {
     /// Merchant-supplied, connector-specific payout configuration.
     pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
-    pub sender_details: Option<common_types::payouts::SenderDetails>,
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: Option<Encryption>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -78,7 +79,8 @@ pub struct PayoutsNew {
     /// Merchant-supplied, connector-specific payout configuration.
     pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
-    pub sender_details: Option<common_types::payouts::SenderDetails>,
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: Option<Encryption>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -109,7 +111,7 @@ pub enum PayoutsUpdate {
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
         connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
-        sender_details: Option<common_types::payouts::SenderDetails>,
+        sender_details: Option<Encryption>,
         profile_id: Option<common_utils::id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
@@ -154,7 +156,8 @@ pub struct PayoutsUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
-    pub sender_details: Option<common_types::payouts::SenderDetails>,
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: Option<Encryption>,
     pub payout_method_id: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,

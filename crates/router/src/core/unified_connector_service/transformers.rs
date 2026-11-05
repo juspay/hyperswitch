@@ -244,24 +244,23 @@ impl ForeignFrom<&common_types::payouts::CheckoutPayoutMetadata>
     }
 }
 
-impl ForeignFrom<common_types::payouts::PayoutSourceOfFunds>
-    for payments_grpc::PayoutSourceOfFunds
-{
-    fn foreign_from(value: common_types::payouts::PayoutSourceOfFunds) -> Self {
-        use common_types::payouts::PayoutSourceOfFunds;
+impl ForeignFrom<api_models::sender::SourceOfFunds> for payments_grpc::PayoutSourceOfFunds {
+    fn foreign_from(value: api_models::sender::SourceOfFunds) -> Self {
+        use api_models::sender::SourceOfFunds;
         match value {
-            PayoutSourceOfFunds::Credit => Self::Credit,
-            PayoutSourceOfFunds::Debit => Self::Debit,
-            PayoutSourceOfFunds::Prepaid => Self::Prepaid,
-            PayoutSourceOfFunds::DepositAccount => Self::DepositAccount,
-            PayoutSourceOfFunds::MobileMoneyAccount => Self::MobileMoneyAccount,
-            PayoutSourceOfFunds::Cash => Self::Cash,
+            SourceOfFunds::Credit => Self::Credit,
+            SourceOfFunds::Debit => Self::Debit,
+            SourceOfFunds::Prepaid => Self::Prepaid,
+            SourceOfFunds::DepositAccount => Self::DepositAccount,
+            SourceOfFunds::MobileMoneyAccount => Self::MobileMoneyAccount,
+            SourceOfFunds::Cash => Self::Cash,
         }
     }
 }
 
-impl ForeignFrom<&common_types::payouts::PayoutVendorAddress> for payments_grpc::Address {
-    fn foreign_from(value: &common_types::payouts::PayoutVendorAddress) -> Self {
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PayoutVendorAddress> for payments_grpc::Address {
+    fn foreign_from(value: &api_models::payouts::PayoutVendorAddress) -> Self {
         Self {
             line1: value.line1.clone(),
             line2: value.line2.clone(),
@@ -1726,6 +1725,8 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
                 Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
             }),
+            network_transaction_id: None,
+            transaction_link_id: None,
         }
     }
 }
@@ -1770,6 +1771,8 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                         serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
                     )
                 }),
+            network_transaction_id: None,
+            transaction_link_id: None,
         })
     }
 }
@@ -3813,6 +3816,8 @@ impl
                                                     .unwrap_or_default(),
                                             )
                                         }),
+                                    network_transaction_id: None,
+                                    transaction_link_id: None,
                                 },
                             ),
                         ),
@@ -10191,7 +10196,7 @@ impl
 #[cfg(feature = "payouts")]
 impl<F>
     transformers::ForeignTryFrom<(
-        &common_types::payouts::PayoutVendorAccountDetails,
+        &api_models::payouts::PayoutVendorAccountDetails,
         &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
     )> for payments_grpc::PayoutVendorAccountDetails
 {
@@ -10199,7 +10204,7 @@ impl<F>
 
     fn foreign_try_from(
         (vendor_account_details, router_data): (
-            &common_types::payouts::PayoutVendorAccountDetails,
+            &api_models::payouts::PayoutVendorAccountDetails,
             &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
         ),
     ) -> Result<Self, Self::Error> {

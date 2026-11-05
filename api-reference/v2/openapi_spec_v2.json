@@ -13324,6 +13324,57 @@
           "month"
         ]
       },
+      "CorporateSenderDetails": {
+        "type": "object",
+        "description": "A company providing the funds.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd",
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "treasury@acme.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderPhone"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender, at most 15 characters.",
+            "nullable": true,
+            "maxLength": 15
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -18349,6 +18400,69 @@
           },
           "previously_authorized_amount": {
             "$ref": "#/components/schemas/MinorUnit"
+          }
+        }
+      },
+      "IndividualSenderDetails": {
+        "type": "object",
+        "description": "An individual providing the funds.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "John",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "Doe",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The sender's date of birth, in the format yyyy-mm-dd.",
+            "example": "1990-01-31",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderAddress"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "john.doe@example.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderPhone"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender, at most 15 characters.",
+            "nullable": true,
+            "maxLength": 15
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28071,6 +28185,7 @@
         "enum": [
           "adyen",
           "adyenplatform",
+          "checkout",
           "cybersource",
           "deutschebank",
           "ebanx",
@@ -28320,7 +28435,23 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "connector_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorPayoutMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/crate.sender.SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "payout_token": {
@@ -28564,6 +28695,14 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/crate.sender.SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "merchant_connector_id": {
@@ -34295,6 +34434,122 @@
           }
         }
       },
+      "SenderAddress": {
+        "type": "object",
+        "description": "The address of the party providing the funds.",
+        "properties": {
+          "line1": {
+            "type": "string",
+            "description": "The first line of the sender's address.",
+            "example": "123, King Street",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "line2": {
+            "type": "string",
+            "description": "The second line of the sender's address.",
+            "example": "Powelson Avenue",
+            "nullable": true,
+            "maxLength": 200
+          },
+          "city": {
+            "type": "string",
+            "description": "The sender's city.",
+            "example": "London",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "state": {
+            "type": "string",
+            "description": "The sender's state or province.",
+            "example": "CA",
+            "nullable": true
+          },
+          "zip": {
+            "type": "string",
+            "description": "The sender's zip or postal code.",
+            "example": "EC1A 1BB",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SenderDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SenderPhone": {
+        "type": "object",
+        "description": "Sender phone contact.",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The sender's phone number.",
+            "example": "9123456789",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The international dialing code attached to the number.",
+            "example": "+44",
+            "nullable": true
+          }
+        }
+      },
       "SepaAndBacsBillingDetails": {
         "type": "object",
         "properties": {
@@ -34775,6 +35030,18 @@
           "attempt_count",
           "created",
           "modified"
+        ]
+      },
+      "SourceOfFunds": {
+        "type": "string",
+        "description": "Origin of the funds, supplied by the merchant.",
+        "enum": [
+          "credit",
+          "debit",
+          "prepaid",
+          "deposit_account",
+          "mobile_money_account",
+          "cash"
         ]
       },
       "SplitPaymentMethodDataRequest": {

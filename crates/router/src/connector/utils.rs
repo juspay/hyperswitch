@@ -9,7 +9,7 @@ use api_models::{
 use base64::Engine;
 use cards::NetworkToken;
 #[cfg(feature = "payouts")]
-use common_types::payouts::PayoutVendorAccountDetails;
+use api_models::payouts::PayoutVendorAccountDetails;
 use common_utils::{
     date_time,
     errors::{ParsingError, ReportSwitchExt},

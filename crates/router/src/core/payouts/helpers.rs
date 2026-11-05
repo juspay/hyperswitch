@@ -887,6 +887,7 @@ pub async fn save_payout_data_to_locker(
             payouts,
             updated_payout,
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1415,10 +1416,16 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
     let result = db
-        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .filter_payouts_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            merchant_key_store,
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1493,6 +1500,15 @@ pub async fn update_payouts_and_payout_attempt(
         .connector_metadata
         .clone()
         .or(payouts.connector_metadata.clone());
+    let sender_details = encrypt_sender_details(
+        state,
+        platform.get_processor().get_key_store(),
+        req.sender_details
+            .clone()
+            .or_else(|| payouts.sender_details().cloned()),
+    )
+    .await?
+    .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
@@ -1520,10 +1536,7 @@ pub async fn update_payouts_and_payout_attempt(
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
         connector_metadata,
-        sender_details: req
-            .sender_details
-            .clone()
-            .or(payouts.sender_details.clone()),
+        sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
         confirm: req.confirm.to_owned(),
@@ -1540,6 +1553,7 @@ pub async fn update_payouts_and_payout_attempt(
             &payouts,
             updated_payouts,
             &payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1579,6 +1593,38 @@ pub async fn update_payouts_and_payout_attempt(
             .attach_printable("Error updating payout_attempt")?;
     }
     Ok(())
+}
+
+/// Encrypts the supplied sender identity with the merchant key for persistence.
+/// Returns `None` when no sender details were supplied.
+pub async fn encrypt_sender_details(
+    state: &SessionState,
+    merchant_key_store: &domain::MerchantKeyStore,
+    sender_details: Option<api_models::sender::SenderDetails>,
+) -> RouterResult<
+    hyperswitch_domain_models::type_encryption::OptionalEncryptableJsonType<
+        api_models::sender::SenderDetails,
+    >,
+> {
+    let key = merchant_key_store.key.get_inner().peek();
+    let key_manager_state: KeyManagerState = state.into();
+    sender_details
+        .map(hyperswitch_domain_models::type_encryption::EncryptedJsonType::from)
+        .map(Secret::new)
+        .async_lift(|inner| async {
+            crypto_operation(
+                &key_manager_state,
+                type_name!(storage::Payouts),
+                CryptoOperation::EncryptOptional(inner),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                key,
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt payout sender_details")
 }
 
 pub(super) fn get_customer_details_from_request(

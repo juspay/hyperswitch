@@ -1039,7 +1039,7 @@ mod encrypt {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EncryptedJsonType<T>(T);
 
 impl<T> EncryptedJsonType<T> {

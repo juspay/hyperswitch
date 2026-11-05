@@ -1591,7 +1591,7 @@ diesel::table! {
         entity_type -> Varchar,
         metadata -> Nullable<Jsonb>,
         connector_metadata -> Nullable<Jsonb>,
-        sender_details -> Nullable<Jsonb>,
+        sender_details -> Nullable<Bytea>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         attempt_count -> Int2,

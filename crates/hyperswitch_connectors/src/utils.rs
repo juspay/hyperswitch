@@ -31,7 +31,7 @@ use common_enums::{
     },
 };
 #[cfg(feature = "payouts")]
-use common_types::payouts::PayoutVendorAccountDetails;
+use api_models::payouts::PayoutVendorAccountDetails;
 use common_types::primitive_wrappers;
 use common_utils::{
     consts::{

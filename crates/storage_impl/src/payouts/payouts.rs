@@ -22,13 +22,22 @@ use diesel_models::{
     payout_attempt::PayoutAttempt as DieselPayoutAttempt,
     schema::{address::dsl as add_dsl, customers::dsl as cust_dsl, payout_attempt::dsl as poa_dsl},
 };
+use common_utils::{
+    encryption::Encryption,
+    types::keymanager::{Identifier, KeyManagerState},
+};
 use error_stack::ResultExt;
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore,
+    type_encryption::{crypto_operation, CryptoOperation, EncryptedJsonType},
+};
 #[cfg(feature = "olap")]
 use hyperswitch_domain_models::payouts::PayoutFetchConstraints;
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttempt,
     payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
+use hyperswitch_masking::PeekInterface;
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -48,6 +57,32 @@ use crate::{
     DataModelExt, DatabaseStore,
 };
 
+/// Decrypts the `sender_details` ciphertext of the given payouts row with the merchant key
+/// and attaches the decrypted value to the returned domain payouts.
+async fn decrypt_payouts_sender_details(
+    key_manager_state: &KeyManagerState,
+    merchant_key_store: &MerchantKeyStore,
+    storage_model: DieselPayouts,
+) -> error_stack::Result<Payouts, StorageError> {
+    let sender_details = crypto_operation::<
+        EncryptedJsonType<api_models::sender::SenderDetails>,
+        hyperswitch_masking::WithType,
+    >(
+        key_manager_state,
+        common_utils::type_name!(DieselPayouts),
+        CryptoOperation::DecryptOptional(storage_model.sender_details.clone()),
+        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+        merchant_key_store.key.get_inner().peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_optionaloperation())
+    .change_context(StorageError::DecryptionError)?;
+
+    let mut payouts = Payouts::from_storage_model(storage_model);
+    payouts.sender_details = sender_details;
+    Ok(payouts)
+}
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     type Error = StorageError;
@@ -55,6 +90,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
     async fn insert_payout(
         &self,
         new: PayoutsNew,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPayouts>(
@@ -65,7 +101,9 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         .await;
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
-                self.router_store.insert_payout(new, storage_scheme).await
+                self.router_store
+                    .insert_payout(new, merchant_key_store, storage_scheme)
+                    .await
             }
             MerchantStorageScheme::RedisKv => {
                 let merchant_id = new.merchant_id.clone();
@@ -148,6 +186,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         this: &Payouts,
         payout_update: PayoutsUpdate,
         payout_attempt: &PayoutAttempt,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let key = PartitionKey::MerchantIdPayoutId {
@@ -164,7 +203,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payout(this, payout_update, payout_attempt, storage_scheme)
+                    .update_payout(this, payout_update, payout_attempt, merchant_key_store, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
@@ -204,7 +243,13 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                Ok(Payouts::from_storage_model(diesel_payout))
+                decrypt_payouts_sender_details(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    merchant_key_store,
+                    diesel_payout,
+                )
+                .await
             }
         }
     }
@@ -214,6 +259,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let database_call = || async {
@@ -231,7 +277,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             Op::Find,
         ))
         .await;
-        match storage_scheme {
+        let storage_model = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPayoutId {
@@ -253,8 +299,14 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 ))
                 .await
             }
-        }
-        .map(Payouts::from_storage_model)
+        }?;
+        decrypt_payouts_sender_details(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store,
+            storage_model,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -262,6 +314,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
         let database_call = || async {
@@ -279,10 +332,10 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
             Op::Find,
         ))
         .await;
-        match storage_scheme {
+        let maybe_payouts = match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 let maybe_payouts = database_call().await?;
-                Ok(maybe_payouts.filter(|payout| &payout.payout_id == payout_id))
+                maybe_payouts.filter(|payout| &payout.payout_id == payout_id)
             }
             MerchantStorageScheme::RedisKv => {
                 let key = PartitionKey::MerchantIdPayoutId {
@@ -303,10 +356,21 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     },
                     database_call,
                 ))
-                .await
+                .await?
             }
+        };
+        match maybe_payouts {
+            Some(storage_model) => Ok(Some(
+                decrypt_payouts_sender_details(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    merchant_key_store,
+                    storage_model,
+                )
+                .await?,
+            )),
+            None => Ok(None),
         }
-        .map(|payout| payout.map(Payouts::from_storage_model))
     }
 
     #[cfg(feature = "olap")]
@@ -315,10 +379,11 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
-            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .filter_payouts_by_constraints(merchant_id, filters, merchant_key_store, storage_scheme)
             .await
     }
 
@@ -328,6 +393,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(
@@ -339,7 +405,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         StorageError,
     > {
         self.router_store
-            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .filter_payouts_and_attempts(merchant_id, filters, merchant_key_store, storage_scheme)
             .await
     }
 
@@ -349,10 +415,16 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         self.router_store
-            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .filter_payouts_by_time_range_constraints(
+                merchant_id,
+                time_range,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -411,17 +483,25 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     async fn insert_payout(
         &self,
         new: PayoutsNew,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model()
+        let storage_model = new
+            .to_storage_model()
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
-            })
-            .map(Payouts::from_storage_model)
+            })?;
+        decrypt_payouts_sender_details(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store,
+            storage_model,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -430,18 +510,26 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         this: &Payouts,
         payout: PayoutsUpdate,
         _payout_attempt: &PayoutAttempt,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.clone()
+        let storage_model = this
+            .clone()
             .to_storage_model()
             .update(&conn, payout.to_storage_model())
             .await
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
-            })
-            .map(Payouts::from_storage_model)
+            })?;
+        decrypt_payouts_sender_details(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store,
+            storage_model,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -449,16 +537,23 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
+        let storage_model = DieselPayouts::find_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
             .await
-            .map(Payouts::from_storage_model)
             .map_err(|er| {
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
-            })
+            })?;
+        decrypt_payouts_sender_details(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store,
+            storage_model,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -466,16 +561,32 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         payout_id: &common_utils::id_type::PayoutId,
+        merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        DieselPayouts::find_optional_by_merchant_id_payout_id(&conn, merchant_id, payout_id)
-            .await
-            .map(|x| x.map(Payouts::from_storage_model))
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
+        let maybe_payouts = DieselPayouts::find_optional_by_merchant_id_payout_id(
+            &conn,
+            merchant_id,
+            payout_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })?;
+        match maybe_payouts {
+            Some(storage_model) => Ok(Some(
+                decrypt_payouts_sender_details(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    merchant_key_store,
+                    storage_model,
+                )
+                .await?,
+            )),
+            None => Ok(None),
+        }
     }
 
     #[cfg(feature = "olap")]
@@ -484,6 +595,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -516,6 +628,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
                                 starting_after_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -533,6 +646,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
                                 ending_before_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -554,21 +668,30 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             }
         }
 
-        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, DieselPayouts>(
-            db_metrics::DatabaseOperation::Filter,
-            query,
-        )
-        .await
-        .map(|payouts| {
-            payouts
-                .into_iter()
-                .map(Payouts::from_storage_model)
-                .collect::<Vec<Payouts>>()
-        })
-        .map_err(|er| {
-            error_stack::report!(StorageError::from(er))
-                .attach_printable("Error filtering payout records")
-        })
+        let storage_models = conn
+            .track_get_results::<<DieselPayouts as HasTable>::Table, _, DieselPayouts>(
+                db_metrics::DatabaseOperation::Filter,
+                query,
+            )
+            .await
+            .map_err(|er| {
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering payout records")
+            })?;
+
+        let mut payouts = Vec::with_capacity(storage_models.len());
+        for storage_model in storage_models.into_iter() {
+            payouts.push(
+                decrypt_payouts_sender_details(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    merchant_key_store,
+                    storage_model,
+                )
+                .await?,
+            );
+        }
+        Ok(payouts)
     }
 
     #[cfg(all(feature = "v1", feature = "olap"))]
@@ -577,6 +700,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         filters: &PayoutFetchConstraints,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(
@@ -636,6 +760,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
                                 starting_after_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -652,6 +777,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             .find_payout_by_merchant_id_payout_id(
                                 merchant_id,
                                 ending_before_id,
+                                merchant_key_store,
                                 storage_scheme,
                             )
                             .await?
@@ -695,38 +821,43 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             }
         };
 
-        conn.track_get_results::<<DieselPayouts as HasTable>::Table, _, (
-            DieselPayouts,
-            DieselPayoutAttempt,
-            Option<DieselCustomer>,
-            Option<DieselAddress>,
-        )>(
-            db_metrics::DatabaseOperation::Filter,
-            query.select((
-                po_all_columns,
-                poa_all_columns,
-                cust_all_columns.nullable(),
-                addr_all_columns.nullable(),
-            )),
-        )
-        .await
-        .map(|results| {
-            results
-                .into_iter()
-                .map(|(pi, pa, c, add)| {
-                    (
-                        Payouts::from_storage_model(pi),
-                        PayoutAttempt::from_storage_model(pa),
-                        c,
-                        add,
-                    )
-                })
-                .collect()
-        })
-        .map_err(|er| {
-            error_stack::report!(StorageError::from(er))
-                .attach_printable("Error filtering payout records")
-        })
+        let results = conn
+            .track_get_results::<<DieselPayouts as HasTable>::Table, _, (
+                DieselPayouts,
+                DieselPayoutAttempt,
+                Option<DieselCustomer>,
+                Option<DieselAddress>,
+            )>(
+                db_metrics::DatabaseOperation::Filter,
+                query.select((
+                    po_all_columns,
+                    poa_all_columns,
+                    cust_all_columns.nullable(),
+                    addr_all_columns.nullable(),
+                )),
+            )
+            .await
+            .map_err(|er| {
+                error_stack::report!(StorageError::from(er))
+                    .attach_printable("Error filtering payout records")
+            })?;
+
+        let mut payouts_and_attempts = Vec::with_capacity(results.len());
+        for (pi, pa, c, add) in results.into_iter() {
+            payouts_and_attempts.push((
+                decrypt_payouts_sender_details(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    merchant_key_store,
+                    pi,
+                )
+                .await?,
+                PayoutAttempt::from_storage_model(pa),
+                c,
+                add,
+            ));
+        }
+        Ok(payouts_and_attempts)
     }
 
     #[cfg(all(feature = "olap", feature = "v2"))]
@@ -735,6 +866,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(
@@ -754,11 +886,17 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
+        merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         let payout_filters = (*time_range).into();
-        self.filter_payouts_by_constraints(merchant_id, &payout_filters, storage_scheme)
-            .await
+        self.filter_payouts_by_constraints(
+            merchant_id,
+            &payout_filters,
+            merchant_key_store,
+            storage_scheme,
+        )
+        .await
     }
 
     #[cfg(feature = "olap")]
@@ -948,7 +1086,7 @@ impl DataModelExt for Payouts {
             entity_type: self.entity_type,
             metadata: self.metadata,
             connector_metadata: self.connector_metadata,
-            sender_details: self.sender_details,
+            sender_details: self.sender_details.map(Encryption::from),
             created_at: self.created_at,
             last_modified_at: self.last_modified_at,
             profile_id: self.profile_id,
@@ -983,7 +1121,9 @@ impl DataModelExt for Payouts {
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
             connector_metadata: storage_model.connector_metadata,
-            sender_details: storage_model.sender_details,
+            // `sender_details` holds ciphertext in storage; it is populated by the
+            // async decryption step in the `PayoutsInterface` implementations.
+            sender_details: None,
             created_at: storage_model.created_at,
             last_modified_at: storage_model.last_modified_at,
             profile_id: storage_model.profile_id,
@@ -1023,7 +1163,7 @@ impl DataModelExt for PayoutsNew {
             entity_type: self.entity_type,
             metadata: self.metadata,
             connector_metadata: self.connector_metadata,
-            sender_details: self.sender_details,
+            sender_details: self.sender_details.map(Encryption::from),
             created_at: self.created_at,
             last_modified_at: self.last_modified_at,
             profile_id: self.profile_id,
@@ -1058,7 +1198,9 @@ impl DataModelExt for PayoutsNew {
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
             connector_metadata: storage_model.connector_metadata,
-            sender_details: storage_model.sender_details,
+            // `sender_details` holds ciphertext in storage; it is populated by the
+            // async decryption step in the `PayoutsInterface` implementations.
+            sender_details: None,
             created_at: storage_model.created_at,
             last_modified_at: storage_model.last_modified_at,
             profile_id: storage_model.profile_id,

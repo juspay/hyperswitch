@@ -69,6 +69,7 @@ impl
             unified_code: None,
             unified_message: None,
         };
+        let sender_details = payout.sender_details().cloned();
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -89,7 +90,7 @@ impl
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
-            sender_details: payout.sender_details,
+            sender_details,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,

@@ -1746,9 +1746,9 @@ pub struct PayoutsData {
     pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
-    /// Common party details converted from explicit sender input or legacy vendor metadata.
-    /// Domain consumers never deserialize the API vendor DTO or accept SenderDetails.
-    pub vendor_details: Option<common_types::payouts::PayoutVendorAccountDetails>,
+    /// Payout party details converted from explicit sender input or parsed from legacy
+    /// vendor metadata. Never persisted; only `sender_details` is stored on the payout row.
+    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,
