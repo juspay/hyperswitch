@@ -29,8 +29,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsSyncRouterData,
@@ -1160,6 +1160,10 @@ impl webhooks::IncomingWebhook for Trustpay {
 }
 
 impl ConnectorRedirectResponse for Trustpay {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

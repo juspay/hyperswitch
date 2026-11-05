@@ -24,8 +24,8 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -878,6 +878,10 @@ impl webhooks::IncomingWebhook for Mollie {
 }
 
 impl ConnectorRedirectResponse for Mollie {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

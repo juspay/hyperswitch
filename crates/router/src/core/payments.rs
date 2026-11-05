@@ -14460,13 +14460,21 @@ pub async fn payment_start_redirection(
         .attach_printable("missing authentication_data in payment_attempt")?;
 
     let mut sdk_callback_urls = transformers::SdkCallbackUrls::default();
+    let connector_name = payment_attempt
+        .connector
+        .as_deref()
+        .get_required_value("connector")?;
+    let connector = api::ConnectorData::convert_connector(connector_name)?;
     let callback_url = sdk_callback_urls
         .redirection_form_callback_url(
-            &redirection_data,
+            connector.get_redirect_callback(&redirection_data),
             &state.base_url,
             state.conf.payment_callback.mode,
-            &payment_attempt.payment_id,
-            &payment_attempt.processor_merchant_id,
+            &ConnectorCallbackPath {
+                payment_id: payment_attempt.payment_id.clone(),
+                merchant_id: payment_attempt.processor_merchant_id.clone(),
+                connector: connector.id().to_string(),
+            },
             None,
         )
         .cloned();

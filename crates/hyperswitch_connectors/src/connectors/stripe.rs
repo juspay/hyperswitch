@@ -36,8 +36,9 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         AcceptDisputeResponse, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
-        SupportedPaymentMethodsExt, UploadFileResponse,
+        RedirectCallback, RedirectForm, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        UploadFileResponse,
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -3064,6 +3065,10 @@ impl IncomingWebhook for Stripe {
 }
 
 impl ConnectorRedirectResponse for Stripe {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

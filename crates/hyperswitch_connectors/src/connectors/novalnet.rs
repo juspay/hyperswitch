@@ -25,8 +25,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -217,6 +217,10 @@ impl ConnectorValidation for Novalnet {
 }
 
 impl ConnectorRedirectResponse for Novalnet {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         query_params: &str,

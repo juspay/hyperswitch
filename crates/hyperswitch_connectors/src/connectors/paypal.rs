@@ -36,8 +36,9 @@ use hyperswitch_domain_models::{
         SdkPaymentsSessionUpdateData, SetupMandateRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt, VerifyWebhookSourceResponseData,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        VerifyWebhookSourceResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -2598,6 +2599,10 @@ impl IncomingWebhook for Paypal {
 }
 
 impl ConnectorRedirectResponse for Paypal {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

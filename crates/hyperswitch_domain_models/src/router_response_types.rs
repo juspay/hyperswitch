@@ -398,6 +398,15 @@ impl PreprocessingResponseId {
     }
 }
 
+/// Callback endpoint used by a connector's browser redirect form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectCallback {
+    /// Process a connector redirect response.
+    Response,
+    /// Complete authorization after a browser interaction.
+    Complete,
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {

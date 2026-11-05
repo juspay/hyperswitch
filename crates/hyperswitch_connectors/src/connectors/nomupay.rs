@@ -25,7 +25,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentsResponseData, RedirectCallback, RedirectForm, RefundsResponseData,
+        SupportedPaymentMethods,
     },
 };
 #[cfg(feature = "payouts")]
@@ -382,7 +383,11 @@ impl ConnectorCommon for Nomupay {
 }
 
 impl ConnectorValidation for Nomupay {}
-impl ConnectorRedirectResponse for Nomupay {}
+impl ConnectorRedirectResponse for Nomupay {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+}
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Nomupay {}
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Nomupay {}

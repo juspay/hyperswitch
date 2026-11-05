@@ -27,7 +27,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        RedirectCallback, RedirectForm, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -833,6 +834,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Noon {
 }
 
 impl api::ConnectorRedirectResponse for Noon {
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

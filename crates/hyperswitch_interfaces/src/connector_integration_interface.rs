@@ -11,7 +11,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
     router_request_types::CurrentFlowInfo,
-    router_response_types::{ConnectorInfo, SupportedPaymentMethods},
+    router_response_types::{
+        ConnectorInfo, RedirectCallback, RedirectForm, SupportedPaymentMethods,
+    },
 };
 
 use crate::{
@@ -489,6 +491,13 @@ impl IncomingWebhook for ConnectorEnum {
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        match self {
+            Self::Old(connector) => connector.get_redirect_callback(form),
+            Self::New(connector) => connector.get_redirect_callback(form),
+        }
+    }
+
     fn get_flow_type(
         &self,
         query_params: &str,
