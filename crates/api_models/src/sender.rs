@@ -112,8 +112,8 @@ pub struct IndividualSenderDetails {
     #[schema(value_type = Option<SenderPhone>)]
     pub phone: Option<SenderPhone>,
 
-    /// The merchant's stable identifier for the sender, at most 15 characters.
-    #[schema(value_type = Option<String>, max_length = 15)]
+    /// The merchant's stable identifier for the sender
+    #[schema(value_type = Option<String>)]
     pub reference_id: Option<Secret<String>>,
 
     /// Origin of the funds, supplied by the merchant.
@@ -140,8 +140,8 @@ pub struct CorporateSenderDetails {
     #[schema(value_type = Option<SenderPhone>)]
     pub phone: Option<SenderPhone>,
 
-    /// The merchant's stable identifier for the sender, at most 15 characters.
-    #[schema(value_type = Option<String>, max_length = 15)]
+    /// The merchant's stable identifier for the sender.
+    #[schema(value_type = Option<String>)]
     pub reference_id: Option<Secret<String>>,
 
     /// Origin of the funds, supplied by the merchant.
