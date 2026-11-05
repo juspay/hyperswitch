@@ -799,7 +799,6 @@ async fn get_scoped_context_hidden_overrides(
     Ok(hidden_overrides)
 }
 
-
 /// Change reason recorded when a delete only removes a context's allowed keys and no
 /// caller-supplied reason applies.
 const REMOVED_ALLOWED_OVERRIDES_REASON: &str = "Removed allowlisted overrides";

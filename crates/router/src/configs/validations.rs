@@ -497,4 +497,3 @@ impl super::settings::SuperpositionProxySettings {
         })
     }
 }
-
