@@ -1078,7 +1078,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
-                        &dimensions,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -1091,7 +1091,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
-                        &dimensions,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
