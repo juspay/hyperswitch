@@ -10,19 +10,12 @@ mod placeholder;
 mod xml;
 
 /// The connector body of a proxy request.
+#[derive(Debug)]
 pub enum ProxyBody {
     /// A JSON body.
     Json(Value),
     /// A complete, UTF-8 XML/SOAP document.
     Xml(String),
-}
-
-impl std::fmt::Debug for ProxyBody {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("ProxyBody")
-            .field(&self.as_metric_str())
-            .finish()
-    }
 }
 
 /// Errors omit template and resolved field contents.
@@ -37,7 +30,7 @@ pub enum ProxyBodyError {
     /// The Content-Type is neither JSON nor XML.
     #[error("Unsupported connector Content-Type; only JSON and XML are supported")]
     UnsupportedContentType,
-    /// The body and Content-Type cannot be interpreted safely.
+    /// An XML Content-Type with a non-UTF-8 charset, or with a body that is not a string.
     #[error("Connector body does not match its Content-Type")]
     InvalidContentType,
     /// An XML document or its template placement is invalid.
@@ -65,14 +58,6 @@ impl ProxyBody {
             }
             (Some(ContentType::Xml), _) => Err(ProxyBodyError::InvalidContentType),
             _ => Err(ProxyBodyError::UnsupportedContentType),
-        }
-    }
-
-    /// Stable, bounded body format for structured logs and metric dimensions.
-    pub fn as_metric_str(&self) -> &'static str {
-        match self {
-            Self::Json(_) => "json",
-            Self::Xml(_) => "xml",
         }
     }
 
@@ -112,6 +97,7 @@ impl ProxyBody {
 /// Type-state builder that turns a [`ProxyBody`] into a connector request:
 /// [`Init`] → [`Validated`] → [`Prepared`]. Validation checks the whole body without vault
 /// data, so an invalid request never reaches the vault.
+#[derive(Debug)]
 pub struct ProxyBodyBuilder<'a, S> {
     body: &'a ProxyBody,
     state: S,
@@ -131,15 +117,6 @@ pub struct Validated<'a> {
 #[derive(Debug)]
 pub struct Prepared(Request);
 
-impl<S: std::fmt::Debug> std::fmt::Debug for ProxyBodyBuilder<'_, S> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProxyBodyBuilder")
-            .field("format", &self.body.as_metric_str())
-            .field("state", &self.state)
-            .finish()
-    }
-}
-
 impl<'a> ProxyBodyBuilder<'a, Init> {
     /// Check the body without vault data: its structure and placeholder syntax.
     pub fn validate(
@@ -155,9 +132,9 @@ impl<'a> ProxyBodyBuilder<'a, Init> {
 }
 
 impl<'a> ProxyBodyBuilder<'a, Validated<'a>> {
-    /// Resolve placeholders from vault data and build the connector request. The declared
-    /// Content-Type, or the format's default, replaces any caller framing headers, which
-    /// interpolation invalidates by changing the body length.
+    /// Resolve placeholders from vault data and build the connector request. The caller's
+    /// Content-Type, Content-Length and Transfer-Encoding headers are dropped, as interpolation
+    /// changes the body length; the declared Content-Type, or the body's default, is set again.
     pub fn build(
         self,
         vault: &Value,

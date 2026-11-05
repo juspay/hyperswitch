@@ -30,7 +30,7 @@ impl Headers {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
     /// The request body that needs to be forwarded: JSON, or an XML document as a string with
-    /// an XML Content-Type. Other Content-Types are rejected.
+    /// an XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body.
     pub request_body: Value,
     /// The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.
     /// IP literals must be publicly routable.
@@ -60,18 +60,24 @@ pub enum TokenType {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyResponse {
-    /// The response received from the destination: JSON when the body is JSON, otherwise
-    /// its UTF-8 text, otherwise `null`
-    pub response: Value,
-    /// The exact response body bytes, base64-encoded. Prefer this to `response`, which
-    /// cannot carry bytes that are neither JSON nor UTF-8 text.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub response_body_base64: Option<String>,
+    /// The response received from the destination
+    pub response: ProxyResponseBody,
     /// The status code of the response
     pub status_code: u16,
     /// The headers of the response
     #[schema(value_type = Object, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub response_headers: Headers,
+}
+
+/// The destination's response body: JSON when it parses as JSON, otherwise its text, such
+/// as an XML document.
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum ProxyResponseBody {
+    /// A JSON body
+    Json(Value),
+    /// Any other body, as text
+    Text(String),
 }
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}

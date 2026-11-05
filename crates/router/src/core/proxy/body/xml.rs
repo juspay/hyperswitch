@@ -7,17 +7,13 @@ use quick_xml::{
     events::{BytesCData, BytesStart, BytesText, Event},
     Reader, Writer,
 };
+use roxmltree::{Document, ParsingOptions};
 use serde_json::Value;
 
 use super::{
     placeholder::{has_reference, substitute, validate_placeholders},
     ProxyBodyError,
 };
-
-/// Whether an element or attribute name contains a placeholder marker.
-fn has_marker(name: &[u8]) -> bool {
-    name.windows(2).any(|pair| pair == b"{{")
-}
 
 /// Characters allowed in an XML 1.0 document.
 fn valid_chars(value: &str) -> bool {
@@ -34,46 +30,45 @@ fn as_text(bytes: &[u8]) -> Result<&str, ProxyBodyError> {
     std::str::from_utf8(bytes).map_err(|_| ProxyBodyError::InvalidXml)
 }
 
-/// Check the document structure, placeholder syntax and placeholder positions.
+/// Check that the template is well-formed UTF-8 XML whose placeholders are valid and sit in
+/// text or attribute values only. Being well-formed keeps them out of element and attribute
+/// names, as `{` is not allowed in a name.
 pub(super) fn validate(template: &str) -> Result<(), ProxyBodyError> {
     let invalid = || Err(ProxyBodyError::InvalidXml);
-    when(!valid_chars(template), invalid)?;
     validate_placeholders(template)?;
-    let mut reader = Reader::from_str(template);
-    let (mut depth, mut roots) = (0_usize, 0_usize);
-    loop {
-        let event = reader
-            .read_event()
-            .map_err(|_| ProxyBodyError::InvalidXml)?;
-        let misplaced = match &event {
-            Event::Eof => break,
-            Event::Start(element) | Event::Empty(element) => {
-                roots += usize::from(depth == 0);
-                depth += usize::from(matches!(event, Event::Start(_)));
-                has_marker(element.name().as_ref())
-                    || element
-                        .attributes()
-                        .any(|attr| attr.map_or(true, |attr| has_marker(attr.key.as_ref())))
-            }
-            Event::End(_) => {
-                depth = depth.checked_sub(1).ok_or(ProxyBodyError::InvalidXml)?;
-                false
-            }
-            Event::Text(text) => depth == 0 && !text.iter().all(u8::is_ascii_whitespace),
-            Event::CData(_) => depth == 0,
-            Event::Decl(declaration) => {
-                has_reference(as_text(declaration)?)?
-                    || declaration.encoding().is_some_and(|encoding| {
-                        encoding.map_or(true, |encoding| !is_utf8_label(&encoding))
-                    })
-            }
-            // Token references in comments, DTDs and processing instructions are not card
-            // data positions.
-            other => has_reference(as_text(other)?)?,
-        };
-        when(misplaced, invalid)?;
+    let options = ParsingOptions {
+        allow_dtd: true,
+        nodes_limit: 10_000,
+    };
+    let document =
+        Document::parse_with_options(template, options).map_err(|_| ProxyBodyError::InvalidXml)?;
+    // Token references in the declaration and DTD (before the root element), comments and
+    // processing instructions are not card data positions.
+    let prolog = template
+        .get(..document.root_element().range().start)
+        .unwrap_or_default();
+    let comments = document.descendants().filter_map(|node| {
+        if node.is_comment() {
+            node.text()
+        } else {
+            node.pi().and_then(|pi| pi.value)
+        }
+    });
+    std::iter::once(prolog)
+        .chain(comments)
+        .try_for_each(|text| when(has_reference(text)?, invalid))?;
+    when(!declares_utf8(template), invalid)
+}
+
+/// Whether the XML declaration, if any, names UTF-8, the encoding the template is sent in.
+/// `roxmltree` does not check the declared encoding.
+fn declares_utf8(template: &str) -> bool {
+    match Reader::from_str(template).read_event() {
+        Ok(Event::Decl(declaration)) => declaration
+            .encoding()
+            .is_none_or(|encoding| encoding.is_ok_and(|encoding| is_utf8_label(&encoding))),
+        _ => true,
     }
-    when(roots != 1 || depth != 0, invalid)
 }
 
 /// Replace placeholders with escaped vault values. The template has passed [`validate`],

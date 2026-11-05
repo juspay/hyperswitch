@@ -163,9 +163,9 @@ impl ProxyRequestWrapper {
             .collect()
     }
 
-    /// The connector Content-Type, parsed once for the whole proxy flow. Header names
-    /// are case-insensitive; an invalid Content-Type, or conflicting duplicates, are rejected
-    /// instead of selecting a nondeterministic HashMap entry.
+    /// The connector Content-Type, parsed once for the whole proxy flow. Header names are
+    /// case-insensitive. An invalid Content-Type is rejected, and so are conflicting
+    /// duplicates, instead of picking one of them from the HashMap.
     pub fn get_content_type(
         &self,
     ) -> RouterResult<Option<common_utils::request::ConnectorContentType<'_>>> {

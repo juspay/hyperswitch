@@ -2,7 +2,6 @@ pub mod models {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use base64::{engine::general_purpose::STANDARD, Engine};
     use common_utils::{pii::SecretSerdeValue, request::ConnectorContentType};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
@@ -255,17 +254,16 @@ pub mod models {
         pub response: Value,
     }
 
-    /// The SaaS vault proxy reply (`api_models::proxy::ProxyResponse`) that wraps the
-    /// connector response.
+    /// The Hyperswitch vault proxy reply (`api_models::proxy::ProxyResponse`), which wraps
+    /// the connector response.
     #[derive(Deserialize)]
     struct VaultProxyEnvelope {
         status_code: u16,
         response: Value,
-        response_body_base64: Option<String>,
         response_headers: Option<HashMap<String, String>>,
     }
 
-    /// Actual connector response reconstructed from a direct or SaaS proxy reply.
+    /// The connector response, taken from a direct connector reply or a vault proxy reply.
     pub struct InjectorConnectorResponse {
         pub status_code: u16,
         pub headers: Option<Vec<(String, String)>>,
@@ -273,8 +271,8 @@ pub mod models {
     }
 
     impl InjectorResponse {
-        /// The SaaS reply wrapping the connector response. A non-2xx outer status means the
-        /// proxy call itself failed; the wrapped status must be a valid HTTP status.
+        /// The vault proxy reply wrapping the connector response. A non-2xx outer status means
+        /// the proxy call itself failed; the wrapped status must be a valid HTTP status.
         fn vault_proxy_envelope(&self) -> Result<VaultProxyEnvelope, InjectorError> {
             if (200..=299).contains(&self.status_code) {
                 VaultProxyEnvelope::deserialize(&self.response)
@@ -295,20 +293,19 @@ pub mod models {
             self,
             wrapped: bool,
         ) -> Result<InjectorConnectorResponse, InjectorError> {
-            let (status_code, headers, encoded, fallback) = if wrapped {
+            let (status_code, headers, response) = if wrapped {
                 let envelope = self.vault_proxy_envelope()?;
                 (
                     envelope.status_code,
                     envelope.response_headers,
-                    envelope.response_body_base64,
                     envelope.response,
                 )
             } else {
-                (self.status_code, self.headers, None, self.response)
+                (self.status_code, self.headers, self.response)
             };
             let headers: Option<Vec<(String, String)>> =
                 headers.map(|headers| headers.into_iter().collect());
-            let fallback_is_json = headers
+            let is_json = headers
                 .as_ref()
                 .and_then(|headers| {
                     headers
@@ -324,16 +321,12 @@ pub mod models {
                     )
                 })
                 .unwrap_or(wrapped);
-            let body = match encoded {
-                Some(encoded) => STANDARD.decode(encoded).map_err(|_| {
-                    InjectorError::InvalidTemplate("Invalid base64 connector response".into())
+            // A text body (such as XML) is kept as is; a JSON body is serialized back to bytes.
+            let body = match response {
+                Value::String(text) if !is_json => text.into_bytes(),
+                value => serde_json::to_vec(&value).map_err(|_| {
+                    InjectorError::InvalidTemplate("Invalid connector response".into())
                 })?,
-                None => match fallback {
-                    Value::String(text) if !fallback_is_json => text.into_bytes(),
-                    value => serde_json::to_vec(&value).map_err(|_| {
-                        InjectorError::InvalidTemplate("Invalid connector response".into())
-                    })?,
-                },
             };
             Ok(InjectorConnectorResponse {
                 status_code,
@@ -468,7 +461,7 @@ pub mod models {
             self.endpoint.host_str().unwrap_or("unknown").to_string()
         }
 
-        /// HyperswitchVault transformation sends the template to the SaaS vault proxy,
+        /// HyperswitchVault transformation sends the template to the Hyperswitch vault proxy,
         /// whose reply wraps the connector response in a JSON envelope.
         pub fn uses_hyperswitch_vault_proxy(&self) -> bool {
             matches!(
