@@ -247,6 +247,9 @@ pub async fn register_connector_webhook(
         let state = &state;
         let connector_data = &connector_data;
         let mca = &mca;
+        let response_metadata = connector_data
+            .connector
+            .get_webhook_registration_metadata(&identifier, &base_url);
 
         async move {
             router_env::logger::info!(
@@ -316,6 +319,7 @@ pub async fn register_connector_webhook(
                                     message: err.message,
                                 },
                             ),
+                            metadata: response_metadata.clone(),
                         },
                         None,
                         None,
@@ -353,6 +357,7 @@ pub async fn register_connector_webhook(
                                     message: err.to_string(),
                                 },
                             ),
+                            metadata: response_metadata.clone(),
                         },
                         None,
                         None,
@@ -367,6 +372,7 @@ pub async fn register_connector_webhook(
                         status: success.status,
                         connector_webhook_id: success.connector_webhook_id,
                         error: None,
+                        metadata: success.response_metadata.or(response_metadata.clone()),
                     };
                     (result, success.metadata)
                 }
@@ -379,6 +385,7 @@ pub async fn register_connector_webhook(
                             code: err.code,
                             message: err.message,
                         }),
+                        metadata: response_metadata,
                     },
                     None,
                 ),

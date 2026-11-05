@@ -12,6 +12,7 @@ use common_utils::{
 };
 use crc::{Algorithm, Crc};
 use error_stack::ResultExt;
+use http::HeaderMap;
 use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -84,7 +85,8 @@ use crate::{
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
-        self as connector_utils, PaymentsAuthorizeRequestData, QrImage, RouterData as RouterDataExt,
+        self as connector_utils, ForeignTryFrom, PaymentsAuthorizeRequestData, QrImage,
+        RouterData as RouterDataExt,
     },
 };
 
@@ -3336,6 +3338,36 @@ fn santander_composite_webhook_id(
     format!("santander_{}_{}", pmt_slug, connector_webhook_id)
 }
 
+#[derive(Debug, Serialize)]
+pub(crate) struct SantanderWebhookResponseMetadata {
+    webhook_type: SantanderWebhookType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum SantanderWebhookType {
+    Boleto,
+    PixAutomaticoCit,
+    PixAutomaticoMit,
+    PixQrOneOff,
+}
+
+pub(crate) fn santander_webhook_response_metadata(
+    base_url: &str,
+) -> SantanderWebhookResponseMetadata {
+    let webhook_type = if base_url.contains("workspaces") {
+        SantanderWebhookType::Boleto
+    } else if base_url.contains("webhookrec") {
+        SantanderWebhookType::PixAutomaticoCit
+    } else if base_url.contains("webhookcobr") {
+        SantanderWebhookType::PixAutomaticoMit
+    } else {
+        SantanderWebhookType::PixQrOneOff
+    };
+
+    SantanderWebhookResponseMetadata { webhook_type }
+}
+
 impl
     TryFrom<
         ResponseRouterData<
@@ -3365,6 +3397,12 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                response_metadata: Some(
+                    serde_json::to_value(santander_webhook_response_metadata(
+                        item.data.request.base_url.as_str(),
+                    ))
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+                ),
                 metadata: None,
             }),
             ..item.data
@@ -3412,6 +3450,12 @@ impl
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                response_metadata: Some(
+                    serde_json::to_value(santander_webhook_response_metadata(
+                        item.data.request.base_url.as_str(),
+                    ))
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+                ),
                 metadata,
             }),
             ..item.data
@@ -3420,34 +3464,58 @@ impl
 }
 
 impl
-    TryFrom<
+    ForeignTryFrom<(
         ResponseRouterData<
             ConnectorWebhookRegister,
             SantanderEmptyResponse,
             ConnectorWebhookRegisterRequest,
             ConnectorWebhookRegisterResponse,
         >,
-    > for ConnectorWebhookRegisterRouterData
+        Option<HeaderMap>,
+    )> for ConnectorWebhookRegisterRouterData
 {
     type Error = Error;
-    fn try_from(
-        item: ResponseRouterData<
-            ConnectorWebhookRegister,
-            SantanderEmptyResponse,
-            ConnectorWebhookRegisterRequest,
-            ConnectorWebhookRegisterResponse,
-        >,
+    fn foreign_try_from(
+        (item, headers): (
+            ResponseRouterData<
+                ConnectorWebhookRegister,
+                SantanderEmptyResponse,
+                ConnectorWebhookRegisterRequest,
+                ConnectorWebhookRegisterResponse,
+            >,
+            Option<HeaderMap>,
+        ),
     ) -> Result<Self, Self::Error> {
+        // webhookrec/webhookcobr return an empty body, so the registration id
+        // is derived from the `x-amzn-RequestId` response header.
+        let headers = headers
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)
+            .attach_printable(
+                "Missing response headers in webhookrec/webhookcobr registration response",
+            )?;
+        let x_amzn_request_id = connector_utils::get_http_header("x-amzn-RequestId", &headers)
+            .attach_printable(
+                "Missing x-amzn-RequestId header in webhookrec/webhookcobr registration response",
+            )
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?
+            .to_string();
+
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(santander_composite_webhook_id(
                     item.data.payment_method_type,
-                    &common_utils::generate_uuid_v4().to_string(),
+                    &x_amzn_request_id,
                 )),
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
+                response_metadata: Some(
+                    serde_json::to_value(santander_webhook_response_metadata(
+                        item.data.request.base_url.as_str(),
+                    ))
+                    .change_context(errors::ConnectorError::ParsingFailed)?,
+                ),
                 metadata: None,
             }),
             ..item.data
