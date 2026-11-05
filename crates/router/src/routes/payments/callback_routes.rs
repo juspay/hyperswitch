@@ -7,10 +7,10 @@
 #[cfg(feature = "v1")]
 use actix_web::{web, Resource};
 
-#[cfg(feature = "v1")]
-use super as payments;
 use super::callback_tokens::{PaymentCallbackFields, PaymentCallbackUrl};
 use crate::configs::settings::PaymentCallbackMode;
+#[cfg(feature = "v1")]
+use crate::routes::payments;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, strum::EnumIter)]
 pub enum PaymentCallbackRoute {
