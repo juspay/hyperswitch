@@ -12,8 +12,8 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
         payments::{
-            self, gateway::context::RouterGatewayContext, helpers,
-            transformers::ConnectorCallbackUrls,
+            self, callback_urls::ConnectorCallbackUrls, gateway::context::RouterGatewayContext,
+            helpers,
         },
         utils::get_gateway_frm_metadata,
     },

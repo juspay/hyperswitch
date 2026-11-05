@@ -1,5 +1,6 @@
 use hyperswitch_domain_models::mandates;
 pub mod access_token;
+pub mod callback_urls;
 pub mod conditional_configs;
 pub mod customers;
 #[cfg(feature = "olap")]
@@ -14459,7 +14460,7 @@ pub async fn payment_start_redirection(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing authentication_data in payment_attempt")?;
 
-    let mut sdk_callback_urls = transformers::SdkCallbackUrls::default();
+    let mut sdk_callback_urls = callback_urls::SdkCallbackUrls::default();
     let connector_name = payment_attempt
         .connector
         .as_deref()

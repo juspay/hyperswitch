@@ -10,7 +10,9 @@ mod sdk_callback_url_tests {
     use router::{
         core::{
             configs::payment_callback::PaymentCallbackMode,
-            payments::transformers::{next_action_invoke_ddc_iframe, SdkCallbackUrls},
+            payments::{
+                callback_urls::SdkCallbackUrls, transformers::next_action_invoke_ddc_iframe,
+            },
         },
         routes::payments::callback_routes::{
             ConnectorCallbackPath, PaymentCallbackRoute, StartCallbackPath,
@@ -352,7 +354,7 @@ mod connector_callback_url_tests {
     use router::{
         core::{
             configs::payment_callback::PaymentCallbackMode,
-            payments::transformers::ConnectorCallbackUrls,
+            payments::callback_urls::ConnectorCallbackUrls,
         },
         routes::payments::callback_tokens::PaymentCallbackUrl,
     };

@@ -23,9 +23,9 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway, gateway as payments_gateway,
-            gateway::context as gateway_context, helpers, transformers,
-            transformers::ConnectorCallbackUrls, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, gateway,
+            gateway as payments_gateway, gateway::context as gateway_context, helpers,
+            transformers, PaymentData,
         },
         unified_connector_service as ucs_core,
     },

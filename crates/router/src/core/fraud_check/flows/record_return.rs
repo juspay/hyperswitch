@@ -8,7 +8,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::{FeatureFrm, FraudCheckConnectorData, FrmData},
         payments::{
-            self, flows::ConstructFlowSpecificData, helpers, transformers::ConnectorCallbackUrls,
+            self, callback_urls::ConnectorCallbackUrls, flows::ConstructFlowSpecificData, helpers,
         },
     },
     errors, services,

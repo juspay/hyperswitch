@@ -18,9 +18,9 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, customers, gateway, gateway::context as gateway_context, helpers,
-            session_token, tokenization, transformers, transformers::ConnectorCallbackUrls,
-            PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, customers, gateway,
+            gateway::context as gateway_context, helpers, session_token, tokenization,
+            transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },

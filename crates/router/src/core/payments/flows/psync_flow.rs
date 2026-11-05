@@ -10,8 +10,8 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway, helpers, transformers,
-            transformers::ConnectorCallbackUrls, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, gateway, helpers,
+            transformers, PaymentData,
         },
     },
     routes::SessionState,

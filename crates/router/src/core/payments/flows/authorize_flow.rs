@@ -40,9 +40,9 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, gateway,
-            gateway as payments_gateway, helpers, session_token, tokenization, transformers,
-            transformers::ConnectorCallbackUrls, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, customers,
+            flows::gateway_context, gateway, gateway as payments_gateway, helpers, session_token,
+            tokenization, transformers, PaymentData,
         },
         unified_connector_service,
     },

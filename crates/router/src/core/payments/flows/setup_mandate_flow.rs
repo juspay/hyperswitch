@@ -21,9 +21,9 @@ use crate::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, gateway, gateway as payments_gateway,
-            gateway::context as gateway_context, helpers, session_token, tokenization,
-            transformers, transformers::ConnectorCallbackUrls, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, customers, gateway,
+            gateway as payments_gateway, gateway::context as gateway_context, helpers,
+            session_token, tokenization, transformers, PaymentData,
         },
     },
     routes::SessionState,

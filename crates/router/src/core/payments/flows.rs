@@ -32,7 +32,7 @@ use hyperswitch_domain_models::{
 };
 use payment_methods::single_use_token;
 
-use super::transformers::ConnectorCallbackUrls;
+use super::callback_urls::ConnectorCallbackUrls;
 use crate::{
     core::{
         errors::{ApiErrorResponse, RouterResult},

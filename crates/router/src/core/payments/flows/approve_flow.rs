@@ -5,8 +5,8 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
         payments::{
-            self, access_token, flows::gateway_context, helpers, transformers,
-            transformers::ConnectorCallbackUrls, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, flows::gateway_context,
+            helpers, transformers, PaymentData,
         },
     },
     routes::SessionState,

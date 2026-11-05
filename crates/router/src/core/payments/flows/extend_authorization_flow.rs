@@ -5,7 +5,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, helpers, transformers, transformers::ConnectorCallbackUrls,
+            self, access_token, callback_urls::ConnectorCallbackUrls, helpers, transformers,
             PaymentData,
         },
     },
