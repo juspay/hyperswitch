@@ -350,13 +350,18 @@ mod sdk_callback_url_tests {
 
 mod connector_callback_url_tests {
     use common_utils::id_type::PaymentId;
+    use hyperswitch_domain_models::router_response_types::RedirectCallback;
+    use hyperswitch_interfaces::api::ConnectorRedirectResponse;
     use hyperswitch_masking::PeekInterface;
     use router::{
         core::{
             configs::payment_callback::PaymentCallbackMode,
             payments::callback_urls::ConnectorCallbackUrls,
         },
-        routes::payments::callback_tokens::PaymentCallbackUrl,
+        routes::payments::{
+            callback_routes::ConnectorCallbackPath, callback_tokens::PaymentCallbackUrl,
+        },
+        types::api::ConnectorData,
     };
 
     #[test]
@@ -371,35 +376,47 @@ mod connector_callback_url_tests {
         ] {
             for creds in [None, Some("creds_1")] {
                 for (connector, action) in [("hipay", "response"), ("paybox", "complete")] {
+                    let selected_callback = ConnectorData::convert_connector(connector)
+                        .expect("connector")
+                        .get_notification_callback();
+                    let expected_callback = if action == "response" {
+                        RedirectCallback::Response
+                    } else {
+                        RedirectCallback::Complete
+                    };
+                    assert_eq!(selected_callback, Some(expected_callback));
+                    let path = ConnectorCallbackPath {
+                        payment_id: payment_id.clone(),
+                        merchant_id: merchant_id.clone(),
+                        connector: connector.to_string(),
+                    };
                     let mut callbacks = ConnectorCallbackUrls::default();
                     let notification = callbacks
                         .notification_url(
+                            selected_callback,
                             "https://router.test",
                             mode,
-                            &payment_id,
-                            &merchant_id,
-                            connector,
+                            &path,
                             creds,
                         )
                         .expect("notification callback");
-                    let browser = if connector == "hipay" {
-                        callbacks.redirect_response_url(
+                    let browser = match expected_callback {
+                        RedirectCallback::Response => callbacks.redirect_response_url(
                             "https://router.test",
                             mode,
                             &payment_id,
                             &merchant_id,
                             connector,
                             creds,
-                        )
-                    } else {
-                        callbacks.redirect_complete_url(
+                        ),
+                        RedirectCallback::Complete => callbacks.redirect_complete_url(
                             "https://router.test",
                             mode,
                             &payment_id,
                             &merchant_id,
                             connector,
                             creds,
-                        )
+                        ),
                     }
                     .clone();
                     let creds_path = creds.map(|value| format!("/{value}")).unwrap_or_default();
@@ -428,17 +445,74 @@ mod connector_callback_url_tests {
                     );
                     assert_eq!(
                         callbacks.notification_url(
+                            selected_callback,
                             "https://router.test",
                             mode,
-                            &payment_id,
-                            &merchant_id,
-                            connector,
+                            &path,
                             creds,
                         ),
                         Some(notification)
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn connectors_without_notifications_do_not_allocate_callback_urls() {
+        for connector in ["stripe", "recurly"] {
+            let selected_callback = ConnectorData::convert_connector(connector)
+                .expect("connector")
+                .get_notification_callback();
+            assert_eq!(selected_callback, None);
+            let mut callbacks = ConnectorCallbackUrls::default();
+            assert!(callbacks
+                .notification_url(
+                    selected_callback,
+                    "https://router.test",
+                    PaymentCallbackMode::Enforced,
+                    &ConnectorCallbackPath {
+                        payment_id: PaymentId::wrap("pay_1".to_string()).expect("payment ID"),
+                        merchant_id: common_utils::id_type::MerchantId::wrap(
+                            "merchant_1".to_string()
+                        )
+                        .expect("merchant ID"),
+                        connector: connector.to_string(),
+                    },
+                    None,
+                )
+                .is_none());
+            assert!(callbacks.notification.is_none());
+            assert!(callbacks.redirect_response.is_none());
+            assert!(callbacks.redirect_complete.is_none());
+        }
+    }
+
+    #[test]
+    fn notification_endpoint_selection_does_not_depend_on_connector_name() {
+        let path = ConnectorCallbackPath {
+            payment_id: PaymentId::wrap("pay_1".to_string()).expect("payment ID"),
+            merchant_id: common_utils::id_type::MerchantId::wrap("merchant_1".to_string())
+                .expect("merchant ID"),
+            connector: "custom_processor".to_string(),
+        };
+        for (callback, action) in [
+            (RedirectCallback::Response, "response"),
+            (RedirectCallback::Complete, "complete"),
+        ] {
+            let mut callbacks = ConnectorCallbackUrls::default();
+            let url = callbacks
+                .notification_url(
+                    Some(callback),
+                    "https://router.test",
+                    PaymentCallbackMode::Enforced,
+                    &path,
+                    None,
+                )
+                .expect("notification callback");
+            assert!(url.peek().starts_with(&format!(
+                "https://router.test/payments/pay_1/merchant_1/redirect/{action}/custom_processor/callback/"
+            )));
         }
     }
 

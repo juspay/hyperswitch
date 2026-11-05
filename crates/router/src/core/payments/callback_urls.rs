@@ -208,57 +208,45 @@ impl ConnectorCallbackUrls {
     /// Notifications must not consume the token used by the customer's browser.
     pub fn notification_url(
         &mut self,
+        callback: Option<RedirectCallback>,
         base_url: &str,
         callback_mode: PaymentCallbackMode,
-        payment_id: &CallbackPaymentId,
-        merchant_id: &common_utils::id_type::MerchantId,
-        connector: &str,
+        path: &ConnectorCallbackPath,
         creds_identifier: Option<&str>,
     ) -> Option<Secret<String>> {
-        let (route, route_with_credentials): (
-            fn(&str, PaymentCallbackMode, &ConnectorCallbackPath) -> PaymentCallbackUrl,
-            fn(
-                &str,
-                PaymentCallbackMode,
-                &ConnectorCallbackWithCredentialsPath,
-            ) -> PaymentCallbackUrl,
-        ) = match connector {
-            "hipay" => (
-                PaymentCallbackRoute::redirect_response_url,
-                PaymentCallbackRoute::redirect_response_with_credentials_url,
-            ),
-            "paybox" => (
-                PaymentCallbackRoute::redirect_complete_url,
-                PaymentCallbackRoute::redirect_complete_with_credentials_url,
-            ),
-            _ => return None,
-        };
-        Some(
-            self.notification
-                .get_or_insert_with(|| match creds_identifier {
-                    Some(creds) => route_with_credentials(
+        let callback = callback?;
+        let notification = self.notification.get_or_insert_with(|| {
+            let credentials_path =
+                creds_identifier.map(|creds| ConnectorCallbackWithCredentialsPath {
+                    payment_id: path.payment_id.clone(),
+                    merchant_id: path.merchant_id.clone(),
+                    connector: path.connector.clone(),
+                    creds_identifier: creds.to_string(),
+                });
+            match (callback, credentials_path.as_ref()) {
+                (RedirectCallback::Response, None) => {
+                    PaymentCallbackRoute::redirect_response_url(base_url, callback_mode, path)
+                }
+                (RedirectCallback::Complete, None) => {
+                    PaymentCallbackRoute::redirect_complete_url(base_url, callback_mode, path)
+                }
+                (RedirectCallback::Response, Some(path)) => {
+                    PaymentCallbackRoute::redirect_response_with_credentials_url(
                         base_url,
                         callback_mode,
-                        &ConnectorCallbackWithCredentialsPath {
-                            payment_id: payment_id.clone(),
-                            merchant_id: merchant_id.clone(),
-                            connector: connector.to_string(),
-                            creds_identifier: creds.to_string(),
-                        },
-                    ),
-                    None => route(
+                        path,
+                    )
+                }
+                (RedirectCallback::Complete, Some(path)) => {
+                    PaymentCallbackRoute::redirect_complete_with_credentials_url(
                         base_url,
                         callback_mode,
-                        &ConnectorCallbackPath {
-                            payment_id: payment_id.clone(),
-                            merchant_id: merchant_id.clone(),
-                            connector: connector.to_string(),
-                        },
-                    ),
-                })
-                .url()
-                .clone(),
-        )
+                        path,
+                    )
+                }
+            }
+        });
+        Some(notification.url().clone())
     }
 
     pub fn redirect_response_url(

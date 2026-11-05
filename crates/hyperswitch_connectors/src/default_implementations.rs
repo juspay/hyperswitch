@@ -2801,7 +2801,6 @@ default_imp_for_connector_redirect_response!(
     connectors::Gocardless,
     connectors::GotymeSanlam,
     connectors::Gpayments,
-    connectors::Hipay,
     connectors::Hyperpg,
     connectors::Helcim,
     connectors::HyperswitchVault,

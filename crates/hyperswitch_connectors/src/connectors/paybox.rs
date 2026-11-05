@@ -680,6 +680,10 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
     }
 }
 impl ConnectorRedirectResponse for Paybox {
+    fn get_notification_callback(&self) -> Option<RedirectCallback> {
+        Some(RedirectCallback::Complete)
+    }
+
     fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
         None
     }

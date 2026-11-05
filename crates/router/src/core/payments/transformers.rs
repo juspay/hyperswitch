@@ -52,10 +52,11 @@ use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types, RouterDataV2},
     ApiModelToDieselModelConvertor,
 };
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::api::ConnectorCommon;
+use hyperswitch_interfaces::api::ConnectorRedirectResponse;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-#[cfg(feature = "v1")]
-use hyperswitch_interfaces::api::{ConnectorCommon, ConnectorRedirectResponse};
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
 #[cfg(feature = "v2")]
@@ -484,11 +485,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         router_notification_url: connector_callback_urls.notification_url(
+            api::ConnectorData::convert_connector(connector_id)?.get_notification_callback(),
             router_base_url,
             state.payment_callback_config().await?.mode,
-            &attempt.payment_id,
-            &attempt.processor_merchant_id,
-            connector_id,
+            &ConnectorCallbackPath {
+                payment_id: attempt.payment_id.clone(),
+                merchant_id: attempt.processor_merchant_id.clone(),
+                connector: connector_id.to_string(),
+            },
             None,
         ),
         payment_method_data: payment_data
@@ -5671,11 +5675,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         Ok(Self {
             router_notification_url: additional_data.connector_callback_urls.notification_url(
+                api::ConnectorData::convert_connector(connector_name)?.get_notification_callback(),
                 router_base_url,
                 additional_data.callback_mode,
-                &attempt.payment_id,
-                &attempt.processor_merchant_id,
-                connector_name,
+                &ConnectorCallbackPath {
+                    payment_id: attempt.payment_id.clone(),
+                    merchant_id: attempt.processor_merchant_id.clone(),
+                    connector: connector_name.clone(),
+                },
                 payment_data.creds_identifier.as_deref(),
             ),
             payment_method_data: payment_method_data
@@ -5986,11 +5993,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         Ok(Self {
             router_notification_url: additional_data.connector_callback_urls.notification_url(
+                api::ConnectorData::convert_connector(connector_name)?.get_notification_callback(),
                 router_base_url,
                 additional_data.callback_mode,
-                &attempt.payment_id,
-                &attempt.processor_merchant_id,
-                connector_name,
+                &ConnectorCallbackPath {
+                    payment_id: attempt.payment_id.clone(),
+                    merchant_id: attempt.processor_merchant_id.clone(),
+                    connector: connector_name.clone(),
+                },
                 payment_data.creds_identifier.as_deref(),
             ),
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),

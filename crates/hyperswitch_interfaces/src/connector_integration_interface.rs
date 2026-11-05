@@ -491,6 +491,13 @@ impl IncomingWebhook for ConnectorEnum {
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {
+    fn get_notification_callback(&self) -> Option<RedirectCallback> {
+        match self {
+            Self::Old(connector) => connector.get_notification_callback(),
+            Self::New(connector) => connector.get_notification_callback(),
+        }
+    }
+
     fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
         match self {
             Self::Old(connector) => connector.get_redirect_callback(form),

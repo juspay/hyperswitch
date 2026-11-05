@@ -1052,6 +1052,11 @@ pub trait ConnectorRedirectResponse {
     /// Callback endpoint required by this connector's browser redirect form.
     fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback>;
 
+    /// Callback endpoint for connector notifications, separate from browser callbacks.
+    fn get_notification_callback(&self) -> Option<RedirectCallback> {
+        None
+    }
+
     /// fn get_flow_type
     fn get_flow_type(
         &self,
