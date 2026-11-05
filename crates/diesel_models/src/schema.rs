@@ -1378,6 +1378,7 @@ diesel::table! {
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
+        enable_account_name_verification -> Nullable<Bool>,
     }
 }
 
@@ -1709,6 +1710,8 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         feature_metadata -> Nullable<Jsonb>,
+        refund_surcharge_amount -> Nullable<Int8>,
+        net_refund_amount -> Nullable<Int8>,
     }
 }
 

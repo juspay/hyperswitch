@@ -23,6 +23,7 @@ use hyperswitch_interfaces::{
     unified_connector_service::transformers as ucs_transformers,
 };
 use hyperswitch_masking::ExposeInterface;
+use payment_methods::single_use_token;
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -215,6 +216,10 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::Authorize)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
@@ -1712,12 +1717,12 @@ pub async fn call_unified_connector_service_pre_authenticate(
         headers_builder,
         rollout_settings,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
-            let response = client
+            let response = Box::pin(client
                 .payment_pre_authenticate(
                     payment_pre_authenticate_request,
                     connector_auth_metadata,
                     grpc_headers,
-                )
+                ))
                 .await
                 .attach_printable("Failed to pre authenticate payment")?;
 
