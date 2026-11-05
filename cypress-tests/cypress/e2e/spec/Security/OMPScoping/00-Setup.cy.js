@@ -400,6 +400,232 @@ describe("OMP Scoping - shared fixtures", () => {
           "will list disputes per profile at runtime and skip cases if none exist."
       );
     });
+
+    it("creates CUSTOMER_M1 under M1", () => {
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+      });
+
+      // createCustomerCallTest sets globalState "customerId" - independent
+      // of the payout block's own customer (that one is gated on
+      // payoutsExecution and may not run), so this gets its own customer
+      // regardless of payout connector availability.
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+
+      cy.then(() => {
+        globalState.set("customerIdM1", globalState.get("customerId"));
+      });
+    });
+
+    it("creates PAYMENT_METHOD_M1 attached to CUSTOMER_M1", () => {
+      cy.then(() => {
+        globalState.set("customerId", globalState.get("customerIdM1"));
+      });
+
+      cy.createPaymentMethodTest(globalState, {
+        Request: {
+          payment_method: "card",
+          payment_method_type: "credit",
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "2030",
+            card_holder_name: "John Doe",
+            card_cvc: "100",
+          },
+        },
+        Response: { status: 200, body: {} },
+      });
+
+      cy.then(() => {
+        globalState.set(
+          "paymentMethodIdM1",
+          globalState.get("paymentMethodId")
+        );
+      });
+    });
+
+    it("creates a captured CIT payment under PA (also yields MANDATE_PA)", () => {
+      // Reuses the existing citForMandatesCallTest infrastructure
+      // (cypress/support/commands.js, same command the Mandate spec uses)
+      // rather than hand-building confirm/capture logic - this is the only
+      // way to get an actually-captured payment (for Refund) and a real
+      // mandate_id (for Mandate) without re-deriving per-connector card
+      // behavior from scratch. Needs globalState "merchantConnectorId"
+      // (the default key citForMandatesCallTest's profile/connector
+      // resolution reads), distinct from our own "mcaPaId" naming.
+      // Depends on the configured connector having a
+      // MandateSingleUseNo3DSAutoCapture fixture in configs/Payment/ - if
+      // it doesn't, this step (and anything downstream that needs
+      // capturedPaymentIdPA/mandateIdPA) needs live verification.
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("profileId", globalState.get("profileIdPA"));
+        globalState.set("merchantConnectorId", globalState.get("mcaPaId"));
+      });
+
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateSingleUseNo3DSAutoCapture"];
+
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("capturedPaymentIdPA", globalState.get("paymentID"));
+        globalState.set("mandateIdPA", globalState.get("mandateId"));
+      });
+    });
+
+    it("creates REFUND_PA against the captured CIT payment", () => {
+      // refundCallTest reads payment_id from globalState "paymentID", still
+      // set to capturedPaymentIdPA from the step above.
+      const refundData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
+
+      cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+
+      cy.then(() => {
+        globalState.set("refundIdPA", globalState.get("refundId"));
+      });
+    });
+
+    it("creates ROUTING_CONFIG_PA under PA and activates it", () => {
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("profileIdPA"));
+      });
+
+      const routing_data = [
+        {
+          connector: globalState.get("connectorId"),
+          merchant_connector_id: globalState.get("mcaPaId"),
+        },
+      ];
+
+      cy.addRoutingConfig(
+        fixtures.routingConfigBody,
+        { Request: {}, Response: { status: 200, body: {} } },
+        "priority",
+        routing_data,
+        globalState
+      );
+
+      cy.activateRoutingConfig(
+        { Request: {}, Response: { status: 200, body: {} } },
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set(
+          "routingConfigIdPA",
+          globalState.get("routingConfigId")
+        );
+      });
+    });
+
+    it("upserts SURCHARGE_CONFIG_M1 for M1", () => {
+      // Reuses the existing createSurchargeDSLConfig command (Routing/00005-
+      // SurchargeDSLConfiguration.cy.js) rather than a bespoke request -
+      // it already knows this route needs JWT auth (reads
+      // globalState.get("userInfoToken") directly, falling back to api-key
+      // only if that's unset) and needs a full algorithm, not just
+      // merchant_surcharge_configs (confirmed live: omitting it returns
+      // IR_04 "Missing required param: algorithm").
+      const surchargeBody = {
+        name: "omp_scoping_surcharge_config",
+        merchant_surcharge_configs: {},
+        algorithm: {
+          defaultSelection: {
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
+          },
+          rules: [],
+          metadata: {},
+        },
+      };
+
+      cy.createSurchargeDSLConfig(
+        surchargeBody,
+        { Response: { body: {} } },
+        globalState
+      );
+    });
+
+    // DROPPED: a NULL profile_id can't actually be produced through the
+    // public API - connector creation always resolves a profile at
+    // creation time, either explicitly via profile_id or via a legacy
+    // business_country/business_label fallback (confirmed: omitting
+    // profile_id returns IR_04 "Missing required param: profile_id or
+    // business_country, business_label"). The nullable-profile_id
+    // fail-closed behavior (validate_profile_id_from_auth_layer) was
+    // already confirmed by reading its source; there's no reachable
+    // precondition to test it against here.
+
+    it("creates PAYMENT_LINK_PA (a payment with payment_link enabled)", () => {
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("profileId", globalState.get("profileIdPA"));
+        globalState.set("customerId", globalState.get("customerIdM1"));
+      });
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        { Request: { currency: "USD" }, Response: { status: 200 } },
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("paymentLinkPaymentId", globalState.get("paymentID"));
+      });
+    });
+
+    it("creates PAYOUT_LINK_PA, if the connector supports payout links", () => {
+      // Payout Link is hard-restricted to the "wise" connector in this
+      // repo's own CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK (configs/Payout/Utils.js)
+      // - our payout connector is forced to "adyenplatform" (see the CIT
+      // payout step above), which doesn't support it. Skip gracefully
+      // rather than force an unsupported connector, matching the existing
+      // Payout/00008-PayoutLinkCreate.cy.js convention.
+      if (globalState.get("connectorId") !== "wise") {
+        cy.task(
+          "cli_log",
+          "Skipping PAYOUT_LINK_PA: payout links are only supported by the " +
+            "wise connector in this repo, not the adyenplatform connector " +
+            "this suite's payouts use. 20-PayoutLink.cy.js must gate on the " +
+            "same payoutLinkExecution flag."
+        );
+        globalState.set("payoutLinkExecution", false);
+        return;
+      }
+
+      globalState.set("payoutLinkExecution", true);
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("profileIdPA"));
+      });
+
+      cy.createPayoutWithLinkTest(
+        structuredClone(fixtures.createPayoutBody),
+        { Request: {}, Response: { status: 200 } },
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("payoutLinkPayoutId", globalState.get("payoutID"));
+      });
+    });
   });
 
   context("PC - dedicated profile for incremental/extend authorization", () => {
