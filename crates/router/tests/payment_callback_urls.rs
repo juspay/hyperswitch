@@ -358,6 +358,89 @@ mod connector_callback_url_tests {
     };
 
     #[test]
+    fn browser_and_notification_callbacks_have_independent_tokens() {
+        let payment_id = PaymentId::wrap("pay_1".to_string()).expect("payment ID");
+        let merchant_id =
+            common_utils::id_type::MerchantId::wrap("merchant_1".to_string()).expect("merchant ID");
+        for mode in [
+            PaymentCallbackMode::Legacy,
+            PaymentCallbackMode::Migration,
+            PaymentCallbackMode::Enforced,
+        ] {
+            for creds in [None, Some("creds_1")] {
+                for (connector, action) in [("hipay", "response"), ("paybox", "complete")] {
+                    let mut callbacks = ConnectorCallbackUrls::default();
+                    let notification = callbacks
+                        .notification_url(
+                            "https://router.test",
+                            mode,
+                            &payment_id,
+                            &merchant_id,
+                            connector,
+                            creds,
+                        )
+                        .expect("notification callback");
+                    let browser = if connector == "hipay" {
+                        callbacks.redirect_response_url(
+                            "https://router.test",
+                            mode,
+                            &payment_id,
+                            &merchant_id,
+                            connector,
+                            creds,
+                        )
+                    } else {
+                        callbacks.redirect_complete_url(
+                            "https://router.test",
+                            mode,
+                            &payment_id,
+                            &merchant_id,
+                            connector,
+                            creds,
+                        )
+                    }
+                    .clone();
+                    let creds_path = creds.map(|value| format!("/{value}")).unwrap_or_default();
+                    let expected = format!(
+                        "https://router.test/payments/pay_1/merchant_1/redirect/{action}/{connector}{creds_path}"
+                    );
+                    if mode.issues_tokens() {
+                        let (browser_path, browser_token) = browser
+                            .peek()
+                            .rsplit_once("/callback/")
+                            .expect("browser token");
+                        let (notification_path, notification_token) = notification
+                            .peek()
+                            .rsplit_once("/callback/")
+                            .expect("notification token");
+                        assert_eq!(browser_path, expected);
+                        assert_eq!(notification_path, expected);
+                        assert_ne!(browser_token, notification_token);
+                    } else {
+                        assert_eq!(browser.peek(), &expected);
+                        assert_eq!(notification.peek(), &expected);
+                    }
+                    assert_eq!(
+                        callbacks.notification.as_ref().map(PaymentCallbackUrl::url),
+                        Some(&notification)
+                    );
+                    assert_eq!(
+                        callbacks.notification_url(
+                            "https://router.test",
+                            mode,
+                            &payment_id,
+                            &merchant_id,
+                            connector,
+                            creds,
+                        ),
+                        Some(notification)
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn connector_urls_are_lazy_cached_and_preserve_route_variants() {
         let payment_id = PaymentId::wrap("pay_1".to_string()).expect("payment ID");
         let merchant_id =

@@ -2,9 +2,9 @@
 //!
 //! Example value: `{"mode":"migration"}`.
 //! Use the configs API to update this entry so cached values are invalidated.
-//! Deploy support in legacy mode, switch to migration after all replicas support
-//! tokenized paths, then enforce once older payment flows have drained.
-//! A missing entry defaults to legacy mode. Tokens expire after
+//! For a staged rollout, explicitly select legacy mode, then switch to migration
+//! after all replicas support tokenized paths and enforce once older flows drain.
+//! A missing entry defaults to enforced mode. Tokens expire after
 //! `common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME` seconds.
 
 use error_stack::ResultExt;
@@ -26,11 +26,11 @@ pub struct PaymentCallbackConfig {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentCallbackMode {
     /// Preserve original URLs until all replicas support tokenized paths.
-    #[default]
     Legacy,
     /// Issue tokenized paths while accepting callbacks from older payment flows.
     Migration,
     /// Require a token on every protected payment callback.
+    #[default]
     Enforced,
 }
 
@@ -73,10 +73,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn missing_callback_config_uses_defaults() {
-        for value in [None, Some("{}"), Some(r#"{"mode":"legacy"}"#)] {
+    fn missing_callback_config_defaults_to_enforced() {
+        for value in [None, Some("{}")] {
             let config = PaymentCallbackConfig::parse(value).expect("default config");
-            assert_eq!(config.mode, PaymentCallbackMode::Legacy);
+            assert_eq!(config.mode, PaymentCallbackMode::Enforced);
         }
     }
 
@@ -95,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_callback_config_never_falls_back_to_legacy() {
+    fn invalid_callback_config_is_rejected() {
         for value in [
             "invalid JSON",
             "null",

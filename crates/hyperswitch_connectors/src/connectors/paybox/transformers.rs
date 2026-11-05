@@ -399,6 +399,12 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 if item.router_data.is_three_ds() {
                     let address = item.router_data.get_billing_address()?;
+                    let notification_url = item
+                        .router_data
+                        .request
+                        .router_notification_url
+                        .clone()
+                        .ok_or_else(utils::missing_field_err("router_notification_url"))?;
                     Ok(Self::CardThreeDs(ThreeDSPaymentsRequest {
                         id_merchant: auth_data.merchant_id,
                         id_session: item.router_data.connector_request_reference_id.clone(),
@@ -407,14 +413,8 @@ impl TryFrom<&PayboxRouterData<&types::PaymentsAuthorizeRouterData>> for PayboxP
                         cc_number: req_card.card_number,
                         cc_exp_date: expiration_date,
                         cvv_code: req_card.card_cvc,
-                        url_retour: item
-                            .router_data
-                            .request
-                            .return_url
-                            .clone()
-                            .ok_or_else(utils::missing_field_err("return_url"))?
-                            .into(),
-                        url_http_direct: item.router_data.request.get_complete_authorize_url()?,
+                        url_retour: item.router_data.request.get_complete_authorize_url()?,
+                        url_http_direct: notification_url,
                         email_porteur: item.router_data.request.get_email()?,
                         first_name: address.get_first_name()?.clone(),
                         last_name: address.get_last_name()?.clone(),

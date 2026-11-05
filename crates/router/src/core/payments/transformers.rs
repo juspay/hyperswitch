@@ -485,11 +485,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
-        return_url: payment_data
-            .payment_intent
-            .return_url
-            .as_ref()
-            .map(|url| url.get_string_repr().to_owned()),
+        router_notification_url: connector_callback_urls.notification_url(
+            router_base_url,
+            state.payment_callback_config().await?.mode,
+            &attempt.payment_id,
+            &attempt.processor_merchant_id,
+            connector_id,
+            None,
+        ),
         payment_method_data: payment_data
             .payment_method_data
             .get_required_value("payment_method_data")?,
@@ -5569,6 +5572,7 @@ impl ForeignFrom<api_models::payments::QrCodeInformation> for api_models::paymen
 pub struct ConnectorCallbackUrls {
     pub redirect_response: Option<PaymentCallbackUrl>,
     pub redirect_complete: Option<PaymentCallbackUrl>,
+    pub notification: Option<PaymentCallbackUrl>,
 }
 
 /// SDK URLs returned by response generation, pending token registration.
@@ -5751,6 +5755,62 @@ impl SdkCallbackUrls {
 }
 
 impl ConnectorCallbackUrls {
+    /// Notifications must not consume the token used by the customer's browser.
+    pub fn notification_url(
+        &mut self,
+        base_url: &str,
+        callback_mode: PaymentCallbackMode,
+        payment_id: &CallbackPaymentId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector: &str,
+        creds_identifier: Option<&str>,
+    ) -> Option<Secret<String>> {
+        let (route, route_with_credentials): (
+            fn(&str, PaymentCallbackMode, &ConnectorCallbackPath) -> PaymentCallbackUrl,
+            fn(
+                &str,
+                PaymentCallbackMode,
+                &ConnectorCallbackWithCredentialsPath,
+            ) -> PaymentCallbackUrl,
+        ) = match connector {
+            "hipay" => (
+                PaymentCallbackRoute::redirect_response_url,
+                PaymentCallbackRoute::redirect_response_with_credentials_url,
+            ),
+            "paybox" => (
+                PaymentCallbackRoute::redirect_complete_url,
+                PaymentCallbackRoute::redirect_complete_with_credentials_url,
+            ),
+            _ => return None,
+        };
+        Some(
+            self.notification
+                .get_or_insert_with(|| match creds_identifier {
+                    Some(creds) => route_with_credentials(
+                        base_url,
+                        callback_mode,
+                        &ConnectorCallbackWithCredentialsPath {
+                            payment_id: payment_id.clone(),
+                            merchant_id: merchant_id.clone(),
+                            connector: connector.to_string(),
+                            creds_identifier: creds.to_string(),
+                        },
+                    ),
+                    None => route(
+                        base_url,
+                        callback_mode,
+                        &ConnectorCallbackPath {
+                            payment_id: payment_id.clone(),
+                            merchant_id: merchant_id.clone(),
+                            connector: connector.to_string(),
+                        },
+                    ),
+                })
+                .url()
+                .clone(),
+        )
+    }
+
     pub fn redirect_response_url(
         &mut self,
         base_url: &str,
@@ -5823,10 +5883,11 @@ impl ConnectorCallbackUrls {
         let Self {
             redirect_response,
             redirect_complete,
+            notification,
         } = self;
 
         futures::future::try_join_all(
-            [redirect_response, redirect_complete]
+            [redirect_response, redirect_complete, notification]
                 .into_iter()
                 .flatten()
                 .map(|callback_url| callback_url.persist(state)),
@@ -5941,11 +6002,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
         let shipping_cost = payment_data.payment_intent.amount_details.shipping_cost;
 
         Ok(Self {
-            return_url: payment_data
-                .payment_intent
-                .return_url
-                .as_ref()
-                .map(|url| url.get_string_repr().to_owned()),
+            router_notification_url: additional_data.connector_callback_urls.notification_url(
+                router_base_url,
+                additional_data.callback_mode,
+                &attempt.payment_id,
+                &attempt.processor_merchant_id,
+                connector_name,
+                payment_data.creds_identifier.as_deref(),
+            ),
             payment_method_data: payment_method_data
                 .unwrap_or(domain::PaymentMethodData::Card(domain::Card::default())),
             amount,
@@ -6253,7 +6317,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .attach_printable("Failed to parse recipient details")?;
 
         Ok(Self {
-            return_url: payment_data.payment_intent.return_url.clone(),
+            router_notification_url: additional_data.connector_callback_urls.notification_url(
+                router_base_url,
+                additional_data.callback_mode,
+                &attempt.payment_id,
+                &attempt.processor_merchant_id,
+                connector_name,
+                payment_data.creds_identifier.as_deref(),
+            ),
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data
                 .payment_attempt

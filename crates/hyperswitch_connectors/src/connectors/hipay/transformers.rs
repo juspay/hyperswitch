@@ -226,11 +226,11 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                     .get_description()
                     .map(|s| s.to_string())
                     .unwrap_or("Short Description".to_string()),
-                decline_url: item.router_data.request.return_url.clone().map(Secret::new),
-                pending_url: item.router_data.request.return_url.clone().map(Secret::new),
-                cancel_url: item.router_data.request.return_url.clone().map(Secret::new),
-                accept_url: item.router_data.request.return_url.clone().map(Secret::new),
-                notify_url: item.router_data.request.router_return_url.clone(),
+                decline_url: item.router_data.request.router_return_url.clone(),
+                pending_url: item.router_data.request.router_return_url.clone(),
+                cancel_url: item.router_data.request.router_return_url.clone(),
+                accept_url: item.router_data.request.router_return_url.clone(),
+                notify_url: item.router_data.request.router_notification_url.clone(),
                 three_ds_data: if item.router_data.is_three_ds() {
                     let billing_address = item.router_data.get_billing_address()?;
                     Some(ThreeDSPaymentData {
