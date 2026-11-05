@@ -29,7 +29,8 @@ impl Headers {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
-    /// The request body that needs to be forwarded
+    /// The request body that needs to be forwarded. An XML document is sent as a string with
+    /// an XML Content-Type; anything else is sent as JSON.
     pub request_body: Value,
     /// The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.
     /// IP literals must be publicly routable.
@@ -59,8 +60,13 @@ pub enum TokenType {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyResponse {
-    /// The response received from the destination
+    /// The response received from the destination: JSON when the body is JSON, otherwise
+    /// its UTF-8 text, otherwise `null`
     pub response: Value,
+    /// The exact response body bytes, base64-encoded. Prefer this to `response`, which
+    /// cannot carry bytes that are neither JSON nor UTF-8 text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_body_base64: Option<String>,
     /// The status code of the response
     pub status_code: u16,
     /// The headers of the response

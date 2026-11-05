@@ -2,6 +2,10 @@ use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
+// Vault proxy body validation/interpolation failures and actual connector replies.
+counter_metric!(PROXY_BODY_PREPARATION_FAILURE, GLOBAL_METER);
+counter_metric!(PROXY_CONNECTOR_RESPONSE_COUNT, GLOBAL_METER);
+
 counter_metric!(INCOMING_DISPUTE_WEBHOOK_METRIC, GLOBAL_METER); // No. of incoming dispute webhooks
 counter_metric!(
     INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC,

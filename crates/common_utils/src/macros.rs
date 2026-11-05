@@ -721,6 +721,29 @@ macro_rules! impl_enum_str {
 }
 
 // --- Tests ---
+/// Evaluate `$call` with `$format` bound to the format implementation of a
+/// [`crate::proxy::ProxyBody`] variant: one static call per arm, with no allocation. The
+/// format types are private to `crate::proxy`, so this is only usable there.
+macro_rules! with_format {
+    ($body:expr, |$format:ident| $call:expr) => {
+        match $body {
+            ProxyBody::Json(value) => {
+                let $format = JsonBody(value);
+                $call
+            }
+            ProxyBody::Xml(template) => {
+                let $format = XmlBody(template);
+                $call
+            }
+            ProxyBody::None => {
+                let $format = NoBody;
+                $call
+            }
+        }
+    };
+}
+pub(crate) use with_format;
+
 #[cfg(test)]
 mod tests {
     use serde_json::{json, Value as JsonValue};

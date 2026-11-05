@@ -3,6 +3,7 @@ use common_utils::{
     crypto::{DecodeMessage, GcmAes256},
     encryption::Encryption,
     ext_traits::{BytesExt, Encode, OptionExt},
+    fp_utils::when,
     id_type,
 };
 use error_stack::ResultExt;
@@ -10,12 +11,6 @@ use hyperswitch_domain_models::payment_methods;
 use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
 use storage_impl::behaviour::Conversion;
-use x509_parser::nom::{
-    bytes::complete::{tag, take_while1},
-    character::complete::{char, multispace0},
-    sequence::{delimited, preceded, terminated},
-    IResult,
-};
 
 use crate::{
     core::{
@@ -166,6 +161,29 @@ impl ProxyRequestWrapper {
             .iter()
             .map(|(key, value)| (key.clone(), value.clone().into_masked()))
             .collect()
+    }
+
+    /// The connector Content-Type, parsed once for the whole proxy flow. Header names
+    /// are case-insensitive; conflicting duplicate Content-Types are rejected instead of
+    /// selecting a nondeterministic HashMap entry.
+    pub fn get_content_type(
+        &self,
+    ) -> RouterResult<Option<common_utils::proxy::ConnectorContentType<'_>>> {
+        let values: Vec<&str> = self
+            .0
+            .headers
+            .as_map()
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.as_str())
+            .collect();
+        let first = values.first().copied();
+        when(values.iter().any(|value| Some(*value) != first), || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Conflicting connector Content-Type headers".into(),
+            })
+        })?;
+        Ok(first.map(common_utils::proxy::ConnectorContentType::parse))
     }
 
     pub fn get_destination_url(&self) -> &str {
@@ -362,35 +380,6 @@ impl ProxyRecord {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub struct TokenReference {
-    pub field: String,
-}
-
-pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
-    let (input, field) = delimited(
-        tag("{{"),
-        preceded(
-            multispace0,
-            preceded(
-                char('$'),
-                terminated(
-                    take_while1(|c: char| c.is_alphanumeric() || c == '_'),
-                    multispace0,
-                ),
-            ),
-        ),
-        tag("}}"),
-    )(input)?;
-
-    Ok((
-        input,
-        TokenReference {
-            field: field.to_string(),
-        },
-    ))
 }
 
 pub fn contains_token(s: &str) -> bool {

@@ -2,10 +2,12 @@ pub mod models {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::pii::SecretSerdeValue;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    use common_utils::{pii::SecretSerdeValue, proxy::ConnectorContentType};
     use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
+    use serde_json::Value;
 
     // Enums for the injector - making it standalone
 
@@ -166,7 +168,7 @@ pub mod models {
     pub struct HyperswitchVaultProxyRequest {
         /// The connector request body template with {{$field_name}} placeholders.
         /// HS Vault will resolve these with actual card data before forwarding.
-        pub request_body: serde_json::Value,
+        pub request_body: Value,
         /// The connector's actual endpoint URL (e.g. "https://api.sandbox.checkout.com/payments")
         pub destination_url: url::Url,
         /// The connector's headers (Content-Type, Authorization, etc.)
@@ -206,8 +208,8 @@ pub mod models {
 
             // Parse the processed payload as JSON value.
             // The template may be JSON or form-urlencoded; wrap non-JSON as a string value.
-            let request_body = serde_json::from_str::<serde_json::Value>(processed_payload)
-                .unwrap_or_else(|_| serde_json::Value::String(processed_payload.to_string()));
+            let request_body = serde_json::from_str::<Value>(processed_payload)
+                .unwrap_or_else(|_| Value::String(processed_payload.to_string()));
 
             // Convert connector headers from Secret<String> → plain String for the vault request
             let headers: HashMap<String, Secret<String>> = connection_config
@@ -248,7 +250,95 @@ pub mod models {
         /// Response headers from the connector (optional)
         pub headers: Option<HashMap<String, String>>,
         /// Response body from the connector
-        pub response: serde_json::Value,
+        pub response: Value,
+    }
+
+    /// The SaaS vault proxy reply (`api_models::proxy::ProxyResponse`) that wraps the
+    /// connector response.
+    #[derive(Deserialize)]
+    struct VaultProxyEnvelope {
+        status_code: u16,
+        response: Value,
+        response_body_base64: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
+    }
+
+    /// Actual connector response reconstructed from a direct or SaaS proxy reply.
+    pub struct InjectorConnectorResponse {
+        pub status_code: u16,
+        pub headers: Option<Vec<(String, String)>>,
+        pub body: Vec<u8>,
+    }
+
+    impl InjectorResponse {
+        /// The SaaS reply wrapping the connector response. A non-2xx outer status means the
+        /// proxy call itself failed; the wrapped status must be a valid HTTP status.
+        fn vault_proxy_envelope(&self) -> Result<VaultProxyEnvelope, crate::InjectorError> {
+            if (200..=299).contains(&self.status_code) {
+                VaultProxyEnvelope::deserialize(&self.response)
+                    .ok()
+                    .filter(|envelope| (100..=599).contains(&envelope.status_code))
+                    .ok_or_else(|| {
+                        crate::InjectorError::InvalidTemplate("Invalid vault proxy response".into())
+                    })
+            } else {
+                Err(crate::InjectorError::HttpRequestFailed)
+            }
+        }
+
+        /// The actual connector response. Only the HyperswitchVault envelope is unwrapped:
+        /// direct connector replies may legitimately contain fields called `response` and
+        /// `status_code`.
+        pub fn into_connector_response(
+            self,
+            wrapped: bool,
+        ) -> Result<InjectorConnectorResponse, crate::InjectorError> {
+            let (status_code, headers, encoded, fallback) = if wrapped {
+                let envelope = self.vault_proxy_envelope()?;
+                (
+                    envelope.status_code,
+                    envelope.response_headers,
+                    envelope.response_body_base64,
+                    envelope.response,
+                )
+            } else {
+                (self.status_code, self.headers, None, self.response)
+            };
+            let headers: Option<Vec<(String, String)>> =
+                headers.map(|headers| headers.into_iter().collect());
+            let fallback_is_json = headers
+                .as_ref()
+                .and_then(|headers| {
+                    headers
+                        .iter()
+                        .find(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+                })
+                .map(|(_, value)| {
+                    matches!(
+                        ConnectorContentType::parse(value).kind(),
+                        Some(common_utils::request::ContentType::Json)
+                    )
+                })
+                .unwrap_or(wrapped);
+            let body = match encoded {
+                Some(encoded) => STANDARD.decode(encoded).map_err(|_| {
+                    crate::InjectorError::InvalidTemplate(
+                        "Invalid base64 connector response".into(),
+                    )
+                })?,
+                None => match fallback {
+                    Value::String(text) if !fallback_is_json => text.into_bytes(),
+                    value => serde_json::to_vec(&value).map_err(|_| {
+                        crate::InjectorError::InvalidTemplate("Invalid connector response".into())
+                    })?,
+                },
+            };
+            Ok(InjectorConnectorResponse {
+                status_code,
+                headers,
+                body,
+            })
+        }
     }
 
     /// Trait for converting HTTP responses to InjectorResponse
@@ -303,9 +393,9 @@ pub mod models {
                 "Processing connector response"
             );
 
-            let response_data = match serde_json::from_str::<serde_json::Value>(&response_text) {
+            let response_data = match serde_json::from_str::<Value>(&response_text) {
                 Ok(json) => json,
-                Err(_e) => serde_json::Value::String(response_text),
+                Err(_e) => Value::String(response_text),
             };
 
             Ok(InjectorResponse {
@@ -378,6 +468,18 @@ pub mod models {
         /// the endpoint cannot be parsed as a URL at all.
         pub fn endpoint_host(&self) -> String {
             self.endpoint.host_str().unwrap_or("unknown").to_string()
+        }
+
+        /// HyperswitchVault transformation sends the template to the SaaS vault proxy,
+        /// whose reply wraps the connector response in a JSON envelope.
+        pub fn uses_hyperswitch_vault_proxy(&self) -> bool {
+            matches!(
+                (&self.vault_connector_type, &self.vault_connector_id),
+                (
+                    Some(VaultConnectorType::Transformation),
+                    Some(VaultConnectors::HyperswitchVault)
+                )
+            )
         }
 
         /// Returns the metric-string for the vault connector, falling back to `"None"`.
