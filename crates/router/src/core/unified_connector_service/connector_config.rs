@@ -2378,9 +2378,10 @@ pub fn build_connector_config_header(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use common_utils::pii::SecretSerdeValue;
     use serde_json::json;
+
+    use super::*;
 
     fn metadata(value: serde_json::Value) -> Option<SecretSerdeValue> {
         Some(Secret::new(value))
