@@ -31177,7 +31177,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded"
+            "description": "The request body that needs to be forwarded. An XML document is sent as a string with\nan XML Content-Type; anything else is sent as JSON."
           },
           "destination_url": {
             "type": "string",
@@ -31210,7 +31210,12 @@
         ],
         "properties": {
           "response": {
-            "description": "The response received from the destination"
+            "description": "The response received from the destination: JSON when the body is JSON, otherwise\nits UTF-8 text, otherwise `null`"
+          },
+          "response_body_base64": {
+            "type": "string",
+            "description": "The exact response body bytes, base64-encoded. Prefer this to `response`, which\ncannot carry bytes that are neither JSON nor UTF-8 text.",
+            "nullable": true
           },
           "status_code": {
             "type": "integer",
