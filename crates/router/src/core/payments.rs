@@ -875,7 +875,7 @@ where
     payment_data.set_previous_db_records(previous_attempt, previous_intent);
 
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
-    let card_testing_guard_dimensions = dimensions
+    let dimensions_with_org = dimensions
         .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
         .without_provider_merchant_id()
         .clone();
@@ -887,7 +887,7 @@ where
             &req,
             &mut payment_data,
             &business_profile,
-            &card_testing_guard_dimensions,
+            &dimensions_with_org,
         )
         .await?;
 
