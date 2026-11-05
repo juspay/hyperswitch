@@ -12,8 +12,6 @@ use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
 use common_utils::{date_time, fp_utils, id_type};
-#[cfg(feature = "v2")]
-use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::sdk_auth::SdkAuthorization;
 #[cfg(feature = "v2")]
@@ -2474,34 +2472,6 @@ where
 }
 
 #[derive(Debug)]
-pub struct EphemeralKeyAuth;
-
-#[cfg(feature = "v1")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationData, A> for EphemeralKeyAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let api_key =
-            get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
-        let ephemeral_key = state
-            .store()
-            .get_ephemeral_key(api_key)
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-        MerchantIdAuth(ephemeral_key.merchant_id)
-            .authenticate_and_fetch(request_headers, state)
-            .await
-    }
-}
-
-#[derive(Debug)]
 #[cfg(feature = "v1")]
 pub struct MerchantIdAuth(pub id_type::MerchantId);
 
@@ -3175,7 +3145,7 @@ where
             .get_client_secret(client_secret)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
-            .attach_printable("Invalid ephemeral_key")?;
+            .attach_printable("Invalid client secret")?;
 
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
@@ -4980,9 +4950,18 @@ where
         if payload.check_in_blacklist(state).await? {
             return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
         }
+        authorization::check_tenant(
+            payload.tenant_id.clone(),
+            &state.session_state().tenant.tenant_id,
+        )?;
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
+
+        fp_utils::when(payload.profile_id != profile_id, || {
+            Err(report!(errors::ApiErrorResponse::InvalidJwtToken))
+                .attach_printable("Profile id in JWT does not match profile id in header")
+        })?;
 
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
@@ -5977,6 +5956,13 @@ impl ClientSecretFetch for api_models::subscription::GetSubscriptionItemsQuery {
 }
 
 #[cfg(feature = "v1")]
+impl ClientSecretFetch for api_models::subscription::EstimateSubscriptionQuery {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret.as_ref().map(|s| s.as_string())
+    }
+}
+
+#[cfg(feature = "v1")]
 impl ClientSecretFetch for api_models::authentication::AuthenticationEligibilityRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
@@ -6187,53 +6173,6 @@ where
                 (false, _) => Err(errors::ApiErrorResponse::Unauthorized.into()),
             }
         }
-    }
-}
-
-pub async fn get_ephemeral_or_other_auth<T>(
-    headers: &HeaderMap,
-    is_merchant_flow: bool,
-    payload: Option<&impl ClientSecretFetch>,
-    api_auth: ApiKeyAuth,
-) -> RouterResult<(
-    Box<dyn AuthenticateAndFetch<AuthenticationData, T>>,
-    api::AuthFlow,
-    bool,
-)>
-where
-    T: SessionStateInfo + Sync + Send,
-    ApiKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    PublishableKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-    EphemeralKeyAuth: AuthenticateAndFetch<AuthenticationData, T>,
-{
-    let api_key = get_api_key(headers)?;
-
-    if api_key.starts_with("epk") {
-        Ok((Box::new(EphemeralKeyAuth), api::AuthFlow::Client, true))
-    } else if is_merchant_flow {
-        Ok((
-            Box::new(HeaderAuth(api_auth)),
-            api::AuthFlow::Merchant,
-            false,
-        ))
-    } else {
-        let payload = payload.get_required_value("ClientSecretFetch")?;
-        let (auth, auth_flow) = check_client_secret_and_get_auth(headers, payload, api_auth)?;
-        Ok((auth, auth_flow, false))
-    }
-}
-
-#[cfg(feature = "v1")]
-pub fn is_ephemeral_auth<A: SessionStateInfo + Sync + Send>(
-    headers: &HeaderMap,
-    api_auth: ApiKeyAuth,
-) -> RouterResult<Box<dyn AuthenticateAndFetch<AuthenticationData, A>>> {
-    let api_key = get_api_key(headers)?;
-
-    if !api_key.starts_with("epk") {
-        Ok(Box::new(HeaderAuth(api_auth)))
-    } else {
-        Ok(Box::new(EphemeralKeyAuth))
     }
 }
 

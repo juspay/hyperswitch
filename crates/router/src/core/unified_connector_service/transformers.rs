@@ -418,7 +418,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let discount_amount = l2_l3_data.and_then(|data| data.get_discount_amount());
     let shipping_cost = l2_l3_data.and_then(|data| data.get_shipping_cost());
     let duty_amount = l2_l3_data.and_then(|data| data.get_duty_amount());
+    let order_commodity_code = l2_l3_data.and_then(|data| data.get_order_commodity_code());
     let shipping_amount_tax = l2_l3_data.and_then(|data| data.get_shipping_amount_tax());
+    let value_added_tax_amount = l2_l3_data.and_then(|data| data.get_value_added_tax_amount());
+    let value_added_tax_percent = l2_l3_data.and_then(|data| data.get_value_added_tax_percent());
+    let vat_invoice_reference_number =
+        l2_l3_data.and_then(|data| data.get_vat_invoice_reference_number());
     let tax_status = l2_l3_data.and_then(|data| data.get_tax_status());
     let order_tax_amount = l2_l3_data.and_then(|data| data.get_order_tax_amount());
     let customer_tax_registration_id = l2_l3_data
@@ -427,6 +432,9 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
     let merchant_tax_registration_id = l2_l3_data
         .and_then(|data| data.get_merchant_tax_registration_id())
         .map(|tax_id| tax_id.peek().to_owned().into());
+    let merchant_vat_registration_id = l2_l3_data
+        .and_then(|data| data.get_merchant_vat_registration_id())
+        .map(|vat_id| vat_id.peek().to_owned().into());
 
     let order_info = l2_l3_data
         .and_then(|data| data.order_info.as_ref())
@@ -438,7 +446,7 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             discount_amount: discount_amount.map(|amount| amount.get_amount_as_i64()),
             shipping_cost: shipping_cost.map(|amount| amount.get_amount_as_i64()),
             duty_amount: duty_amount.map(|amount| amount.get_amount_as_i64()),
-            order_commodity_code: None,
+            order_commodity_code,
         });
 
     let tax_info = l2_l3_data
@@ -449,12 +457,12 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
                 .map(|tax_status| payments_grpc::TaxStatus::foreign_from(tax_status).into()),
             customer_tax_registration_id,
             merchant_tax_registration_id,
+            merchant_vat_registration_id,
             shipping_amount_tax: shipping_amount_tax.map(|amount| amount.get_amount_as_i64()),
             order_tax_amount: order_tax_amount.map(|tax| tax.get_amount_as_i64()),
-            value_added_tax_amount: None,
-            value_added_tax_percent: None,
-            vat_invoice_reference_number: None,
-            merchant_vat_registration_id: None,
+            value_added_tax_amount: value_added_tax_amount.map(|amount| amount.get_amount_as_i64()),
+            value_added_tax_percent,
+            vat_invoice_reference_number,
         });
 
     if order_info.is_none() && tax_info.is_none() {
@@ -556,6 +564,7 @@ impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::Addre
             email: None,
             phone_number: None,
             phone_country_code: None,
+            state_code_iso: None,
         }
     }
 }
@@ -1098,6 +1107,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -1375,6 +1385,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2733,6 +2744,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -2959,6 +2971,7 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3150,6 +3163,7 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -3407,6 +3421,7 @@ impl
                 .connector_intent_metadata
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+            enable_account_name_verification: router_data.request.enable_account_name_verification,
         })
     }
 }
@@ -5761,6 +5776,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5795,6 +5811,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                     .as_ref()
                     .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
                 phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                state_code_iso: None,
             }
         });
 
@@ -5838,6 +5855,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_address::Pa
                         .as_ref()
                         .and_then(|phone| phone.number.as_ref().map(|n| n.clone().expose().into())),
                     phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+                    state_code_iso: None,
                 }
             });
         Ok(Self {
@@ -5885,6 +5903,7 @@ impl transformers::ForeignTryFrom<hyperswitch_domain_models::address::Address>
                 .as_ref()
                 .and_then(|phone| phone.number.as_ref().map(|n| n.peek().to_string().into())),
             phone_country_code: address.phone.as_ref().and_then(|p| p.country_code.clone()),
+            state_code_iso: None,
         })
     }
 }
