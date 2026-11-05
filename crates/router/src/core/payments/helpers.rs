@@ -133,8 +133,8 @@ use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
 /// Whether the billing stored on a saved payment method should be used for this payment.
-/// When the merchant is configured to prefer the request's billing, a top-level billing in the
-/// payment overrides the saved payment method's billing.
+/// When the merchant is configured to prefer the request's billing, a top-level billing with
+/// location details overrides the saved payment method's billing.
 #[cfg(feature = "v1")]
 pub async fn should_use_saved_payment_method_billing(
     state: &SessionState,

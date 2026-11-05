@@ -622,7 +622,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             state,
             dimensions,
             platform.get_processor().get_account().get_id(),
-            request.billing.is_some() || payment_intent.billing_address_id.is_some(),
+            billing_address
+                .as_ref()
+                .map(hyperswitch_domain_models::address::Address::from)
+                .is_some_and(|billing| billing.has_location_details()),
         )
         .await;
 
