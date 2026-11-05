@@ -6,16 +6,34 @@ import State from "../../../../utils/State";
 // (not part of the fix), so those two just get a light sanity check here,
 // not a security assertion.
 //
+// All three routes (sync, action_url, reset_tracking_id) return 400 IR_20
+// "Connector onboarding flow not supported" for ANY non-PayPal connector,
+// confirmed live - the feature is PayPal-only. Crucially, that check fires
+// independent of the profile match/mismatch being tested here, so using
+// MCA_PA (whatever CYPRESS_CONNECTOR is) would make even the NEGATIVE
+// profile-mismatch test "pass" for the wrong reason (always 400, whether
+// or not the profile actually matched). MCA_PAYPAL_PA / MCA_PAYPAL_PB
+// (00-Setup.cy.js) exist specifically so every test below is attributable
+// to the actual profile check, not connector support.
+//
+// The negative test below targets MCA_PAYPAL_PB (genuinely owned by PB)
+// with PA's auth - a real cross-profile attempt. An earlier version of this
+// test instead took PA's own MCA_PAYPAL_PA and only varied the request
+// body's profile_id field to PB; that returned 200, because the actual
+// ownership check compares the MCA's real stored profile against the
+// authenticated profile, not an arbitrary profile_id value the caller can
+// put in the body - PA's own MCA + PA's own auth is never a real mismatch
+// no matter what the body claims.
+//
 // Routes (verified): POST /connector_onboarding/sync, /action_url,
 // /reset_tracking_id - all JWTAuth(MerchantAccountWrite) only, no ApiKeyAuth
 // alternative, cfg #[cfg(all(feature = "olap", feature = "v1"))] (default).
 let globalState;
 let merchantIdM1;
 let profileIdPA;
-let profileIdPB;
 let jwtPA;
-let mcaPaId;
-let connectorName;
+let mcaPaypalPaId;
+let mcaPaypalPbId;
 
 describe("OMP Scoping - Connector Onboarding", () => {
   before("seed global state", () => {
@@ -23,12 +41,9 @@ describe("OMP Scoping - Connector Onboarding", () => {
       globalState = new State(state);
       merchantIdM1 = globalState.get("merchantIdM1");
       profileIdPA = globalState.get("profileIdPA");
-      profileIdPB = globalState.get("profileIdPB");
       jwtPA = globalState.get("userInfoTokenPA");
-      mcaPaId = globalState.get("mcaPaId");
-      // the connector_name MCA_PA was actually created with - set by
-      // createConnectorCallTest in 00-Setup.cy.js
-      connectorName = globalState.get("originalConnectorId");
+      mcaPaypalPaId = globalState.get("mcaPaypalPaId");
+      mcaPaypalPbId = globalState.get("mcaPaypalPbId");
     });
   });
 
@@ -36,46 +51,43 @@ describe("OMP Scoping - Connector Onboarding", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  function fetchMcaPA() {
+  function fetchMcaPaypalPB() {
     return () =>
       cy.ompRetrieveMca(
         merchantIdM1,
-        mcaPaId,
+        mcaPaypalPbId,
         { type: "apiKey", apiKey: globalState.get("apiKeyM1") },
         globalState
       );
   }
 
-  it("sync rejects connector/profile mismatch, MCA_PA unchanged", () => {
+  it("sync rejects connector/profile mismatch, MCA_PAYPAL_PB unchanged", () => {
     cy.ompAssertDeniedAndUnchanged({
-      fetch: fetchMcaPA(),
+      fetch: fetchMcaPaypalPB(),
       negativeRequest: () =>
         cy.ompConnectorOnboardingSync(
           { type: "jwt", token: jwtPA, profileId: profileIdPA },
           {
-            connector_id: mcaPaId,
-            profile_id: profileIdPB,
-            connector: connectorName,
+            connector_id: mcaPaypalPbId,
+            profile_id: profileIdPA,
+            connector: "paypal",
           },
           globalState
         ),
     });
   });
 
-  it("sync with matching profile isn't profile-rejected (positive)", () => {
+  it("sync with matching profile succeeds (positive)", () => {
     cy.ompConnectorOnboardingSync(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
-        connector_id: mcaPaId,
+        connector_id: mcaPaypalPaId,
         profile_id: profileIdPA,
-        connector: connectorName,
+        connector: "paypal",
       },
       globalState
     ).then((res) => {
-      // Full onboarding-sync success depends on the connector actually
-      // being PayPal, which it may not be in this run - only the
-      // profile-scope check is this security surface.
-      expect(res.status).to.not.eq(403);
+      expect(res.status).to.eq(200);
     });
   });
 
@@ -85,7 +97,7 @@ describe("OMP Scoping - Connector Onboarding", () => {
       {
         connector_id: "mca_nonexistent_omp_test",
         profile_id: profileIdPA,
-        connector: connectorName,
+        connector: "paypal",
       },
       globalState
     ).then((res) => {
@@ -97,9 +109,9 @@ describe("OMP Scoping - Connector Onboarding", () => {
     cy.ompConnectorOnboardingSync(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
-        connector_id: mcaPaId,
+        connector_id: mcaPaypalPaId,
         profile_id: "!!bad!!",
-        connector: connectorName,
+        connector: "paypal",
       },
       globalState
     ).then((res) => {
@@ -111,9 +123,9 @@ describe("OMP Scoping - Connector Onboarding", () => {
     cy.ompConnectorOnboardingSync(
       { type: "invalid" },
       {
-        connector_id: mcaPaId,
+        connector_id: mcaPaypalPaId,
         profile_id: profileIdPA,
-        connector: connectorName,
+        connector: "paypal",
       },
       globalState
     ).then((res) => {
@@ -128,23 +140,23 @@ describe("OMP Scoping - Connector Onboarding", () => {
         cy.ompConnectorOnboardingActionUrl(
           { type: "jwt", token: jwtPA },
           {
-            connector: connectorName,
-            connector_id: mcaPaId,
+            connector: "paypal",
+            connector_id: mcaPaypalPaId,
             return_url: "https://example.com",
           },
           globalState
         ).then((res) => {
-          expect(res.status).to.not.eq(401);
+          expect(res.status).to.eq(200);
         });
       });
 
       it("tracking-ID reset remains merchant-only", () => {
         cy.ompConnectorOnboardingResetTrackingId(
           { type: "jwt", token: jwtPA },
-          { connector: connectorName, connector_id: mcaPaId },
+          { connector: "paypal", connector_id: mcaPaypalPaId },
           globalState
         ).then((res) => {
-          expect(res.status).to.not.eq(401);
+          expect(res.status).to.eq(200);
         });
       });
     }

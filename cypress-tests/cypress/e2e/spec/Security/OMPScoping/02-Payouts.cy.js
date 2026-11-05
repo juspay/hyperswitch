@@ -1,4 +1,6 @@
+import * as fixtures from "../../../../fixtures/imports";
 import State from "../../../../utils/State";
+import { CardPayout } from "../../../configs/Security/Commons";
 
 // PO_PA / PO_PB are payouts under M1, one per profile, created in
 // 00-Setup.cy.js (skipped there if the configured payout connector has no
@@ -110,15 +112,41 @@ describe("OMP Scoping - Payouts", () => {
       });
     });
 
-    it("PA updates its own PO_PA (positive)", () => {
-      cy.ompUpdatePayout(
-        payoutIdPA,
-        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        { metadata: { attempted_by: "PA" } },
+    it("PA updates its own payout (positive)", () => {
+      // PO_PA itself is already in requires_fulfillment (confirm=true,
+      // auto_fulfill=false at creation in 00-Setup.cy.js) - update is
+      // blocked there by a hard status gate before any field is even
+      // inspected (is_payout_initiated/is_payout_terminal_state in
+      // crates/router/src/core/payouts/helpers.rs), and fulfilling it only
+      // moves it to a terminal state, which is also blocked. The only
+      // status update is ever permitted on is pre-confirm, so this test
+      // creates its own throwaway unconfirmed payout rather than reusing
+      // PO_PA, which can never be updated again once created.
+      cy.createConfirmPayoutTest(
+        structuredClone(fixtures.createPayoutBody),
+        {
+          ...CardPayout(),
+          Request: {
+            ...CardPayout().Request,
+            profile_id: profileIdPA,
+          },
+        },
+        false,
+        false,
         globalState
-      ).then((res) => {
-        expect(res.status).to.not.eq(403);
-        expect(res.status).to.not.eq(404);
+      );
+
+      cy.then(() => {
+        const throwawayPayoutId = globalState.get("payoutID");
+
+        cy.ompUpdatePayout(
+          throwawayPayoutId,
+          { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+          { metadata: { attempted_by: "PA" } },
+          globalState
+        ).then((res) => {
+          expect(res.status).to.eq(200);
+        });
       });
     });
   });

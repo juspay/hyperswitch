@@ -102,17 +102,23 @@ describe("OMP Scoping - shared fixtures", () => {
   });
 
   context("Paired resources under M1 - one per profile (PA, PB)", () => {
-    // MCA_PA and MCA_PB are intentionally created with the SAME connector
-    // (whatever CYPRESS_CONNECTOR/connectorId is configured for this run).
-    // OMP scoping is about merchant/profile ownership, not connector
-    // behavior, so varying the connector per profile would add nothing here
-    // - the whole suite is parameterized by one connector per run, same as
-    // every other spec folder in this repo (Payment/Payout/etc. are each
-    // run per-connector via CI, not multi-connector in a single run).
+    // MCA_PA and MCA_PB are intentionally created with the SAME connector,
+    // hardcoded to "stripe" rather than whatever CYPRESS_CONNECTOR happens
+    // to be set to - stripe is the most reliably stable connector in this
+    // repo's creds file, and OMP scoping is about merchant/profile
+    // ownership, not connector behavior, so there's no reason to let an
+    // unrelated env var make this suite flaky. Restored to the original
+    // CYPRESS_CONNECTOR afterward in case any later step in this file
+    // depends on it. Payouts use "adyenplatform" and Connector Onboarding
+    // uses "paypal" for the same reliability reason, each is its own
+    // dedicated MCA, not a change to this one.
     it("creates MCA_PA and MCA_PB", () => {
+      const originalConnectorId = globalState.get("connectorId");
+
       cy.then(() => {
         globalState.set("merchantId", globalState.get("merchantIdM1"));
         globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("connectorId", "stripe");
         // createConnectorCallTest resolves the profile via
         // globalState.get(`${profilePrefix}Id`) - "pa"/"pb" prefixes read
         // "paId"/"pbId", which only PB's creation (via
@@ -138,6 +144,109 @@ describe("OMP Scoping - shared fixtures", () => {
         "pb",
         "mcaPb"
       );
+
+      cy.then(() => {
+        globalState.set("connectorId", originalConnectorId);
+      });
+    });
+
+    it("creates MCA_PAYPAL_PA and MCA_PAYPAL_PB, so connector onboarding sync has real PayPal MCAs to test against", () => {
+      // POST /connector_onboarding/sync returns 400 IR_20 "Connector
+      // onboarding flow not supported" for any non-PayPal connector,
+      // confirmed live - the feature is PayPal-only. MCA_PA (whatever
+      // CYPRESS_CONNECTOR is) can't be used for 06-ConnectorOnboarding.cy.js's
+      // checks, so this creates PayPal-specific MCAs under BOTH profiles -
+      // same connectorId-override pattern as the Adyenplatform payout
+      // connector step above.
+      //
+      // Both profiles, not just PA: the actual ownership check compares
+      // the target MCA's real profile against the authenticated profile,
+      // not an arbitrary profile_id field in the request body - confirmed
+      // live when a single PA-owned MCA plus a spoofed body.profile_id
+      // returned 200 instead of denial (PA's own MCA + PA's own auth is
+      // never a real mismatch, no matter what the body claims). A genuine
+      // cross-profile test needs an MCA that actually belongs to PB.
+      const paymentsConnectorId = globalState.get("connectorId");
+
+      cy.then(() => {
+        globalState.set("connectorId", "paypal");
+      });
+
+      cy.createConnectorCallTest(
+        "payment_processor",
+        structuredClone(fixtures.createConnectorBody),
+        payment_methods_enabled,
+        globalState,
+        "pa",
+        "mcaPaypalPa"
+      );
+
+      cy.createConnectorCallTest(
+        "payment_processor",
+        structuredClone(fixtures.createConnectorBody),
+        payment_methods_enabled,
+        globalState,
+        "pb",
+        "mcaPaypalPb"
+      );
+
+      cy.then(() => {
+        globalState.set("connectorId", paymentsConnectorId);
+      });
+    });
+
+    it("creates a netcetera authentication_processor connector for PA and configures it on PA's business profile", () => {
+      // Standalone /authentication eligibility and /authentication/sync
+      // (04-Authentication.cy.js) need PA's business profile to actually
+      // have authentication_connector_details set
+      // (crates/router/src/core/authentication/utils.rs:603-610) - without
+      // it, eligibility can't proceed past the profile check into real
+      // 3DS processing. Same setup 47-StepUpAuth.cy.js already does for its
+      // own profile: create a netcetera MCA with connector_type
+      // "authentication_processor" under PA, then update PA's business
+      // profile with authentication_connector_details pointing at it.
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+      });
+
+      const createConnectorBody = {
+        ...structuredClone(fixtures.createConnectorBody),
+        connector_name: "netcetera",
+      };
+
+      cy.createAuthenticationProcessorConnectorTest(
+        createConnectorBody,
+        globalState,
+        "pa",
+        "authProcessorConnectorPa"
+      );
+
+      cy.then(() => {
+        if (!globalState.get("authProcessorConnectorPaId")) {
+          cy.task(
+            "cli_log",
+            "Skipping: netcetera authentication_processor connector creation did not succeed."
+          );
+          return;
+        }
+
+        cy.UpdateBusinessProfileTest(
+          {
+            authentication_connector_details: {
+              authentication_connectors: ["netcetera"],
+              three_ds_requestor_url: "https://example.com",
+            },
+          },
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState,
+          "pa"
+        );
+      });
     });
 
     it("creates PI_PA and PI_PB (payment intents)", () => {

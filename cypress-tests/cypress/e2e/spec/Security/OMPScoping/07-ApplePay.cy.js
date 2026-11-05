@@ -7,6 +7,16 @@ import State from "../../../../utils/State";
 // verification are the same endpoint - there is no separate "register"
 // route in V1), GET /verify/applepay_verified_domains?merchant_id=&merchant_connector_account_id=.
 // Both ApiKeyAuth or JWTAuth, cfg #[cfg(all(feature = "olap", feature = "v1"))].
+//
+// domain_names uses a real, hosted domain (hyperswitch-demo-store.netlify.app)
+// rather than a placeholder like "example.com" - Apple's actual domain
+// association check runs as part of verify/register, confirmed live
+// ("Applepay verification Failed" / IR_06 for an unverifiable domain). Using
+// a placeholder everywhere would make the cross-profile/ownership denial
+// tests below "pass" for the wrong reason if domain verification happens to
+// run before the profile check - same false-pass risk as the Connector
+// Onboarding PayPal-only check. A real domain keeps every 4xx seen here
+// attributable to profile/ownership, not domain verification.
 let globalState;
 let apiKeyM1;
 let merchantIdM1;
@@ -38,7 +48,10 @@ describe("OMP Scoping - Apple Pay", () => {
     cy.ompVerifyApplePay(
       merchantIdM2,
       { type: "apiKey", apiKey: apiKeyM1 },
-      { domain_names: ["example.com"], merchant_connector_account_id: mcaPaId },
+      {
+        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        merchant_connector_account_id: mcaPaId,
+      },
       globalState
     ).then((res) => {
       expect(res.status).to.be.within(400, 499);
@@ -49,7 +62,10 @@ describe("OMP Scoping - Apple Pay", () => {
     cy.ompVerifyApplePay(
       merchantIdM1,
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
-      { domain_names: ["example.com"], merchant_connector_account_id: mcaPbId },
+      {
+        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        merchant_connector_account_id: mcaPbId,
+      },
       globalState
     ).then((res) => {
       expect(res.status).to.be.within(400, 499);
@@ -68,13 +84,34 @@ describe("OMP Scoping - Apple Pay", () => {
   });
 
   it("verify/register and verified-domains read work for PA's own MCA_PA (positive)", () => {
+    // The profile/ownership check itself passes correctly here (that's this
+    // test's actual purpose, and the 3 cross-profile denial tests above
+    // confirm the fix works) - verify_merchant_creds_for_applepay only
+    // DB-checks that the MCA exists and belongs to the right profile, then
+    // calls Apple using server-wide config (state.conf.applepay_merchant_configs:
+    // cert/key/merchant identifier), unrelated to which MCA was passed.
+    //
+    // Expecting 422 IR_06 "Applepay verification Failed" here is a known,
+    // confirmed environment limitation on this deployment, not the OMP
+    // scoping behavior under test: either integ's registered Apple Pay
+    // merchant cert/identity is stale/misconfigured, or the domain's
+    // .well-known/apple-developer-merchantid-domain-association file
+    // doesn't match that identity - asserting the real 5xx-free error here
+    // (rather than a vague "not 5xx") keeps this test meaningful without
+    // masking the gap. Once the environment is fixed, change this back to
+    // expect(res.status).to.eq(200).
     cy.ompVerifyApplePay(
       merchantIdM1,
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
-      { domain_names: ["example.com"], merchant_connector_account_id: mcaPaId },
+      {
+        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        merchant_connector_account_id: mcaPaId,
+      },
       globalState
     ).then((res) => {
-      expect(res.status).to.not.eq(403);
+      expect(res.status).to.eq(422);
+      expect(res.body?.error?.code).to.eq("IR_06");
+      expect(res.body?.error?.message).to.eq("Applepay verification Failed");
     });
 
     cy.ompGetApplePayVerifiedDomains(
@@ -83,7 +120,7 @@ describe("OMP Scoping - Apple Pay", () => {
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       globalState
     ).then((res) => {
-      expect(res.status).to.not.eq(403);
+      expect(res.status).to.eq(200);
     });
   });
 
@@ -102,7 +139,10 @@ describe("OMP Scoping - Apple Pay", () => {
     cy.ompVerifyApplePay(
       merchantIdM1,
       { type: "invalid" },
-      { domain_names: ["example.com"], merchant_connector_account_id: mcaPaId },
+      {
+        domain_names: ["hyperswitch-demo-store.netlify.app"],
+        merchant_connector_account_id: mcaPaId,
+      },
       globalState
     ).then((res) => {
       expect(res.status).to.eq(401);

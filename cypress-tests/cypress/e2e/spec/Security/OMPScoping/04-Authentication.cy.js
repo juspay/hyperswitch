@@ -18,6 +18,24 @@ let merchantIdM1;
 let profileIdPA;
 let profileIdPB;
 
+// AuthenticationEligibilityRequest requires payment_method_data and
+// payment_method (crates/api_models/src/authentication.rs) - an empty body
+// fails deserialization (400) before the profile check ever runs, which
+// would make every eligibility test below pass "by accident" regardless of
+// whether the actual profile check works. A valid minimal card body makes
+// sure any 4xx seen is attributable to the profile check, not this.
+const eligibilityBody = {
+  payment_method_data: {
+    card: {
+      card_number: "4242424242424242",
+      card_exp_month: "12",
+      card_exp_year: "28",
+      card_cvc: "123",
+    },
+  },
+  payment_method: "card",
+};
+
 describe("OMP Scoping - Authentication", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -87,7 +105,7 @@ describe("OMP Scoping - Authentication", () => {
       cy.ompAuthenticationEligibility(
         authPBId,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        {},
+        eligibilityBody,
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
@@ -110,21 +128,28 @@ describe("OMP Scoping - Authentication", () => {
       cy.ompAuthenticationEligibility(
         authPAId,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        { profile_id: profileIdPB },
+        { ...eligibilityBody, profile_id: profileIdPB },
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
       });
     });
 
-    it("eligibility on own PA authentication isn't profile-rejected (positive)", () => {
+    it("eligibility on own PA authentication succeeds (positive)", () => {
+      // Expected 200 (the profile check passes correctly, which is this
+      // test's actual purpose). PA's business profile has a netcetera
+      // authentication_processor connector configured in 00-Setup.cy.js
+      // specifically so eligibility can proceed past the profile check into
+      // real 3DS processing, instead of failing early with 422 IR_29
+      // "authentication_connector_details is not available in business
+      // profile" (crates/router/src/core/authentication/utils.rs:603-610).
       cy.ompAuthenticationEligibility(
         authPAId,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        {},
+        eligibilityBody,
         globalState
       ).then((res) => {
-        expect(res.status).to.not.eq(403);
+        expect(res.status).to.eq(200);
       });
     });
 
@@ -134,7 +159,7 @@ describe("OMP Scoping - Authentication", () => {
       cy.ompAuthenticationEligibility(
         "auth_nonexistent_omp_test",
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        {},
+        eligibilityBody,
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
@@ -145,7 +170,7 @@ describe("OMP Scoping - Authentication", () => {
       cy.ompAuthenticationEligibility(
         "!!bad-id!!",
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
-        {},
+        eligibilityBody,
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
