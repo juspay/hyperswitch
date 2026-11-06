@@ -1,7 +1,9 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
-use crate::core::payouts::{gateway as payout_gateway, kill_switch::PayoutKillSwitch};
+use crate::core::payouts::gateway as payout_gateway;
+#[cfg(feature = "v1")]
+use crate::core::payouts::kill_switch::PayoutKillSwitch;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
