@@ -13390,7 +13390,7 @@
           "address": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SenderAddress"
+                "$ref": "#/components/schemas/AddressDetails"
               }
             ],
             "nullable": true
@@ -18480,7 +18480,7 @@
           "address": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SenderAddress"
+                "$ref": "#/components/schemas/AddressDetails"
               }
             ],
             "nullable": true
@@ -34487,54 +34487,6 @@
           },
           "payment": {
             "type": "string"
-          }
-        }
-      },
-      "SenderAddress": {
-        "type": "object",
-        "description": "The address of the party providing the funds.",
-        "properties": {
-          "line1": {
-            "type": "string",
-            "description": "The first line of the sender's address.",
-            "example": "123, King Street",
-            "nullable": true,
-            "maxLength": 200
-          },
-          "line2": {
-            "type": "string",
-            "description": "The second line of the sender's address.",
-            "example": "Powelson Avenue",
-            "nullable": true,
-            "maxLength": 200
-          },
-          "city": {
-            "type": "string",
-            "description": "The sender's city.",
-            "example": "London",
-            "nullable": true,
-            "maxLength": 50
-          },
-          "state": {
-            "type": "string",
-            "description": "The sender's state or province.",
-            "example": "CA",
-            "nullable": true
-          },
-          "zip": {
-            "type": "string",
-            "description": "The sender's zip or postal code.",
-            "example": "EC1A 1BB",
-            "nullable": true,
-            "maxLength": 50
-          },
-          "country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
           }
         }
       },

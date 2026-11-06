@@ -1504,7 +1504,7 @@ pub async fn update_payouts_and_payout_attempt(
         platform.get_processor().get_key_store(),
         req.sender_details
             .clone()
-            .or_else(|| payouts.sender_details().cloned()),
+            .or_else(|| payouts.get_optional_sender_details().cloned()),
     )
     .await?
     .map(Encryption::from);
@@ -1605,25 +1605,37 @@ pub async fn encrypt_sender_details(
         api_models::sender::SenderDetails,
     >,
 > {
-    let key = merchant_key_store.key.get_inner().peek();
     let key_manager_state: KeyManagerState = state.into();
     sender_details
-        .map(hyperswitch_domain_models::type_encryption::EncryptedJsonType::from)
-        .map(Secret::new)
-        .async_lift(|inner| async {
-            crypto_operation(
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
                 &key_manager_state,
+                merchant_key_store,
+                sender_details,
                 type_name!(storage::Payouts),
-                CryptoOperation::EncryptOptional(inner),
-                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-                key,
             )
             .await
-            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encrypt payout sender_details")?
+            .deserialize_inner_value(|value| {
+                serde_json::from_value::<
+                    hyperswitch_domain_models::type_encryption::EncryptedJsonType<
+                        api_models::sender::SenderDetails,
+                    >,
+                >(value.peek().clone())
+                .map(Secret::new)
+                .map_err(|_| {
+                    error_stack::Report::new(
+                        common_utils::errors::ParsingError::StructParseFailure(
+                            "Failed to serialize payout sender_details",
+                        ),
+                    )
+                })
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt payout sender_details")
+        .transpose()
 }
 
 pub(super) fn get_customer_details_from_request(

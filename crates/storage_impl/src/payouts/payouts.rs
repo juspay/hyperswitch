@@ -2,6 +2,7 @@
 use api_models::enums::PayoutConnectors;
 use common_utils::{
     encryption::Encryption,
+    errors::{CustomResult, ValidationError},
     ext_traits::Encode,
     types::keymanager::{Identifier, KeyManagerState},
 };
@@ -37,7 +38,7 @@ use hyperswitch_domain_models::{
     },
     type_encryption::{crypto_operation, CryptoOperation, EncryptedJsonType},
 };
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
@@ -49,6 +50,7 @@ use crate::store::schema::{
     payout_attempt::all_columns as poa_all_columns, payouts::all_columns as po_all_columns,
 };
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     diesel_error_to_data_error,
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
@@ -56,32 +58,6 @@ use crate::{
     utils::{self, pg_connection_read, pg_connection_read_replica, pg_connection_write},
     DataModelExt, DatabaseStore,
 };
-
-/// Decrypts the `sender_details` ciphertext of the given payouts row with the merchant key
-/// and attaches the decrypted value to the returned domain payouts.
-async fn decrypt_payouts_sender_details(
-    key_manager_state: &KeyManagerState,
-    merchant_key_store: &MerchantKeyStore,
-    storage_model: DieselPayouts,
-) -> error_stack::Result<Payouts, StorageError> {
-    let sender_details = crypto_operation::<
-        EncryptedJsonType<api_models::sender::SenderDetails>,
-        hyperswitch_masking::WithType,
-    >(
-        key_manager_state,
-        common_utils::type_name!(DieselPayouts),
-        CryptoOperation::DecryptOptional(storage_model.sender_details.clone()),
-        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-        merchant_key_store.key.get_inner().peek(),
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(StorageError::DecryptionError)?;
-
-    let mut payouts = Payouts::from_storage_model(storage_model);
-    payouts.sender_details = sender_details;
-    Ok(payouts)
-}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
@@ -249,13 +225,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
-                decrypt_payouts_sender_details(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store,
-                    diesel_payout,
-                )
-                .await
+                diesel_payout
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
             }
         }
     }
@@ -306,13 +284,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                 .await
             }
         }?;
-        decrypt_payouts_sender_details(
-            self.get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?,
-            merchant_key_store,
-            storage_model,
-        )
-        .await
+        storage_model
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                merchant_key_store.key.get_inner(),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -367,13 +347,15 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
         };
         match maybe_payouts {
             Some(storage_model) => Ok(Some(
-                decrypt_payouts_sender_details(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store,
-                    storage_model,
-                )
-                .await?,
+                storage_model
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
             )),
             None => Ok(None),
         }
@@ -497,13 +479,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)
         })?;
-        decrypt_payouts_sender_details(
-            self.get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?,
-            merchant_key_store,
-            storage_model,
-        )
-        .await
+        storage_model
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                merchant_key_store.key.get_inner(),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -525,13 +509,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 let new_err = diesel_error_to_data_error(*er.current_context());
                 er.change_context(new_err)
             })?;
-        decrypt_payouts_sender_details(
-            self.get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?,
-            merchant_key_store,
-            storage_model,
-        )
-        .await
+        storage_model
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                merchant_key_store.key.get_inner(),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -550,13 +536,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     let new_err = diesel_error_to_data_error(*er.current_context());
                     er.change_context(new_err)
                 })?;
-        decrypt_payouts_sender_details(
-            self.get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?,
-            merchant_key_store,
-            storage_model,
-        )
-        .await
+        storage_model
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                merchant_key_store.key.get_inner(),
+                Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
@@ -577,13 +565,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 })?;
         match maybe_payouts {
             Some(storage_model) => Ok(Some(
-                decrypt_payouts_sender_details(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store,
-                    storage_model,
-                )
-                .await?,
+                storage_model
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
             )),
             None => Ok(None),
         }
@@ -682,13 +672,15 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let mut payouts = Vec::with_capacity(storage_models.len());
         for storage_model in storage_models.into_iter() {
             payouts.push(
-                decrypt_payouts_sender_details(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store,
-                    storage_model,
-                )
-                .await?,
+                storage_model
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        merchant_key_store.key.get_inner(),
+                        Identifier::Merchant(merchant_key_store.merchant_id.clone()),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
             );
         }
         Ok(payouts)
@@ -845,13 +837,14 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let mut payouts_and_attempts = Vec::with_capacity(results.len());
         for (pi, pa, c, add) in results.into_iter() {
             payouts_and_attempts.push((
-                decrypt_payouts_sender_details(
+                pi.convert(
                     self.get_keymanager_state()
                         .attach_printable("Missing KeyManagerState")?,
-                    merchant_key_store,
-                    pi,
+                    merchant_key_store.key.get_inner(),
+                    Identifier::Merchant(merchant_key_store.merchant_id.clone()),
                 )
-                .await?,
+                .await
+                .change_context(StorageError::DecryptionError)?,
                 PayoutAttempt::from_storage_model(pa),
                 c,
                 add,
@@ -1061,6 +1054,78 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         .map_err(|er| {
             error_stack::report!(StorageError::from(er))
                 .attach_printable("Error filtering payout records")
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl Conversion for Payouts {
+    type DstType = DieselPayouts;
+    type NewDstType = DieselPayoutsNew;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(self.to_storage_model())
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        other: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        key_manager_identifier: Identifier,
+    ) -> CustomResult<Self, ValidationError> {
+        let sender_details = crypto_operation::<
+            EncryptedJsonType<api_models::sender::SenderDetails>,
+            hyperswitch_masking::WithType,
+        >(
+            state,
+            common_utils::type_name!(DieselPayouts),
+            CryptoOperation::DecryptOptional(other.sender_details.clone()),
+            key_manager_identifier,
+            key.peek(),
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(ValidationError::InvalidValue {
+            message: "Failed while decrypting payouts sender_details".to_string(),
+        })?;
+
+        let mut payouts = Self::from_storage_model(other);
+        payouts.sender_details = sender_details;
+        Ok(payouts)
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(DieselPayoutsNew {
+            payout_id: self.payout_id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            address_id: self.address_id,
+            payout_type: self.payout_type,
+            payout_method_id: self.payout_method_id,
+            amount: self.amount,
+            destination_currency: self.destination_currency,
+            source_currency: self.source_currency,
+            description: self.description,
+            recurring: self.recurring,
+            auto_fulfill: self.auto_fulfill,
+            return_url: self.return_url,
+            entity_type: self.entity_type,
+            metadata: self.metadata,
+            connector_metadata: self.connector_metadata,
+            sender_details: self.sender_details.map(Encryption::from),
+            created_at: self.created_at,
+            last_modified_at: self.last_modified_at,
+            profile_id: self.profile_id,
+            status: self.status,
+            attempt_count: self.attempt_count,
+            confirm: self.confirm,
+            payout_link_id: self.payout_link_id,
+            client_secret: self.client_secret,
+            priority: self.priority,
+            organization_id: self.organization_id,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
+            billing_descriptor: self.billing_descriptor,
         })
     }
 }

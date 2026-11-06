@@ -69,7 +69,7 @@ impl
             unified_code: None,
             unified_message: None,
         };
-        let sender_details = payout.sender_details().cloned();
+        let sender_details = payout.get_optional_sender_details().cloned();
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,

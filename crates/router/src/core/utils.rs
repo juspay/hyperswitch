@@ -291,7 +291,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
     let vendor_details: Option<PayoutVendorAccountDetails> = if let Some(sender_details) =
-        payout_data.payouts.sender_details()
+        payout_data.payouts.get_optional_sender_details()
     {
         // Persisted sender input is normalized to the vendor type only at this
         // domain boundary; the raw sender identity stays on the payout row.

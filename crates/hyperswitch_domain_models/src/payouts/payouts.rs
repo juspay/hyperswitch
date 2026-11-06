@@ -109,7 +109,7 @@ pub trait PayoutsInterface {
     ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, Self::Error>;
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Payouts {
     pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
@@ -146,7 +146,7 @@ pub struct Payouts {
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PayoutsNew {
     pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
@@ -185,7 +185,7 @@ pub struct PayoutsNew {
 
 impl Payouts {
     /// Access the decrypted sender identity carried in this domain value.
-    pub fn sender_details(&self) -> Option<&api_models::sender::SenderDetails> {
+    pub fn get_optional_sender_details(&self) -> Option<&api_models::sender::SenderDetails> {
         self.sender_details
             .as_ref()
             .map(|sender_details| sender_details.get_inner().peek().inner())

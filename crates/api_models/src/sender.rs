@@ -6,7 +6,6 @@
 //! encrypted on the payout and normalized into common payout vendor details at the domain
 //! boundary.
 
-use common_enums::CountryAlpha2;
 use common_utils::{
     new_type::{MaskedEmail, MaskedPhoneNumber},
     pii::Email,
@@ -16,42 +15,7 @@ use hyperswitch_masking::Secret;
 use time::Date;
 use utoipa::ToSchema;
 
-use crate::common::PhoneDetails;
-
-/// The address of the party providing the funds.
-#[derive(Eq, PartialEq, Clone, Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct SenderAddress {
-    /// The first line of the sender's address.
-    #[schema(value_type = Option<String>, max_length = 200, example = "123, King Street")]
-    pub line1: Option<Secret<String>>,
-
-    /// The second line of the sender's address.
-    #[schema(value_type = Option<String>, max_length = 200, example = "Powelson Avenue")]
-    pub line2: Option<Secret<String>>,
-
-    /// The sender's city.
-    #[schema(max_length = 50, example = "London")]
-    pub city: Option<String>,
-
-    /// The sender's state or province.
-    #[schema(value_type = Option<String>, example = "CA")]
-    pub state: Option<Secret<String>>,
-
-    /// The sender's zip or postal code.
-    #[schema(value_type = Option<String>, max_length = 50, example = "EC1A 1BB")]
-    pub zip: Option<Secret<String>>,
-
-    /// The two-letter ISO country code of the sender's address.
-    #[schema(value_type = Option<CountryAlpha2>, example = "GB")]
-    pub country: Option<CountryAlpha2>,
-}
-
-impl SenderAddress {
-    /// Returns true when none of the address fields are provided.
-    pub fn is_empty(&self) -> bool {
-        self == &Self::default()
-    }
-}
+use crate::{common::PhoneDetails, payments::AddressDetails};
 
 /// Origin of the funds, supplied by the merchant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -91,8 +55,8 @@ pub struct IndividualSenderDetails {
     /// The sender's address. When no address field is provided, the billing address of the
     /// payment method is used instead, unless the sender is named and their name differs from
     /// the billing name, in which case no address is sent.
-    #[schema(value_type = Option<SenderAddress>)]
-    pub address: Option<SenderAddress>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<AddressDetails>,
 
     /// The sender's email address.
     #[schema(value_type = Option<String>, example = "john.doe@example.com")]
@@ -119,8 +83,8 @@ pub struct CorporateSenderDetails {
 
     /// The sender's address. When no address field is provided, the billing address of the
     /// payment method is used instead.
-    #[schema(value_type = Option<SenderAddress>)]
-    pub address: Option<SenderAddress>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<AddressDetails>,
 
     /// The sender's email address.
     #[schema(value_type = Option<String>, example = "treasury@acme.com")]
@@ -167,7 +131,7 @@ impl SenderDetails {
     }
 
     /// The sender's address, if provided.
-    pub fn get_address(&self) -> Option<&SenderAddress> {
+    pub fn get_address(&self) -> Option<&AddressDetails> {
         match self {
             Self::Individual(individual) => individual.address.as_ref(),
             Self::Corporate(corporate) => corporate.address.as_ref(),
@@ -215,8 +179,8 @@ pub struct IndividualSenderDetailsResponse {
     pub last_name: Option<Secret<String>>,
 
     /// The sender's address.
-    #[schema(value_type = Option<SenderAddress>)]
-    pub address: Option<SenderAddress>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<AddressDetails>,
 
     /// The sender's partially masked phone number.
     #[schema(value_type = Option<MaskedSenderPhoneDetails>)]
@@ -235,8 +199,8 @@ pub struct CorporateSenderDetailsResponse {
     pub company_name: Secret<String>,
 
     /// The sender's address.
-    #[schema(value_type = Option<SenderAddress>)]
-    pub address: Option<SenderAddress>,
+    #[schema(value_type = Option<AddressDetails>)]
+    pub address: Option<AddressDetails>,
 
     /// The sender's partially masked phone number.
     #[schema(value_type = Option<MaskedSenderPhoneDetails>)]

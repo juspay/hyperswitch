@@ -2030,8 +2030,8 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
     }
 }
 
-impl From<crate::sender::SenderAddress> for PayoutVendorAddress {
-    fn from(value: crate::sender::SenderAddress) -> Self {
+impl From<payments::AddressDetails> for PayoutVendorAddress {
+    fn from(value: payments::AddressDetails) -> Self {
         Self {
             line1: value.line1,
             line2: value.line2,

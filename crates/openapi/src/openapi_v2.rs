@@ -823,7 +823,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::sender::SenderDetails,
         api_models::sender::IndividualSenderDetails,
         api_models::sender::CorporateSenderDetails,
-        api_models::sender::SenderAddress,
         api_models::sender::SourceOfFunds,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
