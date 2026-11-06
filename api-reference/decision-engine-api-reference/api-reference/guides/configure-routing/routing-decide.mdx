@@ -1,28 +1,26 @@
 ---
-title: "Decide (Unified Contract)"
-description: "Curl example for /decide, the unified payment payload for hybrid routing."
+title: "Decide"
+description: "Curl example for /decide, the routing decision for a single payment."
 ---
 
 # Decide
 
-`POST /decide` accepts a flat payment payload with nested `card` and `routing_config` objects. It evaluates the active rule and then ranks the result by success rate, with A/B experiments, cost optimisation, volume commitments, scoring, and fallback handling. [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) runs the same evaluation and keeps its existing request and response.
+`POST /decide` routes one payment. It evaluates the merchant's active routing rule, ranks the result by success rate, cost and volume commitments, and answers with the connectors to try in order. [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) exposes the same evaluation under a different request and response.
 
-Authenticate with `Authorization: Bearer <token>` or `x-api-key: <key>`, as `/routing/hybrid` does.
+Authenticate with `Authorization: Bearer <token>` or `x-api-key: <key>`.
 
-## Merchant and request ids
+## Merchant
 
-The merchant is named by the `x-connected-merchant-id` header, never the body. `/decide` has no `merchant_id` field, and a request that sends one is rejected.
+The merchant is named by the `x-connected-merchant-id` header, never the request body.
 
 | Caller | Without the header | With the header |
 | --- | --- | --- |
-| Session or API key | Its own merchant | Its own merchant or one of its sub-merchants, else `403` |
-| Service credential | `400` | The merchant named |
+| Session or API key | Its own merchant | Its own merchant, or one of its sub-merchants |
+| Service credential (`x-admin-secret`) | Not accepted, as it has no merchant of its own | The merchant named |
 
-A service caller (one presenting the deployment's `x-admin-secret`) has no merchant of its own, so it must name the routing scope in `x-connected-merchant-id`.
+`x-request-id` identifies the call. One is generated if absent, and it comes back as a response header. `merchant_reference_id` is your own reference for the payment and is echoed in the response.
 
-`merchant_reference_id` is your own reference for the payment and is echoed in the response. `x-request-id` identifies the call. One is generated if absent and returned as a response header.
-
-## Full request
+## Request
 
 ```bash
 curl --location "$BASE_URL/decide" \
@@ -49,6 +47,7 @@ curl --location "$BASE_URL/decide" \
     },
     "routing_config": {
       "algorithm_for": "payment",
+      "decision_arm": "control",
       "eligible_connectors": [
         { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
         { "connector": "checkout", "merchant_connector_id": "mca_cko" }
@@ -57,32 +56,33 @@ curl --location "$BASE_URL/decide" \
   }'
 ```
 
-The required fields are `payment_id`, `amount`, `currency`, `routing_config.algorithm_for`, and `routing_config.eligible_connectors`. Every input connector requires a nonempty `connector`. `merchant_connector_id` is optional and, when sent, nonempty. A connector named without an account is matched and scored by its name alone. Other fields may be omitted or null. Amounts are unsigned integers in minor units. BINs are strings and preserve leading zeros.
+The required fields are `payment_id`, `amount`, `currency`, `routing_config.algorithm_for` and `routing_config.eligible_connectors`. Other fields may be omitted or null, and unknown fields are rejected.
 
-## Field mapping
+- `amount` is an unsigned integer in minor units.
+- Country codes are ISO 3166 alpha-2. `billing_country`, then `business_country`, supplies the country the decider scores on.
+- BINs are strings, so leading zeros are kept.
+- A connector needs a nonempty `connector`. `merchant_connector_id` is optional and, when sent, nonempty. A connector named without an account is matched and scored by its name alone.
+- `metadata` adds custom rule parameters. It cannot overwrite a payment field or a configured rule key.
+- `payment_type` (`non_mandate`, `setup_mandate`, `ppt_mandate` and so on) routes mandate payments, such as a processor-token charge to the processor holding the token. A rule that tests it matches only when it is sent, and it does not set the decider's transaction type.
+- `authentication_type` is both matched by rules and scored by the decider.
+- `routing_config.decision_arm` names the arm the caller assigned, `control` or `variant`. It is kept in the request audit and does not override Decision Engine's own experiment assignment.
+- `routing_config` also carries `preferred_connectors`, `ranking_algorithm`, `elimination_enabled` and `enable_multi_objective`, which the decider applies where the merchant's feature and experiment gates allow it.
 
-| `/decide` field | Existing internal field |
+## Rule keys
+
+Most fields are matched under their own name, and `metadata` entries under their own keys. These are matched under a different key, so write rules against the key rather than the field name.
+
+| Request field | Rule key |
 | --- | --- |
-| `amount` | static `amount` and `payment_amount`, plus dynamic payment amount |
-| `payment_method_type` | static `payment_method` |
-| `payment_method_sub_type` | static `payment_method_type` |
+| `amount` | `amount` and `payment_amount` |
+| `payment_method_type` | `payment_method` |
+| `payment_method_sub_type` | `payment_method_type` |
 | `card.card_isin` | `card_bin` |
 | `card.card_extended_bin` | `extended_card_bin` |
 | `card.card_issuer` | `issuer_name` |
 | `card.card_issuing_country_code` | `issuer_country` |
-| `x-connected-merchant-id` header | static `created_by` / dynamic merchant ID |
-| `routing_config.eligible_connectors` | hybrid candidate/fallback input |
-| `merchant_connector_id` | `gateway_id` / account-qualified dynamic connector |
 
-Country codes use ISO alpha-2 values. The adapter translates them to the configured country names for rule matching. Other configured enum values retain an exact match when available, otherwise a case-insensitive match. Existing rule schemas and stored configurations keep their current names.
-
-The merchant named by `x-connected-merchant-id` is the routing scope formerly called `created_by`. Integrations must continue naming the same identifier (the Hyperswitch profile ID where applicable). `routing_config.algorithm_for` remains explicit and required. It is not inferred from `payment_id`.
-
-`amount` is the single payment amount in this contract. It supplies both existing rule parameters, `amount` and `payment_amount`, without changing stored rule definitions. `metadata` supplies custom rule parameters without overwriting configured or reserved fields. `authentication_type` supplies both rule and dynamic authentication data. Preferred accounts and ranking/elimination options are forwarded to the existing decider. Feature and experiment gates still control whether it runs. `routing_config.decision_arm` names the arm the caller assigned, `control` or `variant`, which is kept in the request audit and does not override Decision Engine's own experiment assignment. `billing_country` takes precedence over `business_country` for the decider's country.
-
-`payment_type` is the rule key of the same name (`non_mandate`, `setup_mandate`, `ppt_mandate`, and so on), which rules use to route mandate payments, for example a processor-token charge to the processor that holds the token. A rule that tests it matches only when it is sent. It does not set the success-rate decider's transaction type.
-
-The removed fields (`merchant_id`, `country`, `transaction_type`, `mandate_type`, `mandate_acceptance_type`, EMI fields, `internal_metadata`, `order_amount`, `payment_amount`, `udfs`, `payment_metadata`, `payment_source`, `auth_type`, and `channel`), old `context` / `created_by`, top-level card fields, and `fallback_connectors` are not accepted by `/decide`. Other endpoints retain their existing contracts. Missing required fields, unknown fields, and incorrect JSON types return `400` in the standard invalid-request format.
+Country codes are matched as the configured country names, which the adapter derives from the alpha-2 code. Other enum values match exactly where the configuration defines the value, otherwise case-insensitively.
 
 ## Response
 
@@ -159,7 +159,7 @@ The removed fields (`merchant_id`, `country`, `transaction_type`, `mandate_type`
 }
 ```
 
-`connectors` is the order to try. The first is the choice and the rest the retry order. Every connector in the response, in every section, has the same `{connector, merchant_connector_id}` shape. `merchant_connector_id` is null for a connector named without an account.
+`connectors` is the order to try. The first is the choice and the rest the retry order. Every connector in the response, in every section, has the same `{connector, merchant_connector_id}` shape, and `merchant_connector_id` is null for a connector named without an account.
 
 `outcome` says how the order was reached:
 
@@ -167,7 +167,7 @@ The removed fields (`merchant_id`, `country`, `transaction_type`, `mandate_type`
 | --- | --- |
 | `routed` | The configured routing produced the order. |
 | `fallback` | Routing could not apply, so the candidates in request order, or the rule output unranked, answered. |
-| `no_connector` | No connector is left to try and `connectors` is empty. The call still returns `200`. |
+| `no_connector` | No connector is left to try. `connectors` is empty and the call still succeeds. |
 
 `strategy` names the layer that set the order (`rule`, `success_rate`, `cost`, `volume_commitment`, `debit_network`, `candidate_order`, `none`) and `reason` the specific case, for example `rule_matched`, `success_rate_ranked`, `cost_optimized`, `no_active_rule`, `rule_output_not_eligible`, `rule_input_invalid`, or `success_rate_unavailable`. New values may be added to these enums. `message` is for people reading logs, so branch on `reason`.
 
@@ -175,9 +175,7 @@ Each routing layer has a section, null when that layer did not run: `rule` (null
 
 `warnings` lists problems the decision routed around: `rule_input_invalid` (a request value the routing configuration does not allow, where `param` names the request field such as `card.card_network`, and there is one warning per invalid value), `rule_evaluation_failed` (the rule could not be evaluated for another reason), `rule_output_not_eligible` and `rule_output_partially_eligible` (the rule chose connectors outside `eligible_connectors`), and `success_rate_failed`. Routing problems never fail the call.
 
-`id` is unique per decision, so a retried payment's decisions stay apart. The call's `x-request-id` is returned as a response header, not in the body.
-
-Analytics add the original `/decide` request and response and identify the API route as `decide`. Decisions remain in the same analytics and A/B experiment family as `/routing/hybrid`.
+`id` is unique per decision, so a retried payment's decisions stay apart. Analytics record the request and response under the route name `decide`.
 
 ## Feedback
 
