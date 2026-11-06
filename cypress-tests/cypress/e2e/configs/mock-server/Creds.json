@@ -19,5 +19,12 @@
       "api_key": "affirm-testkey123",
       "key1": "affirm-testsecret456"
     }
+  },
+  "aci": {
+    "connector_account_details": {
+      "auth_type": "BodyKey",
+      "api_key": "aci-mock-api-key",
+      "key1": "aci-mock-entity-id"
+    }
   }
 }

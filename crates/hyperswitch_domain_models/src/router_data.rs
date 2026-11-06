@@ -898,6 +898,17 @@ pub struct RecurringMandatePaymentData {
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::enums::Currency>,
     pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    /// The saved payment method's `network_transaction_id`. A legacy-row fallback only: read it
+    /// solely when the mandate record itself holds no usable scheme reference. The column is
+    /// payment-method-wide — shared by every connector account the card was used on — and core
+    /// rewrites it from later responses, so it need not belong to the CIT that set up the
+    /// registration being charged.
+    pub network_transaction_id: Option<String>,
+    /// The saved payment method's `network_transaction_link_id` (Mastercard agreement id / TLID).
+    /// A legacy-row fallback with the same caveats as [`Self::network_transaction_id`], and valid
+    /// only as its pair: use it only when the scheme reference being replayed is that column's
+    /// value, otherwise it may belong to another agreement.
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -13025,7 +13025,15 @@ where
                 }
             }
 
-            payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
+            payment_data.set_recurring_mandate_payment_data(
+                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                    network_transaction_id: payment_method_info.network_transaction_id.clone(),
+                    network_transaction_link_id: payment_method_info
+                        .network_transaction_link_id
+                        .clone(),
+                    ..mandate_reference_record.into()
+                },
+            );
 
             Some(mandates::MandateReferenceId::ConnectorMandateId(
                 mandates::ConnectorMandateReferenceId::new(
@@ -13117,7 +13125,13 @@ where
                                 )
                             ));
                             payment_data.set_recurring_mandate_payment_data(
-                                mandate_reference_record.into(),
+                                hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                                    network_transaction_id: payment_method_info.network_transaction_id.clone(),
+                                    network_transaction_link_id: payment_method_info
+                                        .network_transaction_link_id
+                                        .clone(),
+                                    ..mandate_reference_record.into()
+                                },
                             );
                             connector_choice = Some((connector_data, mandate_reference_id.clone()));
                             break;

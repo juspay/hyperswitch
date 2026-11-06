@@ -596,6 +596,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
                 original_payment_authorized_amount: None,
                 original_payment_authorized_currency: None,
                 mandate_metadata: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
             }
         }),
         // TODO: This has to be generated as the reference id based on the connector configuration

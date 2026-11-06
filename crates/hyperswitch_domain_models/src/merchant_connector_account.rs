@@ -20,9 +20,7 @@ use diesel_models::{
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
 use error_stack::ResultExt;
-#[cfg(feature = "v2")]
-use hyperswitch_masking::PeekInterface;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 
@@ -718,6 +716,26 @@ impl MerchantConnectorAccountWithoutEncrypted {
     pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone()
     }
+
+    pub fn should_collect_cvv(&self) -> bool {
+        should_collect_cvv_from_mca_metadata(self.metadata.as_ref())
+    }
+}
+
+/// Reads the optional `collect_cvv` flag from an MCA `metadata` JSON object.
+/// Merchant-set metadata is stringly-typed in practice, so a JSON bool or the
+/// strings "true"/"false" (case-insensitive) are accepted. Defaults to `true`
+/// (collect CVV) when the key is absent or unparseable.
+pub fn should_collect_cvv_from_mca_metadata(metadata: Option<&pii::SecretSerdeValue>) -> bool {
+    metadata
+        .and_then(|meta| meta.peek().get("collect_cvv"))
+        .and_then(|value| match value {
+            Value::Bool(collect_cvv) => Some(*collect_cvv),
+            Value::String(s) if s.eq_ignore_ascii_case("true") => Some(true),
+            Value::String(s) if s.eq_ignore_ascii_case("false") => Some(false),
+            _ => None,
+        })
+        .unwrap_or(true)
 }
 
 /// A lightweight view of [`MerchantConnectorAccount`] containing only the
@@ -1030,4 +1048,59 @@ pub trait MerchantConnectorAccountInterface {
         &self,
         id: &id_type::MerchantConnectorAccountId,
     ) -> CustomResult<bool, Self::Error>;
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod tests {
+    use common_utils::pii;
+    use hyperswitch_masking::Secret;
+
+    use super::should_collect_cvv_from_mca_metadata;
+
+    fn metadata(value: serde_json::Value) -> pii::SecretSerdeValue {
+        Secret::new(value)
+    }
+
+    #[test]
+    fn collects_cvv_when_metadata_is_absent() {
+        assert!(should_collect_cvv_from_mca_metadata(None));
+    }
+
+    #[test]
+    fn collects_cvv_when_key_is_absent() {
+        let meta = metadata(serde_json::json!({ "other_key": "value" }));
+        assert!(should_collect_cvv_from_mca_metadata(Some(&meta)));
+    }
+
+    #[test]
+    fn respects_bool_flag() {
+        let falsy = metadata(serde_json::json!({ "collect_cvv": false }));
+        assert!(!should_collect_cvv_from_mca_metadata(Some(&falsy)));
+
+        let truthy = metadata(serde_json::json!({ "collect_cvv": true }));
+        assert!(should_collect_cvv_from_mca_metadata(Some(&truthy)));
+    }
+
+    #[test]
+    fn respects_string_flag() {
+        let falsy = metadata(serde_json::json!({ "collect_cvv": "false" }));
+        assert!(!should_collect_cvv_from_mca_metadata(Some(&falsy)));
+
+        let falsy_mixed_case = metadata(serde_json::json!({ "collect_cvv": "False" }));
+        assert!(!should_collect_cvv_from_mca_metadata(Some(
+            &falsy_mixed_case
+        )));
+
+        let truthy = metadata(serde_json::json!({ "collect_cvv": "true" }));
+        assert!(should_collect_cvv_from_mca_metadata(Some(&truthy)));
+    }
+
+    #[test]
+    fn collects_cvv_for_unparseable_values() {
+        let junk_number = metadata(serde_json::json!({ "collect_cvv": 0 }));
+        assert!(should_collect_cvv_from_mca_metadata(Some(&junk_number)));
+
+        let junk_string = metadata(serde_json::json!({ "collect_cvv": "no" }));
+        assert!(should_collect_cvv_from_mca_metadata(Some(&junk_string)));
+    }
 }

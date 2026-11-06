@@ -719,6 +719,7 @@ export const CONNECTOR_LISTS = {
     GOPAY_WALLET_MANDATE: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
+      "aci",
       "adyen",
       "checkout",
       "stripe",
