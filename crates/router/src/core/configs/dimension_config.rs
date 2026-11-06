@@ -916,6 +916,23 @@ impl DatabaseBackedConfig for RecoveryMaxRetryCount {
 }
 
 config! {
+    superposition_key = RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT,
+    output = u32,
+    default = 0,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RecoveryMaxHybridCascadingRetryCount {
+    const KEY: &'static str = "recovery_max_hybrid_cascading_retry_count";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Keep this internal count in Superposition without a database fallback.
+        None
+    }
+}
+
+config! {
     superposition_key = PT_MAPPING_PAYMENT_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),

@@ -256,6 +256,10 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     scheduler_utils::get_time_from_delta(time_delta)
 }
 
+/// The rung asked for when one doesn't fit the `i32` that the scheduler's lookup takes.
+#[cfg(feature = "v2")]
+const MAX_QUERIED_RUNG: i32 = 15;
+
 /// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
 /// Read at the ladder position rather than the invoice's overall retry count, because
 /// `pt_mapping_adaptive_retries` is the mapping built for rung semantics.
@@ -264,13 +268,17 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    queried_rung: i32,
+    queried_rung: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
+    // The scheduler's lookup takes an `i32`.
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(
+        mapping,
+        i32::try_from(queried_rung).unwrap_or(MAX_QUERIED_RUNG),
+    );
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -876,7 +884,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(provider_merchant_id)
+                .with_provider_merchant_id(provider_merchant_id.clone())
                 .with_organization_id(payment_intent.organization_id.clone())
                 .with_profile_id(payment_intent.profile_id.clone());
 
@@ -953,14 +961,22 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
-                        let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
-                            .billing_mca
-                            .get_max_hybrid_cascading_retry_count()
-                            .map(i32::from)
-                            .ok_or(errors::ProcessTrackerError::MissingRequiredField)
-                            .attach_printable(
-                                "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                            )?;
+                        let max_hybrid_cascading_retry_count = {
+                            let dimensions =
+                                crate::core::configs::dimension_state::Dimensions::new()
+                                    .with_processor_merchant_id(
+                                        payment_intent.merchant_id.clone().into(),
+                                    )
+                                    .with_provider_merchant_id(provider_merchant_id)
+                                    .with_profile_id(payment_intent.profile_id.clone());
+                            dimensions
+                                .get_recovery_max_hybrid_cascading_retry_count(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    None,
+                                )
+                                .await
+                        };
 
                         if queried_rung <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(

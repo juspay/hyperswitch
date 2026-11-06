@@ -194,12 +194,22 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
-            let max_hybrid_cascading_retry_count = billing_connector_account
-                .get_max_hybrid_cascading_retry_count()
-                .ok_or(errors::RevenueRecoveryError::RetryCountFetchFailed)
-                .attach_printable(
-                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                )?;
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(
+                    recovery_intent_from_payment_intent
+                        .merchant_id
+                        .clone()
+                        .into(),
+                )
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
+            let max_hybrid_cascading_retry_count = dimensions
+                .get_recovery_max_hybrid_cascading_retry_count(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
 
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
@@ -868,13 +878,17 @@ pub async fn perform_calculate_workflow(
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
-            let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
-                .billing_mca
-                .get_max_hybrid_cascading_retry_count()
-                .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable(
-                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                )?;
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(payment_intent.profile_id.clone());
+            let max_hybrid_cascading_retry_count = dimensions
+                .get_recovery_max_hybrid_cascading_retry_count(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
             let intent_retry_count = payment_intent
                 .get_revenue_recovery_retry_count()
                 .ok_or(errors::RecoveryError::ValueNotFound)
