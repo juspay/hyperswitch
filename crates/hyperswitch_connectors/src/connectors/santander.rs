@@ -95,7 +95,9 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
+    utils::{
+        self as connector_utils, convert_amount, ForeignTryFrom, PaymentsAuthorizeRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -2607,6 +2609,14 @@ impl ConnectorSpecifications for Santander {
         }
     }
 
+    fn get_webhook_registration_metadata(
+        &self,
+        _identifier: &ScopeIdentifier,
+        base_url: &str,
+    ) -> Option<serde_json::Value> {
+        serde_json::to_value(transformers::santander_webhook_response_metadata(base_url)).ok()
+    }
+
     #[cfg(feature = "v1")]
     fn generate_connector_request_reference_id(
         &self,
@@ -2934,6 +2944,7 @@ impl
         } else if base_url.as_str().contains("webhookrec")
             || base_url.as_str().contains("webhookcobr")
         {
+            let headers = res.headers;
             let response: SantanderEmptyResponse = res
                 .response
                 .parse_struct("SantanderEmptyResponse")
@@ -2942,11 +2953,14 @@ impl
             event_builder.map(|i| i.set_response_body(&response));
             router_env::logger::info!(connector_response=?response);
 
-            RouterData::try_from(ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
+            RouterData::foreign_try_from((
+                ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                },
+                headers,
+            ))
         } else {
             let response: SantanderPixWebhookRegisterResponse = res
                 .response

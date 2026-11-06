@@ -51773,6 +51773,10 @@
               }
             ],
             "nullable": true
+          },
+          "metadata": {
+            "description": "Connector-supplied, non-sensitive details about this webhook registration.\nThis is returned for each individual registration call, including when a\nsingle scope requires multiple connector webhooks.",
+            "nullable": true
           }
         }
       },
