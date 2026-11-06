@@ -728,6 +728,30 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
 }
 
 config! {
+    superposition_key = PAYOUT_MIN_AMOUNT,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::zero(),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutMinAmount {
+    const KEY: &'static str = "payout_min_amount";
+}
+
+config! {
+    superposition_key = PAYOUT_MAX_AMOUNT,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::new(crate::consts::MAX_ALLOWED_AMOUNT),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutMaxAmount {
+    const KEY: &'static str = "payout_max_amount";
+}
+
+config! {
     superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
     output = crate::types::PollConfig,
     default = crate::types::PollConfig::default(),

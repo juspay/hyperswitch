@@ -18,7 +18,10 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
-use super::{validator::PayoutExecutionKindValidation, PayoutData};
+use super::{
+    validator::{self, PayoutExecutionKindValidation},
+    PayoutData,
+};
 #[cfg(feature = "v1")]
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "payouts")]
@@ -1452,6 +1455,26 @@ pub async fn update_payouts_and_payout_attempt(
             ),
         }));
     }
+
+    let profile_id = payout_data.business_profile.get_id();
+    let payout_cap_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone());
+    validator::validate_payout_amount_against_config(
+        state,
+        &payout_cap_dimensions,
+        profile_id,
+        req.amount,
+    )
+    .await?;
 
     // Fetch customer details from request and create new or else use existing customer that was attached
     let customer = get_customer_details_from_request(req);
