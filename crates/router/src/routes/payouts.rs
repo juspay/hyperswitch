@@ -24,7 +24,7 @@ use crate::{
         authentication::{self as auth},
         authorization::permissions::Permission,
     },
-    types::{api::payouts as payout_types, transformers::ForeignTryFrom},
+    types::{api::payouts as payout_types, domain, transformers::ForeignTryFrom},
 };
 
 /// Payouts - Create
@@ -808,14 +808,17 @@ pub async fn payouts_manual_update(
     tracing::Span::current().record("payout_id", payout_id.get_string_repr());
 
     payload.payout_id = payout_id;
+    let merchant_id = payload.merchant_id.clone();
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, _auth, req, _req_state| payouts_manual_update_core(state, req),
-        &auth::AdminApiAuth,
+        |state, platform: domain::Platform, req, _req_state| {
+            payouts_manual_update_core(state, platform, req)
+        },
+        &auth::AdminApiAuthWithMerchantIdFromRoute(merchant_id),
         locking_action,
     ))
     .await
