@@ -11742,6 +11742,17 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
 // Payment Method Collect Link Commands
 // ============================================
 
+function assertGenericLinkScript(response, variable, expected) {
+  expect(response.status).to.equal(200);
+  expect(response.headers["content-type"]).to.include("text/html");
+  const script = response.body.split(`window.${variable} = `)[1].split("\n")[0];
+  expect(script).not.to.match(/[<>&\u2028\u2029]/);
+  const details = JSON.parse(script);
+  for (const [key, value] of Object.entries(expected)) {
+    expect(details[key]).to.equal(value);
+  }
+}
+
 Cypress.Commands.add(
   "paymentMethodCollectLinkCreate",
   (requestBody, data, globalState) => {
@@ -11771,7 +11782,21 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.headers["content-type"]).to.include(
+          resData?.contentType || "application/json"
+        );
+
+        if (resData?.status) {
+          expect(response.status).to.equal(resData.status);
+        }
+        if (resData?.messageIncludes) {
+          expect(response.body.error.message).to.include(
+            resData.messageIncludes
+          );
+        }
+        if (resData?.bodyIncludes) {
+          expect(response.body).to.include(resData.bodyIncludes);
+        }
 
         if (response.status === 200) {
           globalState.set("pmCollectId", response.body.pm_collect_link_id);
@@ -11824,12 +11849,22 @@ Cypress.Commands.add("paymentMethodCollectLinkRender", (data, globalState) => {
       if (response.status === 200) {
         expect(response.headers["content-type"]).to.include("text/html");
         expect(response.body).to.be.a("string");
+        if (resData?.scriptData) {
+          assertGenericLinkScript(
+            response,
+            "__PM_COLLECT_DETAILS",
+            resData.scriptData
+          );
+        }
       } else if (response.status === 400 || response.status === 404) {
         if (resData && resData.body) {
           for (const key in resData.body) {
             expect(response.body[key]).to.deep.equal(resData.body[key]);
           }
         }
+      }
+      if (resData?.status) {
+        expect(response.status).to.equal(resData.status);
       }
     });
   });
@@ -13109,7 +13144,15 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+        expect(response.headers["content-type"]).to.include(
+          resData.contentType || "application/json"
+        );
+
+        if (resData.bodyIncludes) {
+          expect(response.status).to.equal(resData.status);
+          expect(response.body).to.include(resData.bodyIncludes);
+          return;
+        }
 
         if (response.status === 200) {
           expect(response.status).to.equal(200);
@@ -13149,6 +13192,37 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("validatePayoutLinkProfileConfig", (data, globalState) => {
+  const profileId =
+    globalState.get("profileId") || globalState.get("defaultProfileId");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${globalState.get("merchantId")}/business_profile/${profileId}`,
+    headers: { "api-key": globalState.get("apiKey") },
+    failOnStatusCode: false,
+    body: { payout_link_config: { allowed_domains: [], ...data.Request } },
+  }).then((response) => {
+    expect(response.status).to.equal(data.ProfileResponse.status);
+    expect(response.headers["content-type"]).to.include(
+      data.ProfileResponse.contentType
+    );
+    expect(response.body).to.include(data.ProfileResponse.bodyIncludes);
+  });
+});
+
+Cypress.Commands.add("renderPayoutLinkData", (data, globalState) => {
+  const link = new URL(globalState.get("payoutLinkUrl"));
+  cy.request(
+    `${globalState.get("baseUrl")}${link.pathname}${link.search}`
+  ).then((response) => {
+    assertGenericLinkScript(
+      response,
+      "__PAYOUT_DETAILS",
+      data.Response.scriptData
+    );
+  });
+});
 
 Cypress.Commands.add("initiatePayoutLinkTest", (data, globalState) => {
   const payoutLinkUrl = globalState.get("payoutLinkUrl");

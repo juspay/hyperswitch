@@ -290,6 +290,41 @@ describe("Core flows", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
+    context("Hosted collect link security checks", () => {
+      beforeEach(function () {
+        const hostname = new URL(globalState.get("baseUrl")).hostname;
+        if (["localhost", "127.0.0.1", "[::1]"].includes(hostname)) {
+          this.skip();
+        }
+      });
+
+      it("rejects unsafe collect link UI configuration and escapes rendered data", () => {
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+
+        cy.paymentMethodCollectLinkCreate(
+          fixtures.pmCollectLinkBody,
+          pmCollectLinkConnectorDetails.UnsafeMerchantName,
+          globalState
+        );
+        cy.paymentMethodCollectLinkCreate(
+          fixtures.pmCollectLinkBody,
+          pmCollectLinkConnectorDetails.UnsafeTheme,
+          globalState
+        );
+        cy.paymentMethodCollectLinkCreate(
+          fixtures.pmCollectLinkBody,
+          pmCollectLinkConnectorDetails.EscapedData,
+          globalState
+        );
+        cy.paymentMethodCollectLinkRender(
+          pmCollectLinkConnectorDetails.EscapedData,
+          globalState
+        );
+      });
+    });
+
     it("Payment method collect link create and render", () => {
       const shouldContinue = true;
 

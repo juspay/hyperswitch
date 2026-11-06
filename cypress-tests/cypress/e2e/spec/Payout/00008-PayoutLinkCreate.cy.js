@@ -118,6 +118,60 @@ describe("Payout Link", () => {
   });
 
   context("Payout Link - Validation errors", () => {
+    context("Hosted payout link security checks", () => {
+      beforeEach(function () {
+        const hostname = new URL(globalState.get("baseUrl")).hostname;
+        if (["localhost", "127.0.0.1", "[::1]"].includes(hostname)) {
+          this.skip();
+        }
+      });
+
+      it("rejects unsafe merchant name in payout link and profile configuration", () => {
+        const configs = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["payout_link_pm"];
+        const data = configs.UnsafeMerchantName;
+        const base = configs.PayoutLinkBase;
+        cy.createPayoutWithLinkTest(
+          fixtures.createPayoutLinkBody,
+          {
+            ...data,
+            Request: {
+              ...base.Request,
+              payout_link_config: {
+                ...base.Request.payout_link_config,
+                ...data.Request,
+              },
+            },
+          },
+          globalState
+        );
+        cy.validatePayoutLinkProfileConfig(data, globalState);
+      });
+
+      it("rejects unsafe theme in payout link and profile configuration", () => {
+        const configs = utils.getConnectorDetails(
+          globalState.get("connectorId")
+        )["payout_link_pm"];
+        const data = configs.UnsafeTheme;
+        const base = configs.PayoutLinkBase;
+        cy.createPayoutWithLinkTest(
+          fixtures.createPayoutLinkBody,
+          {
+            ...data,
+            Request: {
+              ...base.Request,
+              payout_link_config: {
+                ...base.Request.payout_link_config,
+                ...data.Request,
+              },
+            },
+          },
+          globalState
+        );
+        cy.validatePayoutLinkProfileConfig(data, globalState);
+      });
+    });
     it("missing-customer-id-error-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "payout_link_pm"
@@ -152,6 +206,29 @@ describe("Payout Link", () => {
       if (!shouldContinue) {
         this.skip();
       }
+    });
+
+    it("preserves safe merchant text in escaped payout page data", () => {
+      const configs = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "payout_link_pm"
+      ];
+      const base = configs.PayoutLinkBase;
+      const data = configs.EscapedData;
+      cy.createPayoutWithLinkTest(
+        fixtures.createPayoutLinkBody,
+        {
+          ...base,
+          Request: {
+            ...base.Request,
+            payout_link_config: {
+              ...base.Request.payout_link_config,
+              ...data.Request,
+            },
+          },
+        },
+        globalState
+      );
+      cy.renderPayoutLinkData(data, globalState);
     });
 
     it("create-payout-link-with-theme-test", () => {
