@@ -3597,9 +3597,23 @@ impl SuperpositionProxy {
         web::scope("/v1/superposition")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/context")
-                    .route(web::get().to(super::superposition_proxy::list_contexts))
-                    .route(web::put().to(super::superposition_proxy::create_context)),
+                web::scope("/context")
+                    .service(
+                        web::resource("")
+                            .route(web::get().to(super::superposition_proxy::list_contexts))
+                            .route(web::put().to(super::superposition_proxy::create_context)),
+                    )
+                    .service(web::resource("/overrides").route(
+                        web::patch().to(super::superposition_proxy::update_context_override),
+                    ))
+                    .service(
+                        web::resource("/bulk-operations")
+                            .route(web::post().to(super::superposition_proxy::bulk_operations)),
+                    )
+                    .service(
+                        web::resource("/{context_id}")
+                            .route(web::delete().to(super::superposition_proxy::delete_context)),
+                    ),
             )
             .service(
                 web::resource("/default-config")
