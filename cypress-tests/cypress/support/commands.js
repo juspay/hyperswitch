@@ -7959,26 +7959,10 @@ Cypress.Commands.add(
 );
 
 /**
- * Confirms a payout via POST /payouts/{payout_id}/confirm, supporting both
- * authentication modes of the payout confirm API. This is the payout-side
- * analogue of confirmCallTest (payments): it confirms an EXISTING payout on
- * its dedicated confirm endpoint. It cannot be replaced by
- * createConfirmPayoutTest, which always creates a NEW payout on
- * POST /payouts/create — a route with merchant-key-only auth where the
- * client-authenticated confirm flow is unreachable.
- * - client-authenticated (clientAuth=true): publishable key in the api-key
- *   header and the client_secret (stashed in globalState as
- *   payoutClientSecret by createConfirmPayoutTest) in the request body.
- *   Restricted fields (amount, auto_fulfill, currency, connector, routing)
- *   in the config Request exercise the client-auth field restrictions.
- *   A config Request may pin client_secret (e.g. null) to exercise the
- *   missing-client_secret error path.
- * - merchant-authenticated (clientAuth=false): merchant secret key in the
- *   api-key header and no client_secret in the request body.
- * @param {Object} payoutConfirmBody - Base request body (config Request fields are merged on top)
- * @param {Object} data - Connector config entry with Request/Response
- * @param {boolean} clientAuth - true for publishable-key auth, false for merchant secret-key auth
- * @param {Object} globalState - The global state object
+ * Confirms an existing payout. Set clientAuth=true to verify that publishable
+ * keys and client secrets are rejected; merchant API keys remain supported.
+ * Config Request fields are merged onto the body, including an explicit null
+ * client_secret when testing a request without a client secret.
  */
 Cypress.Commands.add(
   "confirmPayoutCallTest",
@@ -8017,6 +8001,8 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
+        expect(response.status).to.equal(resData.status);
+
         if (response.status === 200) {
           if (resData.body) {
             for (const key in resData.body) {
@@ -8026,7 +8012,6 @@ Cypress.Commands.add(
             }
           }
         } else {
-          expect(response.status).to.equal(resData.status);
           defaultErrorHandler(response, resData);
         }
       });

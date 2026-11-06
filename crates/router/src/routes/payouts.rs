@@ -11,19 +11,17 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(any(feature = "olap", feature = "v1"))]
+use crate::services::authorization::permissions::Permission;
 use crate::{
     core::{
         api_locking::{self, GetLockingInput},
-        errors::{self, RouterResult},
+        errors::RouterResult,
         payouts::*,
     },
     logger,
     routes::lock_utils,
-    services::{
-        api,
-        authentication::{self as auth},
-        authorization::permissions::Permission,
-    },
+    services::{api, authentication as auth},
     types::{api::payouts as payout_types, domain, transformers::ForeignTryFrom},
 };
 
@@ -197,30 +195,6 @@ pub async fn payouts_confirm(
     tracing::Span::current().record("payout_id", payout_id.get_string_repr());
     payload.payout_id = Some(payout_id);
     payload.confirm = Some(true);
-    let api_auth = auth::ApiKeyAuth::default();
-
-    let (auth_type, auth_flow) = {
-        #[cfg(feature = "v1")]
-        {
-            match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
-                Ok(auth) => auth,
-                Err(e) => return api::log_and_return_error_response(e),
-            }
-        }
-        #[cfg(feature = "v2")]
-        {
-            match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-                Ok(auth) => auth,
-                Err(e) => return api::log_and_return_error_response(e),
-            }
-        }
-    };
-
-    if auth_flow == api::AuthFlow::Client {
-        if let Err(err) = validate_client_payout_confirm_request(&payload) {
-            return api::log_and_return_error_response(err);
-        }
-    }
 
     let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
         Ok(headers) => headers,
@@ -235,14 +209,8 @@ pub async fn payouts_confirm(
         state,
         &req,
         payload,
-        |state, auth, mut req, _| {
+        |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = get_authenticated_profile_id(&auth);
-
-            #[cfg(feature = "v1")]
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
             payouts_confirm_core(
                 state,
                 auth.platform,
@@ -251,37 +219,13 @@ pub async fn payouts_confirm(
                 header_payload.clone(),
             )
         },
-        &*auth_type,
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
         locking_action,
     ))
     .await
-}
-
-fn validate_client_payout_confirm_request(
-    payload: &payout_types::PayoutCreateRequest,
-) -> RouterResult<()> {
-    let merchant_owned_fields = [
-        payload.amount.is_some().then_some("amount"),
-        payload.auto_fulfill.is_some().then_some("auto_fulfill"),
-        payload.currency.is_some().then_some("currency"),
-        payload.connector.is_some().then_some("connector"),
-        payload.routing.is_some().then_some("routing"),
-    ]
-    .into_iter()
-    .flatten()
-    .collect::<Vec<_>>();
-
-    if merchant_owned_fields.is_empty() {
-        Ok(())
-    } else {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "The following fields cannot be provided for client-authenticated payout confirmation: {}",
-                merchant_owned_fields.join(", ")
-            ),
-        }
-        .into())
-    }
 }
 
 /// Payouts - Cancel
