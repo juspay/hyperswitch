@@ -877,10 +877,12 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .capture(request)
-            .await
+        Box::pin(
+            self.payment_service_client
+                .clone()
+                .capture(request),
+        )
+        .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
                     &error,

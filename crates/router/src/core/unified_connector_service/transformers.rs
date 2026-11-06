@@ -2628,6 +2628,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
 
         Ok(Self {
             split_settlement: None,
+            domain_data: None,
             payment_method,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
@@ -6158,6 +6159,7 @@ impl transformers::ForeignTryFrom<router_request_types::BrowserInformation>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             color_depth: browser_info.color_depth.map(|v| v.into()),
+            challenge_window_size: None,
             java_enabled: browser_info.java_enabled,
             java_script_enabled: browser_info.java_script_enabled,
             language: browser_info.language,
