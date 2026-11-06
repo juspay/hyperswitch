@@ -11,7 +11,7 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
-#[cfg(feature = "olap")]
+#[cfg(any(feature = "olap", feature = "v1"))]
 use crate::services::authorization::permissions::Permission;
 use crate::{
     core::{
@@ -117,10 +117,18 @@ pub async fn payouts_retrieve(
                 req,
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+                allow_connected: false,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await

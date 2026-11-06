@@ -7,16 +7,19 @@ let payoutBody;
 
 const executionEndpoints = [
   { name: "create", method: "POST", path: "/create" },
-  { name: "retrieve", method: "GET", path: "" },
-  { name: "sync", method: "GET", path: "", qs: { force_sync: true } },
   { name: "update", method: "PUT", path: "" },
   { name: "confirm", method: "POST", path: "/confirm" },
   { name: "cancel", method: "POST", path: "/cancel" },
   { name: "fulfill", method: "POST", path: "/fulfill" },
 ];
 
+const retrievalEndpoints = [
+  { name: "retrieve" },
+  { name: "sync", qs: { force_sync: true } },
+];
+
 // An invalid JWT is sufficient to distinguish the auth paths: execution must
-// report the missing API key (IR_01), while dashboard APIs still validate JWTs.
+// report the missing API key (IR_01), while retrieve and dashboard APIs validate JWTs.
 const invalidJwt = "payout-execution-auth-regression";
 
 function getAuthHeaders(authMode) {
@@ -86,6 +89,47 @@ describe("[Payout] Execution Authentication", () => {
                       globalState.get("payoutClientSecret") ||
                       "payout_client_secret",
                   },
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.equal(401);
+            expect(response.body.error.code).to.equal("IR_01");
+            expect(response.body.error.message).to.equal(
+              "API key not provided or invalid API key used"
+            );
+          });
+        });
+      });
+    });
+  });
+
+  context("[Payout] Retrieve keeps API-key and JWT authentication", () => {
+    retrievalEndpoints.forEach((endpoint) => {
+      it(`validates-jwt-on-${endpoint.name}`, () => {
+        const payoutId =
+          globalState.get("payoutID") || "payout_auth_scope_regression";
+
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${payoutId}`,
+          headers: getAuthHeaders("jwt"),
+          qs: endpoint.qs,
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(401);
+          expect(response.body.error.code).to.equal("IR_17");
+        });
+      });
+
+      ["publishable-key", "sdk", "no-credentials"].forEach((authMode) => {
+        it(`rejects-${authMode}-on-${endpoint.name}`, () => {
+          const payoutId =
+            globalState.get("payoutID") || "payout_auth_scope_regression";
+
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payouts/${payoutId}`,
+            headers: getAuthHeaders(authMode),
+            qs: endpoint.qs,
             failOnStatusCode: false,
           }).then((response) => {
             expect(response.status).to.equal(401);
