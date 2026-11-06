@@ -10179,6 +10179,24 @@ impl<F>
             .as_ref()
             .map(|name| name.peek().to_string().into());
 
+        let mut individual_address = individual_details
+            .address
+            .as_ref()
+            .map(payments_grpc::Address::foreign_from);
+        if individual_address.is_some()
+            || individual_details.email.is_some()
+            || individual_details.phone_number.is_some()
+            || individual_details.phone_country_code.is_some()
+        {
+            let address = individual_address.get_or_insert_with(Default::default);
+            address.email = individual_details
+                .email
+                .as_ref()
+                .map(|email| Secret::new(email.peek().clone()));
+            address.phone_number = individual_details.phone_number.clone();
+            address.phone_country_code = individual_details.phone_country_code.clone();
+        }
+
         Ok(Self {
             vendor_details: Some(payments_grpc::VendorDetails {
                 account_type: match vendor_details.account_type.as_str() {
@@ -10223,14 +10241,14 @@ impl<F>
                             payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
                         })
                         .map(i32::from),
+                    email: vendor_details
+                        .email
+                        .as_ref()
+                        .map(|email| Secret::new(email.peek().clone())),
+                    phone_number: vendor_details.company_phone.clone(),
+                    phone_country_code: vendor_details.phone_country_code.clone(),
                     ..Default::default()
                 }),
-                email: vendor_details
-                    .email
-                    .as_ref()
-                    .map(|email| Secret::new(email.peek().clone())),
-                phone_number: vendor_details.company_phone.clone(),
-                phone_country_code: vendor_details.phone_country_code.clone(),
                 merchant_sender_reference_id: vendor_details.reference_id.clone(),
                 source_of_funds: vendor_details
                     .source_of_funds
@@ -10291,15 +10309,7 @@ impl<F>
                     _ => None,
                 },
                 tos_acceptance_date: individual_details.tos_acceptance_date,
-                address: individual_details
-                    .address
-                    .as_ref()
-                    .map(payments_grpc::Address::foreign_from),
-                email: individual_details
-                    .email
-                    .as_ref()
-                    .map(|email| Secret::new(email.peek().clone())),
-                phone_country_code: individual_details.phone_country_code.clone(),
+                address: individual_address,
                 merchant_sender_reference_id: individual_details.reference_id.clone(),
                 source_of_funds: individual_details
                     .source_of_funds
