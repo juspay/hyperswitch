@@ -6,6 +6,17 @@
 //
 // auth variants:
 //   { type: "apiKey", apiKey, profileId? }
+//   { type: "adminApiKey", apiKey }       - AdminApiAuth/V2AdminApiAuth.
+//                                            NOT the same header as
+//                                            "apiKey" - confirmed live that
+//                                            a plain api-key header on an
+//                                            admin-only route returns 401,
+//                                            since V2AdminApiAuth parses
+//                                            the key from Authorization in
+//                                            the exact form
+//                                            "admin-api-key=<key>"
+//                                            (services/authentication.rs:
+//                                            1748-1755), not api-key.
 //   { type: "jwt", token, profileId? }
 //   { type: "none" }                      - no Authorization/api-key header
 //   { type: "invalid" }                   - garbage bearer token, substitutes
@@ -23,6 +34,9 @@ function buildOmpHeaders(auth = {}) {
   switch (auth.type) {
     case "apiKey":
       headers["api-key"] = auth.apiKey;
+      break;
+    case "adminApiKey":
+      headers["Authorization"] = `admin-api-key=${auth.apiKey}`;
       break;
     case "jwt":
       headers["Authorization"] = `Bearer ${auth.token}`;
@@ -556,4 +570,411 @@ Cypress.Commands.add("ompLookupBlocklist", (auth, data, globalState) =>
     undefined,
     globalState
   )
+);
+
+// --- OMP scoping: shared helpers for resources not yet exercised anywhere
+// else in this suite (cypress/e2e/spec/Security/OMPScoping/) ---
+
+// NOTE: there is deliberately no "create MCA with no profile_id" command
+// here - confirmed live that connector creation always resolves a profile
+// at creation time (explicitly via profile_id, or a legacy
+// business_country/business_label fallback); omitting profile_id returns
+// IR_04 "Missing required param: profile_id or business_country,
+// business_label". A NULL profile_id isn't reachable through the public
+// API, so the nullable-profile_id fail-closed check
+// (validate_profile_id_from_auth_layer) is verified by reading its source
+// only, not by an API-level test.
+
+// --- OMP scoping: Customer (cypress/e2e/spec/Security/OMPScoping/11-CustomerPaymentMethodMandate.cy.js) ---
+
+Cypress.Commands.add("ompRetrieveCustomer", (customerId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/customers/${customerId}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add(
+  "ompUpdateCustomer",
+  (customerId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/customers/${customerId}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add("ompDeleteCustomer", (customerId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "DELETE",
+    url: `${baseUrl}/customers/${customerId}`,
+    auth,
+  });
+});
+
+// --- OMP scoping: Payment Method ---
+
+Cypress.Commands.add(
+  "ompRetrievePaymentMethod",
+  (paymentMethodId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/payment_methods/${paymentMethodId}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompUpdatePaymentMethod",
+  (paymentMethodId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payment_methods/${paymentMethodId}/update`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompDeletePaymentMethod",
+  (paymentMethodId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "DELETE",
+      url: `${baseUrl}/payment_methods/${paymentMethodId}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add("ompCreatePaymentMethod", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/payment_methods`,
+    auth,
+    body,
+  });
+});
+
+// --- OMP scoping: Mandate ---
+
+Cypress.Commands.add("ompRetrieveMandate", (mandateId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/mandates/${mandateId}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompRevokeMandate", (mandateId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/mandates/revoke/${mandateId}`,
+    auth,
+  });
+});
+
+// --- OMP scoping: Refund (cypress/e2e/spec/Security/OMPScoping/12-Refund.cy.js) ---
+
+Cypress.Commands.add("ompRetrieveRefund", (refundId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/refunds/${refundId}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompUpdateRefund", (refundId, auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/refunds/${refundId}`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add("ompCreateRefund", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/refunds`,
+    auth,
+    body,
+  });
+});
+
+// --- OMP scoping: Routing retrieve/unlink (cypress/e2e/spec/Security/OMPScoping/14-Routing.cy.js) ---
+
+Cypress.Commands.add(
+  "ompRetrieveRoutingAlgorithm",
+  (algorithmId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/routing/${algorithmId}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompActivateRoutingAlgorithm",
+  (algorithmId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/routing/${algorithmId}/activate`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add("ompDeactivateRouting", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/routing/deactivate`,
+    auth,
+    body,
+  });
+});
+
+// --- OMP scoping: Analytics (cypress/e2e/spec/Security/OMPScoping/17-Analytics.cy.js) ---
+
+// get_merchant_payment_metrics (crates/router/src/analytics.rs) deserializes
+// web::Json<[GetPaymentMetricRequest; 1]> - a 1-element array, not a plain
+// object - and GetPaymentMetricRequest itself is #[serde(rename_all =
+// "camelCase")] (timeRange/groupByNames), while its nested TimeRange and
+// PaymentFilters types stay snake_case. Callers here pass the plain request
+// object; this command wraps it in the required array so every test
+// doesn't need to know about that oddity.
+Cypress.Commands.add("ompQueryPaymentMetrics", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/analytics/v1/metrics/payments`,
+    auth,
+    body: [body],
+  });
+});
+
+// --- OMP scoping: Relay (cypress/e2e/spec/Security/OMPScoping/18-Relay.cy.js) ---
+
+Cypress.Commands.add("ompRetrieveRelay", (relayId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/relay/${relayId}`,
+    auth,
+  });
+});
+
+// --- OMP scoping: Payment Link / Payout Link retrieve
+// (cypress/e2e/spec/Security/OMPScoping/19-PaymentLink.cy.js, 20-PayoutLink.cy.js) ---
+
+Cypress.Commands.add(
+  "ompRetrievePaymentLink",
+  (paymentLinkId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url: `${baseUrl}/payment_link/${paymentLinkId}`,
+      auth,
+    });
+  }
+);
+
+// render_payout_link uses auth::MerchantIdAuth(merchant_id) - the path's
+// own merchant_id IS the authenticated identity, there is no separate
+// bearer/api-key credential on this route at all (it's the public,
+// customer-facing link page). So there's no "auth" parameter here - the
+// cross-merchant check is entirely about whether a path merchant_id that
+// doesn't own payoutId returns not-found.
+Cypress.Commands.add(
+  "ompRetrievePayoutLinkByPath",
+  (merchantId, payoutId, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.request({
+      method: "GET",
+      url: `${baseUrl}/payout_link/${merchantId}/${payoutId}`,
+      failOnStatusCode: false,
+    });
+  }
+);
+
+// --- OMP scoping: Surcharge Config raw get/put
+// (cypress/e2e/spec/Security/OMPScoping/15-Surcharge.cy.js) - distinct from
+// the existing createSurchargeDSLConfig/retrieveSurchargeDSLConfig
+// commands, which take their own Response-comparison data shape; these are
+// the plain ompRequest-style equivalents used for cross-merchant checks. ---
+
+Cypress.Commands.add("ompGetSurchargeConfig", (auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/routing/decision/surcharge`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompPutSurchargeConfig", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "PUT",
+    url: `${baseUrl}/routing/decision/surcharge`,
+    auth,
+    body,
+  });
+});
+
+// --- OMP scoping: generic payment create
+// (cypress/e2e/spec/Security/OMPScoping/21-PaymentCrossReference.cy.js) ---
+
+Cypress.Commands.add("ompCreatePayment", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/payments`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add(
+  "ompExtendPaymentAuthorization",
+  (paymentId, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/payments/${paymentId}/extend_authorization`,
+      auth,
+      body,
+    });
+  }
+);
+
+// --- OMP scoping: MCA update/delete/list
+// (cypress/e2e/spec/Security/OMPScoping/22-MCA.cy.js) - ompRetrieveMca
+// already exists above, added for 06-ConnectorOnboarding.cy.js. ---
+
+Cypress.Commands.add(
+  "ompUpdateMca",
+  (merchantId, mcaId, auth, body, globalState) =>
+    ompCall(
+      "POST",
+      `/account/${merchantId}/connectors/${mcaId}`,
+      auth,
+      body,
+      globalState
+    )
+);
+
+Cypress.Commands.add("ompDeleteMca", (merchantId, mcaId, auth, globalState) =>
+  ompCall(
+    "DELETE",
+    `/account/${merchantId}/connectors/${mcaId}`,
+    auth,
+    undefined,
+    globalState
+  )
+);
+
+Cypress.Commands.add("ompListMca", (merchantId, auth, globalState) =>
+  ompCall(
+    "GET",
+    `/account/${merchantId}/connectors`,
+    auth,
+    undefined,
+    globalState
+  )
+);
+
+Cypress.Commands.add(
+  "ompListProfileConnectors",
+  (accountId, auth, globalState) =>
+    ompCall(
+      "GET",
+      `/account/${accountId}/profile/connectors`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+// --- OMP scoping: API Keys
+// (cypress/e2e/spec/Security/OMPScoping/23-ApiKeys.cy.js) - distinct from
+// ompCreateThrowawayApiKey/ompRevokeApiKey above, which are fixed to the
+// admin-key auth scheme for test-fixture housekeeping; these take an
+// arbitrary auth (JWT or admin key) for cross-merchant negative tests. ---
+
+Cypress.Commands.add("ompCreateApiKey", (merchantId, auth, body, globalState) =>
+  ompCall("POST", `/api_keys/${merchantId}`, auth, body, globalState)
+);
+
+Cypress.Commands.add(
+  "ompRetrieveApiKey",
+  (merchantId, keyId, auth, globalState) =>
+    ompCall(
+      "GET",
+      `/api_keys/${merchantId}/${keyId}`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add(
+  "ompUpdateApiKey",
+  (merchantId, keyId, auth, body, globalState) =>
+    ompCall("POST", `/api_keys/${merchantId}/${keyId}`, auth, body, globalState)
+);
+
+Cypress.Commands.add(
+  "ompRevokeApiKeyAs",
+  (merchantId, keyId, auth, globalState) =>
+    ompCall(
+      "DELETE",
+      `/api_keys/${merchantId}/${keyId}`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add("ompListApiKeys", (merchantId, auth, globalState) =>
+  ompCall("GET", `/api_keys/${merchantId}/list`, auth, undefined, globalState)
+);
+
+// --- OMP scoping: Merchant Account
+// (cypress/e2e/spec/Security/OMPScoping/24-MerchantAccount.cy.js) - distinct
+// from ompGetMerchantAccount above, which is fixed to the admin-key auth
+// scheme for test-fixture housekeeping (e.g. fetching publishable_key);
+// these take an arbitrary auth for cross-merchant negative tests. ---
+
+Cypress.Commands.add(
+  "ompRetrieveMerchantAccount",
+  (merchantId, auth, globalState) =>
+    ompCall("GET", `/accounts/${merchantId}`, auth, undefined, globalState)
+);
+
+Cypress.Commands.add(
+  "ompUpdateMerchantAccount",
+  (merchantId, auth, body, globalState) =>
+    ompCall("POST", `/accounts/${merchantId}`, auth, body, globalState)
 );
