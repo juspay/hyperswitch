@@ -1,10 +1,12 @@
 use std::collections::HashSet;
 
 use actix_web::http::header;
+use api_models::payments::Amount;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::{
     id_type::{self, GenerateId},
+    types::MinorUnit,
     validation::validate_domain_against_allowed_domains,
 };
 use diesel_models::generic_link::PayoutLink;
@@ -170,6 +172,30 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
+    // Resolve the profile before any customer side effects so the cap applies to the
+    // exact merchant/profile context that will own the payout.
+    let business_profile = core_utils::get_profile_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        platform.get_processor(),
+        req.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await?;
+    let profile_id = business_profile.get_id().to_owned();
+    let profile_dimensions = dimensions
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone());
+
+    validate_payout_amount_against_config(state, &profile_dimensions, &profile_id, req.amount)
+        .await?;
+
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
     let payout_id = match req.payout_id.as_ref() {
@@ -317,6 +343,59 @@ pub async fn validate_create_request(
         customer,
         payment_method,
     ))
+}
+
+pub(crate) fn validate_payout_amount(
+    amount: Amount,
+    min_amount: MinorUnit,
+    max_amount: MinorUnit,
+) -> RouterResult<()> {
+    utils::when(min_amount > max_amount, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "payout amount configuration has a minimum greater than its maximum"
+                .to_string(),
+        }))
+    })
+    .and_then(|_| {
+        let amount = MinorUnit::from(amount);
+
+        utils::when(amount < min_amount || amount > max_amount, || {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "payout amount must be between {} and {} in the currency's lowest denomination",
+                    min_amount.get_amount_as_i64(),
+                    max_amount.get_amount_as_i64(),
+                ),
+            }))
+        })
+    })
+}
+
+pub(crate) async fn validate_payout_amount_against_config(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    profile_id: &id_type::ProfileId,
+    amount: Option<Amount>,
+) -> RouterResult<()> {
+    let min_amount = dimensions
+        .get_payout_min_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
+        .await;
+    let max_amount = dimensions
+        .get_payout_max_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
+        .await;
+
+    amount
+        .map(|amount| validate_payout_amount(amount, min_amount, max_amount))
+        .transpose()
+        .map(|_| ())
 }
 
 #[cfg(feature = "v1")]
