@@ -6,8 +6,6 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{PaymentMethodCreate, PaymentMethodListRequest};
 use api_models::payments;
-#[cfg(feature = "payouts")]
-use api_models::payouts;
 use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
@@ -5844,13 +5842,6 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
-#[cfg(feature = "payouts")]
-impl ClientSecretFetch for payouts::PayoutCreateRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
 #[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
