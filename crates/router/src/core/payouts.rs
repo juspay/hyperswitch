@@ -7,6 +7,7 @@ pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+pub mod kill_switch;
 #[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
@@ -588,6 +589,7 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    kill_switch::ensure_payouts_enabled(state, platform, Some(&payout_data.profile_id)).await?;
     payout_data
         .payout_attempt
         .execution_kind
@@ -629,6 +631,7 @@ pub async fn payouts_core(
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    kill_switch::ensure_payouts_enabled(state, platform, Some(&payout_data.profile_id)).await?;
     todo!()
 }
 
@@ -667,6 +670,7 @@ pub async fn payouts_create_core_wrapper(
             .await?
         }
     };
+    kill_switch::ensure_payouts_enabled(&state, &platform, Some(profile.get_id())).await?;
     let provider_profile =
         payment_helpers::resolve_provider_profile(&state, &platform, &profile).await?;
     match provider_profile
@@ -771,7 +775,7 @@ pub async fn payouts_confirm_core(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let mut payout_data = Box::pin(make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data_for_api(
         &state,
         &platform,
         None,
@@ -841,7 +845,7 @@ pub async fn payouts_update_core(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
-    let mut payout_data = Box::pin(make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data_for_api(
         &state,
         &platform,
         None,
@@ -917,7 +921,7 @@ pub async fn payouts_retrieve_core(
     profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = Box::pin(make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data_for_api(
         &state,
         &platform,
         profile_id,
@@ -967,7 +971,7 @@ pub async fn payouts_cancel_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = Box::pin(make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data_for_api(
         &state,
         &platform,
         None,
@@ -1078,7 +1082,7 @@ pub async fn payouts_fulfill_core(
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = Box::pin(make_payout_data(
+    let mut payout_data = Box::pin(make_payout_data_for_api(
         &state,
         &platform,
         None,
@@ -1173,6 +1177,12 @@ pub async fn payouts_list_core(
     _profile_id_list: Option<Vec<id_type::ProfileId>>,
     _constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
+    kill_switch::ensure_payouts_enabled_for_profiles(
+        &_state,
+        &_platform,
+        _profile_id_list.as_deref(),
+    )
+    .await?;
     todo!()
 }
 
@@ -1183,6 +1193,8 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
+    kill_switch::ensure_payouts_enabled_for_profiles(&state, &platform, profile_id_list.as_deref())
+        .await?;
     let merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
@@ -1326,6 +1338,13 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
+    let requested_profile_ids = filters
+        .profile_id
+        .as_ref()
+        .map(std::slice::from_ref)
+        .or(profile_id_list.as_deref());
+    kill_switch::ensure_payouts_enabled_for_profiles(&state, &platform, requested_profile_ids)
+        .await?;
     let limit = filters.limit;
     validator::validate_payout_list_request_for_joins(limit)?;
     let db = state.store.as_ref();
@@ -1443,6 +1462,8 @@ pub async fn payouts_list_available_filters_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api::PayoutListFilters> {
+    kill_switch::ensure_payouts_enabled_for_profiles(&state, &platform, profile_id_list.as_deref())
+        .await?;
     let db = state.store.as_ref();
     let payouts = db
         .filter_payouts_by_time_range_constraints(
@@ -1480,6 +1501,8 @@ pub async fn get_payout_filters_core(
     platform: domain::Platform,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<api::PayoutListFiltersV2> {
+    kill_switch::ensure_payouts_enabled_for_profiles(&state, &platform, profile_id_list.as_deref())
+        .await?;
     let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
         super::admin::list_payment_connectors(
             state,
@@ -1555,6 +1578,7 @@ pub async fn call_connector_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    kill_switch::ensure_payouts_enabled(state, platform, Some(&payout_data.profile_id)).await?;
     payout_data
         .payout_attempt
         .execution_kind
@@ -3174,6 +3198,7 @@ pub async fn fulfill_payout(
     payout_data: &mut PayoutData,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
+    kill_switch::ensure_payouts_enabled(state, platform, Some(&payout_data.profile_id)).await?;
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
@@ -3789,13 +3814,36 @@ pub async fn payout_create_db_entries(
     })
 }
 
-#[cfg(feature = "v2")]
+/// Load payout data for internal processing, including webhooks and background status sync.
 pub async fn make_payout_data(
+    state: &SessionState,
+    platform: &domain::Platform,
+    auth_profile_id: Option<id_type::ProfileId>,
+    req: &payouts::PayoutRequest,
+    locale: &str,
+) -> RouterResult<PayoutData> {
+    make_payout_data_internal(state, platform, auth_profile_id, req, locale, false).await
+}
+
+/// Authenticate an API request and apply its payout scope's kill switch before resolving data.
+async fn make_payout_data_for_api(
+    state: &SessionState,
+    platform: &domain::Platform,
+    auth_profile_id: Option<id_type::ProfileId>,
+    req: &payouts::PayoutRequest,
+    locale: &str,
+) -> RouterResult<PayoutData> {
+    make_payout_data_internal(state, platform, auth_profile_id, req, locale, true).await
+}
+
+#[cfg(feature = "v2")]
+async fn make_payout_data_internal(
     _state: &SessionState,
     _platform: &domain::Platform,
     _auth_profile_id: Option<id_type::ProfileId>,
     _req: &payouts::PayoutRequest,
-    locale: &str,
+    _locale: &str,
+    _enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -3819,12 +3867,13 @@ fn authenticate_payout_client_secret(
 }
 
 #[cfg(feature = "v1")]
-pub async fn make_payout_data(
+async fn make_payout_data_internal(
     state: &SessionState,
     platform: &domain::Platform,
     auth_profile_id: Option<id_type::ProfileId>,
     req: &payouts::PayoutRequest,
     locale: &str,
+    enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3901,6 +3950,15 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
+    let profile_id = payout_attempt.profile_id.clone();
+
+    // Validate the persisted profile before checking its scope or accessing payout data.
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
+    if enforce_kill_switch {
+        kill_switch::ensure_payouts_enabled(state, platform, Some(&profile_id)).await?;
+    }
+
     // Reject proxy mutations before normal method or locker resolution.
     payout_attempt
         .execution_kind
@@ -3953,11 +4011,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?
         .and_then(|c| c);
-    let profile_id = payout_attempt.profile_id.clone();
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
     let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
@@ -4434,6 +4487,8 @@ pub async fn get_aggregates_for_payouts(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     time_range: common_utils::types::TimeRange,
 ) -> RouterResponse<api_models::payouts::PayoutsAggregateResponse> {
+    kill_switch::ensure_payouts_enabled_for_profiles(&state, &platform, profile_id_list.as_deref())
+        .await?;
     let db = state.store.as_ref();
     let intent_status_with_count = db
         .get_payout_intent_status_with_count(
@@ -4514,6 +4569,28 @@ pub async fn payouts_manual_update_core(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
             .attach_printable("Error while fetching the payout by merchant_id and payout_id")?;
+
+        let (provider_account, provider_key_store) = match merchant_account.merchant_account_type {
+            common_enums::MerchantAccountType::Connected => {
+                services::authentication::get_platform_account_and_key_store(
+                    &state,
+                    &merchant_account,
+                )
+                .await?
+            }
+            common_enums::MerchantAccountType::Standard
+            | common_enums::MerchantAccountType::Platform => {
+                (merchant_account.clone(), key_store.clone())
+            }
+        };
+        let platform = domain::Platform::new(
+            provider_account,
+            provider_key_store,
+            merchant_account.clone(),
+            key_store,
+            None,
+        );
+        kill_switch::ensure_payouts_enabled(&state, &platform, Some(&payouts.profile_id)).await?;
 
         let option_gsm = if let Some(((code, message), connector_name)) = error_code
             .as_ref()

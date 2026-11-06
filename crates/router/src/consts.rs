@@ -508,6 +508,8 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops all payout APIs, scoped by organization, merchant, and profile.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key

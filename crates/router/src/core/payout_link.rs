@@ -54,6 +54,12 @@ pub async fn initiate_payout_link(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+    crate::core::payouts::kill_switch::ensure_payouts_enabled(
+        &state,
+        &platform,
+        Some(&payout.profile_id),
+    )
+    .await?;
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,

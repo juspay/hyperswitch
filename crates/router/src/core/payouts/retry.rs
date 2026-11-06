@@ -238,6 +238,8 @@ pub async fn do_retry(
     pre_frm_failure_mode: &PreFrmFailureMode,
     payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<PayoutFrmOutcome> {
+    super::kill_switch::ensure_payouts_enabled(state, platform, Some(&payout_data.profile_id))
+        .await?;
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 
     modify_trackers(state, &connector, platform, payout_data).await?;
