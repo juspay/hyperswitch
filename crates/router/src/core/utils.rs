@@ -408,7 +408,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
-            connector_metadata: payouts.connector_metadata.clone(),
+            funds_transfer_type: payouts.funds_transfer_type,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),

@@ -1507,7 +1507,8 @@ diesel::table! {
         #[max_length = 64]
         entity_type -> Varchar,
         metadata -> Nullable<Jsonb>,
-        connector_metadata -> Nullable<Jsonb>,
+        #[max_length = 64]
+        funds_transfer_type -> Nullable<Text>,
         sender_details -> Nullable<Bytea>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,

@@ -12489,41 +12489,6 @@
         },
         "additionalProperties": false
       },
-      "CheckoutPayoutFundsTransferType": {
-        "type": "string",
-        "description": "Checkout.com Funds Transfer Type values for Visa Direct and Mastercard Send payouts.\nThe configured value must be the one assigned to the merchant by Checkout.com.",
-        "enum": [
-          "account_to_account",
-          "funds_transfer",
-          "cross_border_money_transfer",
-          "peer_to_peer",
-          "staged_digital_wallet_transfer",
-          "funds_disbursement",
-          "loyalty_payments",
-          "payroll_and_pension_disbursements",
-          "online_gambling",
-          "mastercard_person_to_person",
-          "mastercard_transfer_to_own_account",
-          "mastercard_business_disbursement",
-          "mastercard_business_to_business",
-          "mastercard_gaming_repay"
-        ]
-      },
-      "CheckoutPayoutMetadata": {
-        "type": "object",
-        "description": "Checkout.com-specific metadata for card payouts.",
-        "properties": {
-          "funds_transfer_type": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CheckoutPayoutFundsTransferType"
-              }
-            ],
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -13104,21 +13069,6 @@
             }
           }
         ]
-      },
-      "ConnectorPayoutMetadata": {
-        "type": "object",
-        "description": "Connector-specific metadata supplied with a payout request.\n\nEach connector owns its nested contract so connector wire semantics do not leak into shared\npayout fields.",
-        "properties": {
-          "checkout": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CheckoutPayoutMetadata"
-              }
-            ],
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
       },
       "ConnectorSelection": {
         "oneOf": [
@@ -28486,10 +28436,10 @@
             "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
+          "funds_transfer_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ConnectorPayoutMetadata"
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
               }
             ],
             "nullable": true
@@ -28745,10 +28695,10 @@
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
             "nullable": true
           },
-          "connector_metadata": {
+          "funds_transfer_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/ConnectorPayoutMetadata"
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
               }
             ],
             "nullable": true
@@ -28902,6 +28852,26 @@
           "NaturalPerson",
           "lowercase",
           "Personal"
+        ]
+      },
+      "PayoutFundsTransferType": {
+        "type": "string",
+        "description": "The category of funds transfer to use when processing a payout.",
+        "enum": [
+          "account_to_account",
+          "funds_transfer",
+          "cross_border_money_transfer",
+          "peer_to_peer",
+          "staged_digital_wallet_transfer",
+          "funds_disbursement",
+          "loyalty_payments",
+          "payroll_and_pension_disbursements",
+          "online_gambling",
+          "mastercard_person_to_person",
+          "mastercard_transfer_to_own_account",
+          "mastercard_business_disbursement",
+          "mastercard_business_to_business",
+          "mastercard_gaming_repay"
         ]
       },
       "PayoutLinkInitiateRequest": {

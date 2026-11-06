@@ -1756,8 +1756,8 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
-    /// Typed merchant-supplied connector configuration persisted on the payout.
-    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     /// Connector-generated state persisted on the payout attempt for later payout steps.
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,

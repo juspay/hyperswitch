@@ -230,20 +230,6 @@ impl transformers::ForeignTryFrom<&payments_grpc::Money>
     }
 }
 
-impl ForeignFrom<&common_types::payouts::CheckoutPayoutMetadata>
-    for payments_grpc::AdditionalPayoutConnectorDetails
-{
-    fn foreign_from(metadata: &common_types::payouts::CheckoutPayoutMetadata) -> Self {
-        Self {
-            connector: Some(
-                payments_grpc::additional_payout_connector_details::Connector::Checkout(
-                    payments_grpc::CheckoutAdditionalPayoutInformation::foreign_from(metadata),
-                ),
-            ),
-        }
-    }
-}
-
 impl ForeignFrom<api_models::sender::SourceOfFunds> for payments_grpc::PayoutSourceOfFunds {
     fn foreign_from(value: api_models::sender::SourceOfFunds) -> Self {
         use api_models::sender::SourceOfFunds;
@@ -278,50 +264,30 @@ impl ForeignFrom<&api_models::payouts::PayoutVendorAddress> for payments_grpc::A
     }
 }
 
-fn additional_payout_connector_details_for_ucs(
-    connector: common_enums::connector_enums::Connector,
-    metadata: Option<&common_types::payouts::ConnectorPayoutMetadata>,
-) -> Option<payments_grpc::AdditionalPayoutConnectorDetails> {
-    match connector {
-        common_enums::connector_enums::Connector::Checkout => metadata
-            .and_then(|metadata| metadata.checkout.as_ref())
-            .map(payments_grpc::AdditionalPayoutConnectorDetails::foreign_from),
-        _ => None,
-    }
-}
-
-impl ForeignFrom<&common_types::payouts::CheckoutPayoutMetadata>
-    for payments_grpc::CheckoutAdditionalPayoutInformation
-{
-    fn foreign_from(metadata: &common_types::payouts::CheckoutPayoutMetadata) -> Self {
-        Self {
-            funds_transfer_type: metadata.funds_transfer_type
-                .map(payments_grpc::checkout_additional_payout_information::FundsTransferType::foreign_from)
-                .map(i32::from),
-        }
-    }
-}
-
-impl ForeignFrom<common_types::payouts::CheckoutPayoutFundsTransferType>
-    for payments_grpc::checkout_additional_payout_information::FundsTransferType
-{
-    fn foreign_from(ftt: common_types::payouts::CheckoutPayoutFundsTransferType) -> Self {
-        use common_types::payouts::CheckoutPayoutFundsTransferType as Ftt;
-        match ftt {
-            Ftt::AccountToAccount => Self::AccountToAccount,
-            Ftt::FundsTransfer => Self::FundsTransfer,
-            Ftt::CrossBorderMoneyTransfer => Self::CrossBorderMoneyTransfer,
-            Ftt::PeerToPeer => Self::PeerToPeer,
-            Ftt::StagedDigitalWalletTransfer => Self::StagedDigitalWalletTransfer,
-            Ftt::FundsDisbursement => Self::FundsDisbursement,
-            Ftt::LoyaltyPayments => Self::LoyaltyPayments,
-            Ftt::PayrollAndPensionDisbursements => Self::PayrollAndPensionDisbursements,
-            Ftt::OnlineGambling => Self::OnlineGambling,
-            Ftt::MastercardPersonToPerson => Self::MastercardPersonToPerson,
-            Ftt::MastercardTransferToOwnAccount => Self::MastercardTransferToOwnAccount,
-            Ftt::MastercardBusinessDisbursement => Self::MastercardBusinessDisbursement,
-            Ftt::MastercardBusinessToBusiness => Self::MastercardBusinessToBusiness,
-            Ftt::MastercardGamingRepay => Self::MastercardGamingRepay,
+impl ForeignFrom<common_enums::PayoutFundsTransferType> for payments_grpc::PayoutFundsTransferType {
+    fn foreign_from(funds_transfer_type: common_enums::PayoutFundsTransferType) -> Self {
+        use common_enums::PayoutFundsTransferType as FundsTransferType;
+        match funds_transfer_type {
+            FundsTransferType::AccountToAccount => Self::AccountToAccount,
+            FundsTransferType::FundsTransfer => Self::FundsTransfer,
+            FundsTransferType::CrossBorderMoneyTransfer => Self::CrossBorderMoneyTransfer,
+            FundsTransferType::PeerToPeer => Self::PeerToPeer,
+            FundsTransferType::StagedDigitalWalletTransfer => Self::StagedDigitalWalletTransfer,
+            FundsTransferType::FundsDisbursement => Self::FundsDisbursement,
+            FundsTransferType::LoyaltyPayments => Self::LoyaltyPayments,
+            FundsTransferType::PayrollAndPensionDisbursements => {
+                Self::PayrollAndPensionDisbursements
+            }
+            FundsTransferType::OnlineGambling => Self::OnlineGambling,
+            FundsTransferType::MastercardPersonToPerson => Self::MastercardPersonToPerson,
+            FundsTransferType::MastercardTransferToOwnAccount => {
+                Self::MastercardTransferToOwnAccount
+            }
+            FundsTransferType::MastercardBusinessDisbursement => {
+                Self::MastercardBusinessDisbursement
+            }
+            FundsTransferType::MastercardBusinessToBusiness => Self::MastercardBusinessToBusiness,
+            FundsTransferType::MastercardGamingRepay => Self::MastercardGamingRepay,
         }
     }
 }
@@ -10048,15 +10014,6 @@ impl
                 .attach_printable("Missing customer details in Payout Transfer Request"),
             )?;
         let payout_method_data = payout_method_for_ucs(router_data)?;
-        let connector = common_enums::connector_enums::Connector::from_str(&router_data.connector)
-            .map_err(|error| {
-                report!(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
-                        "invalid payout connector '{}': {error}",
-                        router_data.connector
-                    ))
-                )
-            })?;
         let browser_info = router_data
             .request
             .browser_info
@@ -10065,10 +10022,11 @@ impl
             .transpose()?;
 
         Ok(Self {
-            additional_payout_connector_details: additional_payout_connector_details_for_ucs(
-                connector,
-                router_data.request.connector_metadata.as_ref(),
-            ),
+            funds_transfer_type: router_data
+                .request
+                .funds_transfer_type
+                .map(payments_grpc::PayoutFundsTransferType::foreign_from)
+                .map(i32::from),
             vendor_account_details: router_data
                 .request
                 .vendor_details

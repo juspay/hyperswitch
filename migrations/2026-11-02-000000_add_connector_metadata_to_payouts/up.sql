@@ -1,2 +1,0 @@
-ALTER TABLE payouts
-ADD COLUMN IF NOT EXISTS connector_metadata JSONB DEFAULT NULL;

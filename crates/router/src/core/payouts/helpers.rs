@@ -1495,10 +1495,7 @@ pub async fn update_payouts_and_payout_attempt(
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
-    let connector_metadata = req
-        .connector_metadata
-        .clone()
-        .or(payouts.connector_metadata.clone());
+    let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
     let sender_details = encrypt_sender_details(
         state,
         platform.get_processor().get_key_store(),
@@ -1534,7 +1531,7 @@ pub async fn update_payouts_and_payout_attempt(
             .or(payouts.return_url.clone()),
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
-        connector_metadata,
+        funds_transfer_type,
         sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),

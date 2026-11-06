@@ -126,8 +126,8 @@ pub struct Payouts {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    /// Merchant-supplied, connector-specific payout configuration.
-    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
     /// Encrypted at rest with the merchant key.
     pub sender_details: OptionalEncryptableJsonType<api_models::sender::SenderDetails>,
@@ -163,8 +163,8 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    /// Merchant-supplied, connector-specific payout configuration.
-    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
     /// Encrypted at rest with the merchant key.
     pub sender_details: OptionalEncryptableJsonType<api_models::sender::SenderDetails>,
@@ -204,7 +204,7 @@ pub enum PayoutsUpdate {
         return_url: Option<String>,
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
-        connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+        funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
         sender_details: Option<Encryption>,
         profile_id: Option<id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
@@ -246,7 +246,7 @@ pub struct PayoutsUpdateInternal {
     pub return_url: Option<String>,
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_metadata: Option<common_types::payouts::ConnectorPayoutMetadata>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
     /// Encrypted at rest with the merchant key.
     pub sender_details: Option<Encryption>,
@@ -274,7 +274,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type,
                 metadata,
-                connector_metadata,
+                funds_transfer_type,
                 sender_details,
                 profile_id,
                 status,
@@ -293,7 +293,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type: Some(entity_type),
                 metadata,
-                connector_metadata,
+                funds_transfer_type,
                 sender_details,
                 profile_id,
                 status,

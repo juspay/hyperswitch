@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{BankNames, CardNetwork};
+use common_enums::{BankNames, CardNetwork, PayoutFundsTransferType};
 use common_types::payouts::PayoutsBillingDescriptor;
-pub use common_types::payouts::{
-    CheckoutPayoutFundsTransferType, CheckoutPayoutMetadata, ConnectorPayoutMetadata,
-};
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -171,9 +168,9 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Connector-specific payout configuration that affects how the payout is processed.
-    #[schema(value_type = Option<ConnectorPayoutMetadata>)]
-    pub connector_metadata: Option<ConnectorPayoutMetadata>,
+    /// The category of funds transfer to use when processing the payout.
+    #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
 
     /// Identity of the party providing the funds. Persisted on the payout and echoed
     #[schema(value_type = Option<SenderDetails>)]
@@ -989,9 +986,9 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// Connector-specific payout configuration, as supplied in the payout request.
-    #[schema(value_type = Option<ConnectorPayoutMetadata>)]
-    pub connector_metadata: Option<ConnectorPayoutMetadata>,
+    /// The category of funds transfer used for the payout.
+    #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
 
     /// Identity of the party providing the funds, as supplied in the payout request
     #[schema(value_type = Option<SenderDetails>)]
