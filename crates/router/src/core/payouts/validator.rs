@@ -20,7 +20,9 @@ use url::Url;
 
 use super::helpers;
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::cards::get_pm_list_context;
+use crate::core::{
+    payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
+};
 use crate::{
     core::{
         configs::dimension_state,
@@ -218,6 +220,19 @@ pub async fn validate_create_request(
         })),
         None => Ok(()),
     }?;
+
+    // Resolve the profile and kill switch before creating customers or resolving payout methods.
+    let business_profile = core_utils::get_profile_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        platform.get_processor(),
+        req.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await?;
+    PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
+        .await?;
+    let profile_id = business_profile.get_id().to_owned();
 
     // Fetch customer details (merge of loose fields + customer object) and create DB entry
     let customer_in_request = helpers::get_customer_details_from_request(req);
