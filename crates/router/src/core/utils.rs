@@ -1128,6 +1128,8 @@ pub fn get_split_refunds(
         _ => Ok(None),
     }
 }
+#[cfg(test)]
+mod tests;
 
 // Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration -> Arbitration -> DisputeReversal
 pub fn validate_dispute_stage(
@@ -3375,6 +3377,3 @@ pub async fn pin_value(
         }
     }
 }
-
-#[cfg(test)]
-mod tests;
