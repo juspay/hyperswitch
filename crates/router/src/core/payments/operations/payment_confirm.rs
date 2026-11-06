@@ -615,9 +615,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
-        let n_payment_method_billing_address_id =
-            payment_attempt.payment_method_billing_address_id.clone();
-
         let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
             state,
             dimensions,
@@ -628,6 +625,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .is_some_and(|billing| billing.has_location_details()),
         )
         .await;
+
+        let n_payment_method_billing_address_id =
+            payment_attempt.payment_method_billing_address_id.clone();
+
+        // A payment created with a saved payment method and no billing already has the saved
+        // billing persisted on the attempt, so overwrite it with the request billing when that is preferred.
+        let should_replace_persisted_saved_billing = !use_saved_pm_billing
+            && n_payment_method_billing_address_id.is_some()
+            && (request.payment_token.is_some() || payment_attempt.payment_token.is_some());
 
         let n_request_payment_method_billing_address = request
             .payment_method_data
@@ -646,7 +652,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                 .parse_value("payment method billing address")
                                 .ok()
                         })
-                }));
+                }))
+            .or(billing_address
+                .as_ref()
+                .filter(|_| should_replace_persisted_saved_billing)
+                .map(hyperswitch_domain_models::address::Address::from)
+                .map(api_models::payments::Address::from));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();

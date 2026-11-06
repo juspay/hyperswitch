@@ -13775,6 +13775,126 @@ Cypress.Commands.add(
   }
 );
 
+// Save a card with a stored billing state, create a payment with its token and no billing (which
+// persists the saved billing on the attempt), then confirm with a top-level billing state.
+// Asserts the payment method billing state the confirmed payment ends up with.
+Cypress.Commands.add(
+  "savedPmBillingCreateThenConfirmTest",
+  (globalState, savedState, requestState, expectedState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const customerId = globalState.get("customerId");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+    const billing = (state) => ({
+      address: {
+        line1: "1 Main St",
+        city: "Winnipeg",
+        state,
+        zip: "R2P 0A3",
+        country: "CA",
+        first_name: "Jo",
+        last_name: "Doe",
+      },
+    });
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/payments`,
+      headers,
+      body: {
+        amount: 1000,
+        profile_id: globalState.get("profileId"),
+        currency: "USD",
+        confirm: true,
+        customer_id: customerId,
+        setup_future_usage: "on_session",
+        customer_acceptance: {
+          acceptance_type: "online",
+          online: { ip_address: "127.0.0.1", user_agent: "Mozilla/5.0" },
+        },
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "Jo Doe",
+            card_cvc: "123",
+          },
+          billing: billing(savedState),
+        },
+      },
+      failOnStatusCode: false,
+    }).then((saveCard) => {
+      logRequestId(saveCard.headers["x-request-id"]);
+      expect(saveCard.status, "save_card_status").to.equal(200);
+
+      cy.listSavedPMCall(globalState).then(() => {
+        const paymentToken =
+          globalState.get("paymentToken") || globalState.get("paymentMethodId");
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/payments`,
+          headers,
+          body: {
+            amount: 1000,
+            profile_id: globalState.get("profileId"),
+            currency: "USD",
+            customer_id: customerId,
+            payment_token: paymentToken,
+            payment_method: "card",
+            payment_method_type: "credit",
+          },
+          failOnStatusCode: false,
+        }).then((create) => {
+          logRequestId(create.headers["x-request-id"]);
+          expect(create.status, "create_status").to.equal(200);
+
+          cy.request({
+            method: "POST",
+            url: `${baseUrl}/payments/${create.body.payment_id}/confirm`,
+            headers,
+            body: {
+              payment_token: paymentToken,
+              payment_method: "card",
+              payment_method_type: "credit",
+              payment_method_data: { card_token: { card_cvc: "123" } },
+              billing: billing(requestState),
+            },
+            failOnStatusCode: false,
+          }).then((confirm) => {
+            logRequestId(confirm.headers["x-request-id"]);
+            expect(confirm.status, "confirm_status").to.equal(200);
+            expect(
+              confirm.body.payment_method_data?.billing?.address?.state,
+              "payment_method_billing_state"
+            ).to.equal(expectedState);
+
+            // The persisted billing must match too, not only the confirm response
+            cy.request({
+              method: "GET",
+              url: `${baseUrl}/payments/${create.body.payment_id}`,
+              headers,
+              failOnStatusCode: false,
+            }).then((retrieve) => {
+              logRequestId(retrieve.headers["x-request-id"]);
+              expect(retrieve.status, "retrieve_status").to.equal(200);
+              expect(
+                retrieve.body.payment_method_data?.billing?.address?.state,
+                "retrieved_payment_method_billing_state"
+              ).to.equal(expectedState);
+            });
+          });
+        });
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
 });
