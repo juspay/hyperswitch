@@ -1,5 +1,4 @@
 use api_models::payments::RecoveryPaymentsCreate;
-use common_enums::TransactionInitiator;
 use common_types::payments::{
     ExternalTriggerState, RecoveryConnector, RecoveryConnectorDetails, RecoveryNextRetry,
     RecoveryNoRetryReason, RecoveryTransactionStatus,
@@ -204,8 +203,16 @@ async fn handle_merchant_report(
     ))
     .await?;
 
-    let is_merchant_initiated =
-        request.get_transaction_initiator() == TransactionInitiator::MerchantInitiated;
+    // Only a transaction made off session with the customer absent is merchant initiated. A request
+    // that leaves either out gets the defaults the invoice is created with.
+    let is_merchant_initiated = request
+        .customer_present
+        .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
+        == common_enums::PresenceOfCustomerDuringPayment::Absent
+        && request
+            .setup_future_usage
+            .unwrap_or(common_enums::FutureUsage::OffSession)
+            .is_off_session();
 
     if let Some((failure_code, success)) =
         get_retry_outcome(previous_trigger_state.as_ref(), request.transaction_status)

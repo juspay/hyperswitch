@@ -11248,32 +11248,6 @@ pub enum PresenceOfCustomerDuringPayment {
     Absent,
 }
 
-/// Who started a transaction of a revenue recovery invoice.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum TransactionInitiator {
-    /// The transaction was made on session, or with the customer present.
-    CustomerInitiated,
-    /// The merchant made the transaction off session, with the customer absent.
-    MerchantInitiated,
-}
-
-impl TransactionInitiator {
-    /// A transaction is merchant initiated only when it is off session with the customer absent.
-    pub fn new(
-        customer_present: PresenceOfCustomerDuringPayment,
-        setup_future_usage: FutureUsage,
-    ) -> Self {
-        if customer_present == PresenceOfCustomerDuringPayment::Absent
-            && setup_future_usage.is_off_session()
-        {
-            Self::MerchantInitiated
-        } else {
-            Self::CustomerInitiated
-        }
-    }
-}
-
 impl From<ConnectorType> for TransactionType {
     fn from(connector_type: ConnectorType) -> Self {
         match connector_type {
