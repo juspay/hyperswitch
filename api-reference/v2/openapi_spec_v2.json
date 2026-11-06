@@ -31231,10 +31231,10 @@
           },
           {
             "type": "string",
-            "description": "Any other body, as text"
+            "description": "Any other body, as UTF-8 text"
           }
         ],
-        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document."
+        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document. Only UTF-8 text is supported. Both variants serialize to the bare\nvalue, so a JSON string and text look the same on the wire; this type is serialize-only."
       },
       "PspTokenization": {
         "type": "object",
