@@ -87,6 +87,7 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+pub use crate::common::PhoneDetails;
 #[cfg(all(feature = "v1", feature = "errors"))]
 use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
@@ -108,7 +109,6 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{disputes, refunds, ValidateFieldAndGet};
-pub use crate::common::PhoneDetails;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PaymentOp {

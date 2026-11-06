@@ -66,9 +66,9 @@ pub struct AdyenMetadata {
 /// Checkout payout configuration stored on the merchant connector account.
 #[derive(Debug, serde::Deserialize)]
 pub struct CheckoutMetadata {
-    client_id: Option<Secret<String>>,
+    connector_client_id: Option<Secret<String>>,
     /// Checkout currency account (`ca_...`) used as the payout `source.id`.
-    currency_account_id: Option<Secret<String>>,
+    connector_currency_account_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -359,10 +359,10 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
-        client_id: Option<Secret<String>>,
+        connector_client_id: Option<Secret<String>>,
         /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
         #[serde(skip_serializing_if = "Option::is_none")]
-        currency_account_id: Option<Secret<String>>,
+        connector_currency_account_id: Option<Secret<String>>,
     },
     /// Authorize.net connector configuration
     Authorizedotnet {
@@ -1518,15 +1518,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         })
                         .transpose()?;
 
-                    let (client_id, currency_account_id) = checkout_metadata
-                        .map(|metadata| (metadata.client_id, metadata.currency_account_id))
+                    let (connector_client_id, connector_currency_account_id) = checkout_metadata
+                        .map(|metadata| {
+                            (
+                                metadata.connector_client_id,
+                                metadata.connector_currency_account_id,
+                            )
+                        })
                         .unwrap_or_default();
                     Ok(Self::Checkout {
                         api_key: api_key.clone(),
                         api_secret: api_secret.clone(),
                         processing_channel_id: key1.clone(),
-                        client_id,
-                        currency_account_id,
+                        connector_client_id,
+                        connector_currency_account_id,
                     })
                 }
                 _ => Err(err("Checkout requires SignatureKey auth type")),
