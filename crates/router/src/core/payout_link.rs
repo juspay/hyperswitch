@@ -17,7 +17,7 @@ use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use super::errors::{RouterResponse, StorageErrorExt};
 use crate::{
     configs::settings::{PaymentMethodFilterKey, PaymentMethodFilters},
-    core::payouts::{helpers as payout_helpers, validator},
+    core::payouts::{helpers as payout_helpers, kill_switch::PayoutKillSwitch, validator},
     errors,
     routes::{app::StorageInterface, SessionState},
     services,
@@ -54,12 +54,7 @@ pub async fn initiate_payout_link(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    crate::core::payouts::kill_switch::ensure_payouts_enabled(
-        &state,
-        &platform,
-        Some(&payout.profile_id),
-    )
-    .await?;
+    PayoutKillSwitch::ensure_payouts_enabled(&state, &platform, Some(&payout.profile_id)).await?;
     let payout_attempt = db
         .find_payout_attempt_by_merchant_id_payout_id_payout_attempt_id(
             merchant_id,

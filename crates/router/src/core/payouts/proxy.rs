@@ -14,6 +14,7 @@ use hyperswitch_masking::PeekInterface;
 
 use super::{
     gateway::context::RouterGatewayContext,
+    kill_switch::PayoutKillSwitch,
     validator::{self, invalid_payout_request, validate_payout_condition},
     PayoutData,
 };
@@ -209,7 +210,7 @@ impl ExternalVaultPayout<'_> {
     ) -> RouterResponse<payouts::PayoutCreateResponse> {
         let state = self.state;
         let platform = self.platform;
-        super::kill_switch::ensure_payouts_enabled(state, platform, Some(profile.get_id())).await?;
+        PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(profile.get_id())).await?;
         let input =
             Box::pin(self.validate_proxy_create_request(req, profile, provider_profile)).await?;
         self.ensure_proxy_transport_available()?;
