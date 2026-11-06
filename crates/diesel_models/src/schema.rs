@@ -1378,6 +1378,7 @@ diesel::table! {
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
+        enable_account_name_verification -> Nullable<Bool>,
     }
 }
 

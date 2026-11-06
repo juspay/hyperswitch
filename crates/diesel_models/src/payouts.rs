@@ -26,11 +26,6 @@ pub struct Payouts {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    /// The category of funds transfer to use when processing the payout.
-    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
-    /// Sender identity supplied with the payout request; normalized at the domain boundary.
-    /// Encrypted at rest with the merchant key.
-    pub sender_details: Option<Encryption>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -46,6 +41,8 @@ pub struct Payouts {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[derive(
@@ -76,11 +73,6 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    /// The category of funds transfer to use when processing the payout.
-    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
-    /// Sender identity supplied with the payout request; normalized at the domain boundary.
-    /// Encrypted at rest with the merchant key.
-    pub sender_details: Option<Encryption>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -96,6 +88,8 @@ pub struct PayoutsNew {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
