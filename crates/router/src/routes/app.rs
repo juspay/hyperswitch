@@ -2373,9 +2373,6 @@ impl RelayWebhooks {
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        #[cfg(feature = "revenue_recovery")]
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/v2/webhooks")
             .app_data(web::Data::new(config))
@@ -2389,10 +2386,8 @@ impl Webhooks {
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         {
             route = route.service(
-                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
-                    web::post()
-                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                ),
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(web::post().to(recovery_receive_incoming_webhook)),
             );
         }
 
