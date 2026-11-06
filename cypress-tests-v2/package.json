@@ -21,5 +21,10 @@
     "jsqr": "^1.4.0",
     "prettier": "^3.3.2",
     "nanoid": "^5.1.11"
+  },
+  "overrides": {
+    "hasha@5.2.2": {
+      "type-fest": "0.8.0"
+    }
   }
 }

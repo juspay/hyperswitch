@@ -4,15 +4,6 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
-## Unreleased
-
-### Security
-
-- Update JavaScript test-tooling dependencies and migrate both suites to Cypress 15.21.1 and Mochawesome reporter 5 without Cypress dependency overrides. Use Node.js 24 or newer.
-- Update cloud SDKs and Quinn, remove the unused tracing feature that pulled in Tokio 0.1/Crossbeam 0.7, and replace the localization fork. Declare direct Tracing dependencies required by the updated SDK's instrumentation macros.
-- Pin the upstream Superposition SDK regeneration pending its next release. Root Newman overrides remain necessary for upstream pins of Handlebars, Flatted, Lodash, Underscore, and UUID.
-- Complete v1/v2 instrumentation compatibility with CI's warnings-as-errors checks by eliding unused lifetimes and removing unused incoming-webhook type parameters throughout handler registrations.
-
 ## 2026.11.06.0
 
 ### Features

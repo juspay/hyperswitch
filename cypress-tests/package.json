@@ -56,5 +56,10 @@
   },
   "optionalDependencies": {
     "fsevents": "^2.3.3"
+  },
+  "overrides": {
+    "hasha@5.2.2": {
+      "type-fest": "0.8.0"
+    }
   }
 }
