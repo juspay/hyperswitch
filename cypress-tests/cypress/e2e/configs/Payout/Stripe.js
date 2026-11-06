@@ -55,6 +55,16 @@ const missingVendorDetailsError = {
 export const connectorDetails = {
   bank_transfer_pm: {
     ach_bank_transfer: {
+      // A payout with an existing customer_id uses that customer's phone, and
+      // Stripe Connect account creation rejects the default customer fixture's
+      // phone ("999999999", "+65"). The valid case creates a customer with a
+      // US phone first.
+      VendorMetadataCustomer: {
+        Request: {
+          phone: "2015550123",
+          phone_country_code: "+1",
+        },
+      },
       VendorMetadataValid: {
         Request: {
           ...ach_payout_request,
@@ -81,7 +91,7 @@ export const connectorDetails = {
           },
         },
         Response: {
-          status: 400,
+          status: 422,
           body: {
             error: {
               type: "invalid_request",
@@ -100,7 +110,7 @@ export const connectorDetails = {
           },
         },
         Response: {
-          status: 400,
+          status: 422,
           body: {
             error: {
               type: "invalid_request",
@@ -123,7 +133,7 @@ export const connectorDetails = {
           },
         },
         Response: {
-          status: 400,
+          status: 422,
           body: {
             error: {
               type: "invalid_request",
