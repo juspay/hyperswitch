@@ -56,6 +56,20 @@ describe("[Payout] [Bank Transfer - ACH] Vendor Metadata", () => {
       }
     });
 
+    it("create-customer-with-us-phone-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["ach_bank_transfer"]["VendorMetadataCustomer"];
+
+      cy.createCustomerCallTest(
+        {
+          ...Cypress._.cloneDeep(fixtures.customerCreateBody),
+          ...data.Request,
+        },
+        globalState
+      );
+    });
+
     it("create-payout-with-valid-vendor-metadata-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
