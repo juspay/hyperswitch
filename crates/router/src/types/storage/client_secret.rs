@@ -1,13 +1,12 @@
 #[cfg(feature = "v2")]
-pub use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
-pub use diesel_models::ephemeral_key::{EphemeralKey, EphemeralKeyNew};
+pub use diesel_models::client_secret::{ClientSecretType, ClientSecretTypeNew};
 
 #[cfg(feature = "v2")]
 use crate::db::errors;
 #[cfg(feature = "v2")]
 use crate::types::transformers::ForeignTryFrom;
 #[cfg(feature = "v2")]
-impl ForeignTryFrom<ClientSecretType> for api_models::ephemeral_key::ClientSecretResponse {
+impl ForeignTryFrom<ClientSecretType> for api_models::client_secret::ClientSecretResponse {
     type Error = errors::ApiErrorResponse;
     fn foreign_try_from(from: ClientSecretType) -> Result<Self, errors::ApiErrorResponse> {
         match from.resource_id {
@@ -19,7 +18,7 @@ impl ForeignTryFrom<ClientSecretType> for api_models::ephemeral_key::ClientSecre
             ) => Err(errors::ApiErrorResponse::InternalServerError),
             common_utils::types::authentication::ResourceId::Customer(global_customer_id) => {
                 Ok(Self {
-                    resource_id: api_models::ephemeral_key::ResourceId::Customer(
+                    resource_id: api_models::client_secret::ResourceId::Customer(
                         global_customer_id.clone(),
                     ),
                     created_at: from.created_at,

@@ -5,7 +5,7 @@ pub use ::payment_methods::helpers::{
     validate_payment_method_type_against_payment_method,
 };
 #[cfg(feature = "v2")]
-use api_models::ephemeral_key::ClientSecretResponse;
+use api_models::client_secret::ClientSecretResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
@@ -86,6 +86,8 @@ use crate::core::{
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
+#[cfg(feature = "v2")]
+use crate::types::storage::client_secret;
 use crate::{
     configs::settings::{
         ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
@@ -115,7 +117,7 @@ use crate::{
             self,
             types::{self, CryptoOperation},
         },
-        storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
+        storage::{self, enums as storage_enums, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
         MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
@@ -4652,40 +4654,17 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
-#[cfg(feature = "v1")]
-pub async fn make_ephemeral_key(
-    state: SessionState,
-    customer_id: id_type::CustomerId,
-    merchant_id: id_type::MerchantId,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let store = &state.store;
-    let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
-    let ek = ephemeral_key::EphemeralKeyNew {
-        id,
-        customer_id,
-        merchant_id: merchant_id.to_owned(),
-        secret,
-    };
-    let ek = store
-        .create_ephemeral_key(ek, state.conf.eph_key.validity)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
-}
-
 #[cfg(feature = "v2")]
 pub async fn make_client_secret(
     state: SessionState,
-    resource_id: api_models::ephemeral_key::ResourceId,
+    resource_id: api_models::client_secret::ResourceId,
     platform: domain::Platform,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
 
     match &resource_id {
-        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+        api_models::client_secret::ResourceId::Customer(global_customer_id) => {
             db.find_customer_by_global_id(
                 global_customer_id,
                 platform.get_processor().get_key_store(),
@@ -4697,7 +4676,7 @@ pub async fn make_client_secret(
     }
 
     let resource_id = match resource_id {
-        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+        api_models::client_secret::ResourceId::Customer(global_customer_id) => {
             common_utils::types::authentication::ResourceId::Customer(global_customer_id)
         }
     };
@@ -4721,14 +4700,14 @@ pub async fn create_client_secret(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     resource_id: common_utils::types::authentication::ResourceId,
-) -> RouterResult<ephemeral_key::ClientSecretType> {
+) -> RouterResult<client_secret::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
     let id = id_type::ClientSecretId::generate();
     let secret = hyperswitch_masking::Secret::new(generate_time_ordered_id("cs"));
 
-    let client_secret = ephemeral_key::ClientSecretTypeNew {
+    let client_secret = client_secret::ClientSecretTypeNew {
         id,
         merchant_id: merchant_id.to_owned(),
         secret,
@@ -4742,40 +4721,26 @@ pub async fn create_client_secret(
     Ok(client_secret)
 }
 
-#[cfg(feature = "v1")]
-pub async fn delete_ephemeral_key(
-    state: SessionState,
-    ek_id: String,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let db = state.store.as_ref();
-    let ek = db
-        .delete_ephemeral_key(&ek_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
-}
-
 #[cfg(feature = "v2")]
 pub async fn delete_client_secret(
     state: SessionState,
-    ephemeral_key_id: String,
+    client_secret_id: String,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = state.store.as_ref();
-    let ephemeral_key = db
-        .delete_client_secret(&ephemeral_key_id)
+    let client_secret = db
+        .delete_client_secret(&client_secret_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
                 err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Ephemeral Key not found".to_string(),
+                    message: "Client secret not found".to_string(),
                 })
             }
             _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
         })
-        .attach_printable("Unable to delete ephemeral key")?;
+        .attach_printable("Unable to delete client secret")?;
 
-    let response = ClientSecretResponse::foreign_try_from(ephemeral_key)
+    let response = ClientSecretResponse::foreign_try_from(client_secret)
         .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -5330,6 +5295,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
@@ -5432,6 +5398,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
@@ -5532,6 +5499,7 @@ mod tests {
             external_surcharge_applicable: None,
             enable_avs_check: None,
             settlement_conclusion_applied: None,
+            enable_account_name_verification: None,
         };
         let req_cs = Some("1".to_string());
         assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
@@ -6786,6 +6754,7 @@ pub async fn get_additional_payment_data(
                         funding_source: None,
                         issuer_name: None,
                         issuer_country: None,
+                        payment_checks: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6833,6 +6802,7 @@ pub async fn get_additional_payment_data(
                             card_type: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6871,6 +6841,7 @@ pub async fn get_additional_payment_data(
                             funding_source: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     paypal: None,
@@ -9038,6 +9009,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -9059,6 +9031,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     funding_source,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     ..(**apple_pay).clone()
                 })
             }),
@@ -9075,6 +9048,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -9095,6 +9069,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     card_type,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     device_pan_bin: device_pan_bin
                         .clone()
                         .or_else(|| google_pay.device_pan_bin.clone()),

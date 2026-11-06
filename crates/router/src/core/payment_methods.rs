@@ -94,7 +94,7 @@ use crate::{
     types::{
         api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
         domain::types as domain_types,
-        storage::{ephemeral_key, PaymentMethodListContext},
+        storage::PaymentMethodListContext,
         transformers::{ForeignFrom, ForeignTryFrom},
         Tokenizable,
     },

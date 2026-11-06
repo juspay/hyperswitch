@@ -78,22 +78,6 @@ pub async fn refund_create_core(
         },
     )?;
 
-    let captured_amount = payment_intent
-        .amount_captured
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("amount captured is none in a successful payment")?;
-
-    // Amount is not passed in request refer from payment intent.
-    amount = req.amount.unwrap_or(captured_amount);
-
-    utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
-        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "amount".into(),
-            expected_format: "positive integer".to_string()
-        })
-        .attach_printable("amount less than or equal to zero"))
-    })?;
-
     payment_attempt = db
         .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
             platform.get_processor().get_key_store(),
@@ -116,6 +100,22 @@ pub async fn refund_create_core(
             }))
         },
     )?;
+
+    let captured_amount = payment_intent
+        .amount_captured
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("amount captured is none in a successful payment")?;
+
+    // Amount is not passed in request refer from payment intent.
+    amount = req.amount.unwrap_or(captured_amount);
+
+    utils::when(amount <= common_utils_types::MinorUnit::new(0), || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".into(),
+            expected_format: "positive integer".to_string()
+        })
+        .attach_printable("amount less than or equal to zero"))
+    })?;
 
     let merchant_connector_details = req.merchant_connector_details.clone();
 

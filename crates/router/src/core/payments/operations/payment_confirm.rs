@@ -562,6 +562,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -1055,6 +1058,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
             .payment_method_data
@@ -1074,6 +1078,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -1086,6 +1091,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -3243,6 +3249,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .external_surcharge_applicable,
                         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                        enable_account_name_verification: payment_data
+                            .payment_intent
+                            .enable_account_name_verification,
                         settlement_conclusion_applied: payment_data
                             .payment_intent
                             .settlement_conclusion_applied,

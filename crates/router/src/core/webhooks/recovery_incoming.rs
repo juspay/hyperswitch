@@ -832,8 +832,8 @@ impl RevenueRecoveryAttempt {
                 "Failed to store payment processor tokens in Redis: {:?}",
                 error
             );
-            // A merchant who triggers the retries still has to be told when, and reporting the
-            // recorded transaction again would be refused as a duplicate.
+            // A transaction the merchant reports is recorded by now, and reporting it again would
+            // be refused as a duplicate, so they still get an answer.
             if connector_details.has_connector_accounts() {
                 return Err(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed.into());
             }
