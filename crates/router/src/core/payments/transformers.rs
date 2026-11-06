@@ -812,8 +812,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_payment_router_data_v1(
+    state: &SessionState,
     payment_data: PaymentData<api::ExternalVaultProxy>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -2359,8 +2359,8 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_metadata<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_metadata(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -8459,8 +8459,8 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_post_confirm(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdatePostConfirm>,
     connector_id: &str,
     processor: &domain::Processor,

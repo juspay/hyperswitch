@@ -3,17 +3,14 @@ use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_locking,
-        webhooks::{self, types},
-    },
+    core::{api_locking, webhooks},
     events::api_logs::WebhookRequestPayload,
     services::{api, authentication as auth},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
 #[cfg(feature = "v1")]
-pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
+pub async fn receive_incoming_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -30,7 +27,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
             connector: connector_id_or_name.clone(),
         },
         |state, auth, _, req_state| {
-            webhooks::incoming_webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper(
                 state.to_owned(),
                 req_state,
                 &req,
@@ -48,7 +45,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::IncomingRelayWebhookReceive))]
-pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
+pub async fn receive_incoming_relay_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -69,7 +66,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
             connector: connector_id.get_string_repr().to_string(),
         },
         |state, auth, _, req_state| {
-            webhooks::incoming_webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper(
                 state.to_owned(),
                 req_state,
                 &req,
@@ -174,7 +171,7 @@ pub async fn receive_incoming_webhook(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::IncomingNetworkTokenWebhookReceive))]
-pub async fn receive_network_token_requestor_incoming_webhook<W: types::OutgoingWebhookType>(
+pub async fn receive_network_token_requestor_incoming_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -188,11 +185,7 @@ pub async fn receive_network_token_requestor_incoming_webhook<W: types::Outgoing
         &req,
         (),
         |state, _: (), _, _| {
-            webhooks::network_token_incoming_webhooks_wrapper::<W>(
-                state.to_owned(),
-                &req,
-                body.clone(),
-            )
+            webhooks::network_token_incoming_webhooks_wrapper(state.to_owned(), &req, body.clone())
         },
         &auth::NoAuth,
         api_locking::LockAction::NotApplicable,

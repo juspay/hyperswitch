@@ -213,7 +213,7 @@ pub async fn construct_payout_router_data<F>(
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     state: &SessionState,
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
@@ -1559,8 +1559,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_dispute_list_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_dispute_list_router_data(
+    state: &SessionState,
     merchant_connector_account: MerchantConnectorAccount,
     req: types::FetchDisputesRequestData,
 ) -> RouterResult<types::FetchDisputesRouterData> {
