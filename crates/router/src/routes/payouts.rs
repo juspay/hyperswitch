@@ -191,14 +191,7 @@ pub async fn payouts_confirm(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let profile_id = get_authenticated_profile_id(&auth);
-            payouts_confirm_core(
-                state,
-                auth.platform,
-                profile_id,
-                req,
-                header_payload.clone(),
-            )
+            payouts_confirm_core(state, auth.platform, req, header_payload.clone())
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
