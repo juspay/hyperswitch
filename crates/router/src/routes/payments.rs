@@ -2019,16 +2019,18 @@ pub async fn payments_cancel(
                             None,
                         )
                         .map(|connector_data| {
-                            connector_data.connector.is_pre_authorize_cancel_supported(payment_pre_fetched_info.payment_attempt.payment_method_type)
+                            connector_data.connector.is_pre_authorize_cancel_supported(
+                                payment_pre_fetched_info.payment_attempt.payment_method_type,
+                                payment_pre_fetched_info.payment_intent.status,
+                                payment_pre_fetched_info.payment_attempt.payment_method_id.is_some(),
+                            )
                         })
                         .unwrap_or(false)
                     } else {
                         false
                     };
 
-                if payment_pre_fetched_info.payment_intent.status == api_enums::IntentStatus::RequiresCustomerAction
-                    && supports_pre_authorize_cancel
-                {
+                if supports_pre_authorize_cancel {
                     Box::pin(payments::payments_core::<
                         api_types::PreAuthorizeVoid,
                         payment_types::PaymentsResponse,
