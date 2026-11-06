@@ -3054,7 +3054,7 @@ pub async fn get_sso_auth_url(
             return_url: String::new(),
             http_method: String::new(),
             params: Vec::with_capacity(0),
-            return_url_with_query_params: url.to_string(),
+            return_url_with_query_params: url.to_string().into(),
         })
     })
 }

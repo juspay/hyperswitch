@@ -114,7 +114,7 @@ pub struct ReturnUrls {
 
 #[derive(Debug, Serialize)]
 pub struct Link {
-    link: Option<String>,
+    link: Option<Secret<String>>,
 }
 
 impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPaymentsRequest {
@@ -401,7 +401,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, VoltPaymentsResponse, T, PaymentsRespon
             .clone()
             .expose();
         let redirection_data = Some(RedirectForm::Form {
-            endpoint: url.to_string(),
+            endpoint: url.to_string().into(),
             method: Method::Get,
             form_fields: Default::default(),
         });
