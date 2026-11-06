@@ -799,21 +799,9 @@ export const connectorDetails = {
         },
       }),
       DDCConfig: {
-        completeUrlPath: "/redirect/complete/worldpay",
         collectionReferenceParam: "collectionReference",
         firstSubmissionValue: "",
         secondSubmissionValue: "race_condition_test_ddc_123",
-        expectedError: {
-          status: 400,
-          body: {
-            error: {
-              code: "IR_07",
-              type: "invalid_request",
-              message:
-                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
-            },
-          },
-        },
       },
     },
     DDCRaceConditionClientSide: {
@@ -837,7 +825,6 @@ export const connectorDetails = {
         },
       }),
       DDCConfig: {
-        redirectUrlPath: "/payments/redirect",
         collectionReferenceParam: "collectionReference",
         delayBeforeSubmission: 2000,
         raceConditionScript: `

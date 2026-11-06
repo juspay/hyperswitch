@@ -42,8 +42,8 @@ pub struct CryptopayPaymentsRequest {
     pay_currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     network: Option<String>,
-    success_redirect_url: Option<String>,
-    unsuccess_redirect_url: Option<String>,
+    success_redirect_url: Option<Secret<String>>,
+    unsuccess_redirect_url: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<pii::SecretSerdeValue>,
     custom_id: String,
@@ -261,8 +261,8 @@ pub struct CryptopayPaymentResponseData {
     pub paid_amount: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
-    pub success_redirect_url: Option<String>,
-    pub unsuccess_redirect_url: Option<String>,
+    pub success_redirect_url: Option<Secret<String>>,
+    pub unsuccess_redirect_url: Option<Secret<String>>,
     pub hosted_page_url: Option<Url>,
     pub created_at: Option<String>,
     pub expires_at: Option<String>,

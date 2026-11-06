@@ -239,6 +239,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         _request: &api::PaymentsCancelPostCaptureRequest,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         crate::utils::when(
             payment_data.payment_intent.is_post_capture_void_attempted(),
