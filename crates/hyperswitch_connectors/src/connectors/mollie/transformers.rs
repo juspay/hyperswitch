@@ -57,7 +57,7 @@ impl<T> From<(StringMajorUnit, T)> for MollieRouterData<T> {
 pub struct MolliePaymentsRequest {
     amount: Amount,
     description: String,
-    redirect_url: String,
+    redirect_url: Secret<String>,
     cancel_url: Option<String>,
     webhook_url: String,
     locale: Option<String>,
@@ -756,7 +756,7 @@ pub struct MolliePaymentsResponse {
     pub status: MolliePaymentStatus,
     pub is_cancelable: Option<bool>,
     pub sequence_type: Option<SequenceType>,
-    pub redirect_url: Option<String>,
+    pub redirect_url: Option<Secret<String>>,
     pub webhook_url: Option<String>,
     #[serde(rename = "_links")]
     pub links: Links,

@@ -2031,12 +2031,17 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
         match value.form_type {
             Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
+                endpoint: form.clone().endpoint.into(),
                 method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
+                form_fields: form
+                    .clone()
+                    .form_fields
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }),
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
+                html_data: html.html_data.into(),
             }),
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
@@ -2055,7 +2060,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     client_token: braintree.client_token,
                     card_token: braintree.card_token,
                     bin: braintree.bin,
-                    acs_url: braintree.acs_url,
+                    acs_url: braintree.acs_url.into(),
                 })
             }
             Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
@@ -2803,67 +2808,4 @@ impl UnifiedConnectorServiceError {
 }
 
 #[cfg(test)]
-mod ucs_kill_switch_reason_tests {
-    use super::*;
-
-    fn tonic_status(code: tonic::Code) -> UnifiedConnectorServiceError {
-        UnifiedConnectorServiceError::TonicStatus {
-            code,
-            message: "from ucs".to_string(),
-            transport: None,
-        }
-    }
-
-    #[test]
-    fn ucs_wide_grpc_codes_still_qualify() {
-        // While UCS is unwell the payment has no fallback and fails outright, so these qualify
-        // like any other. They share a label so a run of them reads as one UCS-wide event.
-        for code in [
-            tonic::Code::Unavailable,
-            tonic::Code::DeadlineExceeded,
-            tonic::Code::ResourceExhausted,
-            tonic::Code::Aborted,
-            tonic::Code::Cancelled,
-        ] {
-            assert_eq!(
-                tonic_status(code).ucs_kill_switch_reason(),
-                Some(UcsKillSwitchReason::UcsUnreachable),
-                "{code:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn ucs_side_grpc_codes_are_kill_switch_worthy() {
-        // `from_grpc_error` extracts connector errors and timeouts before producing TonicStatus,
-        // so what reaches here is UCS-side and repeats identically for this scope.
-        let cases = [
-            (
-                tonic::Code::InvalidArgument,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::FailedPrecondition,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::Unauthenticated,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::Unimplemented,
-                UcsKillSwitchReason::UcsFlowUnsupported,
-            ),
-            (tonic::Code::Internal, UcsKillSwitchReason::UcsInternalError),
-            (tonic::Code::Unknown, UcsKillSwitchReason::UcsInternalError),
-        ];
-
-        for (code, expected) in cases {
-            assert_eq!(
-                tonic_status(code).ucs_kill_switch_reason(),
-                Some(expected),
-                "{code:?}"
-            );
-        }
-    }
-}
+mod tests;

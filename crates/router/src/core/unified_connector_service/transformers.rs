@@ -779,7 +779,11 @@ impl
             address: Some(address),
             metadata: None,
             connector_feature_data: None,
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             test_mode: router_data.test_mode,
             customer: Some(payments_grpc::Customer {
                 first_name: None,
@@ -955,7 +959,11 @@ impl
                 currency: currency.into(),
             }),
             payment_method: Some(payment_method),
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
@@ -999,7 +1007,11 @@ impl
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
             is_stored_credential: router_data.request.is_stored_credential,
@@ -1063,7 +1075,11 @@ impl
                 .map(|payment_channel| payment_channel.into()),
             connector_feature_data: get_nuvei_previous_leg_feature_data(router_data)?,
             locale: router_data.request.locale.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             redirection_response: None,
             threeds_completion_indicator: None,
             tokenization_strategy: router_data
@@ -1253,7 +1269,11 @@ impl
                 currency: currency.into(),
             }),
             payment_method,
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(true),
@@ -1290,7 +1310,11 @@ impl
             order_tax_amount: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None,
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
             is_stored_credential: router_data.request.is_stored_credential,
@@ -1343,7 +1367,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::BillingDescriptor::foreign_from),
             locale: None,
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             redirection_response: router_data
                 .request
                 .redirect_response
@@ -1846,8 +1874,16 @@ impl
             address: Some(address),
             authentication_data,
             metadata: None,
-            return_url: router_data.request.router_return_url.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             state: None,
             redirection_response: router_data
                 .request
@@ -1976,8 +2012,16 @@ impl
                 .attach_printable("Failed to serialize device_channel/sdk_information metadata")?
                 .into(),
             ),
-            return_url: router_data.request.router_return_url.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             state: None,
             redirection_response: router_data
                 .request
@@ -2307,8 +2351,16 @@ impl
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
             metadata,
-            return_url: router_data.request.router_return_url.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             state,
             browser_info: router_data
                 .request
@@ -2419,8 +2471,16 @@ impl
             address: Some(address),
             enrolled_for_3ds: router_data.request.enrolled_for_3ds,
             metadata,
-            return_url: router_data.request.router_return_url.clone(),
-            continue_redirection_url: router_data.request.complete_authorize_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
+            continue_redirection_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             state: None,
             browser_info: router_data
                 .request
@@ -2652,7 +2712,11 @@ impl
             }),
             billing_descriptor: None,
             payment_method,
-            return_url: router_data.request.complete_authorize_url.clone(),
+            return_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(false),
@@ -2684,7 +2748,11 @@ impl
             order_tax_amount: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None, // CompleteAuthorize doesn't have webhook_url
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             setup_future_usage: router_data
                 .request
                 .setup_future_usage
@@ -2847,7 +2915,11 @@ impl
                 currency: currency.into(),
             }),
             payment_method: Some(payment_method),
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
@@ -2891,7 +2963,11 @@ impl
             }),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
             is_stored_credential: router_data.request.is_stored_credential,
@@ -3063,7 +3139,11 @@ impl
             }),
             billing_descriptor: None,
             payment_method,
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             address: Some(address),
             auth_type: auth_type.into(),
             enrolled_for_3ds: Some(router_data.request.enrolled_for_3ds),
@@ -3108,7 +3188,11 @@ impl
                 .map(|order_tax_amount| order_tax_amount.get_amount_as_i64()),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: router_data.request.webhook_url.clone(),
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             off_session: router_data.request.off_session,
             is_stored_credential: None,
@@ -3336,9 +3420,17 @@ impl
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             webhook_url: router_data.request.webhook_url.clone(),
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             session_token: router_data.session_token.clone(),
             order_tax_amount: None,
             order_category: router_data
@@ -3576,7 +3668,11 @@ impl
             test_mode: router_data.test_mode,
             payment_method_type,
             state,
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             description: router_data.description.clone(),
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
@@ -3633,7 +3729,11 @@ impl
             }),
             additional_payment_data,
             auth_type: Some(auth_type.into()),
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             split_payments: router_data
                 .request
                 .split_payments
@@ -3866,7 +3966,11 @@ impl
             test_mode: router_data.test_mode,
             payment_method_type,
             state,
-            return_url: router_data.request.router_return_url.clone(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .map(ExposeInterface::expose),
             description: router_data.description.clone(),
             connector_customer_id: router_data.connector_customer.clone(),
             address: Some(address),
@@ -3963,7 +4067,11 @@ impl
             auth_type: Some(auth_type.into()),
             // Provide the HS complete-authorize URL so a wallet MIT that needs buyer
             // re-approval returns to HS (→ CompleteAuthorize) rather than the merchant URL.
-            complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            complete_authorize_url: router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .map(ExposeInterface::expose),
             payment_channel: router_data
                 .request
                 .payment_channel
@@ -12037,92 +12145,4 @@ impl
 }
 
 #[cfg(test)]
-mod ucs_embedded_error_tests {
-    #[cfg(feature = "payouts")]
-    use common_enums::PayoutStatus;
-    use hyperswitch_domain_models::router_response_types::SurchargeCalculationResponseData;
-
-    use super::{payments_grpc, ErrorResponse, PayoutsResponseData};
-    use crate::types::transformers::ForeignTryFrom;
-
-    fn connector_error() -> payments_grpc::ErrorInfo {
-        payments_grpc::ErrorInfo {
-            connector_details: Some(payments_grpc::ConnectorErrorDetails {
-                code: Some("connector_error".to_string()),
-                message: Some("connector rejected the request".to_string()),
-                reason: Some("invalid request".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }
-    }
-
-    #[cfg(feature = "payouts")]
-    #[test]
-    fn payout_connector_http_error_maps_to_error_response() {
-        let response = payments_grpc::PayoutServiceTransferResponse {
-            payout_status: Some(payments_grpc::payout_enums::PayoutStatus::Failed.into()),
-            connector_payout_id: Some("connector-payout-id".to_string()),
-            error: Some(connector_error()),
-            status_code: 422,
-            ..Default::default()
-        };
-
-        let result =
-            <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from((
-                response,
-                PayoutStatus::Pending,
-            ))
-            .expect("the UCS payout response should be parseable");
-        let error = result.expect_err("connector HTTP errors must use RouterData's error path");
-
-        assert_eq!(error.status_code, 422);
-        assert_eq!(error.code, "connector_error");
-        assert_eq!(
-            error.connector_transaction_id.as_deref(),
-            Some("connector-payout-id")
-        );
-    }
-
-    #[cfg(feature = "payouts")]
-    #[test]
-    fn payout_http_success_preserves_business_failure_status() {
-        let response = payments_grpc::PayoutServiceTransferResponse {
-            payout_status: Some(payments_grpc::payout_enums::PayoutStatus::Failed.into()),
-            connector_payout_id: Some("connector-payout-id".to_string()),
-            error: Some(connector_error()),
-            status_code: 200,
-            ..Default::default()
-        };
-
-        let result =
-            <Result<PayoutsResponseData, ErrorResponse> as ForeignTryFrom<_>>::foreign_try_from((
-                response,
-                PayoutStatus::Pending,
-            ))
-            .expect("the UCS payout response should be parseable");
-        let response = result.expect("HTTP-success business failures retain payout status");
-
-        assert_eq!(response.status, Some(PayoutStatus::Failed));
-        assert_eq!(response.error_code.as_deref(), Some("connector_error"));
-    }
-
-    #[test]
-    fn surcharge_connector_error_is_not_defaulted_to_zero() {
-        let response = payments_grpc::SurchargeServiceCalculateResponse {
-            connector_surcharge_id: Some("connector-surcharge-id".to_string()),
-            status_code: 502,
-            error: Some(connector_error()),
-            ..Default::default()
-        };
-
-        let result = <Result<SurchargeCalculationResponseData, ErrorResponse> as ForeignTryFrom<
-            _,
-        >>::foreign_try_from(response)
-        .expect("the UCS surcharge response should be parseable");
-        let error = result.expect_err("connector errors must not become a zero surcharge");
-
-        assert_eq!(error.status_code, 502);
-        assert_eq!(error.code, "connector_error");
-    }
-}
+mod tests;

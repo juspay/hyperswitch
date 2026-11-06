@@ -2743,3 +2743,71 @@ async fn test_cluster_pubsub() {
 
     assert!(is_success);
 }
+
+#[tokio::test]
+async fn test_consume_key_single_winner_and_replay() {
+    tokio::task::spawn_blocking(|| {
+        futures::executor::block_on(async {
+            let connection = test_connection(&RedisSettings::default())
+                .await
+                .expect("Redis connection");
+            let key: RedisKey = format!("test_consume_concurrent_{}", unique_test_id()).into();
+            connection
+                .set_key_with_expiry(&key, "unused", 60)
+                .await
+                .expect("seed token");
+            let results =
+                futures::future::join_all((0..32).map(|_| connection.consume_key(&key))).await;
+            let values = results
+                .into_iter()
+                .map(|result| result.expect("consume transaction"))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                values
+                    .iter()
+                    .filter(|value| value.as_deref() == Some("unused"))
+                    .count(),
+                1
+            );
+            assert_eq!(values.iter().filter(|value| value.is_none()).count(), 31);
+            assert_eq!(connection.consume_key(&key).await.expect("replay"), None);
+            assert!(!connection.exists::<()>(&key).await.expect("key absent"));
+        })
+    })
+    .await
+    .expect("test task");
+}
+
+#[tokio::test]
+async fn test_consume_key_missing_and_expired_are_not_created() {
+    tokio::task::spawn_blocking(|| {
+        futures::executor::block_on(async {
+            let connection = test_connection(&RedisSettings::default())
+                .await
+                .expect("Redis connection");
+            let key: RedisKey = format!("test_consume_expired_{}", unique_test_id()).into();
+            for _ in 0..2 {
+                assert_eq!(
+                    connection.consume_key(&key).await.expect("unknown token"),
+                    None
+                );
+            }
+            assert!(!connection.exists::<()>(&key).await.expect("missing key"));
+            connection
+                .set_key_with_expiry(&key, "unused", 60)
+                .await
+                .expect("seed token");
+            connection
+                .set_expire_at(&key, 1)
+                .await
+                .expect("expire token");
+            assert_eq!(
+                connection.consume_key(&key).await.expect("expired token"),
+                None
+            );
+            assert!(!connection.exists::<()>(&key).await.expect("expired key"));
+        })
+    })
+    .await
+    .expect("test task");
+}

@@ -78,6 +78,29 @@ pub async fn refund_create_core(
         },
     )?;
 
+    payment_attempt = db
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+            platform.get_processor().get_key_store(),
+            &req.payment_id,
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
+
+    // A transaction the merchant reported has no connector account to refund it through. Refused
+    // here, as a refund saved at this point would stay pending for good.
+    utils::when(
+        payment_attempt.merchant_connector_id.is_none()
+            && !state.conf.merchant_id_auth.merchant_id_auth_enabled,
+        || {
+            Err(report!(errors::ApiErrorResponse::RefundNotPossible {
+                connector: payment_attempt.connector.clone().unwrap_or_default(),
+            }))
+        },
+    )?;
+
     let captured_amount = payment_intent
         .amount_captured
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -93,17 +116,6 @@ pub async fn refund_create_core(
         })
         .attach_printable("amount less than or equal to zero"))
     })?;
-
-    payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            platform.get_processor().get_key_store(),
-            &req.payment_id,
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
     let merchant_connector_details = req.merchant_connector_details.clone();
 

@@ -777,6 +777,16 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId = Dime
     NoWebhookEvent,
     NoPaymentMethodType,
 >;
+pub type DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    HasProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+    NoPaymentMethodType,
+>;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType = Dimensions<
     HasProviderMerchantId,
     HasProcessorMerchantId,

@@ -789,6 +789,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 None,
                 &request,
                 DEFAULT_LOCALE,
+                false,
             ))
             .await?;
 
