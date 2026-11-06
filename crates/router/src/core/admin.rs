@@ -185,11 +185,15 @@ pub async fn get_organization(
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 fn create_platform_merchant_account_request(
-    merchant_id: id_type::MerchantId,
     merchant_name: String,
     organization_id: id_type::OrganizationId,
-) -> admin_types::MerchantAccountCreate {
-    admin_types::MerchantAccountCreate {
+) -> RouterResult<admin_types::MerchantAccountCreate> {
+    let merchant_id = utils::user::generate_env_specific_merchant_id(merchant_name.clone())
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid platform merchant name".to_string(),
+        })?;
+
+    Ok(admin_types::MerchantAccountCreate {
         merchant_id,
         merchant_name: Some(Secret::new(merchant_name)),
         organization_id: Some(organization_id),
@@ -213,10 +217,30 @@ fn create_platform_merchant_account_request(
         pm_collect_link_config: None,
         product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
         network_tokenization_credentials: None,
-    }
+    })
 }
 
-#[cfg(all(feature = "olap", feature = "v1"))]
+#[cfg(all(feature = "olap", feature = "v2"))]
+fn create_platform_merchant_account_request(
+    merchant_name: String,
+    organization_id: id_type::OrganizationId,
+) -> RouterResult<admin_types::MerchantAccountCreate> {
+    let merchant_name = common_utils::new_type::MerchantName::try_new(merchant_name)
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid platform merchant name".to_string(),
+        })?;
+
+    Ok(admin_types::MerchantAccountCreate {
+        merchant_name: Secret::new(merchant_name),
+        merchant_details: None,
+        metadata: None,
+        organization_id,
+        product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+        merchant_account_type: Some(MerchantAccountType::Platform),
+    })
+}
+
+#[cfg(feature = "olap")]
 pub async fn convert_organization_to_platform_organization(
     state: SessionState,
     org_id: api::OrganizationId,
@@ -275,26 +299,29 @@ pub async fn convert_organization_to_platform_organization(
             )
         });
 
-    let platform_merchant_id =
-        utils::user::generate_env_specific_merchant_id(platform_merchant_name.clone())
-            .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Invalid platform merchant name".to_string(),
-            })?;
-
     let merchant_create_request = create_platform_merchant_account_request(
-        platform_merchant_id.clone(),
-        platform_merchant_name.clone(),
+        platform_merchant_name,
         org_id.organization_id.clone(),
-    );
+    )?;
 
-    Box::pin(create_merchant_account(
-        state.clone(),
-        merchant_create_request,
-        Some(authentication::AuthenticationDataWithOrg {
-            organization_id: org_id.organization_id.clone(),
-        }),
-    ))
-    .await?;
+    let service_api::ApplicationResponse::Json(platform_merchant) =
+        Box::pin(create_merchant_account(
+            state.clone(),
+            merchant_create_request,
+            Some(authentication::AuthenticationDataWithOrg {
+                organization_id: org_id.organization_id.clone(),
+            }),
+        ))
+        .await?
+    else {
+        return Err(report!(errors::ApiErrorResponse::InternalServerError))
+            .attach_printable("Unexpected response while creating the platform merchant");
+    };
+
+    #[cfg(feature = "v1")]
+    let platform_merchant_id = platform_merchant.merchant_id;
+    #[cfg(feature = "v2")]
+    let platform_merchant_id = platform_merchant.id;
 
     let updated_organization = state
         .accounts_store
@@ -522,67 +549,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        let merchant_account_type = match organization.get_organization_type() {
-            OrganizationType::Standard => match self.merchant_account_type.unwrap_or_default() {
-                MerchantAccountType::Standard => MerchantAccountType::Standard,
-                MerchantAccountType::Connected => {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message:
-                            "Merchant account type must be Standard for a Standard Organization"
-                                .to_string(),
-                    }
-                    .into());
-                }
-                MerchantAccountType::Platform => {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message:
-                            "Merchant account type cannot be Platform for a Standard Organization"
-                                .to_string(),
-                    }
-                    .into());
-                }
-            },
-
-            OrganizationType::Platform => {
-                let accounts = state
-                    .store
-                    .list_merchant_accounts_by_organization_id(&organization.get_organization_id())
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-                let platform_account_exists = accounts
-                    .iter()
-                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
-
-                if accounts.is_empty() || !platform_account_exists {
-                    // First merchant in a Platform org must be Platform
-                    MerchantAccountType::Platform
-                } else {
-                    match self.merchant_account_type.unwrap_or_default() {
-                        MerchantAccountType::Standard => MerchantAccountType::Standard,
-                        MerchantAccountType::Connected => {
-                            if state.conf.platform.allow_connected_merchants {
-                                MerchantAccountType::Connected
-                            } else {
-                                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                                    message: "Connected merchant accounts are not allowed"
-                                        .to_string(),
-                                }
-                                .into());
-                            }
-                        }
-                        MerchantAccountType::Platform => {
-                            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                                message:
-                                    "Only one Platform merchant account is allowed per Organization"
-                                        .to_string(),
-                            }
-                            .into());
-                        }
-                    }
-                }
-            }
-        };
+        let merchant_account_type =
+            resolve_merchant_account_type(state, &organization, self.merchant_account_type).await?;
 
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
@@ -689,6 +657,75 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         Ok(domain_merchant_account)
     }
+}
+
+#[cfg(feature = "olap")]
+/// Decides the type of a new merchant account from its organization's type and the requested type.
+async fn resolve_merchant_account_type(
+    state: &SessionState,
+    organization: &diesel_models::organization::Organization,
+    requested_merchant_account_type: Option<MerchantAccountType>,
+) -> RouterResult<MerchantAccountType> {
+    let merchant_account_type = match organization.get_organization_type() {
+        OrganizationType::Standard => match requested_merchant_account_type.unwrap_or_default() {
+            MerchantAccountType::Standard => MerchantAccountType::Standard,
+            MerchantAccountType::Connected => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant account type must be Standard for a Standard Organization"
+                        .to_string(),
+                }
+                .into());
+            }
+            MerchantAccountType::Platform => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Merchant account type cannot be Platform for a Standard Organization"
+                        .to_string(),
+                }
+                .into());
+            }
+        },
+
+        OrganizationType::Platform => {
+            let accounts = state
+                .store
+                .list_merchant_accounts_by_organization_id(&organization.get_organization_id())
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+            let platform_account_exists = accounts
+                .iter()
+                .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
+
+            if accounts.is_empty() || !platform_account_exists {
+                // First merchant in a Platform org must be Platform
+                MerchantAccountType::Platform
+            } else {
+                match requested_merchant_account_type.unwrap_or_default() {
+                    MerchantAccountType::Standard => MerchantAccountType::Standard,
+                    MerchantAccountType::Connected => {
+                        if state.conf.platform.allow_connected_merchants {
+                            MerchantAccountType::Connected
+                        } else {
+                            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Connected merchant accounts are not allowed".to_string(),
+                            }
+                            .into());
+                        }
+                    }
+                    MerchantAccountType::Platform => {
+                        return Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message:
+                                "Only one Platform merchant account is allowed per Organization"
+                                    .to_string(),
+                        }
+                        .into());
+                    }
+                }
+            }
+        }
+    };
+
+    Ok(merchant_account_type)
 }
 
 #[cfg(feature = "olap")]
@@ -903,8 +940,20 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         state: &SessionState,
         key_store: domain::MerchantKeyStore,
         identifier: &id_type::MerchantId,
-        _org_data: Option<authentication::AuthenticationDataWithOrg>,
+        org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
+        fp_utils::when(
+            org_data_from_auth
+                .as_ref()
+                .is_some_and(|auth| auth.organization_id != self.organization_id),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Mismatched organization_id in request and authenticated context"
+                        .to_string(),
+                })
+            },
+        )?;
+
         let publishable_key = create_merchant_publishable_key();
         let db = &*state.accounts_store;
 
@@ -924,8 +973,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             .create_or_validate(db)
             .await?;
 
-        // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
-        let merchant_account_type = MerchantAccountType::Standard;
+        let merchant_account_type =
+            resolve_merchant_account_type(state, &organization, self.merchant_account_type).await?;
 
         let key = key_store.key.into_inner();
         let id = identifier.to_owned();
@@ -2025,16 +2074,53 @@ trait MerchantConnectorAccountUpdateBridge {
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate>;
 }
 
+/// Fails with `MerchantConnectorAccountNotFound` unless the connector account belongs to the merchant.
+/// The check reads only unencrypted columns, so it runs before the account is fetched and decrypted.
+#[cfg(all(feature = "v2", feature = "olap"))]
+async fn validate_merchant_connector_account_belongs_to_merchant(
+    db: &dyn StorageInterface,
+    merchant_id: &id_type::MerchantId,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<()> {
+    let merchant_connector_accounts = db
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    fp_utils::when(
+        !merchant_connector_accounts
+            .into_iter()
+            .any(|mca| mca.get_id() == *merchant_connector_id),
+        || {
+            Err(report!(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: merchant_connector_id.get_string_repr().to_string(),
+                }
+            ))
+        },
+    )
+}
+
 #[cfg(all(feature = "v2", feature = "olap"))]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
         self,
         db: &dyn StorageInterface,
-        _merchant_id: &id_type::MerchantId,
+        merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
+        validate_merchant_connector_account_belongs_to_merchant(
+            db,
+            merchant_id,
+            merchant_connector_id,
+        )
+        .await?;
+
         db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -3015,6 +3101,8 @@ pub async fn retrieve_connector(
     let store = state.store.as_ref();
 
     let merchant_id = processor.get_account().get_id();
+
+    validate_merchant_connector_account_belongs_to_merchant(store, merchant_id, &id).await?;
 
     let mca = store
         .find_merchant_connector_account_by_id(&id, processor.get_key_store())

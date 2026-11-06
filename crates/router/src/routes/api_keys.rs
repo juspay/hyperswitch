@@ -71,7 +71,7 @@ pub async fn api_key_create(
             api_keys::create_api_key(state, payload, key_store).await
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyWrite,
                 allow_connected: true,
@@ -112,7 +112,7 @@ pub async fn api_key_retrieve(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
                 allow_connected: true,
@@ -230,7 +230,7 @@ pub async fn api_key_update(
             api_keys::update_api_key(state, payload)
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
                 allow_connected: true,
@@ -304,7 +304,7 @@ pub async fn api_key_revoke(
          key_id,
          _| api_keys::revoke_api_key(state, merchant_account.get_id().to_owned(), key_id),
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyWrite,
                 allow_connected: true,
@@ -381,7 +381,7 @@ pub async fn api_key_list(
             api_keys::list_api_keys(state, merchant_id, payload.limit, payload.skip).await
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::PlatformOrgAdminAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantApiKeyRead,
                 allow_connected: true,

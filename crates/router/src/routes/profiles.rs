@@ -111,7 +111,9 @@ pub async fn profile_create(
             create_profile(state, req, platform.get_processor().clone())
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: false,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
                 allow_connected: true,
@@ -205,7 +207,9 @@ pub async fn profile_retrieve(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: false,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountRead,
                 allow_connected: true,
@@ -346,7 +350,9 @@ pub async fn profile_update(
             )
         },
         auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
+            &auth::AdminApiAuthWithMerchantIdFromHeaderAllowPlatform {
+                allow_platform_self_operation: true,
+            },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
                 allow_connected: true,

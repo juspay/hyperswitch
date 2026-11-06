@@ -216,6 +216,10 @@ pub struct MerchantAccountCreateWithoutOrgId {
 
     #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
+
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountType>, example = "standard")]
+    pub merchant_account_type: Option<api_enums::MerchantAccountType>,
 }
 
 #[cfg(feature = "v2")]
@@ -242,6 +246,9 @@ pub struct MerchantAccountCreate {
     /// Product Type of this merchant account
     #[schema(value_type = Option<MerchantProductType>)]
     pub product_type: Option<api_enums::MerchantProductType>,
+    /// Merchant Account Type of this merchant account
+    #[schema(value_type = Option<MerchantAccountType>)]
+    pub merchant_account_type: Option<api_enums::MerchantAccountType>,
 }
 
 #[cfg(feature = "v2")]
