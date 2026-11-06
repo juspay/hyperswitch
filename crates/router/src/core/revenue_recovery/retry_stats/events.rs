@@ -46,6 +46,16 @@ impl RetryOutcomeEvent {
         standardised_error_code: Option<StandardisedCode>,
         success: bool,
     ) -> Self {
+        Self::from_retry_outcome(payment_attempt.created_at, standardised_error_code, success)
+    }
+
+    /// Build an event from when a retry ran, the previous attempt's standardised error code and
+    /// whether the retry succeeded. A `None` code maps to the `Unknown` error-code dimension.
+    pub fn from_retry_outcome(
+        created_at: PrimitiveDateTime,
+        standardised_error_code: Option<StandardisedCode>,
+        success: bool,
+    ) -> Self {
         let error_code_dim = match standardised_error_code {
             Some(code) => Dim::Val(code),
             None => Dim::Unknown,
@@ -55,7 +65,7 @@ impl RetryOutcomeEvent {
             Dim::Unknown,
             Dim::Unknown,
             success,
-            payment_attempt.created_at,
+            created_at,
         )
     }
 }

@@ -75,7 +75,7 @@ pub async fn assign_and_record_ab_routing(
     state: &SessionState,
     payment_id: &GlobalPaymentId,
     feature_metadata: Option<api_payments::FeatureMetadata>,
-    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    merchant_context: pcr::RecoveryMerchantContext<'_>,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
 ) -> common_enums::RevenueRecoveryABAlgorithm {
     let assigned_algorithm = dimensions
@@ -107,7 +107,7 @@ pub async fn assign_and_record_ab_routing(
             match Box::pin(api::update_payment_intent_api(
                 state,
                 payment_id.clone(),
-                revenue_recovery_payment_data,
+                merchant_context,
                 payment_update_req,
             ))
             .await
@@ -296,27 +296,17 @@ pub async fn upsert_calculate_pcr_task(
                 )
                 .await
             {
-                // Boxed so the recovery payment data below lives on the heap rather than in this
-                // function's future.
-                Box::pin(async {
-                    let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
-                        merchant_account: platform.get_processor().get_account().clone(),
-                        profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().inner().clone(),
-                        billing_mca: billing_connector_account.clone(),
-                        retry_algorithm: revenue_recovery_retry,
-                        psync_data: None,
-                    };
-
-                    assign_and_record_ab_routing(
-                        state,
-                        payment_id,
-                        recovery_intent_from_payment_intent.feature_metadata.clone(),
-                        &revenue_recovery_payment_data,
-                        &dimensions,
-                    )
-                    .await;
-                })
+                Box::pin(assign_and_record_ab_routing(
+                    state,
+                    payment_id,
+                    recovery_intent_from_payment_intent.feature_metadata.clone(),
+                    pcr::RecoveryMerchantContext {
+                        merchant_account: platform.get_processor().get_account(),
+                        key_store: platform.get_processor().get_key_store().inner(),
+                        profile: business_profile,
+                    },
+                    &dimensions,
+                ))
                 .await;
             }
         }
@@ -1893,7 +1883,7 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
             Box::pin(api::update_payment_intent_api(
                 state,
                 payment_intent.id.clone(),
-                revenue_recovery_payment_data,
+                revenue_recovery_payment_data.get_merchant_context(),
                 payment_update_req,
             ))
             .await
