@@ -1,4 +1,4 @@
-use api_models::{enums::VaultConnectors, payments::Amount};
+use api_models::enums::VaultConnectors;
 use common_enums::{
     ExecutionMode, ExecutionPath, PaymentMethodStatus, PayoutExecutionKind, PayoutStatus,
     PayoutType,
@@ -560,6 +560,7 @@ impl ExternalVaultPayout<'_> {
         let payout_cap_dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().to_owned())
             .with_profile_id(profile.get_id().clone());
         let min_amount = payout_cap_dimensions
             .get_payout_min_amount(
@@ -575,11 +576,8 @@ impl ExternalVaultPayout<'_> {
                 Some(profile.get_id()),
             )
             .await;
-        validator::validate_payout_amount(
-            req.amount.unwrap_or(Amount::Zero),
-            min_amount,
-            max_amount,
-        )?;
+        let amount = *req.amount.as_ref().get_required_value("amount")?;
+        validator::validate_payout_amount(amount, min_amount, max_amount)?;
         let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let use_merchant_reference_id =
             helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
@@ -617,7 +615,9 @@ impl ExternalVaultPayout<'_> {
         let execution_context = self
             .resolve_external_vault_execution_context(&provider_profile, saved_source)
             .await?;
-        let dimensions = payout_cap_dimensions.without_profile_id();
+        let dimensions = payout_cap_dimensions
+            .without_profile_id()
+            .without_organization_id();
         validate_payout_condition(
             !core_utils::get_feature_config(state, platform, &dimensions)
                 .await

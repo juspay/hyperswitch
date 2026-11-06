@@ -6,6 +6,7 @@ use api_models::payments::Amount;
 use common_utils::errors::CustomResult;
 use common_utils::{
     id_type::{self, GenerateId},
+    types::MinorUnit,
     validation::validate_domain_against_allowed_domains,
 };
 use diesel_models::generic_link::PayoutLink;
@@ -180,7 +181,15 @@ pub async fn validate_create_request(
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
-    let profile_dimensions = dimensions.with_profile_id(profile_id.clone());
+    let profile_dimensions = dimensions
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone());
 
     let min_amount = profile_dimensions
         .get_payout_min_amount(
@@ -196,7 +205,8 @@ pub async fn validate_create_request(
             Some(&profile_id),
         )
         .await;
-    validate_payout_amount(req.amount.unwrap_or(Amount::Zero), min_amount, max_amount)?;
+    let amount = *req.amount.as_ref().get_required_value("amount")?;
+    validate_payout_amount(amount, min_amount, max_amount)?;
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
@@ -336,26 +346,22 @@ pub async fn validate_create_request(
 
 pub(crate) fn validate_payout_amount(
     amount: Amount,
-    min_amount: i64,
-    max_amount: i64,
+    min_amount: MinorUnit,
+    max_amount: MinorUnit,
 ) -> RouterResult<()> {
-    if min_amount > max_amount {
-        return Err(
-            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
-                "payout amount configuration has a minimum greater than its maximum",
-            ),
-        );
-    }
+    utils::when(min_amount > max_amount, || {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("payout amount configuration has a minimum greater than its maximum"))
+    })?;
 
-    let amount = match amount {
-        Amount::Value(value) => value.get(),
-        Amount::Zero => 0,
-    };
+    let amount = MinorUnit::from(amount);
 
     utils::when(amount < min_amount || amount > max_amount, || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: format!(
-                "payout amount must be between {min_amount} and {max_amount} in the currency's lowest denomination"
+                "payout amount must be between {} and {} in the currency's lowest denomination",
+                min_amount.get_amount_as_i64(),
+                max_amount.get_amount_as_i64(),
             ),
         }))
     })
