@@ -1,7 +1,7 @@
 use common_enums::CountryAlpha2;
 use hyperswitch_masking::ExposeOptionInterface;
 
-use super::*;
+use super::super::*;
 
 const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
 const TEST_FIRST_NAME: &str = "John";

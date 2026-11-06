@@ -11999,4 +11999,4 @@ impl
 }
 
 #[cfg(test)]
-mod ucs_embedded_error_tests;
+mod tests;

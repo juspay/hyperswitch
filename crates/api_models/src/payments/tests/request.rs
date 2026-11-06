@@ -1,6 +1,6 @@
 use common_utils::generate_customer_id_of_default_length;
 
-use super::*;
+use super::super::*;
 
 #[test]
 fn test_valid_case_where_customer_details_are_passed_only_once() {

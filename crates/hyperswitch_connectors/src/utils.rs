@@ -8447,6 +8447,3 @@ pub fn append_url_query_param(
     url.query_pairs_mut().append_pair(key, parameter);
     Ok(Secret::new(url.to_string()))
 }
-
-#[cfg(test)]
-mod callback_query_tests;

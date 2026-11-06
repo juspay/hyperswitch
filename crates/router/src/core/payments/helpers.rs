@@ -4864,9 +4864,6 @@ pub fn generate_mandate(
     }
 }
 
-#[cfg(test)]
-mod generate_mandate_tests;
-
 #[cfg(feature = "v1")]
 // A function to manually authenticate the client secret with intent fulfillment time
 pub fn authenticate_client_secret(
@@ -5069,7 +5066,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
     Ok(payment_id.to_string())
 }
 
-#[cfg(feature = "v1")]
 #[cfg(test)]
 mod tests;
 
@@ -5822,9 +5818,6 @@ pub fn is_manual_retry_allowed(
     is_payment_status_eligible_for_retry
         .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
-
-#[cfg(test)]
-mod test;
 
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
@@ -10031,6 +10024,3 @@ pub fn update_request_data_with_mandate_id(
         }
     }
 }
-
-#[cfg(test)]
-mod connector_response_card_merge_tests;

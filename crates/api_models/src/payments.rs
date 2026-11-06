@@ -1983,10 +1983,6 @@ impl PaymentsRequest {
     }
 }
 
-#[cfg(feature = "v1")]
-#[cfg(test)]
-mod payments_request_test;
-
 /// Details of surcharge applied on this payment, if applicable
 #[derive(
     Default,
@@ -14411,18 +14407,6 @@ pub struct AppliedOffer {
     pub currency: common_enums::Currency,
 }
 
-#[cfg(feature = "v1")]
-#[cfg(test)]
-mod payments_request_api_contract;
-
-#[cfg(test)]
-mod payments_response_api_contract;
-
-/// Set of tests to extract billing details from payment method data
-/// These are required for backwards compatibility
-#[cfg(test)]
-mod billing_from_payment_method_data;
-
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PaymentRevenueRecoveryMetadata {
@@ -14770,9 +14754,6 @@ impl Serialize for NullObject {
         serializer.serialize_none()
     }
 }
-
-#[cfg(test)]
-mod null_object_test;
 
 /// Represents external 3DS authentication data used in the payment flow.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

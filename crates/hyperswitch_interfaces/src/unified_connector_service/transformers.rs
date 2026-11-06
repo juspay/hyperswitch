@@ -2808,4 +2808,4 @@ impl UnifiedConnectorServiceError {
 }
 
 #[cfg(test)]
-mod ucs_kill_switch_reason_tests;
+mod tests;

@@ -1991,6 +1991,3 @@ pub fn extract_field_by_dot_path(
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod callback_url_tests;

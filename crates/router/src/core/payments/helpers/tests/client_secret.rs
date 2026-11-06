@@ -6,14 +6,14 @@ fn test_client_secret_parse() {
 
     assert_eq!(
         "pay_3TgelAms4RQec8xSStjF",
-        super::get_payment_id_from_client_secret(client_secret1).unwrap()
+        super::super::get_payment_id_from_client_secret(client_secret1).unwrap()
     );
     assert_eq!(
         "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
-        super::get_payment_id_from_client_secret(client_secret2).unwrap()
+        super::super::get_payment_id_from_client_secret(client_secret2).unwrap()
     );
     assert_eq!(
         "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
-        super::get_payment_id_from_client_secret(client_secret3).unwrap()
+        super::super::get_payment_id_from_client_secret(client_secret3).unwrap()
     );
 }

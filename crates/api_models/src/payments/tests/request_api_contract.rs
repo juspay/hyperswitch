@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use super::*;
+use super::super::*;
 
 #[test]
 fn test_successful_card_deser() {

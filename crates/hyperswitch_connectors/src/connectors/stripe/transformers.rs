@@ -5805,4 +5805,4 @@ where
 }
 
 #[cfg(test)]
-mod test_validate_shipping_address_against_payment_method;
+mod tests;

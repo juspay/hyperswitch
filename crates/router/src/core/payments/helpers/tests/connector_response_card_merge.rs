@@ -1,6 +1,6 @@
 use hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse;
 
-use super::add_connector_response_to_additional_payment_data;
+use super::super::add_connector_response_to_additional_payment_data;
 
 /// A connector that reports every card attribute it can, as Worldpay does when `<cardBin>` is
 /// enabled on the account.

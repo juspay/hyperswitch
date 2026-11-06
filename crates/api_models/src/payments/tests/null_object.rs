@@ -1,6 +1,6 @@
 use serde_json;
 
-use super::*;
+use super::super::*;
 
 #[test]
 fn test_null_object_serialization() {

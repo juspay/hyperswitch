@@ -4,7 +4,7 @@ use common_types::payments::{AcceptanceType, CustomerAcceptance};
 use common_utils::{id_type, types::MinorUnit};
 use hyperswitch_domain_models::mandates::{MandateAmountData, MandateData, MandateDataType};
 
-use super::generate_mandate;
+use super::super::generate_mandate;
 
 /// A new mandate sets its own `created_at` rather than taking the database default.
 #[test]

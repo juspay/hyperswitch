@@ -2296,7 +2296,7 @@ pub fn get_card_details(
 }
 
 #[cfg(test)]
-mod error_code_error_message_tests;
+mod tests;
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
 pub enum PaymentMethodDataType {
