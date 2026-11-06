@@ -78,8 +78,6 @@ export const connectorDetails = {
           body: {
             status: "requires_vendor_account_creation",
             payout_type: "bank",
-            error_code: null,
-            error_message: null,
           },
         },
       },
