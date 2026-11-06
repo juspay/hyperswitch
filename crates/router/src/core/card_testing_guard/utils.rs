@@ -7,10 +7,10 @@ use router_env::logger;
 
 use super::errors;
 use crate::{
-    core::{errors::RouterResult, payments::helpers},
+    core::{configs::dimension_state, errors::RouterResult, payments::helpers},
     routes::SessionState,
     services,
-    types::domain,
+    types::{domain, transformers::ForeignInto},
     utils::crypto::{self, SignMessage},
 };
 
@@ -21,8 +21,30 @@ pub async fn validate_card_testing_guard_checks(
     card_number: cards::CardNumber,
     customer_id: &Option<common_utils::id_type::CustomerId>,
     business_profile: &domain::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
 ) -> RouterResult<Option<CardTestingGuardData>> {
-    match &business_profile.card_testing_guard_config {
+    let superposition_config = dimensions
+        .get_card_testing_guard_config(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    let card_testing_guard_config = if superposition_config == serde_json::json!({}) {
+        business_profile.card_testing_guard_config.clone()
+    } else {
+        Some(
+            serde_json::from_value::<api_models::admin::CardTestingGuardConfig>(
+                superposition_config,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Invalid card testing guard config received from Superposition")?
+            .foreign_into(),
+        )
+    };
+
+    match card_testing_guard_config.as_ref() {
         Some(card_testing_guard_config) => {
             let fingerprint = generate_fingerprint(card_number, business_profile).await?;
 
