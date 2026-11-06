@@ -31,7 +31,7 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 /// otherwise it is the raw tonic channel. Threading this alias through the
 /// client fields + their construction keeps the feature-off build byte-identical.
 #[cfg(feature = "deja")]
-pub type UcsChannel = super::deja_transport::DejaGrpcTransport<tonic::transport::Channel>;
+pub type UcsChannel = super::deja_transport::DejaGrpcTransport<Channel>;
 /// The transport under every UCS service client (raw tonic channel; see the
 /// `deja`-gated definition above for the recording/substituting variant).
 #[cfg(not(feature = "deja"))]
@@ -339,11 +339,9 @@ async fn build_ucs_channel(
 
     let (channel, updates) = Channel::balance_channel::<SocketAddr>(64);
     for address in &ready {
-        let endpoint_uri: Uri = format!("http://{address}").parse().map_err(
-            |error: tonic::codegen::http::uri::InvalidUri| {
-                UcsClientBuildError::InvalidUri(error.to_string())
-            },
-        )?;
+        let endpoint_uri: Uri = format!("http://{address}")
+            .parse::<Uri>()
+            .map_err(|error| UcsClientBuildError::InvalidUri(error.to_string()))?;
         updates
             .send(Change::Insert(*address, ucs_endpoint(endpoint_uri, config)))
             .await
