@@ -155,16 +155,16 @@ pub async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    merchant_context: storage::revenue_recovery::RecoveryMerchantContext<'_>,
     update_req: payments_api::PaymentsUpdateIntentRequest,
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
-    let platform_from_revenue_recovery_payment_data = Platform::new(
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
+    let platform_from_merchant_context = Platform::new(
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
         None,
     );
     let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
@@ -175,8 +175,8 @@ pub async fn update_payment_intent_api(
     >(
         state,
         state.get_req_state(),
-        platform_from_revenue_recovery_payment_data,
-        revenue_recovery_payment_data.profile.clone(),
+        platform_from_merchant_context,
+        merchant_context.profile.clone(),
         operation,
         update_req,
         global_payment_id,

@@ -51,7 +51,24 @@ pub struct RevenueRecoveryPaymentData {
     pub retry_algorithm: enums::RevenueRecoveryAlgorithmType,
     pub psync_data: Option<PaymentStatusData<types::api::PSync>>,
 }
+
+/// The merchant and profile an invoice belongs to.
+#[derive(Clone, Copy)]
+pub struct RecoveryMerchantContext<'a> {
+    pub merchant_account: &'a merchant_account::MerchantAccount,
+    pub key_store: &'a merchant_key_store::MerchantKeyStore,
+    pub profile: &'a business_profile::Profile,
+}
+
 impl RevenueRecoveryPaymentData {
+    pub fn get_merchant_context(&self) -> RecoveryMerchantContext<'_> {
+        RecoveryMerchantContext {
+            merchant_account: &self.merchant_account,
+            key_store: &self.key_store,
+            profile: &self.profile,
+        }
+    }
+
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
         state: &SessionState,
