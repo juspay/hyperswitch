@@ -965,6 +965,22 @@ where
 
     let flow_name = get_flow_name::<F>()?;
 
+    // Etisalat is a UCS-only connector (`ucs_only_connectors`), so the native PSync/RSync
+    // `get_url` guards in `hyperswitch_connectors::connectors::etisalat` are unreachable:
+    // every Etisalat call is dispatched from here. connector-service does not implement
+    // PSync/RSync for Etisalat either, so reject both flows before any gateway/UCS
+    // dispatch instead of falling through to a UCS call that cannot succeed.
+    if connector_enum == Connector::Etisalat && matches!(flow_name.as_str(), "PSync" | "RSync") {
+        Err(errors::ApiErrorResponse::FlowNotSupported {
+            flow: flow_name.clone(),
+            connector: connector_name.to_string(),
+        })
+        .attach_printable(
+            "Etisalat is a UCS-only connector and the Unified Connector Service does not \
+             implement PSync/RSync for it",
+        )?;
+    }
+
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
