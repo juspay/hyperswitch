@@ -8,7 +8,7 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::PayoutFrmData,
-        payments::{self, helpers},
+        payments::{self, callback_urls::ConnectorCallbackUrls, helpers},
         utils::get_payout_gateway_frm_metadata,
     },
     errors, services,
@@ -37,6 +37,7 @@ impl ConstructFlowSpecificData<frm_api::PoFrm, FraudCheckPayoutData, FraudCheckR
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<RouterData<frm_api::PoFrm, FraudCheckPayoutData, FraudCheckResponseData>>
     {
         let connector_auth_type: ConnectorAuthType = merchant_connector_account

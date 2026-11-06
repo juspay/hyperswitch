@@ -128,10 +128,9 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<payments::CustomerDetails>,
 
-    /// It's a token used for client side verification.
-    #[schema(value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    #[remove_in(PayoutsCreateRequest)]
-    #[mandatory_in(PayoutConfirmRequest = String)]
+    /// Deprecated. Payout execution requires an API key; this value is not used for authentication.
+    #[schema(deprecated, value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
+    #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
     pub client_secret: Option<String>,
 
     /// The URL to redirect after the completion of the operation
@@ -196,8 +195,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<PayoutCreatePayoutLinkConfig>)]
     pub payout_link_config: Option<PayoutCreatePayoutLinkConfig>,
 
-    /// Will be used to expire client secret after certain amount of time to be supplied in seconds
-    /// (900) for 15 mins
+    /// Lifetime of the payout link in seconds, for example 900 for 15 minutes.
     #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
 
@@ -950,7 +948,7 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<CustomerDetailsResponse>)]
     pub customer: Option<payments::CustomerDetailsResponse>,
 
-    /// It's a token used for client side verification.
+    /// Legacy client secret retained for compatibility. Payout execution requires an API key.
     #[schema(value_type = String, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
     pub client_secret: Option<String>,
 

@@ -74,8 +74,8 @@ pub struct CalidaPaymentsRequest {
     pub billing_address_line1: Secret<String>,
     pub billing_address_postal_code: Secret<String>,
     pub webhook_url: String,
-    pub success_url: String,
-    pub failure_url: String,
+    pub success_url: Secret<String>,
+    pub failure_url: Secret<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -234,8 +234,8 @@ pub struct CalidaSyncResponse {
     pub billing_address_country: Option<String>,
     pub billing_address_country_code_iso: Option<enums::CountryAlpha2>,
     pub shipping_address_country_code_iso: Option<enums::CountryAlpha2>,
-    pub success_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
     pub source: Option<String>,
     pub bonus_code: Option<String>,
     pub dob: Option<String>,

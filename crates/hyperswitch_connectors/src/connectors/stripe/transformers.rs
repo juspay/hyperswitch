@@ -79,6 +79,19 @@ pub mod auth_headers {
 const APPLE_PAY_TOKENIZATION_METHOD: &str = "apple_pay";
 const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
 const GOOGLE_PAY_DPAN_TOKENIZATION_METHOD: &str = "google_pay_dpan";
+const STRIPE_ECI_LENGTH: usize = 2;
+
+/// Apple Pay / Google Pay tokens may carry a single-digit ECI ("6"); Stripe expects it
+/// zero-padded to `STRIPE_ECI_LENGTH`.
+fn get_stripe_wallet_eci(eci: Option<&String>) -> Option<String> {
+    eci.filter(|eci| !eci.is_empty()).map(|eci| {
+        if eci.len() < STRIPE_ECI_LENGTH {
+            format!("{eci:0>width$}", width = STRIPE_ECI_LENGTH)
+        } else {
+            eci.clone()
+        }
+    })
+}
 
 trait GetRequestIncrementalAuthorization {
     fn get_request_incremental_authorization(&self) -> Option<bool>;
@@ -248,7 +261,7 @@ pub struct PaymentIntentRequest {
     pub statement_descriptor: Option<String>,
     #[serde(flatten)]
     pub meta_data: HashMap<String, String>,
-    pub return_url: String,
+    pub return_url: Secret<String>,
     pub confirm: bool,
     pub payment_method: Option<Secret<String>>,
     pub customer: Option<Secret<String>>,
@@ -317,7 +330,7 @@ pub struct SetupIntentRequest {
     pub usage: Option<enums::FutureUsage>,
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     #[serde(flatten)]
     pub payment_data: StripePaymentMethodData,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
@@ -854,7 +867,7 @@ impl From<&common_types::payments::ApplePayPredecryptData> for StripeWalletNetwo
             network_token_exp_year: expiry_year_4_digit,
             tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
             cryptogram: decrypt_data.payment_data.online_payment_cryptogram.clone(),
-            eci: decrypt_data.payment_data.eci_indicator.clone(),
+            eci: get_stripe_wallet_eci(decrypt_data.payment_data.eci_indicator.as_ref()),
         }
     }
 }
@@ -889,7 +902,7 @@ impl StripeWalletNetworkTokenPayment {
                         network_token_exp_year: expiry_year_4_digit,
                         tokenization_method: GOOGLE_PAY_DPAN_TOKENIZATION_METHOD.to_string(),
                         cryptogram,
-                        eci: decrypt_data.eci_indicator.clone(),
+                        eci: get_stripe_wallet_eci(decrypt_data.eci_indicator.as_ref()),
                     })
             })
             .transpose()
@@ -1942,7 +1955,9 @@ impl
                                 number: decrypt_data.clone().application_primary_account_number,
                                 exp_year: expiry_year_4_digit,
                                 exp_month: decrypt_data.application_expiration_month,
-                                eci: decrypt_data.payment_data.eci_indicator,
+                                eci: get_stripe_wallet_eci(
+                                    decrypt_data.payment_data.eci_indicator.as_ref(),
+                                ),
                                 cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                 tokenization_method: APPLE_PAY_TOKENIZATION_METHOD.to_string(),
                             }),
@@ -2160,7 +2175,7 @@ impl
                             exp_year: expiry_year_4_digit,
                             exp_month: predecrypted_data.card_exp_month.clone(),
                             cryptogram,
-                            eci: predecrypted_data.eci_indicator.clone(),
+                            eci: get_stripe_wallet_eci(predecrypted_data.eci_indicator.as_ref()),
                             tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
                         }),
                     ))),
@@ -2816,7 +2831,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 .request
                 .router_return_url
                 .clone()
-                .unwrap_or_else(|| "https://juspay.in/".to_string()),
+                .unwrap_or_else(|| "https://juspay.in/".to_string().into()),
             confirm: true, // Stripe requires confirm to be true if return URL is present
             description: item.description.clone(),
             shipping: shipping_address,
@@ -4326,7 +4341,7 @@ impl Serialize for StripeNextActionResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeRedirectToUrlResponse {
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     url: Url,
 }
 
@@ -5790,164 +5805,4 @@ where
 }
 
 #[cfg(test)]
-mod test_validate_shipping_address_against_payment_method {
-    use std::borrow::Cow;
-
-    use common_enums::CountryAlpha2;
-    use hyperswitch_interfaces::errors::ConnectorError;
-    use hyperswitch_masking::Secret;
-
-    use crate::connectors::stripe::transformers::{
-        validate_shipping_address_against_payment_method, StripePaymentMethodType,
-        StripeShippingAddress,
-    };
-
-    #[test]
-    fn should_return_ok() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            "name".to_string(),
-            Some("line1".to_string()),
-            Some(CountryAlpha2::AD),
-            Some("zip".to_string()),
-        );
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &Some(stripe_shipping_address),
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn should_return_err_for_empty_line1() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            "name".to_string(),
-            None,
-            Some(CountryAlpha2::AD),
-            Some("zip".to_string()),
-        );
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &Some(stripe_shipping_address),
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        assert_eq!(missing_fields.len(), 1);
-        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.line1");
-    }
-
-    #[test]
-    fn should_return_err_for_empty_country() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            "name".to_string(),
-            Some("line1".to_string()),
-            None,
-            Some("zip".to_string()),
-        );
-
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &Some(stripe_shipping_address),
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        assert_eq!(missing_fields.len(), 1);
-        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.country");
-    }
-
-    #[test]
-    fn should_return_err_for_empty_zip() {
-        // Arrange
-        let stripe_shipping_address = create_stripe_shipping_address(
-            "name".to_string(),
-            Some("line1".to_string()),
-            Some(CountryAlpha2::AD),
-            None,
-        );
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &Some(stripe_shipping_address),
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        assert_eq!(missing_fields.len(), 1);
-        assert_eq!(*missing_fields.first().unwrap(), "shipping.address.zip");
-    }
-
-    #[test]
-    fn should_return_error_when_missing_multiple_fields() {
-        // Arrange
-        let expected_missing_field_names: Vec<&str> =
-            vec!["shipping.address.zip", "shipping.address.country"];
-        let stripe_shipping_address = create_stripe_shipping_address(
-            "name".to_string(),
-            Some("line1".to_string()),
-            None,
-            None,
-        );
-        let payment_method = &StripePaymentMethodType::AfterpayClearpay;
-
-        //Act
-        let result = validate_shipping_address_against_payment_method(
-            &Some(stripe_shipping_address),
-            Some(payment_method),
-        );
-
-        // Assert
-        assert!(result.is_err());
-        let missing_fields = get_missing_fields(result.unwrap_err().current_context()).to_owned();
-        for field in missing_fields {
-            assert!(expected_missing_field_names.contains(&field.as_ref()));
-        }
-    }
-
-    fn get_missing_fields(connector_error: &ConnectorError) -> Vec<Cow<'static, str>> {
-        if let ConnectorError::MissingRequiredFields { field_names } = connector_error {
-            return field_names.to_vec();
-        }
-
-        vec![]
-    }
-
-    fn create_stripe_shipping_address(
-        name: String,
-        line1: Option<String>,
-        country: Option<CountryAlpha2>,
-        zip: Option<String>,
-    ) -> StripeShippingAddress {
-        StripeShippingAddress {
-            name: Some(Secret::new(name)),
-            line1: line1.map(Secret::new),
-            country,
-            zip: zip.map(Secret::new),
-            city: Some(String::from("city")),
-            line2: Some(Secret::new(String::from("line2"))),
-            state: Some(Secret::new(String::from("state"))),
-            phone: Some(Secret::new(String::from("pbone number"))),
-        }
-    }
-}
+mod tests;

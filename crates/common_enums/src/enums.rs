@@ -387,6 +387,36 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// Decides who triggers the retries of a failed invoice under revenue recovery, and so which
+/// model the recovery API follows.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryTriggerModel {
+    /// Hyperswitch triggers the retries through the billing and payment merchant connector
+    /// accounts the transactions are recorded against.
+    #[default]
+    InternalTriggers,
+    /// The merchant triggers the retries and reports their results. Transactions are recorded
+    /// without any merchant connector account, and the retry limits come from the
+    /// `revenue_recovery_config` of the profile, which this model requires.
+    ExternalTriggers,
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,

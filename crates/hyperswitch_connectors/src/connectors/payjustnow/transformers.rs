@@ -59,8 +59,8 @@ pub struct PayjustnowRequest {
     billing_address: Option<Address>,
     #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address: Option<Address>,
-    confirm_redirect_url: String,
-    cancel_redirect_url: String,
+    confirm_redirect_url: Secret<String>,
+    cancel_redirect_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
