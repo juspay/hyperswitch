@@ -9069,9 +9069,8 @@ additional_secret = "Incoming Webhook Key"
 [payhound]
 [[payhound.crypto]]
   payment_method_type = "crypto_currency"
-[payhound.connector_auth.SignatureKey]
+[payhound.connector_auth.BodyKey]
 api_key="API Key"
-key1="Merchant ID"
-api_secret="API Secret"
+key1="API Secret"
 [payhound.connector_webhook_details]
 merchant_secret="Source verification key"

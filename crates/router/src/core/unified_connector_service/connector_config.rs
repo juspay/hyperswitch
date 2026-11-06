@@ -1954,7 +1954,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                     api_secret: key1.clone(),
                 }),
-                _ => Err(err("Payhound requires SignatureKey auth type")),
+                _ => Err(err("Payhound requires BodyKey or SignatureKey auth type")),
             },
             Connector::Paytm => match auth {
                 ConnectorAuthType::SignatureKey {
