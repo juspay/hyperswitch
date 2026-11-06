@@ -110,7 +110,7 @@ impl ConfigType for MinorUnit {
     fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
         config_str
             .parse::<i64>()
-            .map(MinorUnit::new)
+            .map(Self::new)
             .change_context(errors::StorageError::DeserializationFailed)
     }
 
