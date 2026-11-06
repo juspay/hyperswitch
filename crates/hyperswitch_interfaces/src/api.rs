@@ -1050,7 +1050,9 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
 /// trait ConnectorRedirectResponse
 pub trait ConnectorRedirectResponse {
     /// Callback endpoint required by this connector's browser redirect form.
-    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback>;
+    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
+        None
+    }
 
     /// Callback endpoint for connector notifications, separate from browser callbacks.
     fn get_notification_callback(&self) -> Option<RedirectCallback> {

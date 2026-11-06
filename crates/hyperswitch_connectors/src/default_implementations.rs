@@ -21,8 +21,6 @@ use hyperswitch_domain_models::router_request_types::revenue_recovery::{
 use hyperswitch_domain_models::router_response_types::revenue_recovery::{
     BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
 };
-#[cfg(feature = "dummy_connector")]
-use hyperswitch_domain_models::router_response_types::{RedirectCallback, RedirectForm};
 use hyperswitch_domain_models::{
     router_data::AccessTokenAuthenticationResponse,
     router_flow_types::{
@@ -2725,13 +2723,6 @@ macro_rules! default_imp_for_connector_redirect_response {
     ($($path:ident::$connector:ident),*) => {
         $(
             impl ConnectorRedirectResponse for $path::$connector {
-                fn get_redirect_callback(
-                    &self,
-                    _form: &hyperswitch_domain_models::router_response_types::RedirectForm,
-                ) -> Option<hyperswitch_domain_models::router_response_types::RedirectCallback> {
-                    None
-                }
-
                 fn get_flow_type(
                     &self,
                     _query_params: &str,
@@ -12451,10 +12442,6 @@ impl<const T: u8>
 
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8> ConnectorRedirectResponse for connectors::DummyConnector<T> {
-    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
-        None
-    }
-
     fn get_flow_type(
         &self,
         _query_params: &str,

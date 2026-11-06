@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback,
         RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
@@ -682,10 +682,6 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
 impl ConnectorRedirectResponse for Paybox {
     fn get_notification_callback(&self) -> Option<RedirectCallback> {
         Some(RedirectCallback::Complete)
-    }
-
-    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
-        None
     }
 
     fn get_flow_type(

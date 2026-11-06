@@ -26,7 +26,7 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback,
         RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
@@ -734,10 +734,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
 }
 
 impl ConnectorRedirectResponse for Hipay {
-    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
-        None
-    }
-
     fn get_notification_callback(&self) -> Option<RedirectCallback> {
         Some(RedirectCallback::Response)
     }

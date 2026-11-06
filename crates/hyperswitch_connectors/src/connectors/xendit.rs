@@ -30,8 +30,8 @@ use hyperswitch_domain_models::{
         RefundsData, SettlementSplitRequestData, SetupMandateRequestData, SplitRefundsRequest,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -1112,10 +1112,6 @@ impl ConnectorSpecifications for Xendit {
 }
 
 impl ConnectorRedirectResponse for Xendit {
-    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
-        None
-    }
-
     fn get_flow_type(
         &self,
         _query_params: &str,

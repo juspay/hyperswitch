@@ -32,8 +32,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         ConnectorCustomerRouterData, CreateOrderRouterData, PaymentsAuthorizeRouterData,
@@ -1232,10 +1232,6 @@ impl IncomingWebhook for Airwallex {
 }
 
 impl ConnectorRedirectResponse for Airwallex {
-    fn get_redirect_callback(&self, _form: &RedirectForm) -> Option<RedirectCallback> {
-        None
-    }
-
     fn get_flow_type(
         &self,
         _query_params: &str,
