@@ -191,22 +191,8 @@ pub async fn validate_create_request(
         )
         .with_profile_id(profile_id.clone());
 
-    let min_amount = profile_dimensions
-        .get_payout_min_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(&profile_id),
-        )
-        .await;
-    let max_amount = profile_dimensions
-        .get_payout_max_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(&profile_id),
-        )
-        .await;
-    let amount = *req.amount.as_ref().get_required_value("amount")?;
-    validate_payout_amount(amount, min_amount, max_amount)?;
+    validate_payout_amount_against_config(state, &profile_dimensions, &profile_id, req.amount)
+        .await?;
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
@@ -350,21 +336,51 @@ pub(crate) fn validate_payout_amount(
     max_amount: MinorUnit,
 ) -> RouterResult<()> {
     utils::when(min_amount > max_amount, || {
-        Err(report!(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("payout amount configuration has a minimum greater than its maximum"))
-    })?;
-
-    let amount = MinorUnit::from(amount);
-
-    utils::when(amount < min_amount || amount > max_amount, || {
         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "payout amount must be between {} and {} in the currency's lowest denomination",
-                min_amount.get_amount_as_i64(),
-                max_amount.get_amount_as_i64(),
-            ),
+            message: "payout amount configuration has a minimum greater than its maximum"
+                .to_string(),
         }))
     })
+    .and_then(|_| {
+        let amount = MinorUnit::from(amount);
+
+        utils::when(amount < min_amount || amount > max_amount, || {
+            Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: format!(
+                    "payout amount must be between {} and {} in the currency's lowest denomination",
+                    min_amount.get_amount_as_i64(),
+                    max_amount.get_amount_as_i64(),
+                ),
+            }))
+        })
+    })
+}
+
+pub(crate) async fn validate_payout_amount_against_config(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    profile_id: &id_type::ProfileId,
+    amount: Option<Amount>,
+) -> RouterResult<()> {
+    let min_amount = dimensions
+        .get_payout_min_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
+        .await;
+    let max_amount = dimensions
+        .get_payout_max_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
+        .await;
+
+    amount
+        .map(|amount| validate_payout_amount(amount, min_amount, max_amount))
+        .transpose()
+        .map(|_| ())
 }
 
 #[cfg(feature = "v1")]

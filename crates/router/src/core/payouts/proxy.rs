@@ -562,22 +562,13 @@ impl ExternalVaultPayout<'_> {
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().to_owned())
             .with_profile_id(profile.get_id().clone());
-        let min_amount = payout_cap_dimensions
-            .get_payout_min_amount(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                Some(profile.get_id()),
-            )
-            .await;
-        let max_amount = payout_cap_dimensions
-            .get_payout_max_amount(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                Some(profile.get_id()),
-            )
-            .await;
-        let amount = *req.amount.as_ref().get_required_value("amount")?;
-        validator::validate_payout_amount(amount, min_amount, max_amount)?;
+        validator::validate_payout_amount_against_config(
+            state,
+            &payout_cap_dimensions,
+            profile.get_id(),
+            req.amount,
+        )
+        .await?;
         let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let use_merchant_reference_id =
             helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
