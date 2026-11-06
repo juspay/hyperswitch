@@ -349,10 +349,6 @@
                       },
                       "customer_id": "cus_abcdefgh",
                       "description": "Its my first payment request",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:20:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "metadata": {
@@ -409,10 +405,6 @@
                       "created": "2023-10-26T10:20:00Z",
                       "currency": "USD",
                       "customer_id": "StripeCustomer123",
-                      "ephemeral_key": {
-                        "customer_id": "StripeCustomer123",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "mandate_data": {
                         "customer_acceptance": {
                           "acceptance_type": "online",
@@ -483,10 +475,6 @@
                       "created": "2023-10-26T10:25:00Z",
                       "currency": "USD",
                       "customer_id": "StripeCustomer123",
-                      "ephemeral_key": {
-                        "customer_id": "StripeCustomer123",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "merchant_connector_id": "mca_mcaconnectorxxxx",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_savecard_xxxxxxxxxxxx",
@@ -555,10 +543,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -597,10 +581,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -640,10 +620,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -2484,9 +2460,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       }
@@ -3934,9 +3907,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       },
@@ -4769,7 +4739,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       }
@@ -24025,39 +23995,6 @@
             },
             "description": "An array of associated payment method types",
             "uniqueItems": true
-          }
-        }
-      },
-      "EphemeralKeyCreateResponse": {
-        "type": "object",
-        "description": "ephemeral_key for the customer_id mentioned",
-        "required": [
-          "customer_id",
-          "created_at",
-          "expires",
-          "secret"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "description": "customer_id to which this ephemeral key belongs to",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "created_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "time at which this ephemeral key was created"
-          },
-          "expires": {
-            "type": "integer",
-            "format": "int64",
-            "description": "time at which this ephemeral key would expire"
-          },
-          "secret": {
-            "type": "string",
-            "description": "ephemeral key"
           }
         }
       },
@@ -52175,12 +52112,6 @@
         "type": "http",
         "scheme": "basic",
         "description": "HTTP Basic authentication with a merchant API key as the password. The username is ignored. Used by endpoints that a third party posts to, such as telephone order providers."
-      },
-      "ephemeral_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "api-key",
-        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
       },
       "jwt_key": {
         "type": "http",

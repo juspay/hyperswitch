@@ -546,6 +546,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Rapyd => {
                 rapyd::transformers::RapydAuthType::try_from(self.auth_type)?;
+                crate::core::unified_connector_service::connector_config::RapydMetadata::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Razorpay => {
