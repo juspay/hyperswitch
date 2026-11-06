@@ -4532,6 +4532,7 @@ pub async fn get_aggregates_for_payouts(
 #[cfg(all(feature = "olap", feature = "payouts"))]
 pub async fn payouts_manual_update_core(
     state: SessionState,
+    platform: domain::Platform,
     req: api_models::payouts::PayoutsManualUpdateRequest,
 ) -> RouterResponse<api_models::payouts::PayoutsManualUpdateResponse> {
     if req.is_update_parameter_present() {
@@ -4545,22 +4546,7 @@ pub async fn payouts_manual_update_core(
             connector_payout_id,
         } = req;
 
-        let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while fetching the key store by merchant_id")?;
-
-        let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-            .attach_printable("Error while fetching the merchant_account by merchant_id")?;
+        let merchant_account = platform.get_processor().get_account();
 
         let payout_attempt = state
             .store
@@ -4587,26 +4573,6 @@ pub async fn payouts_manual_update_core(
             .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)
             .attach_printable("Error while fetching the payout by merchant_id and payout_id")?;
 
-        let (provider_account, provider_key_store) = match merchant_account.merchant_account_type {
-            common_enums::MerchantAccountType::Connected => {
-                services::authentication::get_platform_account_and_key_store(
-                    &state,
-                    &merchant_account,
-                )
-                .await?
-            }
-            common_enums::MerchantAccountType::Standard
-            | common_enums::MerchantAccountType::Platform => {
-                (merchant_account.clone(), key_store.clone())
-            }
-        };
-        let platform = domain::Platform::new(
-            provider_account,
-            provider_key_store,
-            merchant_account.clone(),
-            key_store,
-            None,
-        );
         PayoutKillSwitch::ensure_payouts_enabled(&state, &platform, Some(&payouts.profile_id))
             .await?;
 
