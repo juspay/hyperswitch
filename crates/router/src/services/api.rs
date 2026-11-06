@@ -1329,7 +1329,7 @@ pub fn build_redirection_form(
                     // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
-                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) data-complete-callback-url=(acs_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1395,7 +1395,7 @@ pub fn build_redirection_form(
                                                 }} else {{
                                                     // console.log(payload);
                                                     var f = document.createElement('form');
-                                                    f.action=\"{acs_url}\";
+                                                    f.action = document.body.getAttribute('data-complete-callback-url');
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';

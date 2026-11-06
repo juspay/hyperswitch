@@ -1,3 +1,4 @@
+import base64
 import json
 import unittest
 from urllib.parse import urlencode
@@ -12,6 +13,48 @@ NOTIFY = CALLBACK.replace(TOKEN, NEW_TOKEN)
 
 
 class CallbackUrlTests(unittest.TestCase):
+    def test_redsys_encoded_3ds_callback_excludes_webhooks(self):
+        callback = CALLBACK.replace("/paybox", "/redsys")
+        parameters = {
+            "DS_MERCHANT_EMV3DS": {"notificationURL": callback, "notify_url": NOTIFY},
+            "DS_MERCHANT_MERCHANTURL": NOTIFY,
+        }
+        payload = {
+            "Ds_MerchantParameters": base64.b64encode(
+                json.dumps(parameters).encode()
+            ).decode(),
+            "Ds_SignatureVersion": "HMAC_SHA256_V1",
+            "Ds_Signature": "signature",
+        }
+        for body in [json.dumps(payload), urlencode(payload)]:
+            with self.subTest(body=body):
+                store = CallbackUrlStore()
+                store.capture("https://redsys.example/authorize", body, "confirm")
+                self.assertEqual(store.for_payment("pay_1", "merchant_1"), [callback])
+
+    def test_redsys_malformed_or_non_callback_parameters_are_ignored(self):
+        for parameters in [
+            "not base64!",
+            "",
+            None,
+            123,
+            base64.b64encode(b"not json").decode(),
+            base64.b64encode(b"\xff").decode(),
+            *[
+                base64.b64encode(json.dumps(value).encode()).decode()
+                for value in [
+                    [],
+                    {"DS_MERCHANT_EMV3DS": None},
+                    {"DS_MERCHANT_EMV3DS": {"notificationURL": "https://merchant.example"}},
+                    {"DS_MERCHANT_MERCHANTURL": NOTIFY},
+                ]
+            ],
+        ]:
+            with self.subTest(parameters=parameters):
+                self.assertEqual(
+                    list(callback_urls({"Ds_MerchantParameters": parameters})), []
+                )
+
     def test_connector_payload_formats_exclude_notification_tokens(self):
         payload = {"URLRetour": CALLBACK, "URLHttpDirect": NOTIFY}
         for body in [
@@ -21,6 +64,7 @@ class CallbackUrlTests(unittest.TestCase):
             f"<URLHttpDirect>{NOTIFY}</URLHttpDirect></request>",
             json.dumps({"request": [payload]}),
             json.dumps({"accept_url": CALLBACK, "notify_url": NOTIFY}),
+            json.dumps({"return_url": CALLBACK, "notificationURL": NOTIFY}),
         ]:
             with self.subTest(body=body):
                 self.assertEqual(list(callback_urls(body)), [CALLBACK])

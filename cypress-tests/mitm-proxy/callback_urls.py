@@ -1,5 +1,6 @@
 """Keep callback URLs from the current replay run, never from a cassette."""
 
+import base64
 import html
 import json
 import re
@@ -16,11 +17,26 @@ _CALLBACK = re.compile(
 _NOTIFICATION = re.compile(r"notify|notification|webhook|http_?direct", re.I)
 
 
+def _redsys_callback_urls(value):
+    try:
+        parameters = json.loads(base64.b64decode(value, validate=True))
+    except (ValueError, TypeError):
+        return
+    if isinstance(parameters, dict):
+        emv3ds = parameters.get("DS_MERCHANT_EMV3DS")
+        if isinstance(emv3ds, dict):
+            # Redsys uses notificationURL for the browser's 3DS completion,
+            # distinct from its DS_MERCHANT_MERCHANTURL webhook.
+            yield from callback_urls(emv3ds.get("notificationURL"))
+
+
 def callback_urls(value):
     """Read JSON, form and XML callback fields, excluding notification URLs."""
     if isinstance(value, dict):
         for key, item in value.items():
-            if not _NOTIFICATION.search(key):
+            if key == "Ds_MerchantParameters":
+                yield from _redsys_callback_urls(item)
+            elif not _NOTIFICATION.search(key):
                 yield from callback_urls(item)
         return
     if isinstance(value, list):
@@ -36,8 +52,7 @@ def callback_urls(value):
         if _CALLBACK.fullmatch(parts.path):
             yield html.unescape(value)
         for key, item in parse_qsl(parts.query):
-            if not _NOTIFICATION.search(key):
-                yield from callback_urls(item)
+            yield from callback_urls({key: item})
         return
     try:
         parsed = json.loads(value)
@@ -61,8 +76,7 @@ def callback_urls(value):
             return
     if "=" in value:
         for key, item in parse_qsl(value):
-            if not _NOTIFICATION.search(key):
-                yield from callback_urls(item)
+            yield from callback_urls({key: item})
         return
 
     # Connector payloads can nest percent-encoded URLs (e.g. return_url).

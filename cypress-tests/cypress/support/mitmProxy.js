@@ -142,7 +142,7 @@ function callbackSegment(url) {
     ?.split("/callback/")[0];
 }
 
-function resolveCallbackUrl(globalState, saved, pageCallback) {
+function resolveCallbackUrl(globalState, saved, pageCallbacks = []) {
   const segment = saved?.__redirect_segment
     ?.replace(/^redirect\/(?:token\/[^/]+\/)?/, "")
     .split("/callback/")[0];
@@ -165,8 +165,11 @@ function resolveCallbackUrl(globalState, saved, pageCallback) {
     return matches[0];
   };
 
-  if (pageCallback && (!segment || callbackSegment(pageCallback) === segment)) {
-    return cy.wrap(selectUrl([pageCallback]), { log: false });
+  const matchingPageCallbacks = pageCallbacks.filter(
+    (url) => !segment || callbackSegment(url) === segment
+  );
+  if (matchingPageCallbacks.length) {
+    return cy.wrap(selectUrl(matchingPageCallbacks), { log: false });
   }
 
   const adminUrl = Cypress.env("PROXY_ADMIN_URL");
@@ -184,7 +187,7 @@ function replayRedirect(
   connectorId,
   globalState,
   redirectBodyFile,
-  pageCallback
+  pageCallbacks
 ) {
   const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
   return cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
@@ -206,7 +209,7 @@ function replayRedirect(
           __redirect_segment:
             jsConnector?.path || `redirect/complete/${connectorId}`,
         };
-    return resolveCallbackUrl(globalState, route, pageCallback).then((url) => {
+    return resolveCallbackUrl(globalState, route, pageCallbacks).then((url) => {
       const method = saved?.__redirect_method || (jsConnector ? "GET" : "POST");
       const callback = new URL(url);
       if (method === "GET") {
@@ -256,12 +259,15 @@ export function mockReplay3ds(globalState, connectorId, nextActionUrl) {
     })
     .then((page) => {
       const document = new DOMParser().parseFromString(page.body, "text/html");
-      const callback = document.body.getAttribute("data-callback-url");
+      const callbacks = [
+        document.body.getAttribute("data-callback-url"),
+        document.body.getAttribute("data-complete-callback-url"),
+      ].filter(Boolean);
       return replayRedirect(
         connectorId,
         globalState,
         redirectBodyFile,
-        callback
+        callbacks
       );
     });
 }

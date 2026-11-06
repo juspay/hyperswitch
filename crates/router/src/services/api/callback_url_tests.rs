@@ -68,3 +68,22 @@ fn callback_url_attribute_escapes_html_without_inserting_the_url_into_scripts() 
         assert!(html.contains("document.body.getAttribute('data-callback-url')"));
     }
 }
+
+#[test]
+fn braintree_exposes_distinct_success_and_error_callbacks() {
+    let complete = "https://router.test/redirect/complete/braintree?value=\"quoted\"&next=1";
+    let response = "https://router.test/redirect/response/braintree";
+    let form = super::RedirectForm::Braintree {
+        client_token: "client".to_string(),
+        card_token: "card".to_string(),
+        bin: "123456".to_string(),
+        acs_url: Secret::new(complete.to_string()),
+    };
+    let html = render_form(&form, response);
+    assert!(html.contains(&format!("data-callback-url=\"{response}\"")));
+    assert!(html.contains(
+        "data-complete-callback-url=\"https://router.test/redirect/complete/braintree?value=&quot;quoted&quot;&amp;next=1\""
+    ));
+    assert!(!html.contains(complete));
+    assert!(html.contains("document.body.getAttribute('data-complete-callback-url')"));
+}
