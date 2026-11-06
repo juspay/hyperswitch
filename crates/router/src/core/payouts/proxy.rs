@@ -209,6 +209,7 @@ impl ExternalVaultPayout<'_> {
     ) -> RouterResponse<payouts::PayoutCreateResponse> {
         let state = self.state;
         let platform = self.platform;
+        super::kill_switch::ensure_payouts_enabled(state, platform, Some(profile.get_id())).await?;
         let input =
             Box::pin(self.validate_proxy_create_request(req, profile, provider_profile)).await?;
         self.ensure_proxy_transport_available()?;
