@@ -8,10 +8,9 @@ use common_utils::{
     types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
-use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
+use diesel_models::client_secret::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums::{self, ProcessTrackerStatus},
-    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     refund as diesel_refund,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
@@ -55,8 +54,8 @@ use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
+    client_secret::ClientSecretInterface,
     dashboard_metadata::DashboardMetadataInterface,
-    ephemeral_key::ClientSecretInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -78,7 +77,6 @@ use crate::{
         configs::ConfigInterface,
         customers::CustomerInterface,
         dispute::DisputeInterface,
-        ephemeral_key::EphemeralKeyInterface,
         events::EventInterface,
         file::FileMetadataInterface,
         generic_link::GenericLinkInterface,
@@ -733,34 +731,6 @@ impl DisputeInterface for KafkaStore {
                 storage_scheme,
             )
             .await
-    }
-}
-
-#[async_trait::async_trait]
-impl EphemeralKeyInterface for KafkaStore {
-    #[cfg(feature = "v1")]
-    async fn create_ephemeral_key(
-        &self,
-        ek: EphemeralKeyNew,
-        validity: i64,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.create_ephemeral_key(ek, validity).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn get_ephemeral_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn delete_ephemeral_key(
-        &self,
-        id: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
     }
 }
 
@@ -2185,6 +2155,26 @@ impl PaymentIntentInterface for KafkaStore {
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
                 processor_merchant_id,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &id_type::ProfileId,
+        merchant_key_store: &ProcessorKeyStore,
+        storage_scheme: ProcessorStorageScheme,
+    ) -> CustomResult<storage::PaymentIntent, errors::StorageError> {
+        self.diesel_store
+            .find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+                payment_id,
+                processor_merchant_id,
+                profile_id,
                 merchant_key_store,
                 storage_scheme,
             )

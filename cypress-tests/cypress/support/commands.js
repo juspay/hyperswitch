@@ -2131,6 +2131,7 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
+        expect(response.status).to.eq(resData.status);
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
             "application/json"
@@ -2795,31 +2796,6 @@ Cypress.Commands.add(
     });
   }
 );
-
-Cypress.Commands.add("ephemeralGenerateCall", (globalState) => {
-  const customer_id = globalState.get("customerId");
-  const merchant_id = globalState.get("merchantId");
-
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/ephemeral_keys`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    body: { customer_id: customer_id },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.body.customer_id).to.equal(customer_id);
-      expect(response.body.merchant_id).to.equal(merchant_id);
-      expect(response.body.id).to.exist.and.not.be.empty;
-      expect(response.body.secret).to.exist.and.not.be.empty;
-    });
-  });
-});
 
 Cypress.Commands.add("customerDeleteCall", (globalState) => {
   const customer_id = globalState.get("customerId");

@@ -1936,16 +1936,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chumsky"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eebd66744a15ded14960ab4ccdbfb51ad3b81f51f3f04a80adac98c985396c9"
-dependencies = [
- "hashbrown 0.14.5",
- "stacker",
-]
-
-[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2236,7 +2226,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4247,7 +4237,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -4888,6 +4878,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
+ "subtle",
  "thiserror 1.0.69",
  "time",
  "tokio 1.48.0",
@@ -5570,13 +5561,12 @@ checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
 
 [[package]]
 name = "lettre"
-version = "0.11.16"
+version = "0.11.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87ffd14fa289730e3ad68edefdc31f603d56fe716ec38f2076bb7410e09147c2"
+checksum = "f2c646bd5cc763b1087b15493e29a64be6147ba8f19342004fa52048ee596eae"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
- "chumsky",
+ "base64 0.23.1",
  "email-encoding",
  "email_address",
  "fastrand",
@@ -5590,7 +5580,7 @@ dependencies = [
  "nom 8.0.0",
  "percent-encoding",
  "quoted_printable",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tokio 1.48.0",
  "tokio-native-tls",
  "url",
@@ -7490,15 +7480,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "psm"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58e5423e24c18cc840e1c98370b3993c6649cd1678b4d24318bcf0a083cbe88"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "ptr_meta"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8396,7 +8377,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9692,19 +9673,6 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
-
-[[package]]
-name = "stacker"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9156ebd5870ef293bfb43f91c7a74528d363ec0d424afe24160ed5a4343d08a"
-dependencies = [
- "cc",
- "cfg-if 1.0.0",
- "libc",
- "psm",
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "static_assertions"
@@ -11344,7 +11312,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11360,7 +11328,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11371,7 +11339,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.10.26.0#821799a34201c2b3ef3b96710239124b84cc8d19"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

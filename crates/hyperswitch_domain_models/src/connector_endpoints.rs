@@ -47,6 +47,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub cybersourcedecisionmanager: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
+    pub betterpayment: ConnectorParams,
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
     pub dlocal: ConnectorParams,
@@ -224,8 +225,6 @@ impl NoParams {
 pub struct ConnectorParamsWithKeys {
     /// base url
     pub base_url: String,
-    /// api key
-    pub api_key: Secret<String>,
     /// merchant ID
     pub merchant_id: Secret<String>,
 }

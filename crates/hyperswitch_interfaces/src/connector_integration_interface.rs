@@ -594,6 +594,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_multi_currency_processing_supported(),
+            Self::New(connector) => connector.is_multi_currency_processing_supported(),
+        }
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
@@ -919,6 +926,38 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
+
+    fn get_single_use_token_support(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+            Self::New(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+        }
+    }
+
+    fn get_single_use_token_support_for_setup_mandate(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
+            Self::New(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
         }
     }
 

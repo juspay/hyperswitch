@@ -183,6 +183,22 @@ impl DatabaseBackedConfig for RequiresCvv {
 }
 
 config! {
+    superposition_key = ALLOW_PAYMENT_METHOD_DATA_COLLECTION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AllowPaymentMethodDataCollection {
+    const KEY: &'static str = "system.allow_payment_method_data_collection";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
@@ -361,6 +377,22 @@ impl DatabaseBackedConfig for PaymentBlocklistGuard {
             .get_processor_merchant_id()
             .map(|id| id.get_blocklist_guard_key())
     }
+}
+
+// Keep an empty object as the application fallback during migration. The card testing guard
+// runtime uses it to distinguish a missing Superposition config from an actual config, then
+// falls back to the legacy business profile value.
+config! {
+    superposition_key = CARD_TESTING_GUARD_CONFIG,
+    output = serde_json::Value,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for CardTestingGuardConfig {
+    const KEY: &'static str = "card_testing_guard_config";
 }
 
 config! {
@@ -780,6 +812,24 @@ config! {
 
 impl DatabaseBackedConfig for AdaptiveRetryEnabled {
     const KEY: &'static str = "adaptive_retry_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = CARD_SWITCHING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for CardSwitchingEnabled {
+    const KEY: &'static str = "card_switching_enabled";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions

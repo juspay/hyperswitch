@@ -26,10 +26,30 @@ use crate::{
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
-/// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
+/// Cache key for a profile.
+///
+/// Profile IDs are globally unique, so ownership is validated on the cached row instead of being
+/// encoded in this key. Keeping the established key format makes cache reads and invalidations
+/// compatible across a rolling deployment.
 #[cfg(feature = "accounts_cache")]
 fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
     format!("business_profile_{}", profile_id.get_string_repr())
+}
+
+#[cfg(feature = "accounts_cache")]
+fn validate_cached_profile_ownership(
+    cached_merchant_id: &common_utils::id_type::MerchantId,
+    expected_merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> CustomResult<(), StorageError> {
+    (cached_merchant_id == expected_merchant_id)
+        .then_some(())
+        .ok_or_else(|| {
+            report!(StorageError::ValueNotFound(format!(
+                "No business profile found for merchant_id = {expected_merchant_id:?} and \
+                 profile_id = {profile_id:?}"
+            )))
+        })
 }
 
 /// Invalidates the cached profile on a best-effort basis.
@@ -193,9 +213,13 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
             let conn = pg_accounts_connection_read(self).await?;
-            diesel::Profile::find_by_profile_id(&conn, profile_id)
-                .await
-                .map_err(|error| report!(StorageError::from(error)))
+            diesel::Profile::find_by_merchant_id_profile_id(
+                &conn,
+                &merchant_key_store.merchant_id,
+                profile_id,
+            )
+            .await
+            .map_err(|error| report!(StorageError::from(error)))
         };
         let state = self
             .get_keymanager_state()
@@ -216,20 +240,28 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            Box::pin(cache::get_or_populate_in_memory_redis(
+            let profile = Box::pin(cache::get_or_populate_in_memory_redis(
                 self,
                 &profile_cache_key(profile_id),
                 fetch_func(),
                 CacheId::Accounts,
             ))
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
+            .await?;
+
+            validate_cached_profile_ownership(
+                &profile.merchant_id,
+                &merchant_key_store.merchant_id,
+                profile_id,
+            )?;
+
+            profile
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -250,9 +282,25 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
-        {
-            fetch_func()
-                .await?
+        let profile = fetch_func().await?;
+
+        #[cfg(feature = "accounts_cache")]
+        let profile = Box::pin(cache::get_or_populate_in_memory_redis(
+            self,
+            &profile_cache_key(profile_id),
+            fetch_func(),
+            CacheId::Accounts,
+        ))
+        .await?;
+
+        // The cache is also populated by the lookup using only profile_id. Its key
+        // does not establish merchant ownership, so validate before decrypting it.
+        if profile.merchant_id != *merchant_id {
+            Err(report!(StorageError::ValueNotFound(
+                "Business profile not found for merchant".to_string(),
+            )))
+        } else {
+            profile
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
@@ -260,24 +308,6 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 )
                 .await
                 .change_context(StorageError::DecryptionError)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            Box::pin(cache::get_or_populate_in_memory_redis(
-                self,
-                &profile_cache_key(profile_id),
-                fetch_func(),
-                CacheId::Accounts,
-            ))
-            .await?
-            .convert(
-                state,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -397,7 +427,10 @@ impl ProfileInterface for MockDb {
             .lock()
             .await
             .iter()
-            .find(|business_profile| business_profile.get_id() == profile_id)
+            .find(|business_profile| {
+                business_profile.get_id() == profile_id
+                    && business_profile.merchant_id == merchant_key_store.merchant_id
+            })
             .cloned()
             .async_map(|business_profile| async {
                 business_profile
@@ -462,11 +495,15 @@ impl ProfileInterface for MockDb {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         let profile_id = current_state.get_id().to_owned();
+        let merchant_id = current_state.merchant_id.clone();
         self.business_profiles
             .lock()
             .await
             .iter_mut()
-            .find(|business_profile| business_profile.get_id() == current_state.get_id())
+            .find(|business_profile| {
+                business_profile.get_id() == current_state.get_id()
+                    && business_profile.merchant_id == merchant_id
+            })
             .async_map(|business_profile| async {
                 let profile_updated = ProfileUpdateInternal::foreign_from(profile_update)
                     .apply_changeset(
@@ -1737,8 +1774,10 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
+                    revenue_recovery_trigger_model,
                     billing_processor_id,
                     surcharge_connector_details,
+                    revenue_recovery_config,
                 } = *update;
                 Self {
                     profile_name,
@@ -1794,10 +1833,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     split_txns_enabled,
+                    revenue_recovery_trigger_model,
                     billing_processor_id,
                     surcharge_connector_details,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    revenue_recovery_config,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1856,10 +1897,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1916,10 +1959,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1976,10 +2021,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2036,10 +2083,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2096,10 +2145,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2156,10 +2207,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2216,10 +2269,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2276,10 +2331,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2337,10 +2394,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
                 apple_pay_certificates,
@@ -2398,10 +2457,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                revenue_recovery_config: None,
             },
         }
     }
@@ -2482,12 +2543,14 @@ impl Conversion for domain::Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
+            revenue_recovery_trigger_model: Some(self.revenue_recovery_trigger_model),
             is_manual_retry_enabled: None,
             auto_fallback_capture_method: None,
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
             apple_pay_certificates: None,
@@ -2592,9 +2655,13 @@ impl Conversion for domain::Profile {
                     merchant_category_code: item.merchant_category_code,
                     merchant_country_code: item.merchant_country_code,
                     split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                    revenue_recovery_trigger_model: item
+                        .revenue_recovery_trigger_model
+                        .unwrap_or_default(),
                     is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
+                    revenue_recovery_config: item.revenue_recovery_config,
                 }
                 .into(),
             )
@@ -2669,8 +2736,10 @@ impl Conversion for domain::Profile {
             is_l2_l3_enabled: None,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
+            revenue_recovery_trigger_model: Some(self.revenue_recovery_trigger_model),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             payment_method_blocking: None,
         })
     }

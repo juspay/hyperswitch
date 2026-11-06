@@ -2765,6 +2765,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::GooglePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),
@@ -2784,6 +2790,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::ApplePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),

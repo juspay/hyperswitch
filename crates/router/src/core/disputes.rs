@@ -915,6 +915,7 @@ pub async fn get_aggregates_for_disputes(
 pub async fn connector_sync_disputes(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     merchant_connector_id: String,
     payload: disputes::DisputeFetchQueryData,
 ) -> RouterResponse<FetchDisputesResponse> {
@@ -942,6 +943,7 @@ pub async fn connector_sync_disputes(
     Box::pin(fetch_disputes_from_connector(
         state,
         platform,
+        profile_id,
         connector_id,
         fetch_dispute_request,
     ))
@@ -953,6 +955,7 @@ pub async fn connector_sync_disputes(
 pub async fn fetch_disputes_from_connector(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
@@ -967,6 +970,7 @@ pub async fn fetch_disputes_from_connector(
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id, &merchant_connector_account)?;
     let connector_name = merchant_connector_account.connector_name.clone();
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,

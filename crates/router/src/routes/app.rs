@@ -39,12 +39,12 @@ use storage_impl::{
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
+#[cfg(all(feature = "v2", feature = "oltp"))]
+use super::client_secret::{client_secret_create, client_secret_delete};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
-use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
 #[cfg(feature = "payouts")]
@@ -504,11 +504,13 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
+        #[allow(clippy::expect_used)]
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
             &*secret_management_client,
         ))
-        .await;
+        .await
+        .expect("Failed to decrypt application configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -916,6 +918,10 @@ impl Payments {
             .service(
                 web::resource("/recovery-list")
                     .route(web::get().to(payments::revenue_recovery_invoices_list)),
+            )
+            .service(
+                web::resource("/profile/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list_profile)),
             )
             .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
@@ -1336,19 +1342,6 @@ impl Routing {
                 })),
             );
 
-        #[cfg(feature = "dynamic_routing")]
-        {
-            route = route
-                .service(
-                    web::resource("/evaluate")
-                        .route(web::post().to(routing::call_decide_gateway_open_router)),
-                )
-                .service(
-                    web::resource("/feedback")
-                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
-                )
-        }
-
         #[cfg(feature = "payouts")]
         {
             route = route
@@ -1469,10 +1462,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
-            )
-            .service(
-                web::resource("/rule/evaluate")
-                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }
@@ -2302,20 +2291,11 @@ impl HierarchicalResources {
     }
 }
 
-pub struct EphemeralKey;
-
-#[cfg(all(feature = "v1", feature = "oltp"))]
-impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys")
-            .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
-    }
-}
+#[cfg(feature = "v2")]
+pub struct ClientSecret;
 
 #[cfg(feature = "v2")]
-impl EphemeralKey {
+impl ClientSecret {
     pub fn server(config: AppState) -> Scope {
         web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))

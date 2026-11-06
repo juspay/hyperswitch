@@ -13,6 +13,7 @@ pub trait PaymentAttemptExt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
@@ -26,6 +27,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         todo!()
     }
@@ -35,6 +37,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
         let now = common_utils::date_time::now();
@@ -64,6 +67,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_capture_id: None,
             connector_response_reference_id: None,
             processor_capture_data: None,
+            feature_metadata,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         })

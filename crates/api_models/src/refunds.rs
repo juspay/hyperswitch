@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub use common_types::refunds::RefundFeatureMetadata;
 pub use common_utils::types::MinorUnit;
 use common_utils::{pii, types::TimeRange};
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use super::payments::AmountFilter;
+use super::payments::{AmountFilter, PaymentMethodData};
 #[cfg(feature = "v1")]
 use crate::admin;
 use crate::{admin::MerchantConnectorInfo, enums};
@@ -73,6 +74,12 @@ pub struct RefundRequest {
 
     /// If true, returns stringified connector raw response body
     pub all_keys_required: Option<bool>,
+    /// Collects payment method data to be passed through to the connector
+    #[smithy(value_type = "Option<PaymentMethodData>")]
+    pub payment_method_data: Option<PaymentMethodData>,
+    /// Feature metadata persisted for this operation.
+    #[smithy(value_type = "Option<RefundFeatureMetadata>")]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
@@ -123,6 +130,8 @@ pub struct RefundsCreateRequest {
 
     /// If true, returns stringified connector raw response body
     pub return_raw_connector_response: Option<bool>,
+    /// Feature metadata persisted for this operation.
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -305,10 +314,18 @@ pub struct RefundResponse {
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub payment_id: common_utils::id_type::PaymentId,
-    /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
+    /// The refund amount excluding any refunded surcharge, in the currency's lowest denomination.
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
+    /// The total refund amount, including any refunded surcharge, in the currency's lowest denomination.
+    #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
+    pub net_amount: Option<MinorUnit>,
+    /// The surcharge amount included in this refund, in the currency's lowest denomination.
+    #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
+    pub surcharge_refund_amount: Option<MinorUnit>,
     /// The three-letter ISO currency code
     #[smithy(value_type = "String")]
     pub currency: String,
@@ -370,6 +387,10 @@ pub struct RefundResponse {
     /// A unique identifier for a payment provided by the connector
     #[smithy(value_type = "Option<String>")]
     pub connector_refund_id: Option<String>,
+    /// Feature metadata persisted for this operation.
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v1")]
@@ -431,6 +452,10 @@ pub struct RefundResponse {
     /// Contains raw connector response
     #[schema(value_type = Option<String>)]
     pub raw_connector_response: Option<hyperswitch_masking::Secret<String>>,
+    /// Feature metadata persisted for this operation.
+    #[schema(value_type = Option<RefundFeatureMetadata>)]
+    #[cfg_attr(feature = "v1", smithy(value_type = "Option<RefundFeatureMetadata>"))]
+    pub feature_metadata: Option<RefundFeatureMetadata>,
 }
 
 #[cfg(feature = "v2")]
