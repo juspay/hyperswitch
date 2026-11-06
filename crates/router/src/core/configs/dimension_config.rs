@@ -379,6 +379,22 @@ impl DatabaseBackedConfig for PaymentBlocklistGuard {
     }
 }
 
+// Keep an empty object as the application fallback during migration. The card testing guard
+// runtime uses it to distinguish a missing Superposition config from an actual config, then
+// falls back to the legacy business profile value.
+config! {
+    superposition_key = CARD_TESTING_GUARD_CONFIG,
+    output = serde_json::Value,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for CardTestingGuardConfig {
+    const KEY: &'static str = "card_testing_guard_config";
+}
+
 config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,

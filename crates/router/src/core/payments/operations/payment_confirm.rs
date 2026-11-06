@@ -1086,6 +1086,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
             .payment_method_data
@@ -1105,6 +1106,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -1117,6 +1119,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())

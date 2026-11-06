@@ -383,6 +383,7 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
             split_txns_enabled: item.split_txns_enabled,
+            revenue_recovery_trigger_model: item.revenue_recovery_trigger_model,
             revenue_recovery_retry_algorithm_type: item.revenue_recovery_retry_algorithm_type,
             billing_processor_id: item.billing_processor_id,
             surcharge_connector_details: item
