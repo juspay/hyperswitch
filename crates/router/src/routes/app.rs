@@ -2360,18 +2360,20 @@ pub struct RelayWebhooks;
 #[cfg(feature = "oltp")]
 impl RelayWebhooks {
     pub fn server(state: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
+        #[cfg(feature = "v1")]
+        let handler = receive_incoming_relay_webhook::<api_models::webhooks::OutgoingWebhook>;
+        #[cfg(feature = "v2")]
+        let handler = receive_incoming_relay_webhook;
         web::scope("/webhooks/relay")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{merchant_id}/{connector_id}").route(
-                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
-            ))
+            .service(web::resource("/{merchant_id}/{connector_id}").route(web::post().to(handler)))
     }
 }
 
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
+        #[cfg(feature = "revenue_recovery")]
         use api_models::webhooks as webhook_type;
 
         #[allow(unused_mut)]
@@ -2379,13 +2381,9 @@ impl Webhooks {
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{profile_id}/{connector_id}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]

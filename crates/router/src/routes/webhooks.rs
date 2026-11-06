@@ -87,7 +87,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::IncomingRelayWebhookReceive))]
-pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
+pub async fn receive_incoming_relay_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -109,7 +109,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
             connector: connector_id.clone(),
         },
         |state, auth, _, req_state| {
-            webhooks::incoming_webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper(
                 state.to_owned(),
                 req_state,
                 &req,
@@ -131,7 +131,7 @@ pub async fn receive_incoming_relay_webhook<W: types::OutgoingWebhookType>(
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
 #[cfg(feature = "v2")]
-pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
+pub async fn receive_incoming_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -152,7 +152,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
             connector: connector_id.clone(),
         },
         |state, auth, _, req_state| {
-            webhooks::incoming_webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper(
                 state.to_owned(),
                 req_state,
                 &req,

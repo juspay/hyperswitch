@@ -49,7 +49,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn incoming_webhooks_wrapper(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
