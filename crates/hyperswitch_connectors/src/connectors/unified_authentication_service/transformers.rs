@@ -201,7 +201,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
-    pub notification_url: Option<url::Url>,
+    pub notification_url: Option<Secret<url::Url>>,
     pub webhook_url: Option<url::Url>,
 }
 

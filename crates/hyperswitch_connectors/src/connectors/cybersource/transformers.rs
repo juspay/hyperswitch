@@ -584,7 +584,7 @@ pub struct CybersourceConsumerAuthInformation {
     /// The URL to which the cardholder's browser is redirected after the 3DS challenge is completed.
     /// Required when requesting Cybersource to perform payer authentication inline (e.g. Google Pay PAN_ONLY with 3DS).
     #[serde(skip_serializing_if = "Option::is_none")]
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     /// Reference ID used to correlate the payer authentication request
     /// (the Cardinal device-data-collection session id for 3DS).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3718,7 +3718,7 @@ impl From<&api_models::payments::DeviceChannel> for CybersourceDeviceChannel {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationRequest {
-    return_url: String,
+    return_url: Secret<String>,
     reference_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     challenge_code: Option<String>,

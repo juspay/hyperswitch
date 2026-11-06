@@ -2329,6 +2329,39 @@ impl super::RedisConnectionWithContext {
         Ok(del_result)
     }
 
+    /// Atomically read and delete a string using MULTI/GET/DEL/EXEC.
+    /// Missing keys are never created. A successful return requires both a value
+    /// and confirmation that this transaction deleted exactly one key.
+    #[instrument(level = "DEBUG", skip_all)]
+    pub async fn consume_key(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<Option<String>, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let transaction = self.get_transaction();
+        transaction
+            .get::<(), _>(&redis_key)
+            .await
+            .change_context(errors::RedisError::GetFailed)?;
+        transaction
+            .del::<(), _>(&redis_key)
+            .await
+            .change_context(errors::RedisError::DeleteFailed)?;
+        let result: (Option<String>, i64) = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumeKey,
+            transaction.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteFailed)?;
+        match result {
+            (Some(value), 1) => Ok(Some(value)),
+            (None, 0) => Ok(None),
+            _ => Err(report!(errors::RedisError::UnknownResult)),
+        }
+    }
+
     /// Sets a value in Redis if not already present, and returns the value (either existing or newly set).
     /// This operation is atomic using Redis transactions.
     #[instrument(level = "DEBUG", skip(self))]

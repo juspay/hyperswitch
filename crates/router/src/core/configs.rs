@@ -1,5 +1,6 @@
 pub mod dimension_config;
 pub mod dimension_state;
+pub mod payment_callback;
 use common_utils::errors::CustomResult;
 pub use dimension_config::{
     BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate,

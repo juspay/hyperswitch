@@ -42,7 +42,7 @@ pub struct InespayPaymentsRequest {
     amount: StringMinorUnit,
     reference: String,
     debtor_account: Option<Secret<String>>,
-    success_link_redirect: Option<String>,
+    success_link_redirect: Option<Secret<String>>,
     notif_url: Option<String>,
 }
 

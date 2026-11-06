@@ -9607,46 +9607,66 @@ Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",
   (confirmData, globalState) => {
     const ddcConfig = confirmData.DDCConfig;
-    const paymentId = globalState.get("paymentID");
-    const merchantId = globalState.get("merchantId");
-    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+    const nextActionUrl = globalState.get("nextActionUrl");
+    expect(nextActionUrl, "router-issued DDC page URL").to.be.a("string").and
+      .not.be.empty;
 
     cy.request({
-      method: "GET",
-      url: completeUrl,
-      qs: {
-        [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
-      },
-      failOnStatusCode: false,
-    }).then((firstResponse) => {
-      if (
-        firstResponse.status === 400 &&
-        firstResponse.body?.error?.message?.includes("No eligible connector")
-      ) {
-        throw new Error(
-          `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
-        );
-      }
-
-      expect(firstResponse.status).to.be.oneOf([200, 302]);
-      cy.log(`First request status: ${firstResponse.status}`);
+      url: nextActionUrl,
+      followRedirect: false,
+      retryOnNetworkFailure: false,
+      log: false,
+    }).then((page) => {
+      const document = new DOMParser().parseFromString(page.body, "text/html");
+      const completeUrl = document.body.getAttribute("data-callback-url");
+      expect(completeUrl, "router-issued DDC callback URL").to.be.a("string")
+        .and.not.be.empty;
 
       cy.request({
         method: "GET",
         url: completeUrl,
         qs: {
-          [ddcConfig.collectionReferenceParam]: ddcConfig.secondSubmissionValue,
+          [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
         },
         failOnStatusCode: false,
-      }).then((secondResponse) => {
-        cy.log(`Second request status: ${secondResponse.status}`);
+        followRedirect: false,
+        retryOnNetworkFailure: false,
+        log: false,
+      }).then((firstResponse) => {
+        if (
+          firstResponse.status === 400 &&
+          firstResponse.body?.error?.message?.includes("No eligible connector")
+        ) {
+          throw new Error(
+            `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
+          );
+        }
 
-        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
-        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+        expect(firstResponse.status).to.be.oneOf([200, 302]);
+        cy.log(`First request status: ${firstResponse.status}`);
 
-        cy.log(
-          "✅ Server-side race condition protection verified - second submission properly rejected"
-        );
+        cy.request({
+          method: "GET",
+          url: completeUrl,
+          qs: {
+            [ddcConfig.collectionReferenceParam]:
+              ddcConfig.secondSubmissionValue,
+          },
+          failOnStatusCode: false,
+          followRedirect: false,
+          retryOnNetworkFailure: false,
+          log: false,
+        }).then((secondResponse) => {
+          cy.log(`Second request status: ${secondResponse.status}`);
+
+          expect(secondResponse.status, "DDC token cannot be reused").to.eq(
+            401
+          );
+
+          cy.log(
+            "✅ Server-side race condition protection verified - second submission properly rejected"
+          );
+        });
       });
     });
   }
@@ -9656,9 +9676,9 @@ Cypress.Commands.add(
   "ddcClientSideRaceConditionTest",
   (confirmData, globalState) => {
     const ddcConfig = confirmData.DDCConfig;
-    const paymentId = globalState.get("paymentID");
-    const merchantId = globalState.get("merchantId");
-    const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+    const nextActionUrl = globalState.get("nextActionUrl");
+    expect(nextActionUrl, "router-issued DDC page URL").to.be.a("string").and
+      .not.be.empty;
 
     cy.intercept("GET", nextActionUrl, (req) => {
       req.reply((res) => {
@@ -9671,7 +9691,9 @@ Cypress.Commands.add(
       });
     }).as("ddcPageWithRaceCondition");
 
-    cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+    cy.intercept("GET", /\/redirect\/(?:token\/[^/]+\/)?complete\//).as(
+      "ddcSubmission"
+    );
     const delayBeforeSubmission = ddcConfig.delayBeforeSubmission || 2000;
 
     cy.visit(nextActionUrl);
@@ -12752,57 +12774,24 @@ Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
 });
 
 Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
-  const baseUrl = globalState.get("baseUrl");
+  globalState.set("redirectReturnUrl", null);
   const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
-  const connectorId = getOriginalConnectorName(globalState.get("connectorId"));
-  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
-
-  /**
-   * Attempt to capture the redirect return URL with polling retry.
-   * The payment may not immediately be in redirect-ready state,
-   * so we retry up to MAX_RETRIES with DELAY_MS between attempts.
-   */
-  const MAX_RETRIES = 5;
-  const DELAY_MS = 2000;
-
-  function attemptCapture(remainingAttempts) {
-    return cy
-      .request({
-        method: "GET",
-        url,
-        followRedirect: false,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        if (response.status === 302 && response.headers.location) {
-          globalState.set("redirectReturnUrl", response.headers.location);
-          cy.task(
-            "cli_log",
-            "captureRedirectReturnUrl: captured redirect return URL with signature"
-          );
-          return;
+  cy.intercept(
+    /\/redirect\/(?:token\/[^/]+\/)?(?:response|complete)\//,
+    (req) => {
+      if (!new URL(req.url).pathname.startsWith(`/payments/${paymentId}/`))
+        return;
+      req.on("response", (response) => {
+        const location = response.headers.location;
+        if (
+          typeof location === "string" &&
+          new URL(location, req.url).searchParams.has("signature")
+        ) {
+          globalState.set("redirectReturnUrl", new URL(location, req.url).href);
         }
-
-        if (remainingAttempts > 1) {
-          cy.task(
-            "cli_log",
-            `captureRedirectReturnUrl: got status ${response.status}, retrying in ${DELAY_MS}ms (${MAX_RETRIES - remainingAttempts + 1}/${MAX_RETRIES})`
-          );
-          return cy
-            .wait(DELAY_MS)
-            .then(() => attemptCapture(remainingAttempts - 1));
-        }
-
-        // Final attempt failed — throw so the test fails loudly
-        throw new Error(
-          `captureRedirectReturnUrl: expected 302 with Location header, got ${response.status}. ` +
-            `Headers: ${JSON.stringify(response.headers)}`
-        );
       });
-  }
-
-  attemptCapture(MAX_RETRIES);
+    }
+  );
 });
 
 // ============================================
