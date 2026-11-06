@@ -2762,7 +2762,7 @@
             "schema": {
               "type": "string"
             },
-            "description": "The merchant to decide for. Optional with a session or API key, which defaults to its own merchant and may also name one of its sub-merchants. Any other merchant is `403`. Required with a service credential."
+            "description": "The merchant to decide for. Optional with a session or API key, which defaults to its own merchant and may also name one of its sub-merchants. Required with a service credential."
           },
           {
             "name": "x-request-id",
@@ -2832,6 +2832,7 @@
                 "customer_id": null,
                 "routing_config": {
                   "algorithm_for": "payment",
+                  "decision_arm": null,
                   "elimination_enabled": null,
                   "enable_multi_objective": null,
                   "ranking_algorithm": null,
@@ -2992,19 +2993,7 @@
             }
           },
           "400": {
-            "description": "`TE_03`: invalid body or field (named by its path), or routing could not be evaluated. Also returned when a service credential sends no `x-connected-merchant-id`."
-          },
-          "401": {
-            "description": "Authentication required."
-          },
-          "403": {
-            "description": "`x-connected-merchant-id` is not the caller's own merchant."
-          },
-          "404": {
-            "description": "`TE_02`: the merchant's routing configuration was not found."
-          },
-          "500": {
-            "description": "`TE_00` `The request could not be completed`."
+            "description": "`TE_03`: the request body or one of its fields is invalid, or the merchant's routing configuration could not route the payment."
           }
         }
       }
@@ -9089,6 +9078,18 @@
           "algorithm_for": {
             "type": "string",
             "minLength": 1
+          },
+          "decision_arm": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "control",
+              "variant",
+              null
+            ],
+            "description": "Caller-assigned decision arm, retained in the request audit. Does not override Decision Engine's internal experiment assignment. Omit or send null when unspecified."
           },
           "elimination_enabled": {
             "type": [
