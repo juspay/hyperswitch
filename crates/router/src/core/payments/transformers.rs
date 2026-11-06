@@ -252,8 +252,8 @@ where
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
@@ -1390,8 +1390,8 @@ pub async fn construct_router_data_for_psync<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_cancel_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_cancel_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentCancelData<api::Void>,

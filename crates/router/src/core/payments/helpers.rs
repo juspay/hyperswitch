@@ -5069,10 +5069,10 @@ pub(crate) fn validate_installment_data_in_create(
 
 #[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
-    payment_method: &Option<api_enums::PaymentMethod>,
+    payment_method: Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
-    payment_method_type: &Option<api_enums::PaymentMethodType>,
-    mandate_type: &Option<api::MandateTransactionType>,
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+    mandate_type: Option<api::MandateTransactionType>,
     token: &Option<String>,
     ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
