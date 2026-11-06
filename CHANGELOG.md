@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix9
+
+### Features
+
+- **payouts:** Add Superposition kill switch with OMP scopes ([#15185](https://github.com/juspay/hyperswitch/pull/15185)) ([`d3de4e6`](https://github.com/juspay/hyperswitch/commit/d3de4e6323aa17ac929fa0af37a934ece214cc64))
+- **superposition:** Add merchant-profile payout amount min max limits ([#15186](https://github.com/juspay/hyperswitch/pull/15186)) ([`0194963`](https://github.com/juspay/hyperswitch/commit/0194963a848d4076905479cdb4074f0c26c0f0e0))
+- **users:** Expire dashboard sessions after inactivity ([#15156](https://github.com/juspay/hyperswitch/pull/15156)) ([`5ab3180`](https://github.com/juspay/hyperswitch/commit/5ab3180dc0765e9105ed346c1ac6de996448763b))
+
+### Bug Fixes
+
+- **payouts:** Restrict confirmation to API key auth ([#15184](https://github.com/juspay/hyperswitch/pull/15184)) ([`dffbb1b`](https://github.com/juspay/hyperswitch/commit/dffbb1bd8c16c5b2b21e3e9da4e7c89dc4e64ca7))
+
+**Full Changelog:** [`2026.10.26.0-hotfix8...2026.10.26.0-hotfix9`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix8...2026.10.26.0-hotfix9)
+
+- - -
+
 ## 2026.10.26.0-hotfix8
 
 ### Features
