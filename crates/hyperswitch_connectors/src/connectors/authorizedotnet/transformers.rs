@@ -114,6 +114,11 @@ struct CreditCardDetails {
     expiration_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     card_code: Option<Secret<String>>,
+    // Set for network tokens such as a decrypted Apple Pay DPAN; Authorize.net then requires the cryptogram
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_payment_token: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -486,6 +491,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                     card_number: (*ccard.card_number).clone(),
                     expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                     card_code: Some(ccard.card_cvc.clone()),
+                    is_payment_token: None,
+                    cryptogram: None,
                 }),
             }),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
@@ -496,22 +503,26 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                         data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
                     }),
                 }),
-                WalletData::ApplePay(applepay_token) => {
-                    let apple_pay_encrypted_data = applepay_token
-                        .payment_data
-                        .get_encrypted_apple_pay_payment_data_mandatory()
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "Apple pay encrypted data".into(),
-                        })?;
-
-                    Ok(PaymentProfile {
+                WalletData::ApplePay(applepay_token) => match &applepay_token.payment_data {
+                    common_types::payments::ApplePayPaymentData::Encrypted(
+                        apple_pay_encrypted_data,
+                    ) => Ok(PaymentProfile {
                         bill_to,
                         payment: PaymentDetails::OpaqueData(WalletDetails {
                             data_descriptor: WalletMethod::Applepay,
                             data_value: Secret::new(apple_pay_encrypted_data.clone()),
                         }),
-                    })
-                }
+                    }),
+                    // A saved profile is charged later, but the cryptogram of a decrypted token is
+                    // single-use, so only the encrypted token is stored
+                    common_types::payments::ApplePayPaymentData::Decrypted(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Decrypted Apple Pay token for saving a payment profile"
+                                .to_string(),
+                            connector: "Authorizedotnet".into(),
+                        })?
+                    }
+                },
 
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
@@ -932,6 +943,8 @@ impl
                         card_number: (*ccard.card_number).clone(),
                         expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
+                        is_payment_token: None,
+                        cryptogram: None,
                     })
                 }
                 PaymentMethodData::CardDetailsForNetworkTransactionId(ref card_details) => {
@@ -939,6 +952,8 @@ impl
                         card_number: (*card_details.card_number).clone(),
                         expiration_date: card_details.get_expiry_date_as_yyyymm("-"),
                         card_code: None,
+                        is_payment_token: None,
+                        cryptogram: None,
                     })
                 }
                 PaymentMethodData::CardRedirect(_)
@@ -1184,6 +1199,8 @@ impl
                 card_number: (*ccard.card_number).clone(),
                 expiration_date: ccard.get_expiry_date_as_yyyymm("-"),
                 card_code: Some(ccard.card_cvc.clone()),
+                is_payment_token: None,
+                cryptogram: None,
             })),
             profile,
             order: Order {
@@ -2258,6 +2275,8 @@ fn construct_refund_payment_details(detail: PaymentDetailAccountNumber) -> Payme
         },
         expiration_date: "XXXX".to_string().into(),
         card_code: None,
+        is_payment_token: None,
+        cryptogram: None,
     })
 }
 
@@ -2431,18 +2450,44 @@ fn get_wallet_data(
             data_descriptor: WalletMethod::Googlepay,
             data_value: Secret::new(wallet_data.get_encoded_wallet_token()?),
         })),
-        WalletData::ApplePay(applepay_token) => {
-            let apple_pay_encrypted_data = applepay_token
-                .payment_data
-                .get_encrypted_apple_pay_payment_data_mandatory()
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Apple pay encrypted data".into(),
-                })?;
-            Ok(PaymentDetails::OpaqueData(WalletDetails {
-                data_descriptor: WalletMethod::Applepay,
-                data_value: Secret::new(apple_pay_encrypted_data.clone()),
-            }))
-        }
+        WalletData::ApplePay(applepay_token) => match &applepay_token.payment_data {
+            // Token already decrypted (by Hyperswitch with the merchant's key, or by the merchant):
+            // send the DPAN as a payment token with its cryptogram
+            common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+                let cryptogram = decrypted_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone();
+                if cryptogram.peek().is_empty() {
+                    return Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "apple_pay_cryptogram".into(),
+                    }
+                    .into());
+                }
+                let expiry_month = decrypted_data.get_two_digit_expiry_month().change_context(
+                    errors::ConnectorError::InvalidDataFormat {
+                        field_name: "application_expiration_month".into(),
+                    },
+                )?;
+                Ok(PaymentDetails::CreditCard(CreditCardDetails {
+                    card_number: (*decrypted_data.application_primary_account_number).clone(),
+                    expiration_date: Secret::new(format!(
+                        "{}-{}",
+                        decrypted_data.get_four_digit_expiry_year().peek(),
+                        expiry_month.peek()
+                    )),
+                    card_code: None,
+                    is_payment_token: Some(true),
+                    cryptogram: Some(cryptogram),
+                }))
+            }
+            common_types::payments::ApplePayPaymentData::Encrypted(apple_pay_encrypted_data) => {
+                Ok(PaymentDetails::OpaqueData(WalletDetails {
+                    data_descriptor: WalletMethod::Applepay,
+                    data_value: Secret::new(apple_pay_encrypted_data.clone()),
+                }))
+            }
+        },
         WalletData::PaypalRedirect(_) => Ok(PaymentDetails::PayPal(PayPalDetails {
             success_url: return_url.to_owned(),
             cancel_url: return_url.to_owned(),
