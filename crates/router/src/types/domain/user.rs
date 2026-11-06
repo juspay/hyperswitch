@@ -250,8 +250,7 @@ pub struct NewUserOrganization(diesel_org::OrganizationNew);
 impl NewUserOrganization {
     pub async fn insert_org_in_db(self, state: SessionState) -> UserResult<Organization> {
         state
-            .accounts_store
-            .insert_organization(self.0)
+            .track_accounts_query(|db| db.insert_organization(self.0))
             .await
             .map_err(|e| {
                 if e.current_context().is_db_unique_violation() {
@@ -929,12 +928,11 @@ impl NewUser {
                         platform_merchant_id: merchant_id.clone(),
                     };
 
+                let organization_id = self.new_merchant.new_organization.get_organization_id();
                 state
-                    .accounts_store
-                    .update_organization_by_org_id(
-                        &self.new_merchant.new_organization.get_organization_id(),
-                        org_update,
-                    )
+                    .track_accounts_query(|db| {
+                        db.update_organization_by_org_id(&organization_id, org_update)
+                    })
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to update organization with platform_merchant_id")?;

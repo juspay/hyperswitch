@@ -6839,10 +6839,9 @@ pub(crate) async fn get_platform_account_and_key_store<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let organization = state
-        .session_state()
-        .accounts_store
-        .find_organization_by_org_id(merchant_account.get_org_id())
+    let session_state = state.session_state();
+    let organization = session_state
+        .track_accounts_query(|db| db.find_organization_by_org_id(merchant_account.get_org_id()))
         .await
         .change_context(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch organization for connected merchant")?;
