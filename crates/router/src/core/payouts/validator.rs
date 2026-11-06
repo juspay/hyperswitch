@@ -18,7 +18,9 @@ use url::Url;
 
 use super::helpers;
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::cards::get_pm_list_context;
+use crate::core::{
+    payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
+};
 use crate::{
     core::{
         configs::dimension_state,
@@ -202,7 +204,7 @@ pub async fn validate_create_request(
         &*state.store,
     )
     .await?;
-    super::kill_switch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
+    PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
         .await?;
     let profile_id = business_profile.get_id().to_owned();
 
