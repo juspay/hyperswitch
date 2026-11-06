@@ -1,4 +1,4 @@
-use api_models::enums::VaultConnectors;
+use api_models::{enums::VaultConnectors, payments::Amount};
 use common_enums::{
     ExecutionMode, ExecutionPath, PaymentMethodStatus, PayoutExecutionKind, PayoutStatus,
     PayoutType,
@@ -556,8 +556,31 @@ impl ExternalVaultPayout<'_> {
         let platform = self.platform;
         let req = self.normalize_proxy_create_request(req)?;
         let payout_id = self.validate_proxy_create_identity(&req).await?;
-        let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let processor = platform.get_processor();
+        let payout_cap_dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile.get_id().clone());
+        let min_amount = payout_cap_dimensions
+            .get_payout_min_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile.get_id()),
+            )
+            .await;
+        let max_amount = payout_cap_dimensions
+            .get_payout_max_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile.get_id()),
+            )
+            .await;
+        validator::validate_payout_amount(
+            req.amount.unwrap_or(Amount::Zero),
+            min_amount,
+            max_amount,
+        )?;
+        let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let use_merchant_reference_id =
             helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
                 state,
@@ -594,9 +617,7 @@ impl ExternalVaultPayout<'_> {
         let execution_context = self
             .resolve_external_vault_execution_context(&provider_profile, saved_source)
             .await?;
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(processor.get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let dimensions = payout_cap_dimensions.without_profile_id();
         validate_payout_condition(
             !core_utils::get_feature_config(state, platform, &dimensions)
                 .await

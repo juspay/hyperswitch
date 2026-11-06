@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use actix_web::http::header;
+use api_models::payments::Amount;
 #[cfg(feature = "olap")]
 use common_utils::errors::CustomResult;
 use common_utils::{
@@ -168,6 +169,35 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
+    // Resolve the profile before any customer side effects so the cap applies to the
+    // exact merchant/profile context that will own the payout.
+    let business_profile = core_utils::get_profile_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        platform.get_processor(),
+        req.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await?;
+    let profile_id = business_profile.get_id().to_owned();
+    let profile_dimensions = dimensions.with_profile_id(profile_id.clone());
+
+    let min_amount = profile_dimensions
+        .get_payout_min_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&profile_id),
+        )
+        .await;
+    let max_amount = profile_dimensions
+        .get_payout_max_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&profile_id),
+        )
+        .await;
+    validate_payout_amount(req.amount.unwrap_or(Amount::Zero), min_amount, max_amount)?;
+
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
     let payout_id = match req.payout_id.as_ref() {
@@ -206,17 +236,6 @@ pub async fn validate_create_request(
     } else {
         None
     };
-
-    // Fetch the profile once and hand it back, so payout creation doesn't fetch it again
-    let business_profile = core_utils::get_profile_from_business_details(
-        req.business_country,
-        req.business_label.as_ref(),
-        platform.get_processor(),
-        req.profile_id.as_ref(),
-        &*state.store,
-    )
-    .await?;
-    let profile_id = business_profile.get_id().to_owned();
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -313,6 +332,33 @@ pub async fn validate_create_request(
         customer,
         payment_method,
     ))
+}
+
+pub(crate) fn validate_payout_amount(
+    amount: Amount,
+    min_amount: i64,
+    max_amount: i64,
+) -> RouterResult<()> {
+    if min_amount > max_amount {
+        return Err(
+            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "payout amount configuration has a minimum greater than its maximum",
+            ),
+        );
+    }
+
+    let amount = match amount {
+        Amount::Value(value) => value.get(),
+        Amount::Zero => 0,
+    };
+
+    utils::when(amount < min_amount || amount > max_amount, || {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: format!(
+                "payout amount must be between {min_amount} and {max_amount} in the currency's lowest denomination"
+            ),
+        }))
+    })
 }
 
 #[cfg(feature = "v1")]
