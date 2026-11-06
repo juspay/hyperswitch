@@ -45,7 +45,6 @@ export const connectorDetails = {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "payjustnow",
-        return_url: "https://example.com/return",
         payment_method_data: {
           pay_later: {
             payjustnow_redirect: {},
