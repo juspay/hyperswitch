@@ -1,8 +1,6 @@
 use common_enums::EntityType;
-use common_utils::{
-    date_time, id_type,
-    types::user::{EmailThemeConfig, ThemeLineage},
-};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
+use common_utils::{date_time, id_type, types::user::ThemeLineage};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use router_derive::DebugAsDisplay;
 use time::PrimitiveDateTime;
@@ -21,12 +19,12 @@ pub struct Theme {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
-    pub theme_name: String,
-    pub email_primary_color: String,
-    pub email_foreground_color: String,
-    pub email_background_color: String,
-    pub email_entity_name: String,
-    pub email_entity_logo_url: String,
+    pub theme_name: SafeString,
+    pub email_primary_color: SafeString,
+    pub email_foreground_color: SafeString,
+    pub email_background_color: SafeString,
+    pub email_entity_name: SafeString,
+    pub email_entity_logo_url: SafeString,
     pub theme_config_version: String,
 }
 
@@ -41,19 +39,19 @@ pub struct ThemeNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub entity_type: EntityType,
-    pub theme_name: String,
-    pub email_primary_color: String,
-    pub email_foreground_color: String,
-    pub email_background_color: String,
-    pub email_entity_name: String,
-    pub email_entity_logo_url: String,
+    pub theme_name: SafeString,
+    pub email_primary_color: SafeString,
+    pub email_foreground_color: SafeString,
+    pub email_background_color: SafeString,
+    pub email_entity_name: SafeString,
+    pub email_entity_logo_url: SafeString,
     pub theme_config_version: String,
 }
 
 impl ThemeNew {
     pub fn new(
         theme_id: String,
-        theme_name: String,
+        theme_name: SafeString,
         lineage: ThemeLineage,
         email_config: EmailThemeConfig,
     ) -> Self {
@@ -94,11 +92,11 @@ impl Theme {
 #[derive(Clone, Debug, AsChangeset, DebugAsDisplay)]
 #[diesel(table_name = themes)]
 pub struct ThemeUpdateInternal {
-    pub email_primary_color: Option<String>,
-    pub email_foreground_color: Option<String>,
-    pub email_background_color: Option<String>,
-    pub email_entity_name: Option<String>,
-    pub email_entity_logo_url: Option<String>,
+    pub email_primary_color: Option<SafeString>,
+    pub email_foreground_color: Option<SafeString>,
+    pub email_background_color: Option<SafeString>,
+    pub email_entity_name: Option<SafeString>,
+    pub email_entity_logo_url: Option<SafeString>,
     pub last_modified_at: PrimitiveDateTime,
     pub theme_config_version: Option<String>,
 }
