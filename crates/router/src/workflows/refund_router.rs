@@ -1,4 +1,3 @@
-use error_stack::ResultExt;
 use scheduler::consumer::workflows::ProcessTrackerWorkflow;
 
 #[cfg(feature = "v1")]
@@ -28,22 +27,11 @@ impl ProcessTrackerWorkflow<SessionState> for RefundWorkflowRouter {
 
     async fn error_handler<'a>(
         &'a self,
-        state: &'a SessionState,
+        _state: &'a SessionState,
         process: storage::ProcessTracker,
         _error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
         error!(%process.id, "Failed while executing workflow");
-        if process.name.as_deref() == Some("SURCHARGE_REFUND") {
-            state
-                .store
-                .as_scheduler()
-                .retry_process(
-                    process,
-                    common_utils::date_time::now() + time::Duration::minutes(1),
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::ProcessUpdateFailed)?;
-        }
         Ok(())
     }
 }

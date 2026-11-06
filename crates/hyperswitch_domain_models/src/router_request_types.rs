@@ -1362,9 +1362,6 @@ impl
 /// was calculated against; /confirm must match them before applying.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExternalSurchargeDetails {
-    /// Account used for the original surcharge calculation. Required for refunds.
-    #[serde(default)]
-    pub surcharge_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub surcharge_amount: MinorUnit,
     pub tax_amount: Option<MinorUnit>,
     pub payment_method: common_enums::PaymentMethod,

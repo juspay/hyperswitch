@@ -70,6 +70,21 @@ pub fn validate_refund_amount(
     )
 }
 
+/// Validates the refund against the order amount only (excludes surcharge), separately from
+/// `validate_refund_amount`'s combined captured-funds check.
+#[instrument(skip_all)]
+pub fn validate_order_refund_amount(
+    original_order_amount: i64,
+    remaining_order_amount: i64,
+    requested_order_amount: i64,
+) -> Result<(), &'static str> {
+    hyperswitch_domain_models::refunds::validate_surcharge_order_amount(
+        original_order_amount,
+        remaining_order_amount,
+        requested_order_amount,
+    )
+}
+
 #[instrument(skip_all)]
 pub fn validate_payment_order_age(
     created_at: &PrimitiveDateTime,

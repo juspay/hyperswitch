@@ -2632,7 +2632,6 @@ fn cached_surcharge_to_attempt_details(
     cached: hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails,
 ) -> common_types::payments::ExternalSurchargeDetails {
     common_types::payments::ExternalSurchargeDetails {
-        surcharge_merchant_connector_id: cached.surcharge_merchant_connector_id,
         external_surcharge_id: cached.external_surcharge_id,
         external_surcharge_amount: cached.surcharge_amount,
         surcharge_percentage:
@@ -15516,7 +15515,6 @@ async fn calculate_external_surcharge(
                     );
                     let cached_result =
                         hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
-                            surcharge_merchant_connector_id: surcharge_connector_id.clone(),
                             surcharge_amount: resp.surcharge_amount,
                             tax_amount: None,
                             payment_method: inputs.payment_method,
@@ -15533,7 +15531,6 @@ async fn calculate_external_surcharge(
                         .then(|| error.code.clone());
                     let cached_result =
                         hyperswitch_domain_models::router_request_types::ExternalSurchargeDetails {
-                            surcharge_merchant_connector_id: surcharge_connector_id.clone(),
                             surcharge_amount: MinorUnit::zero(),
                             tax_amount: None,
                             payment_method: inputs.payment_method,
@@ -15789,7 +15786,6 @@ async fn calculate_mit_external_surcharge(
 
             match ucs_response {
                 Ok(Some(Ok(resp))) => Some(common_types::payments::ExternalSurchargeDetails {
-                    surcharge_merchant_connector_id: surcharge_connector_id.clone(),
                     external_surcharge_id: resp.connector_surcharge_id,
                     external_surcharge_amount: resp.surcharge_amount,
                     surcharge_percentage: common_types::payments::ExternalSurchargeDetails::decimal_percentage_from_f64(
@@ -15801,7 +15797,6 @@ async fn calculate_mit_external_surcharge(
                     error_details: None,
                 }),
                 Ok(Some(Err(error))) => Some(common_types::payments::ExternalSurchargeDetails {
-                    surcharge_merchant_connector_id: surcharge_connector_id.clone(),
                     external_surcharge_id: error.connector_transaction_id.unwrap_or_else(|| common_types::consts::NO_SURCHARGE_ID_FOUND.to_string()),
                     external_surcharge_amount: MinorUnit::zero(),
                     surcharge_percentage: None,

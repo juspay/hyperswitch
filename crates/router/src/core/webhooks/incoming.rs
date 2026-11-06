@@ -1698,9 +1698,7 @@ async fn refunds_incoming_webhook_flow(
         .0
     };
 
-    if let Err(error) = refunds::surcharge::complete(&state, &platform, &updated_refund).await {
-        logger::error!(?error, "Surcharge completion deferred to durable recovery");
-    }
+    refunds::surcharge::complete_opportunistically(&state, &platform, &updated_refund).await;
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &refund.payment_id,

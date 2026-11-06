@@ -867,9 +867,7 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    if let Err(error) = surcharge::complete(state, platform, &response).await {
-        logger::error!(?error, refund_id = %response.refund_id, "Surcharge completion deferred to recovery");
-    }
+    surcharge::complete_opportunistically(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1193,13 +1191,7 @@ pub async fn refund_retrieve_core(
     };
 
     if let Some(op) = surcharge::operation(&refund) {
-        use common_types::refunds::SurchargeRefundStatus as Status;
-        if request.force_sync.unwrap_or(false)
-            && matches!(
-                op.surcharge_refunds_status,
-                Status::Reserved | Status::Initialized
-            )
-        {
+        if request.force_sync.unwrap_or(false) && op.error_details.is_none() {
             return Box::pin(trigger_refund_to_gateway(
                 &state,
                 &refund,
@@ -1213,15 +1205,12 @@ pub async fn refund_retrieve_core(
             ))
             .await;
         }
-        if !matches!(
-            op.surcharge_refunds_status,
-            Status::ProcessorInFlight | Status::Completed
-        ) {
+        let ready_for_complete = op.refund_complete_notified
+            || (op.surcharge_refund_id.is_some() && op.error_details.is_none());
+        if !ready_for_complete {
             return Ok((refund, None));
         }
-        if let Err(error) = surcharge::complete(&state, &platform, &refund).await {
-            logger::error!(?error, "Surcharge completion will be recovered");
-        }
+        surcharge::complete_opportunistically(&state, &platform, &refund).await;
     }
 
     let (response, raw_connector_response) = (if should_call_refund(
@@ -1556,9 +1545,7 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    if let Err(error) = surcharge::complete(state, platform, &response).await {
-        logger::error!(?error, refund_id = %response.refund_id, "Surcharge completion deferred to recovery");
-    }
+    surcharge::complete_opportunistically(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1775,48 +1762,6 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    if surcharge::applies(payment_attempt) {
-        match db
-            .find_refund_by_processor_merchant_id_refund_id(
-                platform.get_processor().get_account().get_id(),
-                &refund_id,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-        {
-            Ok(existing) => {
-                if existing.payment_id != req.payment_id
-                    || req.amount.is_some_and(|a| a != existing.refund_amount)
-                    || existing.external_surcharge_refund_details.is_none()
-                {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Refund reference was already used with different parameters"
-                            .into(),
-                    }
-                    .into());
-                }
-                let (response, _) = Box::pin(schedule_refund_execution(
-                    state,
-                    existing,
-                    refund_type,
-                    platform,
-                    payment_attempt,
-                    payment_intent,
-                    creds_identifier,
-                    split_refunds,
-                    req.all_keys_required,
-                    payment_method_data,
-                ))
-                .await?;
-                return Ok(response.foreign_into());
-            }
-            Err(error) if error.current_context().is_db_not_found() => (),
-            Err(error) => {
-                return Err(error).change_context(errors::ApiErrorResponse::InternalServerError)
-            }
-        }
-    }
-
     let connector_transaction_id = payment_attempt
         .clone()
         .connector_transaction_id.ok_or_else(|| {
@@ -1855,9 +1800,9 @@ pub async fn validate_and_create_refund(
         })?;
 
     let reservation = surcharge::prepare_reservation(
-        platform,
         payment_attempt,
         payment_intent,
+        &refund_id,
         req.amount,
         &all_refunds,
     )?;
@@ -1955,19 +1900,12 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let insert_result = if refund_create_req
-        .external_surcharge_refund_details
-        .is_some()
-    {
-        db.insert_surcharge_refund(refund_create_req, state.conf.application_source)
-            .await
-    } else {
-        db.insert_refund(
+    let insert_result = db
+        .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
-        .await
-    };
+        .await;
     let refund = match insert_result {
         Ok(refund) => refund,
         Err(err) => {
@@ -2602,7 +2540,6 @@ pub async fn schedule_refund_execution(
     Option<hyperswitch_masking::Secret<String>>,
 )> {
     if refund.external_surcharge_refund_details.is_some() {
-        surcharge::ensure_recovery_task(state, &refund).await?;
         if refund_type == api_models::refunds::RefundType::Instant
             && !refund.sent_to_gateway
             && refund.refund_status == enums::RefundStatus::Pending

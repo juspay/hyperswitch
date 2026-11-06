@@ -10,44 +10,31 @@ use utoipa::ToSchema;
 
 use crate::{
     domain::{AdyenSplitData, XenditSplitSubMerchantData},
-    payments::MultiCurrencyProcessingAmountData,
+    payments::{MultiCurrencyProcessingAmountData, SurchargeErrorDetails},
 };
 
-/// InterPayments refund tracking, independent of the payment processor's refund status.
+/// InterPayments refund tracking, separate from the processor's own `refund_status`. Only set
+/// for a partial surcharge refund; a full refund never gets one of these. Mirrors the shape of
+/// `ExternalSurchargeDetails` on the payment attempt — no separate status enum, everything is
+/// derived from these three fields:
+/// - not started: `surcharge_refund_id` and `error_details` both `None`
+/// - Init done, ready for/awaiting the processor refund: `surcharge_refund_id` is `Some`
+/// - done: `refund_complete_notified` is `true`
+/// - needs reconciliation: `error_details` is `Some`
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ExternalSurchargeRefundDetails {
     /// New InterPayments refund ID returned by Init, used for Complete.
     pub surcharge_refund_id: Option<String>,
-    /// Progress of the InterPayments refund operation.
-    pub surcharge_refunds_status: SurchargeRefundStatus,
+    /// Whether Complete has succeeded.
+    pub refund_complete_notified: bool,
+    /// Set when Init/Complete fails or its outcome is unknown.
+    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 #[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ExternalSurchargeRefundDetails);
-
-/// In-flight operations are not replayed after an unknown provider outcome.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SurchargeRefundStatus {
-    /// Order refund reserved; Init has not been called.
-    Reserved,
-    /// Init claimed; its outcome may not yet be known.
-    InitInFlight,
-    /// Init succeeded and the surcharge amount is stored.
-    Initialized,
-    /// The payment processor refund has been submitted or claimed.
-    ProcessorInFlight,
-    /// Complete claimed after a successful processor refund.
-    CompleteInFlight,
-    /// InterPayments confirmed completion.
-    Completed,
-    /// Init definitively rejected the refund before processor submission.
-    Rejected,
-    /// Provider state must be reconciled before another operation is attempted.
-    ReconciliationRequired,
-}
 
 #[derive(Default, Debug, ToSchema, Clone, PartialEq, Eq, Deserialize, Serialize, SmithyModel)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
