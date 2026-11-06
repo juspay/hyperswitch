@@ -117,11 +117,12 @@ macro_rules! config {
         }
     };
 
-    // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
+    // Primitive config variant. Optional generics allow dimensions beyond `requires` to vary.
     (
         superposition_key = $key:ident,
         output = $output:ty,
         default = $default:expr,
+        $(generics = [$($generic:ident),+],)?
         requires = $requirement:ty,
         targeting_key = $targeting_type:ty
     ) => {
@@ -137,7 +138,7 @@ macro_rules! config {
                 }
             }
 
-            impl $requirement {
+            impl $(<$($generic),+>)? $requirement {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
@@ -361,6 +362,19 @@ impl DatabaseBackedConfig for PaymentBlocklistGuard {
             .get_processor_merchant_id()
             .map(|id| id.get_blocklist_guard_key())
     }
+}
+
+config! {
+    superposition_key = PAYOUT_KILL_SWITCH,
+    output = bool,
+    default = false,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutKillSwitch {
+    const KEY: &'static str = "payout_kill_switch";
 }
 
 config! {

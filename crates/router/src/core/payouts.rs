@@ -2,11 +2,14 @@
 use strum::IntoEnumIterator;
 
 use crate::core::payouts::gateway as payout_gateway;
+#[cfg(feature = "v1")]
+use crate::core::payouts::kill_switch::PayoutKillSwitch;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+pub mod kill_switch;
 #[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
@@ -777,6 +780,7 @@ pub async fn payouts_confirm_core(
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
+        true,
     ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -847,6 +851,7 @@ pub async fn payouts_update_core(
         None,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -923,6 +928,7 @@ pub async fn payouts_retrieve_core(
         profile_id,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         &state.locale,
+        false,
     ))
     .await?;
     let dimensions = dimension_state::Dimensions::new()
@@ -973,6 +979,7 @@ pub async fn payouts_cancel_core(
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -1084,6 +1091,7 @@ pub async fn payouts_fulfill_core(
         None,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -3795,18 +3803,22 @@ pub async fn make_payout_data(
     _platform: &domain::Platform,
     _auth_profile_id: Option<id_type::ProfileId>,
     _req: &payouts::PayoutRequest,
-    locale: &str,
+    _locale: &str,
+    _enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
+/// Load payout data, checking the kill switch for mutation and standalone execution callers.
+/// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
     auth_profile_id: Option<id_type::ProfileId>,
     req: &payouts::PayoutRequest,
     locale: &str,
+    enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3876,6 +3888,16 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
+    let profile_id = payout_attempt.profile_id.clone();
+
+    // Validate the persisted profile before checking its scope or accessing payout data.
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
+    match enforce_kill_switch {
+        true => PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(&profile_id)).await,
+        false => Ok(()),
+    }?;
+
     // Reject proxy mutations before normal method or locker resolution.
     payout_attempt
         .execution_kind
@@ -3928,11 +3950,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?
         .and_then(|c| c);
-    let profile_id = payout_attempt.profile_id.clone();
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
     let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
