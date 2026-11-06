@@ -12,7 +12,7 @@ use crate::{
 };
 
 impl PayoutKillSwitch {
-    /// Reject payout requests when the switch resolves to true for their available OMP dimensions.
+    /// Reject payout mutations when the switch resolves to true for their available OMP dimensions.
     pub async fn ensure_payouts_enabled(
         state: &SessionState,
         platform: &domain::Platform,
@@ -45,31 +45,11 @@ impl PayoutKillSwitch {
             }
         };
 
-        if disabled {
-            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+        match disabled {
+            true => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: "Payouts are disabled by configuration".to_string(),
-            }));
-        }
-
-        Ok(())
-    }
-
-    /// A request spanning explicit profiles is rejected if any requested profile is disabled.
-    /// Merchant-wide requests resolve without a profile dimension.
-    #[cfg(feature = "olap")]
-    pub async fn ensure_payouts_enabled_for_profiles(
-        state: &SessionState,
-        platform: &domain::Platform,
-        profile_ids: Option<&[id_type::ProfileId]>,
-    ) -> RouterResult<()> {
-        match profile_ids.filter(|ids| !ids.is_empty()) {
-            Some(profile_ids) => {
-                for profile_id in profile_ids {
-                    Self::ensure_payouts_enabled(state, platform, Some(profile_id)).await?;
-                }
-                Ok(())
-            }
-            None => Self::ensure_payouts_enabled(state, platform, None).await,
+            })),
+            false => Ok(()),
         }
     }
 }

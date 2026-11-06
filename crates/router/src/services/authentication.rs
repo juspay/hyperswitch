@@ -1773,62 +1773,6 @@ where
 #[derive(Debug)]
 pub struct AdminApiAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
-#[async_trait]
-impl<A> AuthenticateAndFetch<domain::Platform, A> for AdminApiAuthWithMerchantIdFromRoute
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(domain::Platform, AuthenticationType)> {
-        AdminApiAuth
-            .authenticate_and_fetch(request_headers, state)
-            .await?;
-
-        let merchant_id = self.0.clone();
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while fetching the key store by merchant_id")?;
-
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
-            .attach_printable("Error while fetching the merchant_account by merchant_id")?;
-
-        let (provider_account, provider_key_store) = match merchant.merchant_account_type {
-            MerchantAccountType::Connected => {
-                get_platform_account_and_key_store(state, &merchant).await?
-            }
-            MerchantAccountType::Standard | MerchantAccountType::Platform => {
-                (merchant.clone(), key_store.clone())
-            }
-        };
-
-        let platform = domain::Platform::new(
-            provider_account,
-            provider_key_store,
-            merchant,
-            key_store,
-            Some(domain::Initiator::Admin),
-        );
-
-        Ok((
-            platform,
-            AuthenticationType::AdminApiAuthWithMerchantId { merchant_id },
-        ))
-    }
-}
-
 #[cfg(feature = "v1")]
 #[async_trait]
 impl<A> AuthenticateAndFetch<AuthenticationData, A> for AdminApiAuthWithMerchantIdFromRoute
