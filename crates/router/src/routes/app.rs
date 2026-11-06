@@ -814,6 +814,10 @@ impl OfferEngine {
                 web::resource("/offers/list")
                     .route(web::post().to(offer_engine::offer_engine_browse_offers)),
             )
+            .service(
+                web::resource("/dashboard/proxy")
+                    .route(web::post().to(offer_engine::offer_engine_dashboard_proxy)),
+            )
     }
 }
 

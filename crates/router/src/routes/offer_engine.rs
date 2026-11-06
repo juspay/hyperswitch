@@ -5,7 +5,7 @@ use router_env::{instrument, tracing, Flow};
 use super::app;
 use crate::{
     core::{api_locking, offer_engine},
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::OfferEngineConnectivityCheck))]
@@ -47,6 +47,35 @@ pub async fn offer_engine_browse_offers(
             allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Single entry point for the Control Center's Offer Engine screens. The dashboard calls
+/// Hyperswitch with its own JWT; Hyperswitch calls Offer Engine with the merchant's API key and
+/// returns the response unchanged. `flow` in the body picks the Offer Engine route.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::OfferEngineDashboardProxy))]
+pub async fn offer_engine_dashboard_proxy(
+    state: web::Data<app::AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<offer_engine_api::OfferEngineDashboardProxyRequest>,
+) -> HttpResponse {
+    let flow = Flow::OfferEngineDashboardProxy;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, user: auth::UserFromToken, payload, _| {
+            offer_engine::dashboard::proxy_dashboard_request(state, user, payload)
+        },
+        &auth::JWTAuth {
+            permission: Permission::MerchantOffersRead,
+            allow_connected: true,
+            allow_platform: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await

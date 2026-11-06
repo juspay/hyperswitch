@@ -43,7 +43,25 @@ pub enum OfferEngineError {
     AmountConversion,
     #[error("Offer Engine /apply rejected the offer")]
     ApplyRejected,
+    #[error("Offer Engine returned HTTP {status}")]
+    UpstreamRejected { status: u16, body: String },
 }
+
+/// A dashboard request on its way to Offer Engine. The body is opaque to Hyperswitch:
+/// Offer Engine owns that schema.
+#[derive(Debug, Clone)]
+pub struct DashboardProxyRequest {
+    /// Substituted into the path of the routes that take an offer id.
+    pub offer_id: Option<String>,
+    /// `draft` query parameter, read by the create route.
+    pub draft: Option<bool>,
+    /// The request body, forwarded as-is.
+    pub body: serde_json::Value,
+}
+
+/// An Offer Engine dashboard response, carried back to the caller unchanged.
+#[derive(Debug, Clone)]
+pub struct DashboardProxyResponse(pub serde_json::Value);
 
 /// Offer Engine order type.
 #[derive(Debug, Clone, serde::Serialize)]

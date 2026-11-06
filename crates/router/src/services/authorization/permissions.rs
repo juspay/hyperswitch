@@ -121,7 +121,7 @@ generate_permissions! {
         },
         Offers: {
             scopes: [Read, Write],
-            entities: [Profile]
+            entities: [Merchant, Profile]
         },
         Alert: {
             scopes: [Read, Write],
