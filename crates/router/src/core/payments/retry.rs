@@ -449,21 +449,25 @@ where
     )
     .await?;
 
-    let (merchant_connector_account, router_data, tokenization_action) =
-        Box::pin(payments::call_connector_service_prerequisites(
-            state,
-            platform,
-            connector.clone(),
-            operation,
-            payment_data,
-            validate_result,
-            business_profile,
-            should_retry_with_pan,
-            routing_decision,
-            feature_config,
-            post_frm_capture_hold,
-        ))
-        .await?;
+    let (
+        merchant_connector_account,
+        router_data,
+        tokenization_action,
+        external_vault_proxy_metadata,
+    ) = Box::pin(payments::call_connector_service_prerequisites(
+        state,
+        platform,
+        connector.clone(),
+        operation,
+        payment_data,
+        validate_result,
+        business_profile,
+        should_retry_with_pan,
+        routing_decision,
+        feature_config,
+        post_frm_capture_hold,
+    ))
+    .await?;
 
     let connector_customer_map = customer
         .as_ref()
@@ -488,6 +492,7 @@ where
             merchant_connector_account.clone(),
             router_data,
             tokenization_action,
+            external_vault_proxy_metadata,
         )
         .await?;
     let customer = operation

@@ -106,6 +106,7 @@ impl RouterGatewayContext {
 impl From<&RouterGatewayContext> for core::payments::gateway::context::RouterGatewayContext {
     fn from(context: &RouterGatewayContext) -> Self {
         Self {
+            external_vault_proxy_metadata: None,
             creds_identifier: context.creds_identifier.clone(),
             processor: context.processor.clone(),
             header_payload: context.header_payload.clone(),

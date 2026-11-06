@@ -429,6 +429,7 @@ impl TryFrom<&Option<PaymentMethodData>> for RedsysCardData {
                 PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_),
             )
+            | Some(PaymentMethodData::ProxyCard(_))
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
