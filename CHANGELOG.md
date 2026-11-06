@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix8
+
+### Features
+
+- **core/connector:** [SANTANDER] Implemented Boleto webhooks ([#15159](https://github.com/juspay/hyperswitch/pull/15159)) ([`542bee5`](https://github.com/juspay/hyperswitch/commit/542bee5361454e15583025e35fe17a2e86a215c2))
+
+**Full Changelog:** [`2026.10.26.0-hotfix7...2026.10.26.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix7...2026.10.26.0-hotfix8)
+
+- - -
+
 ## 2026.10.26.0-hotfix7
 
 ### Bug Fixes
