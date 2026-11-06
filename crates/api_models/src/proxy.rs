@@ -58,7 +58,7 @@ pub enum TokenType {
     PaymentMethodToken,
 }
 
-#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[derive(Debug, ToSchema, Clone, Serialize)]
 pub struct ProxyResponse {
     /// The response received from the destination
     pub response: ProxyResponseBody,
@@ -70,13 +70,14 @@ pub struct ProxyResponse {
 }
 
 /// The destination's response body: JSON when it parses as JSON, otherwise its text, such
-/// as an XML document.
-#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+/// as an XML document. Only UTF-8 text is supported. Both variants serialize to the bare
+/// value, so a JSON string and text look the same on the wire; this type is serialize-only.
+#[derive(Debug, ToSchema, Clone, Serialize)]
 #[serde(untagged)]
 pub enum ProxyResponseBody {
     /// A JSON body
     Json(Value),
-    /// Any other body, as text
+    /// Any other body, as UTF-8 text
     Text(String),
 }
 

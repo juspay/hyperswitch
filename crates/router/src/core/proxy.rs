@@ -42,7 +42,7 @@ pub async fn proxy_core(
 
     let res = execute_proxy_request(&state, request).await?;
 
-    let proxy_response = proxy_api_models::ProxyResponse::from(ProxyResponseWrapper(res));
+    let proxy_response = proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(res))?;
 
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
@@ -110,21 +110,28 @@ async fn execute_proxy_request(
 
 struct ProxyResponseWrapper(Response);
 
-impl From<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
-    fn from(wrapper: ProxyResponseWrapper) -> Self {
+impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(wrapper: ProxyResponseWrapper) -> Result<Self, Self::Error> {
         let res = wrapper.0;
-        Self {
-            response: response_body(&res.response),
+        Ok(Self {
+            response: response_body(&res.response)?,
             status_code: res.status_code,
             response_headers: proxy_api_models::Headers::from_header_map(res.headers.as_ref()),
-        }
+        })
     }
 }
 
-/// The connector body as JSON, else as text.
-fn response_body(body: &[u8]) -> proxy_api_models::ProxyResponseBody {
-    serde_json::from_slice(body).map_or_else(
-        |_| proxy_api_models::ProxyResponseBody::Text(String::from_utf8_lossy(body).into_owned()),
-        proxy_api_models::ProxyResponseBody::Json,
-    )
+/// The connector body as JSON, else as text. Only UTF-8 text is supported; other encodings
+/// are rejected rather than converted lossily.
+fn response_body(body: &[u8]) -> RouterResult<proxy_api_models::ProxyResponseBody> {
+    serde_json::from_slice(body)
+        .map(proxy_api_models::ProxyResponseBody::Json)
+        .or_else(|_| {
+            std::str::from_utf8(body)
+                .map(|text| proxy_api_models::ProxyResponseBody::Text(text.to_owned()))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector response is neither JSON nor UTF-8 text")
+        })
 }
