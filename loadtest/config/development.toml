@@ -840,6 +840,7 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 datatrans = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "enable_only", list = "google_pay" } }
+elavon_pg = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 
 [connector_customer]
 payout_connector_list = "nomupay,wise"
@@ -918,7 +919,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,jpmorgan,worldpayraft,elavon_pg"
+connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,jpmorgan,worldpayraft"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

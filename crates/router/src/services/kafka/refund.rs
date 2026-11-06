@@ -166,6 +166,8 @@ impl<'a> KafkaRefund<'a> {
             processor_merchant_id,
             created_by,
             feature_metadata: _,
+            refund_surcharge_amount: _,
+            net_refund_amount: _,
         } = refund;
 
         Self {

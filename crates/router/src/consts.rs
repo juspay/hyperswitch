@@ -458,6 +458,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
     pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
+    /// Card testing guard configuration key
+    pub const CARD_TESTING_GUARD_CONFIG: &str = "payments.card_testing_guard_config";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
@@ -483,6 +485,9 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether a retry may be made with any of the customer's cards stored in redis, rather than
+    /// only the card the invoice last used — whichever algorithm decides when it runs
+    pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
     /// Whether A/B routing decides which retry implementation an invoice runs.
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
     /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.

@@ -42,7 +42,7 @@ google-cloud-gax = { version = "0.19.2", optional = true }
 google-cloud-kms = { version = "0.6.0", optional = true }
 hyper = { version = "0.14.32", optional = true, features = ["client", "tcp", "http1"] }
 hyper-proxy = { version = "0.9.1", optional = true }
-lettre = { version = "0.11.16", optional = true, features = ["tokio1", "tokio1-native-tls"] }
+lettre = { version = "0.11.23", optional = true, features = ["tokio1", "tokio1-native-tls"] }
 oci_kms = { version = "0.1.0", path = "../oci_kms", optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"

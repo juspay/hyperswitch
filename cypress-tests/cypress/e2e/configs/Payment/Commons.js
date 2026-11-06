@@ -5985,6 +5985,16 @@ export const connectorDetails = {
         body: {},
       },
     }),
+    ThreeDSAuthenticationFrictionless: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: { trans_status: "Y" },
+      },
+    }),
     ThreeDSAuthenticationUnconfirmed: getCustomExchange({
       Request: {
         device_channel: "BRW",

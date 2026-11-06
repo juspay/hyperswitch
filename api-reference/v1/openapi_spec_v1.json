@@ -349,10 +349,6 @@
                       },
                       "customer_id": "cus_abcdefgh",
                       "description": "Its my first payment request",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:20:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "metadata": {
@@ -409,10 +405,6 @@
                       "created": "2023-10-26T10:20:00Z",
                       "currency": "USD",
                       "customer_id": "StripeCustomer123",
-                      "ephemeral_key": {
-                        "customer_id": "StripeCustomer123",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "mandate_data": {
                         "customer_acceptance": {
                           "acceptance_type": "online",
@@ -483,10 +475,6 @@
                       "created": "2023-10-26T10:25:00Z",
                       "currency": "USD",
                       "customer_id": "StripeCustomer123",
-                      "ephemeral_key": {
-                        "customer_id": "StripeCustomer123",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "merchant_connector_id": "mca_mcaconnectorxxxx",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_savecard_xxxxxxxxxxxx",
@@ -555,10 +543,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -597,10 +581,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -640,10 +620,6 @@
                         "phone": "9123456789"
                       },
                       "customer_id": "cus_abcdefgh",
-                      "ephemeral_key": {
-                        "customer_id": "cus_abcdefgh",
-                        "secret": "epk_ephemeralxxxxxxxxxxxx"
-                      },
                       "expires_on": "2023-10-26T10:45:00Z",
                       "merchant_id": "merchant_myyyyyyyyyyyy",
                       "payment_id": "pay_manualbill_xxxxxxxxxxxx",
@@ -2484,9 +2460,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       }
@@ -3934,9 +3907,6 @@
         "security": [
           {
             "api_key": []
-          },
-          {
-            "ephemeral_key": []
           }
         ]
       },
@@ -4769,7 +4739,7 @@
         },
         "security": [
           {
-            "ephemeral_key": []
+            "api_key": []
           }
         ]
       }
@@ -10078,6 +10048,16 @@
               "nullable": true,
               "minimum": 0
             }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "Subscription client secret; required when authenticating with a publishable key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -10101,6 +10081,9 @@
         "security": [
           {
             "api_key": []
+          },
+          {
+            "client_secret": []
           }
         ]
       }
@@ -12287,6 +12270,10 @@
                 "$ref": "#/components/schemas/CountryAlpha2"
               }
             ],
+            "nullable": true
+          },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
             "nullable": true
           }
         }
@@ -19715,6 +19702,7 @@
           "bamboraapac",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bluesnap",
@@ -24009,39 +23997,6 @@
           }
         }
       },
-      "EphemeralKeyCreateResponse": {
-        "type": "object",
-        "description": "ephemeral_key for the customer_id mentioned",
-        "required": [
-          "customer_id",
-          "created_at",
-          "expires",
-          "secret"
-        ],
-        "properties": {
-          "customer_id": {
-            "type": "string",
-            "description": "customer_id to which this ephemeral key belongs to",
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "maxLength": 64,
-            "minLength": 1
-          },
-          "created_at": {
-            "type": "integer",
-            "format": "int64",
-            "description": "time at which this ephemeral key was created"
-          },
-          "expires": {
-            "type": "integer",
-            "format": "int64",
-            "description": "time at which this ephemeral key would expire"
-          },
-          "secret": {
-            "type": "string",
-            "description": "ephemeral key"
-          }
-        }
-      },
       "ErrorCategory": {
         "type": "string",
         "enum": [
@@ -24060,6 +24015,11 @@
           "item_price_id"
         ],
         "properties": {
+          "client_secret": {
+            "type": "string",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
           "plan_id": {
             "type": "string",
             "description": "Identifier for the associated subscription plan.",
@@ -29607,6 +29567,12 @@
             "type": "string",
             "example": "123456789",
             "nullable": true
+          },
+          "merchant_vat_registration_id": {
+            "type": "string",
+            "description": "The merchant's VAT registration identifier",
+            "example": "GB987654321",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -32039,6 +32005,15 @@
             "description": "Token generated for the Apple pay"
           }
         }
+      },
+      "PayViaSingleUseToken": {
+        "type": "string",
+        "description": "Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate",
+        "enum": [
+          "default",
+          "enabled",
+          "disabled"
+        ]
       },
       "PaylaterResponse": {
         "type": "object",
@@ -35772,12 +35747,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -35862,6 +35863,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -36348,12 +36356,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -36458,6 +36492,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -37298,6 +37339,12 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Whether address verification was requested for this payment.",
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Whether account name verification was requested for this payment.",
             "example": true,
             "nullable": true
           }
@@ -38237,12 +38284,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -38347,6 +38420,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -39215,6 +39295,12 @@
             "description": "Whether address verification was requested for this payment.",
             "example": true,
             "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Whether account name verification was requested for this payment.",
+            "example": true,
+            "nullable": true
           }
         }
       },
@@ -39855,12 +39941,38 @@
             ],
             "nullable": true
           },
+          "value_added_tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Value added tax (VAT) amount applied to the order or transaction.",
+            "example": 54,
+            "nullable": true
+          },
+          "value_added_tax_percent": {
+            "type": "number",
+            "format": "double",
+            "description": "Value added tax (VAT) rate applied to the order or transaction.",
+            "example": 2.5,
+            "nullable": true
+          },
           "duty_amount": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/MinorUnit"
               }
             ],
+            "nullable": true
+          },
+          "order_commodity_code": {
+            "type": "string",
+            "description": "Commodity code classifying the order as a whole, as opposed to the\nper-item codes in `order_details`.",
+            "example": "4900",
+            "nullable": true
+          },
+          "vat_invoice_reference_number": {
+            "type": "string",
+            "description": "Reference number of the value added tax (VAT) invoice for this order.",
+            "example": "9999",
             "nullable": true
           },
           "order_date": {
@@ -39965,6 +40077,13 @@
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
+            "default": false,
+            "example": true,
+            "nullable": true
+          },
+          "enable_account_name_verification": {
+            "type": "boolean",
+            "description": "Request account name verification for supported payments.",
             "default": false,
             "example": true,
             "nullable": true
@@ -44949,9 +45068,21 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc",
+            "description": "The refund amount excluding any refunded surcharge, in the currency's lowest denomination.",
             "example": 6540,
             "minimum": 100
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total refund amount, including any refunded surcharge, in the currency's lowest denomination.",
+            "nullable": true
+          },
+          "surcharge_refund_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The surcharge amount included in this refund, in the currency's lowest denomination.",
+            "nullable": true
           },
           "currency": {
             "type": "string",
@@ -45566,6 +45697,14 @@
             "description": "Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.",
             "example": true,
             "nullable": true
+          },
+          "pay_via_single_use_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayViaSingleUseToken"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -46127,6 +46266,7 @@
           "authorizedotnet",
           "bankofamerica",
           "barclaycard",
+          "betterpayment",
           "billwerk",
           "bitpay",
           "bambora",
@@ -50621,6 +50761,10 @@
             ],
             "nullable": true
           },
+          "payment_checks": {
+            "description": "Additional payment checks done by the processor.",
+            "nullable": true
+          },
           "auth_code": {
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
@@ -51966,12 +52110,6 @@
         "type": "http",
         "scheme": "basic",
         "description": "HTTP Basic authentication with a merchant API key as the password. The username is ignored. Used by endpoints that a third party posts to, such as telephone order providers."
-      },
-      "ephemeral_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "api-key",
-        "description": "Ephemeral keys provide temporary access to singular data, such as access to a single customer object for a short period of time."
       },
       "jwt_key": {
         "type": "http",
