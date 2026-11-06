@@ -148,7 +148,7 @@ describe("Offer Engine", () => {
   // list response should signal the SDK to run eligibility before confirm
   // (sdk_next_action.next_action: eligibility_check,
   // should_block_confirm: true) rather than going straight to confirm. This
-  // is the actual gating mechanism the SDK relies on — 54-OfferEngine.cy.js's
+  // is the actual gating mechanism the SDK relies on — 53-OfferEngine.cy.js's
   // other contexts call /eligibility directly and never exercise this signal.
   context(
     "Payment method list signals eligibility check when offers are enabled",
@@ -266,6 +266,68 @@ describe("Offer Engine", () => {
       });
     });
   });
+
+  // PR #13850: eligibility by saved payment_token (no PAN); /apply must
+  // resolve the same card or confirm fails with IR_16.
+  context(
+    "Offer quoted by saved payment_token applies on a saved-card confirm",
+    () => {
+      it("list customer payment methods", () => {
+        cy.listCustomerPMCallTest(globalState);
+      });
+
+      it("payment intent create call", () => {
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          connectorDetails.offer_engine.PaymentIntentForOffer,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      it("payment eligibility check by payment_token surfaces an eligible offer", () => {
+        globalState.set("offerQuoteId", undefined);
+        const eligibilityBody = Cypress._.cloneDeep(
+          fixtures.eligibilityCheckBody
+        );
+        delete eligibilityBody.payment_method_data;
+        eligibilityBody.payment_token = globalState.get("paymentToken");
+        const eligibilityData = Cypress._.cloneDeep(
+          getConnectorDetails(globalState.get("connectorId")).offer_engine
+            .OfferEligibilityCheck
+        );
+        delete eligibilityData.Request.payment_method_data;
+        cy.paymentsOfferEligibilityCheck(
+          eligibilityBody,
+          eligibilityData,
+          globalState
+        );
+      });
+
+      it("saved-card confirm call applies the offer quoted by token", () => {
+        const offerEngineDetails = getConnectorDetails(
+          globalState.get("connectorId")
+        ).offer_engine;
+        cy.saveCardConfirmCallTest(
+          Cypress._.cloneDeep(fixtures.saveCardConfirmBody),
+          offerEngineDetails.ConfirmWithOfferAppliedSavedCard,
+          globalState
+        );
+      });
+
+      it("applied_offer is reflected on payment retrieve", () => {
+        const savedCardRetrieve = getConnectorDetails(
+          globalState.get("connectorId")
+        ).offer_engine.AppliedOfferOnRetrieveSavedCard;
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: savedCardRetrieve,
+          expectedIntentStatus: savedCardRetrieve.Response.body.status,
+        });
+      });
+    }
+  );
 
   // PR #13766: once a card has availed an offer, Offer Engine blocks that
   // exact card (via a PAN-free card_alias fingerprint) from availing it
