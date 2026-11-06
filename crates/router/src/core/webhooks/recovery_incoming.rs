@@ -501,6 +501,7 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
+                data.get_transaction_initiator(),
             )
             .await
     }
@@ -707,6 +708,7 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
+        transaction_initiator: common_enums::TransactionInitiator,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -719,6 +721,7 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
+                transaction_initiator,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -833,6 +836,7 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
+        transaction_initiator: common_enums::TransactionInitiator,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -843,6 +847,7 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
+                transaction_initiator: Some(transaction_initiator),
             }),
         };
 
@@ -996,6 +1001,9 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
+                                // A billing connector does not say, so this takes the default the
+                                // invoice is created with.
+                                common_enums::TransactionInitiator::MerchantInitiated,
                             )
                             .await
                     })
