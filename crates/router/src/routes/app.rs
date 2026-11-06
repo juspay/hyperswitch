@@ -876,6 +876,8 @@ pub struct Payments;
 
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v2"))]
 impl Payments {
+    /// All endpoints under `/v2/payments` are experimental. Requests, responses,
+    /// and behavior may change without backward compatibility guarantees.
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/v2/payments").app_data(web::Data::new(state));
         route = route
