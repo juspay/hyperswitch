@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};

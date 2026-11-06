@@ -1,5 +1,5 @@
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::{utils::pg_connection_read_replica, MockDb};
 
 use super::Store;

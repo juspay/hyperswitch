@@ -47,7 +47,7 @@ use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentM
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-use router_env::{instrument, logger, tracing, Env};
+use router_env::{instrument, logger, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
 use validator::PayoutExecutionKindValidation;

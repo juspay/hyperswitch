@@ -6,7 +6,7 @@ pub use hyperswitch_domain_models::{
     invoice::{Invoice as DomainInvoice, InvoiceInterface, InvoiceUpdate as DomainInvoiceUpdate},
     merchant_key_store::MerchantKeyStore,
 };
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     connection, errors::StorageError, kv_router_store::KVRouterStore, DatabaseStore, MockDb,

@@ -46,7 +46,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::StorageError;
 
 use super::payments::helpers;

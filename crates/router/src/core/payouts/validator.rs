@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{self, PaymentMethodData},
     payment_methods::PaymentMethod,
 };
-use router_env::{instrument, logger, tracing, which as router_env_which, Env};
+use router_env::{instrument, logger, which as router_env_which, Env};
 use url::Url;
 
 use super::helpers;

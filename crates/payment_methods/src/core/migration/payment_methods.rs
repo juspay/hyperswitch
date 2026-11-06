@@ -23,7 +23,7 @@ use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 #[cfg(feature = "v1")]
 use serde_json::json;
 use storage_impl::cards_info;

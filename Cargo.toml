@@ -59,3 +59,8 @@ inherits = "release"
 lto = false
 codegen-units = 16
 strip = "none"
+
+# The published SDK still requires the vulnerable Smithy JSON 0.61 line.
+# Use the upstream regeneration until a release includes Smithy JSON 0.62.7.
+[patch.crates-io]
+superposition_sdk = { git = "https://github.com/juspay/superposition", rev = "04207ff1104d2cdacc05a9eba31cf45e86f01706" }
