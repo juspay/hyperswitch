@@ -78,8 +78,7 @@ impl CardExpirationYear {
     }
 
     pub fn two_digits(&self) -> String {
-        let year = self.peek() % 100;
-        year.to_string()
+        format!("{:02}", self.peek() % 100)
     }
 }
 
