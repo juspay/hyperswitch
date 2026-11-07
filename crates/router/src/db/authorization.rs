@@ -1,6 +1,6 @@
 use diesel_models::authorization::AuthorizationUpdateInternal;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{MockDb, Store};
 use crate::{

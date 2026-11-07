@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, instrument, logger, tracing};
+use router_env::{env, instrument, logger};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
