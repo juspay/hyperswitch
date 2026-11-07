@@ -1,6 +1,6 @@
 use api_models::gsm as gsm_api_types;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},

@@ -46,7 +46,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::StorageError;
 
 use super::payments::helpers;
@@ -202,7 +202,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     _state: &SessionState,
     _connector_data: &api::ConnectorData,
     _platform: &domain::Platform,
@@ -213,7 +213,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     state: &SessionState,
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
@@ -1570,8 +1570,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_dispute_list_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_dispute_list_router_data(
+    state: &SessionState,
     merchant_connector_account: MerchantConnectorAccount,
     req: types::FetchDisputesRequestData,
 ) -> RouterResult<types::FetchDisputesRouterData> {
@@ -2026,8 +2026,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn construct_retrieve_file_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_retrieve_file_router_data(
+    state: &SessionState,
     processor: &domain::Processor,
     file_metadata: &diesel_models::file::FileMetadata,
     dispute: Option<storage::Dispute>,

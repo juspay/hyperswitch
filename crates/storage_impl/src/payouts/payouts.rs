@@ -40,7 +40,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "olap")]
 use crate::connection;

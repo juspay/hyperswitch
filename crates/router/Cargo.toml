@@ -192,6 +192,7 @@ redis-rs = [
 ]
 
 [dependencies]
+tracing = { workspace = true }
 actix-cors = "0.6.5"
 actix-http = "3.11.0"
 actix-multipart = "0.6.2"
@@ -254,7 +255,7 @@ rust_decimal = { version = "1.37.1", features = [
     "serde-with-float",
     "serde-with-str",
 ] }
-rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
+rust-i18n = "3.1.5"
 
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.11.06.2", package = "rust-grpc-client" }
 unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.11.06.2", package = "ucs_cards" }
@@ -283,7 +284,7 @@ time = { version = "0.3.41", features = [
 ] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
 totp-rs = { version = "5.7.0", features = ["gen_secret", "otpauth"] }
-tracing-futures = { version = "0.2.5", features = ["tokio"] }
+tracing-futures = "0.2.5"
 unicode-segmentation = "1.12.0"
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
