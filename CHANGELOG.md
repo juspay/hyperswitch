@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix11
+
+### Bug Fixes
+
+- **router:** Forward amount mismatch config to ucs and void only the capturable amount ([#15192](https://github.com/juspay/hyperswitch/pull/15192)) ([`89420ff`](https://github.com/juspay/hyperswitch/commit/89420ffc400dc31fa9dc035db94f707b4b6cccd9))
+
+**Full Changelog:** [`2026.10.26.0-hotfix10...2026.10.26.0-hotfix11`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix10...2026.10.26.0-hotfix11)
+
+- - -
+
 ## 2026.10.26.0-hotfix10
 
 ### Miscellaneous Tasks
