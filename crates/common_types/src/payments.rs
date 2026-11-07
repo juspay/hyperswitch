@@ -5,10 +5,12 @@ use std::{
 };
 
 use common_enums::enums;
+#[cfg(feature = "diesel")]
+use common_utils::impl_to_sql_from_sql_json;
 use common_utils::{
-    consts, date_time, errors, events, ext_traits::OptionExt, impl_to_sql_from_sql_json, pii,
-    types::MinorUnit,
+    consts, date_time, errors, events, ext_traits::OptionExt, pii, types::MinorUnit,
 };
+#[cfg(feature = "diesel")]
 use diesel::{
     sql_types::{Jsonb, Text},
     AsExpression, FromSqlRow,
@@ -32,19 +34,51 @@ use crate::{
     consts::PERCENTAGE_BASE,
     domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
 };
+/// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
 #[derive(
-    Serialize,
-    Deserialize,
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct MultiCurrencyProcessingAmountData {
+    /// Merchant settlement amount in minor units.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Merchant settlement currency.
+    #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
+    pub currency: enums::Currency,
+}
+
+#[derive(
     Debug,
+    Default,
     Clone,
     PartialEq,
     Eq,
-    FromSqlRow,
-    AsExpression,
+    serde::Serialize,
+    serde::Deserialize,
     ToSchema,
     SmithyModel,
 )]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+/// Feature metadata for a capture operation.
+pub struct CaptureFeatureMetadata {
+    /// Settlement amount and currency for this capture.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
+}
+
+#[cfg(feature = "diesel")]
+impl_to_sql_from_sql_json!(CaptureFeatureMetadata);
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -63,21 +97,12 @@ pub enum SplitPaymentsRequest {
     #[smithy(value_type = "PayloadSplitPaymentRequest")]
     PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(SplitPaymentsRequest);
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
 pub struct StripeSplitPaymentRequest {
@@ -100,21 +125,12 @@ pub struct StripeSplitPaymentRequest {
     #[smithy(value_type = "Option<String>")]
     pub on_behalf_of: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// A single ledger entry distributing payment to one receiver for Payload split payments
 pub struct PayloadLedgerItem {
@@ -126,21 +142,12 @@ pub struct PayloadLedgerItem {
     #[smithy(value_type = "String")]
     pub receiver_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayloadLedgerItem);
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries
 pub struct PayloadSplitPaymentRequest {
@@ -148,17 +155,18 @@ pub struct PayloadSplitPaymentRequest {
     #[smithy(value_type = "Vec<PayloadLedgerItem>")]
     pub ledger: Vec<PayloadLedgerItem>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PayloadSplitPaymentRequest);
 
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 /// Hashmap to store mca_id's with product names
 pub struct AuthenticationConnectorAccountMap(
     HashMap<enums::AuthenticationProduct, common_utils::id_type::MerchantConnectorAccountId>,
 );
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AuthenticationConnectorAccountMap);
 
 impl AuthenticationConnectorAccountMap {
@@ -180,10 +188,9 @@ impl AuthenticationConnectorAccountMap {
 ///
 /// This type stores a country code as a string and provides methods to validate it
 /// and convert it to a `Country` enum variant.
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Text)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Text))]
 #[serde(deny_unknown_fields)]
 pub struct MerchantCountryCode(String);
 
@@ -223,6 +230,7 @@ impl MerchantCountryCode {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl diesel::serialize::ToSql<Text, diesel::pg::Pg> for MerchantCountryCode {
     fn to_sql<'b>(
         &'b self,
@@ -232,6 +240,7 @@ impl diesel::serialize::ToSql<Text, diesel::pg::Pg> for MerchantCountryCode {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl diesel::deserialize::FromSql<Text, diesel::pg::Pg> for MerchantCountryCode {
     fn from_sql(bytes: diesel::pg::PgValue<'_>) -> diesel::deserialize::Result<Self> {
         let s = <String as diesel::deserialize::FromSql<Text, diesel::pg::Pg>>::from_sql(bytes)?;
@@ -239,10 +248,9 @@ impl diesel::deserialize::FromSql<Text, diesel::pg::Pg> for MerchantCountryCode 
     }
 }
 
-#[derive(
-    Serialize, Default, Deserialize, Debug, Clone, PartialEq, Eq, FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Default, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// ConditionalConfigs
 pub struct ConditionalConfigs {
     /// Override 3DS
@@ -263,6 +271,7 @@ impl EuclidDirFilter for ConditionalConfigs {
     ];
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ConditionalConfigs);
 
 /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
@@ -274,12 +283,12 @@ impl_to_sql_from_sql_json!(ConditionalConfigs);
     serde::Deserialize,
     serde::Serialize,
     Clone,
-    AsExpression,
     ToSchema,
     SmithyModel,
 )]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerAcceptance {
     /// Type of acceptance provided by the
@@ -296,6 +305,7 @@ pub struct CustomerAcceptance {
     pub online: Option<OnlineMandate>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(CustomerAcceptance);
 
 impl CustomerAcceptance {
@@ -349,14 +359,14 @@ pub enum AcceptanceType {
     Debug,
     serde::Deserialize,
     serde::Serialize,
-    AsExpression,
     Clone,
     ToSchema,
     SmithyModel,
 )]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
 /// Details of online mandate
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct OnlineMandate {
     /// Ip address of the customer machine from which the mandate was created
@@ -368,10 +378,12 @@ pub struct OnlineMandate {
     pub user_agent: String,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(OnlineMandate);
 
-#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// DecisionManagerRecord
 pub struct DecisionManagerRecord {
     /// Name of the Decision Manager
@@ -387,25 +399,16 @@ impl events::ApiEventMetric for DecisionManagerRecord {
         Some(events::ApiEventsType::Routing)
     }
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(DecisionManagerRecord);
 
 /// DecisionManagerResponse
 pub type DecisionManagerResponse = DecisionManagerRecord;
 
 /// Fee information to be charged on the payment being collected via Stripe
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct StripeChargeResponseData {
     /// Identifier for charge created for the payment
@@ -431,22 +434,13 @@ pub struct StripeChargeResponseData {
     #[smithy(value_type = "Option<String>")]
     pub on_behalf_of: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
 /// Charge Information
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -465,22 +459,13 @@ pub enum ConnectorChargeResponseData {
     PayloadSplitPayment(PayloadSplitPaymentRequest),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ConnectorChargeResponseData);
 
 /// Fee information to be charged on the payment being collected via xendit
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct XenditSplitRoute {
@@ -501,22 +486,13 @@ pub struct XenditSplitRoute {
     #[smithy(value_type = "String")]
     pub reference_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitRoute);
 
 /// Fee information to be charged on the payment being collected via xendit
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct XenditMultipleSplitRequest {
@@ -533,22 +509,13 @@ pub struct XenditMultipleSplitRequest {
     #[smithy(value_type = "Vec<XenditSplitRoute>")]
     pub routes: Vec<XenditSplitRoute>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditMultipleSplitRequest);
 
 /// Xendit Charge Request
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -561,22 +528,13 @@ pub enum XenditSplitRequest {
     SingleSplit(XenditSplitSubMerchantData),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitRequest);
 
 /// Charge Information
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -589,22 +547,13 @@ pub enum XenditChargeResponseData {
     SingleSplit(XenditSplitSubMerchantData),
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditChargeResponseData);
 
 /// Fee information charged on the payment being collected via xendit
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct XenditMultipleSplitResponse {
@@ -624,6 +573,7 @@ pub struct XenditMultipleSplitResponse {
     #[smithy(value_type = "Vec<XenditSplitRoute>")]
     pub routes: Vec<XenditSplitRoute>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditMultipleSplitResponse);
 
 #[derive(
@@ -1046,25 +996,6 @@ pub enum RecoveryAction {
     InvalidAction,
 }
 
-/// Action to be taken on the transaction reported through the revenue recovery API
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum RecoveryPaymentsAction {
-    /// Records the external transaction against payment intent and schedules a retry.
-    ScheduleFailedPayment,
-    /// Records the external payment and stops the internal process tracker.
-    SuccessPaymentExternal,
-}
-
-impl From<RecoveryPaymentsAction> for RecoveryAction {
-    fn from(action: RecoveryPaymentsAction) -> Self {
-        match action {
-            RecoveryPaymentsAction::ScheduleFailedPayment => Self::ScheduleFailedPayment,
-            RecoveryPaymentsAction::SuccessPaymentExternal => Self::SuccessPaymentExternal,
-        }
-    }
-}
-
 /// Status of the transaction reported.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -1073,10 +1004,9 @@ pub enum RecoveryTransactionStatus {
     Charged,
     /// The transaction failed.
     Failure,
-    /// The transaction was charged for a part of the amount.
+    /// The transaction was charged for a part of the amount. The captured amount must be sent
+    /// in `amount_captured`.
     PartialCharged,
-    /// The transaction was charged for a part of the amount and the remaining amount can still be captured.
-    PartialChargedAndChargeable,
 }
 
 impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
@@ -1085,18 +1015,97 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
             RecoveryTransactionStatus::Charged => Self::Charged,
             RecoveryTransactionStatus::Failure => Self::Failure,
             RecoveryTransactionStatus::PartialCharged => Self::PartialCharged,
-            RecoveryTransactionStatus::PartialChargedAndChargeable => {
-                Self::PartialChargedAndChargeable
-            }
+        }
+    }
+}
+
+/// Payment processor on which the reported transaction was made. Any other value is refused, as
+/// the standardised error code of a transaction is looked up by its processor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnector {
+    /// Adyen.
+    Adyen,
+    /// Stripe.
+    Stripe,
+    /// PayPal.
+    Paypal,
+}
+
+impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
+    fn from(connector: RecoveryConnector) -> Self {
+        match connector {
+            RecoveryConnector::Adyen => Self::Adyen,
+            RecoveryConnector::Stripe => Self::Stripe,
+            RecoveryConnector::Paypal => Self::Paypal,
+        }
+    }
+}
+
+/// The connector accounts a recovery transaction is recorded against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryConnectorAccounts {
+    /// Billing connector account the invoice belongs to.
+    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// Payment connector account the transaction ran on and the retries run through.
+    pub payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// The payment connector of that account.
+    pub connector: common_enums::connector_enums::Connector,
+}
+
+/// What is known about the connector of a recovery transaction, which decides how it is recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnectorDetails {
+    /// Recorded against connector accounts, so Hyperswitch can sync the transaction with the
+    /// connector and retry through it.
+    ConnectorAccounts(RecoveryConnectorAccounts),
+    /// Reported by the merchant without any connector account, so what was reported is final.
+    ReportedByMerchant {
+        /// The processor that was reported.
+        connector: common_enums::connector_enums::Connector,
+    },
+}
+
+impl RecoveryConnectorDetails {
+    /// Whether the transaction is recorded against connector accounts.
+    pub fn has_connector_accounts(&self) -> bool {
+        matches!(self, Self::ConnectorAccounts(_))
+    }
+
+    /// The billing connector account, when the transaction is recorded against one.
+    pub fn get_billing_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.billing_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector account, when the transaction is recorded against one.
+    pub fn get_payment_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.payment_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector of the transaction.
+    pub fn get_connector(&self) -> common_enums::connector_enums::Connector {
+        match self {
+            Self::ConnectorAccounts(accounts) => accounts.connector,
+            Self::ReportedByMerchant { connector } => *connector,
         }
     }
 }
 
 /// Billing Descriptor information to be sent to the payment gateway
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct BillingDescriptor {
     /// name to be put in billing description
     #[schema(value_type = Option<String>, example = "The Online Retailer")]
@@ -1115,13 +1124,13 @@ pub struct BillingDescriptor {
     pub reference: Option<String>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(BillingDescriptor);
 
 ///  Information identifying partner / external platform details
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PartnerApplicationDetails {
     /// Name of the partner/external platform
     #[schema(value_type = Option<String>)]
@@ -1133,13 +1142,13 @@ pub struct PartnerApplicationDetails {
     #[schema(value_type = Option<String>)]
     pub integrator: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PartnerApplicationDetails);
 
 ///  Information identifying merchant details
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct MerchantApplicationDetails {
     /// Name of the the merchant application
     #[schema(value_type = Option<String>)]
@@ -1148,13 +1157,13 @@ pub struct MerchantApplicationDetails {
     #[schema(value_type = Option<String>)]
     pub version: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(MerchantApplicationDetails);
 
 /// Information identifying partner and merchant application initiating the request
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PartnerMerchantIdentifierDetails {
     ///  Information identifying partner/external platform details
     #[schema(value_type = Option<PartnerApplicationDetails>)]
@@ -1164,22 +1173,13 @@ pub struct PartnerMerchantIdentifierDetails {
     pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(PartnerMerchantIdentifierDetails);
 
 /// Additional metadata for payment intent state containing refunded and disputed amounts
-#[derive(
-    Default,
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    AsExpression,
-    FromSqlRow,
-    utoipa::ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Default, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PaymentIntentStateMetadata {
     /// Shows up the total refunded amount for a payment
     pub total_refunded_amount: Option<MinorUnit>,
@@ -1190,10 +1190,9 @@ pub struct PaymentIntentStateMetadata {
 }
 
 /// Additional metadata for payment intent state containing refunded and disputed amounts
-#[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, AsExpression, FromSqlRow, utoipa::ToSchema,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, utoipa::ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct PostCaptureVoidResponse {
     /// Status of post capture void
     #[schema(value_type = PostCaptureVoidStatus)]
@@ -1278,6 +1277,7 @@ impl PaymentIntentStateMetadata {
     }
 }
 
+#[cfg(feature = "diesel")]
 common_utils::impl_to_sql_from_sql_json!(PaymentIntentStateMetadata);
 
 /// List of custom T&C messages grouped by payment method
@@ -1706,33 +1706,17 @@ pub struct InstallmentOption {
 }
 
 /// A list of installment options stored as a single JSONB column value.
-#[derive(
-    Debug,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-    ToSchema,
-    PartialEq,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct InstallmentOptions(pub Vec<InstallmentOption>);
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(InstallmentOptions);
 
 /// Installment selection made by the customer during payment confirmation.
-#[derive(
-    Debug,
-    Clone,
-    serde::Serialize,
-    serde::Deserialize,
-    ToSchema,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct InstallmentData {
     /// Number of installments chosen by the customer
     #[schema(value_type = u8)]
@@ -1742,6 +1726,7 @@ pub struct InstallmentData {
     /// Total interest amount applied for this installment plan
     pub installment_interest: Option<MinorUnit>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(InstallmentData);
 
 #[derive(
@@ -1757,18 +1742,26 @@ pub enum TokenSource {
     ApplePay,
 }
 
-/// External surcharge details from InterPayments (stored as JSONB)
+/// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
 #[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    Eq,
-    ToSchema,
-    PartialEq,
-    serde::Serialize,
-    diesel::AsExpression,
+    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema, smithy::SmithyModel,
 )]
-#[diesel(sql_type = Jsonb)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SurchargeErrorDetails {
+    /// Connector error code when the external calculation failed.
+    #[schema(example = "INVALID_NICN")]
+    pub error_code: Option<String>,
+    /// Connector error message when the external calculation failed.
+    #[schema(example = "Card BIN is invalid")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    pub error_reason: Option<String>,
+}
+
+/// External surcharge details from InterPayments (stored as JSONB)
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ExternalSurchargeDetails {
     /// sTxId from InterPayments (the last one received before confirm)
     pub external_surcharge_id: String,
@@ -1780,9 +1773,31 @@ pub struct ExternalSurchargeDetails {
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+    /// Connector error details when the calculation failed; null on success.
+    #[serde(default)]
+    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
+    /// Whether any connector error details are present.
+    pub fn has_error(&self) -> bool {
+        self.error_details.is_some()
+    }
+
+    /// Connector ID only when a successful calculation can be notified or reused.
+    pub fn usable_connector_id(&self) -> Option<&str> {
+        match self {
+            details
+                if !details.has_error()
+                    && !details.external_surcharge_id.is_empty()
+                    && details.external_surcharge_id != crate::consts::NO_SURCHARGE_ID_FOUND =>
+            {
+                Some(details.external_surcharge_id.as_str())
+            }
+            _ => None,
+        }
+    }
+
     /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
     /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
     pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {
@@ -1795,21 +1810,14 @@ impl ExternalSurchargeDetails {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
 
 /// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
 /// as JSONB. Versioned (tagged by `version`) for forward-compatible schema evolution.
-#[derive(
-    Clone,
-    Debug,
-    serde::Deserialize,
-    Eq,
-    ToSchema,
-    PartialEq,
-    serde::Serialize,
-    diesel::AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(tag = "version", rename_all = "snake_case")]
 pub enum AppliedOfferDetails {
     /// Version 1 of the applied-offer details.
@@ -1850,16 +1858,17 @@ pub struct AppliedOfferDetailsV1 {
     pub currency: enums::Currency,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AppliedOfferDetails);
 
 /// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
-#[derive(
-    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct AppliedOverrides {
     /// Capture method actually sent to the connector for this attempt
     pub capture_method_applied: Option<enums::CaptureMethod>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AppliedOverrides);

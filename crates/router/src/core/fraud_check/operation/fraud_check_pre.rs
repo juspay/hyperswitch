@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_enums::FrmSuggestion;
 use common_utils::ext_traits::Encode;
 use diesel_models::enums::FraudCheckLastStep;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{Domain, FraudCheckOperation, GetTracker, UpdateTracker};
 use crate::{
@@ -271,7 +271,7 @@ where
     async fn update_tracker<'b>(
         &'b self,
         state: &SessionState,
-        _key_store: &domain::MerchantKeyStore,
+        _processor: &domain::Processor,
         mut frm_data: FrmData,
         payment_data: &mut D,
         _frm_suggestion: Option<FrmSuggestion>,

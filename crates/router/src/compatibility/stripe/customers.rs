@@ -6,7 +6,7 @@ use common_utils::id_type;
 #[cfg(feature = "v1")]
 use error_stack::report;
 #[cfg(feature = "v1")]
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 #[cfg(feature = "v1")]
 use crate::{
@@ -239,7 +239,6 @@ pub async fn list_customer_payment_method_api(
                 auth.platform,
                 Some(req),
                 Some(&customer_id),
-                None,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

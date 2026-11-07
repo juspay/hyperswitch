@@ -396,6 +396,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         field_name: field_name.clone(),
                     }
                 }
+                errors::ConnectorError::InvalidDataFormat { field_name } => {
+                    errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: field_name.clone(),
+                    }
+                }
                 errors::ConnectorError::FailedToObtainIntegrationUrl => {
                     errors::ApiErrorResponse::InvalidConnectorConfiguration {
                         config: "connector_account_details".to_string(),
@@ -453,7 +458,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 | errors::ConnectorError::WebhookResponseEncodingFailed
                 | errors::ConnectorError::InvalidDateFormat
                 | errors::ConnectorError::DateFormattingFailed
-                | errors::ConnectorError::InvalidDataFormat { .. }
                 | errors::ConnectorError::MismatchedPaymentData
                 | errors::ConnectorError::MandatePaymentDataMismatch { .. }
                 | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }

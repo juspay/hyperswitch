@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
@@ -26,7 +26,12 @@ pub async fn api_key_create(
         &req,
         payload,
         |state, auth_data, payload, _| {
-            let key_store = auth_data.platform.get_processor().get_key_store().clone();
+            let key_store = auth_data
+                .platform
+                .get_processor()
+                .get_key_store()
+                .inner()
+                .clone();
             async move { api_keys::create_api_key(state, payload, key_store).await }
         },
         auth::auth_type(

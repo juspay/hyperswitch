@@ -130,7 +130,7 @@ pub async fn payment_complete(
                 params: vec![],
                 return_url_with_query_params: updated_payment_data
                     .return_url
-                    .unwrap_or(state.conf.dummy_connector.default_return_url.clone()),
+                    .unwrap_or(state.conf.dummy_connector.default_return_url.clone().into()),
                 http_method: "GET".to_string(),
                 headers: vec![],
             },
@@ -140,7 +140,12 @@ pub async fn payment_complete(
         api_models::payments::RedirectionResponse {
             return_url: String::new(),
             params: vec![],
-            return_url_with_query_params: state.conf.dummy_connector.default_return_url.clone(),
+            return_url_with_query_params: state
+                .conf
+                .dummy_connector
+                .default_return_url
+                .clone()
+                .into(),
             http_method: "GET".to_string(),
             headers: vec![],
         },

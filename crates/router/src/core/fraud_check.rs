@@ -6,10 +6,7 @@ use api_models::{self, enums as api_enums};
 use common_enums::{CaptureMethod, PaymentMethod, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use self::{
     flows::{self as frm_flows, FeatureFrm},
@@ -51,6 +48,7 @@ use crate::{
     },
     utils::ValueExt,
 };
+pub mod access_token;
 pub mod flows;
 #[cfg(feature = "v1")]
 pub mod gateway;
@@ -136,7 +134,7 @@ where
         .clone_from(&payment_data.get_payment_attempt().connector_transaction_id);
 
     let mut router_data = frm_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             &frm_data.connector_details.connector_name,
             platform.get_processor(),
@@ -397,7 +395,7 @@ pub async fn pre_payouts_frm_core(
         )?;
 
         let mut router_data: hyperswitch_connectors::types::PoFrmRouterData = frm_data
-            .construct_router_data(
+            .construct_router_data_with_callbacks(
                 state,
                 &applicability.frm_routing_algorithm.data,
                 platform.get_processor(),
@@ -871,7 +869,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.clone(),
                         payment_data,
                         None,
@@ -1003,7 +1001,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         None,
@@ -1036,7 +1034,7 @@ where
                     .to_update_tracker()?
                     .update_tracker(
                         state,
-                        platform.get_processor().get_key_store(),
+                        platform.get_processor(),
                         frm_data.to_owned(),
                         payment_data,
                         frm_suggestion,
@@ -1183,9 +1181,9 @@ pub async fn frm_fulfillment_core(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &req.payment_id.clone(),
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -1198,9 +1196,9 @@ pub async fn frm_fulfillment_core(
             let payment_attempt = db
                 .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                     &payment_intent.payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &payment_intent.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
@@ -1343,9 +1341,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_intent = match db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             processor.get_key_store(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
         )
         .await
     {
@@ -1358,9 +1356,9 @@ pub async fn notify_frm_of_chargeback(
     let payment_attempt = match db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            processor.get_account().get_id(),
+            &processor.get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            processor.get_account().storage_scheme,
+            processor.get_storage_scheme(),
             processor.get_key_store(),
         )
         .await

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use common_utils::payout_method_utils;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::PayoutData;
 use crate::{
@@ -74,6 +74,7 @@ impl PayoutGuard for BlocklistGuard {
                 blocklist_utils::check_blocklist(
                     state,
                     platform.get_processor(),
+                    common_enums::BlocklistTransactionType::Payout,
                     &Some(payment_method_data),
                     &payout_data.business_profile,
                 )

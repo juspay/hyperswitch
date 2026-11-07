@@ -12,12 +12,10 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api as api_interface,
-    api::{gateway, ConnectorSpecifications},
-    consts as interface_consts, errors as interface_errors,
-    unified_connector_service::transformers as ucs_transformers,
+    api as api_interface, api::ConnectorSpecifications, consts as interface_consts,
+    errors as interface_errors, unified_connector_service::transformers as ucs_transformers,
 };
-use hyperswitch_masking::{self, ExposeInterface};
+use hyperswitch_masking::{self, ExposeInterface, Secret};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -25,8 +23,9 @@ use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, gateway as payments_gateway, gateway::context as gateway_context,
-            helpers, transformers, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, gateway,
+            gateway as payments_gateway, gateway::context as gateway_context, helpers,
+            transformers, PaymentData,
         },
         unified_connector_service as ucs_core,
     },
@@ -56,6 +55,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -77,6 +77,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -91,6 +92,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::CompleteAuthorize,
@@ -683,14 +685,14 @@ fn transform_redirection_response_for_authenticate_flow(
             match connector {
                 connector_enums::Connector::Barclaycard => Ok(
                     router_response_types::RedirectForm::BarclaycardConsumerAuth {
-                        access_token,
-                        step_up_url,
+                        access_token: access_token.expose(),
+                        step_up_url: step_up_url.expose(),
                     },
                 ),
                 connector_enums::Connector::Cybersource => Ok(
                     router_response_types::RedirectForm::CybersourceConsumerAuth {
-                        access_token,
-                        step_up_url,
+                        access_token: access_token.expose(),
+                        step_up_url: step_up_url.expose(),
                     },
                 ),
                 _ => Ok(response_data),
@@ -899,7 +901,7 @@ pub async fn call_unified_connector_service_authenticate_proxy(
     processor: &domain::Processor,
     rollout_settings: crate::core::unified_connector_service::kill_switch::RolloutSettings,
     force_3ds_challenge: Option<bool>,
-    notification_url: Option<common_utils::types::Url>,
+    notification_url: Option<Secret<common_utils::types::Url>>,
     acquirer_metadata: Option<serde_json::Value>,
 ) -> errors::CustomResult<
     types::RouterData<
@@ -1308,6 +1310,10 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
+            payment_feature_metadata: item.request.feature_metadata,
+            // Full automatic capture uses the original payment settlement values.
+            feature_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,
@@ -1321,6 +1327,8 @@ impl<F>
             is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
+            payment_method_data: None,
+            mandate_id: item.request.mandate_id,
         })
     }
 }
@@ -1354,7 +1362,7 @@ async fn process_capture_flow(
     );
 
     // Call capture request
-    let post_capture_router_data = super::call_capture_request(
+    let post_capture_router_data = Box::pin(super::call_capture_request(
         capture_router_data,
         state,
         connector,
@@ -1362,7 +1370,7 @@ async fn process_capture_flow(
         business_profile,
         header_payload,
         gateway_context,
-    )
+    ))
     .await;
 
     // Process capture response

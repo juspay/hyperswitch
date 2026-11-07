@@ -11,11 +11,14 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon,
+    webhooks::{IncomingWebhookRequestDetails, WebhookResourceData},
+};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
-use super::{types, utils, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
@@ -46,7 +49,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn incoming_webhooks_wrapper(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -61,7 +64,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
     let (webhook_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(incoming_webhooks_core::<W>(
+        Box::pin(incoming_webhooks_core(
             state.clone(),
             req_state,
             req,
@@ -97,7 +100,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn incoming_webhooks_core(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -139,6 +142,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector_id,
             platform.get_processor().get_key_store(),
         )
+        .await?;
+
+    let network_verification = IncomingWebhookVerifier::new(&state.conf.incoming_webhooks)
+        .verify(&state, &connector, &connector_name, request_details.headers)
         .await?;
 
     let decoded_body = connector
@@ -282,6 +289,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
 
+        let source_verified = network_verification.resolve_source_verified(source_verified);
         logger::info!(source_verified=?source_verified);
 
         if source_verified {
@@ -300,7 +308,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector.is_webhook_source_verification_mandatory(),
             source_verified,
         ) {
-            (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
+            (true, false) => {
+                logger::warn!(
+                    connector = %connector.id(),
+                    merchant_id = ?platform.get_processor().get_account().get_id(),
+                    "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+                );
+                Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?
+            }
             _ => {
                 // Unverified webhooks fall back to syncing with the connector, so cap how many of
                 // them each merchant, profile and merchant connector account can push through
@@ -436,7 +451,7 @@ async fn payments_incoming_webhook_flow(
                 profile.get_id(),
                 key_manager_state,
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await?;
 
@@ -587,8 +602,8 @@ async fn get_trackers_response_for_payment_get_operation<F>(
     payment_id: &api::PaymentIdType,
     profile_id: &common_utils::id_type::ProfileId,
     key_manager_state: &KeyManagerState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    merchant_key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> errors::RouterResult<payments::operations::GetTrackerResponse<PaymentStatusData<F>>>
 where
     F: Clone,

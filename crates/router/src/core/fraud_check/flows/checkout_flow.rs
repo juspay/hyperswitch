@@ -11,7 +11,10 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
-        payments::{self, gateway::context::RouterGatewayContext, helpers},
+        payments::{
+            self, callback_urls::ConnectorCallbackUrls, gateway::context::RouterGatewayContext,
+            helpers,
+        },
         utils::get_gateway_frm_metadata,
     },
     errors, services,
@@ -39,6 +42,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         todo!()
@@ -56,6 +60,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<RouterData<frm_api::Checkout, FraudCheckCheckoutData, FraudCheckResponseData>>
     {
         use crate::connector::utils::PaymentsAttemptData;
@@ -164,7 +169,10 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
             payment_method_token: self.payment_method_token.clone(),
             connector_customer: None,
             preprocessing_id: None,
-            connector_request_reference_id: common_utils::generate_uuid_v4().to_string(),
+            // The `fraud_check` row id identifies this risk evaluation; providers
+            // key it as the transaction reference, and follow-up calls resolve the
+            // same row through the attempt's `active_frm_id`.
+            connector_request_reference_id: self.fraud_check.frm_id.clone(),
             test_mode: None,
             recurring_mandate_payment_data: None,
             #[cfg(feature = "payouts")]

@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, instrument, logger, tracing};
+use router_env::{env, instrument, logger};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
@@ -51,7 +51,7 @@ use crate::{
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
-        user::{theme as theme_utils, two_factor_auth as tfa_utils},
+        user::{end_user_sessions, theme as theme_utils, two_factor_auth as tfa_utils},
     },
 };
 #[cfg(feature = "v1")]
@@ -474,11 +474,7 @@ pub async fn signout(
     state: SessionState,
     user_from_token: auth::UserIdFromAuth,
 ) -> UserResponse<()> {
-    tfa_utils::delete_totp_from_redis(&state, &user_from_token.user_id).await?;
-    tfa_utils::delete_recovery_code_from_redis(&state, &user_from_token.user_id).await?;
-    tfa_utils::delete_totp_secret_from_redis(&state, &user_from_token.user_id).await?;
-
-    auth::blacklist::insert_user_in_blacklist(&state, &user_from_token.user_id).await?;
+    end_user_sessions(&state, &user_from_token.user_id).await?;
     auth::cookies::remove_cookie_response()
 }
 
@@ -3086,7 +3082,7 @@ pub async fn get_sso_auth_url(
             return_url: String::new(),
             http_method: String::new(),
             params: Vec::with_capacity(0),
-            return_url_with_query_params: url.to_string(),
+            return_url_with_query_params: url.to_string().into(),
         })
     })
 }

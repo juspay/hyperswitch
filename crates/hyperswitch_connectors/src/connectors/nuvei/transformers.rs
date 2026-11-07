@@ -132,7 +132,7 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             .ok_or_else(missing_field_err("browser_info"))?;
 
         let return_url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
+            Env::Development => "https://example.com".to_string().into(),
             _ => item
                 .request
                 .router_return_url
@@ -157,7 +157,9 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             payment_option: CardPaymentOption {
                 card: Card {
                     card_number: Some(card.card_number),
-                    card_holder_name: item.get_optional_billing_full_name(),
+                    card_holder_name: card
+                        .card_holder_name
+                        .or_else(|| item.get_optional_billing_full_name()),
                     expiration_month: Some(card.card_exp_month),
                     expiration_year: Some(card.card_exp_year),
                     cvv: Some(card.card_cvc),
@@ -493,9 +495,9 @@ pub struct ThreeD {
     pub method_completion_ind: Option<MethodCompletion>,
     pub browser_details: Option<BrowserDetails>,
     #[serde(rename = "notificationURL")]
-    pub notification_url: Option<String>,
+    pub notification_url: Option<Secret<String>>,
     #[serde(rename = "merchantURL")]
-    pub merchant_url: Option<String>,
+    pub merchant_url: Option<Secret<String>>,
     pub acs_url: Option<String>,
     pub c_req: Option<Secret<String>>,
     pub external_mpi: Option<ExternalMpi>,
@@ -1048,7 +1050,9 @@ where
     let payment_option: PaymentOption = PaymentOption {
         card: Some(Card {
             card_number: Some(data.card_number),
-            card_holder_name: data.card_holder_name,
+            card_holder_name: data
+                .card_holder_name
+                .or_else(|| router_data.get_optional_billing_full_name()),
             expiration_month: Some(data.card_exp_month),
             expiration_year: Some(data.card_exp_year),
             ..Default::default() // CVV should be disabled by nuvei
@@ -1135,7 +1139,7 @@ where
         let base = NuveiPaymentBaseRequest::try_from((item, session_token))?;
 
         let return_url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
+            Env::Development => "https://example.com".to_string().into(),
             _ => item.request.get_return_url_required()?,
         };
 
@@ -1311,7 +1315,10 @@ where
         payment_option: PaymentOption::from(NuveiCardDetails {
             card: card_details.clone(),
             three_d,
-            card_holder_name: item.get_optional_billing_full_name(),
+            card_holder_name: card_details
+                .card_holder_name
+                .clone()
+                .or_else(|| item.get_optional_billing_full_name()),
             stored_credentials: item.request.get_is_stored_credential(),
         }),
         is_moto: item.request.get_is_moto(),
@@ -1348,7 +1355,10 @@ where
                 card_number: Some(cards::CardNumber::from(
                     network_token_data.decrypted_token.clone(),
                 )),
-                card_holder_name: network_token_data.card_holder_name.clone(),
+                card_holder_name: network_token_data
+                    .card_holder_name
+                    .clone()
+                    .or_else(|| item.get_optional_billing_full_name()),
                 expiration_month: Some(network_token_data.token_exp_month.clone()),
                 expiration_year: Some(network_token_data.token_exp_year.clone()),
                 ..Default::default()
@@ -1391,9 +1401,12 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, Secret<String>)>
         let request_data = match item.request.payment_method_data.clone() {
             Some(PaymentMethodData::Card(card)) => Ok(Self {
                 payment_option: PaymentOption::from(NuveiCardDetails {
+                    card_holder_name: card
+                        .card_holder_name
+                        .clone()
+                        .or_else(|| item.get_optional_billing_full_name()),
                     card,
                     three_d: None,
-                    card_holder_name: item.get_optional_billing_full_name(),
                     stored_credentials: StoredCredentialMode::get_optional_stored_credential(
                         item.request.is_stored_credential,
                     ),
@@ -1719,7 +1732,7 @@ pub struct NuveiPayoutMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPayoutUrlDetails {
-    pub notification_url: String,
+    pub notification_url: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -1760,16 +1773,24 @@ pub struct NuveiPayoutErrorResponse {
 }
 
 #[cfg(feature = "payouts")]
-impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
+impl
+    TryFrom<(
+        api_models::payouts::PayoutMethodData,
+        Option<Secret<String>>,
+    )> for NuveiPayoutMethodData
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        payout_method_data: api_models::payouts::PayoutMethodData,
+        (payout_method_data, billing_full_name): (
+            api_models::payouts::PayoutMethodData,
+            Option<Secret<String>>,
+        ),
     ) -> Result<Self, Self::Error> {
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(card_data) => {
                 let card_data = Some(NuveiPayoutCardData {
                     card_number: card_data.card_number,
-                    card_holder_name: card_data.card_holder_name.ok_or(
+                    card_holder_name: card_data.card_holder_name.or(billing_full_name).ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "card_holder_name".into(),
                         },
@@ -1834,12 +1855,15 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
 
         let payout_method_data = item.get_payout_method_data()?;
 
-        let payout_method_data: NuveiPayoutMethodData = payout_method_data.try_into()?;
+        let payout_method_data = NuveiPayoutMethodData::try_from((
+            payout_method_data,
+            item.get_optional_billing_full_name(),
+        ))?;
 
         let customer_details = item.request.get_customer_details()?;
 
         let url_details = NuveiPayoutUrlDetails {
-            notification_url: item.request.get_webhook_url()?,
+            notification_url: item.request.get_webhook_url()?.into(),
         };
 
         Ok(Self {
@@ -2398,9 +2422,9 @@ fn process_nuvei_payment_response(
             .and_then(|card| card.three_d)
             .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
             .map(|(base_url, creq)| RedirectForm::Form {
-                endpoint: base_url,
+                endpoint: base_url.into(),
                 method: Method::Post,
-                form_fields: std::collections::HashMap::from([("creq".to_string(), creq.expose())]),
+                form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
             }),
     };
 
@@ -3934,7 +3958,7 @@ impl From<primitive_wrappers::EnablePartialAuthorizationBool> for PartialApprova
 
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
-    fn get_complete_authorize_url(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>>;
     fn get_related_transaction_id(&self) -> Option<String> {
         None
     }
@@ -3963,7 +3987,7 @@ trait NuveiAuthorizePreprocessingCommon {
     }
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>>;
     fn get_capture_method(&self) -> Option<CaptureMethod>;
     fn get_minor_amount_required(&self) -> MinorUnit;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
@@ -4011,7 +4035,7 @@ impl NuveiAuthorizePreprocessingCommon for CompleteAuthorizeData {
     }
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4043,7 +4067,7 @@ impl NuveiAuthorizePreprocessingCommon for CompleteAuthorizeData {
         self.browser_info.clone()
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4068,7 +4092,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
             _ => None,
         }
     }
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4087,7 +4111,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4157,7 +4181,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
 
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4165,7 +4189,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.capture_method
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4280,9 +4304,9 @@ pub struct NuveiAmountDetails {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UrlDetails {
-    pub success_url: String,
-    pub failure_url: String,
-    pub pending_url: String,
+    pub success_url: Secret<String>,
+    pub failure_url: Secret<String>,
+    pub pending_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

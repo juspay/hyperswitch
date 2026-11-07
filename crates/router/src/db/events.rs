@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{MockDb, Store};
 use crate::{
@@ -2237,6 +2237,8 @@ mod tests {
             connector_customer_id: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            enable_avs_check: None,
+            enable_account_name_verification: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

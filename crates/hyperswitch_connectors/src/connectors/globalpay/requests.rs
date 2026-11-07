@@ -39,9 +39,9 @@ pub struct GlobalpayRefreshTokenRequest {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Notifications {
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     pub status_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub cancel_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

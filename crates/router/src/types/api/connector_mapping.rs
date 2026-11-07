@@ -254,6 +254,9 @@ impl ConnectorData {
                 enums::Connector::Ebanx => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Ebanx::new())))
                 }
+                enums::Connector::Ecommpay => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ecommpay::new())))
+                }
                 enums::Connector::Elavon => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Elavon::new())))
                 }
@@ -306,6 +309,9 @@ impl ConnectorData {
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
+                enums::Connector::GlobalpaymentsRealex => Ok(ConnectorEnum::Old(Box::new(
+                    connector::GlobalpaymentsRealex::new(),
+                ))),
                 enums::Connector::Globepay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globepay::new())))
                 }
@@ -440,6 +446,9 @@ impl ConnectorData {
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
+                enums::Connector::Betterpayment => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Betterpayment::new(),
+                ))),
                 enums::Connector::Saferpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
                 }

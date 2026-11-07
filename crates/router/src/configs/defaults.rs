@@ -69,6 +69,8 @@ impl Default for super::settings::Locker {
             create_entity_on_merchant_create: false,
             #[cfg(feature = "v2")]
             plain_fingerprint_response: true,
+            #[cfg(feature = "v2")]
+            use_batched_fingerprint: false,
         }
     }
 }
@@ -102,7 +104,7 @@ impl Default for super::settings::Refund {
     }
 }
 
-impl Default for super::settings::EphemeralConfig {
+impl Default for super::settings::ClientSecretConfig {
     fn default() -> Self {
         Self { validity: 1 }
     }

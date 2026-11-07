@@ -12,7 +12,7 @@ pub enum ApiIdentifier {
     MerchantConnectorWebhookManagement,
     Configs,
     Customers,
-    Ephemeral,
+    ClientSecret,
     Health,
     Mandates,
     PaymentMethods,
@@ -92,12 +92,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CreateDynamicRoutingConfig
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
-            | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineRuleMigration
             | Flow::DecisionEngineMigrationStatus
-            | Flow::VolumeSplitOnRoutingType
-            | Flow::DecisionEngineDecideGatewayCall
-            | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
+            | Flow::VolumeSplitOnRoutingType => Self::Routing,
             Flow::CreateSubscription
             | Flow::ConfirmSubscription
             | Flow::CreateAndConfirmSubscription
@@ -141,7 +138,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersGlobalIdMigration
             | Flow::CustomersList
             | Flow::CustomersListWithConstraints => Self::Customers,
-            Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
+            Flow::ClientSecretCreate | Flow::ClientSecretDelete => Self::ClientSecret,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::OfferEngineConnectivityCheck => Self::Health,
             Flow::OfferEngineBrowseOffers => Self::OfferEngine,
@@ -213,7 +210,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsSubmitEligibility
             // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
             | Flow::PaymentLinkCreate
-            | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
+            | Flow::PaymentsCancelPostCaptureSync
+            // A telephone order adapter creates and confirms a payment, so it belongs in the
+            // Payments lock namespace
+            | Flow::TelephoneOrderCharge => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
             | Flow::PayoutsUpdate
@@ -420,7 +420,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::RecoveryDataBackfill
             | Flow::RecoveryRetryStatsMigration
-            | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            | Flow::RevenueRecoveryRedis
+            | Flow::RevenueRecoveryCancel => Self::RecoveryRecovery,
             Flow::GetSuperpositionSdkConfig
             | Flow::SuperpositionListContexts
             | Flow::SuperpositionListDefaultConfigs

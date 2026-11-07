@@ -30,8 +30,8 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -412,6 +412,10 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 }
 
 impl ConnectorRedirectResponse for Payme {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::Payme).then_some(RedirectCallback::Complete)
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,
@@ -1353,6 +1357,7 @@ impl ConnectorSpecifications for Payme {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                connector_meta_data: _,
             } => matches!(
                 &request_data.payment_method_data,
                 PaymentMethodData::Card(_) | PaymentMethodData::Wallet(_)

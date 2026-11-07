@@ -12,7 +12,7 @@ use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::platform;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
@@ -457,6 +457,7 @@ impl MigrationBatch<EligibilityVerified> {
                                     &row.merchant_id,
                                     platform.get_provider().get_key_store(),
                                     platform.get_provider().get_account().storage_scheme,
+                                    false,
                                 )
                                 .await
                             {
