@@ -472,9 +472,11 @@ lazy_static! {
         integration_status: enums::ConnectorIntegrationStatus::Beta,
     };
     static ref COINBASE_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
+        // Coinbase has no capture API (the Capture flow returns `FlowNotSupported`), so manual
+        // capture cannot be completed. `SequentialAutomatic` stays: a charge never reports
+        // `Authorized`, so no follow-up capture call is ever made for it.
         let supported_capture_methods = vec![
             enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
             enums::CaptureMethod::SequentialAutomatic,
         ];
 
@@ -494,7 +496,7 @@ lazy_static! {
         coinbase_supported_payment_methods
     };
     static ref COINBASE_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> =
-        vec![enums::EventClass::Payments, enums::EventClass::Refunds,];
+        vec![enums::EventClass::Payments];
 }
 
 impl ConnectorSpecifications for Coinbase {
@@ -508,5 +510,42 @@ impl ConnectorSpecifications for Coinbase {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*COINBASE_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::enums::{CaptureMethod, EventClass, PaymentMethod, PaymentMethodType};
+    use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorValidation};
+
+    use super::Coinbase;
+
+    fn validate_capture_method(capture_method: CaptureMethod) -> bool {
+        Coinbase::new()
+            .validate_connector_against_payment_request(
+                Some(capture_method),
+                PaymentMethod::Crypto,
+                Some(PaymentMethodType::CryptoCurrency),
+            )
+            .is_ok()
+    }
+
+    #[test]
+    fn rejects_manual_capture_because_capture_flow_is_not_supported() {
+        assert!(!validate_capture_method(CaptureMethod::Manual));
+    }
+
+    #[test]
+    fn accepts_automatic_and_sequential_automatic_capture() {
+        assert!(validate_capture_method(CaptureMethod::Automatic));
+        assert!(validate_capture_method(CaptureMethod::SequentialAutomatic));
+    }
+
+    #[test]
+    fn declares_only_payments_webhook_flow() {
+        assert_eq!(
+            Coinbase::new().get_supported_webhook_flows(),
+            Some([EventClass::Payments].as_slice())
+        );
     }
 }
