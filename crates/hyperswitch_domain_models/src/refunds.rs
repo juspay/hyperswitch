@@ -2,7 +2,6 @@ use common_utils::types::MinorUnit;
 
 #[cfg(feature = "v2")]
 use crate::business_profile::Profile;
-#[cfg(feature = "v1")]
 use crate::errors;
 
 /// Amounts that make up a refund. Older refunds have no surcharge component.
@@ -27,6 +26,18 @@ impl RefundAmountDetails {
 
     pub fn get_refund_surcharge_amount(&self) -> Option<MinorUnit> {
         self.refund_surcharge_amount
+    }
+
+    /// Checked at the processor boundary and before persisting a surcharge reservation.
+    pub fn checked_net_refund_amount(&self) -> Option<MinorUnit> {
+        self.refund_amount
+            .get_amount_as_i64()
+            .checked_add(
+                self.refund_surcharge_amount
+                    .unwrap_or_default()
+                    .get_amount_as_i64(),
+            )
+            .map(MinorUnit::new)
     }
 
     pub fn get_net_refund_amount(&self) -> MinorUnit {
@@ -253,4 +264,44 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             refund_status,
         }
     }
+}
+
+/// Conservatively allocate partial captures: reserve all non-order components first.
+/// This never makes uncaptured order funds refundable in the absence of a per-component capture split.
+pub fn captured_order_amount(order: i64, total: i64, captured: i64) -> Option<i64> {
+    if order < 0 || captured < 0 || total < order || captured > total {
+        return None;
+    }
+    Some(order.min(captured.checked_sub(total.checked_sub(order)?)?.max(0)))
+}
+
+pub fn validate_surcharge_order_amount(
+    original: i64,
+    remaining: i64,
+    requested: i64,
+) -> Result<(), error_stack::Report<errors::api_error_response::ApiErrorResponse>> {
+    if requested <= 0 {
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Refund amount must be positive".to_string(),
+            },
+        ));
+    }
+    if requested > original {
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount is greater than the original order amount."
+                    .to_string(),
+            },
+        ));
+    }
+    if requested > remaining {
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount exceeds the remaining refundable order amount."
+                    .to_string(),
+            },
+        ));
+    }
+    Ok(())
 }

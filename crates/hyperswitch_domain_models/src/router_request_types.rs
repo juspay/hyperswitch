@@ -1877,6 +1877,20 @@ pub struct PaymentsCompleteSurchargeData {
     pub amount: Option<MinorUnit>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundInitData {
+    pub refund_id: String,
+    pub original_surcharge_id: String,
+    pub order_amount: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundCompleteData {
+    pub refund_id: String,
+    pub connector_surcharge_refund_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsCompleteRefundSurchrgeData {
     /// transaction ID from surcharge connectors

@@ -169,6 +169,23 @@ pub struct CompleteSurchargeResponseData {
     pub connector_surcharge_id: String,
 }
 
+/// Validated Init result. The fee is separate from the merchant's order refund.
+#[derive(Debug, Clone, Serialize)]
+pub struct SurchargeRefundInitResponseData {
+    pub merchant_surcharge_refund_id: String,
+    pub connector_surcharge_refund_id: String,
+    pub refund_surcharge_amount: MinorUnit,
+    pub original_transaction_fee: Option<MinorUnit>,
+    pub previously_refunded_transaction_fees: Option<MinorUnit>,
+}
+
+/// Acknowledgement for the persisted surcharge refund ID.
+#[derive(Debug, Clone, Serialize)]
+pub struct SurchargeRefundCompleteResponseData {
+    pub merchant_surcharge_refund_id: String,
+    pub connector_surcharge_refund_id: String,
+}
+
 /// Response data for refunding surcharge
 #[derive(Debug, Clone)]
 pub struct CompleteRefundSurchrgeResponseData {

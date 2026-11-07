@@ -12830,6 +12830,30 @@ impl<const T: u8>
 }
 
 #[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::SurchargeRefundInit for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::payments::SurchargeRefundInit,
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundInitData,
+        hyperswitch_domain_models::router_response_types::SurchargeRefundInitResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::SurchargeRefundComplete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::payments::SurchargeRefundComplete,
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundCompleteData,
+        hyperswitch_domain_models::router_response_types::SurchargeRefundCompleteResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
 impl<const T: u8> SurchargeRefund for connectors::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>

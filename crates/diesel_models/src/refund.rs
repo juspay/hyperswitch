@@ -76,6 +76,9 @@ pub struct Refund {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 impl Refund {
@@ -168,6 +171,9 @@ pub struct Refund {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
@@ -228,6 +234,9 @@ pub struct RefundNew {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -284,6 +293,9 @@ pub struct RefundNew {
     pub refund_surcharge_amount: Option<MinorUnit>,
     #[serde(default)]
     pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -327,6 +339,14 @@ pub enum RefundUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<Option<String>>,
         refund_error_code: Option<Option<String>>,
+        updated_by: String,
+    },
+    /// Persist InterPayments Init/Complete progress through the normal update path.
+    SurchargeUpdate {
+        refund_status: Option<storage_enums::RefundStatus>,
+        refund_surcharge_amount: Option<MinorUnit>,
+        net_refund_amount: Option<MinorUnit>,
+        external_surcharge_refund_details: common_types::refunds::ExternalSurchargeRefundDetails,
         updated_by: String,
     },
 }
@@ -380,7 +400,7 @@ pub enum RefundUpdate {
 #[router_derive::apply_changeset(target = Refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<ConnectorTransactionId>,
-    refund_status: Option<storage_enums::RefundStatus>,
+    pub(crate) refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<Option<String>>,
     refund_arn: Option<String>,
@@ -394,6 +414,10 @@ pub struct RefundUpdateInternal {
     unified_message: Option<String>,
     issuer_error_code: Option<String>,
     issuer_error_message: Option<String>,
+    refund_surcharge_amount: Option<MinorUnit>,
+    net_refund_amount: Option<MinorUnit>,
+    external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -488,6 +512,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
@@ -509,6 +536,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
@@ -532,6 +562,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
@@ -560,6 +593,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message,
                 issuer_error_code,
                 issuer_error_message,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::ManualUpdate {
                 connector_refund_id,
@@ -577,6 +613,35 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: None,
                 metadata: None,
                 refund_reason: None,
+                modified_at: common_utils::date_time::now(),
+                processor_refund_data: None,
+                unified_code: None,
+                unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
+            },
+            RefundUpdate::SurchargeUpdate {
+                refund_status,
+                refund_surcharge_amount,
+                net_refund_amount,
+                external_surcharge_refund_details,
+                updated_by,
+            } => Self {
+                refund_status,
+                refund_surcharge_amount,
+                net_refund_amount,
+                external_surcharge_refund_details: Some(external_surcharge_refund_details),
+                updated_by,
+                connector_refund_id: None,
+                sent_to_gateway: None,
+                refund_error_message: None,
+                refund_arn: None,
+                metadata: None,
+                refund_reason: None,
+                refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
                 processor_refund_data: None,
                 unified_code: None,

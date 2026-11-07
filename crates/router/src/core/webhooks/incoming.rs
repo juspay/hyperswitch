@@ -1699,6 +1699,7 @@ async fn refunds_incoming_webhook_flow(
         .0
     };
 
+    refunds::surcharge::try_complete_surcharge_refund(&state, &platform, &updated_refund).await;
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &refund.payment_id,
@@ -1733,6 +1734,12 @@ async fn refunds_incoming_webhook_flow(
     tokio::spawn(state_metadata_update.in_current_span());
 
     let event_type: Option<enums::EventType> = updated_refund.refund_status.into();
+    // Init/Complete already handles InterPayments; retain only the merchant notification.
+    let webhook_resource_data = if updated_refund.external_surcharge_refund_details.is_some() {
+        None
+    } else {
+        webhook_resource_data
+    };
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
