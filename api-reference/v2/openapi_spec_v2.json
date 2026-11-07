@@ -16233,14 +16233,6 @@
           "next_retry"
         ],
         "properties": {
-          "last_failure_code": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StandardisedCode"
-              }
-            ],
-            "nullable": true
-          },
           "consumed_ladder_rungs": {
             "type": "integer",
             "format": "int32",
@@ -26160,6 +26152,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
+          },
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
               }
             ],
             "nullable": true
