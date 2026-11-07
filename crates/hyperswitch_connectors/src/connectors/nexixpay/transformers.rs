@@ -365,6 +365,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationData {
+    additional_data: Option<AdditionalData>,
     operation_id: String,
     operation_currency: Option<Currency>,
     operation_result: NexixpayPaymentStatus,
@@ -578,17 +579,18 @@ fn update_nexi_meta_data(
 pub fn get_error_response(
     operation_result: NexixpayPaymentStatus,
     status_code: u16,
+    auth_status: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         status_code,
-        code: NO_ERROR_CODE.to_string(),
+        code: auth_status.clone().unwrap_or(NO_ERROR_CODE.to_string()),
         message: operation_result.to_string(),
         reason: Some(operation_result.to_string()),
         attempt_status: None,
         connector_transaction_id: None,
         connector_response_reference_id: None,
         network_advice_code: None,
-        network_decline_code: None,
+        network_decline_code: auth_status,
         network_error_message: None,
         connector_metadata: None,
     }
@@ -667,8 +669,7 @@ pub struct DetailedWarnings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
-    masked_pan: String,
-    card_id: Secret<String>,
+    authorization_status: Option<String>,
     card_id4: Option<Secret<String>>,
     card_expiry_date: Option<Secret<String>>,
 }
@@ -755,6 +756,7 @@ fn process_nexixpay_preprocessing_response(
         AttemptStatus::Failure => Err(get_error_response(
             response.operation.operation_result.clone(),
             http_code,
+            None,
         )),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.operation.order_id.clone()),
@@ -1163,6 +1165,7 @@ pub enum NexixpayRefundResultStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayTransactionResponse {
+    additional_data: Option<AdditionalData>,
     order_id: String,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
@@ -1321,6 +1324,11 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         let response = Err(get_error_response(
                             response_body.operation.operation_result.clone(),
                             item.http_code,
+                            response_body
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1376,6 +1384,11 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         let response = Err(get_error_response(
                             mandate_response.operation.operation_result.clone(),
                             item.http_code,
+                            mandate_response
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1455,6 +1468,11 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         let response = Err(get_error_response(
                             response_body.operation.operation_result.clone(),
                             item.http_code,
+                            response_body
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1503,6 +1521,11 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         let response = Err(get_error_response(
                             mandate_response.operation.operation_result.clone(),
                             item.http_code,
+                            mandate_response
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1672,6 +1695,11 @@ impl<F>
                 let response = Err(get_error_response(
                     item.response.operation.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .operation
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,
@@ -1869,6 +1897,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                 let response = Err(get_error_response(
                     item.response.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,
@@ -2067,6 +2099,11 @@ impl
                 let response = Err(get_error_response(
                     item.response.operation.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .operation
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,
