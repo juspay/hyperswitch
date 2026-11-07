@@ -1051,11 +1051,38 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::TokenSource,
         common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
     )),
-    modifiers(&SecurityAddon)
+    modifiers(&SecurityAddon, &ExperimentalPayments)
 )]
 // Bypass clippy lint for not being constructed
 #[allow(dead_code)]
 pub(crate) struct ApiDoc;
+
+struct ExperimentalPayments;
+
+impl utoipa::Modify for ExperimentalPayments {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        const WARNING: &str = "Experimental API. Requests, responses, and behavior may change \
+                               without backward compatibility guarantees.";
+
+        for (path, item) in &mut openapi.paths.paths {
+            if path != "/v2/payments" && !path.starts_with("/v2/payments/") {
+                continue;
+            }
+
+            for operation in item.operations.values_mut() {
+                operation
+                    .extensions
+                    .get_or_insert_with(Default::default)
+                    .insert("x-experimental".to_owned(), serde_json::json!(true));
+
+                let description = operation.description.get_or_insert_with(String::new);
+                if !description.contains(WARNING) {
+                    *description = format!("{WARNING}\n\n{description}");
+                }
+            }
+        }
+    }
+}
 
 struct SecurityAddon;
 

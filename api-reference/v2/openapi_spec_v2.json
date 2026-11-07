@@ -2188,8 +2188,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Create Intent",
-        "description": "**Creates a payment intent object when amount_details are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.",
+        "summary": "Payments - Create Intent (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\n**Creates a payment intent object when amount_details are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the first call, and use the 'client secret' returned in this API along with your 'publishable key' to make subsequent API calls from your client.",
         "operationId": "Create a Payment Intent",
         "requestBody": {
           "content": {
@@ -2237,7 +2237,8 @@
           {
             "api_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}/get-intent": {
@@ -2245,8 +2246,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Get Intent",
-        "description": "**Get a payment intent object when id is passed in path**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "summary": "Payments - Get Intent (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\n**Get a payment intent object when id is passed in path**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
         "operationId": "Get the Payment Intent details",
         "parameters": [
           {
@@ -2278,7 +2279,8 @@
           {
             "api_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}/update-intent": {
@@ -2286,8 +2288,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Update Intent",
-        "description": "**Update a payment intent object**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "summary": "Payments - Update Intent (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\n**Update a payment intent object**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
         "operationId": "Update a Payment Intent",
         "parameters": [
           {
@@ -2349,7 +2351,8 @@
           {
             "api_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}/confirm-intent": {
@@ -2357,8 +2360,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Confirm Intent",
-        "description": "**Confirms a payment intent object with the payment method data**\n\n.",
+        "summary": "Payments - Confirm Intent (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\n**Confirms a payment intent object with the payment method data**\n\n.",
         "operationId": "Confirm Payment Intent",
         "parameters": [
           {
@@ -2434,7 +2437,8 @@
           {
             "publishable_key__client_secret": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}": {
@@ -2442,8 +2446,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Get",
-        "description": "Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "summary": "Payments - Get (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\nRetrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment",
         "operationId": "Retrieve a Payment",
         "parameters": [
           {
@@ -2484,7 +2488,8 @@
           {
             "api_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments": {
@@ -2492,8 +2497,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Create and Confirm Intent",
-        "description": "**Creates and confirms a payment intent object when the amount and payment method information are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
+        "summary": "Payments - Create and Confirm Intent (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\n**Creates and confirms a payment intent object when the amount and payment method information are passed.**\n\nYou will require the 'API - Key' from the Hyperswitch dashboard to make the call.",
         "operationId": "Create and Confirm Payment Intent",
         "parameters": [
           {
@@ -2564,7 +2569,8 @@
           {
             "api_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{payment_id}/create-external-sdk-tokens": {
@@ -2572,8 +2578,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Session token",
-        "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
+        "summary": "Payments - Session token (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\nCreates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create V2 Session tokens for a Payment",
         "parameters": [
           {
@@ -2622,7 +2628,8 @@
           {
             "publishable_key__client_secret": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}/payment-methods": {
@@ -2630,8 +2637,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Payment Methods List",
-        "description": "List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
+        "summary": "Payments - Payment Methods List (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\nList the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment",
         "operationId": "Retrieve Payment methods for a Payment",
         "parameters": [
           {
@@ -2673,7 +2680,8 @@
           {
             "publishable_key__client_secret": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/list": {
@@ -2681,8 +2689,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - List",
-        "description": "List payments and their total count within the authenticated X-Profile-Id.\nAn optional profile_id query filter must match X-Profile-Id.",
+        "summary": "Payments - List (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\nList payments and their total count within the authenticated X-Profile-Id.\nAn optional profile_id query filter must match X-Profile-Id.",
         "operationId": "List all Payments",
         "parameters": [
           {
@@ -3009,7 +3017,8 @@
           {
             "jwt_key": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payments/{id}/eligibility/check-balance-and-apply-pm-data": {
@@ -3017,8 +3026,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "Payments - Check Balance and Apply PM Data",
-        "description": "Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge",
+        "summary": "Payments - Check Balance and Apply PM Data (Experimental)",
+        "description": "Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.\n\nCheck the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge",
         "operationId": "Apply Payment Method Data",
         "parameters": [
           {
@@ -3067,7 +3076,8 @@
           {
             "publishable_key__client_secret": []
           }
-        ]
+        ],
+        "x-experimental": true
       }
     },
     "/v2/payment-methods": {
