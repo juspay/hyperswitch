@@ -90,3 +90,45 @@ export {
   modularPmServicePaymentsCall,
   pmCollectLinkBody,
 };
+
+if (!globalThis.__CYPRESS_FIXTURES_LIST__) {
+  globalThis.__CYPRESS_FIXTURES_LIST__ = [];
+}
+
+const currentSnapshot = {
+  sessionTokenBody: JSON.parse(JSON.stringify(sessionTokenBody || {})),
+  paymentMethodSessionCreate: JSON.parse(
+    JSON.stringify(paymentMethodSessionCreate || {})
+  ),
+  paymentMethodSessionUpdate: JSON.parse(
+    JSON.stringify(paymentMethodSessionUpdate || {})
+  ),
+  paymentMethodSessionConfirm: JSON.parse(
+    JSON.stringify(paymentMethodSessionConfirm || {})
+  ),
+};
+
+const currentInstance = {
+  sessionTokenBody,
+  paymentMethodSessionCreate,
+  paymentMethodSessionUpdate,
+  paymentMethodSessionConfirm,
+  snapshots: currentSnapshot,
+};
+
+globalThis.__CYPRESS_FIXTURES_LIST__.push(currentInstance);
+
+export function resetSessionFixtures() {
+  const list = globalThis.__CYPRESS_FIXTURES_LIST__ || [];
+  for (const item of list) {
+    for (const [key, initial] of Object.entries(item.snapshots)) {
+      const target = item[key];
+      if (target && initial) {
+        for (const prop of Object.keys(target)) {
+          delete target[prop];
+        }
+        Object.assign(target, JSON.parse(JSON.stringify(initial)));
+      }
+    }
+  }
+}
