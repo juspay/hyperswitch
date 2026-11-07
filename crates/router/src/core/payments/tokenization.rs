@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     transformers::ForeignFrom as _,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::helpers;
 #[cfg(feature = "v1")]

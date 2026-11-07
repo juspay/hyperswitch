@@ -30,7 +30,7 @@ use hyperswitch_domain_models::payouts::{
     payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
 };
 use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "olap")]
 use crate::connection;

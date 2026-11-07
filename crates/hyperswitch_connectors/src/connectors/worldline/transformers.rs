@@ -126,7 +126,7 @@ pub struct RedirectPaymentMethod {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectionData {
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
