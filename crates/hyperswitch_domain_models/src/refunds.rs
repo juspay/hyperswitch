@@ -2,7 +2,6 @@ use common_utils::types::MinorUnit;
 
 #[cfg(feature = "v2")]
 use crate::business_profile::Profile;
-#[cfg(feature = "v1")]
 use crate::errors;
 
 /// Amounts that make up a refund. Older refunds have no surcharge component.
@@ -280,15 +279,29 @@ pub fn validate_surcharge_order_amount(
     original: i64,
     remaining: i64,
     requested: i64,
-) -> Result<(), &'static str> {
+) -> Result<(), error_stack::Report<errors::api_error_response::ApiErrorResponse>> {
     if requested <= 0 {
-        return Err("Refund amount must be positive");
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Refund amount must be positive".to_string(),
+            },
+        ));
     }
     if requested > original {
-        return Err("Requested refund amount is greater than the original order amount.");
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount is greater than the original order amount."
+                    .to_string(),
+            },
+        ));
     }
     if requested > remaining {
-        return Err("Requested refund amount exceeds the remaining refundable order amount.");
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount exceeds the remaining refundable order amount."
+                    .to_string(),
+            },
+        ));
     }
     Ok(())
 }

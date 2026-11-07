@@ -29,13 +29,6 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-fn invalid(message: impl Into<String>) -> error_stack::Report<errors::ApiErrorResponse> {
-    errors::ApiErrorResponse::InvalidRequestData {
-        message: message.into(),
-    }
-    .into()
-}
-
 fn error(message: impl Into<String>) -> SurchargeErrorDetails {
     SurchargeErrorDetails {
         error_message: Some(message.into()),
@@ -82,28 +75,37 @@ fn payment_limits(
     let details = attempt
         .external_surcharge_details
         .as_ref()
-        .ok_or_else(|| invalid("Missing original external surcharge details"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     if details.usable_connector_id().is_none() {
-        return Err(invalid(
-            "Invalid original surcharge ID; reconciliation required",
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Invalid original surcharge ID; reconciliation required".to_string(),
+            },
         ));
     }
     if attempt.net_amount.get_surcharge_amount() != Some(details.external_surcharge_amount) {
-        return Err(invalid(
-            "Charged surcharge breakdown mismatch; reconciliation required",
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Charged surcharge breakdown mismatch; reconciliation required"
+                    .to_string(),
+            },
         ));
     }
     let original = attempt.net_amount.get_order_amount().get_amount_as_i64();
     let captured = intent
         .amount_captured
-        .ok_or_else(|| invalid("Missing captured amount"))?
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?
         .get_amount_as_i64();
     let captured_order = hyperswitch_domain_models::refunds::captured_order_amount(
         original,
         attempt.get_total_amount().get_amount_as_i64(),
         captured,
     )
-    .ok_or_else(|| invalid("Unsupported payment breakdown; capture reconciliation required"))?;
+    .ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Unsupported payment breakdown; capture reconciliation required".to_string(),
+        })
+    })?;
     Ok((
         original,
         captured_order,
@@ -125,21 +127,31 @@ fn previous_amounts(
     {
         if let Some(details) = operation(refund) {
             if details.error_details.is_some() {
-                return Err(invalid("Surcharge refund reconciliation required"));
+                return Err(error_stack::Report::new(
+                    errors::ApiErrorResponse::PreconditionFailed {
+                        message: "Surcharge refund reconciliation required".to_string(),
+                    },
+                ));
             }
         } else if consumes_balance(refund) {
-            return Err(invalid(
-                "Historical surcharge refund split is unknown; reconciliation required",
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "Historical surcharge refund split is unknown; reconciliation required"
+                            .to_string(),
+                },
             ));
         }
         if consumes_balance(refund) {
             let amounts = RefundAmountDetails::from(refund);
-            let refund_net = amounts
-                .checked_net_refund_amount()
-                .ok_or_else(|| invalid("Refund balance overflow"))?;
+            let refund_net = amounts.checked_net_refund_amount().ok_or_else(|| {
+                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            })?;
             order = order
                 .checked_add(refund.refund_amount.get_amount_as_i64())
-                .ok_or_else(|| invalid("Refund balance overflow"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                })?;
             fee = fee
                 .checked_add(
                     refund
@@ -147,7 +159,9 @@ fn previous_amounts(
                         .unwrap_or_default()
                         .get_amount_as_i64(),
                 )
-                .ok_or_else(|| invalid("Refund balance overflow"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                })?;
             net = net
                 .checked_add(
                     refund
@@ -155,7 +169,9 @@ fn previous_amounts(
                         .unwrap_or(refund_net)
                         .get_amount_as_i64(),
                 )
-                .ok_or_else(|| invalid("Refund balance overflow"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                })?;
         }
     }
     Ok((order, fee, net))
@@ -182,8 +198,11 @@ pub fn prepare_reservation(
                 .get_surcharge_amount()
                 .is_some_and(|a| a > MinorUnit::zero())
         {
-            return Err(invalid(
-                "Missing original external surcharge details; reconciliation required",
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Missing original external surcharge details; reconciliation required"
+                        .to_string(),
+                },
             ));
         }
         return Ok(None);
@@ -195,12 +214,11 @@ pub fn prepare_reservation(
     let (previous_order, _, _) = previous_amounts(previous, Some(refund_id))?;
     let remaining = captured_order
         .checked_sub(previous_order)
-        .ok_or_else(|| invalid("Refund balance overflow"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     let amount = requested
         .map(|a| a.get_amount_as_i64())
         .unwrap_or(remaining);
-    refunds_validator::validate_order_refund_amount(original, remaining, amount)
-        .map_err(invalid)?;
+    refunds_validator::validate_order_refund_amount(original, remaining, amount)?;
     Ok(Some((
         MinorUnit::new(amount),
         ExternalSurchargeRefundDetails {
@@ -294,21 +312,25 @@ async fn validate_amounts(
         original,
         captured_order - prior_order,
         refund.refund_amount.get_amount_as_i64(),
-    )
-    .map_err(invalid)?;
+    )?;
     let fee = response
         .map(|r| r.refund_surcharge_amount)
         .unwrap_or_default();
     if fee < MinorUnit::zero() || fee.get_amount_as_i64() > surcharge - prior_fee {
-        return Err(invalid(
-            "Surcharge refund exceeds remaining surcharge amount",
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Surcharge refund exceeds remaining surcharge amount".to_string(),
+            },
         ));
     }
     let net = RefundAmountDetails::new(refund.refund_amount, Some(fee))
         .checked_net_refund_amount()
-        .ok_or_else(|| invalid("Refund amount overflow"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     if net.get_amount_as_i64() > captured - prior_net {
-        return Err(invalid("Refund exceeds remaining captured funds"));
+        // Same check and error as the existing combined captured-funds validation.
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount,
+        ));
     }
     if let Some(response) = response {
         if response
@@ -320,8 +342,12 @@ async fn validate_amounts(
                     fee.get_amount_as_i64() > surcharge - amount.get_amount_as_i64()
                 })
         {
-            return Err(invalid(
-                "InterPayments surcharge balance is inconsistent; reconciliation required",
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "InterPayments surcharge balance is inconsistent; reconciliation required"
+                            .to_string(),
+                },
             ));
         }
     }
@@ -338,7 +364,7 @@ async fn account(
     let profile_id = refund
         .profile_id
         .as_ref()
-        .ok_or_else(|| invalid("Missing profile ID"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
@@ -350,7 +376,11 @@ async fn account(
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.as_ref())
-        .ok_or_else(|| invalid("Surcharge connector is not configured on the profile"))?;
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Surcharge connector is not configured on the profile".to_string(),
+            })
+        })?;
     let account = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -363,8 +393,10 @@ async fn account(
             id: account_id.get_string_repr().to_owned(),
         })?;
     if account.connector_name != "interpayments" || account.disabled.unwrap_or(false) {
-        return Err(invalid(
-            "Surcharge connector must be an active InterPayments account",
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Surcharge connector must be an active InterPayments account".to_string(),
+            },
         ));
     }
     Ok(helpers::MerchantConnectorAccountType::DbVal(Box::new(
@@ -416,12 +448,12 @@ async fn init_surcharge_refund(
     let profile = refund
         .profile_id
         .as_ref()
-        .ok_or_else(|| invalid("Missing profile ID"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     let original_surcharge_id = attempt
         .external_surcharge_details
         .as_ref()
         .and_then(|d| d.usable_connector_id())
-        .ok_or_else(|| invalid("Missing original surcharge ID"))?
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?
         .to_owned();
 
     let response = match ucs::call_unified_connector_service_for_surcharge_refund_init(
@@ -464,7 +496,14 @@ async fn init_surcharge_refund(
                 refund_complete_notified: false,
                 error_details: Some(error(message)),
             };
-            return Err(fail(state, platform, refund, details, reject, invalid(message)).await);
+            let api_error = if reject {
+                error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
+                    message: message.to_string(),
+                })
+            } else {
+                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            };
+            return Err(fail(state, platform, refund, details, reject, api_error).await);
         }
     };
 
@@ -548,12 +587,12 @@ pub async fn complete(
     let profile = refund
         .profile_id
         .as_ref()
-        .ok_or_else(|| invalid("Missing profile ID"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
     let id = details
         .surcharge_refund_id
         .clone()
         .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| invalid("Missing persisted surcharge refund ID"))?;
+        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
 
     let result = ucs::call_unified_connector_service_for_surcharge_refund_complete(
         state,
@@ -591,7 +630,7 @@ pub async fn complete(
 }
 
 /// Call `complete`, logging and deferring to recovery on failure instead of erroring out.
-pub async fn complete_opportunistically(
+pub async fn try_complete_surcharge_refund(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &Refund,

@@ -1699,7 +1699,7 @@ async fn refunds_incoming_webhook_flow(
         .0
     };
 
-    refunds::surcharge::complete_opportunistically(&state, &platform, &updated_refund).await;
+    refunds::surcharge::try_complete_surcharge_refund(&state, &platform, &updated_refund).await;
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &refund.payment_id,

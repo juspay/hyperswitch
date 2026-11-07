@@ -867,7 +867,7 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    surcharge::complete_opportunistically(state, platform, &response).await;
+    surcharge::try_complete_surcharge_refund(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1210,7 +1210,7 @@ pub async fn refund_retrieve_core(
         if !ready_for_complete {
             return Ok((refund, None));
         }
-        surcharge::complete_opportunistically(&state, &platform, &refund).await;
+        surcharge::try_complete_surcharge_refund(&state, &platform, &refund).await;
     }
 
     let (response, raw_connector_response) = (if should_call_refund(
@@ -1545,7 +1545,7 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    surcharge::complete_opportunistically(state, platform, &response).await;
+    surcharge::try_complete_surcharge_refund(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))

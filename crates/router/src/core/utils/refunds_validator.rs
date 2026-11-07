@@ -77,7 +77,7 @@ pub fn validate_order_refund_amount(
     original_order_amount: i64,
     remaining_order_amount: i64,
     requested_order_amount: i64,
-) -> Result<(), &'static str> {
+) -> RouterResult<()> {
     hyperswitch_domain_models::refunds::validate_surcharge_order_amount(
         original_order_amount,
         remaining_order_amount,
