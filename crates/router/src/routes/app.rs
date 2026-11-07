@@ -39,12 +39,12 @@ use storage_impl::{
 use tokio::sync::oneshot;
 
 use self::settings::Tenant;
+#[cfg(all(feature = "v2", feature = "oltp"))]
+use super::client_secret::{client_secret_create, client_secret_delete};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
-use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
 #[cfg(feature = "payouts")]
@@ -2266,20 +2266,11 @@ impl HierarchicalResources {
     }
 }
 
-pub struct EphemeralKey;
-
-#[cfg(all(feature = "v1", feature = "oltp"))]
-impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys")
-            .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
-    }
-}
+#[cfg(feature = "v2")]
+pub struct ClientSecret;
 
 #[cfg(feature = "v2")]
-impl EphemeralKey {
+impl ClientSecret {
     pub fn server(config: AppState) -> Scope {
         web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
@@ -2315,38 +2306,20 @@ pub struct Webhooks;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/network_token_requestor/ref")
-                    .route(
-                        web::post().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::get().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::put().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    ),
+                    .route(web::post().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::get().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::put().to(receive_network_token_requestor_incoming_webhook)),
             )
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(feature = "frm")]
@@ -2366,41 +2339,33 @@ pub struct RelayWebhooks;
 #[cfg(feature = "oltp")]
 impl RelayWebhooks {
     pub fn server(state: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
         web::scope("/webhooks/relay")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{merchant_id}/{connector_id}").route(
-                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
-            ))
+            .service(
+                web::resource("/{merchant_id}/{connector_id}")
+                    .route(web::post().to(receive_incoming_relay_webhook)),
+            )
     }
 }
 
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/v2/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{profile_id}/{connector_id}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         {
             route = route.service(
-                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
-                    web::post()
-                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                ),
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(web::post().to(recovery_receive_incoming_webhook)),
             );
         }
 

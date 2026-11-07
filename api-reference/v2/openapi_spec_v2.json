@@ -5276,9 +5276,6 @@
         },
         "security": [
           {
-            "ephemeral_key": []
-          },
-          {
             "api_key": []
           }
         ]
@@ -5332,9 +5329,6 @@
           }
         },
         "security": [
-          {
-            "ephemeral_key": []
-          },
           {
             "api_key": []
           }

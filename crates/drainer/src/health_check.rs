@@ -5,7 +5,7 @@ use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{Config, ConfigNew};
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     connection::pg_connection,

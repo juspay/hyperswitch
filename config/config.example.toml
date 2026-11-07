@@ -322,7 +322,7 @@ redis_lock_expiry_seconds = 180
 [merchant_id_auth]
 merchant_id_auth_enabled = false
 
-# Validity of an Ephemeral Key in Hours
+# Validity of a v2 client secret in hours
 [eph_key]
 validity = 1
 
