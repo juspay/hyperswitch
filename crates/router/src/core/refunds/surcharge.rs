@@ -20,7 +20,7 @@ use router_env::logger;
 
 use crate::{
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, RouterResult},
         payments::helpers,
         unified_connector_service as ucs,
         utils::refunds_validator,
@@ -29,13 +29,7 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-fn error(message: impl Into<String>) -> SurchargeErrorDetails {
-    SurchargeErrorDetails {
-        error_message: Some(message.into()),
-        ..Default::default()
-    }
-}
-
+/// The surcharge refund tracking stored on this refund, if it has one.
 pub fn operation(refund: &Refund) -> Option<ExternalSurchargeRefundDetails> {
     refund.external_surcharge_refund_details.clone()
 }
@@ -46,6 +40,7 @@ fn is_resolved(details: &ExternalSurchargeRefundDetails, refund: &Refund) -> boo
         || (details.surcharge_refund_id.is_none() && !consumes_balance(refund))
 }
 
+/// Whether this payment has an external surcharge, so its refunds go through this module.
 pub fn applies(attempt: &storage::PaymentAttempt) -> bool {
     attempt
         .external_surcharge_details
@@ -60,6 +55,7 @@ pub fn applies(attempt: &storage::PaymentAttempt) -> bool {
         })
 }
 
+/// Whether this refund still counts against the order/surcharge/captured balances.
 fn consumes_balance(refund: &Refund) -> bool {
     !matches!(
         refund.refund_status,
@@ -184,6 +180,8 @@ fn is_full_refund(original: i64, requested: Option<MinorUnit>, previous: &[Refun
         && requested.is_none_or(|amount| amount.get_amount_as_i64() == original)
 }
 
+/// Validate the requested amount and reserve it, for a partial refund only; `None` for a full
+/// refund or a payment with no applicable surcharge.
 pub fn prepare_reservation(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
@@ -381,31 +379,27 @@ async fn account(
                 message: "Surcharge connector is not configured on the profile".to_string(),
             })
         })?;
-    let account = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            account_id,
-            processor.get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: account_id.get_string_repr().to_owned(),
-        })?;
-    if account.connector_name != "interpayments" || account.disabled.unwrap_or(false) {
+    let account = helpers::get_merchant_connector_account(
+        state,
+        processor,
+        None,
+        profile_id,
+        "interpayments",
+        Some(account_id),
+    )
+    .await?;
+    if account.get_connector_name().as_deref() != Some("interpayments") || account.is_disabled() {
         return Err(error_stack::Report::new(
             errors::ApiErrorResponse::PreconditionFailed {
                 message: "Surcharge connector must be an active InterPayments account".to_string(),
             },
         ));
     }
-    Ok(helpers::MerchantConnectorAccountType::DbVal(Box::new(
-        account,
-    )))
+    Ok(account)
 }
 
 /// Schedule recovery before making external calls, using the existing process tracker APIs.
-pub async fn ensure_recovery_task(state: &SessionState, refund: &Refund) -> RouterResult<()> {
+async fn ensure_recovery_task(state: &SessionState, refund: &Refund) -> RouterResult<()> {
     let id = format!("SURCHARGE_REFUND_{}", refund.internal_reference_id);
     if state
         .store
@@ -475,7 +469,10 @@ async fn init_surcharge_refund(
             let details = ExternalSurchargeRefundDetails {
                 surcharge_refund_id: None,
                 refund_complete_notified: false,
-                error_details: Some(error("SurchargeRefundInit call failed")),
+                error_details: Some(SurchargeErrorDetails {
+                    error_message: Some("SurchargeRefundInit call failed".to_string()),
+                    ..Default::default()
+                }),
             };
             return Err(fail(state, platform, refund, details, false, err).await);
         }
@@ -494,7 +491,10 @@ async fn init_surcharge_refund(
             let details = ExternalSurchargeRefundDetails {
                 surcharge_refund_id: surcharge_refund_id.clone(),
                 refund_complete_notified: false,
-                error_details: Some(error(message)),
+                error_details: Some(SurchargeErrorDetails {
+                    error_message: Some(message.to_string()),
+                    ..Default::default()
+                }),
             };
             let api_error = if reject {
                 error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
@@ -512,7 +512,10 @@ async fn init_surcharge_refund(
         let details = ExternalSurchargeRefundDetails {
             surcharge_refund_id: surcharge_refund_id.clone(),
             refund_complete_notified: false,
-            error_details: Some(error(err.to_string())),
+            error_details: Some(SurchargeErrorDetails {
+                error_message: Some(err.to_string()),
+                ..Default::default()
+            }),
         };
         return Err(fail(state, platform, refund, details, false, err).await);
     }
@@ -556,7 +559,7 @@ pub async fn prepare_processor(
 
 /// Call Complete once the processor refund succeeds. A successful money refund stays successful
 /// even if Complete needs recovery.
-pub async fn complete(
+async fn complete(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &Refund,
@@ -574,7 +577,10 @@ pub async fn complete(
     if !consumes_balance(refund) {
         // Processor refund failed after Init succeeded; flag for reconciliation, skip Complete.
         let next = ExternalSurchargeRefundDetails {
-            error_details: Some(error("Processor refund failed after Init succeeded")),
+            error_details: Some(SurchargeErrorDetails {
+                error_message: Some("Processor refund failed after Init succeeded".to_string()),
+                ..Default::default()
+            }),
             ..details
         };
         transition(state, platform, refund, next, false, None).await?;
@@ -621,7 +627,12 @@ pub async fn complete(
         }
     } else {
         ExternalSurchargeRefundDetails {
-            error_details: Some(error("SurchargeRefundComplete failed or returned an error")),
+            error_details: Some(SurchargeErrorDetails {
+                error_message: Some(
+                    "SurchargeRefundComplete failed or returned an error".to_string(),
+                ),
+                ..Default::default()
+            }),
             ..details
         }
     };
@@ -644,6 +655,7 @@ pub async fn try_complete_surcharge_refund(
     }
 }
 
+/// `SURCHARGE_REFUND` process-tracker handler: resume Init/Complete, or finish once resolved.
 pub async fn recover(
     state: &SessionState,
     task: &storage::ProcessTracker,
