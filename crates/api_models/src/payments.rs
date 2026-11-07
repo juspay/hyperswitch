@@ -2427,6 +2427,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Who started the transaction of this attempt. Absent on attempts recorded before this was kept.
+    #[schema(value_type = Option<TransactionInitiator>, example = "merchant_initiated")]
+    pub transaction_initiator: Option<common_enums::TransactionInitiator>,
 }
 
 #[derive(
@@ -14723,6 +14726,20 @@ pub struct RecoveryPaymentsCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v2")]
+impl RecoveryPaymentsCreate {
+    /// Who started the reported transaction. A request that leaves out `customer_present` or
+    /// `setup_future_usage` gets the defaults the invoice is created with.
+    pub fn get_transaction_initiator(&self) -> common_enums::TransactionInitiator {
+        common_enums::TransactionInitiator::new(
+            self.customer_present
+                .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent),
+            self.setup_future_usage
+                .unwrap_or(api_enums::FutureUsage::OffSession),
+        )
+    }
 }
 
 /// Error details for the payment

@@ -23342,6 +23342,14 @@
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
+          },
+          "transaction_initiator": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionInitiator"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -36182,6 +36190,14 @@
             "nullable": true
           }
         }
+      },
+      "TransactionInitiator": {
+        "type": "string",
+        "description": "Who started a transaction of a revenue recovery invoice.",
+        "enum": [
+          "customer_initiated",
+          "merchant_initiated"
+        ]
       },
       "TransactionStatus": {
         "type": "string",

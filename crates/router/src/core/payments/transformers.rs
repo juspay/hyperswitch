@@ -8326,6 +8326,7 @@ impl
             api_models::payments::PaymentAttemptRevenueRecoveryData {
                 attempt_triggered_by: recovery.attempt_triggered_by,
                 charge_id: recovery.charge_id.clone(),
+                transaction_initiator: recovery.transaction_initiator,
             }
         });
         Self { revenue_recovery }
