@@ -87,6 +87,7 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
+pub use crate::common::PhoneDetails;
 #[cfg(all(feature = "v1", feature = "errors"))]
 use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
@@ -6863,29 +6864,6 @@ pub struct EncryptableAddressDetails {
     pub last_name: crypto::OptionalEncryptableSecretString,
     pub phone_number: crypto::OptionalEncryptableSecretString,
     pub email: crypto::OptionalEncryptableEmail,
-}
-
-#[derive(
-    Debug,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct PhoneDetails {
-    /// The contact number
-    #[schema(value_type = Option<String>, example = "9123456789")]
-    #[smithy(value_type = "Option<String>")]
-    pub number: Option<Secret<String>>,
-    /// The country code attached to the number
-    #[schema(example = "+1")]
-    #[smithy(value_type = "Option<String>")]
-    pub country_code: Option<String>,
 }
 
 #[cfg(feature = "v1")]

@@ -257,8 +257,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = "3.1.5"
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.11.04.1", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.11.04.1", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.11.06.2", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.11.06.2", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",

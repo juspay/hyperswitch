@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{BankNames, CardNetwork};
+use common_enums::{BankNames, CardNetwork, PayoutFundsTransferType};
 use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
@@ -22,7 +22,9 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments};
+use crate::{
+    admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments, sender::SenderDetails,
+};
 
 #[derive(Debug, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
@@ -159,9 +161,19 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, default = false)]
     pub recurring: Option<bool>,
 
+    /// Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.
+    /// Explicit sender_details takes precedence and is never merged with that identity.
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The category of funds transfer to use when processing the payout.
+    #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
+
+    /// Identity of the party providing the funds. Persisted on the payout and echoed
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
 
     /// Provide a reference to a stored payout method, used to process the payout.
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432", value_type = Option<String>)]
@@ -972,6 +984,14 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
+    /// The category of funds transfer used for the payout.
+    #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
+    pub funds_transfer_type: Option<PayoutFundsTransferType>,
+
+    /// Identity of the party providing the funds, as supplied in the payout request
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Unique identifier of the merchant connector account
     #[schema(value_type = Option<String>, example = "mca_sAD3OZLATetvjLOYhUSy")]
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
@@ -1161,34 +1181,95 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
+/// Normalized payout party/account data consumed by domain and connector code.
+///
+/// Populated either by converting the explicit [`crate::sender::SenderDetails`] supplied with
+/// the payout request, or by parsing legacy vendor metadata when sender details are absent.
+/// It is never persisted directly; only `sender_details` is stored on the payout row.
+/// Existing field names and types are retained for connector compatibility.
+#[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PayoutVendorAccountDetails {
+    /// Vendor or corporate party details, retaining the legacy field layout.
     pub vendor_details: PayoutVendorDetails,
+    /// Individual party or account representative details.
     pub individual_details: PayoutIndividualDetails,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+/// Vendor/account information, with the corporate sender fields appended at the end.
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize, PartialEq, Eq)]
 pub struct PayoutVendorDetails {
+    /// Connector account type; empty for sender-only input without account setup.
     pub account_type: String,
+    /// Existing party discriminator: individual or company.
     pub business_type: String,
+    /// Merchant category code for the business.
     pub business_profile_mcc: Option<i32>,
+    /// Business profile URL.
     pub business_profile_url: Option<String>,
+    /// Business name; also carries the corporate sender company name.
     pub business_profile_name: Option<Secret<String>>,
+    /// Corporate sender street address.
     pub company_address_line1: Option<Secret<String>>,
+    /// Additional corporate sender street address.
     pub company_address_line2: Option<Secret<String>>,
+    /// Corporate sender postal code.
     pub company_address_postal_code: Option<Secret<String>>,
+    /// Corporate sender city.
     pub company_address_city: Option<Secret<String>>,
+    /// Corporate sender state or province.
     pub company_address_state: Option<Secret<String>>,
+    /// Corporate sender phone number.
     pub company_phone: Option<Secret<String>>,
+    /// Company tax identifier.
     pub company_tax_id: Option<Secret<String>>,
+    /// Whether account owners have been supplied.
     pub company_owners_provided: Option<bool>,
+    /// Whether card payments capability is requested.
     pub capabilities_card_payments: Option<bool>,
+    /// Whether transfer capability is requested.
     pub capabilities_transfers: Option<bool>,
+    /// Corporate sender country.
+    pub company_address_country: Option<common_enums::CountryAlpha2>,
+    /// Party contact email.
+    #[schema(value_type = Option<String>)]
+    pub email: Option<Email>,
+    /// International dialing code, separate from the phone number.
+    pub phone_country_code: Option<String>,
+    /// Merchant-supplied stable identifier for the funding party.
+    #[schema(value_type = Option<String>)]
+    pub reference_id: Option<Secret<String>>,
+    /// Merchant-supplied classification of the funding source.
+    pub source_of_funds: Option<crate::sender::SourceOfFunds>,
 }
 
-#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
+/// Postal address of an individual funding a payout.
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct PayoutVendorAddress {
+    /// Street address.
+    #[schema(value_type = Option<String>)]
+    pub line1: Option<Secret<String>>,
+    /// Additional street address.
+    #[schema(value_type = Option<String>)]
+    pub line2: Option<Secret<String>>,
+    /// City.
+    #[schema(value_type = Option<String>)]
+    pub city: Option<Secret<String>>,
+    /// State or province.
+    #[schema(value_type = Option<String>)]
+    pub state: Option<Secret<String>>,
+    /// Postal code.
+    #[schema(value_type = Option<String>)]
+    pub zip: Option<Secret<String>>,
+    /// ISO country code.
+    pub country: Option<common_enums::CountryAlpha2>,
+}
+
+/// Individual/account information, with the individual sender fields appended at the end.
+#[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize, PartialEq, Eq)]
 pub struct PayoutIndividualDetails {
+    /// Unix timestamp of terms-of-service acceptance.
     pub tos_acceptance_date: Option<i64>,
+    /// IP address used to accept terms of service.
     pub tos_acceptance_ip: Option<Secret<String>>,
     /// Deprecated. Use `date_of_birth`.
     #[schema(deprecated, value_type = Option<String>)]
@@ -1202,9 +1283,33 @@ pub struct PayoutIndividualDetails {
     /// The individual's date of birth.
     #[schema(value_type = Option<time::Date>, example = "1990-01-31")]
     pub date_of_birth: Option<Secret<time::Date>>,
+    /// Individual government identification number.
     pub individual_id_number: Option<Secret<String>>,
+    /// Last four digits of the individual social security number.
     pub individual_ssn_last_4: Option<Secret<String>>,
+    /// Existing individual/company account-holder classification.
     pub external_account_account_holder_type: Option<String>,
+    /// Individual sender given name.
+    #[schema(value_type = Option<String>)]
+    pub first_name: Option<Secret<String>>,
+    /// Individual sender family name.
+    #[schema(value_type = Option<String>)]
+    pub last_name: Option<Secret<String>>,
+    /// Individual sender address, separate from beneficiary billing.
+    pub address: Option<PayoutVendorAddress>,
+    /// Party contact email.
+    #[schema(value_type = Option<String>)]
+    pub email: Option<Email>,
+    /// Individual sender phone number.
+    #[schema(value_type = Option<String>)]
+    pub phone_number: Option<Secret<String>>,
+    /// International dialing code, separate from the phone number.
+    pub phone_country_code: Option<String>,
+    /// Merchant-supplied stable identifier for the funding party.
+    #[schema(value_type = Option<String>)]
+    pub reference_id: Option<Secret<String>>,
+    /// Merchant-supplied classification of the funding source.
+    pub source_of_funds: Option<crate::sender::SourceOfFunds>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema, serde::Serialize)]
@@ -1916,6 +2021,119 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
+}
+
+impl From<payments::AddressDetails> for PayoutVendorAddress {
+    fn from(value: payments::AddressDetails) -> Self {
+        Self {
+            line1: value.line1,
+            line2: value.line2,
+            city: value.city.map(Secret::new),
+            state: value.state,
+            zip: value.zip,
+            country: value.country,
+        }
+    }
+}
+
+/// Normalizes the API sender identity into the payout vendor representation consumed by
+/// domain and connector code. Explicit sender input takes precedence over legacy vendor
+/// metadata without merging identities. Every field is listed explicitly so that adding a
+/// vendor field forces a deliberate mapping decision here.
+impl From<SenderDetails> for PayoutVendorAccountDetails {
+    fn from(value: SenderDetails) -> Self {
+        match value {
+            SenderDetails::Individual(sender) => Self {
+                vendor_details: PayoutVendorDetails {
+                    account_type: String::new(),
+                    business_type: "individual".to_owned(),
+                    business_profile_mcc: None,
+                    business_profile_url: None,
+                    business_profile_name: None,
+                    company_address_line1: None,
+                    company_address_line2: None,
+                    company_address_postal_code: None,
+                    company_address_city: None,
+                    company_address_state: None,
+                    company_phone: None,
+                    company_tax_id: None,
+                    company_owners_provided: None,
+                    capabilities_card_payments: None,
+                    capabilities_transfers: None,
+                    company_address_country: None,
+                    email: None,
+                    phone_country_code: None,
+                    reference_id: None,
+                    source_of_funds: None,
+                },
+                individual_details: PayoutIndividualDetails {
+                    tos_acceptance_date: None,
+                    tos_acceptance_ip: None,
+                    individual_dob_day: None,
+                    individual_dob_month: None,
+                    individual_dob_year: None,
+                    date_of_birth: sender.date_of_birth,
+                    individual_id_number: None,
+                    individual_ssn_last_4: None,
+                    external_account_account_holder_type: None,
+                    first_name: sender.first_name,
+                    last_name: sender.last_name,
+                    address: sender.address.map(Into::into),
+                    email: sender.email,
+                    phone_number: sender.phone.as_ref().and_then(|p| p.number.clone()),
+                    phone_country_code: sender.phone.and_then(|p| p.country_code),
+                    reference_id: sender.reference_id,
+                    source_of_funds: sender.source_of_funds,
+                },
+            },
+            SenderDetails::Corporate(sender) => {
+                let address = sender.address.unwrap_or_default();
+                Self {
+                    vendor_details: PayoutVendorDetails {
+                        account_type: String::new(),
+                        business_type: "company".to_owned(),
+                        business_profile_mcc: None,
+                        business_profile_url: None,
+                        business_profile_name: Some(sender.company_name),
+                        company_address_line1: address.line1,
+                        company_address_line2: address.line2,
+                        company_address_postal_code: address.zip,
+                        company_address_city: address.city.map(Secret::new),
+                        company_address_state: address.state,
+                        company_phone: sender.phone.as_ref().and_then(|p| p.number.clone()),
+                        company_tax_id: None,
+                        company_owners_provided: None,
+                        capabilities_card_payments: None,
+                        capabilities_transfers: None,
+                        company_address_country: address.country,
+                        email: sender.email,
+                        phone_country_code: sender.phone.and_then(|p| p.country_code),
+                        reference_id: sender.reference_id,
+                        source_of_funds: sender.source_of_funds,
+                    },
+                    individual_details: PayoutIndividualDetails {
+                        tos_acceptance_date: None,
+                        tos_acceptance_ip: None,
+                        individual_dob_day: None,
+                        individual_dob_month: None,
+                        individual_dob_year: None,
+                        date_of_birth: None,
+                        individual_id_number: None,
+                        individual_ssn_last_4: None,
+                        external_account_account_holder_type: None,
+                        first_name: None,
+                        last_name: None,
+                        address: None,
+                        email: None,
+                        phone_number: None,
+                        phone_country_code: None,
+                        reference_id: None,
+                        source_of_funds: None,
+                    },
+                }
+            }
         }
     }
 }

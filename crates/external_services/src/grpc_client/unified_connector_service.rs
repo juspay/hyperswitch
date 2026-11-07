@@ -877,9 +877,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .capture(request)
+        Box::pin(self.payment_service_client.clone().capture(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1310,9 +1308,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payout_service_client
-            .clone()
-            .transfer(request)
+        // Box the transfer future: the merged UCS proto request types are large enough
+        // to trip clippy::large_futures when this is awaited inline.
+        Box::pin(self.payout_service_client.clone().transfer(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(

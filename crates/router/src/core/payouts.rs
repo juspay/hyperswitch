@@ -571,6 +571,7 @@ async fn update_frm_blocked_payout_tracker(
                 status: common_enums::PayoutStatus::Failed,
             },
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await
@@ -1040,6 +1041,7 @@ pub async fn payouts_cancel_core(
                 &payout_data.payouts,
                 storage::PayoutsUpdate::StatusUpdate { status },
                 &payout_data.payout_attempt,
+                platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
             )
             .await
@@ -1201,6 +1203,7 @@ pub async fn payouts_list_core(
         db,
         &constraints,
         merchant_id,
+        platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
     .await
@@ -1351,6 +1354,7 @@ pub async fn payouts_filtered_list_core(
         .filter_payouts_and_attempts(
             platform.get_processor().get_account().get_id(),
             &constraints,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1460,6 +1464,7 @@ pub async fn payouts_list_available_filters_core(
         .filter_payouts_by_time_range_constraints(
             platform.get_processor().get_account().get_id(),
             &time_range,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1944,6 +1949,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
+                            platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
                         )
                         .await
@@ -1986,6 +1992,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
+                            platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
                         )
                         .await
@@ -2053,6 +2060,7 @@ pub async fn create_recipient(
                         &payout_data.payouts,
                         storage::PayoutsUpdate::StatusUpdate { status },
                         &payout_data.payout_attempt,
+                        platform.get_processor().get_key_store(),
                         platform.get_processor().get_account().storage_scheme,
                     )
                     .await
@@ -2201,6 +2209,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusAndMetadataUpdate { status, metadata },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2266,6 +2275,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2331,6 +2341,7 @@ pub async fn complete_create_payout(
                         status: storage::enums::PayoutStatus::RequiresFulfillment,
                     },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2452,6 +2463,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2514,6 +2526,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2759,6 +2772,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3102,6 +3116,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3167,6 +3182,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3285,6 +3301,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3376,6 +3393,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3478,6 +3496,8 @@ pub async fn response_handler(
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
+        funds_transfer_type: payouts.funds_transfer_type,
+        sender_details: payouts.get_optional_sender_details().cloned(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
@@ -3620,6 +3640,12 @@ pub async fn payout_create_db_entries(
         consts::ID_LENGTH,
         format!("payout_{}_secret", payout_id.get_string_repr()).as_str(),
     );
+    let sender_details = helpers::encrypt_sender_details(
+        state,
+        platform.get_processor().get_key_store(),
+        req.sender_details.clone(),
+    )
+    .await?;
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
@@ -3653,6 +3679,8 @@ pub async fn payout_create_db_entries(
         profile_id: profile_id.to_owned(),
         attempt_count: 1,
         metadata: req.metadata.clone(),
+        funds_transfer_type: req.funds_transfer_type,
+        sender_details,
         confirm: req.confirm,
         payout_link_id: payout_link
             .clone()
@@ -3677,6 +3705,7 @@ pub async fn payout_create_db_entries(
     let payouts = db
         .insert_payout(
             payouts_req,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -3872,6 +3901,7 @@ pub async fn make_payout_data(
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &payout_id,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -4522,6 +4552,7 @@ pub async fn payouts_manual_update_core(
             .find_payout_by_merchant_id_payout_id(
                 &merchant_id,
                 &payout_id,
+                &key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -4585,6 +4616,7 @@ pub async fn payouts_manual_update_core(
                     &payouts,
                     payout_update,
                     &updated_payout_attempt,
+                    &key_store,
                     merchant_account.storage_scheme,
                 )
                 .await

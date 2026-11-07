@@ -8,6 +8,7 @@ pub mod card_issuer;
 pub mod cards_info;
 #[cfg(feature = "v2")]
 pub mod client_secret;
+pub mod common;
 pub mod conditional_configs;
 pub mod connector_enums;
 pub mod connector_onboarding;
@@ -48,6 +49,7 @@ pub mod relay;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod sender;
 pub mod subscription;
 pub mod superposition_proxy;
 pub mod superposition_sdk_config;

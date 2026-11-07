@@ -836,6 +836,7 @@ impl ExternalVaultPayout<'_> {
             &*state.store,
             &payout_id,
             merchant_id,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
