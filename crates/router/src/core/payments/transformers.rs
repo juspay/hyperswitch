@@ -59,7 +59,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -255,8 +255,8 @@ where
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
@@ -812,8 +812,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_payment_router_data_v1(
+    state: &SessionState,
     payment_data: PaymentData<api::ExternalVaultProxy>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -1380,8 +1380,8 @@ pub async fn construct_router_data_for_psync<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_cancel_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_cancel_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentCancelData<api::Void>,
@@ -2329,8 +2329,8 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_metadata<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_metadata(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -8353,8 +8353,8 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_post_confirm(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdatePostConfirm>,
     connector_id: &str,
     processor: &domain::Processor,

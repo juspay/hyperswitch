@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use common_utils::payout_method_utils;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::PayoutData;
 use crate::{
