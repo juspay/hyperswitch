@@ -869,6 +869,7 @@ impl NewUser {
                         new_name: Some(self.get_name().expose()),
                         new_password: hashed_password,
                         last_password_modified_at,
+                        password_history: user_from_db.get_password_history(),
                     },
                 )
                 .await
@@ -1031,6 +1032,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
             lineage_context: None,
             is_active: true,
+            password_history: None,
         })
     }
 }
@@ -1179,7 +1181,7 @@ impl UserFromStorage {
 
     pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
         if let Some(password) = self.0.password.as_ref() {
-            match password::is_correct_password(candidate, password) {
+            match password::is_equal_password(candidate, password) {
                 Ok(true) => Ok(()),
                 Ok(false) => Err(UserErrors::InvalidCredentials.into()),
                 Err(e) => Err(e),
@@ -1311,6 +1313,28 @@ impl UserFromStorage {
 
     pub fn get_recovery_codes(&self) -> Option<Vec<Secret<String>>> {
         self.0.totp_recovery_codes.clone()
+    }
+
+    pub fn get_password_history(&self) -> Option<Vec<Secret<String>>> {
+        self.0.password_history.clone()
+    }
+
+    pub fn is_password_reused(&self, candidate: &Secret<String>) -> UserResult<bool> {
+        for old_password in self.0.password_history.iter().flatten() {
+            if password::is_equal_password(candidate, old_password)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn get_updated_password_history(&self) -> Vec<Secret<String>> {
+        let mut password_history = self.0.password_history.clone().unwrap_or_default();
+        if let Some(outgoing_password) = self.0.password.clone() {
+            password_history.insert(0, outgoing_password);
+        }
+        password_history.truncate(consts::user::PREVIOUS_PASSWORDS_RETAINED);
+        password_history
     }
 
     pub fn is_active(&self) -> bool {
