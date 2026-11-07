@@ -1036,6 +1036,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::ProcessTrackerStatus,
         api_models::proxy::ProxyRequest,
         api_models::proxy::ProxyResponse,
+        api_models::proxy::ProxyResponseBody,
         api_models::proxy::TokenType,
         routes::payments::ForceSync,
         api_models::tokenization::GenericTokenizationRequest,
