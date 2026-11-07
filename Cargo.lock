@@ -3739,7 +3739,7 @@ dependencies = [
  "float-cmp",
  "futures",
  "log",
- "parking_lot 0.12.3",
+ "parking_lot",
  "rand 0.8.6",
  "redis-protocol",
  "rustls 0.22.4",
@@ -6080,7 +6080,7 @@ dependencies = [
  "num-iter",
  "num-traits",
  "rand 0.8.6",
- "smallvec 1.15.0",
+ "smallvec",
  "zeroize",
 ]
 
