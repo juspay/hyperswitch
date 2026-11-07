@@ -1305,6 +1305,18 @@ impl PaymentIntent {
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
     }
 
+    /// When the merchant should trigger the next retry of this invoice. Absent unless the merchant
+    /// triggers its retries.
+    pub fn get_external_trigger_next_retry(
+        &self,
+    ) -> Option<common_types::payments::RecoveryNextRetry> {
+        self.get_revenue_recovery_metadata()
+            .and_then(|recovery_metadata| recovery_metadata.external_trigger_state)
+            .map(|trigger_state| {
+                get_next_retry_for_intent_status(self.status, trigger_state.next_retry)
+            })
+    }
+
     /// Retries already made against this invoice, by the billing connector and by recovery
     /// together. Zero for an intent that has not entered recovery.
     pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
@@ -1653,11 +1665,113 @@ pub struct RevenueRecoveryData {
     pub card_issuer: Option<String>,
 }
 
+/// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
+/// not touch its recovery metadata, and the state saved after a report can fail to be written.
+#[cfg(feature = "v2")]
+fn get_next_retry_for_intent_status(
+    intent_status: common_enums::IntentStatus,
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> common_types::payments::RecoveryNextRetry {
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+
+    if intent_status == common_enums::IntentStatus::Succeeded {
+        RecoveryNextRetry::NotScheduled {
+            reason: RecoveryNoRetryReason::Recovered,
+        }
+    } else if matches!(
+        intent_status,
+        common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::CancelledPostCapture
+    ) {
+        RecoveryNextRetry::NotScheduled {
+            reason: RecoveryNoRetryReason::Cancelled,
+        }
+    } else {
+        next_retry
+    }
+}
+
+/// The status of an invoice after recording a transaction that no connector sync confirms. The
+/// invoice is paid once what it collected reaches its amount, and money already collected stays
+/// collected when a later transaction fails.
+#[cfg(feature = "v2")]
+fn get_intent_status_from_reported_transaction(
+    attempt_status: common_enums::AttemptStatus,
+    intent_amount_captured: Option<MinorUnit>,
+    order_amount: MinorUnit,
+) -> common_enums::IntentStatus {
+    if intent_amount_captured >= Some(order_amount) {
+        common_enums::IntentStatus::Succeeded
+    } else if attempt_status == common_enums::AttemptStatus::Failure
+        && intent_amount_captured > Some(MinorUnit::zero())
+    {
+        common_enums::IntentStatus::PartiallyCaptured
+    } else {
+        common_enums::IntentStatus::from(attempt_status)
+    }
+}
+
+/// The captured amount of an invoice after recording a transaction that no connector sync
+/// confirms. `None` leaves the amount the invoice already has.
+#[cfg(feature = "v2")]
+fn get_amount_captured_from_reported_transaction(
+    attempt_status: common_enums::AttemptStatus,
+    attempt_amount_captured: Option<MinorUnit>,
+    intent_amount_captured: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match attempt_status {
+        // A charge adds to what the earlier partial charges collected.
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
+            intent_amount_captured
+                .map(|amount| amount + attempt_amount_captured.unwrap_or(MinorUnit::zero()))
+                .or(attempt_amount_captured)
+        }
+        // A failed transaction captures nothing.
+        _ => attempt_amount_captured,
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F> PaymentAttemptRecordData<F>
 where
     F: Clone,
 {
+    /// The status of the invoice and its captured amount after recording this attempt. A `None`
+    /// amount leaves the amount the invoice already has.
+    pub fn get_intent_status_and_amount_captured(
+        &self,
+    ) -> (common_enums::IntentStatus, Option<MinorUnit>) {
+        if !self
+            .revenue_recovery_data
+            .connector_details
+            .has_connector_accounts()
+        {
+            // No connector sync runs for this transaction, so the reported status and amount are
+            // final.
+            let amount_captured = get_amount_captured_from_reported_transaction(
+                self.payment_attempt.status,
+                self.payment_attempt.amount_details.get_amount_captured(),
+                self.payment_intent.amount_captured,
+            );
+            return (
+                get_intent_status_from_reported_transaction(
+                    self.payment_attempt.status,
+                    amount_captured.or(self.payment_intent.amount_captured),
+                    self.payment_intent.amount_details.order_amount,
+                ),
+                amount_captured,
+            );
+        }
+
+        let status = if self.payment_intent.amount_captured > Some(MinorUnit::new(0))
+            && *self.payment_intent.enable_partial_authorization
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            common_enums::IntentStatus::from(self.payment_attempt.status)
+        };
+        (status, None)
+    }
+
     pub fn get_updated_feature_metadata(
         &self,
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
@@ -1771,6 +1885,9 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
+                external_trigger_state: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.external_trigger_state.clone()),
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata

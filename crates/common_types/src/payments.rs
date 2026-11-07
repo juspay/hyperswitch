@@ -1102,6 +1102,63 @@ impl RecoveryConnectorDetails {
     }
 }
 
+/// Why no retry is scheduled for an invoice whose retries the merchant triggers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryNoRetryReason {
+    /// The invoice is charged in full.
+    Recovered,
+    /// The invoice has used every retry it is allowed.
+    RetriesExhausted,
+    /// The grace period of the invoice is over, or would be over by the time of the next retry.
+    GraceWindowExpired,
+    /// The card was hard declined, and the retries the profile allows after that are used up.
+    HardDecline,
+    /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
+    Monitoring,
+    /// The invoice is cancelled.
+    Cancelled,
+    /// The invoice has not reached the `billing_connector_retry_threshold` of the profile. The
+    /// merchant's own retries come first, and recovery starts once they reach it.
+    BelowRetryThreshold,
+}
+
+/// When the merchant should trigger the next retry of an invoice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum RecoveryNextRetry {
+    /// Trigger the retry at `schedule_time`, then report its result through the recovery API.
+    Scheduled {
+        /// The time to trigger the retry at.
+        #[schema(value_type = String, example = "2022-09-10T10:11:12.000Z")]
+        #[serde(with = "common_utils::custom_serde::iso8601")]
+        schedule_time: PrimitiveDateTime,
+    },
+    /// Do not trigger a retry.
+    NotScheduled {
+        /// Why no retry is scheduled.
+        reason: RecoveryNoRetryReason,
+    },
+}
+
+/// The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled
+/// job holds it between the merchant's reports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+pub struct ExternalTriggerState {
+    /// Standardised error code of the last failed transaction. The result of the next retry is
+    /// counted against it in the cluster data.
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
+    /// Positions of the static retry ladder the invoice has used.
+    pub consumed_ladder_rungs: i32,
+    /// Retries made with the card of the invoice since it was first hard declined. Absent while it
+    /// has not been.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retries_after_hard_decline: Option<u16>,
+    /// What the merchant was last told to do.
+    pub next_retry: RecoveryNextRetry,
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]

@@ -75,6 +75,17 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
+    // The merchant is the only one who reports the transactions when they trigger the retries.
+    if business_profile.revenue_recovery_trigger_model
+        == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+    {
+        logger::info!(
+            profile_id = ?business_profile.get_id(),
+            "Ignoring the billing connector webhook of a profile whose retries the merchant triggers"
+        );
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let connector = api_enums::Connector::from_str(connector_name)
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;

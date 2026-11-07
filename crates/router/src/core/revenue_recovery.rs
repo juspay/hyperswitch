@@ -77,7 +77,7 @@ pub async fn assign_and_record_ab_routing(
     state: &SessionState,
     payment_id: &GlobalPaymentId,
     feature_metadata: Option<api_payments::FeatureMetadata>,
-    revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
+    merchant_context: pcr::RecoveryMerchantContext<'_>,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
 ) -> common_enums::RevenueRecoveryABAlgorithm {
     let assigned_algorithm = dimensions
@@ -109,7 +109,7 @@ pub async fn assign_and_record_ab_routing(
             match Box::pin(api::update_payment_intent_api(
                 state,
                 payment_id.clone(),
-                revenue_recovery_payment_data,
+                merchant_context,
                 payment_update_req,
             ))
             .await
@@ -194,12 +194,19 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
-            let max_hybrid_cascading_retry_count = billing_connector_account
-                .get_max_hybrid_cascading_retry_count()
-                .ok_or(errors::RevenueRecoveryError::RetryCountFetchFailed)
-                .attach_printable(
-                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                )?;
+            let max_hybrid_cascading_retry_count =
+                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
+                    state,
+                    &crate::core::configs::dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(
+                            recovery_intent_from_payment_intent
+                                .merchant_id
+                                .clone()
+                                .into(),
+                        )
+                        .with_connector(billing_connector_account.connector_name),
+                )
+                .await;
 
             // Create tracking data
             let calculate_workflow_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
@@ -288,27 +295,17 @@ pub async fn upsert_calculate_pcr_task(
                 )
                 .await
             {
-                // Boxed so the recovery payment data below lives on the heap rather than in this
-                // function's future.
-                Box::pin(async {
-                    let revenue_recovery_payment_data = pcr::RevenueRecoveryPaymentData {
-                        merchant_account: platform.get_processor().get_account().clone(),
-                        profile: business_profile.clone(),
-                        key_store: platform.get_processor().get_key_store().inner().clone(),
-                        billing_mca: billing_connector_account.clone(),
-                        retry_algorithm: revenue_recovery_retry,
-                        psync_data: None,
-                    };
-
-                    assign_and_record_ab_routing(
-                        state,
-                        payment_id,
-                        recovery_intent_from_payment_intent.feature_metadata.clone(),
-                        &revenue_recovery_payment_data,
-                        &dimensions,
-                    )
-                    .await;
-                })
+                Box::pin(assign_and_record_ab_routing(
+                    state,
+                    payment_id,
+                    recovery_intent_from_payment_intent.feature_metadata.clone(),
+                    pcr::RecoveryMerchantContext {
+                        merchant_account: platform.get_processor().get_account(),
+                        key_store: platform.get_processor().get_key_store().inner(),
+                        profile: business_profile,
+                    },
+                    &dimensions,
+                ))
                 .await;
             }
         }
@@ -868,13 +865,14 @@ pub async fn perform_calculate_workflow(
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
-            let max_hybrid_cascading_retry_count = revenue_recovery_payment_data
-                .billing_mca
-                .get_max_hybrid_cascading_retry_count()
-                .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable(
-                    "Failed to get max hybrid cascading retry count from billing merchant connector account",
-                )?;
+            let max_hybrid_cascading_retry_count =
+                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
+                    state,
+                    &crate::core::configs::dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                        .with_connector(revenue_recovery_payment_data.billing_mca.connector_name),
+                )
+                .await;
             let intent_retry_count = payment_intent
                 .get_revenue_recovery_retry_count()
                 .ok_or(errors::RecoveryError::ValueNotFound)
@@ -1881,7 +1879,7 @@ pub async fn reset_connector_transmission_and_active_attempt_id_before_pushing_t
             Box::pin(api::update_payment_intent_api(
                 state,
                 payment_intent.id.clone(),
-                revenue_recovery_payment_data,
+                revenue_recovery_payment_data.get_merchant_context(),
                 payment_update_req,
             ))
             .await
@@ -2123,12 +2121,35 @@ fn determine_recovery_status_from_workflows(
     }
 }
 
+/// The recovery status of an invoice whose retries the merchant triggers. No job tracks it, so
+/// what the merchant was last told says where it stands.
+fn map_external_trigger_recovery_status(
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> RecoveryStatus {
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+
+    match next_retry {
+        RecoveryNextRetry::Scheduled { .. } => RecoveryStatus::Scheduled,
+        RecoveryNextRetry::NotScheduled { reason } => match reason {
+            RecoveryNoRetryReason::Recovered => RecoveryStatus::Recovered,
+            RecoveryNoRetryReason::Monitoring | RecoveryNoRetryReason::BelowRetryThreshold => {
+                RecoveryStatus::Monitoring
+            }
+            RecoveryNoRetryReason::RetriesExhausted
+            | RecoveryNoRetryReason::GraceWindowExpired
+            | RecoveryNoRetryReason::HardDecline
+            | RecoveryNoRetryReason::Cancelled => RecoveryStatus::Terminated,
+        },
+    }
+}
+
 pub fn map_recovery_status(
     intent_status: IntentStatus,
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
     attempt_count: i16,
     max_retry_threshold: i16,
+    external_trigger_next_retry: Option<common_types::payments::RecoveryNextRetry>,
 ) -> RecoveryStatus {
     let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
         .map(|calculate| {
@@ -2155,12 +2176,10 @@ pub fn map_recovery_status(
             calculate_process_tracker_status,
             execute_business_status,
             execute_process_tracker_status,
-            || {
-                if attempt_count > max_retry_threshold {
-                    RecoveryStatus::NoPicked
-                } else {
-                    RecoveryStatus::Monitoring
-                }
+            || match external_trigger_next_retry {
+                Some(next_retry) => map_external_trigger_recovery_status(next_retry),
+                None if attempt_count > max_retry_threshold => RecoveryStatus::NoPicked,
+                None => RecoveryStatus::Monitoring,
             },
         ),
 
@@ -2209,6 +2228,7 @@ pub fn map_to_recovery_payment_item(
         execute_workflow.as_ref(),
         payment_intent.attempt_count,
         max_retry_threshold,
+        payment_intent.get_external_trigger_next_retry(),
     );
 
     RecoveryPaymentsListResponseItem {

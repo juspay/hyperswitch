@@ -169,16 +169,16 @@ pub async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    merchant_context: storage::revenue_recovery::RecoveryMerchantContext<'_>,
     update_req: payments_api::PaymentsUpdateIntentRequest,
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
-    let platform_from_revenue_recovery_payment_data = Platform::new(
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
+    let platform_from_merchant_context = Platform::new(
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
         None,
     );
     let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
@@ -189,8 +189,8 @@ pub async fn update_payment_intent_api(
     >(
         state,
         state.get_req_state(),
-        platform_from_revenue_recovery_payment_data,
-        revenue_recovery_payment_data.profile.clone(),
+        platform_from_merchant_context,
+        merchant_context.profile.clone(),
         operation,
         update_req,
         global_payment_id,
@@ -311,7 +311,7 @@ pub async fn custom_revenue_recovery_core(
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
 
-    let updated_recovery_intent = match RecoveryTrigger::from_profile_settings(
+    let (updated_recovery_intent, next_retry) = match RecoveryTrigger::from_profile_settings(
         profile.revenue_recovery_trigger_model,
         profile.revenue_recovery_config.as_ref(),
         &request,
@@ -320,7 +320,7 @@ pub async fn custom_revenue_recovery_core(
             billing_merchant_connector_id,
             payment_merchant_connector_id,
         } => {
-            Box::pin(record_transaction_and_schedule_retries(
+            let updated_recovery_intent = Box::pin(record_transaction_and_schedule_retries(
                 &state,
                 &req_state,
                 &platform,
@@ -329,13 +329,14 @@ pub async fn custom_revenue_recovery_core(
                 &billing_merchant_connector_id,
                 &payment_merchant_connector_id,
             ))
-            .await?
+            .await?;
+            (updated_recovery_intent, None)
         }
         RecoveryTrigger::External {
             connector,
             retry_config,
         } => {
-            Box::pin(external_triggers::record_reported_transaction(
+            Box::pin(external_triggers::record_transaction_and_get_next_retry(
                 &state,
                 &req_state,
                 &platform,
@@ -348,14 +349,8 @@ pub async fn custom_revenue_recovery_core(
         }
     };
 
-    let response = api_models::payments::RecoveryPaymentsResponse {
-        id: updated_recovery_intent.payment_id.to_owned(),
-        intent_status: updated_recovery_intent.status.to_owned(),
-        merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
-    };
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
+        get_recovery_payments_response(&updated_recovery_intent, next_retry),
     ))
 }
 
@@ -470,6 +465,18 @@ async fn record_transaction_and_schedule_retries(
     Ok(updated_recovery_intent)
 }
 
+fn get_recovery_payments_response(
+    recovery_intent: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
+    next_retry: Option<common_types::payments::RecoveryNextRetry>,
+) -> payments_api::RecoveryPaymentsResponse {
+    payments_api::RecoveryPaymentsResponse {
+        id: recovery_intent.payment_id.to_owned(),
+        intent_status: recovery_intent.status.to_owned(),
+        merchant_reference_id: recovery_intent.merchant_reference_id.to_owned(),
+        next_retry,
+    }
+}
+
 /// Finds or creates the invoice of the transaction.
 pub(super) async fn get_or_create_invoice(
     state: &SessionState,
@@ -578,14 +585,13 @@ pub async fn cancel_revenue_recovery_core(
         })
     })?;
 
-    let response = api_payments::RecoveryPaymentsResponse {
-        id: cancelled_intent.id,
-        intent_status: cancelled_intent.status,
-        merchant_reference_id: cancelled_intent.merchant_reference_id,
-    };
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
+        get_recovery_payments_response(
+            &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                &cancelled_intent,
+            ),
+            cancelled_intent.get_external_trigger_next_retry(),
+        ),
     ))
 }
 

@@ -5061,10 +5061,43 @@
                 "schema": {
                   "$ref": "#/components/schemas/RecoveryPaymentsResponse"
                 },
-                "example": {
-                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                  "intent_status": "failed",
-                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                "examples": {
+                  "Next retry scheduled on a profile with external triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                      "next_retry": {
+                        "schedule_time": "2022-09-10T13:11:12.000Z",
+                        "status": "scheduled"
+                      }
+                    }
+                  },
+                  "No retry scheduled on a profile with external triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                      "next_retry": {
+                        "reason": "retries_exhausted",
+                        "status": "not_scheduled"
+                      }
+                    }
+                  },
+                  "Only recorded on a profile with external triggers, as the customer was present": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  },
+                  "Recorded on a profile with internal triggers": {
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  }
                 }
               }
             }
@@ -16192,6 +16225,39 @@
           }
         }
       },
+      "ExternalTriggerState": {
+        "type": "object",
+        "description": "The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled\njob holds it between the merchant's reports.",
+        "required": [
+          "consumed_ladder_rungs",
+          "next_retry"
+        ],
+        "properties": {
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
+              }
+            ],
+            "nullable": true
+          },
+          "consumed_ladder_rungs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Positions of the static retry ladder the invoice has used."
+          },
+          "retries_after_hard_decline": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries made with the card of the invoice since it was first hard declined. Absent while it\nhas not been.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "next_retry": {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -26089,6 +26155,14 @@
               }
             ],
             "nullable": true
+          },
+          "external_trigger_state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31869,6 +31943,67 @@
           "paypal"
         ]
       },
+      "RecoveryNextRetry": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Trigger the retry at `schedule_time`, then report its result through the recovery API.",
+            "required": [
+              "schedule_time",
+              "status"
+            ],
+            "properties": {
+              "schedule_time": {
+                "type": "string",
+                "description": "The time to trigger the retry at.",
+                "example": "2022-09-10T10:11:12.000Z"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "scheduled"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Do not trigger a retry.",
+            "required": [
+              "reason",
+              "status"
+            ],
+            "properties": {
+              "reason": {
+                "$ref": "#/components/schemas/RecoveryNoRetryReason"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "not_scheduled"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "When the merchant should trigger the next retry of an invoice.",
+        "discriminator": {
+          "propertyName": "status"
+        }
+      },
+      "RecoveryNoRetryReason": {
+        "type": "string",
+        "description": "Why no retry is scheduled for an invoice whose retries the merchant triggers.",
+        "enum": [
+          "recovered",
+          "retries_exhausted",
+          "grace_window_expired",
+          "hard_decline",
+          "monitoring",
+          "cancelled",
+          "below_retry_threshold"
+        ]
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -31928,7 +32063,7 @@
           "amount_captured": {
             "type": "integer",
             "format": "int64",
-            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.",
+            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.",
             "example": 6540,
             "nullable": true
           },
@@ -32048,6 +32183,14 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "next_retry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNextRetry"
+              }
+            ],
+            "nullable": true
           }
         }
       },
