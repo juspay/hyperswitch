@@ -2359,12 +2359,9 @@ dependencies = [
 
 [[package]]
 name = "cookie-factory"
-version = "0.3.3"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9885fa71e26b8ab7855e2ec7cae6e9b380edff76cd052e07c683a0319d51b3a2"
-dependencies = [
- "futures",
-]
+checksum = "396de984970346b0d9e93d1415082923c679e5ae5c3ee3dcbd104f5610af126b"
 
 [[package]]
 name = "core-foundation"
@@ -2835,7 +2832,7 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -2852,7 +2849,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2860,7 +2857,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2870,7 +2867,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2880,7 +2877,7 @@ dependencies = [
 [[package]]
 name = "deja-diesel"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "async-bb8-diesel",
  "deja-runtime",
@@ -2891,9 +2888,10 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=6ace82f8d37c7c5703f9636a608dd8d85a8f6953#6ace82f8d37c7c5703f9636a608dd8d85a8f6953"
+source = "git+https://github.com/juspay/deja?rev=3fe15f88537c4bf4375504de4582217ba4e2d8e0#3fe15f88537c4bf4375504de4582217ba4e2d8e0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "deja-context",
  "deja-core",
  "deja-derive",
@@ -3727,9 +3725,9 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 
 [[package]]
 name = "fred"
-version = "8.0.6"
+version = "9.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
+checksum = "915e065b377f6e16d5c01eae96bf31eeaf81e1e300b76f938761b3c21307cad8"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -3742,13 +3740,12 @@ dependencies = [
  "parking_lot",
  "rand 0.8.5",
  "redis-protocol",
- "rustls 0.22.4",
+ "rustls 0.23.46",
  "rustls-native-certs 0.7.3",
- "rustls-webpki 0.102.8",
  "semver",
  "socket2 0.5.10",
  "tokio",
- "tokio-rustls 0.25.0",
+ "tokio-rustls 0.26.2",
  "tokio-stream",
  "tokio-util",
  "tracing",
@@ -7628,9 +7625,9 @@ dependencies = [
 
 [[package]]
 name = "redis-protocol"
-version = "4.1.0"
+version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c31deddf734dc0a39d3112e73490e88b61a05e83e074d211f348404cee4d2c6"
+checksum = "65deb7c9501fbb2b6f812a30d59c0253779480853545153a51d8e9e444ddc99f"
 dependencies = [
  "bytes",
  "bytes-utils",
@@ -7653,6 +7650,7 @@ dependencies = [
  "redis",
  "router_env",
  "rustls 0.23.46",
+ "rustls-native-certs 0.7.3",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -8361,20 +8359,6 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
-dependencies = [
- "log",
- "ring 0.17.14",
- "rustls-pki-types",
- "rustls-webpki 0.102.8",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "rustls"
 version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
@@ -8489,17 +8473,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
  "ring 0.17.14",
- "untrusted 0.9.0",
-]
-
-[[package]]
-name = "rustls-webpki"
-version = "0.102.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
-dependencies = [
- "ring 0.17.14",
- "rustls-pki-types",
  "untrusted 0.9.0",
 ]
 
@@ -10275,17 +10248,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
  "rustls 0.21.12",
- "tokio",
-]
-
-[[package]]
-name = "tokio-rustls"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "775e0c0f0adb3a2f22a00c4745d728b479985fc15ee7ca6a2608388c5569860f"
-dependencies = [
- "rustls 0.22.4",
- "rustls-pki-types",
  "tokio",
 ]
 
