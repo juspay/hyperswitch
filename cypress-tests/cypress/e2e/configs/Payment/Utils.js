@@ -43,6 +43,7 @@ import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as givepaymentsConnectorDetails } from "./Givepayments.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as globalpaymentsRealexConnectorDetails } from "./GlobalpaymentsRealex.js";
 import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
@@ -140,6 +141,7 @@ const connectorDetails = {
   givepayments: givepaymentsConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  globalpayments_realex: globalpaymentsRealexConnectorDetails,
   globepay: globepayConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
@@ -621,6 +623,7 @@ export const CONNECTOR_LISTS = {
       "authorizedotnet",
       "fiservcommercehub",
       "givepayments",
+      "globalpayments_realex",
       "ilixium",
       "stripe",
       "truelayer",

@@ -48,6 +48,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   fiservcommercehub: ["card"],
   gigadat: ["bank_redirect"],
   givepayments: ["card"],
+  globalpayments_realex: ["card"],
   globepay: ["wallet"],
   iatapay: ["bank_redirect", "real_time_payment", "upi"],
   ilixium: ["card"],
