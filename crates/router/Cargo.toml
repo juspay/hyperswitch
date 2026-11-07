@@ -315,8 +315,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "diesel",
 ] }
 common_types = { version = "0.1.0", path = "../common_types", features = ["diesel"] }
-deja = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "3fe15f88537c4bf4375504de4582217ba4e2d8e0", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "3fe15f88537c4bf4375504de4582217ba4e2d8e0", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
@@ -345,7 +345,7 @@ storage_impl = { version = "0.1.0", path = "../storage_impl", default-features =
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 subscriptions = { version = "0.1.0", path = "../subscriptions", default-features = false }
-superposition_sdk = { version = "0.115.5" }
+superposition_sdk = { version = "0.119.0" }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }
