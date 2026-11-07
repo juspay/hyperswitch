@@ -1019,6 +1019,89 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
+/// Payment processor on which the reported transaction was made. Any other value is refused, as
+/// the standardised error code of a transaction is looked up by its processor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnector {
+    /// Adyen.
+    Adyen,
+    /// Stripe.
+    Stripe,
+    /// PayPal.
+    Paypal,
+}
+
+impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
+    fn from(connector: RecoveryConnector) -> Self {
+        match connector {
+            RecoveryConnector::Adyen => Self::Adyen,
+            RecoveryConnector::Stripe => Self::Stripe,
+            RecoveryConnector::Paypal => Self::Paypal,
+        }
+    }
+}
+
+/// The connector accounts a recovery transaction is recorded against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryConnectorAccounts {
+    /// Billing connector account the invoice belongs to.
+    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// Payment connector account the transaction ran on and the retries run through.
+    pub payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// The payment connector of that account.
+    pub connector: common_enums::connector_enums::Connector,
+}
+
+/// What is known about the connector of a recovery transaction, which decides how it is recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnectorDetails {
+    /// Recorded against connector accounts, so Hyperswitch can sync the transaction with the
+    /// connector and retry through it.
+    ConnectorAccounts(RecoveryConnectorAccounts),
+    /// Reported by the merchant without any connector account, so what was reported is final.
+    ReportedByMerchant {
+        /// The processor that was reported.
+        connector: common_enums::connector_enums::Connector,
+    },
+}
+
+impl RecoveryConnectorDetails {
+    /// Whether the transaction is recorded against connector accounts.
+    pub fn has_connector_accounts(&self) -> bool {
+        matches!(self, Self::ConnectorAccounts(_))
+    }
+
+    /// The billing connector account, when the transaction is recorded against one.
+    pub fn get_billing_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.billing_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector account, when the transaction is recorded against one.
+    pub fn get_payment_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.payment_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector of the transaction.
+    pub fn get_connector(&self) -> common_enums::connector_enums::Connector {
+        match self {
+            Self::ConnectorAccounts(accounts) => accounts.connector,
+            Self::ReportedByMerchant { connector } => *connector,
+        }
+    }
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]

@@ -98,8 +98,8 @@ pub struct LoonioCustomerProfile {
 
 #[derive(Debug, Serialize)]
 pub struct LoonioRedirectUrl {
-    pub success_url: String,
-    pub failed_url: String,
+    pub success_url: Secret<String>,
+    pub failed_url: Secret<String>,
 }
 
 impl TryFrom<&LoonioRouterData<&PaymentsAuthorizeRouterData>> for LoonioPaymentRequest {
@@ -163,7 +163,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, LoonioPaymentsResponse, T, PaymentsResp
                     item.data.connector_request_reference_id.clone(),
                 ),
                 redirection_data: Box::new(Some(RedirectForm::Form {
-                    endpoint: item.response.payment_form,
+                    endpoint: item.response.payment_form.into(),
                     method: Method::Get,
                     form_fields: HashMap::new(),
                 })),

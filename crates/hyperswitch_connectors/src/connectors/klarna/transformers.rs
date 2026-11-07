@@ -82,9 +82,9 @@ pub enum PaymentMethodSpecifics {
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct MerchantURLs {
-    terms: String,
-    checkout: String,
-    confirmation: String,
+    terms: Secret<String>,
+    checkout: Secret<String>,
+    confirmation: Secret<String>,
     push: String,
 }
 
@@ -127,7 +127,7 @@ pub struct PaymentsResponse {
 pub struct CheckoutResponse {
     order_id: String,
     status: KlarnaCheckoutStatus,
-    html_snippet: String,
+    html_snippet: Secret<String>,
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthorizedPaymentMethod {

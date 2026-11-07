@@ -111,8 +111,8 @@ pub struct Settings {
 pub struct PaymentOptions {
     pub notification_url: Option<String>,
     pub notification_method: Option<String>,
-    pub redirect_url: String,
-    pub cancel_url: String,
+    pub redirect_url: Secret<String>,
+    pub cancel_url: Secret<String>,
     pub close_window: Option<bool>,
     pub settings: Option<Settings>,
     pub template_id: Option<String>,

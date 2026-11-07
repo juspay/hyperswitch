@@ -117,11 +117,12 @@ macro_rules! config {
         }
     };
 
-    // Primitive config variant (no helper function - use get_{{key_name}}() directly on Dimensions)
+    // Primitive config variant. Optional generics allow dimensions beyond `requires` to vary.
     (
         superposition_key = $key:ident,
         output = $output:ty,
         default = $default:expr,
+        $(generics = [$($generic:ident),+],)?
         requires = $requirement:ty,
         targeting_key = $targeting_type:ty
     ) => {
@@ -137,7 +138,7 @@ macro_rules! config {
                 }
             }
 
-            impl $requirement {
+            impl $(<$($generic),+>)? $requirement {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
@@ -377,6 +378,35 @@ impl DatabaseBackedConfig for PaymentBlocklistGuard {
             .get_processor_merchant_id()
             .map(|id| id.get_blocklist_guard_key())
     }
+}
+
+// Keep an empty object as the application fallback during migration. The card testing guard
+// runtime uses it to distinguish a missing Superposition config from an actual config, then
+// falls back to the legacy business profile value.
+config! {
+    superposition_key = CARD_TESTING_GUARD_CONFIG,
+    output = serde_json::Value,
+    default = serde_json::json!({}),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for CardTestingGuardConfig {
+    const KEY: &'static str = "card_testing_guard_config";
+}
+
+config! {
+    superposition_key = PAYOUT_KILL_SWITCH,
+    output = bool,
+    default = false,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutKillSwitch {
+    const KEY: &'static str = "payout_kill_switch";
 }
 
 config! {
@@ -695,6 +725,30 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
                     })
             })
     }
+}
+
+config! {
+    superposition_key = PAYOUT_MIN_AMOUNT,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::zero(),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutMinAmount {
+    const KEY: &'static str = "payout_min_amount";
+}
+
+config! {
+    superposition_key = PAYOUT_MAX_AMOUNT,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::new(crate::consts::MAX_ALLOWED_AMOUNT),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PayoutMaxAmount {
+    const KEY: &'static str = "payout_max_amount";
 }
 
 config! {

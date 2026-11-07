@@ -422,7 +422,7 @@ where
     E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
     let request_method = request.method().as_str();
-    let url_path = request.path();
+    let url_path = router_env::request_path::path_for_telemetry(request);
 
     let unmasked_incoming_header_keys = state.conf().unmasked_headers.keys;
 
@@ -442,7 +442,7 @@ where
             });
 
     tracing::Span::current().record("request_method", request_method);
-    tracing::Span::current().record("request_url_path", url_path);
+    tracing::Span::current().record("request_url_path", url_path.as_ref());
 
     let start_instant = Instant::now();
 
@@ -504,6 +504,7 @@ where
             let config = state.conf();
             build_redirection_form(
                 &redirection_data.redirect_form,
+                redirection_data.callback_url.as_ref(),
                 redirection_data.payment_method_data,
                 redirection_data.amount,
                 redirection_data.currency,
@@ -725,7 +726,10 @@ pub fn http_redirect_response<T: body::MessageBody + 'static>(
         .content_type(mime::APPLICATION_JSON)
         .append_header((
             "Location",
-            redirection_response.return_url_with_query_params,
+            redirection_response
+                .return_url_with_query_params
+                .peek()
+                .as_str(),
         ))
         .status(http::StatusCode::FOUND)
         .body(response)
@@ -871,12 +875,16 @@ impl Authenticate for api_models::payments::PaymentsRejectRequest {}
 
 pub fn build_redirection_form(
     form: &RedirectForm,
+    callback_url: Option<&hyperswitch_masking::Secret<String>>,
     payment_method_data: Option<PaymentMethodData>,
     amount: String,
     currency: String,
     config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
+    let callback_url = callback_url
+        .map(|url| url.peek().as_str())
+        .unwrap_or_default();
     let logging_template =
         include_str!("redirection/assets/redirect_error_logs_push.js").to_string();
     match form {
@@ -928,9 +936,9 @@ pub fn build_redirection_form(
                 "#))
 
                 h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                    form action=(PreEscaped(endpoint)) method=(method.to_string()) #payment_form {
+                    form action=(PreEscaped(endpoint.peek())) method=(method.to_string()) #payment_form {
                         @for (field, value) in form_fields {
-                        input type="hidden" name=(field) value=(value);
+                        input type="hidden" name=(field) value=(value.peek());
                     }
                 }
                 (PreEscaped(format!(r#"
@@ -953,9 +961,10 @@ pub fn build_redirection_form(
             }
         }
         },
-        RedirectForm::Html { html_data } => {
-            PreEscaped(format!("{html_data} <script>{logging_template}</script>"))
-        }
+        RedirectForm::Html { html_data } => PreEscaped(format!(
+            "{} <script>{logging_template}</script>",
+            html_data.peek()
+        )),
         RedirectForm::BarclaycardAuthSetup {
             access_token,
             ddc_url,
@@ -967,7 +976,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1002,7 +1011,9 @@ pub fn build_redirection_form(
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
                     if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                      var callback = new URL(document.body.getAttribute('data-callback-url'));
+                      callback.searchParams.set(\"referenceId\", \"{reference_id}\");
+                      window.location.href = callback.toString();
                     }}
                   }}, false);
                 </script>
@@ -1076,7 +1087,7 @@ pub fn build_redirection_form(
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1104,7 +1115,9 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         // console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
+                        var callback = new URL(document.body.getAttribute('data-callback-url'));
+                        callback.searchParams.set(\"paymentToken\", \"{payment_fields_token}\");
+                        f.action = callback.toString();
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1131,7 +1144,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1165,9 +1178,20 @@ pub fn build_redirection_form(
               (PreEscaped(format!("<script>
                 {logging_template}
                 window.addEventListener(\"message\", function(event) {{
-                    if (event.origin.endsWith(\"cardinaltrusted.com\") || event.origin.endsWith(\"cardinalcommerce.com\")) {{
-                      window.location.href = window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/cybersource?referenceId={reference_id}\");
+                    const allowedOrigins = [
+                        \"https://centinelapistag.cardinalcommerce.com\",
+                        \"https://centinelapi.cardinalcommerce.com\",
+                        \"https://cas.client.cardinaltrusted.com\",
+                        \"https://client.cardinaltrusted.com\"
+                    ];
+
+                    if (!allowedOrigins.includes(event.origin)) {{
+                        return;
                     }}
+
+                    var callback = new URL(document.body.getAttribute('data-callback-url'));
+                    callback.searchParams.set(\"referenceId\", \"{reference_id}\");
+                    window.location.href = callback.toString();
                   }}, false);
                 </script>
                 ")))
@@ -1265,10 +1289,11 @@ pub fn build_redirection_form(
                 head {
                     (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
                 }
+                body data-callback-url=(callback_url) {
                 (PreEscaped(format!("<script>
                     {logging_template}
                     var f = document.createElement('form');
-                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.action = document.body.getAttribute('data-callback-url');
                     f.method='POST';
                     PayMe.clientData()
                     .then((data) => {{
@@ -1285,6 +1310,7 @@ pub fn build_redirection_form(
                     }});
             </script>
                 ")))
+                }
             }
         }
         RedirectForm::Braintree {
@@ -1293,6 +1319,7 @@ pub fn build_redirection_form(
             bin,
             acs_url,
         } => {
+            let acs_url = acs_url.peek();
             maud::html! {
             (maud::DOCTYPE)
             html {
@@ -1302,7 +1329,7 @@ pub fn build_redirection_form(
                     // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) data-complete-callback-url=(acs_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
@@ -1355,7 +1382,7 @@ pub fn build_redirection_form(
                                                 if(err) {{
                                                     console.error(err);
                                                     var f = document.createElement('form');
-                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    f.action = document.body.getAttribute('data-callback-url');
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';
@@ -1368,7 +1395,7 @@ pub fn build_redirection_form(
                                                 }} else {{
                                                     // console.log(payload);
                                                     var f = document.createElement('form');
-                                                    f.action=\"{acs_url}\";
+                                                    f.action = document.body.getAttribute('data-complete-callback-url');
                                                     var i = document.createElement('input');
                                                     i.type = 'hidden';
                                                     f.method='POST';
@@ -1397,7 +1424,7 @@ pub fn build_redirection_form(
                     head {
                         (PreEscaped(r#"<script src="https://secure.networkmerchants.com/js/v1/Gateway.js"></script>"#))
                     }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
                         div id="loader-wrapper" {
                             div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
@@ -1443,7 +1470,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('complete', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action = document.body.getAttribute('data-callback-url');
                         responseForm.method='POST';
 
                         var item1=document.createElement('input');
@@ -1500,7 +1527,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('failure', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action = document.body.getAttribute('data-callback-url');
                         responseForm.method='POST';
 
                         var error_code=document.createElement('input');
@@ -1534,13 +1561,14 @@ pub fn build_redirection_form(
                             (PreEscaped(format!(r#"<script src='{mifinity_base_url}widgets/sgpg.js?58190a411dc3'></script>"#)))
                         }
 
+                        body data-callback-url=(callback_url) {
                         (PreEscaped(format!("<div id='widget-container'></div>
 	  <script>
 		  var widget = showPaymentIframe('widget-container', {{
 			  token: '{initialization_token}',
 			  complete: function() {{
                 var f = document.createElement('form');
-                f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/mifinity\");
+                f.action = document.body.getAttribute('data-callback-url');
                 f.method='GET';
                 document.body.appendChild(f);
                 f.submit();
@@ -1548,6 +1576,7 @@ pub fn build_redirection_form(
 		   }});
 	   </script>")))
 
+                }
             }
         }
         RedirectForm::WorldpayDDCForm {
@@ -1574,7 +1603,7 @@ pub fn build_redirection_form(
                         "##))
                 }
 
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
                     (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
                     (PreEscaped(r#"
@@ -1596,21 +1625,21 @@ pub fn build_redirection_form(
                             r#"
                                 var ddcProcessed = false;
                                 var timeoutHandle = null;
-                                
+
                                 function submitCollectionReference(collectionReference) {{
                                     if (ddcProcessed) {{
                                         console.log("DDC already processed, ignoring duplicate submission");
                                         return;
                                     }}
                                     ddcProcessed = true;
-                                    
+
                                     if (timeoutHandle) {{
                                         clearTimeout(timeoutHandle);
                                         timeoutHandle = null;
                                     }}
-                                    
-                                    var redirectPathname = window.location.pathname.replace(/payments\/redirect\/([^\/]+)\/([^\/]+)\/[^\/]+/, "payments/$1/$2/redirect/complete/worldpay");
-                                    var redirectUrl = window.location.origin + redirectPathname;
+
+                                    var redirectPathname = document.body.getAttribute('data-callback-url');
+                                    var redirectUrl = redirectPathname;
                                     try {{
                                         if (typeof collectionReference === "string" && collectionReference.length > 0) {{
                                             var form = document.createElement("form");
@@ -1711,7 +1740,7 @@ pub fn build_redirection_form(
                     head {
                         meta name="viewport" content="width=device-width, initial-scale=1";
                     }
-                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                body data-callback-url=(callback_url) style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
 
                         h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
@@ -1742,10 +1771,7 @@ pub fn build_redirection_form(
                                     try {{
                                         var data = JSON.parse(event.data);
                                         var responseForm = document.createElement('form');
-                                        responseForm.action=window.location.pathname.replace(
-                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                            "payments/$1/$2/redirect/complete/worldpayxml"
-                                        );
+                                        responseForm.action = document.body.getAttribute('data-callback-url');
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -1764,10 +1790,7 @@ pub fn build_redirection_form(
                                         responseForm.submit();
                                     }} catch (e) {{
                                         var responseForm = document.createElement('form');
-                                        responseForm.action=window.location.pathname.replace(
-                                            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-                                            "payments/$1/$2/redirect/complete/worldpayxml"
-                                        );
+                                        responseForm.action = document.body.getAttribute('data-callback-url');
                                         responseForm.method='POST';
 
                                         var item1=document.createElement('input');
@@ -1967,9 +1990,4 @@ pub fn extract_field_by_dot_path(
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn test_mime_essence() {
-        assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
-    }
-}
+mod tests;

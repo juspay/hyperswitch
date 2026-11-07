@@ -11,10 +11,7 @@ use moka::{
     ops::compute::{CompResult, Op},
 };
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use crate::{
     errors::StorageError,

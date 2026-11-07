@@ -215,6 +215,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 datatrans::transformers::DatatransAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Betterpayment => {
+                betterpayment::transformers::BetterpaymentAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Deutschebank => {
                 deutschebank::transformers::DeutschebankAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -538,6 +542,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Rapyd => {
                 rapyd::transformers::RapydAuthType::try_from(self.auth_type)?;
+                crate::core::unified_connector_service::connector_config::RapydMetadata::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Razorpay => {

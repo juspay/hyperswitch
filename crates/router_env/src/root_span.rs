@@ -15,6 +15,27 @@ use crate::request_id::RequestId;
 #[derive(Debug)]
 pub struct CustomRootSpanBuilder;
 
+// Override only the URI observed by the tracing macro. The actual request,
+// including its body, headers, and routing data, remains untouched.
+struct RouteTargetRequest<'a> {
+    request: &'a ServiceRequest,
+    uri: actix_web::http::Uri,
+}
+
+impl std::ops::Deref for RouteTargetRequest<'_> {
+    type Target = ServiceRequest;
+
+    fn deref(&self) -> &Self::Target {
+        self.request
+    }
+}
+
+impl RouteTargetRequest<'_> {
+    fn uri(&self) -> &actix_web::http::Uri {
+        &self.uri
+    }
+}
+
 impl RootSpanBuilder for CustomRootSpanBuilder {
     fn on_request_start(request: &ServiceRequest) -> Span {
         // Extract the RequestId from extensions (set by RequestIdentifier middleware)
@@ -25,6 +46,22 @@ impl RootSpanBuilder for CustomRootSpanBuilder {
             .map(|id| id.to_string())
             .unwrap_or_default();
 
+        // root_span! records http.target as soon as the span is created.
+        let target = crate::request_path::path_for_telemetry(request.request());
+        if target.as_ref() == request.path() {
+            return root_span!(
+                level = crate::Level::INFO,
+                request,
+                request_id = request_id.as_str()
+            );
+        }
+        let route_request = RouteTargetRequest {
+            request,
+            uri: target
+                .parse()
+                .unwrap_or_else(|_| actix_web::http::Uri::from_static("/unmatched")),
+        };
+        let request = &route_request;
         root_span!(
             level = crate::Level::INFO,
             request,
@@ -68,3 +105,6 @@ fn handle_error(span: Span, status_code: StatusCode, response_error: &dyn Respon
         span.record("otel.status_code", "ERROR");
     }
 }
+
+#[cfg(test)]
+mod tests;

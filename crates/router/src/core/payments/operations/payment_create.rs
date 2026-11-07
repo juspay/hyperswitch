@@ -25,7 +25,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -1314,13 +1314,13 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_method,
+                request.payment_method,
                 &request
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.clone()),
-                &request.payment_method_type,
-                &mandate_type,
+                request.payment_method_type,
+                mandate_type,
                 &request.payment_token,
                 &request.ctp_service_details,
             )?;
@@ -2060,6 +2060,7 @@ impl PaymentCreate {
             external_surcharge_strategy: request.external_surcharge_strategy,
             external_surcharge_applicable: None,
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             settlement_conclusion_applied: Some(
                 request.settlement_conclusion_applied.unwrap_or(false),
             ),

@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 default = []
 diesel = ["dep:diesel", "hyperswitch_masking/diesel"]
-keymanager = ["dep:router_env"]
+keymanager = ["dep:router_env", "dep:tracing"]
 keymanager_mtls = ["reqwest/rustls"]
 encryption_service = ["dep:router_env"]
 km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
@@ -64,6 +64,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "macros"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"], optional = true }
+tracing = { workspace = true, optional = true }
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
