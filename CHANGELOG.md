@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix10
+
+### Miscellaneous Tasks
+
+- **deps:** Refresh cloud and test-tooling dependencies ([#15188](https://github.com/juspay/hyperswitch/pull/15188)) ([`623c005`](https://github.com/juspay/hyperswitch/commit/623c0056fd1c2b79071d6e3c5aa57ffe0f340d1d))
+
+**Full Changelog:** [`2026.10.26.0-hotfix9...2026.10.26.0-hotfix10`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix9...2026.10.26.0-hotfix10)
+
+- - -
+
 ## 2026.10.26.0-hotfix9
 
 ### Features
