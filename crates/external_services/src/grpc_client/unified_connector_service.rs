@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    net::SocketAddr,
+};
 
 use common_enums::{connector_enums::Connector, ConnectorType};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
@@ -6,10 +9,10 @@ use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
-use tokio::time::Duration;
+use tokio::{net::lookup_host, time::Duration};
 use tonic::{
     metadata::{MetadataMap, MetadataValue},
-    transport::Uri,
+    transport::{channel::Change, Channel, Endpoint, Uri},
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -28,11 +31,11 @@ pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServ
 /// otherwise it is the raw tonic channel. Threading this alias through the
 /// client fields + their construction keeps the feature-off build byte-identical.
 #[cfg(feature = "deja")]
-pub type UcsChannel = super::deja_transport::DejaGrpcTransport<tonic::transport::Channel>;
+pub type UcsChannel = super::deja_transport::DejaGrpcTransport<Channel>;
 /// The transport under every UCS service client (raw tonic channel; see the
 /// `deja`-gated definition above for the recording/substituting variant).
 #[cfg(not(feature = "deja"))]
-pub type UcsChannel = tonic::transport::Channel;
+pub type UcsChannel = Channel;
 /// Contains the  Unified Connector Service client
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
@@ -74,6 +77,11 @@ pub struct UnifiedConnectorServiceClient {
 pub struct UnifiedConnectorServiceClientConfig {
     /// Base URL of the gRPC Server
     pub base_url: Url,
+
+    /// DNS name of a headless Service containing only ready UCS pod addresses.
+    /// When absent, use the existing ClusterIP channel.
+    #[serde(default)]
+    pub endpoint_discovery_host: Option<String>,
 
     /// Contains the connection timeout duration in seconds
     pub connection_timeout: UcsConnectionTimeoutInSeconds,
@@ -282,36 +290,129 @@ pub enum UcsClientBuildError {
     /// The transport boundary did not yield a usable channel
     #[error("Unified Connector Service transport could not be constructed")]
     TransportUnavailable,
+    /// Endpoint discovery was configured but returned no ready pod addresses.
+    #[error("Unified Connector Service endpoint discovery returned no ready pods")]
+    NoReadyEndpoints,
 }
 
-/// Builds the single shared channel to the Unified Connector Service.
-///
-/// One lazily connected HTTP/2 connection carries every UCS service client, so no client-specific
-/// channel can sit idle for hours. HTTP/2 PING keepalive runs while idle: a connection that dies
-/// without a GOAWAY is detected within `keep_alive_interval + keep_alive_timeout` and rebuilt by
-/// tonic's reconnect layer before the next RPC, instead of the next RPC failing with
-/// `transport error`. `connect_lazy` performs no I/O here; the first RPC (or the router health
-/// check) opens the connection, and a failed dial fails only that RPC and is retried on the next.
-fn build_ucs_channel(
-    uri: Uri,
-    config: &UnifiedConnectorServiceClientConfig,
-) -> tonic::transport::Channel {
-    tonic::transport::Channel::builder(uri)
+/// Builds the shared UCS channel. Endpoint discovery balances ready pod connections and evicts
+/// terminating pods before Kubernetes sends SIGTERM. The original ClusterIP path remains the
+/// default for deployments without a headless UCS Service.
+fn ucs_endpoint(uri: Uri, config: &UnifiedConnectorServiceClientConfig) -> Endpoint {
+    Channel::builder(uri)
         .connect_timeout(config.connection_timeout.as_duration())
         .timeout(config.request_timeout.as_duration())
         .http2_keep_alive_interval(config.keep_alive_interval.as_duration())
         .keep_alive_timeout(config.keep_alive_timeout.as_duration())
         .keep_alive_while_idle(true)
         .tcp_keepalive(Some(config.tcp_keepalive.as_duration()))
-        // Flow-control windows are deliberately left at hyper's defaults (5 MiB connection,
-        // 2 MiB stream). They are not the per-connection 64 KiB of the HTTP/2 spec, so a single
-        // shared connection is not a throughput regression against the eleven it replaces:
-        // gRPC payloads here are a few KiB and never approach the window, and the windows are
-        // receive-side credit rather than a bandwidth cap. `http2_adaptive_window` is
-        // intentionally not enabled; it would *lower* the initial windows to 65,535 bytes and
-        // rely on BDP sampling to grow them back, which only helps on high bandwidth-delay
-        // links carrying large payloads, not on same-region RPCs of this size.
-        .connect_lazy()
+}
+
+async fn ready_ucs_addresses(host: &str, port: u16) -> std::io::Result<HashSet<SocketAddr>> {
+    lookup_host((host, port))
+        .await
+        .map(|addresses| addresses.collect())
+}
+
+async fn build_ucs_channel(
+    uri: Uri,
+    config: &UnifiedConnectorServiceClientConfig,
+) -> Result<Channel, UcsClientBuildError> {
+    let Some(host) = config.endpoint_discovery_host.as_ref() else {
+        return Ok(ucs_endpoint(uri, config).connect_lazy());
+    };
+
+    // Pod IPs use the same plaintext gRPC port as the in-cluster UCS Service.
+    if uri.scheme_str() != Some("http") {
+        return Err(UcsClientBuildError::InvalidUri(
+            "endpoint discovery requires an http UCS base_url".to_string(),
+        ));
+    }
+    let port = uri.port_u16().unwrap_or(80);
+    let mut ready = ready_ucs_addresses(host, port).await.map_err(|error| {
+        logger::error!(?error, "Failed to resolve UCS ready pod addresses");
+        UcsClientBuildError::NoReadyEndpoints
+    })?;
+    if ready.is_empty() {
+        return Err(UcsClientBuildError::NoReadyEndpoints);
+    }
+
+    let (channel, updates) = Channel::balance_channel::<SocketAddr>(64);
+    for address in &ready {
+        let endpoint_uri: Uri = format!("http://{address}")
+            .parse::<Uri>()
+            .map_err(|error| UcsClientBuildError::InvalidUri(error.to_string()))?;
+        updates
+            .send(Change::Insert(*address, ucs_endpoint(endpoint_uri, config)))
+            .await
+            .map_err(|_| UcsClientBuildError::TransportUnavailable)?;
+    }
+    logger::info!(
+        ready_pods = ready.len(),
+        "UCS endpoint discovery initialized"
+    );
+
+    let host = host.clone();
+    let config = config.clone();
+    tokio::spawn(async move {
+        let mut poll = tokio::time::interval(Duration::from_secs(1));
+        poll.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            poll.tick().await;
+            if updates.is_closed() {
+                break;
+            }
+            let next = match ready_ucs_addresses(&host, port).await {
+                Ok(next) if !next.is_empty() => next,
+                Ok(_) => {
+                    logger::warn!("UCS endpoint discovery returned no ready pods");
+                    continue;
+                }
+                Err(error) => {
+                    logger::warn!(?error, "UCS endpoint discovery failed");
+                    continue;
+                }
+            };
+            let added = next.difference(&ready).count();
+            let removed = ready.difference(&next).count();
+
+            // Make replacement pods available before evicting terminating pods.
+            for address in next.difference(&ready) {
+                let endpoint_uri = match format!("http://{address}").parse::<Uri>() {
+                    Ok(uri) => uri,
+                    Err(error) => {
+                        logger::error!(?error, "Invalid UCS pod endpoint URI");
+                        continue;
+                    }
+                };
+                if updates
+                    .send(Change::Insert(
+                        *address,
+                        ucs_endpoint(endpoint_uri, &config),
+                    ))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            for address in ready.difference(&next) {
+                if updates.send(Change::Remove(*address)).await.is_err() {
+                    return;
+                }
+            }
+            if added > 0 || removed > 0 {
+                logger::info!(
+                    added,
+                    removed,
+                    ready_pods = next.len(),
+                    "UCS endpoint discovery updated"
+                );
+            }
+            ready = next;
+        }
+    });
+    Ok(channel)
 }
 
 /// VGS proxy data
@@ -343,15 +444,17 @@ impl UnifiedConnectorServiceClient {
             },
         )?;
 
-        let channel = build_ucs_channel(uri, ucs_config);
+        #[cfg(not(feature = "deja"))]
+        let channel = build_ucs_channel(uri, ucs_config).await?;
 
         // deja: the same channel handed to the gRPC egress boundary so every unary rpc is
         // recorded/substituted at the wire level. Under replay no transport is connected at all.
         #[cfg(feature = "deja")]
-        let transport: UcsChannel =
-            super::deja_transport::connect_or_substitute(|| async { Some(channel) })
-                .await
-                .ok_or(UcsClientBuildError::TransportUnavailable)?;
+        let transport: UcsChannel = super::deja_transport::connect_or_substitute(|| async {
+            build_ucs_channel(uri, ucs_config).await.ok()
+        })
+        .await
+        .ok_or(UcsClientBuildError::TransportUnavailable)?;
 
         #[cfg(not(feature = "deja"))]
         let transport: UcsChannel = channel;
