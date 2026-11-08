@@ -838,6 +838,8 @@ export const CONNECTOR_LISTS = {
     AUTH_CODE: ["checkout", "worldpayxml"],
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
+    // merchant_reference_id resolved as customer_id in v1 payments (PR #14589)
+    MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID: ["stripe"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
     AUTO_FALLBACK_CAPTURE_METHOD: [
       "trustpay",

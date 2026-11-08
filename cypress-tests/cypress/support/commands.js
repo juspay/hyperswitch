@@ -10112,6 +10112,10 @@ Cypress.Commands.add(
     }).then((response) => {
       if (response.status === 200) {
         globalState.set("customerId", response.body.id);
+        globalState.set(
+          "customerMerchantReferenceId",
+          reqData.merchant_reference_id
+        );
         expect(response.body.id, "customer_id").to.not.be.empty;
         expect(customerCreateBody.email, "email").to.equal(response.body.email);
         expect(customerCreateBody.name, "name").to.equal(response.body.name);
