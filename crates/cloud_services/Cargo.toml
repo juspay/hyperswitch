@@ -31,11 +31,11 @@ oci_kms = ["dep:oci_kms"]
 aws-config = { version = "1.8.14", optional = true, features = [
     "behavior-version-latest",
 ] }
-aws-sdk-kms = { version = "1.100.0", optional = true }
-aws-sdk-s3 = { version = "1.123.0", optional = true }
-aws-sdk-sesv2 = { version = "1.115.0", optional = true }
-aws-sdk-sts = { version = "1.98.0", optional = true }
-aws-smithy-runtime = { version = "1.11.3", optional = true }
+aws-sdk-kms = { version = "1.100.0", optional = true, default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-s3 = { version = "1.123.0", optional = true, default-features = false, features = ["default-https-client", "rt-tokio", "sigv4a", "http-1x"] }
+aws-sdk-sesv2 = { version = "1.123.0", optional = true, default-features = false, features = ["default-https-client", "rt-tokio", "sigv4a"] }
+aws-sdk-sts = { version = "1.107.0", optional = true, default-features = false, features = ["default-https-client", "rt-tokio", "sigv4a"] }
+aws-smithy-runtime = { version = "1.11.3", optional = true, features = ["connector-hyper-0-14-x"] }
 aws-smithy-runtime-api = { version = "1.7", optional = true, features = ["client"] }
 base64 = { version = "0.22.1", optional = true }
 google-cloud-gax = { version = "0.19.2", optional = true }
