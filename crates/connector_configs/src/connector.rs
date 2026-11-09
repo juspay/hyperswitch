@@ -172,6 +172,8 @@ pub struct ConfigMetadata {
     pub boleto: Option<Vec<InputData>>,
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
+    pub connector_client_id: Option<InputData>,
+    pub connector_currency_account_id: Option<InputData>,
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
