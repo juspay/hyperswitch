@@ -63,6 +63,14 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
+/// Checkout payout configuration stored on the merchant connector account.
+#[derive(Debug, serde::Deserialize)]
+pub struct CheckoutMetadata {
+    connector_client_id: Option<Secret<String>>,
+    /// Checkout currency account (`ca_...`) used as the payout `source.id`.
+    connector_currency_account_id: Option<Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
@@ -350,6 +358,11 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_client_id: Option<Secret<String>>,
+        /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_currency_account_id: Option<Secret<String>>,
     },
     /// Authorize.net connector configuration
     Authorizedotnet {
@@ -1497,11 +1510,30 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Checkout {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    processing_channel_id: key1.clone(),
-                }),
+                } => {
+                    let checkout_metadata = metadata
+                        .map(|metadata| {
+                            serde_json::from_value::<CheckoutMetadata>(metadata.clone())
+                                .map_err(|_| err("Invalid Checkout metadata format"))
+                        })
+                        .transpose()?;
+
+                    let (connector_client_id, connector_currency_account_id) = checkout_metadata
+                        .map(|metadata| {
+                            (
+                                metadata.connector_client_id,
+                                metadata.connector_currency_account_id,
+                            )
+                        })
+                        .unwrap_or_default();
+                    Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        connector_client_id,
+                        connector_currency_account_id,
+                    })
+                }
                 _ => Err(err("Checkout requires SignatureKey auth type")),
             },
             Connector::Dlocal => match auth {
