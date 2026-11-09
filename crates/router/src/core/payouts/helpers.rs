@@ -1519,15 +1519,24 @@ pub async fn update_payouts_and_payout_attempt(
     let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
-    let sender_details = encrypt_sender_details(
-        state,
-        platform.get_processor().get_key_store(),
-        req.sender_details
-            .clone()
-            .or_else(|| payouts.get_optional_sender_details().cloned()),
-    )
-    .await?
-    .map(Encryption::from);
+    let sender_details = req
+        .sender_details
+        .clone()
+        .or_else(|| payouts.get_optional_sender_details().cloned())
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
@@ -1612,50 +1621,6 @@ pub async fn update_payouts_and_payout_attempt(
             .attach_printable("Error updating payout_attempt")?;
     }
     Ok(())
-}
-
-/// Encrypts the supplied sender identity with the merchant key for persistence.
-/// Returns `None` when no sender details were supplied.
-pub async fn encrypt_sender_details(
-    state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    sender_details: Option<api_models::sender::SenderDetails>,
-) -> RouterResult<
-    hyperswitch_domain_models::type_encryption::OptionalEncryptableJsonType<
-        api_models::sender::SenderDetails,
-    >,
-> {
-    let key_manager_state: KeyManagerState = state.into();
-    sender_details
-        .async_map(|sender_details| async {
-            core_utils::create_encrypted_data(
-                &key_manager_state,
-                merchant_key_store,
-                sender_details,
-                type_name!(storage::Payouts),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt payout sender_details")?
-            .deserialize_inner_value(|value| {
-                serde_json::from_value::<
-                    hyperswitch_domain_models::type_encryption::EncryptedJsonType<
-                        api_models::sender::SenderDetails,
-                    >,
-                >(value.peek().clone())
-                .map(Secret::new)
-                .map_err(|_| {
-                    error_stack::Report::new(
-                        common_utils::errors::ParsingError::StructParseFailure(
-                            "Failed to serialize payout sender_details",
-                        ),
-                    )
-                })
-            })
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-        })
-        .await
-        .transpose()
 }
 
 pub(super) fn get_customer_details_from_request(

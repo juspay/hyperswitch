@@ -3640,12 +3640,29 @@ pub async fn payout_create_db_entries(
         consts::ID_LENGTH,
         format!("payout_{}_secret", payout_id.get_string_repr()).as_str(),
     );
-    let sender_details = helpers::encrypt_sender_details(
-        state,
-        platform.get_processor().get_key_store(),
-        req.sender_details.clone(),
-    )
-    .await?;
+    let sender_details = req
+        .sender_details
+        .clone()
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                common_utils::type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(|encrypted_sender_details| {
+            encrypted_sender_details
+                .deserialize_inner_value(|value| value.parse_value("PayoutSenderDetails"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse payout sender details")?;
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
