@@ -48,7 +48,6 @@ macro_rules! config {
         output = $output:ty,
         default = $default:expr,
         object = true,
-        $(generics = [$($generic:ident),+],)?
         requires = $requirement:ty,
         targeting_key = $targeting_type:ty
     ) => {
@@ -64,7 +63,7 @@ macro_rules! config {
                 }
             }
 
-            impl $(<$($generic),+>)? $requirement {
+            impl $requirement {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
@@ -730,9 +729,8 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
 
 config! {
     superposition_key = PAYOUT_MIN_AMOUNT,
-    output = HashMap<common_enums::Currency, common_utils::types::MinorUnit>,
-    default = HashMap::<common_enums::Currency, common_utils::types::MinorUnit>::new(),
-    object = true,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::zero(),
     generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
     requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId
@@ -744,9 +742,8 @@ impl DatabaseBackedConfig for PayoutMinAmount {
 
 config! {
     superposition_key = PAYOUT_MAX_AMOUNT,
-    output = HashMap<common_enums::Currency, common_utils::types::MinorUnit>,
-    default = HashMap::<common_enums::Currency, common_utils::types::MinorUnit>::new(),
-    object = true,
+    output = common_utils::types::MinorUnit,
+    default = common_utils::types::MinorUnit::new(crate::consts::MAX_ALLOWED_AMOUNT),
     generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
     requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId

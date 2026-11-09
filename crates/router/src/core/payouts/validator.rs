@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use actix_web::http::header;
 use api_models::payments::Amount;
@@ -377,23 +377,6 @@ pub(crate) fn validate_payout_amount(
     })
 }
 
-fn payout_amount_limits_for_currency(
-    min_amounts: &HashMap<common_enums::Currency, MinorUnit>,
-    max_amounts: &HashMap<common_enums::Currency, MinorUnit>,
-    currency: common_enums::Currency,
-) -> (MinorUnit, MinorUnit) {
-    let min_amount = min_amounts
-        .get(&currency)
-        .copied()
-        .unwrap_or_else(MinorUnit::zero);
-    let max_amount = max_amounts
-        .get(&currency)
-        .copied()
-        .unwrap_or_else(|| MinorUnit::new(crate::consts::MAX_ALLOWED_AMOUNT));
-
-    (min_amount, max_amount)
-}
-
 pub(crate) async fn validate_payout_amount_against_config(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
@@ -401,14 +384,16 @@ pub(crate) async fn validate_payout_amount_against_config(
     amount: Option<Amount>,
     currency: Option<common_enums::Currency>,
 ) -> RouterResult<()> {
-    let min_amounts = dimensions
+    let currency = currency.get_required_value("currency")?;
+    let currency_dimensions = dimensions.with_currency(currency);
+    let min_amount = currency_dimensions
         .get_payout_min_amount(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             Some(profile_id),
         )
         .await;
-    let max_amounts = dimensions
+    let max_amount = currency_dimensions
         .get_payout_max_amount(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
@@ -417,13 +402,7 @@ pub(crate) async fn validate_payout_amount_against_config(
         .await;
 
     amount
-        .map(|amount| {
-            let currency = currency.get_required_value("currency")?;
-            let (min_amount, max_amount) =
-                payout_amount_limits_for_currency(&min_amounts, &max_amounts, currency);
-
-            validate_payout_amount(amount, min_amount, max_amount)
-        })
+        .map(|amount| validate_payout_amount(amount, min_amount, max_amount))
         .transpose()
         .map(|_| ())
 }
