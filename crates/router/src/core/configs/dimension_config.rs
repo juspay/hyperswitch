@@ -731,7 +731,8 @@ config! {
     superposition_key = PAYOUT_MIN_AMOUNT,
     output = common_utils::types::MinorUnit,
     default = common_utils::types::MinorUnit::zero(),
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId
 }
 
@@ -743,7 +744,8 @@ config! {
     superposition_key = PAYOUT_MAX_AMOUNT,
     output = common_utils::types::MinorUnit,
     default = common_utils::types::MinorUnit::new(crate::consts::MAX_ALLOWED_AMOUNT),
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId
 }
 
