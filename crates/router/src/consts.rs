@@ -602,6 +602,12 @@ pub mod superposition {
         "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// Global request-failure threshold for the UCS shadow kill switch.
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
+    pub const UCS_ENABLED: &str = "ucs_enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode
