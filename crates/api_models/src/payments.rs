@@ -15051,7 +15051,7 @@ pub struct PaymentsAttemptRecordRequest {
 #[serde(deny_unknown_fields)]
 #[cfg(feature = "v2")]
 pub struct RecoveryPaymentsCreate {
-    /// The amount details of the invoice. `order_amount` is the amount of the invoice, whatever this transaction captured.
+    /// The amount details for the payment
     pub amount_details: AmountDetails,
 
     /// Unique identifier of the invoice in the merchant's billing system against which the transaction is being recorded.
@@ -15082,7 +15082,7 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
     pub transaction_status: common_payments_types::RecoveryTransactionStatus,
 
-    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.
+    /// Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.
     #[schema(value_type = Option<i64>, example = 6540)]
     pub amount_captured: Option<MinorUnit>,
 

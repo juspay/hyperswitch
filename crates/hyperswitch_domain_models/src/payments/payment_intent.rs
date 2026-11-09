@@ -484,7 +484,6 @@ pub enum PaymentIntentUpdate {
         updated_by: String,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
         active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
-        amount_captured: Option<MinorUnit>,
     },
     /// UpdateIntent
     UpdateIntent(Box<PaymentIntentUpdateFields>),
@@ -972,10 +971,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 updated_by,
                 active_attempt_id,
                 active_attempts_group_id,
-                amount_captured,
             } => Ok(Self {
                 status: Some(status),
-                amount_captured,
+                amount_captured: None,
                 active_attempt_id: Some(active_attempt_id),
                 active_attempt_id_type: None,
                 active_attempts_group_id,

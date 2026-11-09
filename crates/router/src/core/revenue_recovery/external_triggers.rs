@@ -3,7 +3,6 @@ use common_types::payments::{
     ExternalTriggerState, RecoveryConnector, RecoveryConnectorDetails, RecoveryNextRetry,
     RecoveryNoRetryReason, RecoveryTransactionStatus,
 };
-use common_utils::types::MinorUnit;
 use diesel_models::business_profile::RevenueRecoveryConfig;
 use error_stack::report;
 use hyperswitch_domain_models::{
@@ -159,20 +158,6 @@ async fn handle_merchant_report(
             })
         })?;
 
-    let invoice_before_report = state
-        .store
-        .find_payment_intent_by_id(
-            &invoice.payment_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-    let request = &RecoveryPaymentsCreate {
-        amount_captured: get_amount_captured_of_report(request, &invoice_before_report)?,
-        ..request.clone()
-    };
-
     let previous_recovery_metadata = invoice
         .feature_metadata
         .as_ref()
@@ -300,36 +285,6 @@ async fn handle_merchant_report(
     .await;
 
     Ok((updated_invoice, Some(decision.next_retry)))
-}
-
-/// What a report collected. The order amount of every report is the amount of the invoice, and what
-/// the transactions collect adds up towards it, so a charged transaction collects whatever is left.
-/// A report that does not fit is refused here, before anything is recorded.
-fn get_amount_captured_of_report(
-    request: &RecoveryPaymentsCreate,
-    invoice: &PaymentIntent,
-) -> RouterResult<Option<MinorUnit>> {
-    let invoice_amount = invoice.amount_details.order_amount;
-    let invalid = |message: &str| {
-        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: message.to_owned(),
-        }))
-    };
-
-    if MinorUnit::from(request.amount_details.order_amount()) != invoice_amount {
-        return invalid("`order_amount` must be the amount of the invoice on every transaction");
-    }
-
-    let amount_left = invoice_amount - invoice.amount_captured.unwrap_or(MinorUnit::zero());
-    match (request.transaction_status, request.amount_captured) {
-        (RecoveryTransactionStatus::Charged, _) => Ok(Some(amount_left)),
-        (RecoveryTransactionStatus::PartialCharged, Some(amount_captured))
-            if amount_captured > amount_left =>
-        {
-            invalid("`amount_captured` must not be more than what is left of the invoice")
-        }
-        (_, amount_captured) => Ok(amount_captured),
-    }
 }
 
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries

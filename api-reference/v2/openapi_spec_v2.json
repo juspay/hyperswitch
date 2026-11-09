@@ -32062,7 +32062,7 @@
           "amount_captured": {
             "type": "integer",
             "format": "int64",
-            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`. When the `revenue_recovery_trigger_model` of the profile is `external_triggers`, what the transactions capture adds up towards the order amount: a `charged` transaction collects whatever is left, reaching the order amount closes the invoice, and going over it is refused.",
+            "description": "Amount captured by the transaction, in the lowest denomination of the currency. It is required when `transaction_status` is `partial_charged`, where it must be greater than zero and less than the order amount. For `charged` it may be omitted, and if sent it must equal the order amount. It must not be sent for a `failure`.",
             "example": 6540,
             "nullable": true
           },
