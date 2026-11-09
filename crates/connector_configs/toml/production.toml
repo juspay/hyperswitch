@@ -1791,8 +1791,8 @@ key1 = "Processing Channel ID"
 api_secret = "Checkout API Secret Key"
 [checkout_payout.metadata.connector_currency_account_id]
 name = "connector_currency_account_id"
-label = "Connector Currency Account ID"
-placeholder = "Enter Connector Currency Account ID (ca_...)"
+label = "Checkout Currency Account ID"
+placeholder = "Enter Checkout Currency Account ID (ca_...)"
 required = true
 type = "Text"
 [checkout_payout.metadata.connector_client_id]
