@@ -38,7 +38,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{source_verification::IncomingWebhookVerifier, types, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, MERCHANT_ID};
 use crate::{
     consts,
     core::{
@@ -75,7 +75,7 @@ use crate::{
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
 
 #[allow(clippy::too_many_arguments)]
-pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn incoming_webhooks_wrapper(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -85,7 +85,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let (webhook_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(incoming_webhooks_core::<W>(
+        Box::pin(incoming_webhooks_core(
             state.clone(),
             req_state,
             req,
@@ -119,7 +119,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 }
 
 #[cfg(feature = "v1")]
-pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn network_token_incoming_webhooks_wrapper(
     state: SessionState,
     req: &actix_web::HttpRequest,
     body: actix_web::web::Bytes,
@@ -133,7 +133,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     };
 
     let (webhook_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, request_details),
+        network_token_incoming_webhooks_core(&state, request_details),
     )
     .await?;
 
@@ -174,7 +174,7 @@ fn confirm_path_for_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn incoming_webhooks_core(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -366,6 +366,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let (ack_response, webhook_effect, serialized_body) = match outcome {
         Ok(super::gateway::WebhookOutcome::Skipped {
             event_type,
+            masked_log_payload,
             ack_response,
             ..
         }) => {
@@ -380,7 +381,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             (
                 ack_response,
                 WebhookResponseTracker::NoEffect,
-                Secret::new(serde_json::Value::Null),
+                masked_log_payload,
             )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
@@ -552,6 +553,11 @@ async fn process_webhook_business_logic(
     } else if connector.is_webhook_source_verification_mandatory() {
         // if webhook consumption is mandatory for connector, fail webhook
         // so that merchant can retrigger it after updating merchant_secret
+        logger::warn!(
+            connector = %connector_name,
+            merchant_id = ?platform.get_processor().get_account().get_id(),
+            "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+        );
         return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
     } else {
         // Unverified webhooks fall back to syncing with the connector, so cap how many of them
@@ -841,7 +847,7 @@ fn handle_incoming_webhook_error(
 
 #[instrument(skip_all)]
 #[cfg(feature = "v1")]
-async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn network_token_incoming_webhooks_core(
     state: &SessionState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(
@@ -1280,6 +1286,7 @@ async fn process_payout_incoming_webhook(
         None,
         &action_req,
         common_utils::consts::DEFAULT_LOCALE,
+        false,
     ))
     .await?;
 
@@ -4075,6 +4082,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         return Ok(super::gateway::WebhookOutcome::Skipped {
             reference: None,
             event_type,
+            masked_log_payload: Secret::new(serde_json::Value::Null),
             ack_response,
         });
     }

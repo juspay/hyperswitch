@@ -893,8 +893,9 @@ fn get_rrn(peachpayments_data: &Option<api_models::payments::PeachpaymentsData>)
 
 fn get_cof_type(item: &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>) -> CofType {
     match item.router_data.request.mit_category.as_ref() {
-        Some(MitCategory::Recurring) => CofType::Recurring,
-        _ => CofType::Adhoc,
+        Some(MitCategory::Recurring | MitCategory::Subscription) => CofType::Recurring,
+        Some(MitCategory::Installment | MitCategory::Unscheduled | MitCategory::Resubmission)
+        | None => CofType::Adhoc,
     }
 }
 

@@ -74,6 +74,9 @@ pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
+pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
+pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
+
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
@@ -448,10 +451,15 @@ pub mod superposition {
     pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater.credential_source";
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
+    /// Allow payment method data to be collected internally for follow-up payment operations
+    pub const ALLOW_PAYMENT_METHOD_DATA_COLLECTION: &str =
+        "system.allow_payment_method_data_collection";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
     pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
+    /// Card testing guard configuration key
+    pub const CARD_TESTING_GUARD_CONFIG: &str = "payments.card_testing_guard_config";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
@@ -477,6 +485,9 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether a retry may be made with any of the customer's cards stored in redis, rather than
+    /// only the card the invoice last used — whichever algorithm decides when it runs
+    pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
     /// Whether A/B routing decides which retry implementation an invoice runs.
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
     /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
@@ -505,6 +516,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key

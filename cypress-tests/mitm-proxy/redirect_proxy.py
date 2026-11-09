@@ -36,7 +36,7 @@ _redirect_count: dict[str, int] = {}
 # ── Path helpers ──────────────────────────────────────────────────────────────
 
 def _is_redirect_complete(path: str) -> bool:
-    return "/redirect/complete/" in path or "/redirect/response/" in path
+    return re.search(r"/redirect/(?:token/[^/]+/)?(?:complete|response)/", path) is not None
 
 
 def _extract_payment_id(path: str) -> str:
@@ -45,12 +45,11 @@ def _extract_payment_id(path: str) -> str:
 
 
 def _extract_redirect_segment(path: str) -> str | None:
-    parts = path.split("/")
-    try:
-        idx = parts.index("redirect")
-        return "/".join(parts[idx:])
-    except ValueError:
-        return None
+    match = re.search(r"/redirect/(?:token/[^/]+/)?((?:complete|response)/.+)", path)
+    if match:
+        # Captured tokens are single-use and must not be saved for replay.
+        return "redirect/" + match.group(1).split("/callback/", 1)[0]
+    return None
 
 
 # ── Body parsing ──────────────────────────────────────────────────────────────
@@ -101,7 +100,10 @@ def _write_to_captures(data: dict, filename: str) -> None:
     if not redirect_segment:
         return
 
-    raw_connector = redirect_segment.split("/")[-1]
+    parts = redirect_segment.split("/")
+    if len(parts) < 3:
+        return
+    raw_connector = parts[2]
     connector = re.sub(r"[^a-zA-Z0-9\-]", "", raw_connector)
     if not connector:
         return
@@ -175,7 +177,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 self.headers.get("Content-Type", ""),
             )
         else:
-            print(f"[redirect-proxy] WARNING: no reserved RID for paymentId={payment_id} path={self.path}")
+            print(
+                f"[redirect-proxy] WARNING: no reserved RID for paymentId={payment_id} "
+                f"path={_extract_redirect_segment(path_only)}"
+            )
 
     def _call_upstream(self, headers: dict, body: bytes):
         conn = http.client.HTTPConnection(UPSTREAM_HOST, UPSTREAM_PORT, timeout=30)

@@ -134,10 +134,10 @@ pub enum Flow {
     CustomersGetMandates,
     /// Customers global id migration flow.
     CustomersGlobalIdMigration,
-    /// Create an Ephemeral Key.
-    EphemeralKeyCreate,
-    /// Delete an Ephemeral Key.
-    EphemeralKeyDelete,
+    /// Create a v2 client secret.
+    ClientSecretCreate,
+    /// Delete a v2 client secret.
+    ClientSecretDelete,
     /// Mandates retrieve flow.
     MandatesRetrieve,
     /// Mandates revoke flow.
@@ -692,8 +692,6 @@ pub enum Flow {
     PaymentStartRedirection,
     /// Volume split on the routing type
     VolumeSplitOnRoutingType,
-    /// Routing evaluate rule flow
-    RoutingEvaluateRule,
     /// Report whether the Unified Connector Service kill switch has tripped a scope
     UnifiedConnectorServiceKillSwitchStatus,
     /// Clear a Unified Connector Service kill switch cutover
@@ -778,10 +776,6 @@ pub enum Flow {
     ThreeDsDecisionRuleExecute,
     /// Incoming Network Token Webhook Receive
     IncomingNetworkTokenWebhookReceive,
-    /// Decision Engine Decide Gateway Call
-    DecisionEngineDecideGatewayCall,
-    /// Decision Engine Gateway Feedback Call
-    DecisionEngineGatewayFeedbackCall,
     /// Recovery payments create flow.
     RecoveryPaymentsCreate,
     /// Tokenization delete flow

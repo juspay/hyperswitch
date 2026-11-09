@@ -3798,21 +3798,9 @@ export const connectorDetails = {
         },
       },
       DDCConfig: {
-        completeUrlPath: "/redirect/complete/default",
         collectionReferenceParam: "collectionReference",
         firstSubmissionValue: "",
         secondSubmissionValue: "race_condition_test_ddc_123",
-        expectedError: {
-          status: 400,
-          body: {
-            error: {
-              code: "IR_07",
-              type: "invalid_request",
-              message:
-                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
-            },
-          },
-        },
       },
     }),
     DDCRaceConditionClientSide: getCustomExchange({
@@ -3833,7 +3821,6 @@ export const connectorDetails = {
         },
       },
       DDCConfig: {
-        redirectUrlPath: "/payments/redirect",
         collectionReferenceParam: "collectionReference",
         delayBeforeSubmission: 2000,
         raceConditionScript: `
@@ -5983,6 +5970,16 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {},
+      },
+    }),
+    ThreeDSAuthenticationFrictionless: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: { trans_status: "Y" },
       },
     }),
     ThreeDSAuthenticationUnconfirmed: getCustomExchange({

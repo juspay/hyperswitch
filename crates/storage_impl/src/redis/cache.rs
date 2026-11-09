@@ -11,10 +11,7 @@ use moka::{
     ops::compute::{CompResult, Op},
 };
 use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use crate::{
     errors::StorageError,
@@ -946,15 +943,18 @@ where
     // in-memory hit answers during a redis outage rather than erroring, and concurrent
     // misses for one key cost a single redis round trip between them.
     cache
-        .get_or_populate_in_memory(cache_key, async {
-            let redis = store
-                .get_redis_conn()
-                .change_context(StorageError::RedisError(
-                    RedisError::RedisConnectionError.into(),
-                ))
-                .attach_printable("Failed to get redis connection")?;
-            get_or_populate_redis(&redis, key, redis_ttl, fun).await
-        })
+        .get_or_populate_in_memory(
+            cache_key,
+            Box::pin(async {
+                let redis = store
+                    .get_redis_conn()
+                    .change_context(StorageError::RedisError(
+                        RedisError::RedisConnectionError.into(),
+                    ))
+                    .attach_printable("Failed to get redis connection")?;
+                Box::pin(get_or_populate_redis(&redis, key, redis_ttl, fun)).await
+            }),
+        )
         .await
 }
 

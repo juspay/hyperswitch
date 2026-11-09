@@ -309,9 +309,9 @@ pub fn mk_app(
         }
     }
 
-    #[cfg(all(feature = "oltp", any(feature = "v1", feature = "v2"),))]
+    #[cfg(all(feature = "oltp", feature = "v2"))]
     {
-        server_app = server_app.service(routes::EphemeralKey::server(state.clone()))
+        server_app = server_app.service(routes::ClientSecret::server(state.clone()))
     }
     #[cfg(all(feature = "oltp", feature = "v1"))]
     {
@@ -413,6 +413,11 @@ pub async fn start_server(
         errors::ApplicationError::ApiClientError(error.current_context().clone())
     })?);
     let state = Box::pin(AppState::new(conf, tx, api_client, service_name)).await;
+    core::configs::payment_callback::PaymentCallbackConfig::validate_at_startup(&state)
+        .await
+        .map_err(|error| {
+            errors::ApplicationError::InvalidConfigurationValueError(format!("{error:?}"))
+        })?;
 
     // Spawn a thread for collecting metrics at fixed intervals. It has to run against the
     // caches the state built, not a set of its own.

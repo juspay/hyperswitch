@@ -34,8 +34,8 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -1425,6 +1425,10 @@ impl IncomingWebhook for Worldpay {
 }
 
 impl ConnectorRedirectResponse for Worldpay {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::WorldpayDDCForm { .. }).then_some(RedirectCallback::Complete)
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

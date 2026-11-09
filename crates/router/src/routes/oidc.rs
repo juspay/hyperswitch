@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::oidc as oidc_types;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::api_locking,

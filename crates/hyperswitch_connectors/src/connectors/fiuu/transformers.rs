@@ -330,7 +330,7 @@ pub struct FiuuPaymentRequest {
     txn_amount: StringMajorUnit,
     signature: Secret<String>,
     #[serde(rename = "ReturnURL")]
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     #[serde(rename = "NotificationURL")]
     notification_url: Option<Url>,
     #[serde(flatten)]
@@ -921,13 +921,16 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
             FiuuPaymentsResponse::PaymentResponse(data) => match data.txn_data.request_data {
                 RequestData::RedirectData(redirection_data) => {
                     let redirection_data = Some(RedirectForm::Form {
-                        endpoint: data.txn_data.request_url.to_string(),
+                        endpoint: data.txn_data.request_url.to_string().into(),
                         method: if data.txn_data.request_method.as_str() == "POST" {
                             Method::Post
                         } else {
                             Method::Get
                         },
-                        form_fields: redirection_data.unwrap_or_default(),
+                        form_fields: (redirection_data.unwrap_or_default())
+                            .into_iter()
+                            .map(|(key, value)| (key, value.into()))
+                            .collect(),
                     });
                     Ok(Self {
                         status: enums::AttemptStatus::AuthenticationPending,

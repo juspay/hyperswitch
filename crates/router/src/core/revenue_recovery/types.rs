@@ -1308,6 +1308,10 @@ impl Action {
             .error
             .as_ref()
             .map(|details| details.code.clone());
+        let network_decline_code = payment_attempt
+            .error
+            .as_ref()
+            .and_then(|details| details.network_decline_code.clone());
         let connector_name = payment_attempt
             .connector
             .clone()
@@ -1320,8 +1324,8 @@ impl Action {
             consts::DEFAULT_SUBFLOW_STR,
             error_code,
             error_message,
-            None, // issuer_error_code not available in recovery context
-            None, // card_network
+            network_decline_code,
+            payment_attempt.extract_card_network(),
         )
         .await;
         let is_hard_decline = gsm_record
@@ -1387,6 +1391,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         billing_mca_id: old_tracking_data.billing_mca_id.clone(),
         invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
         static_ladder_progress: old_tracking_data.static_ladder_progress,
+        payment_processor_token: None,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)
