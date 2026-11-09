@@ -466,9 +466,6 @@ impl RefundUpdateInternal {
     }
 
     /// Stores the surcharge fee and derives `net_refund_amount` as order + surcharge amount.
-    /// Relies solely on the top-level `refund_surcharge_amount` column (the value persisted in the
-    /// refund table); the `SurchargeUpdate` conversion populates it from the external tracking
-    /// details.
     pub fn populate_derived_fields(self, source: &Refund) -> Self {
         let mut update_internal = self;
         let surcharge = update_internal

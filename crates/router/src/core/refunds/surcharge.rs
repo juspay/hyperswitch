@@ -33,21 +33,6 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-/// Whether this payment has a surcharge that a refund must account for.
-pub fn has_surcharge(attempt: &storage::PaymentAttempt) -> bool {
-    attempt
-        .external_surcharge_details
-        .as_ref()
-        .is_some_and(|details| {
-            // An error-only record still counts.
-            details.usable_connector_id().is_some()
-                || attempt
-                    .net_amount
-                    .get_surcharge_amount()
-                    .is_some_and(|amount| amount > MinorUnit::zero())
-        })
-}
-
 // ------------------------------------------------------------------------------------------------
 // validate — the balances a requested amount is checked against.
 // ------------------------------------------------------------------------------------------------
@@ -199,7 +184,7 @@ pub fn reserve_partial_refund_amount(
     requested_amount: Option<MinorUnit>,
     previous_refunds: &[Refund],
 ) -> RouterResult<Option<MinorUnit>> {
-    if !has_surcharge(attempt) {
+    if !attempt.has_surcharge() {
         // The attempt lost its surcharge details even though a surcharge was charged: reconcile.
         let surcharge_was_calculated = intent.external_surcharge_applicable == Some(true)
             && attempt
@@ -237,14 +222,14 @@ pub async fn prepare_for_processor_refund(
     platform: &domain::Platform,
     refund: &Refund,
     attempt: &storage::PaymentAttempt,
-) -> RouterResult<(Refund, bool)> {
+) -> RouterResult<Refund> {
     // Init already succeeded (details are persisted only on success): proceed to the processor.
     if refund.surcharge_refund_details().is_some() {
-        return Ok((refund.clone(), true));
+        return Ok(refund.clone());
     }
     // A plain refund, or one no longer awaiting Init, takes the normal path untouched.
-    if !has_surcharge(attempt) || refund.refund_status != common_enums::RefundStatus::Pending {
-        return Ok((refund.clone(), true));
+    if !attempt.has_surcharge() || refund.refund_status != common_enums::RefundStatus::Pending {
+        return Ok(refund.clone());
     }
 
     let flow = SurchargeRefund::new(state, platform, refund);
@@ -257,7 +242,7 @@ pub async fn prepare_for_processor_refund(
     )?;
     // A whole-order refund keeps the legacy single-call path; only partial refunds use Init/Complete.
     if balances.is_whole_order_refund(Some(refund.refund_amount), &previous) {
-        return Ok((refund.clone(), true));
+        return Ok(refund.clone());
     }
     balances.validate(refund.refund_amount, None)?;
 
@@ -265,33 +250,40 @@ pub async fn prepare_for_processor_refund(
     // 2. trigger: call Init (marks the refund failed on any error)
     let details = flow.call_surcharge_refund_init(attempt, &balances).await?;
     // 3. update: persist the Init result
-    let refund = flow.persist_surcharge_details(details).await?;
-    Ok((refund, true))
+    flow.persist_surcharge_details(details).await
 }
 
 /// After the processor refund succeeds: runs Complete and records it. Failures are logged and left
 /// to recovery so a refund whose money already moved never loses its success status.
+/// Returns whether the surcharge side is settled: `true` if there is nothing to complete (no
+/// surcharge, or already acknowledged) or Complete succeeds now; `false` if it is not yet ready
+/// (processor refund not successful) or the Complete call failed and should be retried.
 pub async fn complete_after_processor_refund(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &Refund,
-) {
+) -> bool {
     // 1. validate: there is a Complete to do only for a succeeded refund not yet acknowledged.
     let Some(details) = refund.surcharge_refund_details() else {
-        return;
+        return true;
     };
-    if details.refund_complete_notified
-        || refund.refund_status != common_enums::RefundStatus::Success
-    {
-        return;
+    if details.refund_complete_notified {
+        return true;
+    }
+    if refund.refund_status != common_enums::RefundStatus::Success {
+        return false;
     }
     let flow = SurchargeRefund::new(state, platform, refund);
-    if let Err(error) = flow.notify_surcharge_refund_complete(details).await {
-        logger::error!(
-            ?error,
-            refund_id = %refund.refund_id,
-            "Surcharge completion deferred to recovery"
-        );
+    match flow.notify_surcharge_refund_complete(details).await {
+        Ok(()) => true,
+        Err(error) => {
+            logger::error!(
+                ?error,
+                refund_id = %refund.refund_id,
+                "Surcharge completion failed; will retry"
+            );
+            false
+        }
     }
 }
 
@@ -308,18 +300,17 @@ pub async fn resume_pending_surcharge_refund(
     let platform = crate::core::utils::build_platform_from_refund_core(state, &tracking).await?;
     let refund = Box::pin(super::refund_retrieve_core_with_internal_reference_id(
         state.clone(),
-        platform,
+        platform.clone(),
         None,
         tracking.refund_internal_reference_id,
         Some(true),
     ))
     .await;
     if let Ok(refund) = refund {
-        // Settled once the refund failed (so Complete never runs) or Complete was acknowledged.
+        // Recovery owns Complete now: drive it here. Settled once the refund failed (so Complete
+        // never runs) or Complete is acknowledged; otherwise retry.
         let settled = refund.refund_status.is_failure()
-            || refund
-                .surcharge_refund_details()
-                .is_some_and(|details| details.refund_complete_notified);
+            || complete_after_processor_refund(state, &platform, &refund).await;
         if settled {
             state
                 .store
