@@ -1190,7 +1190,7 @@ pub async fn refund_retrieve_core(
         ..refund
     };
 
-    if let Some(op) = surcharge::operation(&refund) {
+    if let Some(op) = refund.surcharge_refund_details() {
         if request.force_sync.unwrap_or(false) && op.error_details.is_none() {
             return Box::pin(trigger_refund_to_gateway(
                 &state,

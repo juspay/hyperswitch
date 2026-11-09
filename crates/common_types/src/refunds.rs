@@ -2,6 +2,7 @@
 
 #[cfg(feature = "diesel")]
 use common_utils::impl_to_sql_from_sql_json;
+use common_utils::types::MinorUnit;
 #[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 use serde::{Deserialize, Serialize};
@@ -13,20 +14,15 @@ use crate::{
     payments::{MultiCurrencyProcessingAmountData, SurchargeErrorDetails},
 };
 
-/// InterPayments refund tracking, separate from the processor's own `refund_status`. Only set
-/// for a partial surcharge refund; a full refund never gets one of these. Mirrors the shape of
-/// `ExternalSurchargeDetails` on the payment attempt — no separate status enum, everything is
-/// derived from these three fields:
-/// - not started: `surcharge_refund_id` and `error_details` both `None`
-/// - Init done, ready for/awaiting the processor refund: `surcharge_refund_id` is `Some`
-/// - done: `refund_complete_notified` is `true`
-/// - needs reconciliation: `error_details` is `Some`
+/// InterPayments refund tracking. Only set for a partial surcharge refund.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ExternalSurchargeRefundDetails {
     /// New InterPayments refund ID returned by Init, used for Complete.
     pub surcharge_refund_id: Option<String>,
+    /// Surcharge fee for this refund, returned by Init.
+    pub refund_surcharge_amount: Option<MinorUnit>,
     /// Whether Complete has succeeded.
     pub refund_complete_notified: bool,
     /// Set when Init/Complete fails or its outcome is unknown.

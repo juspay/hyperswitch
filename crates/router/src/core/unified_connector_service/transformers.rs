@@ -12091,11 +12091,6 @@ impl
             }
         }
         Ok(Self {
-            merchant_surcharge_refund_id: reference.to_owned(),
-            connector_surcharge_refund_id: response
-                .connector_surcharge_refund_id
-                .clone()
-                .ok_or("Missing surcharge refund ID")?,
             refund_surcharge_amount: MinorUnit::new(fee.minor_amount),
             original_transaction_fee: response
                 .original_transaction_fee
@@ -12137,10 +12132,7 @@ impl
         {
             return Err("Surcharge Complete refund ID mismatch");
         }
-        Ok(Self {
-            merchant_surcharge_refund_id: reference.to_owned(),
-            connector_surcharge_refund_id: refund_id.to_owned(),
-        })
+        Ok(Self)
     }
 }
 

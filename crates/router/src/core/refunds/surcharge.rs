@@ -29,9 +29,12 @@ use crate::{
     types::{domain, storage, transformers::ForeignTryFrom},
 };
 
-/// The surcharge refund tracking stored on this refund, if it has one.
-pub fn operation(refund: &Refund) -> Option<ExternalSurchargeRefundDetails> {
-    refund.external_surcharge_refund_details.clone()
+/// Combined order+surcharge amount to send the processor, once Init has returned the fee.
+pub fn net_refund_amount(refund: &Refund) -> Option<MinorUnit> {
+    refund
+        .surcharge_refund_details()
+        .and_then(|details| details.refund_surcharge_amount)
+        .map(|surcharge| refund.refund_amount + surcharge)
 }
 
 /// Nothing more to do: Complete succeeded, or Init was rejected and the refund already failed.
@@ -57,10 +60,7 @@ pub fn applies(attempt: &storage::PaymentAttempt) -> bool {
 
 /// Whether this refund still counts against the order/surcharge/captured balances.
 fn consumes_balance(refund: &Refund) -> bool {
-    !matches!(
-        refund.refund_status,
-        common_enums::RefundStatus::Failure | common_enums::RefundStatus::TransactionFailure
-    )
+    !refund.refund_status.is_failure()
 }
 
 /// Read the original order/surcharge/captured breakdown from the payment.
@@ -68,10 +68,10 @@ fn payment_limits(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
 ) -> RouterResult<(i64, i64, i64, i64)> {
-    let details = attempt
-        .external_surcharge_details
-        .as_ref()
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+    let details = attempt.external_surcharge_details.as_ref().ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing original external surcharge details on payment attempt")
+    })?;
     if details.usable_connector_id().is_none() {
         return Err(error_stack::Report::new(
             errors::ApiErrorResponse::PreconditionFailed {
@@ -87,10 +87,22 @@ fn payment_limits(
             },
         ));
     }
-    let original = attempt.net_amount.get_order_amount().get_amount_as_i64();
+    // Everything the merchant can refund except the surcharge fee itself: order amount plus
+    // shipping/tax/installment components, not just the order amount.
+    let original = attempt
+        .get_total_amount()
+        .get_amount_as_i64()
+        .checked_sub(details.external_surcharge_amount.get_amount_as_i64())
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Overflow computing original amount excluding surcharge")
+        })?;
     let captured = intent
         .amount_captured
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing captured amount on payment intent")
+        })?
         .get_amount_as_i64();
     let captured_order = hyperswitch_domain_models::refunds::captured_order_amount(
         original,
@@ -121,7 +133,8 @@ fn previous_amounts(
         .iter()
         .filter(|r| Some(r.refund_id.as_str()) != exclude_refund_id)
     {
-        if let Some(details) = operation(refund) {
+        let details = refund.surcharge_refund_details();
+        if let Some(details) = &details {
             if details.error_details.is_some() {
                 return Err(error_stack::Report::new(
                     errors::ApiErrorResponse::PreconditionFailed {
@@ -139,34 +152,31 @@ fn previous_amounts(
             ));
         }
         if consumes_balance(refund) {
-            let amounts = RefundAmountDetails::from(refund);
+            // The fee lives on the tracking record, not the flat column, until the processor
+            // call finishes persisting it there.
+            let surcharge = details.and_then(|d| d.refund_surcharge_amount);
+            let amounts = RefundAmountDetails::new(refund.refund_amount, surcharge);
             let refund_net = amounts.checked_net_refund_amount().ok_or_else(|| {
                 error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Overflow computing net refund amount for a previous refund")
             })?;
             order = order
                 .checked_add(refund.refund_amount.get_amount_as_i64())
                 .ok_or_else(|| {
                     error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Overflow summing previous order refund amounts")
                 })?;
             fee = fee
-                .checked_add(
-                    refund
-                        .refund_surcharge_amount
-                        .unwrap_or_default()
-                        .get_amount_as_i64(),
-                )
+                .checked_add(surcharge.unwrap_or_default().get_amount_as_i64())
                 .ok_or_else(|| {
                     error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Overflow summing previous surcharge refund amounts")
                 })?;
             net = net
-                .checked_add(
-                    refund
-                        .net_refund_amount
-                        .unwrap_or(refund_net)
-                        .get_amount_as_i64(),
-                )
+                .checked_add(refund_net.get_amount_as_i64())
                 .ok_or_else(|| {
                     error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Overflow summing previous net refund amounts")
                 })?;
         }
     }
@@ -210,9 +220,10 @@ pub fn prepare_reservation(
         return Ok(None);
     }
     let (previous_order, _, _) = previous_amounts(previous, Some(refund_id))?;
-    let remaining = captured_order
-        .checked_sub(previous_order)
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+    let remaining = captured_order.checked_sub(previous_order).ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Overflow computing remaining order amount")
+    })?;
     let amount = requested
         .map(|a| a.get_amount_as_i64())
         .unwrap_or(remaining);
@@ -221,39 +232,25 @@ pub fn prepare_reservation(
         MinorUnit::new(amount),
         ExternalSurchargeRefundDetails {
             surcharge_refund_id: None,
+            refund_surcharge_amount: None,
             refund_complete_notified: false,
             error_details: None,
         },
     )))
 }
 
-/// Persist the next surcharge details, and the surcharge/net amounts when known. `reject` also
-/// marks the processor refund as failed (used only when Init cleanly refuses the refund).
+/// Persist the next surcharge tracking details through the normal update path.
 async fn transition(
     state: &SessionState,
     platform: &domain::Platform,
     refund: &Refund,
     details: ExternalSurchargeRefundDetails,
-    reject: bool,
-    amounts: Option<RefundAmountDetails>,
 ) -> RouterResult<Refund> {
-    let (refund_surcharge_amount, net_refund_amount) = amounts
-        .map(|a| {
-            (
-                a.get_refund_surcharge_amount(),
-                Some(a.get_net_refund_amount()),
-            )
-        })
-        .unwrap_or((None, None));
-    let refund_status = reject.then_some(common_enums::RefundStatus::Failure);
     state
         .store
         .update_refund(
             refund.clone(),
             RefundUpdate::SurchargeUpdate {
-                refund_status,
-                refund_surcharge_amount,
-                net_refund_amount,
                 external_surcharge_refund_details: details,
                 updated_by: platform
                     .get_processor()
@@ -265,9 +262,12 @@ async fn transition(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to persist surcharge refund tracking details")
 }
 
-/// Record a failure/reconciliation status, then return the original error.
+/// Record a failure/reconciliation status, then return the original error. `reject` also marks
+/// the processor refund as failed, through the normal error-update path (used only when Init
+/// cleanly refuses the refund).
 async fn fail(
     state: &SessionState,
     platform: &domain::Platform,
@@ -276,12 +276,38 @@ async fn fail(
     reject: bool,
     error: error_stack::Report<errors::ApiErrorResponse>,
 ) -> error_stack::Report<errors::ApiErrorResponse> {
-    if let Err(persist_error) = transition(state, platform, refund, details, reject, None).await {
+    if let Err(persist_error) = transition(state, platform, refund, details).await {
         logger::error!(
             ?persist_error,
             refund_id = %refund.refund_id,
             "Failed to persist surcharge refund status"
         );
+    }
+    if reject {
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let update = RefundUpdate::ErrorUpdate {
+            refund_status: Some(common_enums::RefundStatus::Failure),
+            refund_error_message: Some(error.to_string()),
+            refund_error_code: None,
+            updated_by: storage_scheme.to_string(),
+            connector_refund_id: None,
+            processor_refund_data: None,
+            unified_code: None,
+            unified_message: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+        };
+        if let Err(persist_error) = state
+            .store
+            .update_refund(refund.clone(), update, storage_scheme)
+            .await
+        {
+            logger::error!(
+                ?persist_error,
+                refund_id = %refund.refund_id,
+                "Failed to mark refund as failed after surcharge rejection"
+            );
+        }
     }
     error
 }
@@ -303,7 +329,8 @@ async fn validate_amounts(
             platform.get_processor().get_account().storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch previous refunds for this payment")?;
     let (prior_order, prior_fee, prior_net) = previous_amounts(&previous, Some(&refund.refund_id))?;
     let (original, captured_order, surcharge, captured) = payment_limits(attempt, intent)?;
     refunds_validator::validate_order_refund_amount(
@@ -323,7 +350,10 @@ async fn validate_amounts(
     }
     let net = RefundAmountDetails::new(refund.refund_amount, Some(fee))
         .checked_net_refund_amount()
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Overflow computing net refund amount for this refund")
+        })?;
     if net.get_amount_as_i64() > captured - prior_net {
         // Same check and error as the existing combined captured-funds validation.
         return Err(error_stack::Report::new(
@@ -359,10 +389,10 @@ async fn account(
     refund: &Refund,
 ) -> RouterResult<helpers::MerchantConnectorAccountType> {
     let processor = platform.get_processor();
-    let profile_id = refund
-        .profile_id
-        .as_ref()
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+    let profile_id = refund.profile_id.as_ref().ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing profile ID on refund")
+    })?;
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
@@ -405,7 +435,8 @@ async fn ensure_recovery_task(state: &SessionState, refund: &Refund) -> RouterRe
         .store
         .find_process_by_id(&id)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to check for an existing SURCHARGE_REFUND process tracker task")?
         .is_some()
     {
         return Ok(());
@@ -421,11 +452,14 @@ async fn ensure_recovery_task(state: &SessionState, refund: &Refund) -> RouterRe
         common_types::consts::API_VERSION,
         state.conf.application_source,
     )
-    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to build the SURCHARGE_REFUND process tracker task")?;
     match state.store.insert_process(task).await {
         Ok(_) => Ok(()),
         Err(error) if error.current_context().is_db_unique_violation() => Ok(()),
-        Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
+        Err(error) => Err(error)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to insert the SURCHARGE_REFUND process tracker task"),
     }
 }
 
@@ -439,15 +473,18 @@ async fn init_surcharge_refund(
 ) -> RouterResult<Refund> {
     validate_amounts(state, platform, attempt, intent, refund, None).await?;
     let mca = account(state, platform, refund).await?;
-    let profile = refund
-        .profile_id
-        .as_ref()
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+    let profile = refund.profile_id.as_ref().ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing profile ID on refund")
+    })?;
     let original_surcharge_id = attempt
         .external_surcharge_details
         .as_ref()
         .and_then(|d| d.usable_connector_id())
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing original surcharge ID on payment attempt")
+        })?
         .to_owned();
 
     let response = match ucs::call_unified_connector_service_for_surcharge_refund_init(
@@ -468,6 +505,7 @@ async fn init_surcharge_refund(
         Err(err) => {
             let details = ExternalSurchargeRefundDetails {
                 surcharge_refund_id: None,
+                refund_surcharge_amount: None,
                 refund_complete_notified: false,
                 error_details: Some(SurchargeErrorDetails {
                     error_message: Some("SurchargeRefundInit call failed".to_string()),
@@ -490,6 +528,7 @@ async fn init_surcharge_refund(
             let reject = response.error.is_some() && matches!(response.status_code, 400 | 422);
             let details = ExternalSurchargeRefundDetails {
                 surcharge_refund_id: surcharge_refund_id.clone(),
+                refund_surcharge_amount: None,
                 refund_complete_notified: false,
                 error_details: Some(SurchargeErrorDetails {
                     error_message: Some(message.to_string()),
@@ -502,6 +541,9 @@ async fn init_surcharge_refund(
                 })
             } else {
                 error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "SurchargeRefundInit response could not be validated; outcome is uncertain",
+                    )
             };
             return Err(fail(state, platform, refund, details, reject, api_error).await);
         }
@@ -511,6 +553,7 @@ async fn init_surcharge_refund(
     {
         let details = ExternalSurchargeRefundDetails {
             surcharge_refund_id: surcharge_refund_id.clone(),
+            refund_surcharge_amount: None,
             refund_complete_notified: false,
             error_details: Some(SurchargeErrorDetails {
                 error_message: Some(err.to_string()),
@@ -520,14 +563,13 @@ async fn init_surcharge_refund(
         return Err(fail(state, platform, refund, details, false, err).await);
     }
 
-    let amounts =
-        RefundAmountDetails::new(refund.refund_amount, Some(data.refund_surcharge_amount));
     let details = ExternalSurchargeRefundDetails {
         surcharge_refund_id,
+        refund_surcharge_amount: Some(data.refund_surcharge_amount),
         refund_complete_notified: false,
         error_details: None,
     };
-    transition(state, platform, refund, details, false, Some(amounts)).await
+    transition(state, platform, refund, details).await
 }
 
 /// Returns the refund and whether the caller should now submit the processor refund.
@@ -538,7 +580,7 @@ pub async fn prepare_processor(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
 ) -> RouterResult<(Refund, bool)> {
-    let Some(details) = operation(refund) else {
+    let Some(details) = refund.surcharge_refund_details() else {
         return Ok((refund.clone(), true));
     };
     if refund.refund_status != common_enums::RefundStatus::Pending {
@@ -564,7 +606,7 @@ async fn complete(
     platform: &domain::Platform,
     refund: &Refund,
 ) -> RouterResult<()> {
-    let Some(details) = operation(refund) else {
+    let Some(details) = refund.surcharge_refund_details() else {
         return Ok(());
     };
     if details.surcharge_refund_id.is_none()
@@ -583,22 +625,25 @@ async fn complete(
             }),
             ..details
         };
-        transition(state, platform, refund, next, false, None).await?;
+        transition(state, platform, refund, next).await?;
         return Ok(());
     }
     if refund.refund_status != common_enums::RefundStatus::Success {
         return Ok(());
     }
     let mca = account(state, platform, refund).await?;
-    let profile = refund
-        .profile_id
-        .as_ref()
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+    let profile = refund.profile_id.as_ref().ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing profile ID on refund")
+    })?;
     let id = details
         .surcharge_refund_id
         .clone()
         .filter(|id| !id.trim().is_empty())
-        .ok_or_else(|| error_stack::Report::new(errors::ApiErrorResponse::InternalServerError))?;
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing persisted surcharge refund ID before calling Complete")
+        })?;
 
     let result = ucs::call_unified_connector_service_for_surcharge_refund_complete(
         state,
@@ -636,7 +681,7 @@ async fn complete(
             ..details
         }
     };
-    transition(state, platform, refund, next, false, None).await?;
+    transition(state, platform, refund, next).await?;
     Ok(())
 }
 
@@ -662,7 +707,8 @@ pub async fn recover(
 ) -> Result<(), errors::ProcessTrackerError> {
     let tracking: diesel_models::refund::RefundCoreWorkflow =
         serde_json::from_value(task.tracking_data.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize surcharge refund process tracker data")?;
     let platform = crate::core::utils::build_platform_from_refund_core(state, &tracking).await?;
     let refund = Box::pin(super::refund_retrieve_core_with_internal_reference_id(
         state.clone(),
@@ -673,7 +719,7 @@ pub async fn recover(
     ))
     .await;
     if let Ok(refund) = refund {
-        if let Some(details) = operation(&refund) {
+        if let Some(details) = refund.surcharge_refund_details() {
             let needs_reconciliation = details.error_details.is_some();
             if needs_reconciliation || is_resolved(&details, &refund) {
                 state

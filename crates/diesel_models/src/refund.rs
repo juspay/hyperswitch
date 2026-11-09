@@ -114,6 +114,13 @@ impl Refund {
             internal_reference_id,
         )
     }
+
+    /// The surcharge refund tracking stored on this refund, if it has one.
+    pub fn surcharge_refund_details(
+        &self,
+    ) -> Option<common_types::refunds::ExternalSurchargeRefundDetails> {
+        self.external_surcharge_refund_details.clone()
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -343,9 +350,6 @@ pub enum RefundUpdate {
     },
     /// Persist InterPayments Init/Complete progress through the normal update path.
     SurchargeUpdate {
-        refund_status: Option<storage_enums::RefundStatus>,
-        refund_surcharge_amount: Option<MinorUnit>,
-        net_refund_amount: Option<MinorUnit>,
         external_surcharge_refund_details: common_types::refunds::ExternalSurchargeRefundDetails,
         updated_by: String,
     },
@@ -459,6 +463,26 @@ impl RefundUpdateInternal {
             unified_message: self.unified_message,
             ..source
         }
+    }
+
+    /// Derives `net_refund_amount` as order + surcharge amount.
+    pub fn populate_derived_fields(self, source: &Refund) -> Self {
+        let mut update_internal = self;
+        let surcharge = update_internal
+            .external_surcharge_refund_details
+            .as_ref()
+            .and_then(|details| details.refund_surcharge_amount)
+            .or_else(|| {
+                source
+                    .external_surcharge_refund_details
+                    .as_ref()
+                    .and_then(|details| details.refund_surcharge_amount)
+            })
+            .or(update_internal.refund_surcharge_amount)
+            .or(source.refund_surcharge_amount)
+            .unwrap_or_default();
+        update_internal.net_refund_amount = Some(source.refund_amount + surcharge);
+        update_internal
     }
 }
 
@@ -624,15 +648,12 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 external_surcharge_refund_details: None,
             },
             RefundUpdate::SurchargeUpdate {
-                refund_status,
-                refund_surcharge_amount,
-                net_refund_amount,
                 external_surcharge_refund_details,
                 updated_by,
             } => Self {
-                refund_status,
-                refund_surcharge_amount,
-                net_refund_amount,
+                refund_status: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
                 external_surcharge_refund_details: Some(external_surcharge_refund_details),
                 updated_by,
                 connector_refund_id: None,
