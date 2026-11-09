@@ -1123,34 +1123,41 @@ pub enum RecoveryNoRetryReason {
     BelowRetryThreshold,
 }
 
-/// When the merchant should trigger the next retry of an invoice.
+/// When the merchant should trigger the next retry of an invoice: at `schedule_time`, or not at all
+/// when that is `null`, for the given `reason`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct RecoveryNextRetry {
     /// Number of the next retry, counted the way the `max_retry_count` of the profile counts them:
     /// the first retry after the original payment is 1.
     pub retry_count: u16,
-    /// When to trigger the next retry, or why none is scheduled.
-    #[serde(flatten)]
-    pub schedule: RecoveryRetrySchedule,
+    /// The time to trigger the retry at, then report its result through the recovery API. `null`
+    /// when no retry is scheduled.
+    #[schema(value_type = Option<String>, example = "2022-09-10T10:11:12.000Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub schedule_time: Option<PrimitiveDateTime>,
+    /// Why no retry is scheduled. `null` when one is.
+    #[serde(default)]
+    pub reason: Option<RecoveryNoRetryReason>,
 }
 
-/// Whether the next retry of an invoice is scheduled. Sent as `schedule_time` when it is, and as
-/// `reason` when it is not.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(untagged)]
-pub enum RecoveryRetrySchedule {
-    /// Trigger the retry at `schedule_time`, then report its result through the recovery API.
-    Scheduled {
-        /// The time to trigger the retry at.
-        #[schema(value_type = String, example = "2022-09-10T10:11:12.000Z")]
-        #[serde(with = "common_utils::custom_serde::iso8601")]
-        schedule_time: PrimitiveDateTime,
-    },
-    /// Do not trigger a retry.
-    NotScheduled {
-        /// Why no retry is scheduled.
-        reason: RecoveryNoRetryReason,
-    },
+impl RecoveryNextRetry {
+    /// A retry to trigger at `schedule_time`.
+    pub fn scheduled(retry_count: u16, schedule_time: PrimitiveDateTime) -> Self {
+        Self {
+            retry_count,
+            schedule_time: Some(schedule_time),
+            reason: None,
+        }
+    }
+
+    /// No retry, for `reason`.
+    pub fn not_scheduled(retry_count: u16, reason: RecoveryNoRetryReason) -> Self {
+        Self {
+            retry_count,
+            schedule_time: None,
+            reason: Some(reason),
+        }
+    }
 }
 
 /// The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled

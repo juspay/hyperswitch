@@ -1672,25 +1672,17 @@ fn get_next_retry_for_intent_status(
     intent_status: common_enums::IntentStatus,
     next_retry: common_types::payments::RecoveryNextRetry,
 ) -> common_types::payments::RecoveryNextRetry {
-    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason, RecoveryRetrySchedule};
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
 
-    let schedule = if intent_status == common_enums::IntentStatus::Succeeded {
-        RecoveryRetrySchedule::NotScheduled {
-            reason: RecoveryNoRetryReason::Recovered,
-        }
+    if intent_status == common_enums::IntentStatus::Succeeded {
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Recovered)
     } else if matches!(
         intent_status,
         common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::CancelledPostCapture
     ) {
-        RecoveryRetrySchedule::NotScheduled {
-            reason: RecoveryNoRetryReason::Cancelled,
-        }
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Cancelled)
     } else {
-        next_retry.schedule
-    };
-    RecoveryNextRetry {
-        schedule,
-        ..next_retry
+        next_retry
     }
 }
 

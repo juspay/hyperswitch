@@ -1,7 +1,7 @@
 use api_models::payments::RecoveryPaymentsCreate;
 use common_types::payments::{
     ExternalTriggerState, RecoveryConnector, RecoveryConnectorDetails, RecoveryNextRetry,
-    RecoveryNoRetryReason, RecoveryRetrySchedule, RecoveryTransactionStatus,
+    RecoveryNoRetryReason, RecoveryTransactionStatus,
 };
 use diesel_models::business_profile::RevenueRecoveryConfig;
 use error_stack::report;
@@ -61,15 +61,15 @@ struct RetryLimitChecks {
 
 /// What is decided about the next retry of an invoice, with the state to keep for the one after.
 struct NextRetryDecision {
-    schedule: RecoveryRetrySchedule,
+    next_retry: RecoveryNextRetry,
     next_ladder_progress: Option<StaticLadderProgress>,
     assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 impl NextRetryDecision {
-    fn not_scheduled(reason: RecoveryNoRetryReason) -> Self {
+    fn not_scheduled(retry_count: u16, reason: RecoveryNoRetryReason) -> Self {
         Self {
-            schedule: RecoveryRetrySchedule::NotScheduled { reason },
+            next_retry: RecoveryNextRetry::not_scheduled(retry_count, reason),
             next_ladder_progress: None,
             assigned_ab_algorithm: None,
         }
@@ -229,6 +229,7 @@ async fn handle_merchant_report(
         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
         // The merchant's own system plays the billing connector, as with a custom billing account.
         .with_connector(common_enums::connector_enums::Connector::Custombilling);
+    // Counts this transaction and the original payment, so it is also the number of the next retry.
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .unwrap_or(1);
@@ -266,12 +267,6 @@ async fn handle_merchant_report(
     ))
     .await;
 
-    // The invoice's retry count already includes this transaction, and the original payment, so it
-    // is the number of the next retry.
-    let next_retry = RecoveryNextRetry {
-        retry_count,
-        schedule: decision.schedule,
-    };
     let trigger_state = ExternalTriggerState {
         last_failure_code,
         consumed_ladder_rungs: decision
@@ -279,7 +274,7 @@ async fn handle_merchant_report(
             .unwrap_or(ladder_progress)
             .consumed_rungs,
         retries_after_hard_decline,
-        next_retry,
+        next_retry: decision.next_retry,
     };
     save_trigger_state(
         state,
@@ -290,7 +285,7 @@ async fn handle_merchant_report(
     )
     .await;
 
-    Ok((updated_invoice, Some(next_retry)))
+    Ok((updated_invoice, Some(decision.next_retry)))
 }
 
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
@@ -371,10 +366,13 @@ async fn decide_next_retry(
             is_below_retry_threshold: retry_count < retry_config.billing_connector_retry_threshold,
         },
     ) {
-        return NextRetryDecision::not_scheduled(reason);
+        return NextRetryDecision::not_scheduled(retry_count, reason);
     }
     let Some(grace_window_end) = grace_window_end else {
-        return NextRetryDecision::not_scheduled(RecoveryNoRetryReason::GracePeriodExceeded);
+        return NextRetryDecision::not_scheduled(
+            retry_count,
+            RecoveryNoRetryReason::GracePeriodExceeded,
+        );
     };
 
     let retry_timing = Box::pin(revenue_recovery_workflow::get_retry_timing(
@@ -424,27 +422,35 @@ async fn decide_next_retry(
                 Some(retry_time) => (retry_time, None, None),
                 None => {
                     return NextRetryDecision::not_scheduled(
+                        retry_count,
                         RecoveryNoRetryReason::RetriesExhausted,
                     )
                 }
             }
         }
         Ok(RetryTiming::NoRetries) => {
-            return NextRetryDecision::not_scheduled(RecoveryNoRetryReason::Monitoring)
+            return NextRetryDecision::not_scheduled(retry_count, RecoveryNoRetryReason::Monitoring)
         }
         Ok(RetryTiming::LadderExhausted) => {
-            return NextRetryDecision::not_scheduled(RecoveryNoRetryReason::RetriesExhausted)
+            return NextRetryDecision::not_scheduled(
+                retry_count,
+                RecoveryNoRetryReason::RetriesExhausted,
+            )
         }
         Err(error) => {
             logger::error!(
                 ?error,
                 "No time is available for the next retry of the invoice"
             );
-            return NextRetryDecision::not_scheduled(RecoveryNoRetryReason::RetriesExhausted);
+            return NextRetryDecision::not_scheduled(
+                retry_count,
+                RecoveryNoRetryReason::RetriesExhausted,
+            );
         }
     };
 
-    let schedule = get_next_retry(
+    let next_retry = get_next_retry(
+        retry_count,
         revenue_recovery_workflow::add_random_delay_to_schedule_time(state, retry_time),
         &card_availability,
         Duration::seconds(
@@ -459,9 +465,8 @@ async fn decide_next_retry(
     );
 
     NextRetryDecision {
-        schedule,
-        next_ladder_progress: next_ladder_progress
-            .filter(|_| matches!(schedule, RecoveryRetrySchedule::Scheduled { .. })),
+        next_retry,
+        next_ladder_progress: next_ladder_progress.filter(|_| next_retry.schedule_time.is_some()),
         assigned_ab_algorithm,
     }
 }
@@ -548,10 +553,7 @@ fn get_ladder_progress(
         Some(ExternalTriggerState {
             next_retry:
                 RecoveryNextRetry {
-                    schedule:
-                        RecoveryRetrySchedule::NotScheduled {
-                            reason: RecoveryNoRetryReason::BelowRetryThreshold,
-                        },
+                    reason: Some(RecoveryNoRetryReason::BelowRetryThreshold),
                     ..
                 },
             ..
@@ -607,12 +609,8 @@ fn get_retry_outcome(
     previous_trigger_state: Option<&ExternalTriggerState>,
     transaction_status: RecoveryTransactionStatus,
 ) -> Option<(Option<common_enums::StandardisedCode>, bool)> {
-    let trigger_state = previous_trigger_state.filter(|trigger_state| {
-        matches!(
-            trigger_state.next_retry.schedule,
-            RecoveryRetrySchedule::Scheduled { .. }
-        )
-    })?;
+    let trigger_state = previous_trigger_state
+        .filter(|trigger_state| trigger_state.next_retry.schedule_time.is_some())?;
 
     match transaction_status {
         RecoveryTransactionStatus::Failure => Some((trigger_state.last_failure_code, false)),
@@ -647,12 +645,13 @@ fn get_no_retry_reason(
 /// The next retry once its time is known, given where the card stands and when the grace window of
 /// the invoice closes.
 fn get_next_retry(
+    retry_count: u16,
     retry_time: PrimitiveDateTime,
     card_availability: &CardAvailability,
     card_wait_buffer: Duration,
     grace_window_end: PrimitiveDateTime,
     now: PrimitiveDateTime,
-) -> RecoveryRetrySchedule {
+) -> RecoveryNextRetry {
     let schedule_time = match card_availability {
         // A hard declined card gets here only while the profile still allows retries after it.
         CardAvailability::Ready { .. }
@@ -667,10 +666,8 @@ fn get_next_retry(
     };
 
     if schedule_time >= grace_window_end {
-        RecoveryRetrySchedule::NotScheduled {
-            reason: RecoveryNoRetryReason::GracePeriodExceeded,
-        }
+        RecoveryNextRetry::not_scheduled(retry_count, RecoveryNoRetryReason::GracePeriodExceeded)
     } else {
-        RecoveryRetrySchedule::Scheduled { schedule_time }
+        RecoveryNextRetry::scheduled(retry_count, schedule_time)
     }
 }

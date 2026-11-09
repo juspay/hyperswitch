@@ -31910,26 +31910,33 @@
         ]
       },
       "RecoveryNextRetry": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/RecoveryRetrySchedule"
-          },
-          {
-            "type": "object",
-            "required": [
-              "retry_count"
-            ],
-            "properties": {
-              "retry_count": {
-                "type": "integer",
-                "format": "int32",
-                "description": "Number of the next retry, counted the way the `max_retry_count` of the profile counts them:\nthe first retry after the original payment is 1.",
-                "minimum": 0
-              }
-            }
-          }
+        "type": "object",
+        "description": "When the merchant should trigger the next retry of an invoice: at `schedule_time`, or not at all\nwhen that is `null`, for the given `reason`.",
+        "required": [
+          "retry_count"
         ],
-        "description": "When the merchant should trigger the next retry of an invoice."
+        "properties": {
+          "retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of the next retry, counted the way the `max_retry_count` of the profile counts them:\nthe first retry after the original payment is 1.",
+            "minimum": 0
+          },
+          "schedule_time": {
+            "type": "string",
+            "description": "The time to trigger the retry at, then report its result through the recovery API. `null`\nwhen no retry is scheduled.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNoRetryReason"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "RecoveryNoRetryReason": {
         "type": "string",
@@ -32133,37 +32140,6 @@
             "nullable": true
           }
         }
-      },
-      "RecoveryRetrySchedule": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "Trigger the retry at `schedule_time`, then report its result through the recovery API.",
-            "required": [
-              "schedule_time"
-            ],
-            "properties": {
-              "schedule_time": {
-                "type": "string",
-                "description": "The time to trigger the retry at.",
-                "example": "2022-09-10T10:11:12.000Z"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Do not trigger a retry.",
-            "required": [
-              "reason"
-            ],
-            "properties": {
-              "reason": {
-                "$ref": "#/components/schemas/RecoveryNoRetryReason"
-              }
-            }
-          }
-        ],
-        "description": "Whether the next retry of an invoice is scheduled. Sent as `schedule_time` when it is, and as\n`reason` when it is not."
       },
       "RecoveryTransactionStatus": {
         "type": "string",

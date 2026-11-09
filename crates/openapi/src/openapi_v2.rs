@@ -1031,7 +1031,6 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::RecoveryTransactionStatus,
         common_types::payments::RecoveryConnector,
         common_types::payments::RecoveryNextRetry,
-        common_types::payments::RecoveryRetrySchedule,
         common_types::payments::RecoveryNoRetryReason,
         common_types::payments::ExternalTriggerState,
         api_models::enums::RevenueRecoveryAlgorithmType,
