@@ -42480,6 +42480,7 @@
       },
       "PhoneDetails": {
         "type": "object",
+        "description": "Phone contact details shared by payment and payout API models.",
         "properties": {
           "number": {
             "type": "string",
