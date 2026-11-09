@@ -100,10 +100,16 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &id_type::PayoutId,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
-        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+        .find_optional_payout_by_merchant_id_payout_id(
+            merchant_id,
+            payout_id,
+            merchant_key_store,
+            storage_scheme,
+        )
         .await;
     match maybe_payouts {
         Err(err) => {
@@ -207,6 +213,7 @@ pub async fn validate_create_request(
         db,
         &payout_id,
         merchant_id,
+        platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
     .await
