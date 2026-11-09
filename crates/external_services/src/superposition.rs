@@ -11,7 +11,7 @@ use api_models::superposition_proxy::{
 };
 pub use aws_smithy_types::DateTime;
 use aws_smithy_types::{Document, Number};
-use common_utils::{errors::CustomResult, id_type::TargetingKey, types::MinorUnit};
+use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
@@ -657,18 +657,6 @@ impl GetValue<i64> for open_feature::Client {
         context: &open_feature::EvaluationContext,
     ) -> Result<i64, open_feature::EvaluationError> {
         self.get_int_value(key, Some(context), None).await
-    }
-}
-
-impl GetValue<MinorUnit> for open_feature::Client {
-    async fn get_value(
-        &self,
-        key: &str,
-        context: &open_feature::EvaluationContext,
-    ) -> Result<MinorUnit, open_feature::EvaluationError> {
-        self.get_int_value(key, Some(context), None)
-            .await
-            .map(MinorUnit::new)
     }
 }
 

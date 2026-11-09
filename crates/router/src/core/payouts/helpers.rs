@@ -1456,6 +1456,7 @@ pub async fn update_payouts_and_payout_attempt(
         }));
     }
 
+    let payouts = payout_data.payouts.to_owned();
     let profile_id = payout_data.business_profile.get_id();
     let payout_cap_dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -1472,7 +1473,8 @@ pub async fn update_payouts_and_payout_attempt(
         state,
         &payout_cap_dimensions,
         profile_id,
-        req.amount,
+        Some(req.amount.unwrap_or(payouts.amount.into())),
+        Some(req.currency.unwrap_or(payouts.destination_currency)),
     )
     .await?;
 
@@ -1509,7 +1511,6 @@ pub async fn update_payouts_and_payout_attempt(
     payout_data.billing_address = billing_address;
 
     // Update DB with new data
-    let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,

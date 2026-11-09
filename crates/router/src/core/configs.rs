@@ -1,7 +1,7 @@
 pub mod dimension_config;
 pub mod dimension_state;
 pub mod payment_callback;
-use common_utils::{errors::CustomResult, types::MinorUnit};
+use common_utils::errors::CustomResult;
 pub use dimension_config::{
     BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate,
     PaymentBlocklistGuard, RequiresCvv, ShouldCallGsm, ShouldEnableMitWithLimitedCardData,
@@ -104,19 +104,6 @@ impl ConfigType for i64 {
 
     fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
         Ok(self.to_string())
-    }
-}
-
-impl ConfigType for MinorUnit {
-    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
-        config_str
-            .parse::<i64>()
-            .map(Self::new)
-            .change_context(errors::StorageError::DeserializationFailed)
-    }
-
-    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
-        Ok(self.get_amount_as_i64().to_string())
     }
 }
 
