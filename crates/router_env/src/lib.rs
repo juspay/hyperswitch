@@ -12,6 +12,8 @@ pub mod metrics;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
 #[cfg(feature = "actix_web")]
+pub mod request_path;
+#[cfg(feature = "actix_web")]
 pub mod root_span;
 /// `cargo` build instructions generation for obtaining information about the application
 /// environment.

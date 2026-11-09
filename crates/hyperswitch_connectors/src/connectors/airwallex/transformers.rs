@@ -187,7 +187,7 @@ pub struct AirwallexPaymentsRequest {
     request_id: String,
     payment_method: Option<AirwallexPaymentMethod>,
     payment_method_options: Option<AirwallexPaymentOptions>,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     device_data: Option<DeviceData>,
     payment_consent: Option<PaymentConsentData>,
     customer_id: Option<String>,
@@ -1221,7 +1221,7 @@ pub enum AirwallexAuthorizeResponse {
 
 fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Option<RedirectForm> {
     Some(RedirectForm::Form {
-        endpoint: response_url_data.url.to_string(),
+        endpoint: response_url_data.url.to_string().into(),
         method: response_url_data.method,
         form_fields: response_url_data
             .data
@@ -1230,22 +1230,25 @@ fn get_redirection_form(response_url_data: AirwallexPaymentsNextAction) -> Optio
                     //Some form fields might be empty based on the authentication type by the connector
                     (
                         "JWT".to_string(),
-                        data.jwt.map(|jwt| jwt.expose()).unwrap_or_default(),
+                        data.jwt.unwrap_or_else(|| Secret::new(String::new())),
                     ),
                     (
                         "threeDSMethodData".to_string(),
                         data.three_ds_method_data
-                            .map(|three_ds_method_data| three_ds_method_data.expose())
-                            .unwrap_or_default(),
+                            .unwrap_or_else(|| Secret::new(String::new())),
                     ),
                     (
                         "token".to_string(),
-                        data.token
-                            .map(|token: Secret<String>| token.expose())
-                            .unwrap_or_default(),
+                        data.token.unwrap_or_else(|| Secret::new(String::new())),
                     ),
-                    ("provider".to_string(), data.provider.unwrap_or_default()),
-                    ("version".to_string(), data.version.unwrap_or_default()),
+                    (
+                        "provider".to_string(),
+                        data.provider.unwrap_or_default().into(),
+                    ),
+                    (
+                        "version".to_string(),
+                        data.version.unwrap_or_default().into(),
+                    ),
                 ])
             })
             .unwrap_or_default(),

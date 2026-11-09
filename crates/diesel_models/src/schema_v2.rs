@@ -334,6 +334,8 @@ diesel::table! {
         #[max_length = 16]
         split_txns_enabled -> Nullable<Varchar>,
         revenue_recovery_config -> Nullable<Jsonb>,
+        #[max_length = 64]
+        revenue_recovery_trigger_model -> Nullable<Varchar>,
     }
 }
 
@@ -1288,6 +1290,7 @@ diesel::table! {
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
+        enable_account_name_verification -> Nullable<Bool>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1526,6 +1529,9 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        funds_transfer_type -> Nullable<Varchar>,
+        sender_details -> Nullable<Bytea>,
     }
 }
 

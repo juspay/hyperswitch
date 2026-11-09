@@ -3,6 +3,7 @@ use std::str::FromStr;
 use api_models::payments;
 use common_utils::{date_time, ext_traits::StringExt, id_type, pii as secret};
 use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -26,7 +27,7 @@ pub struct StripeBillingDetails {
     pub address: Option<payments::AddressDetails>,
     pub email: Option<pii::Email>,
     pub name: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
 }
 
 impl From<StripeBillingDetails> for payments::Address {
@@ -45,9 +46,9 @@ impl From<StripeBillingDetails> for payments::Address {
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeCard {
     pub number: cards::CardNumber,
-    pub exp_month: pii::Secret<String>,
-    pub exp_year: pii::Secret<String>,
-    pub cvc: pii::Secret<String>,
+    pub exp_month: Secret<String>,
+    pub exp_year: Secret<String>,
+    pub cvc: Secret<String>,
 }
 
 // ApplePay wallet param is not available in stripe Docs
@@ -96,7 +97,7 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: Some(hyperswitch_masking::Secret::new("stripe_cust".to_owned())),
+            card_holder_name: Some(Secret::new("stripe_cust".to_owned())),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
@@ -136,8 +137,8 @@ pub struct Shipping {
     pub address: Option<payments::AddressDetails>,
     pub name: Option<String>,
     pub carrier: Option<String>,
-    pub phone: Option<pii::Secret<String>>,
-    pub tracking_number: Option<pii::Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub tracking_number: Option<Secret<String>>,
 }
 
 impl From<Shipping> for payments::Address {
@@ -169,7 +170,7 @@ pub struct StripeSetupIntentRequest {
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
     pub metadata: Option<secret::SecretSerdeValue>,
-    pub client_secret: Option<pii::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     pub payment_method_options: Option<payment_intent::StripePaymentMethodOptions>,
     pub payment_method: Option<String>,
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -231,11 +232,10 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                     field_name: "currency".into(),
                 })?,
             email: item.receipt_email,
-            name: item.billing_details.as_ref().and_then(|b| {
-                b.name
-                    .as_ref()
-                    .map(|x| hyperswitch_masking::Secret::new(x.to_owned()))
-            }),
+            name: item
+                .billing_details
+                .as_ref()
+                .and_then(|b| b.name.as_ref().map(|x| Secret::new(x.to_owned()))),
             phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
@@ -365,7 +365,7 @@ impl From<StripePaymentCancelRequest> for payments::PaymentsCancelRequest {
 #[derive(Default, Eq, PartialEq, Serialize)]
 pub struct RedirectUrl {
     pub return_url: Option<String>,
-    pub url: Option<String>,
+    pub url: Option<Secret<String>>,
 }
 
 #[derive(PartialEq, serde::Serialize)]
@@ -513,7 +513,7 @@ pub struct StripeSetupIntentResponse {
     pub id: id_type::PaymentId,
     pub object: String,
     pub status: StripeSetupStatus,
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     pub metadata: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,

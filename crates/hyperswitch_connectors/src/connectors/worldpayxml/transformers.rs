@@ -2623,7 +2623,7 @@ struct ChallengeJwt {
     #[serde(rename = "OrgUnitId")]
     org_unit_id: Secret<String>,
     #[serde(rename = "ReturnUrl")]
-    return_url: String,
+    return_url: Secret<String>,
     #[serde(rename = "Payload")]
     payload: Payload,
     #[serde(rename = "ObjectifyPayload")]
@@ -2726,7 +2726,7 @@ fn generate_challenge_jwt(
     acs_url: String,
     payload: String,
     transaction_id: String,
-    return_url: String,
+    return_url: Secret<String>,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
     let iat: u64 = common_utils::date_time::now_unix_timestamp()
@@ -4327,6 +4327,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4344,6 +4345,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,

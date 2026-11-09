@@ -54,8 +54,8 @@ pub struct CoinbasePaymentsRequest {
     pub description: Option<String>,
     pub pricing_type: String,
     pub local_price: LocalPrice,
-    pub redirect_url: String,
-    pub cancel_url: String,
+    pub redirect_url: Secret<String>,
+    pub cancel_url: Secret<String>,
 }
 
 impl TryFrom<&CoinbaseRouterData<&PaymentsAuthorizeRouterData>> for CoinbasePaymentsRequest {
@@ -147,7 +147,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoinbasePaymentsResponse, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
         let redirection_data = RedirectForm::Form {
-            endpoint: item.response.data.hosted_url.to_string(),
+            endpoint: item.response.data.hosted_url.to_string().into(),
             method: Method::Get,
             form_fields,
         };
@@ -355,7 +355,7 @@ pub enum WebhookEventType {
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct Redirects {
-    cancel_url: Option<String>,
+    cancel_url: Option<Secret<String>>,
     success_url: Option<String>,
     will_redirect_after_success: bool,
 }
