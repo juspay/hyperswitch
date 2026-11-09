@@ -1242,28 +1242,6 @@ pub struct PayoutVendorDetails {
     pub source_of_funds: Option<crate::sender::SourceOfFunds>,
 }
 
-/// Postal address of an individual funding a payout.
-#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-pub struct PayoutVendorAddress {
-    /// Street address.
-    #[schema(value_type = Option<String>)]
-    pub line1: Option<Secret<String>>,
-    /// Additional street address.
-    #[schema(value_type = Option<String>)]
-    pub line2: Option<Secret<String>>,
-    /// City.
-    #[schema(value_type = Option<String>)]
-    pub city: Option<Secret<String>>,
-    /// State or province.
-    #[schema(value_type = Option<String>)]
-    pub state: Option<Secret<String>>,
-    /// Postal code.
-    #[schema(value_type = Option<String>)]
-    pub zip: Option<Secret<String>>,
-    /// ISO country code.
-    pub country: Option<common_enums::CountryAlpha2>,
-}
-
 /// Individual/account information, with the individual sender fields appended at the end.
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize, PartialEq, Eq)]
 pub struct PayoutIndividualDetails {
@@ -1295,16 +1273,8 @@ pub struct PayoutIndividualDetails {
     /// Individual sender family name.
     #[schema(value_type = Option<String>)]
     pub last_name: Option<Secret<String>>,
-    /// Individual sender address, separate from beneficiary billing.
-    pub address: Option<PayoutVendorAddress>,
-    /// Party contact email.
-    #[schema(value_type = Option<String>)]
-    pub email: Option<Email>,
-    /// Individual sender phone number.
-    #[schema(value_type = Option<String>)]
-    pub phone_number: Option<Secret<String>>,
-    /// International dialing code, separate from the phone number.
-    pub phone_country_code: Option<String>,
+    /// Individual sender contact and postal address details.
+    pub address: Option<payments::Address>,
     /// Merchant-supplied stable identifier for the funding party.
     #[schema(value_type = Option<String>)]
     pub reference_id: Option<Secret<String>>,
@@ -2025,19 +1995,6 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
     }
 }
 
-impl From<payments::AddressDetails> for PayoutVendorAddress {
-    fn from(value: payments::AddressDetails) -> Self {
-        Self {
-            line1: value.line1,
-            line2: value.line2,
-            city: value.city.map(Secret::new),
-            state: value.state,
-            zip: value.zip,
-            country: value.country,
-        }
-    }
-}
-
 /// Normalizes the API sender identity into the payout vendor representation consumed by
 /// domain and connector code. Explicit sender input takes precedence over legacy vendor
 /// metadata without merging identities. Every field is listed explicitly so that adding a
@@ -2080,10 +2037,11 @@ impl From<SenderDetails> for PayoutVendorAccountDetails {
                     external_account_account_holder_type: None,
                     first_name: sender.first_name,
                     last_name: sender.last_name,
-                    address: sender.address.map(Into::into),
-                    email: sender.email,
-                    phone_number: sender.phone.as_ref().and_then(|p| p.number.clone()),
-                    phone_country_code: sender.phone.and_then(|p| p.country_code),
+                    address: Some(payments::Address {
+                        address: sender.address,
+                        email: sender.email,
+                        phone: sender.phone,
+                    }),
                     reference_id: sender.reference_id,
                     source_of_funds: sender.source_of_funds,
                 },
@@ -2126,9 +2084,6 @@ impl From<SenderDetails> for PayoutVendorAccountDetails {
                         first_name: None,
                         last_name: None,
                         address: None,
-                        email: None,
-                        phone_number: None,
-                        phone_country_code: None,
                         reference_id: None,
                         source_of_funds: None,
                     },

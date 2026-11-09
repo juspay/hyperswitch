@@ -6,6 +6,7 @@
 //! encrypted on the payout and normalized into common payout vendor details at the domain
 //! boundary.
 
+use common_types::payments::PhoneDetails;
 use common_utils::{
     new_type::{MaskedEmail, MaskedPhoneNumber},
     pii::Email,
@@ -15,7 +16,7 @@ use hyperswitch_masking::Secret;
 use time::Date;
 use utoipa::ToSchema;
 
-use crate::{common::PhoneDetails, payments::AddressDetails};
+use crate::payments::AddressDetails;
 
 /// Origin of the funds, supplied by the merchant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -113,20 +114,27 @@ pub enum SenderDetails {
 }
 
 impl SenderDetails {
-    /// The names identifying the sender that are provided, keyed by their field path, for
-    /// validation.
-    pub fn get_name_fields(&self) -> Vec<(&'static str, &Secret<String>)> {
+    /// The individual sender's first name, if provided.
+    pub fn get_individual_first_name(&self) -> Option<&Secret<String>> {
         match self {
-            Self::Individual(individual) => [
-                ("sender_details.first_name", individual.first_name.as_ref()),
-                ("sender_details.last_name", individual.last_name.as_ref()),
-            ]
-            .into_iter()
-            .filter_map(|(field_name, value)| value.map(|value| (field_name, value)))
-            .collect(),
-            Self::Corporate(corporate) => {
-                vec![("sender_details.company_name", &corporate.company_name)]
-            }
+            Self::Individual(individual) => individual.first_name.as_ref(),
+            Self::Corporate(_) => None,
+        }
+    }
+
+    /// The individual sender's last name, if provided.
+    pub fn get_individual_last_name(&self) -> Option<&Secret<String>> {
+        match self {
+            Self::Individual(individual) => individual.last_name.as_ref(),
+            Self::Corporate(_) => None,
+        }
+    }
+
+    /// The corporate sender's company name, if applicable.
+    pub fn get_corporate_company_name(&self) -> Option<&Secret<String>> {
+        match self {
+            Self::Individual(_) => None,
+            Self::Corporate(corporate) => Some(&corporate.company_name),
         }
     }
 

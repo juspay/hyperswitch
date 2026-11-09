@@ -8,7 +8,6 @@ pub mod card_issuer;
 pub mod cards_info;
 #[cfg(feature = "v2")]
 pub mod client_secret;
-pub mod common;
 pub mod conditional_configs;
 pub mod connector_enums;
 pub mod connector_onboarding;

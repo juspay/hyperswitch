@@ -244,26 +244,6 @@ impl ForeignFrom<api_models::sender::SourceOfFunds> for payments_grpc::PayoutSou
     }
 }
 
-#[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PayoutVendorAddress> for payments_grpc::Address {
-    fn foreign_from(value: &api_models::payouts::PayoutVendorAddress) -> Self {
-        Self {
-            line1: value.line1.clone(),
-            line2: value.line2.clone(),
-            city: value.city.clone(),
-            state: value.state.clone(),
-            zip_code: value.zip.clone(),
-            country_alpha2_code: value
-                .country
-                .and_then(|country| {
-                    payments_grpc::CountryAlpha2::from_str_name(&country.to_string())
-                })
-                .map(i32::from),
-            ..Default::default()
-        }
-    }
-}
-
 impl ForeignFrom<common_enums::PayoutFundsTransferType> for payments_grpc::PayoutFundsTransferType {
     fn foreign_from(funds_transfer_type: common_enums::PayoutFundsTransferType) -> Self {
         use common_enums::PayoutFundsTransferType as FundsTransferType;
@@ -10271,7 +10251,7 @@ impl<F>
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (vendor_account_details, router_data): (
+        (vendor_account_details, _router_data): (
             &api_models::payouts::PayoutVendorAccountDetails,
             &RouterData<F, router_request_types::PayoutsData, PayoutsResponseData>,
         ),
@@ -10279,33 +10259,29 @@ impl<F>
         let vendor_details = &vendor_account_details.vendor_details;
         let individual_details = &vendor_account_details.individual_details;
 
-        let billing_details = router_data
-            .address
-            .get_payment_method_billing()
-            .and_then(|billing_address| billing_address.address.as_ref());
-
         let business_profile_name = vendor_details
             .business_profile_name
             .as_ref()
             .map(|name| name.peek().to_string().into());
 
-        let mut individual_address = individual_details
+        let individual_address = individual_details
             .address
             .as_ref()
-            .map(payments_grpc::Address::foreign_from);
-        if individual_address.is_some()
-            || individual_details.email.is_some()
-            || individual_details.phone_number.is_some()
-            || individual_details.phone_country_code.is_some()
-        {
-            let address = individual_address.get_or_insert_with(Default::default);
-            address.email = individual_details
-                .email
-                .as_ref()
-                .map(|email| Secret::new(email.peek().clone()));
-            address.phone_number = individual_details.phone_number.clone();
-            address.phone_country_code = individual_details.phone_country_code.clone();
-        }
+            .filter(|address| {
+                address.address.is_some()
+                    || address.email.is_some()
+                    || address
+                        .phone
+                        .as_ref()
+                        .is_some_and(|phone| phone.number.is_some() || phone.country_code.is_some())
+            })
+            .cloned()
+            .map(|address| {
+                payments_grpc::Address::foreign_try_from(
+                    hyperswitch_domain_models::address::Address::from(address),
+                )
+            })
+            .transpose()?;
 
         Ok(Self {
             vendor_details: Some(payments_grpc::VendorDetails {
@@ -10340,11 +10316,15 @@ impl<F>
                 transfers_enabled: vendor_details.capabilities_transfers,
                 company_tax_id: vendor_details.company_tax_id.clone(),
                 address: Some(payments_grpc::Address {
+                    first_name: None,
+                    last_name: None,
                     line1: vendor_details.company_address_line1.clone(),
                     line2: vendor_details.company_address_line2.clone(),
+                    line3: None,
                     city: vendor_details.company_address_city.clone(),
                     state: vendor_details.company_address_state.clone(),
                     zip_code: vendor_details.company_address_postal_code.clone(),
+                    origin_zip: None,
                     country_alpha2_code: vendor_details
                         .company_address_country
                         .and_then(|country| {
@@ -10357,7 +10337,7 @@ impl<F>
                         .map(|email| Secret::new(email.peek().clone())),
                     phone_number: vendor_details.company_phone.clone(),
                     phone_country_code: vendor_details.phone_country_code.clone(),
-                    ..Default::default()
+                    state_code_iso: None,
                 }),
                 merchant_sender_reference_id: vendor_details.reference_id.clone(),
                 source_of_funds: vendor_details
@@ -10366,24 +10346,13 @@ impl<F>
                     .map(i32::from),
             }),
             individual_details: Some(payments_grpc::IndividualDetails {
-                first_name: individual_details.first_name.clone().or_else(|| {
-                    billing_details
-                        .and_then(|billing_details| billing_details.first_name.as_ref())
-                        .map(|first_name| first_name.peek().to_string().into())
-                }),
-                last_name: individual_details.last_name.clone().or_else(|| {
-                    billing_details
-                        .and_then(|billing_details| billing_details.last_name.as_ref())
-                        .map(|last_name| last_name.peek().to_string().into())
-                }),
-                phone: individual_details.phone_number.clone().or_else(|| {
-                    router_data
-                        .request
-                        .customer_details
-                        .as_ref()
-                        .and_then(|customer_details| customer_details.phone.as_ref())
-                        .map(|phone| phone.peek().to_string().into())
-                }),
+                first_name: individual_details.first_name.clone(),
+                last_name: individual_details.last_name.clone(),
+                phone: individual_details
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.phone.as_ref())
+                    .and_then(|phone| phone.number.clone()),
                 ssn_last_4: individual_details
                     .individual_ssn_last_4
                     .as_ref()
@@ -10392,20 +10361,11 @@ impl<F>
                     .individual_id_number
                     .as_ref()
                     .map(|id_number| id_number.peek().to_string().into()),
-                date_of_birth: match individual_details.date_of_birth.as_ref() {
-                    Some(date) => Some(format_date_of_birth(date)?),
-                    None => match (
-                        individual_details.individual_dob_year.as_ref(),
-                        individual_details.individual_dob_month.as_ref(),
-                        individual_details.individual_dob_day.as_ref(),
-                    ) {
-                        (Some(year), Some(month), Some(day)) => Some(
-                            format!("{}-{:0>2}-{:0>2}", year.peek(), month.peek(), day.peek())
-                                .into(),
-                        ),
-                        _ => None,
-                    },
-                },
+                date_of_birth: individual_details
+                    .date_of_birth
+                    .as_ref()
+                    .map(format_date_of_birth)
+                    .transpose()?,
                 tos_acceptance_ip: individual_details
                     .tos_acceptance_ip
                     .as_ref()

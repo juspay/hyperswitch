@@ -74,6 +74,7 @@ where
         None => Ok(None),
     }
 }
+pub use common_types::payments::PhoneDetails;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
@@ -87,7 +88,6 @@ use time::{Date, PrimitiveDateTime};
 use url::Url;
 use utoipa::ToSchema;
 
-pub use crate::common::PhoneDetails;
 #[cfg(all(feature = "v1", feature = "errors"))]
 use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v2")]
