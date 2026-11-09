@@ -152,52 +152,11 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
             status = 200,
             description = "Revenue Recovery Transaction Recorded Successfully",
             body = RecoveryPaymentsResponse,
-            examples(
-                (
-                    "Recorded on a profile with internal triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                        })
-                    )
-                ),
-                (
-                    "Next retry scheduled on a profile with external triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                            "next_retry": {
-                                "status": "scheduled",
-                                "schedule_time": "2022-09-10T13:11:12.000Z"
-                            }
-                        })
-                    )
-                ),
-                (
-                    "No retry scheduled on a profile with external triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                            "next_retry": {
-                                "status": "not_scheduled",
-                                "reason": "retries_exhausted"
-                            }
-                        })
-                    )
-                ),
-                (
-                    "Only recorded on a profile with external triggers, as the customer was present" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                        })
-                    )
-                ),
-            )
+            example = json!({
+                "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                "intent_status": "failed",
+                "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+            })
         ),
         (status = 400, description = "Missing or invalid mandatory fields, or the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),

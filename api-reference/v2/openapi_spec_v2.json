@@ -5061,43 +5061,10 @@
                 "schema": {
                   "$ref": "#/components/schemas/RecoveryPaymentsResponse"
                 },
-                "examples": {
-                  "Next retry scheduled on a profile with external triggers": {
-                    "value": {
-                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                      "intent_status": "failed",
-                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                      "next_retry": {
-                        "schedule_time": "2022-09-10T13:11:12.000Z",
-                        "status": "scheduled"
-                      }
-                    }
-                  },
-                  "No retry scheduled on a profile with external triggers": {
-                    "value": {
-                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                      "intent_status": "failed",
-                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                      "next_retry": {
-                        "reason": "retries_exhausted",
-                        "status": "not_scheduled"
-                      }
-                    }
-                  },
-                  "Only recorded on a profile with external triggers, as the customer was present": {
-                    "value": {
-                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                      "intent_status": "failed",
-                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                    }
-                  },
-                  "Recorded on a profile with internal triggers": {
-                    "value": {
-                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                      "intent_status": "failed",
-                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                    }
-                  }
+                "example": {
+                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                  "intent_status": "failed",
+                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
                 }
               }
             }
