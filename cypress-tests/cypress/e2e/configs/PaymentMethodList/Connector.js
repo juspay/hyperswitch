@@ -25,6 +25,37 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+      ResponseAllowedPaymentMethodTypesIdeal: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          allowed_payment_method_types: ["ideal"],
+        },
+      },
+      ResponseAllowedPaymentMethodTypesCredit: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          allowed_payment_method_types: ["credit"],
+        },
+      },
+      ResponseAllowedPaymentMethodTypesCreditAndPaypal: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          allowed_payment_method_types: ["credit", "paypal"],
+        },
+      },
+      ResponseIncorrectPaymentMethodConfiguration: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
     },
     PmListResponse: {
       PmListCustomerAcceptanceSupportCardCredit: {
@@ -78,6 +109,18 @@ export const connectorDetails = {
           },
         ],
       },
+      PmListWithIdealOneConnector: {
+        payment_methods: [
+          {
+            payment_method: "bank_redirect",
+            payment_method_types: [
+              {
+                payment_method_type: "ideal",
+              },
+            ],
+          },
+        ],
+      },
       PmListWithCreditTwoConnector: {
         payment_methods: [
           {
@@ -88,6 +131,23 @@ export const connectorDetails = {
                 card_networks: [
                   {
                     eligible_connectors: ["stripe", "cybersource"],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      PmListWithCreditAdyenAuthorizedotnet: {
+        payment_methods: [
+          {
+            payment_method: "card",
+            payment_method_types: [
+              {
+                payment_method_type: "credit",
+                card_networks: [
+                  {
+                    eligible_connectors: ["adyen", "authorizedotnet"],
                   },
                 ],
               },
