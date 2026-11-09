@@ -518,7 +518,7 @@ pub async fn trigger_refund_to_gateway(
     Option<hyperswitch_masking::Secret<String>>,
 )> {
     let (prepared_refund, execute) =
-        surcharge::prepare_processor(state, platform, refund, payment_attempt).await?;
+        surcharge::prepare_for_processor_refund(state, platform, refund, payment_attempt).await?;
     if !execute {
         return Ok((prepared_refund, None));
     }
@@ -866,7 +866,7 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    surcharge::try_complete_surcharge_refund(state, platform, &response).await;
+    surcharge::complete_after_processor_refund(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1189,8 +1189,12 @@ pub async fn refund_retrieve_core(
         ..refund
     };
 
+    // A surcharge tracking struct only exists once Init succeeded, so its presence means the
+    // processor refund can proceed and Complete can be attempted once it is done. Only re-drive the
+    // processor refund when it has not yet been sent, so a refund whose money already moved (e.g.
+    // awaiting Complete after a failed attempt) is never double-refunded.
     if let Some(op) = refund.surcharge_refund_details() {
-        if request.force_sync.unwrap_or(false) && op.error_details.is_none() {
+        if request.force_sync.unwrap_or(false) && !refund.sent_to_gateway {
             return Box::pin(trigger_refund_to_gateway(
                 &state,
                 &refund,
@@ -1204,12 +1208,9 @@ pub async fn refund_retrieve_core(
             ))
             .await;
         }
-        let ready_for_complete = op.refund_complete_notified
-            || (op.surcharge_refund_id.is_some() && op.error_details.is_none());
-        if !ready_for_complete {
-            return Ok((refund, None));
+        if !op.refund_complete_notified {
+            surcharge::complete_after_processor_refund(&state, &platform, &refund).await;
         }
-        surcharge::try_complete_surcharge_refund(&state, &platform, &refund).await;
     }
 
     let (response, raw_connector_response) = (if should_call_refund(
@@ -1544,7 +1545,7 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    surcharge::try_complete_surcharge_refund(state, platform, &response).await;
+    surcharge::complete_after_processor_refund(state, platform, &response).await;
     utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
@@ -1798,16 +1799,18 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    let surcharge_refund_amount = surcharge::validate_and_calculate_refund_amount(
+    // For a partial surcharge refund this reserves the order-only amount; the surcharge fee and its
+    // tracking details are filled in later, only once Init succeeds. `None` means a plain or full
+    // refund, which takes the legacy path.
+    let surcharge_reservation_amount = surcharge::reserve_partial_refund_amount(
         payment_attempt,
         payment_intent,
         &refund_id,
         req.amount,
         &all_refunds,
     )?;
-    let (refund_amount, external_surcharge_refund_details) = surcharge_refund_amount
-        .map(|(amount, details)| (amount, Some(details)))
-        .unwrap_or((refund_amount, None));
+    let is_partial_surcharge_refund = surcharge_reservation_amount.is_some();
+    let refund_amount = surcharge_reservation_amount.unwrap_or(refund_amount);
     let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
@@ -1868,10 +1871,9 @@ pub async fn validate_and_create_refund(
         total_amount: payment_attempt.get_total_amount(),
         refund_amount,
         refund_surcharge_amount,
-        net_refund_amount: external_surcharge_refund_details
-            .is_none()
-            .then_some(net_refund_amount),
-        external_surcharge_refund_details,
+        net_refund_amount: (!is_partial_surcharge_refund).then_some(net_refund_amount),
+        // Surcharge tracking is persisted later, only once Init succeeds.
+        external_surcharge_refund_details: None,
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -1949,6 +1951,7 @@ pub async fn validate_and_create_refund(
         split_refunds,
         req.all_keys_required,
         payment_method_data,
+        is_partial_surcharge_refund,
     ))
     .await?;
 
@@ -2535,11 +2538,15 @@ pub async fn schedule_refund_execution(
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
+    is_partial_surcharge_refund: bool,
 ) -> RouterResult<(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    if refund.external_surcharge_refund_details.is_some() {
+    // A partial surcharge refund drives the processor refund synchronously so Init/Complete can run
+    // inline; the surcharge tracking struct is not persisted until Init succeeds, so we can no
+    // longer key off its presence here.
+    if is_partial_surcharge_refund {
         if refund_type == api_models::refunds::RefundType::Instant
             && !refund.sent_to_gateway
             && refund.refund_status == enums::RefundStatus::Pending
@@ -2818,7 +2825,9 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
-        Some("SURCHARGE_REFUND") => surcharge::recover(state, refund_tracker).await,
+        Some("SURCHARGE_REFUND") => {
+            surcharge::resume_pending_surcharge_refund(state, refund_tracker).await
+        }
         Some("EXECUTE_REFUND") => {
             Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
         }

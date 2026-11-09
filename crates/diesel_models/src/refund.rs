@@ -404,7 +404,7 @@ pub enum RefundUpdate {
 #[router_derive::apply_changeset(target = Refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<ConnectorTransactionId>,
-    pub(crate) refund_status: Option<storage_enums::RefundStatus>,
+    refund_status: Option<storage_enums::RefundStatus>,
     sent_to_gateway: Option<bool>,
     refund_error_message: Option<Option<String>>,
     refund_arn: Option<String>,
@@ -466,19 +466,13 @@ impl RefundUpdateInternal {
     }
 
     /// Stores the surcharge fee and derives `net_refund_amount` as order + surcharge amount.
+    /// Relies solely on the top-level `refund_surcharge_amount` column (the value persisted in the
+    /// refund table); the `SurchargeUpdate` conversion populates it from the external tracking
+    /// details.
     pub fn populate_derived_fields(self, source: &Refund) -> Self {
         let mut update_internal = self;
         let surcharge = update_internal
-            .external_surcharge_refund_details
-            .as_ref()
-            .and_then(|details| details.refund_surcharge_amount)
-            .or_else(|| {
-                source
-                    .external_surcharge_refund_details
-                    .as_ref()
-                    .and_then(|details| details.refund_surcharge_amount)
-            })
-            .or(update_internal.refund_surcharge_amount)
+            .refund_surcharge_amount
             .or(source.refund_surcharge_amount);
         update_internal.refund_surcharge_amount = surcharge;
         update_internal.net_refund_amount =
@@ -653,7 +647,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 updated_by,
             } => Self {
                 refund_status: None,
-                refund_surcharge_amount: None,
+                refund_surcharge_amount: Some(
+                    external_surcharge_refund_details.refund_surcharge_amount,
+                ),
                 net_refund_amount: None,
                 external_surcharge_refund_details: Some(external_surcharge_refund_details),
                 updated_by,

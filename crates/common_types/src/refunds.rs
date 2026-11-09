@@ -11,7 +11,7 @@ use utoipa::ToSchema;
 
 use crate::{
     domain::{AdyenSplitData, XenditSplitSubMerchantData},
-    payments::{MultiCurrencyProcessingAmountData, SurchargeErrorDetails},
+    payments::MultiCurrencyProcessingAmountData,
 };
 
 /// InterPayments refund tracking. Only set for a partial surcharge refund.
@@ -20,13 +20,11 @@ use crate::{
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct ExternalSurchargeRefundDetails {
     /// New InterPayments refund ID returned by Init, used for Complete.
-    pub surcharge_refund_id: Option<String>,
+    pub surcharge_refund_id: String,
     /// Surcharge fee for this refund, returned by Init.
-    pub refund_surcharge_amount: Option<MinorUnit>,
+    pub refund_surcharge_amount: MinorUnit,
     /// Whether Complete has succeeded.
     pub refund_complete_notified: bool,
-    /// Set when Init/Complete fails or its outcome is unknown.
-    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 #[cfg(feature = "diesel")]
