@@ -18,7 +18,10 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
-use super::{validator::PayoutExecutionKindValidation, PayoutData};
+use super::{
+    validator::{self, PayoutExecutionKindValidation},
+    PayoutData,
+};
 #[cfg(feature = "v1")]
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "payouts")]
@@ -887,6 +890,7 @@ pub async fn save_payout_data_to_locker(
             payouts,
             updated_payout,
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1415,10 +1419,16 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
     let result = db
-        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .filter_payouts_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            merchant_key_store,
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1452,6 +1462,26 @@ pub async fn update_payouts_and_payout_attempt(
             ),
         }));
     }
+
+    let profile_id = payout_data.business_profile.get_id();
+    let payout_cap_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone());
+    validator::validate_payout_amount_against_config(
+        state,
+        &payout_cap_dimensions,
+        profile_id,
+        req.amount,
+    )
+    .await?;
 
     // Fetch customer details from request and create new or else use existing customer that was attached
     let customer = get_customer_details_from_request(req);
@@ -1488,6 +1518,25 @@ pub async fn update_payouts_and_payout_attempt(
     // Update DB with new data
     let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
+    let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
+    let sender_details = req
+        .sender_details
+        .clone()
+        .or_else(|| payouts.get_optional_sender_details().cloned())
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
@@ -1514,6 +1563,8 @@ pub async fn update_payouts_and_payout_attempt(
             .or(payouts.return_url.clone()),
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
+        funds_transfer_type,
+        sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
         confirm: req.confirm.to_owned(),
@@ -1530,6 +1581,7 @@ pub async fn update_payouts_and_payout_attempt(
             &payouts,
             updated_payouts,
             &payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

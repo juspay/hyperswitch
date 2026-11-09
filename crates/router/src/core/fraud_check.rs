@@ -6,10 +6,7 @@ use api_models::{self, enums as api_enums};
 use common_enums::{CaptureMethod, PaymentMethod, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use self::{
     flows::{self as frm_flows, FeatureFrm},

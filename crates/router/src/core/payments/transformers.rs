@@ -59,7 +59,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
 use hyperswitch_masking::{ExposeInterface, Maskable, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{
     callback_urls::{ConnectorCallbackUrls, SdkCallbackUrls},
@@ -269,8 +269,8 @@ where
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
@@ -854,15 +854,15 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_payment_router_data_v1(
+    state: &SessionState,
     payment_data: PaymentData<api::ExternalVaultProxy>,
     connector_id: &str,
     processor: &domain::Processor,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    connector_callback_urls: &'a mut ConnectorCallbackUrls,
+    connector_callback_urls: &mut ConnectorCallbackUrls,
 ) -> RouterResult<types::ExternalVaultProxyPaymentsRouterData> {
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -1445,8 +1445,8 @@ pub async fn construct_router_data_for_psync<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_cancel_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_cancel_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentCancelData<api::Void>,
@@ -2424,8 +2424,8 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_metadata<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_metadata(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -2433,7 +2433,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
     merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
-    connector_callback_urls: &'a mut ConnectorCallbackUrls,
+    connector_callback_urls: &mut ConnectorCallbackUrls,
 ) -> RouterResult<
     types::RouterData<
         api::UpdateMetadata,
@@ -8788,13 +8788,13 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_post_confirm(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdatePostConfirm>,
     connector_id: &str,
     processor: &domain::Processor,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    connector_callback_urls: &'a mut ConnectorCallbackUrls,
+    connector_callback_urls: &mut ConnectorCallbackUrls,
 ) -> RouterResult<
     types::RouterData<
         api::UpdatePostConfirm,
