@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.09.0
+
+### Features
+
+- **connector:** [Authorizedotnet] Adds MOTO support for card payments ([#15139](https://github.com/juspay/hyperswitch/pull/15139)) ([`f71ad21`](https://github.com/juspay/hyperswitch/commit/f71ad21ce9a230fe0c56d80f61e173b0f5001e29))
+- **payouts:** Add Superposition kill switch with OMP scopes ([#15181](https://github.com/juspay/hyperswitch/pull/15181)) ([`866865c`](https://github.com/juspay/hyperswitch/commit/866865ce84a9c5a7a679eec2416f54f99ac60274))
+- **superposition:** Add merchant-profile payout amount min max limits ([#15179](https://github.com/juspay/hyperswitch/pull/15179)) ([`f30ddfc`](https://github.com/juspay/hyperswitch/commit/f30ddfc0ea67dc59e22997313019ea3d0b4faffa))
+
+### Bug Fixes
+
+- **connector:** [Elavon PG] remove wallet mandate support ([#15175](https://github.com/juspay/hyperswitch/pull/15175)) ([`b17083b`](https://github.com/juspay/hyperswitch/commit/b17083bf4b017ab3dcdfed26889bf556f6a1c7f0))
+- **deps:** Upgrade Fred and Superposition TLS dependencies ([#15189](https://github.com/juspay/hyperswitch/pull/15189)) ([`d334307`](https://github.com/juspay/hyperswitch/commit/d334307d8ff77090e7734dee0266454c4859cde1))
+- **payouts:** Restrict confirmation to API key auth ([#15180](https://github.com/juspay/hyperswitch/pull/15180)) ([`6eb31aa`](https://github.com/juspay/hyperswitch/commit/6eb31aa2f9aedc8034ddb2ece79d937ccf4616a1))
+- **proxy:** Align proxy token resolution with payment method retrieve ([#15174](https://github.com/juspay/hyperswitch/pull/15174)) ([`3d31c45`](https://github.com/juspay/hyperswitch/commit/3d31c454feb50df78aff6759e070da5a9433b9ca))
+
+### Refactors
+
+- **router:** Centralize payment callback URL handling ([#15144](https://github.com/juspay/hyperswitch/pull/15144)) ([`ca327d0`](https://github.com/juspay/hyperswitch/commit/ca327d06bb7248064d328ccf3c7808f3b809288c))
+
+### Documentation
+
+- **api-reference:** Update the decide endpoint docs ([#15167](https://github.com/juspay/hyperswitch/pull/15167)) ([`d75a4bb`](https://github.com/juspay/hyperswitch/commit/d75a4bbb83fc06bc67b484ac8817e9e5ea319c82))
+
+### Miscellaneous Tasks
+
+- **deps:** Refresh cloud and test-tooling dependencies ([#15171](https://github.com/juspay/hyperswitch/pull/15171)) ([`8cea9ab`](https://github.com/juspay/hyperswitch/commit/8cea9abe30f12fbb463ebbb7a3ca077b76c89cfa))
+- **postman:** Remove newman/Postman connector test tooling ([#15190](https://github.com/juspay/hyperswitch/pull/15190)) ([`f15aeb2`](https://github.com/juspay/hyperswitch/commit/f15aeb254256daf72e52809cd24709a019d6a0e9))
+
+**Full Changelog:** [`2026.11.06.0...2026.11.09.0`](https://github.com/juspay/hyperswitch/compare/2026.11.06.0...2026.11.09.0)
+
+- - -
+
 ## 2026.11.06.0
 
 ### Features
