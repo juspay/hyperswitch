@@ -48,6 +48,7 @@ macro_rules! config {
         output = $output:ty,
         default = $default:expr,
         object = true,
+        $(generics = [$($generic:ident),+],)?
         requires = $requirement:ty,
         targeting_key = $targeting_type:ty
     ) => {
@@ -63,7 +64,7 @@ macro_rules! config {
                 }
             }
 
-            impl $requirement {
+            impl $(<$($generic),+>)? $requirement {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
@@ -732,7 +733,8 @@ config! {
     output = HashMap<common_enums::Currency, common_utils::types::MinorUnit>,
     default = HashMap::<common_enums::Currency, common_utils::types::MinorUnit>::new(),
     object = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId
 }
 
@@ -745,7 +747,8 @@ config! {
     output = HashMap<common_enums::Currency, common_utils::types::MinorUnit>,
     default = HashMap::<common_enums::Currency, common_utils::types::MinorUnit>::new(),
     object = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
     targeting_key = id_type::ProfileId
 }
 
