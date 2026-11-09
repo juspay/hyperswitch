@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.04.1-hotfix1
+
+### Features
+
+- **connector:** [Checkout] add Apple Pay wallet payouts via UCS ([#15203](https://github.com/juspay/hyperswitch/pull/15203)) ([`f6eb0f9`](https://github.com/juspay/hyperswitch/commit/f6eb0f9b63f42cccfb928b8bba00021ab00e146b))
+
+**Full Changelog:** [`2026.11.04.1...2026.11.04.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.11.04.1...2026.11.04.1-hotfix1)
+
+- - -
+
 ## 2026.11.04.1
 
 ### Features
