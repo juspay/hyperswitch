@@ -1610,6 +1610,9 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        funds_transfer_type -> Nullable<Varchar>,
+        sender_details -> Nullable<Bytea>,
     }
 }
 

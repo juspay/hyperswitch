@@ -102,7 +102,7 @@ dependencies = [
  "log",
  "memchr",
  "mime",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_json",
  "serde_plain",
@@ -2168,7 +2168,7 @@ dependencies = [
  "phonenumber",
  "proptest",
  "quick-xml",
- "rand 0.8.5",
+ "rand 0.8.6",
  "regex",
  "reqwest 0.13.5",
  "ring 0.17.14",
@@ -2236,7 +2236,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3614,7 +3614,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d391ba4af7f1d93f01fcf7b2f29e2bc9348e109dfdbf4dcbdc51dfa38dab0b6"
 dependencies = [
  "deunicode",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -3799,7 +3799,7 @@ dependencies = [
  "futures 0.3.31",
  "log",
  "parking_lot 0.12.3",
- "rand 0.8.5",
+ "rand 0.8.6",
  "redis-protocol",
  "rustls 0.22.4",
  "rustls-native-certs 0.7.3",
@@ -4218,7 +4218,7 @@ dependencies = [
  "into-attr-derive",
  "pest",
  "pest_derive",
- "rand 0.8.5",
+ "rand 0.8.6",
  "tempfile",
 ]
 
@@ -4247,7 +4247,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -4793,7 +4793,7 @@ dependencies = [
  "pem 3.0.5",
  "qrcode",
  "quick-xml",
- "rand 0.8.5",
+ "rand 0.8.6",
  "regex",
  "reqwest 0.13.5",
  "ring 0.17.14",
@@ -6094,7 +6094,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
 dependencies = [
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -6232,7 +6232,7 @@ dependencies = [
  "num-integer",
  "num-iter",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
  "smallvec 1.15.0",
  "zeroize",
 ]
@@ -6372,7 +6372,7 @@ dependencies = [
  "chrono",
  "getrandom 0.2.16",
  "http 0.2.12",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -6386,7 +6386,7 @@ name = "oci_kms"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "rand 0.8.5",
+ "rand 0.8.6",
  "reqwest 0.12.7",
  "rsa",
  "serde",
@@ -6472,7 +6472,7 @@ dependencies = [
  "oauth2",
  "p256 0.13.2",
  "p384",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rsa",
  "serde",
  "serde-value",
@@ -6639,7 +6639,7 @@ dependencies = [
  "glob",
  "opentelemetry",
  "percent-encoding",
- "rand 0.8.5",
+ "rand 0.8.6",
  "thiserror 1.0.69",
  "tokio 1.48.0",
  "tokio-stream",
@@ -7040,7 +7040,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d5285893bb5eb82e6aaf5d59ee909a06a16737a8970984dd7746ba9283498d6"
 dependencies = [
  "phf_shared 0.10.0",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -7050,7 +7050,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
 dependencies = [
  "phf_shared 0.11.2",
- "rand 0.8.5",
+ "rand 0.8.6",
 ]
 
 [[package]]
@@ -7383,7 +7383,7 @@ dependencies = [
  "bitflags 2.9.0",
  "lazy_static",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rand_chacha 0.3.1",
  "rand_xorshift",
  "regex-syntax 0.8.5",
@@ -7675,9 +7675,9 @@ checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
@@ -8269,7 +8269,7 @@ dependencies = [
  "payment_methods",
  "pm_auth",
  "prost-types 0.14.3",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rand_chacha 0.3.1",
  "rdkafka",
  "redis_interface",
@@ -8397,7 +8397,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8473,7 +8473,7 @@ dependencies = [
  "borsh",
  "bytes 1.10.1",
  "num-traits",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rkyv",
  "serde",
  "serde_json",
@@ -8826,7 +8826,7 @@ dependencies = [
  "futures 0.3.31",
  "hyperswitch_domain_models",
  "num_cpus",
- "rand 0.8.5",
+ "rand 0.8.6",
  "redis_interface",
  "router_env",
  "serde",
@@ -9609,7 +9609,7 @@ dependencies = [
  "memchr",
  "once_cell",
  "percent-encoding",
- "rand 0.8.5",
+ "rand 0.8.6",
  "rsa",
  "serde",
  "sha1",
@@ -9650,7 +9650,7 @@ dependencies = [
  "memchr",
  "num-bigint",
  "once_cell",
- "rand 0.8.5",
+ "rand 0.8.6",
  "serde",
  "serde_json",
  "sha2",
@@ -10230,7 +10230,7 @@ dependencies = [
  "percent-encoding",
  "pest",
  "pest_derive",
- "rand 0.8.5",
+ "rand 0.8.6",
  "regex",
  "serde",
  "serde_json",
@@ -10297,7 +10297,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "hyperswitch_masking",
- "rand 0.8.5",
+ "rand 0.8.6",
  "regex",
  "reqwest 0.11.27",
  "serde",
@@ -11072,7 +11072,7 @@ dependencies = [
  "indexmap 1.9.3",
  "pin-project",
  "pin-project-lite",
- "rand 0.8.5",
+ "rand 0.8.6",
  "slab",
  "tokio 1.48.0",
  "tokio-util",
@@ -11345,7 +11345,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11361,7 +11361,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11372,7 +11372,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.04.1#198172f839a45ecf50974f55ca9ac07f1245a3c5"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -11390,7 +11390,7 @@ dependencies = [
  "once_cell",
  "openssl",
  "quick-xml",
- "rand 0.8.5",
+ "rand 0.8.6",
  "regex",
  "reqwest 0.12.7",
  "ring 0.17.14",

@@ -487,6 +487,7 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
                 webhook_url: None,
                 browser_info: None,
+                funds_transfer_type: None,
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
