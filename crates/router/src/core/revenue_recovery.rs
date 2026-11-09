@@ -2126,17 +2126,17 @@ fn determine_recovery_status_from_workflows(
 fn map_external_trigger_recovery_status(
     next_retry: common_types::payments::RecoveryNextRetry,
 ) -> RecoveryStatus {
-    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+    use common_types::payments::{RecoveryNoRetryReason, RecoveryRetrySchedule};
 
-    match next_retry {
-        RecoveryNextRetry::Scheduled { .. } => RecoveryStatus::Scheduled,
-        RecoveryNextRetry::NotScheduled { reason } => match reason {
+    match next_retry.schedule {
+        RecoveryRetrySchedule::Scheduled { .. } => RecoveryStatus::Scheduled,
+        RecoveryRetrySchedule::NotScheduled { reason } => match reason {
             RecoveryNoRetryReason::Recovered => RecoveryStatus::Recovered,
             RecoveryNoRetryReason::Monitoring | RecoveryNoRetryReason::BelowRetryThreshold => {
                 RecoveryStatus::Monitoring
             }
             RecoveryNoRetryReason::RetriesExhausted
-            | RecoveryNoRetryReason::GraceWindowExpired
+            | RecoveryNoRetryReason::GracePeriodExceeded
             | RecoveryNoRetryReason::HardDecline
             | RecoveryNoRetryReason::Cancelled => RecoveryStatus::Terminated,
         },

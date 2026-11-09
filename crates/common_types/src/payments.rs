@@ -1111,7 +1111,7 @@ pub enum RecoveryNoRetryReason {
     /// The invoice has used every retry it is allowed.
     RetriesExhausted,
     /// The grace period of the invoice is over, or would be over by the time of the next retry.
-    GraceWindowExpired,
+    GracePeriodExceeded,
     /// The card was hard declined, and the retries the profile allows after that are used up.
     HardDecline,
     /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
@@ -1125,8 +1125,20 @@ pub enum RecoveryNoRetryReason {
 
 /// When the merchant should trigger the next retry of an invoice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum RecoveryNextRetry {
+pub struct RecoveryNextRetry {
+    /// Number of the next retry, counted the way the `max_retry_count` of the profile counts them:
+    /// the first retry after the original payment is 1.
+    pub retry_count: u16,
+    /// When to trigger the next retry, or why none is scheduled.
+    #[serde(flatten)]
+    pub schedule: RecoveryRetrySchedule,
+}
+
+/// Whether the next retry of an invoice is scheduled. Sent as `schedule_time` when it is, and as
+/// `reason` when it is not.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum RecoveryRetrySchedule {
     /// Trigger the retry at `schedule_time`, then report its result through the recovery API.
     Scheduled {
         /// The time to trigger the retry at.
