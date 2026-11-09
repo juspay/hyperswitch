@@ -466,7 +466,7 @@ pub async fn refund_create_core(
         ).await
         .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
 
-    if !surcharge::applies(&payment_attempt) {
+    if !surcharge::has_surcharge(&payment_attempt) {
         payment_intent
             .validate_amount_against_intent_state_metadata(req.amount)
             .map_err(|err| {
@@ -518,8 +518,7 @@ pub async fn trigger_refund_to_gateway(
     Option<hyperswitch_masking::Secret<String>>,
 )> {
     let (prepared_refund, execute) =
-        surcharge::prepare_processor(state, platform, refund, payment_attempt, payment_intent)
-            .await?;
+        surcharge::prepare_processor(state, platform, refund, payment_attempt).await?;
     if !execute {
         return Ok((prepared_refund, None));
     }
@@ -1770,7 +1769,7 @@ pub async fn validate_and_create_refund(
             )
         })?;
 
-    let all_refunds = if surcharge::applies(payment_attempt) {
+    let all_refunds = if surcharge::has_surcharge(payment_attempt) {
         db.find_refund_by_payment_id_processor_merchant_id(
             &payment_intent.payment_id,
             platform.get_processor().get_account().get_id(),
@@ -1799,14 +1798,14 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    let reservation = surcharge::prepare_reservation(
+    let surcharge_refund_amount = surcharge::validate_and_calculate_refund_amount(
         payment_attempt,
         payment_intent,
         &refund_id,
         req.amount,
         &all_refunds,
     )?;
-    let (refund_amount, external_surcharge_refund_details) = reservation
+    let (refund_amount, external_surcharge_refund_details) = surcharge_refund_amount
         .map(|(amount, details)| (amount, Some(details)))
         .unwrap_or((refund_amount, None));
     let refund_amount_details = RefundAmountDetails::from(refund_amount);
@@ -1909,7 +1908,8 @@ pub async fn validate_and_create_refund(
     let refund = match insert_result {
         Ok(refund) => refund,
         Err(err) => {
-            if err.current_context().is_db_unique_violation() && surcharge::applies(payment_attempt)
+            if err.current_context().is_db_unique_violation()
+                && surcharge::has_surcharge(payment_attempt)
             {
                 let existing = db
                     .find_refund_by_processor_merchant_id_refund_id(

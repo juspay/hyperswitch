@@ -1387,12 +1387,8 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
-        // Init/Complete refunds must not also invoke the legacy InterPayments refund notification.
-        // The merchant webhook is still sent with the normal refund response.
-        let webhook_resource_data = refund.external_surcharge_refund_details.is_none().then(|| {
-            WebhookResourceData::Refund {
-                payment_attempt: payment_attempt.clone(),
-            }
+        let webhook_resource_data = Some(WebhookResourceData::Refund {
+            payment_attempt: payment_attempt.clone(),
         });
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {

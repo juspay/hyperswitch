@@ -266,17 +266,6 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
     }
 }
 
-/// Captured portion of `order`, when capture is partial/manual and there's no per-component
-/// capture split. Surcharge is computed independently of capture method, so a surcharge-bearing
-/// payment can have `captured < total` (order + surcharge); this assumes the surcharge was
-/// captured first and only the remainder counts toward the order.
-pub fn captured_order_amount(order: i64, total: i64, captured: i64) -> Option<i64> {
-    if order < 0 || captured < 0 || total < order || captured > total {
-        return None;
-    }
-    Some(order.min(captured.checked_sub(total.checked_sub(order)?)?.max(0)))
-}
-
 pub fn validate_surcharge_order_amount(
     original: i64,
     remaining: i64,

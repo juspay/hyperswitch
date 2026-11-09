@@ -465,7 +465,7 @@ impl RefundUpdateInternal {
         }
     }
 
-    /// Derives `net_refund_amount` as order + surcharge amount.
+    /// Stores the surcharge fee and derives `net_refund_amount` as order + surcharge amount.
     pub fn populate_derived_fields(self, source: &Refund) -> Self {
         let mut update_internal = self;
         let surcharge = update_internal
@@ -479,9 +479,10 @@ impl RefundUpdateInternal {
                     .and_then(|details| details.refund_surcharge_amount)
             })
             .or(update_internal.refund_surcharge_amount)
-            .or(source.refund_surcharge_amount)
-            .unwrap_or_default();
-        update_internal.net_refund_amount = Some(source.refund_amount + surcharge);
+            .or(source.refund_surcharge_amount);
+        update_internal.refund_surcharge_amount = surcharge;
+        update_internal.net_refund_amount =
+            Some(source.refund_amount + surcharge.unwrap_or_default());
         update_internal
     }
 }
