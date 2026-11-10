@@ -544,8 +544,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
 
             OrganizationType::Platform => {
-                // The organization records its platform merchant, so there's no need to load
-                // and decrypt every merchant account in the organization to find it.
                 if organization.platform_merchant_id.is_none() {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
@@ -1444,7 +1442,6 @@ pub async fn merchant_account_delete(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    // The organization keeps a reference to its platform merchant, so it must not be deleted
     fp_utils::when(merchant_account.is_platform_account(), || {
         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Platform merchant account cannot be deleted".to_string(),
