@@ -5499,14 +5499,14 @@ pub async fn call_unified_connector_service_for_surcharge_refund_init(
 #[instrument(skip_all)]
 pub async fn call_unified_connector_service_for_surcharge_refund_complete(
     state: &SessionState,
-    processor: &Processor,
+    merchant_id: &id_type::MerchantId,
     account: MerchantConnectorAccountType,
     profile_id: &id_type::ProfileId,
     data: hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundCompleteData,
 ) -> RouterResult<payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse> {
     let auth = build_unified_connector_service_auth_metadata(
         account,
-        processor.get_account().get_id(),
+        merchant_id,
         "interpayments".to_owned(),
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
@@ -5514,10 +5514,7 @@ pub async fn call_unified_connector_service_for_surcharge_refund_complete(
         .get_grpc_headers_ucs(ExecutionMode::Primary)
         .payment_method(None)
         .payment_method_type(None)
-        .lineage_ids(LineageIds::new(
-            processor.get_account().get_id().clone(),
-            profile_id.clone(),
-        ))
+        .lineage_ids(LineageIds::new(merchant_id.clone(), profile_id.clone()))
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
         .resource_id(None)

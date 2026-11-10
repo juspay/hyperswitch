@@ -698,26 +698,49 @@ async fn trigger_webhook_to_connector(
 
     let connector_name = mca.connector_name.clone();
 
-    let (notify_request, connector_auth_metadata, notify_event_type) =
-        crate::core::unified_connector_service::build_notify_connector_request(
-            &event,
-            &provider_merchant_id,
-            MerchantConnectorAccountType::DbVal(Box::new(mca)),
-            connector_name,
-            notify_feature_data,
-        )
-        .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
-
-    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+    // Partial surcharge refunds finalise via SurchargeRefundComplete; everything else takes the
+    // generic notify (`complete_from_webhook` returns `None`). Both yield NotifyConnectorResponseData
+    // so the handling below is shared — a failed Complete only reschedules the webhook, not the refund.
+    let surcharge_complete = if event.event_type == enums::EventType::SurchargeRefundSucceeded {
+        crate::core::refunds::surcharge::complete_from_webhook(
             &state,
-            &event,
-            connector_auth_metadata,
-            notify_request,
-            notify_event_type,
             &provider_merchant_id,
+            &merchant_key_store,
             business_profile.get_id(),
+            MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+            &event.primary_object_id,
         )
-        .await;
+        .await
+        .transpose()
+    } else {
+        None
+    };
+
+    let response = match surcharge_complete {
+        Some(result) => result,
+        None => {
+            let (notify_request, connector_auth_metadata, notify_event_type) =
+                crate::core::unified_connector_service::build_notify_connector_request(
+                    &event,
+                    &provider_merchant_id,
+                    MerchantConnectorAccountType::DbVal(Box::new(mca)),
+                    connector_name,
+                    notify_feature_data,
+                )
+                .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
+
+            crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+                &state,
+                &event,
+                connector_auth_metadata,
+                notify_request,
+                notify_event_type,
+                &provider_merchant_id,
+                business_profile.get_id(),
+            )
+            .await
+        }
+    };
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,

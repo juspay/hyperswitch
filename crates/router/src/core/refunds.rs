@@ -439,6 +439,13 @@ pub async fn refund_create_core(
         },
     )?;
 
+    payment_intent
+        .validate_amount_against_intent_state_metadata(req.amount)
+        .map_err(|err| {
+            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
+                .attach_printable("refund amount validation against payment intent failed")
+        })?;
+
     payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
@@ -739,7 +746,9 @@ pub async fn trigger_refund_to_gateway(
             };
 
             let refund_status = match err.status_code {
+                // If status code is 5xx, we do not change the refund status here
                 500..=511 => None,
+                // For other errors, we mark the refund as Failure, since these are definite failures
                 _ => Some(enums::RefundStatus::Failure),
             };
 
@@ -1744,25 +1753,20 @@ pub async fn validate_and_create_refund(
     // For a partial surcharge refund this reserves the order-only amount; the surcharge fee and its
     // tracking details are filled in later, only once Init succeeds. `None` means a plain or full
     // refund, which takes the legacy path.
-    let surcharge_reservation_amount = surcharge::reserve_partial_refund_amount(
-        payment_attempt,
-        payment_intent,
-        &refund_id,
-        req.amount,
-        &all_refunds,
-    )?;
-    let is_partial_surcharge_refund = surcharge_reservation_amount.is_some();
-    let refund_amount = surcharge_reservation_amount.unwrap_or(refund_amount);
+    let partial_surcharge_refund_order_amount =
+        surcharge::validate_and_reserve_partial_refund_amount(
+            payment_attempt,
+            payment_intent,
+            &refund_id,
+            req.amount,
+            &all_refunds,
+        )?;
+    let is_partial_surcharge_refund = partial_surcharge_refund_order_amount.is_some();
+    let refund_amount = partial_surcharge_refund_order_amount.unwrap_or(refund_amount);
     let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-    payment_intent
-        .validate_amount_against_intent_state_metadata(req.amount)
-        .map_err(|err| {
-            err.change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)
-                .attach_printable("refund amount validation against payment intent failed")
-        })?;
     validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount_details)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
@@ -1849,13 +1853,13 @@ pub async fn validate_and_create_refund(
             .map(|created_by| created_by.to_string()),
     };
 
-    let insert_result = db
+    let refund = match db
         .insert_refund(
             refund_create_req,
             platform.get_processor().get_account().storage_scheme,
         )
-        .await;
-    let refund = match insert_result {
+        .await
+    {
         Ok(refund) => refund,
         Err(err) => {
             if err.current_context().is_db_unique_violation() && payment_attempt.has_surcharge() {
@@ -2493,6 +2497,7 @@ pub async fn schedule_refund_execution(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
+    // refunds::RefundResponse> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";
@@ -2751,9 +2756,6 @@ pub async fn start_refund_workflow(
     refund_tracker: &storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
     match refund_tracker.name.as_deref() {
-        Some("SURCHARGE_REFUND") => {
-            surcharge::resume_pending_surcharge_refund(state, refund_tracker).await
-        }
         Some("EXECUTE_REFUND") => {
             Box::pin(trigger_refund_execute_workflow(state, refund_tracker)).await
         }

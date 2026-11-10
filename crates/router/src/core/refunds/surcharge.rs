@@ -1,16 +1,9 @@
 //! InterPayments surcharge refund orchestration.
 //!
 //! Partial refunds run the two-call Init/Complete protocol; a whole-order refund keeps the legacy
-//! `SurchargeRefundSucceeded` single call. Every lifecycle step follows the same three stages:
-//!
-//! 1. **validate** — [`SurchargeRefundBalances`] says how much order amount and surcharge fee
-//!    remain refundable.
-//! 2. **trigger** — call InterPayments ([`SurchargeRefund::call_surcharge_refund_init`] /
-//!    [`SurchargeRefund::notify_surcharge_refund_complete`]).
-//! 3. **update** — persist the outcome ([`SurchargeRefund::persist_surcharge_details`] /
-//!    [`SurchargeRefund::mark_refund_failed`]).
-//!
-//! The public entry points read as those three stages in order.
+//! single call. Init runs inline at create ([`prepare_for_processor_refund`]); Complete runs later
+//! off the refund's outgoing webhook ([`complete_from_webhook`]). Each step is validate -> trigger
+//! (InterPayments call) -> update (persist).
 
 use common_types::refunds::ExternalSurchargeRefundDetails;
 use common_utils::types::MinorUnit;
@@ -37,9 +30,8 @@ use crate::{
 // validate — the balances a requested amount is checked against.
 // ------------------------------------------------------------------------------------------------
 
-/// Order and surcharge balances for a surcharge refund, derived from the original payment attempt
-/// and the stored amounts on previous refunds. Carries no I/O; only answers how much order amount
-/// and surcharge fee remain refundable.
+/// How much order amount and surcharge fee remain refundable, derived from the original attempt
+/// and the stored amounts on previous refunds. No I/O.
 #[derive(Clone, Copy, Debug)]
 struct SurchargeRefundBalances {
     /// Order amount of the original payment, excluding the surcharge fee.
@@ -53,10 +45,9 @@ struct SurchargeRefundBalances {
 }
 
 impl SurchargeRefundBalances {
-    /// Derives the balances from the attempt and the stored amounts on previous refunds, excluding
-    /// `exclude_refund_id` (the refund being created or retried) from the sums. Failed refunds are
-    /// ignored. Returns a `PreconditionFailed` when the original surcharge record is missing or
-    /// inconsistent and reconciliation is required.
+    /// Excludes `exclude_refund_id` (the refund being created/retried) and failed refunds from the
+    /// sums. Returns `PreconditionFailed` when the original surcharge record is missing/inconsistent
+    /// (reconciliation required).
     fn from_previous_refunds(
         attempt: &storage::PaymentAttempt,
         previous_refunds: &[Refund],
@@ -121,22 +112,27 @@ impl SurchargeRefundBalances {
                 .is_none_or(|amount| amount.get_amount_as_i64() == self.original_order_amount)
     }
 
-    /// Checks a requested order amount, and (when present) the surcharge fee an Init response
-    /// reported, against the remaining balances. The captured-funds check is intentionally left to
-    /// the generic `validate_refund_amount` the refund-create path already runs.
-    fn validate(
+    /// Create-flow check of the requested order amount against the remaining order balance. The
+    /// captured-funds check is left to the generic `validate_refund_amount`.
+    fn validate_requested_order_amount(
         &self,
         requested_order_amount: MinorUnit,
-        init_response: Option<&SurchargeRefundInitResponseData>,
     ) -> RouterResult<()> {
         refunds_validator::validate_order_refund_amount(
             self.original_order_amount,
             self.remaining_order_amount,
             requested_order_amount.get_amount_as_i64(),
-        )?;
-        let refund_surcharge_fee = init_response
-            .map(|response| response.refund_surcharge_amount)
-            .unwrap_or_default();
+        )
+    }
+
+    /// Checks the Init-reported surcharge fee against the remaining surcharge balance and guards
+    /// against an InterPayments inconsistency. Runs after Init (the fee only exists then), not in
+    /// the create flow.
+    fn validate_init_surcharge_fee(
+        &self,
+        response: &SurchargeRefundInitResponseData,
+    ) -> RouterResult<()> {
+        let refund_surcharge_fee = response.refund_surcharge_amount;
         if refund_surcharge_fee < MinorUnit::zero()
             || refund_surcharge_fee.get_amount_as_i64() > self.remaining_surcharge_amount
         {
@@ -146,26 +142,24 @@ impl SurchargeRefundBalances {
                 },
             ));
         }
-        if let Some(response) = init_response {
-            let original_fee_mismatch = response
-                .original_transaction_fee
-                .is_some_and(|amount| amount.get_amount_as_i64() != self.original_surcharge_amount);
-            let refunded_fee_exceeded =
-                response
-                    .previously_refunded_transaction_fees
-                    .is_some_and(|amount| {
-                        refund_surcharge_fee.get_amount_as_i64()
-                            > self.original_surcharge_amount - amount.get_amount_as_i64()
-                    });
-            if original_fee_mismatch || refunded_fee_exceeded {
-                return Err(error_stack::Report::new(
-                    errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "InterPayments surcharge balance is inconsistent; reconciliation required"
-                                .to_string(),
-                    },
-                ));
-            }
+        let original_fee_mismatch = response
+            .original_transaction_fee
+            .is_some_and(|amount| amount.get_amount_as_i64() != self.original_surcharge_amount);
+        let refunded_fee_exceeded =
+            response
+                .previously_refunded_transaction_fees
+                .is_some_and(|amount| {
+                    refund_surcharge_fee.get_amount_as_i64()
+                        > self.original_surcharge_amount - amount.get_amount_as_i64()
+                });
+        if original_fee_mismatch || refunded_fee_exceeded {
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::PreconditionFailed {
+                    message:
+                        "InterPayments surcharge balance is inconsistent; reconciliation required"
+                            .to_string(),
+                },
+            ));
         }
         Ok(())
     }
@@ -175,9 +169,10 @@ impl SurchargeRefundBalances {
 // Entry points — each reads as validate -> trigger -> update.
 // ------------------------------------------------------------------------------------------------
 
-/// Pre-create validation: for a partial surcharge refund, validates and returns the order-only
-/// amount to reserve; `None` for a plain or whole-order refund (which take the legacy path).
-pub fn reserve_partial_refund_amount(
+/// Create-flow validation: for a partial surcharge refund, validates the requested order amount and
+/// returns the order-only amount to reserve; `None` for a plain or whole-order refund (legacy path).
+/// The surcharge fee is validated later, once Init returns it.
+pub fn validate_and_reserve_partial_refund_amount(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
     refund_id: &str,
@@ -210,13 +205,12 @@ pub fn reserve_partial_refund_amount(
 
     let reservation_amount =
         requested_amount.unwrap_or_else(|| MinorUnit::new(balances.remaining_order_amount));
-    balances.validate(reservation_amount, None)?;
+    balances.validate_requested_order_amount(reservation_amount)?;
     Ok(Some(reservation_amount))
 }
 
-/// Before the processor refund: for a partial surcharge refund awaiting Init, runs
-/// validate -> Init -> persist. Returns the (possibly updated) refund and whether the caller should
-/// now submit the processor refund.
+/// Before the processor refund: for a partial surcharge refund awaiting Init, calls Init, validates
+/// the returned fee, and persists the result. Returns the (possibly updated) refund.
 pub async fn prepare_for_processor_refund(
     state: &SessionState,
     platform: &domain::Platform,
@@ -234,7 +228,6 @@ pub async fn prepare_for_processor_refund(
 
     let flow = SurchargeRefund::new(state, platform, refund);
     let previous = flow.previous_refunds().await?;
-    // 1. validate
     let balances = SurchargeRefundBalances::from_previous_refunds(
         attempt,
         &previous,
@@ -244,91 +237,111 @@ pub async fn prepare_for_processor_refund(
     if balances.is_whole_order_refund(Some(refund.refund_amount), &previous) {
         return Ok(refund.clone());
     }
-    balances.validate(refund.refund_amount, None)?;
 
-    flow.schedule_recovery_task().await?;
-    // 2. trigger: call Init (marks the refund failed on any error)
+    // Call Init (marks the refund failed on any error), then persist its result. Complete runs later
+    // via `complete_from_webhook`.
     let details = flow.call_surcharge_refund_init(attempt, &balances).await?;
-    // 3. update: persist the Init result
     flow.persist_surcharge_details(details).await
 }
 
-/// After the processor refund succeeds: runs Complete and records it. Failures are logged and left
-/// to recovery so a refund whose money already moved never loses its success status.
-/// Returns whether the surcharge side is settled: `true` if there is nothing to complete (no
-/// surcharge, or already acknowledged) or Complete succeeds now; `false` if it is not yet ready
-/// (processor refund not successful) or the Complete call failed and should be retried.
-pub async fn complete_after_processor_refund(
+/// Drives `SurchargeRefundComplete` from the refund's outgoing webhook delivery.
+///
+/// `None` when the refund is not a partial surcharge refund (no Init ran) — caller takes the
+/// ordinary notify path. Otherwise calls Complete and returns a `NotifyConnectorResponseData` that
+/// plugs into the generic notify success/retry handling. A failure reschedules the webhook, never
+/// the refund: the money is already refunded.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+pub async fn complete_from_webhook(
     state: &SessionState,
-    platform: &domain::Platform,
-    refund: &Refund,
-) -> bool {
-    // 1. validate: there is a Complete to do only for a succeeded refund not yet acknowledged.
-    let Some(details) = refund.surcharge_refund_details() else {
-        return true;
-    };
-    if details.refund_complete_notified {
-        return true;
-    }
-    if refund.refund_status != common_enums::RefundStatus::Success {
-        return false;
-    }
-    let flow = SurchargeRefund::new(state, platform, refund);
-    match flow.notify_surcharge_refund_complete(details).await {
-        Ok(()) => true,
-        Err(error) => {
-            logger::error!(
-                ?error,
-                refund_id = %refund.refund_id,
-                "Surcharge completion failed; will retry"
-            );
-            false
-        }
-    }
-}
+    merchant_id: &common_utils::id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    profile_id: &common_utils::id_type::ProfileId,
+    surcharge_account: helpers::MerchantConnectorAccountType,
+    refund_id: &str,
+) -> error_stack::Result<
+    Option<hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData>,
+    errors::ApiClientError,
+> {
+    let acknowledged =
+        hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData {
+            status_code: 200,
+            error_code: None,
+            error_message: None,
+        };
 
-/// Process-tracker handler: re-drives the refund (via retrieve) and finishes the task once the
-/// surcharge refund is settled, otherwise schedules a retry.
-pub async fn resume_pending_surcharge_refund(
-    state: &SessionState,
-    task: &storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
-    let tracking: diesel_models::refund::RefundCoreWorkflow =
-        serde_json::from_value(task.tracking_data.clone())
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize surcharge refund process tracker data")?;
-    let platform = crate::core::utils::build_platform_from_refund_core(state, &tracking).await?;
-    let refund = Box::pin(super::refund_retrieve_core_with_internal_reference_id(
-        state.clone(),
-        platform.clone(),
-        None,
-        tracking.refund_internal_reference_id,
-        Some(true),
-    ))
-    .await;
-    if let Ok(refund) = refund {
-        // Recovery owns Complete now: drive it here. Settled once the refund failed (so Complete
-        // never runs) or Complete is acknowledged; otherwise retry.
-        let settled = refund.refund_status.is_failure()
-            || complete_after_processor_refund(state, &platform, &refund).await;
-        if settled {
-            state
-                .store
-                .as_scheduler()
-                .finish_process_with_business_status(task.clone(), "COMPLETED_BY_PT")
-                .await?;
-            return Ok(());
-        }
-    }
-    state
+    let storage_scheme = state
         .store
-        .as_scheduler()
-        .retry_process(
-            task.clone(),
-            common_utils::date_time::now() + time::Duration::minutes(1),
+        .find_merchant_account_by_merchant_id(merchant_id, key_store)
+        .await
+        .map(|account| account.storage_scheme)
+        .unwrap_or_default();
+
+    let refund = state
+        .store
+        .find_refund_by_processor_merchant_id_refund_id(merchant_id, refund_id, storage_scheme)
+        .await
+        .change_context(errors::ApiClientError::UnexpectedServerResponse)
+        .attach_printable("Failed to fetch refund for SurchargeRefundComplete")?;
+
+    // Not a partial surcharge refund (no Init ran): let the caller take the ordinary notify path.
+    let Some(details) = refund.surcharge_refund_details() else {
+        return Ok(None);
+    };
+    // Already completed: the gate that keeps Complete to exactly one successful call per refund.
+    if details.refund_complete_notified {
+        return Ok(Some(acknowledged));
+    }
+
+    let response = ucs::call_unified_connector_service_for_surcharge_refund_complete(
+        state,
+        merchant_id,
+        surcharge_account,
+        profile_id,
+        PaymentsSurchargeRefundCompleteData {
+            refund_id: refund.refund_id.clone(),
+            connector_surcharge_refund_id: details.surcharge_refund_id.clone(),
+        },
+    )
+    .await
+    .change_context(errors::ApiClientError::UnexpectedServerResponse)
+    .attach_printable("SurchargeRefundComplete call failed")?;
+
+    SurchargeRefundCompleteResponseData::foreign_try_from((
+        &response,
+        refund.refund_id.as_str(),
+        details.surcharge_refund_id.as_str(),
+    ))
+    .map_err(|message| {
+        error_stack::Report::new(errors::ApiClientError::UnexpectedServerResponse)
+            .attach_printable(message.to_string())
+    })?;
+
+    // Record the acknowledgement so a webhook retry can't re-call Complete. A persist failure is
+    // only logged, since the connector has already acknowledged.
+    let completed = ExternalSurchargeRefundDetails {
+        refund_complete_notified: true,
+        ..details
+    };
+    if let Err(persist_error) = state
+        .store
+        .update_refund(
+            refund.clone(),
+            RefundUpdate::SurchargeUpdate {
+                external_surcharge_refund_details: completed,
+                updated_by: storage_scheme.to_string(),
+            },
+            storage_scheme,
         )
-        .await?;
-    Ok(())
+        .await
+    {
+        logger::error!(
+            ?persist_error,
+            refund_id = %refund.refund_id,
+            "SurchargeRefundComplete acknowledged but failed to persist refund_complete_notified"
+        );
+    }
+
+    Ok(Some(acknowledged))
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -419,8 +432,7 @@ impl<'a> SurchargeRefund<'a> {
     }
 
     /// Calls Init, validates its response against `balances`, and returns the tracking details to
-    /// persist. On any failure the refund is marked failed (Init runs before any money moves, so
-    /// this is safe) and the error is returned.
+    /// persist. On any failure the refund is marked failed (safe: Init runs before any money moves).
     async fn call_surcharge_refund_init(
         &self,
         attempt: &storage::PaymentAttempt,
@@ -475,7 +487,7 @@ impl<'a> SurchargeRefund<'a> {
             }
         };
 
-        if let Err(error) = balances.validate(self.refund.refund_amount, Some(&data)) {
+        if let Err(error) = balances.validate_init_surcharge_fee(&data) {
             return Err(self.mark_refund_failed(error).await);
         }
 
@@ -496,48 +508,6 @@ impl<'a> SurchargeRefund<'a> {
             refund_surcharge_amount: data.refund_surcharge_amount,
             refund_complete_notified: false,
         })
-    }
-
-    /// Calls Complete and records the acknowledgement. On failure returns an error with
-    /// `refund_complete_notified` left false, so recovery retries without losing refund success.
-    async fn notify_surcharge_refund_complete(
-        &self,
-        details: ExternalSurchargeRefundDetails,
-    ) -> RouterResult<()> {
-        let mca = self.resolve_interpayments_account().await?;
-        let profile = self.profile_id()?;
-        let id = details.surcharge_refund_id.clone();
-        let result = ucs::call_unified_connector_service_for_surcharge_refund_complete(
-            self.state,
-            self.platform.get_processor(),
-            mca,
-            profile,
-            PaymentsSurchargeRefundCompleteData {
-                refund_id: self.refund.refund_id.clone(),
-                connector_surcharge_refund_id: id.clone(),
-            },
-        )
-        .await;
-        let acknowledged = result.as_ref().is_ok_and(|response| {
-            SurchargeRefundCompleteResponseData::foreign_try_from((
-                response,
-                self.refund.refund_id.as_str(),
-                id.as_str(),
-            ))
-            .is_ok()
-        });
-        if !acknowledged {
-            return Err(
-                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("SurchargeRefundComplete failed or returned an error"),
-            );
-        }
-        self.persist_surcharge_details(ExternalSurchargeRefundDetails {
-            refund_complete_notified: true,
-            ..details
-        })
-        .await?;
-        Ok(())
     }
 
     // --- update ---
@@ -564,7 +534,7 @@ impl<'a> SurchargeRefund<'a> {
     }
 
     /// Marks the refund failed with `error`'s message, then returns the error. Safe because Init
-    /// runs before any money moves; reconciliation, if needed, follows from that message.
+    /// runs before any money moves.
     async fn mark_refund_failed(
         &self,
         error: error_stack::Report<errors::ApiErrorResponse>,
@@ -595,43 +565,5 @@ impl<'a> SurchargeRefund<'a> {
             );
         }
         error
-    }
-
-    /// Schedules the recovery process-tracker task (idempotently) before any external call.
-    async fn schedule_recovery_task(&self) -> RouterResult<()> {
-        let id = format!("SURCHARGE_REFUND_{}", self.refund.internal_reference_id);
-        if self
-            .state
-            .store
-            .find_process_by_id(&id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to check for an existing SURCHARGE_REFUND process tracker task",
-            )?
-            .is_some()
-        {
-            return Ok(());
-        }
-        let task = storage::ProcessTrackerNew::new(
-            id,
-            "SURCHARGE_REFUND",
-            storage::ProcessTrackerRunner::RefundWorkflowRouter,
-            ["REFUND"],
-            super::refund_to_refund_core_workflow_model(self.refund),
-            None,
-            common_utils::date_time::now() + time::Duration::minutes(1),
-            common_types::consts::API_VERSION,
-            self.state.conf.application_source,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to build the SURCHARGE_REFUND process tracker task")?;
-        match self.state.store.insert_process(task).await {
-            Ok(_) => Ok(()),
-            Err(error) if error.current_context().is_db_unique_violation() => Ok(()),
-            Err(error) => Err(error)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to insert the SURCHARGE_REFUND process tracker task"),
-        }
     }
 }
