@@ -100,10 +100,16 @@ pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &id_type::PayoutId,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
-        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+        .find_optional_payout_by_merchant_id_payout_id(
+            merchant_id,
+            payout_id,
+            merchant_key_store,
+            storage_scheme,
+        )
         .await;
     match maybe_payouts {
         Err(err) => {
@@ -193,8 +199,14 @@ pub async fn validate_create_request(
         )
         .with_profile_id(profile_id.clone());
 
-    validate_payout_amount_against_config(state, &profile_dimensions, &profile_id, req.amount)
-        .await?;
+    validate_payout_amount_against_config(
+        state,
+        &profile_dimensions,
+        &profile_id,
+        req.amount,
+        req.currency,
+    )
+    .await?;
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
@@ -207,6 +219,7 @@ pub async fn validate_create_request(
         db,
         &payout_id,
         merchant_id,
+        platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
     .await
@@ -376,26 +389,29 @@ pub(crate) async fn validate_payout_amount_against_config(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     profile_id: &id_type::ProfileId,
     amount: Option<Amount>,
+    currency: Option<common_enums::Currency>,
 ) -> RouterResult<()> {
-    let min_amount = dimensions
-        .get_payout_min_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(profile_id),
-        )
-        .await;
-    let max_amount = dimensions
-        .get_payout_max_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(profile_id),
-        )
-        .await;
+    if let Some((amount, currency)) = amount.zip(currency) {
+        let currency_dimensions = dimensions.with_currency(currency);
+        let min_amount = currency_dimensions
+            .get_payout_min_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile_id),
+            )
+            .await;
+        let max_amount = currency_dimensions
+            .get_payout_max_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile_id),
+            )
+            .await;
 
-    amount
-        .map(|amount| validate_payout_amount(amount, min_amount, max_amount))
-        .transpose()
-        .map(|_| ())
+        validate_payout_amount(amount, min_amount, max_amount)
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
