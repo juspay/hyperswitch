@@ -2638,6 +2638,7 @@ Cypress.Commands.add(
             customerCreateBody.phone_country_code,
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
+        
         } else if (response.status === 400) {
           if (data?.Response?.body?.error) {
             const resData = data.Response;
@@ -2651,12 +2652,23 @@ Cypress.Commands.add(
             expect(response.body.error.code, "error code").to.equal(
               resData.body.error.code
             );
-          } else if (response.body.error.message.includes("already exists")) {
+          } else if (
+            response.body?.error?.message?.includes("already exists")
+          ) {
             expect(response.body.error.code).to.equal("IR_12");
             expect(response.body.error.message).to.equal(
               "Customer with the given `customer_id` already exists"
             );
+          } else {
+            throw new Error(
+              `Unexpected customer creation HTTP 400 response: ${JSON.stringify(response.body)}`
+            );
           }
+        } else {
+          throw new Error(
+            `Unexpected customer creation response: HTTP ${response.status}. ` +
+            `Expected HTTP 200 or a recognized HTTP 400 error.`
+          );
         }
       });
     });
