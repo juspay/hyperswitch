@@ -332,4 +332,7 @@ pub mod business_status {
 
     /// A reported transaction was not recorded because its invoice is closed
     pub const RECOVERY_REPORT_INVOICE_CLOSED: &str = "RECOVERY_REPORT_INVOICE_CLOSED";
+
+    /// A reported transaction was recorded and decided, but the profile takes no webhooks
+    pub const RECOVERY_REPORT_WEBHOOK_DISABLED: &str = "RECOVERY_REPORT_WEBHOOK_DISABLED";
 }

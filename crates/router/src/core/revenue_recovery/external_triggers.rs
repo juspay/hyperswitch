@@ -39,7 +39,10 @@ use crate::{
                 payment_attempt_record::PaymentAttemptRecord, ValidateStatusForOperation,
             },
         },
-        webhooks::recovery_incoming::{RevenueRecoveryAttempt, RevenueRecoveryInvoice},
+        webhooks::{
+            self,
+            recovery_incoming::{RevenueRecoveryAttempt, RevenueRecoveryInvoice},
+        },
     },
     routes::{app::ReqState, lock_utils, metrics, SessionState},
     types::{
@@ -546,8 +549,9 @@ fn get_next_retry(
 }
 
 // The recovery report workflow. On `external_triggers` the recovery API validates a report and
-// queues it with `accept_report`; the workflow records the transaction and decides the next retry of
-// its invoice with `process_reported_transaction`, one report of an invoice at a time.
+// queues it with `accept_report`; the workflow records the transaction, decides the next retry of
+// its invoice and tells the merchant by webhook with `process_reported_transaction`, one report of
+// an invoice at a time.
 
 /// Version of the request stored in a recovery report's tracking data.
 const REPORT_REQUEST_VERSION: u8 = 1;
@@ -571,6 +575,8 @@ enum ReportOutcome {
     LimitsExhausted(RecoveryNoRetryReason),
     /// Recorded, and no retry follows, for a reason that needs no webhook.
     NoWebhook(RecoveryNoRetryReason),
+    /// Recorded and decided, with the next retry's reason, but the profile takes no webhooks.
+    WebhookDisabled(Option<RecoveryNoRetryReason>),
     /// Made with the customer, so only recorded.
     CustomerInitiated,
     /// A newer report of the invoice was applied first, so only recorded.
@@ -594,11 +600,26 @@ impl ReportOutcome {
         }
     }
 
+    /// The webhook that tells the merchant the decision, for a decision that has one.
+    fn webhook_event(self) -> Option<common_enums::EventType> {
+        match self {
+            Self::RetryScheduled => Some(common_enums::EventType::RecoveryRetryScheduled),
+            Self::LimitsExhausted(_) => Some(common_enums::EventType::RecoveryLimitsExhausted),
+            Self::NoWebhook(_)
+            | Self::WebhookDisabled(_)
+            | Self::CustomerInitiated
+            | Self::Stale
+            | Self::Duplicate
+            | Self::InvoiceClosed => None,
+        }
+    }
+
     fn name(self) -> &'static str {
         match self {
             Self::RetryScheduled => "retry_scheduled",
             Self::LimitsExhausted(_) => "limits_exhausted",
             Self::NoWebhook(_) => "no_webhook",
+            Self::WebhookDisabled(_) => "webhook_disabled",
             Self::CustomerInitiated => "customer_initiated",
             Self::Stale => "stale",
             Self::Duplicate => "duplicate",
@@ -609,6 +630,7 @@ impl ReportOutcome {
     fn reason(self) -> Option<RecoveryNoRetryReason> {
         match self {
             Self::LimitsExhausted(reason) | Self::NoWebhook(reason) => Some(reason),
+            Self::WebhookDisabled(reason) => reason,
             Self::RetryScheduled
             | Self::CustomerInitiated
             | Self::Stale
@@ -622,6 +644,7 @@ impl ReportOutcome {
             Self::RetryScheduled => business_status::RECOVERY_REPORT_RETRY_SCHEDULED,
             Self::LimitsExhausted(_) => business_status::RECOVERY_REPORT_LIMITS_EXHAUSTED,
             Self::NoWebhook(_) => business_status::RECOVERY_REPORT_NO_WEBHOOK,
+            Self::WebhookDisabled(_) => business_status::RECOVERY_REPORT_WEBHOOK_DISABLED,
             Self::CustomerInitiated => business_status::RECOVERY_REPORT_CUSTOMER_INITIATED,
             Self::Stale => business_status::RECOVERY_REPORT_STALE,
             Self::Duplicate => business_status::RECOVERY_REPORT_DUPLICATE,
@@ -984,7 +1007,15 @@ async fn apply_reported_transaction(
                 .as_ref()
                 .filter(|trigger_state| trigger_state.last_report_id.as_deref() == Some(report_id))
             {
-                return Ok(ReportOutcome::from_next_retry(&saved_state.next_retry));
+                return Box::pin(send_next_retry(
+                    state,
+                    platform,
+                    profile,
+                    tracking_data,
+                    &invoice.payment_id,
+                    saved_state.next_retry,
+                ))
+                .await;
             }
             attempt
         }
@@ -1084,7 +1115,82 @@ async fn apply_reported_transaction(
         reason = ?next_retry.reason,
         "Next retry of the invoice decided"
     );
-    Ok(ReportOutcome::from_next_retry(&next_retry))
+    // Queued under the invoice's lock, so that the merchant's webhooks are created in the order the
+    // reports of the invoice were decided.
+    Box::pin(send_next_retry(
+        state,
+        platform,
+        profile,
+        tracking_data,
+        &invoice.payment_id,
+        next_retry,
+    ))
+    .await
+}
+
+/// Tells the merchant the next retry of the invoice by webhook, for a decision that has one, and
+/// returns how the report ends. The webhook's event is keyed by the report, so a later run of the
+/// report does not send it again.
+async fn send_next_retry(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    tracking_data: &pcr::RecoveryReportTrackingData,
+    payment_id: &common_utils::id_type::GlobalPaymentId,
+    next_retry: RecoveryNextRetry,
+) -> Result<ReportOutcome, sch_errors::ProcessTrackerError> {
+    let outcome = ReportOutcome::from_next_retry(&next_retry);
+    let Some(event_type) = outcome.webhook_event() else {
+        return Ok(outcome);
+    };
+    let webhook_recipient =
+        webhooks::utils::resolve_webhook_recipient_from_created_by(state, platform, profile, None)
+            .await
+            .map_err(|error| report_step_failed("webhook", error))?;
+    let idempotent_event_id = webhooks::utils::get_idempotent_event_id(
+        &tracking_data.report_id,
+        event_type,
+        common_enums::WebhookDeliveryAttempt::InitialAttempt,
+    )
+    .map_err(|error| report_step_failed("webhook", error))?;
+    let webhook_url = webhook_recipient
+        .profile
+        .get_webhook_url_from_profile()
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
+    if webhooks::utils::is_outgoing_webhook_disabled(
+        state,
+        &webhook_url,
+        &webhook_recipient.profile,
+        &idempotent_event_id,
+    ) {
+        return Ok(ReportOutcome::WebhookDisabled(next_retry.reason));
+    }
+
+    Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
+        state.clone(),
+        platform.clone(),
+        event_type,
+        common_enums::EventClass::Payments,
+        tracking_data.report_id.clone(),
+        common_enums::EventObjectType::RecoveryRetryDetails,
+        api_models::webhooks::OutgoingWebhookContent::RecoveryRetryDetails(Box::new(
+            api_models::payments::RecoveryRetryWebhookDetails {
+                id: payment_id.clone(),
+                merchant_reference_id: Some(tracking_data.merchant_reference_id.clone()),
+                next_retry,
+            },
+        )),
+        tracking_data.received_at,
+        webhook_recipient,
+    ))
+    .await
+    .map_err(|error| report_step_failed("webhook", error))?;
+    metrics::REVENUE_RECOVERY_REPORT_TIME_TO_WEBHOOK.record(
+        (common_utils::date_time::now() - tracking_data.received_at).as_seconds_f64(),
+        router_env::metric_attributes!(("outcome", outcome.name())),
+    );
+    logger::info!(%event_type, %idempotent_event_id, "Recovery webhook queued");
+    Ok(outcome)
 }
 
 /// Only a transaction made off session with the customer absent is merchant initiated. A request
@@ -1183,6 +1289,11 @@ async fn finish_report(
                 "Recovery report ended without a decision"
             )
         }
+        ReportOutcome::WebhookDisabled(reason) => logger::warn!(
+            ?reason,
+            "Recovery report decided, but the merchant is not told: outgoing webhooks are off or \
+             the profile has no webhook URL"
+        ),
         ReportOutcome::RetryScheduled
         | ReportOutcome::LimitsExhausted(_)
         | ReportOutcome::NoWebhook(_)
