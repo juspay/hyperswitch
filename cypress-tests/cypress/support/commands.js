@@ -2638,7 +2638,6 @@ Cypress.Commands.add(
             customerCreateBody.phone_country_code,
             "phone_country_code"
           ).to.equal(response.body.phone_country_code);
-        
         } else if (response.status === 400) {
           if (data?.Response?.body?.error) {
             const resData = data.Response;
@@ -2667,7 +2666,7 @@ Cypress.Commands.add(
         } else {
           throw new Error(
             `Unexpected customer creation response: HTTP ${response.status}. ` +
-            `Expected HTTP 200 or a recognized HTTP 400 error.`
+              `Expected HTTP 200 or a recognized HTTP 400 error.`
           );
         }
       });
