@@ -1984,6 +1984,8 @@ pub enum EventObjectType {
     MandateDetails,
     PayoutDetails,
     SubscriptionDetails,
+    #[cfg(feature = "v2")]
+    RecoveryRetryDetails,
 }
 
 #[derive(
@@ -2020,18 +2022,28 @@ impl EventClass {
     #[inline]
     pub fn event_types(self) -> HashSet<EventType> {
         match self {
-            Self::Payments => HashSet::from([
-                EventType::PaymentSucceeded,
-                EventType::PaymentFailed,
-                EventType::PaymentProcessing,
-                EventType::PaymentCancelled,
-                EventType::PaymentCancelledPostCapture,
-                EventType::PaymentAuthorized,
-                EventType::PaymentCaptured,
-                EventType::PaymentExpired,
-                EventType::ActionRequired,
-                EventType::SurchargePaymentSucceeded,
-            ]),
+            Self::Payments => {
+                #[cfg_attr(not(feature = "v2"), allow(unused_mut))]
+                let mut event_types = HashSet::from([
+                    EventType::PaymentSucceeded,
+                    EventType::PaymentFailed,
+                    EventType::PaymentProcessing,
+                    EventType::PaymentCancelled,
+                    EventType::PaymentCancelledPostCapture,
+                    EventType::PaymentAuthorized,
+                    EventType::PaymentCaptured,
+                    EventType::PaymentExpired,
+                    EventType::ActionRequired,
+                    EventType::SurchargePaymentSucceeded,
+                ]);
+                // A revenue recovery invoice is a payment, so its retry events are payment events.
+                #[cfg(feature = "v2")]
+                event_types.extend([
+                    EventType::RecoveryRetryScheduled,
+                    EventType::RecoveryLimitsExhausted,
+                ]);
+                event_types
+            }
             Self::Refunds => HashSet::from([
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
@@ -2128,6 +2140,14 @@ pub enum EventType {
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled.
+    #[cfg(feature = "v2")]
+    RecoveryRetryScheduled,
+    /// No further retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled, because a limit of the profile is reached.
+    #[cfg(feature = "v2")]
+    RecoveryLimitsExhausted,
 }
 
 /// Maps primary payment/refund events to their corresponding surcharge events

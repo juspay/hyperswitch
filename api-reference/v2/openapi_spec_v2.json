@@ -22547,6 +22547,25 @@
                 "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "RecoveryRetryWebhookDetails",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "recovery_retry_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RecoveryRetryWebhookDetails"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -31944,8 +31963,8 @@
         "enum": [
           "recovered",
           "retries_exhausted",
-          "grace_period_exceeded",
-          "hard_decline",
+          "grace_period_expired",
+          "hard_declined",
           "monitoring",
           "cancelled",
           "below_retry_threshold"
@@ -32140,6 +32159,37 @@
             "nullable": true
           }
         }
+      },
+      "RecoveryRetryWebhookDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in Hyperswitch.",
+                "example": "pay_mbabizu24mvu3mela5njyhpit4",
+                "maxLength": 30,
+                "minLength": 30
+              },
+              "merchant_reference_id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in the merchant's billing system.",
+                "example": "invoice_mbabizu24mvu3mela5njyh",
+                "nullable": true,
+                "maxLength": 30,
+                "minLength": 30
+              }
+            }
+          }
+        ],
+        "description": "The next retry of an invoice whose retries the merchant triggers, sent by webhook after each\ntransaction the merchant reports."
       },
       "RecoveryTransactionStatus": {
         "type": "string",

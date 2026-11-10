@@ -738,6 +738,12 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
+            // The invoice is a payment, so its recovery events are listed with the payment.
+            webhooks::OutgoingWebhookContent::RecoveryRetryDetails(retry_details) => {
+                Self::Payment {
+                    payment_id: retry_details.id.clone(),
+                }
+            }
         }
     }
 }
