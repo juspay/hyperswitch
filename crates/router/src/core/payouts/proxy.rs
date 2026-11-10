@@ -569,6 +569,7 @@ impl ExternalVaultPayout<'_> {
             &payout_cap_dimensions,
             profile.get_id(),
             req.amount,
+            req.currency,
         )
         .await?;
         let customer_id = req.get_customer_id().get_required_value("customer_id")?;
