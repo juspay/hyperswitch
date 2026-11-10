@@ -2489,11 +2489,38 @@ pub struct RecoveryPaymentsResponse {
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+}
 
-    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers` and the transaction was made off session with the customer absent. Any other transaction is only recorded.
-    #[schema(value_type = Option<RecoveryNextRetry>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
+/// A transaction reported on a profile whose `revenue_recovery_trigger_model` is
+/// `external_triggers`, accepted to be recorded right after the answer.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryReportAccepted {
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "invoice_mbabizu24mvu3mela5njyh"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Unique identifier of the transaction at the payment connector.
+    #[schema(example = "993672945374576J")]
+    pub connector_transaction_id: String,
+}
+
+/// The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of
+/// the profile.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(untagged)]
+pub enum RecoveryPaymentsCreateResponse {
+    /// On `internal_triggers`, the transaction is recorded before the answer.
+    Recorded(RecoveryPaymentsResponse),
+    /// On `external_triggers`, the transaction is recorded after the answer.
+    Accepted(RecoveryReportAccepted),
 }
 
 /// The next retry of an invoice whose retries the merchant triggers, sent by webhook after each

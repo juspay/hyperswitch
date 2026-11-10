@@ -151,7 +151,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
         (
             status = 200,
             description = "Revenue Recovery Transaction Recorded Successfully",
-            body = RecoveryPaymentsResponse,
+            body = RecoveryPaymentsCreateResponse,
             example = json!({
                 "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
                 "intent_status": "failed",

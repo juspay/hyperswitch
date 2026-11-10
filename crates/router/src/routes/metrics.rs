@@ -386,6 +386,16 @@ counter_metric!(
 // recovery report workflow after the API has answered. Nothing reaches the merchant if a report
 // fails there, so every report ends in exactly one `outcome`.
 counter_metric!(
+    REVENUE_RECOVERY_REPORT_RECEIVED,
+    GLOBAL_METER,
+    name: "revenue_recovery.report.received",
+    description: "Recovery reports by how the API answered them (queued; invoice_closed, refused \
+                  as the invoice takes no more transactions; failed, answered with an error so \
+                  the merchant sends the report again). Every queued report ends in one \
+                  `revenue_recovery.report.outcome`",
+    unit: "1",
+);
+counter_metric!(
     REVENUE_RECOVERY_REPORT_OUTCOME,
     GLOBAL_METER,
     name: "revenue_recovery.report.outcome",

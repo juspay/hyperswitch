@@ -5059,7 +5059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                  "$ref": "#/components/schemas/RecoveryPaymentsCreateResponse"
                 },
                 "example": {
                   "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
@@ -32137,6 +32137,17 @@
         },
         "additionalProperties": false
       },
+      "RecoveryPaymentsCreateResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+          },
+          {
+            "$ref": "#/components/schemas/RecoveryReportAccepted"
+          }
+        ],
+        "description": "The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of\nthe profile."
+      },
       "RecoveryPaymentsResponse": {
         "type": "object",
         "required": [
@@ -32166,14 +32177,28 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          }
+        }
+      },
+      "RecoveryReportAccepted": {
+        "type": "object",
+        "description": "A transaction reported on a profile whose `revenue_recovery_trigger_model` is\n`external_triggers`, accepted to be recorded right after the answer.",
+        "required": [
+          "merchant_reference_id",
+          "connector_transaction_id"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
+            "maxLength": 30,
+            "minLength": 30
           },
-          "next_retry": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecoveryNextRetry"
-              }
-            ],
-            "nullable": true
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier of the transaction at the payment connector.",
+            "example": "993672945374576J"
           }
         }
       },
