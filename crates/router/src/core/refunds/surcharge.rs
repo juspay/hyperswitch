@@ -1,9 +1,13 @@
 //! InterPayments surcharge refund orchestration.
 //!
 //! Partial refunds run the two-call Init/Complete protocol; a whole-order refund keeps the legacy
-//! single call. Init runs inline at create ([`prepare_for_processor_refund`]); Complete runs later
-//! off the refund's outgoing webhook ([`complete_from_webhook`]). Each step is validate -> trigger
-//! (InterPayments call) -> update (persist).
+//! single call. The refund-create flow runs two steps, and the webhook runs the third:
+//!
+//! - [`validate_partial_refund`] (create, step 1): validate the requested order amount against the
+//!   remaining balance.
+//! - [`initiate_partial_refund`] (create, step 2): calculate the surcharge fee via Init; the caller
+//!   stores it on the new refund row (so the row carries the correct net amount for execution).
+//! - [`complete_from_webhook`] (off the refund's outgoing webhook): call Complete and record it.
 
 use common_types::refunds::ExternalSurchargeRefundDetails;
 use common_utils::types::MinorUnit;
@@ -166,19 +170,35 @@ impl SurchargeRefundBalances {
 }
 
 // ------------------------------------------------------------------------------------------------
-// Entry points — each reads as validate -> trigger -> update.
+// Create — two steps the refund-create flow runs: `validate_partial_refund`, then
+// `initiate_partial_refund`.
 // ------------------------------------------------------------------------------------------------
 
-/// Create-flow validation: for a partial surcharge refund, validates the requested order amount and
-/// returns the order-only amount to reserve; `None` for a plain or whole-order refund (legacy path).
-/// The surcharge fee is validated later, once Init returns it.
-pub fn validate_and_reserve_partial_refund_amount(
+/// A validated partial surcharge refund: the order-only amount to refund, plus the balances the
+/// surcharge fee is later checked against. Produced by [`validate_partial_refund`], consumed by
+/// [`initiate_partial_refund`].
+pub struct SurchargeRefundContext {
+    order_amount: MinorUnit,
+    balances: SurchargeRefundBalances,
+}
+
+impl SurchargeRefundContext {
+    /// The order-only amount this refund will refund (what goes on the refund row).
+    pub fn order_amount(&self) -> MinorUnit {
+        self.order_amount
+    }
+}
+
+/// Step 1 (validate): for a partial surcharge refund, validate the requested order amount against
+/// the remaining order balance. Returns the validated context for [`initiate_partial_refund`];
+/// `None` for a plain or whole-order refund, which takes the legacy path.
+pub fn validate_partial_refund(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
     refund_id: &str,
     requested_amount: Option<MinorUnit>,
     previous_refunds: &[Refund],
-) -> RouterResult<Option<MinorUnit>> {
+) -> RouterResult<Option<SurchargeRefundContext>> {
     if !attempt.has_surcharge() {
         // The attempt lost its surcharge details even though a surcharge was charged: reconcile.
         let surcharge_was_calculated = intent.external_surcharge_applicable == Some(true)
@@ -199,49 +219,87 @@ pub fn validate_and_reserve_partial_refund_amount(
 
     let balances =
         SurchargeRefundBalances::from_previous_refunds(attempt, previous_refunds, Some(refund_id))?;
+    // A whole-order refund keeps the legacy single-call path; only partial refunds use Init/Complete.
     if balances.is_whole_order_refund(requested_amount, previous_refunds) {
         return Ok(None);
     }
 
-    let reservation_amount =
+    let order_amount =
         requested_amount.unwrap_or_else(|| MinorUnit::new(balances.remaining_order_amount));
-    balances.validate_requested_order_amount(reservation_amount)?;
-    Ok(Some(reservation_amount))
+    balances.validate_requested_order_amount(order_amount)?;
+
+    Ok(Some(SurchargeRefundContext {
+        order_amount,
+        balances,
+    }))
 }
 
-/// Before the processor refund: for a partial surcharge refund awaiting Init, calls Init, validates
-/// the returned fee, and persists the result. Returns the (possibly updated) refund.
-pub async fn prepare_for_processor_refund(
+/// Step 2 (initiate/calculate): call InterPayments Init for the validated order amount, validate the
+/// returned fee, and return the surcharge tracking to store on the refund row. Runs before the row
+/// is inserted, so any error simply fails the create (nothing is persisted).
+pub async fn initiate_partial_refund(
     state: &SessionState,
     platform: &domain::Platform,
-    refund: &Refund,
     attempt: &storage::PaymentAttempt,
-) -> RouterResult<Refund> {
-    // Init already succeeded (details are persisted only on success): proceed to the processor.
-    if refund.surcharge_refund_details().is_some() {
-        return Ok(refund.clone());
-    }
-    // A plain refund, or one no longer awaiting Init, takes the normal path untouched.
-    if !attempt.has_surcharge() || refund.refund_status != common_enums::RefundStatus::Pending {
-        return Ok(refund.clone());
-    }
+    refund_id: &str,
+    context: &SurchargeRefundContext,
+) -> RouterResult<ExternalSurchargeRefundDetails> {
+    let currency = attempt.currency.ok_or_else(|| {
+        error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Missing currency on payment attempt")
+    })?;
+    let profile_id = &attempt.profile_id;
+    let mca = resolve_interpayments_account(state, platform, profile_id).await?;
+    let original_surcharge_id = attempt
+        .external_surcharge_details
+        .as_ref()
+        .and_then(|details| details.usable_connector_id())
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Missing original surcharge ID on payment attempt")
+        })?
+        .to_owned();
 
-    let flow = SurchargeRefund::new(state, platform, refund);
-    let previous = flow.previous_refunds().await?;
-    let balances = SurchargeRefundBalances::from_previous_refunds(
-        attempt,
-        &previous,
-        Some(&refund.refund_id),
-    )?;
-    // A whole-order refund keeps the legacy single-call path; only partial refunds use Init/Complete.
-    if balances.is_whole_order_refund(Some(refund.refund_amount), &previous) {
-        return Ok(refund.clone());
-    }
+    let response = ucs::call_unified_connector_service_for_surcharge_refund_init(
+        state,
+        platform.get_processor(),
+        mca,
+        profile_id,
+        PaymentsSurchargeRefundInitData {
+            refund_id: refund_id.to_owned(),
+            original_surcharge_id,
+            order_amount: context.order_amount,
+            currency,
+        },
+    )
+    .await
+    .attach_printable("SurchargeRefundInit call failed")?;
 
-    // Call Init (marks the refund failed on any error), then persist its result. Complete runs later
-    // via `complete_from_webhook`.
-    let details = flow.call_surcharge_refund_init(attempt, &balances).await?;
-    flow.persist_surcharge_details(details).await
+    let data = SurchargeRefundInitResponseData::foreign_try_from((&response, refund_id, currency))
+        .map_err(|message| {
+            error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
+                message: message.to_string(),
+            })
+        })?;
+
+    context.balances.validate_init_surcharge_fee(&data)?;
+
+    let surcharge_refund_id = response
+        .connector_surcharge_refund_id
+        .clone()
+        .filter(|id| !id.trim().is_empty())
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "SurchargeRefundInit succeeded but returned no surcharge refund ID",
+                )
+        })?;
+
+    Ok(ExternalSurchargeRefundDetails {
+        surcharge_refund_id,
+        refund_surcharge_amount: data.refund_surcharge_amount,
+        refund_complete_notified: false,
+    })
 }
 
 /// Drives `SurchargeRefundComplete` from the refund's outgoing webhook delivery.
@@ -345,225 +403,47 @@ pub async fn complete_from_webhook(
 }
 
 // ------------------------------------------------------------------------------------------------
-// Orchestrator — the trigger (InterPayments calls) and update (persistence) stages.
+// Shared — connector resolution used by initiate and complete.
 // ------------------------------------------------------------------------------------------------
 
-/// Bundles the context every trigger/update step needs, so the steps read as intent, not plumbing.
-struct SurchargeRefund<'a> {
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    refund: &'a Refund,
-}
-
-impl<'a> SurchargeRefund<'a> {
-    fn new(state: &'a SessionState, platform: &'a domain::Platform, refund: &'a Refund) -> Self {
-        Self {
-            state,
-            platform,
-            refund,
-        }
-    }
-
-    /// All refunds for this payment, used to compute balances.
-    async fn previous_refunds(&self) -> RouterResult<Vec<Refund>> {
-        self.state
-            .store
-            .find_refund_by_payment_id_processor_merchant_id(
-                &self.refund.payment_id,
-                self.platform.get_processor().get_account().get_id(),
-                self.platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch previous refunds for this payment")
-    }
-
-    fn profile_id(&self) -> RouterResult<&common_utils::id_type::ProfileId> {
-        self.refund.profile_id.as_ref().ok_or_else(|| {
-            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing profile ID on refund")
-        })
-    }
-
-    // --- trigger ---
-
-    /// Resolves the active InterPayments connector account configured on the profile.
-    async fn resolve_interpayments_account(
-        &self,
-    ) -> RouterResult<helpers::MerchantConnectorAccountType> {
-        let processor = self.platform.get_processor();
-        let profile_id = self.profile_id()?;
-        let business_profile = self
-            .state
-            .store
-            .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
-            .await
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-        let account_id = business_profile
-            .surcharge_connector_details
-            .as_ref()
-            .and_then(|details| details.surcharge_connector_id.as_ref())
-            .ok_or_else(|| {
-                error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Surcharge connector is not configured on the profile".to_string(),
-                })
-            })?;
-        let account = helpers::get_merchant_connector_account(
-            self.state,
-            processor,
-            None,
-            profile_id,
-            "interpayments",
-            Some(account_id),
-        )
-        .await?;
-        if account.get_connector_name().as_deref() != Some("interpayments") || account.is_disabled()
-        {
-            return Err(error_stack::Report::new(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Surcharge connector must be an active InterPayments account"
-                        .to_string(),
-                },
-            ));
-        }
-        Ok(account)
-    }
-
-    /// Calls Init, validates its response against `balances`, and returns the tracking details to
-    /// persist. On any failure the refund is marked failed (safe: Init runs before any money moves).
-    async fn call_surcharge_refund_init(
-        &self,
-        attempt: &storage::PaymentAttempt,
-        balances: &SurchargeRefundBalances,
-    ) -> RouterResult<ExternalSurchargeRefundDetails> {
-        let mca = self.resolve_interpayments_account().await?;
-        let profile = self.profile_id()?;
-        let original_surcharge_id = attempt
-            .external_surcharge_details
-            .as_ref()
-            .and_then(|details| details.usable_connector_id())
-            .ok_or_else(|| {
-                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Missing original surcharge ID on payment attempt")
-            })?
-            .to_owned();
-
-        let response = match ucs::call_unified_connector_service_for_surcharge_refund_init(
-            self.state,
-            self.platform.get_processor(),
-            mca,
-            profile,
-            PaymentsSurchargeRefundInitData {
-                refund_id: self.refund.refund_id.clone(),
-                original_surcharge_id,
-                order_amount: self.refund.refund_amount,
-                currency: self.refund.currency,
-            },
-        )
+/// Resolves the active InterPayments connector account configured on the profile.
+async fn resolve_interpayments_account(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> RouterResult<helpers::MerchantConnectorAccountType> {
+    let processor = platform.get_processor();
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
         .await
-        {
-            Ok(response) => response,
-            Err(err) => {
-                return Err(self
-                    .mark_refund_failed(err.attach_printable("SurchargeRefundInit call failed"))
-                    .await);
-            }
-        };
-
-        let data = match SurchargeRefundInitResponseData::foreign_try_from((
-            &response,
-            self.refund.refund_id.as_str(),
-            self.refund.currency,
-        )) {
-            Ok(data) => data,
-            Err(message) => {
-                let error =
-                    error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
-                        message: message.to_string(),
-                    });
-                return Err(self.mark_refund_failed(error).await);
-            }
-        };
-
-        if let Err(error) = balances.validate_init_surcharge_fee(&data) {
-            return Err(self.mark_refund_failed(error).await);
-        }
-
-        let Some(surcharge_refund_id) = response
-            .connector_surcharge_refund_id
-            .clone()
-            .filter(|id| !id.trim().is_empty())
-        else {
-            let error = error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "SurchargeRefundInit succeeded but returned no surcharge refund ID",
-                );
-            return Err(self.mark_refund_failed(error).await);
-        };
-
-        Ok(ExternalSurchargeRefundDetails {
-            surcharge_refund_id,
-            refund_surcharge_amount: data.refund_surcharge_amount,
-            refund_complete_notified: false,
-        })
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
+    let account_id = business_profile
+        .surcharge_connector_details
+        .as_ref()
+        .and_then(|details| details.surcharge_connector_id.as_ref())
+        .ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Surcharge connector is not configured on the profile".to_string(),
+            })
+        })?;
+    let account = helpers::get_merchant_connector_account(
+        state,
+        processor,
+        None,
+        profile_id,
+        "interpayments",
+        Some(account_id),
+    )
+    .await?;
+    if account.get_connector_name().as_deref() != Some("interpayments") || account.is_disabled() {
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Surcharge connector must be an active InterPayments account".to_string(),
+            },
+        ));
     }
-
-    // --- update ---
-
-    /// Persists the surcharge tracking details on the refund row.
-    async fn persist_surcharge_details(
-        &self,
-        details: ExternalSurchargeRefundDetails,
-    ) -> RouterResult<Refund> {
-        let storage_scheme = self.platform.get_processor().get_account().storage_scheme;
-        self.state
-            .store
-            .update_refund(
-                self.refund.clone(),
-                RefundUpdate::SurchargeUpdate {
-                    external_surcharge_refund_details: details,
-                    updated_by: storage_scheme.to_string(),
-                },
-                storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to persist surcharge refund tracking details")
-    }
-
-    /// Marks the refund failed with `error`'s message, then returns the error. Safe because Init
-    /// runs before any money moves.
-    async fn mark_refund_failed(
-        &self,
-        error: error_stack::Report<errors::ApiErrorResponse>,
-    ) -> error_stack::Report<errors::ApiErrorResponse> {
-        let storage_scheme = self.platform.get_processor().get_account().storage_scheme;
-        let update = RefundUpdate::ErrorUpdate {
-            refund_status: Some(common_enums::RefundStatus::Failure),
-            refund_error_message: Some(error.to_string()),
-            refund_error_code: None,
-            updated_by: storage_scheme.to_string(),
-            connector_refund_id: None,
-            processor_refund_data: None,
-            unified_code: None,
-            unified_message: None,
-            issuer_error_code: None,
-            issuer_error_message: None,
-        };
-        if let Err(persist_error) = self
-            .state
-            .store
-            .update_refund(self.refund.clone(), update, storage_scheme)
-            .await
-        {
-            logger::error!(
-                ?persist_error,
-                refund_id = %self.refund.refund_id,
-                "Failed to mark surcharge refund as failed"
-            );
-        }
-        error
-    }
+    Ok(account)
 }

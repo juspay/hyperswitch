@@ -1750,20 +1750,37 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    // For a partial surcharge refund this reserves the order-only amount; the surcharge fee and its
-    // tracking details are filled in later, only once Init succeeds. `None` means a plain or full
-    // refund, which takes the legacy path.
-    let partial_surcharge_refund_order_amount =
-        surcharge::validate_and_reserve_partial_refund_amount(
-            payment_attempt,
-            payment_intent,
-            &refund_id,
-            req.amount,
-            &all_refunds,
-        )?;
-    let is_partial_surcharge_refund = partial_surcharge_refund_order_amount.is_some();
-    let refund_amount = partial_surcharge_refund_order_amount.unwrap_or(refund_amount);
-    let refund_amount_details = RefundAmountDetails::from(refund_amount);
+    // Surcharge refund, two steps: (1) validate the requested order amount, (2) initiate — calculate
+    // the surcharge fee via InterPayments Init. The resulting fee/tracking is set on the new refund
+    // row below, so the row is inserted already carrying the correct net amount. `None` means a plain
+    // or full refund, which takes the legacy path.
+    let surcharge_context = surcharge::validate_partial_refund(
+        payment_attempt,
+        payment_intent,
+        &refund_id,
+        req.amount,
+        &all_refunds,
+    )?;
+    let surcharge_details = match &surcharge_context {
+        Some(context) => Some(
+            surcharge::initiate_partial_refund(
+                state,
+                platform,
+                payment_attempt,
+                &refund_id,
+                context,
+            )
+            .await?,
+        ),
+        None => None,
+    };
+    let refund_amount_details = match (&surcharge_context, &surcharge_details) {
+        (Some(context), Some(details)) => RefundAmountDetails::new(
+            context.order_amount(),
+            Some(details.refund_surcharge_amount),
+        ),
+        _ => RefundAmountDetails::from(refund_amount),
+    };
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
@@ -1823,9 +1840,9 @@ pub async fn validate_and_create_refund(
         total_amount: payment_attempt.get_total_amount(),
         refund_amount,
         refund_surcharge_amount,
-        net_refund_amount: (!is_partial_surcharge_refund).then_some(net_refund_amount),
-        // Surcharge tracking is persisted later, only once Init succeeds.
-        external_surcharge_refund_details: None,
+        net_refund_amount: Some(net_refund_amount),
+        // For a partial surcharge refund, Init already succeeded, so the row carries its tracking.
+        external_surcharge_refund_details: surcharge_details.clone(),
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -1890,12 +1907,6 @@ pub async fn validate_and_create_refund(
             }
         }
     };
-    // Surcharge calculation (InterPayments Init) runs here in the create flow, before the refund is
-    // handed to execution, so the row carries the surcharge fee (and therefore the correct net
-    // amount) for both instant and scheduled refunds. A plain or full refund passes through
-    // unchanged.
-    let refund =
-        surcharge::prepare_for_processor_refund(state, platform, &refund, payment_attempt).await?;
     let (refund, raw_connector_response) = Box::pin(schedule_refund_execution(
         state,
         refund,
