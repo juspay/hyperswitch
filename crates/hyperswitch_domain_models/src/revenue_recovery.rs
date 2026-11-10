@@ -345,6 +345,7 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                             api_payments::PaymentAttemptRevenueRecoveryData {
                                 attempt_triggered_by: recovery.attempt_triggered_by,
                                 charge_id: recovery.charge_id,
+                                report_id: recovery.report_id,
                             }
                         }),
                     },

@@ -1271,6 +1271,12 @@ impl PaymentAttempt {
                     // Populated later, when the payment is recorded back to the
                     // billing connector.
                     billing_connector_transaction_id: None,
+                    report_id: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.report_id.clone())
+                    }),
                 }
             }),
         };
@@ -3111,6 +3117,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub charge_id: Option<String>,
     /// Transaction id returned by the billing connector at record-back time.
     pub billing_connector_transaction_id: Option<String>,
+    /// Id of the recovery report that recorded this transaction.
+    pub report_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3125,6 +3133,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id
                         .clone(),
+                    report_id: recovery_data.report_id.clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3140,6 +3149,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id,
+                    report_id: recovery_data.report_id,
                 });
         Self { revenue_recovery }
     }

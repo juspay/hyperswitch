@@ -1,6 +1,6 @@
 pub mod api;
 pub mod card_selection;
-mod external_triggers;
+pub(crate) mod external_triggers;
 pub mod retry_stats;
 pub mod schedule;
 pub mod transformers;
@@ -66,6 +66,8 @@ use crate::{
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
+/// Task of the recovery report workflow, which processes one transaction the merchant reported.
+pub const PROCESS_REPORT_WORKFLOW: &str = "PROCESS_REPORT_WORKFLOW";
 use common_enums::enums::ProcessTrackerStatus;
 
 #[cfg(feature = "v1")]

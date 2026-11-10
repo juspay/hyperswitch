@@ -512,8 +512,59 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
+                None,
             )
             .await
+    }
+
+    /// The attempt already recorded for a transaction reported for a recovery report, if any, so
+    /// the caller can tell whether this report recorded it on an earlier run or another report did.
+    pub async fn find_reported_attempt(
+        data: &api_models::payments::RecoveryPaymentsCreate,
+        state: &SessionState,
+        req_state: &ReqState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_intent: &revenue_recovery::RecoveryPaymentIntent,
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentAttempt>, errors::RevenueRecoveryError>
+    {
+        Ok(
+            Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
+                data,
+            ))
+            .get_payment_attempt(state, req_state, platform, profile, payment_intent)
+            .await?
+            .map(|(attempt, _)| attempt),
+        )
+    }
+
+    /// Records a transaction reported for a recovery report, with the report's id on the attempt.
+    /// The caller has checked under the invoice's lock that it is not recorded yet.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn record_reported_attempt(
+        data: &api_models::payments::RecoveryPaymentsCreate,
+        state: &SessionState,
+        req_state: &ReqState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_intent: &revenue_recovery::RecoveryPaymentIntent,
+        connector_details: &common_types::payments::RecoveryConnectorDetails,
+        report_id: String,
+    ) -> CustomResult<revenue_recovery::RecoveryPaymentAttempt, errors::RevenueRecoveryError> {
+        let (recorded_attempt, _) = Self(
+            revenue_recovery::RevenueRecoveryAttemptData::foreign_from(data),
+        )
+        .record_payment_attempt(
+            state,
+            req_state,
+            platform,
+            profile,
+            payment_intent,
+            connector_details,
+            Some(report_id),
+        )
+        .await?;
+        Ok(recorded_attempt)
     }
 
     fn get_recovery_invoice_transaction_details(
@@ -718,6 +769,7 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
+        report_id: Option<String>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -730,6 +782,7 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
+                report_id,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -844,6 +897,7 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
+        report_id: Option<String>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -854,6 +908,7 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
+                report_id,
             }),
         };
 
@@ -1007,6 +1062,7 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
+                                None,
                             )
                             .await
                     })

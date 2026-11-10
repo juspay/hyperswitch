@@ -4822,6 +4822,10 @@ pub struct PaymentAttemptRecoveryData {
     /// Transaction id returned by the billing connector when the payment was recorded
     /// back to it. Used to issue an offline refund if a dispute is later lost.
     pub billing_connector_transaction_id: Option<String>,
+    /// Id of the recovery report that recorded this transaction, written with the attempt so a
+    /// re-run of that report recognises it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

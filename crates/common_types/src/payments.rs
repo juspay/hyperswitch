@@ -1178,6 +1178,19 @@ pub struct ExternalTriggerState {
     pub retries_after_hard_decline: Option<u16>,
     /// What the merchant was last told to do.
     pub next_retry: RecoveryNextRetry,
+    /// Id of the recovery report this state was last saved for, so a re-run of that report is
+    /// recognised.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_report_id: Option<String>,
+    /// When the recovery report this state was last saved for was received. A report received
+    /// before it is out of date.
+    #[schema(value_type = Option<String>, example = "2022-09-10T10:11:12.000Z")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "common_utils::custom_serde::iso8601::option"
+    )]
+    pub last_report_at: Option<PrimitiveDateTime>,
 }
 
 /// Billing Descriptor information to be sent to the payment gateway

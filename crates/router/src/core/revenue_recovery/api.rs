@@ -227,6 +227,7 @@ pub async fn record_internal_attempt_api(
             state,
             &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {

@@ -2541,6 +2541,11 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Id of the recovery report that recorded this transaction, for a transaction the merchant
+    /// reported on a profile whose retries it triggers.
+    #[schema(value_type = Option<String>, example = "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_id: Option<String>,
 }
 
 #[derive(

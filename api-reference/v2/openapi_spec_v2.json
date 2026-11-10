@@ -16222,6 +16222,17 @@
           },
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          "last_report_id": {
+            "type": "string",
+            "description": "Id of the recovery report this state was last saved for, so a re-run of that report is\nrecognised.",
+            "nullable": true
+          },
+          "last_report_at": {
+            "type": "string",
+            "description": "When the recovery report this state was last saved for was received. A report received\nbefore it is out of date.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
           }
         }
       },
@@ -23393,6 +23404,12 @@
           "charge_id": {
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
+            "nullable": true
+          },
+          "report_id": {
+            "type": "string",
+            "description": "Id of the recovery report that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
         }

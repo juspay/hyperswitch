@@ -381,6 +381,36 @@ counter_metric!(
                   the three steps could not be completed",
     unit: "1",
 );
+
+// Recovery reports: transactions the merchant reports on `external_triggers`, processed by the
+// recovery report workflow after the API has answered. Nothing reaches the merchant if a report
+// fails there, so every report ends in exactly one `outcome`.
+counter_metric!(
+    REVENUE_RECOVERY_REPORT_OUTCOME,
+    GLOBAL_METER,
+    name: "revenue_recovery.report.outcome",
+    description: "Recovery reports by how their workflow ended (retry_scheduled, \
+                  limits_exhausted, no_webhook, customer_initiated, stale, duplicate, \
+                  invoice_closed, retries_exceeded, failed), with the next retry `reason`",
+    unit: "1",
+);
+counter_metric!(
+    REVENUE_RECOVERY_REPORT_STEP_FAILED,
+    GLOBAL_METER,
+    name: "revenue_recovery.report.step_failed",
+    description: "Errors in a step of the recovery report workflow, by `step`, before the job is \
+                  retried or ended",
+    unit: "1",
+);
+// Seconds from the API accepting a report to its workflow starting. The merchant falls back to its
+// own retry timing after 15 minutes, so the buckets reach well past 900 seconds.
+histogram_metric_f64!(
+    REVENUE_RECOVERY_REPORT_QUEUE_DELAY,
+    GLOBAL_METER,
+    boundaries: vec![
+        1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
+    ],
+);
 // Not to be read as "the invoice ran out of retries", which is the ordinary end of its life and
 // finishes the job cleanly. This counts a stored retry count that is not a count at all — the only
 // way `i32 -> u32` fails is a negative — so the remaining budget cannot be derived from it.
