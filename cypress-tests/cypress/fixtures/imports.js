@@ -42,6 +42,8 @@ import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpdate from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";
 import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confirm.json";
+import payThenVaultPmsAcknowledge from "./modularPmService/modular-pm-service-ptv-acknowledge-pm.json";
+import payThenVaultPmsConfirm from "./modularPmService/modular-pm-service-ptv-pms-confirm.json";
 import modularPmServicePaymentsCall from "./modularPmService/modular-pm-service-payments-call.json";
 export {
   apiKeyCreateBody,
@@ -87,6 +89,8 @@ export {
   paymentMethodSessionCreate,
   paymentMethodSessionUpdate,
   paymentMethodSessionConfirm,
+  payThenVaultPmsAcknowledge,
+  payThenVaultPmsConfirm,
   modularPmServicePaymentsCall,
   pmCollectLinkBody,
 };
