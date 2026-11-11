@@ -16,6 +16,19 @@ use crate::errors::StorageError;
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
     type Error = StorageError;
+
+    #[cfg(feature = "v1")]
+    async fn repair_payment_method_id_in_postgres(
+        &self,
+        _payment_id: &common_utils::id_type::PaymentId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _attempt_id: &str,
+        _payment_method_id: Option<&str>,
+        _updated_by: &str,
+    ) -> CustomResult<Option<bool>, StorageError> {
+        Err(StorageError::MockDbError)?
+    }
+
     #[cfg(feature = "v1")]
     async fn find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
         &self,

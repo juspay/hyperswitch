@@ -94,6 +94,19 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &ProcessorKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;
 
+    /// Confirm the PostgreSQL copy, filling its payment method only if it is unset.
+    /// Returns `Some(true)` when updated, `Some(false)` when already set,
+    /// or `None` when the row is unset and no payment method was supplied.
+    #[cfg(feature = "v1")]
+    async fn repair_payment_method_id_in_postgres(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
+        payment_method_id: Option<&str>,
+        updated_by: &str,
+    ) -> error_stack::Result<Option<bool>, Self::Error>;
+
     #[cfg(feature = "v2")]
     async fn update_payment_attempt(
         &self,
@@ -2185,6 +2198,10 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdateIfUnset {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     ConnectorMandateDetailUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
@@ -2472,6 +2489,13 @@ impl PaymentAttemptUpdate {
                 payment_method_id,
                 updated_by,
             } => DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            },
+            Self::PaymentMethodDetailsUpdateIfUnset {
+                payment_method_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset {
                 payment_method_id,
                 updated_by,
             },
@@ -2982,6 +3006,7 @@ impl PaymentAttemptUpdate {
             | Self::RejectUpdate { .. }
             | Self::BlocklistUpdate { .. }
             | Self::PaymentMethodDetailsUpdate { .. }
+            | Self::PaymentMethodDetailsUpdateIfUnset { .. }
             | Self::ConnectorMandateDetailUpdate { .. }
             | Self::AssociatedDataUpdate { .. }
             | Self::VoidUpdate { .. }

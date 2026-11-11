@@ -24,8 +24,7 @@ use crate::{
 
 pub struct SavePaymentMethodAttemptUpdateWorkflow;
 
-/// Terminal state for a task whose attempt row no longer resolves. Attempt rows are never
-/// deleted, so this means the tracking data is bad, not that the DB is flaky - do not retry.
+/// Terminal state after the retry budget is exhausted while the attempt is missing.
 const ATTEMPT_NOT_FOUND: &str = "ATTEMPT_NOT_FOUND";
 
 /// Outcome of one reconciliation pass.
@@ -34,7 +33,7 @@ enum Outcome {
     Updated,
     /// Another flow already recorded a `payment_method_id`; nothing left to reconcile.
     AlreadySet,
-    /// The attempt referenced by the tracking data does not exist.
+    /// The attempt was not visible on this reconciliation pass.
     AttemptNotFound,
 }
 
@@ -47,6 +46,16 @@ fn retry_delay_seconds(retry_count: i32) -> Option<i32> {
         Some(mapping.default_mapping.start_after)
     } else {
         pt_utils::get_delay(retry_count + 1, &mapping.default_mapping.frequencies)
+    }
+}
+
+fn reconciliation_retry_delay(
+    outcome: &errors::CustomResult<Outcome, errors::ApiErrorResponse>,
+    retry_count: i32,
+) -> Option<i32> {
+    match outcome {
+        Ok(Outcome::Updated | Outcome::AlreadySet) => None,
+        Ok(Outcome::AttemptNotFound) | Err(_) => retry_delay_seconds(retry_count),
     }
 }
 
@@ -72,21 +81,22 @@ async fn reconcile(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to fetch merchant account")?;
-    let storage_scheme = ProcessorMerchantAccount::from_untagged(merchant_account)
-        .get_storage_scheme();
-    let processor_merchant_id = ProcessorMerchantId::from(tracking_data.processor_merchant_id.clone());
+    let storage_scheme =
+        ProcessorMerchantAccount::from_untagged(merchant_account).get_storage_scheme();
+    let processor_merchant_id =
+        ProcessorMerchantId::from(tracking_data.processor_merchant_id.clone());
     let key_store = ProcessorKeyStore::from_untagged(key_store);
 
-    let payment_attempt = match db
-        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+    let read_attempt = || {
+        db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &tracking_data.payment_id,
             &processor_merchant_id,
             &tracking_data.attempt_id,
             storage_scheme,
             &key_store,
         )
-        .await
-    {
+    };
+    let payment_attempt = match read_attempt().await {
         Ok(attempt) => attempt,
         Err(err) if err.current_context().is_db_not_found() => {
             return Ok(Outcome::AttemptNotFound);
@@ -98,13 +108,33 @@ async fn reconcile(
         }
     };
 
-    // If a later flow (e.g. a manual retry from the merchant) already recorded a
-    // payment_method_id, this task's write would be stale.
-    if payment_attempt.payment_method_id.is_some() {
-        return Ok(Outcome::AlreadySet);
+    if let Some(payment_method_id) = payment_attempt.payment_method_id.as_deref() {
+        // Redis can contain the payment method even if appending the drainer entry failed.
+        // Confirm the primary row using the value we read, preserving any method already there.
+        return match db
+            .repair_payment_method_id_in_postgres(
+                &tracking_data.payment_id,
+                &tracking_data.processor_merchant_id,
+                &tracking_data.attempt_id,
+                Some(payment_method_id),
+                &tracking_data.updated_by,
+            )
+            .await
+        {
+            Ok(Some(true)) => Ok(Outcome::Updated),
+            Ok(Some(false)) => Ok(Outcome::AlreadySet),
+            Ok(None) => Err(
+                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("PostgreSQL did not confirm the recorded payment method"),
+            ),
+            Err(err) if err.current_context().is_db_not_found() => Ok(Outcome::AttemptNotFound),
+            Err(err) => Err(err)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to reconcile payment_method_id in PostgreSQL"),
+        };
     }
 
-    let payment_attempt_update = PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+    let payment_attempt_update = PaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset {
         payment_method_id: Some(tracking_data.payment_method_id.clone()),
         updated_by: tracking_data.updated_by.clone(),
     };
@@ -119,13 +149,45 @@ async fn reconcile(
         .await
     {
         Ok(_) => Ok(Outcome::Updated),
-        // PaymentMethodDetailsUpdate is an atomic compare-and-set. Postgres reports a missing row
-        // and Redis reports a duplicate when another writer populated payment_method_id first.
         Err(err)
             if err.current_context().is_db_not_found()
                 || err.current_context().is_db_unique_violation() =>
         {
-            Ok(Outcome::AlreadySet)
+            // A miss can mean a concurrent write won. Recheck in the same pass so the
+            // final retry also confirms a winner. If the read is stale, verify the writer.
+            let latest = match read_attempt().await {
+                Ok(attempt) => attempt.payment_method_id,
+                Err(read_err) if read_err.current_context().is_db_not_found() => None,
+                Err(read_err) => {
+                    return Err(read_err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to re-read the payment attempt");
+                }
+            };
+            match db
+                .repair_payment_method_id_in_postgres(
+                    &tracking_data.payment_id,
+                    &tracking_data.processor_merchant_id,
+                    &tracking_data.attempt_id,
+                    latest.as_deref(),
+                    &tracking_data.updated_by,
+                )
+                .await
+            {
+                Ok(Some(true)) => Ok(Outcome::Updated),
+                Ok(Some(false)) => Ok(Outcome::AlreadySet),
+                Ok(None) => Err(err)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Payment method is still unset after a conditional update miss",
+                    ),
+                Err(confirm_err) if confirm_err.current_context().is_db_not_found() => {
+                    Ok(Outcome::AttemptNotFound)
+                }
+                Err(confirm_err) => Err(confirm_err)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to confirm the payment method after an update miss"),
+            }
         }
         Err(err) => Err(err)
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -147,8 +209,22 @@ impl ProcessTrackerWorkflow<SessionState> for SavePaymentMethodAttemptUpdateWork
             .parse_value("SavePaymentMethodAttemptUpdateTrackingData")?;
 
         let retry_count = process.retry_count;
+        let outcome = reconcile(state, &tracking_data).await;
+        if let Err(err) = &outcome {
+            warn!(
+                attempt_id = %tracking_data.attempt_id,
+                retry_count,
+                "save-payment-method attempt update failed: {err:?}"
+            );
+        }
+        if let Some(schedule_time) =
+            pt_utils::get_time_from_delta(reconciliation_retry_delay(&outcome, retry_count))
+        {
+            scheduler.retry_process(process, schedule_time).await?;
+            return Ok(());
+        }
 
-        match reconcile(state, &tracking_data).await {
+        match outcome {
             Ok(Outcome::Updated) => {
                 scheduler
                     .finish_process_with_business_status(
@@ -175,33 +251,21 @@ impl ProcessTrackerWorkflow<SessionState> for SavePaymentMethodAttemptUpdateWork
                     .finish_process_with_business_status(process, ATTEMPT_NOT_FOUND)
                     .await?;
             }
-            Err(err) => {
-                warn!(
+            Err(_) => {
+                error!(
                     attempt_id = %tracking_data.attempt_id,
-                    retry_count,
-                    "save-payment-method attempt update failed: {err:?}"
+                    "save-payment-method attempt update retries exhausted; \
+                     vault holds payment_method_id={} but payment_attempt.payment_method_id \
+                     could not be confirmed - needs manual reconciliation",
+                    tracking_data.payment_method_id,
                 );
-                match pt_utils::get_time_from_delta(retry_delay_seconds(retry_count)) {
-                    Some(schedule_time) => {
-                        scheduler.retry_process(process, schedule_time).await?;
-                    }
-                    None => {
-                        error!(
-                            attempt_id = %tracking_data.attempt_id,
-                            "save-payment-method attempt update retries exhausted; \
-                             vault holds payment_method_id={} but payment_attempt.payment_method_id \
-                             was never persisted - needs manual reconciliation",
-                            tracking_data.payment_method_id,
-                        );
-                        metrics::SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_RETRIES_EXCEEDED.add(1, &[]);
-                        scheduler
-                            .finish_process_with_business_status(
-                                process,
-                                storage::business_status::RETRIES_EXCEEDED,
-                            )
-                            .await?;
-                    }
-                }
+                metrics::SAVE_PAYMENT_METHOD_ATTEMPT_UPDATE_RETRIES_EXCEEDED.add(1, &[]);
+                scheduler
+                    .finish_process_with_business_status(
+                        process,
+                        storage::business_status::RETRIES_EXCEEDED,
+                    )
+                    .await?;
             }
         }
 
@@ -250,6 +314,23 @@ mod tests {
         assert_eq!(decoded.attempt_id, tracking_data.attempt_id);
         assert_eq!(decoded.payment_method_id, tracking_data.payment_method_id);
         assert_eq!(decoded.updated_by, tracking_data.updated_by);
+    }
+
+    #[test]
+    fn missing_attempt_is_retried_until_budget_is_exhausted() {
+        let missing = Ok(Outcome::AttemptNotFound);
+        assert_eq!(reconciliation_retry_delay(&missing, 0), Some(900));
+        assert_eq!(reconciliation_retry_delay(&missing, 4), Some(300));
+        assert_eq!(reconciliation_retry_delay(&missing, 5), None);
+    }
+
+    #[test]
+    fn a_confirmed_payment_method_does_not_retry() {
+        assert_eq!(
+            reconciliation_retry_delay(&Ok(Outcome::AlreadySet), 0),
+            None
+        );
+        assert_eq!(reconciliation_retry_delay(&Ok(Outcome::Updated), 0), None);
     }
 
     #[test]

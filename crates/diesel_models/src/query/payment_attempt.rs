@@ -49,7 +49,7 @@ impl PaymentAttempt {
     ) -> StorageResult<Self> {
         let payment_method_id_must_be_null = matches!(
             &payment_attempt,
-            PaymentAttemptUpdate::PaymentMethodDetailsUpdate { .. }
+            PaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset { .. }
         );
         let update =
             PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self);
@@ -581,7 +581,7 @@ impl PaymentAttemptUpdate {
         source_payment_attempt: &PaymentAttempt,
     ) -> StorageResult<kv::SerializableQuery> {
         let payment_method_id_must_be_null =
-            matches!(&self, Self::PaymentMethodDetailsUpdate { .. });
+            matches!(&self, Self::PaymentMethodDetailsUpdateIfUnset { .. });
         let update = PaymentAttemptUpdateInternal::from(self)
             .populate_derived_fields(source_payment_attempt);
         if payment_method_id_must_be_null {
