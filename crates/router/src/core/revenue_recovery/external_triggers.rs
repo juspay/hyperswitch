@@ -1234,7 +1234,7 @@ async fn send_next_retry(
     platform: &Platform,
     profile: &domain::Profile,
     tracking_data: &pcr::RecoveryReportTrackingData,
-    payment_id: &common_utils::id_type::GlobalPaymentId,
+    payment_id: &id_type::GlobalPaymentId,
     next_retry: RecoveryNextRetry,
     is_saved_decision: bool,
 ) -> Result<ReportOutcome, sch_errors::ProcessTrackerError> {
