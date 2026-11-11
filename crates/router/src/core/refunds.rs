@@ -1750,10 +1750,27 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    // Surcharge refund, two steps: (1) validate the requested order amount, (2) initiate — calculate
-    // the surcharge fee via InterPayments Init. The resulting fee/tracking is set on the new refund
-    // row below, so the row is inserted already carrying the correct net amount. `None` means a plain
-    // or full refund, which takes the legacy path.
+    // Generic refund validations run before any surcharge work, so an over-refund (e.g. re-refunding
+    // a fully-refunded payment) is rejected with "exceeds amount captured" before the Init call.
+    let total_amount_captured = payment_intent
+        .amount_captured
+        .unwrap_or(payment_attempt.get_total_amount());
+    validator::validate_refund_amount(
+        total_amount_captured,
+        &all_refunds,
+        RefundAmountDetails::from(refund_amount),
+    )
+    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+
+    validator::validate_maximum_refund_against_payment_attempt(
+        &all_refunds,
+        state.conf.refund.max_attempts,
+    )
+    .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
+
+    // Surcharge refund: (1) validate the requested order amount, (2) initiate — Init to get the fee.
+    // The fee/tracking is set on the new refund row below so it carries the correct net amount.
+    // `None` is a plain or full refund (legacy path).
     let surcharge_context = surcharge::validate_partial_refund(
         payment_attempt,
         payment_intent,
@@ -1774,17 +1791,6 @@ pub async fn validate_and_create_refund(
         ),
         _ => RefundAmountDetails::from(refund_amount),
     };
-    let total_amount_captured = payment_intent
-        .amount_captured
-        .unwrap_or(payment_attempt.get_total_amount());
-    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount_details)
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
-
-    validator::validate_maximum_refund_against_payment_attempt(
-        &all_refunds,
-        state.conf.refund.max_attempts,
-    )
-    .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 
     let connector = payment_attempt
         .connector
