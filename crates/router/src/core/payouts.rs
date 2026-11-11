@@ -4091,6 +4091,7 @@ pub async fn make_payout_data(
                     None => (None, None, None),
                 }
             }
+            // Read-only proxy retrieval must not recover any temporary locker values.
             payouts::PayoutRequest::PayoutRetrieveRequest(_)
                 if payout_attempt.execution_kind
                     == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
