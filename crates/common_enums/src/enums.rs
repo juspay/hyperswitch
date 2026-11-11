@@ -2016,34 +2016,27 @@ pub enum EventClass {
     #[cfg(feature = "payouts")]
     Payouts,
     Subscriptions,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers.
+    #[cfg(feature = "v2")]
+    RevenueRecovery,
 }
 
 impl EventClass {
     #[inline]
     pub fn event_types(self) -> HashSet<EventType> {
         match self {
-            Self::Payments => {
-                #[cfg_attr(not(feature = "v2"), allow(unused_mut))]
-                let mut event_types = HashSet::from([
-                    EventType::PaymentSucceeded,
-                    EventType::PaymentFailed,
-                    EventType::PaymentProcessing,
-                    EventType::PaymentCancelled,
-                    EventType::PaymentCancelledPostCapture,
-                    EventType::PaymentAuthorized,
-                    EventType::PaymentCaptured,
-                    EventType::PaymentExpired,
-                    EventType::ActionRequired,
-                    EventType::SurchargePaymentSucceeded,
-                ]);
-                // A revenue recovery invoice is a payment, so its retry events are payment events.
-                #[cfg(feature = "v2")]
-                event_types.extend([
-                    EventType::RecoveryRetryScheduled,
-                    EventType::RecoveryLimitsExhausted,
-                ]);
-                event_types
-            }
+            Self::Payments => HashSet::from([
+                EventType::PaymentSucceeded,
+                EventType::PaymentFailed,
+                EventType::PaymentProcessing,
+                EventType::PaymentCancelled,
+                EventType::PaymentCancelledPostCapture,
+                EventType::PaymentAuthorized,
+                EventType::PaymentCaptured,
+                EventType::PaymentExpired,
+                EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
+            ]),
             Self::Refunds => HashSet::from([
                 EventType::RefundSucceeded,
                 EventType::RefundFailed,
@@ -2072,6 +2065,11 @@ impl EventClass {
                 EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
+            #[cfg(feature = "v2")]
+            Self::RevenueRecovery => HashSet::from([
+                EventType::RecoveryRetryScheduled,
+                EventType::RecoveryLimitsExhausted,
+            ]),
         }
     }
 }
