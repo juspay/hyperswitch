@@ -2512,12 +2512,12 @@ pub struct RecoveryRetryWebhookDetails {
 
     /// Unique identifier of the invoice in the merchant's billing system.
     #[schema(
-        value_type = Option<String>,
+        value_type = String,
         min_length = 30,
         max_length = 30,
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
-    pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
 
     /// When to trigger the next retry, or why none is scheduled.
     #[schema(value_type = RecoveryNextRetry)]
