@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1
+
+### Bug Fixes
+
+- **platform:** Use organization platform_merchant_id to validate platform merchant creation ([#15205](https://github.com/juspay/hyperswitch/pull/15205)) ([`9dd14e1`](https://github.com/juspay/hyperswitch/commit/9dd14e139b366fe68eaa164e05a7a4f772eb1858))
+
+**Full Changelog:** [`2026.11.11.0...2026.11.11.1`](https://github.com/juspay/hyperswitch/compare/2026.11.11.0...2026.11.11.1)
+
+- - -
+
 ## 2026.11.11.0
 
 ### Bug Fixes
