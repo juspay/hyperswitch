@@ -220,6 +220,8 @@ impl DatabaseConnectionWithContext<'_> {
             .nth(1)
             .unwrap_or("undefined");
 
+        logger::debug!(query = %statement);
+
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
             let location = router_env::call_origin::current().copied();
             if ledger.record_read(statement, location) {
