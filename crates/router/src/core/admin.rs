@@ -544,17 +544,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
 
             OrganizationType::Platform => {
-                let accounts = state
-                    .store
-                    .list_merchant_accounts_by_organization_id(&organization.get_organization_id())
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-                let platform_account_exists = accounts
-                    .iter()
-                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
-
-                if accounts.is_empty() || !platform_account_exists {
+                if organization.platform_merchant_id.is_none() {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
@@ -1451,6 +1441,12 @@ pub async fn merchant_account_delete(
         .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    fp_utils::when(merchant_account.is_platform_account(), || {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Platform merchant account cannot be deleted".to_string(),
+        }))
+    })?;
 
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
@@ -2823,6 +2819,7 @@ pub async fn create_connector(
         .clone()
         .validate_and_get_business_profile(&processor, store)
         .await?;
+    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     #[cfg(feature = "v2")]
     if req.connector_type == common_enums::ConnectorType::BillingProcessor {
@@ -2836,7 +2833,6 @@ pub async fn create_connector(
             )
             .await?;
     }
-    core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
@@ -3807,6 +3803,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model.unwrap_or_default(),
+            self.revenue_recovery_config.is_some(),
+        )?;
+
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_profile_id_of_default_length();
@@ -3965,10 +3966,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            revenue_recovery_trigger_model: self.revenue_recovery_trigger_model.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self
                 .surcharge_connector_details
                 .map(ForeignInto::foreign_into),
+            revenue_recovery_config: self.revenue_recovery_config.map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4429,6 +4432,24 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     }
 }
 
+/// A profile that follows external triggers has no billing connector account to hold its retry
+/// limits, so they have to be on the profile.
+#[cfg(feature = "v2")]
+fn validate_retry_config_of_trigger_model(
+    trigger_model: common_enums::RevenueRecoveryTriggerModel,
+    has_retry_config: bool,
+) -> RouterResult<()> {
+    utils::when(
+        trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+            && !has_retry_config,
+        || {
+            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "revenue_recovery_config".into(),
+            }))
+        },
+    )
+}
+
 #[cfg(all(feature = "olap", feature = "v2"))]
 #[async_trait::async_trait]
 impl ProfileUpdateBridge for api::ProfileUpdate {
@@ -4441,6 +4462,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
+
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model
+                .unwrap_or(business_profile.revenue_recovery_trigger_model),
+            self.revenue_recovery_config.is_some()
+                || business_profile.revenue_recovery_config.is_some(),
+        )?;
 
         if let Some(url) = self
             .webhook_details
@@ -4590,9 +4618,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
+                revenue_recovery_trigger_model: self.revenue_recovery_trigger_model,
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
+                revenue_recovery_config: self
+                    .revenue_recovery_config
                     .map(ForeignInto::foreign_into),
             },
         )))

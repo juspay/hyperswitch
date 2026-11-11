@@ -41,6 +41,16 @@ impl ProxyRequestWrapper {
         state: &SessionState,
         provider: &domain::Provider,
     ) -> RouterResult<ProxyRecord> {
+        let proxy_record = self.fetch_proxy_record(state, provider).await?;
+        proxy_record.validate_ownership(provider)?;
+        Ok(proxy_record)
+    }
+
+    async fn fetch_proxy_record(
+        &self,
+        state: &SessionState,
+        provider: &domain::Provider,
+    ) -> RouterResult<ProxyRecord> {
         let token = &self.0.token;
 
         match self.0.token_type {
@@ -178,6 +188,22 @@ impl ProxyRequestWrapper {
 }
 
 impl ProxyRecord {
+    fn get_merchant_id(&self) -> &id_type::MerchantId {
+        match self {
+            Self::PaymentMethodRecord(payment_method)
+            | Self::VolatilePaymentMethodRecord(payment_method) => &payment_method.merchant_id,
+            Self::TokenizationRecord(tokenization_record) => &tokenization_record.merchant_id,
+        }
+    }
+
+    fn validate_ownership(&self, provider: &domain::Provider) -> RouterResult<()> {
+        if self.get_merchant_id() != provider.get_account().get_id() {
+            return Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Proxy token does not belong to the authenticated merchant");
+        }
+        Ok(())
+    }
+
     fn get_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
         match self {
             Self::PaymentMethodRecord(payment_method) => payment_method

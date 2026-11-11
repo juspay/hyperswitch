@@ -4,12 +4,15 @@ use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::id_type;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        configs::dimension_state::{
+            DimensionsWithProcessorAndProviderMerchantId,
+            DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
+        },
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -218,6 +221,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
         _request: &id_type::PaymentId,
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
+        _dimensions: &DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         let is_post_capture_void_pending = payment_data
             .payment_intent

@@ -1552,6 +1552,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             }
             // No amount is sent back in Boleto response
             SantanderPaymentsSyncResponse::Boleto(_)
+            | SantanderPaymentsSyncResponse::BoletoWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_)
             | SantanderPaymentsSyncResponse::PixQrWebhook(_)
             | SantanderPaymentsSyncResponse::PixAutomaticoRecWebhook(_)
@@ -2208,6 +2209,12 @@ impl webhooks::IncomingWebhook for Santander {
                     PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
                 ))
             }
+            SantanderWebhookBody::Boleto(boleto_data) => Ok(ObjectReferenceId::PaymentId(
+                PaymentIdType::ConnectorTransactionId(boleto_data.bank_number),
+            )),
+            SantanderWebhookBody::BoletoEndpointVerification(_) => {
+                Err(errors::ConnectorError::WebhookReferenceIdNotFound.into())
+            }
         }
     }
 
@@ -2312,6 +2319,12 @@ impl webhooks::IncomingWebhook for Santander {
                     }
                 }
             }
+            // Santander's Billing API sends this notification only after a boleto
+            // has been paid; it does not include a separate payment status.
+            SantanderWebhookBody::Boleto(_) => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
+            SantanderWebhookBody::BoletoEndpointVerification(_) => {
+                Ok(IncomingWebhookEvent::EndpointVerification)
+            }
         }
     }
 
@@ -2400,7 +2413,9 @@ impl webhooks::IncomingWebhook for Santander {
                     _ => Ok(None),
                 }
             }
-            SantanderWebhookBody::RecurringCharge(_) => Ok(None),
+            SantanderWebhookBody::RecurringCharge(_)
+            | SantanderWebhookBody::Boleto(_)
+            | SantanderWebhookBody::BoletoEndpointVerification(_) => Ok(None),
         }
     }
 

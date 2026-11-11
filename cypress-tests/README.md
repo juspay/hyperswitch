@@ -64,7 +64,7 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
 
 ### Prerequisites
 
-- Node.js (18.x or above)
+- Node.js 24.x or newer (matching the CI runtime)
 - npm or yarn
 - [Hyperswitch development environment](https://github.com/juspay/hyperswitch/blob/main/docs/try_local_system.md)
 
