@@ -614,24 +614,49 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
+        let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
+            state,
+            dimensions,
+            platform.get_processor().get_account().get_id(),
+            billing_address
+                .as_ref()
+                .map(hyperswitch_domain_models::address::Address::from)
+                .is_some_and(|billing| billing.has_location_details()),
+        )
+        .await;
+
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
+
+        // A payment created with a saved payment method and no billing already has the saved
+        // billing persisted on the attempt, so overwrite it with the request billing when that is preferred.
+        let should_replace_persisted_saved_billing = !use_saved_pm_billing
+            && n_payment_method_billing_address_id.is_some()
+            && (request.payment_token.is_some() || payment_attempt.payment_token.is_some());
 
         let n_request_payment_method_billing_address = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
-                pm.payment_method
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .or(payment_method_with_raw_data
+                .clone()
+                .filter(|_| use_saved_pm_billing)
+                .and_then(|pm| {
+                    pm.payment_method
+                        .payment_method_billing_address
+                        .clone()
+                        .map(|decrypted_data| decrypted_data.into_inner().expose())
+                        .and_then(|decrypted_value| {
+                            decrypted_value
+                                .parse_value("payment method billing address")
+                                .ok()
+                        })
+                }))
+            .or(billing_address
+                .as_ref()
+                .filter(|_| should_replace_persisted_saved_billing)
+                .map(hyperswitch_domain_models::address::Address::from)
+                .map(api_models::payments::Address::from));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -873,18 +898,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_info.as_ref().and_then(|pm| {
-            pm.payment_method_billing_address
-                .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
-                })
-        });
+        let pm_pmd_billing = payment_method_info
+            .as_ref()
+            .filter(|_| use_saved_pm_billing)
+            .and_then(|pm| {
+                pm.payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
+                            .ok()
+                    })
+            });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
         let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
