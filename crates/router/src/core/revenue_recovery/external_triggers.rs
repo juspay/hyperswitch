@@ -1279,7 +1279,7 @@ async fn send_next_retry(
         state.clone(),
         platform.clone(),
         event_type,
-        common_enums::EventClass::Payments,
+        common_enums::EventClass::RevenueRecovery,
         tracking_data.report_id.clone(),
         common_enums::EventObjectType::RecoveryRetryDetails,
         api_models::webhooks::OutgoingWebhookContent::RecoveryRetryDetails(Box::new(
