@@ -2296,6 +2296,23 @@ impl
     }
 }
 
+fn get_stripe_moto_flag(
+    payment_method_data: &PaymentMethodData,
+    payment_channel: Option<&common_enums::PaymentChannel>,
+) -> Option<bool> {
+    let is_card_payment = matches!(
+        payment_method_data,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_)
+    );
+    let is_moto_channel = matches!(
+        payment_channel,
+        Some(
+            common_enums::PaymentChannel::MailOrder | common_enums::PaymentChannel::TelephoneOrder
+        )
+    );
+    (is_card_payment && is_moto_channel).then_some(true)
+}
+
 fn create_stripe_line_items_data(
     l2_l3_data: &Option<Box<hyperswitch_domain_models::router_data::L2L3Data>>,
 ) -> Option<StripeLineItemsData> {
@@ -2869,17 +2886,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             .and_then(|connector_metadata| connector_metadata.stripe.as_ref())
             .and_then(|stripe_metadata| stripe_metadata.error_on_requires_action);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            item.request.payment_channel.as_ref(),
+        );
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -3013,17 +3023,10 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            item.request.payment_channel.as_ref(),
+        );
 
         let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
             (Some(enums::FutureUsage::OnSession), Some(true)) => None,
