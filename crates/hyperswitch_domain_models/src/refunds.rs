@@ -271,13 +271,6 @@ pub fn validate_surcharge_order_amount(
     remaining: i64,
     requested: i64,
 ) -> Result<(), error_stack::Report<errors::api_error_response::ApiErrorResponse>> {
-    if requested <= 0 {
-        return Err(error_stack::Report::new(
-            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
-                message: "Refund amount must be positive".to_string(),
-            },
-        ));
-    }
     if requested > original {
         return Err(error_stack::Report::new(
             errors::api_error_response::ApiErrorResponse::PreconditionFailed {

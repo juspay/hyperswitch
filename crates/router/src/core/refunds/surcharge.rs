@@ -5,7 +5,7 @@
 //!
 //! - [`validate_partial_refund`] (create, step 1): validate the requested order amount against the
 //!   remaining balance.
-//! - [`initiate_partial_refund`] (create, step 2): calculate the surcharge fee via Init; the caller
+//! - [`init_surcharge_refund`] (create, step 2): calculate the surcharge fee via Init; the caller
 //!   stores it on the new refund row (so the row carries the correct net amount for execution).
 //! - [`complete_from_webhook`] (off the refund's outgoing webhook): call Complete and record it.
 
@@ -34,6 +34,12 @@ use crate::{
 // validate — the balances a requested amount is checked against.
 // ------------------------------------------------------------------------------------------------
 
+/// Error for an overflow in the surcharge balance arithmetic (should never happen for real amounts).
+fn arithmetic_overflow() -> error_stack::Report<errors::ApiErrorResponse> {
+    error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Arithmetic overflow while computing surcharge refund balances")
+}
+
 /// How much order amount and surcharge fee remain refundable, derived from the original attempt
 /// and the stored amounts on previous refunds. No I/O.
 #[derive(Clone, Copy, Debug)]
@@ -49,56 +55,49 @@ struct SurchargeRefundBalances {
 }
 
 impl SurchargeRefundBalances {
-    /// Excludes `exclude_refund_id` (the refund being created/retried) and failed refunds from the
-    /// sums. Returns `PreconditionFailed` when the original surcharge record is missing/inconsistent
-    /// (reconciliation required).
+    /// Pure calculation: derives the balances from the originally-charged surcharge amount and the
+    /// stored amounts on previous (non-failed) refunds. The caller (`validate_partial_refund`) has
+    /// already verified that a usable surcharge applies, so there is nothing to validate here.
     fn from_previous_refunds(
         attempt: &storage::PaymentAttempt,
+        original_surcharge_amount: MinorUnit,
         previous_refunds: &[Refund],
-        exclude_refund_id: Option<&str>,
     ) -> RouterResult<Self> {
-        let details = attempt.external_surcharge_details.as_ref().ok_or_else(|| {
-            error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Missing original external surcharge details on payment attempt")
-        })?;
-        if details.usable_connector_id().is_none() {
-            return Err(error_stack::Report::new(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Invalid original surcharge ID; reconciliation required".to_string(),
-                },
-            ));
-        }
-        if attempt.net_amount.get_surcharge_amount() != Some(details.external_surcharge_amount) {
-            return Err(error_stack::Report::new(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Charged surcharge breakdown mismatch; reconciliation required"
-                        .to_string(),
-                },
-            ));
-        }
+        let original_surcharge_amount = original_surcharge_amount.get_amount_as_i64();
+        let original_order_amount = attempt
+            .get_total_amount()
+            .get_amount_as_i64()
+            .checked_sub(original_surcharge_amount)
+            .ok_or_else(arithmetic_overflow)?;
 
-        let original_surcharge_amount = details.external_surcharge_amount.get_amount_as_i64();
-        let original_order_amount =
-            attempt.get_total_amount().get_amount_as_i64() - original_surcharge_amount;
-
-        let mut refunded_order_amount = 0;
-        let mut refunded_surcharge_amount = 0;
-        for refund in previous_refunds.iter().filter(|refund| {
-            Some(refund.refund_id.as_str()) != exclude_refund_id
-                && !refund.refund_status.is_failure()
-        }) {
-            refunded_order_amount += refund.refund_amount.get_amount_as_i64();
-            refunded_surcharge_amount += refund
-                .refund_surcharge_amount
-                .unwrap_or_default()
-                .get_amount_as_i64();
+        let mut refunded_order_amount: i64 = 0;
+        let mut refunded_surcharge_amount: i64 = 0;
+        for refund in previous_refunds
+            .iter()
+            .filter(|refund| !refund.refund_status.is_failure())
+        {
+            refunded_order_amount = refunded_order_amount
+                .checked_add(refund.refund_amount.get_amount_as_i64())
+                .ok_or_else(arithmetic_overflow)?;
+            refunded_surcharge_amount = refunded_surcharge_amount
+                .checked_add(
+                    refund
+                        .refund_surcharge_amount
+                        .unwrap_or_default()
+                        .get_amount_as_i64(),
+                )
+                .ok_or_else(arithmetic_overflow)?;
         }
 
         Ok(Self {
             original_order_amount,
-            remaining_order_amount: original_order_amount - refunded_order_amount,
+            remaining_order_amount: original_order_amount
+                .checked_sub(refunded_order_amount)
+                .ok_or_else(arithmetic_overflow)?,
             original_surcharge_amount,
-            remaining_surcharge_amount: original_surcharge_amount - refunded_surcharge_amount,
+            remaining_surcharge_amount: original_surcharge_amount
+                .checked_sub(refunded_surcharge_amount)
+                .ok_or_else(arithmetic_overflow)?,
         })
     }
 
@@ -146,16 +145,23 @@ impl SurchargeRefundBalances {
                 },
             ));
         }
+        // Init echoes the original surcharge InterPayments recorded. If it disagrees with what we
+        // charged, our records are out of sync — reject and flag for reconciliation.
         let original_fee_mismatch = response
             .original_transaction_fee
             .is_some_and(|amount| amount.get_amount_as_i64() != self.original_surcharge_amount);
-        let refunded_fee_exceeded =
-            response
-                .previously_refunded_transaction_fees
-                .is_some_and(|amount| {
-                    refund_surcharge_fee.get_amount_as_i64()
-                        > self.original_surcharge_amount - amount.get_amount_as_i64()
-                });
+        // This refund's fee plus everything InterPayments already refunded must not exceed the
+        // original fee (checked add avoids overflow on the running total).
+        let refunded_fee_exceeded = match response.previously_refunded_transaction_fees {
+            Some(previously_refunded) => {
+                refund_surcharge_fee
+                    .get_amount_as_i64()
+                    .checked_add(previously_refunded.get_amount_as_i64())
+                    .ok_or_else(arithmetic_overflow)?
+                    > self.original_surcharge_amount
+            }
+            None => false,
+        };
         if original_fee_mismatch || refunded_fee_exceeded {
             return Err(error_stack::Report::new(
                 errors::ApiErrorResponse::PreconditionFailed {
@@ -171,12 +177,12 @@ impl SurchargeRefundBalances {
 
 // ------------------------------------------------------------------------------------------------
 // Create — two steps the refund-create flow runs: `validate_partial_refund`, then
-// `initiate_partial_refund`.
+// `init_surcharge_refund`.
 // ------------------------------------------------------------------------------------------------
 
 /// A validated partial surcharge refund: the order-only amount to refund, plus the balances the
 /// surcharge fee is later checked against. Produced by [`validate_partial_refund`], consumed by
-/// [`initiate_partial_refund`].
+/// [`init_surcharge_refund`].
 pub struct SurchargeRefundContext {
     order_amount: MinorUnit,
     balances: SurchargeRefundBalances,
@@ -190,17 +196,21 @@ impl SurchargeRefundContext {
 }
 
 /// Step 1 (validate): for a partial surcharge refund, validate the requested order amount against
-/// the remaining order balance. Returns the validated context for [`initiate_partial_refund`];
+/// the remaining order balance. Returns the validated context for [`init_surcharge_refund`];
 /// `None` for a plain or whole-order refund, which takes the legacy path.
 pub fn validate_partial_refund(
     attempt: &storage::PaymentAttempt,
     intent: &storage::PaymentIntent,
-    refund_id: &str,
     requested_amount: Option<MinorUnit>,
     previous_refunds: &[Refund],
 ) -> RouterResult<Option<SurchargeRefundContext>> {
-    if !attempt.has_surcharge() {
-        // The attempt lost its surcharge details even though a surcharge was charged: reconcile.
+    // The usable surcharge charged on the original payment (same condition as `has_surcharge`).
+    let Some(details) = attempt
+        .external_surcharge_details
+        .as_ref()
+        .filter(|details| details.usable_connector_id().is_some())
+    else {
+        // No usable surcharge on the attempt. If one was actually charged, its details are lost.
         let surcharge_was_calculated = intent.external_surcharge_applicable == Some(true)
             && attempt
                 .net_amount
@@ -215,10 +225,22 @@ pub fn validate_partial_refund(
             ));
         }
         return Ok(None);
+    };
+    // The charged surcharge on the attempt must match the stored breakdown.
+    if attempt.net_amount.get_surcharge_amount() != Some(details.external_surcharge_amount) {
+        return Err(error_stack::Report::new(
+            errors::ApiErrorResponse::PreconditionFailed {
+                message: "Charged surcharge breakdown mismatch; reconciliation required"
+                    .to_string(),
+            },
+        ));
     }
 
-    let balances =
-        SurchargeRefundBalances::from_previous_refunds(attempt, previous_refunds, Some(refund_id))?;
+    let balances = SurchargeRefundBalances::from_previous_refunds(
+        attempt,
+        details.external_surcharge_amount,
+        previous_refunds,
+    )?;
     // A whole-order refund keeps the legacy single-call path; only partial refunds use Init/Complete.
     if balances.is_whole_order_refund(requested_amount, previous_refunds) {
         return Ok(None);
@@ -237,7 +259,7 @@ pub fn validate_partial_refund(
 /// Step 2 (initiate/calculate): call InterPayments Init for the validated order amount, validate the
 /// returned fee, and return the surcharge tracking to store on the refund row. Runs before the row
 /// is inserted, so any error simply fails the create (nothing is persisted).
-pub async fn initiate_partial_refund(
+pub async fn init_surcharge_refund(
     state: &SessionState,
     platform: &domain::Platform,
     attempt: &storage::PaymentAttempt,
@@ -406,7 +428,7 @@ pub async fn complete_from_webhook(
 // Shared — connector resolution used by initiate and complete.
 // ------------------------------------------------------------------------------------------------
 
-/// Resolves the active InterPayments connector account configured on the profile.
+/// Resolves the surcharge connector account configured on the profile (the InterPayments MCA).
 async fn resolve_interpayments_account(
     state: &SessionState,
     platform: &domain::Platform,
@@ -429,7 +451,7 @@ async fn resolve_interpayments_account(
                 message: "Surcharge connector is not configured on the profile".to_string(),
             })
         })?;
-    let account = helpers::get_merchant_connector_account(
+    helpers::get_merchant_connector_account(
         state,
         processor,
         None,
@@ -437,13 +459,5 @@ async fn resolve_interpayments_account(
         "interpayments",
         Some(account_id),
     )
-    .await?;
-    if account.get_connector_name().as_deref() != Some("interpayments") || account.is_disabled() {
-        return Err(error_stack::Report::new(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Surcharge connector must be an active InterPayments account".to_string(),
-            },
-        ));
-    }
-    Ok(account)
+    .await
 }

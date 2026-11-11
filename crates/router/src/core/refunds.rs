@@ -1757,20 +1757,13 @@ pub async fn validate_and_create_refund(
     let surcharge_context = surcharge::validate_partial_refund(
         payment_attempt,
         payment_intent,
-        &refund_id,
         req.amount,
         &all_refunds,
     )?;
     let surcharge_details = match &surcharge_context {
         Some(context) => Some(
-            surcharge::initiate_partial_refund(
-                state,
-                platform,
-                payment_attempt,
-                &refund_id,
-                context,
-            )
-            .await?,
+            surcharge::init_surcharge_refund(state, platform, payment_attempt, &refund_id, context)
+                .await?,
         ),
         None => None,
     };
@@ -1879,26 +1872,7 @@ pub async fn validate_and_create_refund(
     {
         Ok(refund) => refund,
         Err(err) => {
-            if err.current_context().is_db_unique_violation() && payment_attempt.has_surcharge() {
-                let existing = db
-                    .find_refund_by_processor_merchant_id_refund_id(
-                        platform.get_processor().get_account().get_id(),
-                        &refund_id,
-                        platform.get_processor().get_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                if existing.payment_id != payment_intent.payment_id
-                    || existing.refund_amount != refund_amount
-                {
-                    return Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Refund reference was already used with different parameters"
-                            .into(),
-                    }
-                    .into());
-                }
-                existing
-            } else if err.current_context().is_db_unique_violation() {
+            if err.current_context().is_db_unique_violation() {
                 Err(errors::ApiErrorResponse::DuplicateRefundRequest)?
             } else {
                 return Err(err)

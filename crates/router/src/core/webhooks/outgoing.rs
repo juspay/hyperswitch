@@ -110,18 +110,10 @@ pub(crate) async fn get_webhook_events(
         },
     }];
 
-    // Partial refunds settle the surcharge via Init/Complete; skip the legacy notification.
-    let settled_via_init_complete = matches!(
-        primary_content,
-        api::OutgoingWebhookContent::RefundDetails(refund)
-            if refund.surcharge_refund_amount.is_some()
-    );
-
     if let Some(surcharge_connector_id) = provider_profile
         .surcharge_connector_details
         .as_ref()
         .and_then(|details| details.surcharge_connector_id.clone())
-        .filter(|_| !settled_via_init_complete)
     {
         match get_surcharge_webhook_event(
             state,
@@ -718,6 +710,7 @@ async fn trigger_webhook_to_connector(
 
     let response = match surcharge_complete {
         Some(result) => result,
+        // Original-payment surcharge, or a full refund, send the legacy single notify.
         None => {
             let (notify_request, connector_auth_metadata, notify_event_type) =
                 crate::core::unified_connector_service::build_notify_connector_request(
