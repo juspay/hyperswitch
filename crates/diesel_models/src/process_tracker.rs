@@ -327,7 +327,7 @@ pub mod business_status {
     /// A reported transaction was recorded after a newer report of its invoice was applied
     pub const RECOVERY_REPORT_STALE: &str = "RECOVERY_REPORT_STALE";
 
-    /// A reported transaction was already recorded by another report
+    /// A reported transaction is recorded on its invoice, but not by this report
     pub const RECOVERY_REPORT_DUPLICATE: &str = "RECOVERY_REPORT_DUPLICATE";
 
     /// A reported transaction was not recorded because its invoice is closed
