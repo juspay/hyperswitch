@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix1
+
+### Features
+
+- **refunds:** Add surcharge support for partial refunds ([#15222](https://github.com/juspay/hyperswitch/pull/15222)) ([`0f4b174`](https://github.com/juspay/hyperswitch/commit/0f4b1748d1e0a1b32174aab31222acacd520c856))
+
+**Full Changelog:** [`2026.11.11.1...2026.11.11.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1...2026.11.11.1-hotfix1)
+
+- - -
+
 ## 2026.11.11.1
 
 ### Bug Fixes
