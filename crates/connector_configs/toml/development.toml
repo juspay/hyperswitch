@@ -2038,7 +2038,7 @@ required=false
 type="Text"
 [checkout.metadata.connector_client_id]
 name="connector_client_id"
-label="Checkout Client ID"
+label="Checkout Client ID (API Domain Prefix)"
 placeholder="Enter Checkout Client ID (cli_...)"
 required=false
 type="Text"

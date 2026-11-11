@@ -1782,7 +1782,7 @@ type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 [checkout.metadata.connector_client_id]
 name = "connector_client_id"
-label = "Checkout Client ID"
+label = "Checkout Client ID (API Domain Prefix)"
 placeholder = "Enter Checkout Client ID (cli_...)"
 required = false
 type = "Text"
