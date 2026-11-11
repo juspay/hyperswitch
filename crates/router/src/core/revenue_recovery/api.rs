@@ -227,7 +227,9 @@ pub async fn record_internal_attempt_api(
             state,
             &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
-            common_enums::TransactionInitiator::MerchantInitiated,
+            // Hyperswitch retries off session, with the customer absent.
+            common_enums::PresenceOfCustomerDuringPayment::Absent,
+            common_enums::FutureUsage::OffSession,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {

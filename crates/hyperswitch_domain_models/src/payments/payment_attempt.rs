@@ -1271,11 +1271,17 @@ impl PaymentAttempt {
                     // Populated later, when the payment is recorded back to the
                     // billing connector.
                     billing_connector_transaction_id: None,
-                    transaction_initiator: request.feature_metadata.as_ref().and_then(|metadata| {
+                    customer_present: request.feature_metadata.as_ref().and_then(|metadata| {
                         metadata
                             .revenue_recovery
                             .as_ref()
-                            .and_then(|data| data.transaction_initiator)
+                            .and_then(|data| data.customer_present)
+                    }),
+                    setup_future_usage: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.setup_future_usage)
                     }),
                 }
             }),
@@ -3117,8 +3123,10 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub charge_id: Option<String>,
     /// Transaction id returned by the billing connector at record-back time.
     pub billing_connector_transaction_id: Option<String>,
-    /// Who started the transaction of this attempt.
-    pub transaction_initiator: Option<common_enums::TransactionInitiator>,
+    /// Whether the customer was present for the transaction of this attempt, as reported.
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v2")]
@@ -3133,7 +3141,8 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id
                         .clone(),
-                    transaction_initiator: recovery_data.transaction_initiator,
+                    customer_present: recovery_data.customer_present,
+                    setup_future_usage: recovery_data.setup_future_usage,
                 });
         Self { revenue_recovery }
     }
@@ -3149,7 +3158,8 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id,
-                    transaction_initiator: recovery_data.transaction_initiator,
+                    customer_present: recovery_data.customer_present,
+                    setup_future_usage: recovery_data.setup_future_usage,
                 });
         Self { revenue_recovery }
     }
