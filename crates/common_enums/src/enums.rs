@@ -387,6 +387,36 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// Decides who triggers the retries of a failed invoice under revenue recovery, and so which
+/// model the recovery API follows.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryTriggerModel {
+    /// Hyperswitch triggers the retries through the billing and payment merchant connector
+    /// accounts the transactions are recorded against.
+    #[default]
+    InternalTriggers,
+    /// The merchant triggers the retries and reports their results. Transactions are recorded
+    /// without any merchant connector account, and the retry limits come from the
+    /// `revenue_recovery_config` of the profile, which this model requires.
+    ExternalTriggers,
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,
@@ -687,6 +717,12 @@ pub enum CaptureStatus {
     Pending,
     // Capture request failed
     Failed,
+}
+
+impl CaptureStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Charged)
+    }
 }
 
 #[derive(
@@ -3149,6 +3185,7 @@ impl ExecutionPath {
 pub enum UcsAvailability {
     Enabled,
     Disabled,
+    ShadowDisabled,
 }
 
 #[derive(
@@ -9391,6 +9428,40 @@ pub enum PayoutSendPriority {
     Internal,
 }
 
+/// The category of funds transfer to use when processing a payout.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutFundsTransferType {
+    AccountToAccount,
+    FundsTransfer,
+    CrossBorderMoneyTransfer,
+    PeerToPeer,
+    StagedDigitalWalletTransfer,
+    FundsDisbursement,
+    LoyaltyPayments,
+    PayrollAndPensionDisbursements,
+    OnlineGambling,
+    MastercardPersonToPerson,
+    MastercardTransferToOwnAccount,
+    MastercardBusinessDisbursement,
+    MastercardBusinessToBusiness,
+    MastercardGamingRepay,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9947,6 +10018,8 @@ pub enum PermissionGroup {
     ReconTransactionsManage,
     ReconRulesView,
     ReconRulesManage,
+    ReconApiKeyView,
+    ReconApiKeyManage,
     OffersView,
     OffersManage,
     AlertsView,
@@ -9974,6 +10047,7 @@ pub enum ParentGroup {
     ReconExceptions,
     ReconTransactions,
     ReconRules,
+    ReconApiKey,
     Offers,
     Alerts,
     Monitoring,
@@ -10009,6 +10083,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    ReconApiKey,
     SuperpositionConfig,
     Offers,
     Alert,
@@ -11812,8 +11887,10 @@ pub enum MitCategory {
     Installment,
     /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
     Unscheduled,
-    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    /// Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
     Recurring,
+    /// Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+    Subscription,
     /// A retried MIT after a previous transaction failed or was declined.
     Resubmission,
 }

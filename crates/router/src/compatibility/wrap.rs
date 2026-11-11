@@ -1,7 +1,10 @@
 use std::{future::Future, sync::Arc, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use common_utils::errors::{CustomResult, ErrorSwitch};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    link_utils::CspNonce,
+};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
@@ -131,6 +134,7 @@ where
             let config = state.conf();
             api::build_redirection_form(
                 &redirection_data.redirect_form,
+                redirection_data.callback_url.as_ref(),
                 redirection_data.payment_method_data,
                 redirection_data.amount,
                 redirection_data.currency,
@@ -145,6 +149,7 @@ where
             match services::generic_link_response::build_generic_link_html(
                 boxed_generic_link_data.data,
                 boxed_generic_link_data.locale,
+                &CspNonce::generate(),
             ) {
                 Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                 Err(_) => {
@@ -154,9 +159,10 @@ where
         }
 
         Ok(api::ApplicationResponse::PaymentLinkForm(boxed_payment_link_data)) => {
+            let csp_nonce = CspNonce::generate();
             match *boxed_payment_link_data {
                 api::PaymentLinkAction::PaymentLinkFormData(payment_link_data) => {
-                    match api::build_payment_link_html(payment_link_data) {
+                    match api::build_payment_link_html(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{
@@ -168,7 +174,7 @@ where
                     }
                 }
                 api::PaymentLinkAction::PaymentLinkStatus(payment_link_data) => {
-                    match api::get_payment_link_status(payment_link_data) {
+                    match api::get_payment_link_status(payment_link_data, &csp_nonce) {
                         Ok(rendered_html) => api::http_response_html_data(rendered_html, None),
                         Err(_) => api::http_response_err(
                             r#"{

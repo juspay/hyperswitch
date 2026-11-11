@@ -23,7 +23,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "diesel")]
 use crate::errors::ParsingError;
-use crate::{consts, id_type, types::MinorUnit};
+use crate::{consts, crypto, id_type, types::MinorUnit};
 
 #[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
@@ -261,6 +261,29 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
             err_msg
         })
         .unwrap_or(false)
+}
+
+/// Domain type for the Content-Security-Policy nonce that link pages generate per response
+#[derive(Debug)]
+pub struct CspNonce(Secret<String>);
+
+impl CspNonce {
+    /// Generate a new nonce from a cryptographically secure source
+    pub fn generate() -> Self {
+        Self(Secret::new(
+            crypto::generate_cryptographically_secure_random_string(32),
+        ))
+    }
+
+    /// Get the nonce value to place in the CSP header
+    pub fn peek(&self) -> &str {
+        self.0.peek()
+    }
+
+    /// Get the `nonce` attribute to place on the page's script and preload tags
+    pub fn get_html_attribute(&self) -> String {
+        format!(r#"nonce="{}""#, self.peek())
+    }
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use api_models::analytics::{
 };
 use common_utils::types::TimeRange;
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{
     filters::{get_auth_events_filter_for_dimension, AuthEventFilterRow},

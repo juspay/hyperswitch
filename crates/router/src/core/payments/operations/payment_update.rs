@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -26,8 +26,9 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
-            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData, PaymentDataUpdateRequestFields,
+            self, client_session::ClientSessionManager, helpers, multi_currency_processing,
+            operations, CustomerDetails, PaymentAddress, PaymentData,
+            PaymentDataUpdateRequestFields,
         },
         utils::{self as core_utils},
     },
@@ -65,6 +66,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -82,15 +84,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             auth_flow,
         )
         .await?;
-        payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &processor_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_intent = helpers::find_payment_intent(
+            db,
+            &payment_id,
+            &processor_merchant_id,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+            profile_id_from_auth_layer,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
@@ -125,6 +128,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             "update",
         )?;
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
+
+        multi_currency_processing::validate_merchant_only_mcp_fields(auth_flow, request, "update")?;
+        // Resolve the stored flag before update-and-confirm amount calculations.
+        helpers::validate_and_update_settlement_conclusion(
+            auth_flow,
+            request,
+            &mut payment_intent,
+            "update",
+        )?;
 
         payment_intent.order_details = request
             .get_order_details_as_value()
@@ -299,13 +311,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_method,
+                request.payment_method,
                 &request
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.clone()),
-                &request.payment_method_type,
-                &mandate_type,
+                request.payment_method_type,
+                mandate_type,
                 &token,
                 &request.ctp_service_details,
             )?;
@@ -398,7 +410,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .surcharge_details
                         .as_ref()
                         .map(RequestSurchargeDetails::get_total_surcharge_amount)
-                        .or(payment_attempt.get_total_surcharge_amount());
+                        .or_else(|| {
+                            if payment_intent.is_settlement_conclusion_applied() {
+                                None
+                            } else {
+                                payment_attempt.get_total_surcharge_amount()
+                            }
+                        });
                     amount + surcharge_amount.unwrap_or_default()
                 };
                 (Box::new(operations::PaymentConfirm), amount.into())
@@ -470,6 +488,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -501,11 +522,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .installment_options
             .clone()
             .or(payment_intent.installment_options);
+        let order_tax_amount = if payment_intent.is_settlement_conclusion_applied() {
+            request.order_tax_amount
+        } else {
+            request.order_tax_amount.or(order_tax_amount)
+        };
         payment_attempt
             .net_amount
-            .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
+            .set_order_tax_amount(order_tax_amount);
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,
@@ -693,7 +720,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .payment_intent
             .skip_external_tax_calculation
             .unwrap_or(false);
-        if is_tax_connector_enabled && !skip_external_tax_calculation {
+        if is_tax_connector_enabled
+            && !skip_external_tax_calculation
+            && !payment_data
+                .payment_intent
+                .is_settlement_conclusion_applied()
+        {
             let db = state.store.as_ref();
 
             let merchant_connector_id = business_profile
@@ -1379,6 +1411,13 @@ impl PaymentUpdate {
                 discount_amount: payment_data.payment_intent.discount_amount,
                 order_date: payment_data.payment_intent.order_date,
                 shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                value_added_tax_percent: payment_data.payment_intent.value_added_tax_percent,
+                vat_invoice_reference_number: payment_data
+                    .payment_intent
+                    .vat_invoice_reference_number
+                    .clone(),
+                order_commodity_code: payment_data.payment_intent.order_commodity_code.clone(),
                 duty_amount: payment_data.payment_intent.duty_amount,
                 enable_partial_authorization: payment_data
                     .payment_intent
@@ -1394,6 +1433,12 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                enable_account_name_verification: payment_data
+                    .payment_intent
+                    .enable_account_name_verification,
+                settlement_conclusion_applied: payment_data
+                    .payment_intent
+                    .settlement_conclusion_applied,
             }));
 
         Ok((payment_data, attempt_update, intent_update))

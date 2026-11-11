@@ -17,10 +17,7 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 
 use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};
 #[cfg(feature = "stripe")]
@@ -829,8 +826,8 @@ async fn update_payment_attempt_from_webhook_response(
             }
         };
         let existing_details = match payment_attempt.external_surcharge_details.clone() {
-            Some(details) => details,
-            None => {
+            Some(details) if details.usable_connector_id().is_some() => details,
+            Some(_) | None => {
                 logger::debug!(
                     attempt_id = %attempt_id,
                     "No external_surcharge_details found; nothing to update"
@@ -843,6 +840,7 @@ async fn update_payment_attempt_from_webhook_response(
             external_surcharge_amount: existing_details.external_surcharge_amount,
             surcharge_percentage: existing_details.surcharge_percentage,
             sale_notified: true,
+            error_details: existing_details.error_details,
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,

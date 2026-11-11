@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use ring::hmac;
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use self::transformers as payone;
 #[cfg(feature = "payouts")]

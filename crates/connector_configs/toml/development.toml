@@ -2037,6 +2037,27 @@ placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
 
+[checkout_payout]
+[[checkout_payout.wallet]]
+payment_method_type = "apple_pay"
+[checkout_payout.connector_auth.SignatureKey]
+api_key = "Checkout Public Key"
+key1 = "Processing Channel ID"
+api_secret = "Checkout API Secret Key"
+[checkout_payout.metadata.connector_currency_account_id]
+name = "connector_currency_account_id"
+label = "Checkout Currency Account ID"
+placeholder = "Enter Checkout Currency Account ID (ca_...)"
+required = true
+type = "Text"
+[checkout_payout.metadata.connector_client_id]
+name = "connector_client_id"
+label = "Checkout Client ID"
+placeholder = "Enter Checkout Client ID (cli_...)"
+required = false
+type = "Text"
+
+
 [coinbase]
 [[coinbase.crypto]]
   payment_method_type = "crypto_currency"
@@ -3161,6 +3182,41 @@ type = "Text"
 name = "product_name"
 label = "Product Name"
 placeholder = "Enter the product name (used for marketing purposes from a customer perspective)"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.USD]
+name = "USD"
+label = "USD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for USD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.CAD]
+name = "CAD"
+label = "CAD Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for CAD"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.EUR]
+name = "EUR"
+label = "EUR Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for EUR"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.GBP]
+name = "GBP"
+label = "GBP Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for GBP"
+required = true
+type = "Text"
+
+[jpmorgan.metadata.merchant_id.JPY]
+name = "JPY"
+label = "JPY Merchant ID"
+placeholder = "Enter the JPMorgan Merchant ID for JPY"
 required = true
 type = "Text"
 
@@ -4919,11 +4975,49 @@ merchant_secret="Source verification key"
   payment_method_type = "UnionPay"
 [[rapyd.wallet]]
   payment_method_type = "apple_pay"
+[[rapyd.wallet]]
+payment_method_type = "google_pay"
+[[rapyd.network_token]]
+payment_method_type = "network_token"
 [rapyd.connector_auth.BodyKey]
 api_key="Access Key"
 key1="API Secret"
 [rapyd.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[rapyd.metadata.country_of_incorporation]
+name = "country_of_incorporation"
+label = "Rapyd country of incorporation"
+placeholder = "Select the country assigned by Rapyd during onboarding"
+required = true
+type = "Select"
+options = ["AD", "AM", "AU", "AT", "BY", "BE", "BA", "BR", "BG", "CO", "HR", "CY", "CZ", "DK", "EE", "FO", "FI", "FR", "GE", "DE", "GI", "GR", "GL", "VA", "HU", "IS", "IN", "IE", "IM", "IL", "IT", "JP", "LV", "LI", "LT", "LU", "MO", "MK", "MY", "MT", "MX", "MD", "MC", "ME", "NL", "NO", "PL", "PT", "RO", "RU", "SM", "RS", "SG", "SK", "SI", "ES", "SE", "CH", "TH", "TR", "UA", "GB", "US"]
+
+[[rapyd.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[rapyd.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[rapyd.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Rapyd Access Key"
+placeholder = "Enter Rapyd Access Key"
+required = true
+type = "Text"
+[[rapyd.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Select Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [[rapyd.metadata.apple_pay]]
 name="certificate"
@@ -5212,6 +5306,24 @@ options=["CRYPTOGRAM_3DS"]
 [[stripe.wallet]]
   payment_method_type = "revolut_pay"
 is_verifiable = true
+[stripe.pay_via_single_use_token.apple_pay]
+flows=["decrypt"]
+name="pay_via_single_use_token"
+label="Pay via single-use token"
+placeholder="Select"
+required=false
+type="Select"
+options=["default","enabled","disabled"]
+
+[stripe.pay_via_single_use_token.google_pay]
+flows=["decrypt"]
+name="pay_via_single_use_token"
+label="Pay via single-use token"
+placeholder="Select"
+required=false
+type="Select"
+options=["default","enabled","disabled"]
+
 [stripe.connector_auth.HeaderKey]
 api_key="Secret Key"
 [stripe.connector_webhook_details]
@@ -9491,6 +9603,8 @@ key1 = "Project ID"
 merchant_secret = "Secret key"
 
 [worldpayraft]
+[[worldpayraft.network_token]]
+  payment_method_type = "network_token"
 [[worldpayraft.credit]]
   payment_method_type = "Visa"
 [[worldpayraft.credit]]
@@ -9892,6 +10006,128 @@ key1="Secret API Key"
   payment_method_type = "DinersClub"
 [[elavon_pg.debit]]
   payment_method_type = "UnionPay"
+[[elavon_pg.wallet]]
+  payment_method_type = "apple_pay"
+[[elavon_pg.wallet]]
+  payment_method_type = "google_pay"
+[[elavon_pg.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[elavon_pg.metadata.apple_pay]]
+  name = "payment_processing_details_at"
+  label = "Payment Processing Details At"
+  placeholder = "Enter Payment Processing Details At"
+  required = true
+  type = "Radio"
+  options = ["Hyperswitch"]
+[[elavon_pg.metadata.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[elavon_pg.metadata.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["CRYPTOGRAM_3DS"]
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "public_key"
+  label = "Google Pay Public Key"
+  placeholder = "Enter Google Pay Public Key"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "private_key"
+  label = "Google Pay Private Key"
+  placeholder = "Enter Google Pay Private Key"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "recipient_id"
+  label = "Recipient Id"
+  placeholder = "Enter Recipient Id"
+  required = true
+  type = "Text"
+[[elavon_pg.connector_wallets_details.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["CRYPTOGRAM_3DS"]
 
 [mifinity_payout]
 [[mifinity_payout.wallet]]
@@ -9941,3 +10177,13 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[globalpayments_realex.debit]]
 payment_method_type = "UnionPay"
+
+[betterpayment]
+[[betterpayment.wallet]]
+  payment_method_type = "wero"
+[betterpayment.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "API Password"
+[betterpayment.connector_webhook_details]
+merchant_secret = "Webhook Secret"
+additional_secret = "Incoming Webhook Key"
