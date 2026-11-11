@@ -85,7 +85,7 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
 
 fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
-        router_return_url: Some("https://hyperswitch.io".to_string()),
+        router_return_url: Some("https://hyperswitch.io".to_string().into()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
         currency: enums::Currency::EUR,
         ..PaymentAuthorizeType::default().0

@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, instrument, logger, tracing};
+use router_env::{env, instrument, logger};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
@@ -3054,7 +3054,7 @@ pub async fn get_sso_auth_url(
             return_url: String::new(),
             http_method: String::new(),
             params: Vec::with_capacity(0),
-            return_url_with_query_params: url.to_string(),
+            return_url_with_query_params: url.to_string().into(),
         })
     })
 }

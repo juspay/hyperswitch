@@ -2,7 +2,7 @@
 resolver = "2"
 members = ["crates/*"]
 package.edition = "2021"
-package.rust-version = "1.92.0"
+package.rust-version = "1.94.1"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
@@ -59,3 +59,6 @@ inherits = "release"
 lto = false
 codegen-units = 16
 strip = "none"
+
+[patch.crates-io]
+hyperswitch_masking = { git = "https://github.com/juspay/framework-libs-rs", rev = "f1c0ee2abdb56d0aec81c2bf13f2026ecaa010f6" }

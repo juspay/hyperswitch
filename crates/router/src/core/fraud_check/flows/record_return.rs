@@ -7,7 +7,9 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::{FeatureFrm, FraudCheckConnectorData, FrmData},
-        payments::{self, flows::ConstructFlowSpecificData, helpers},
+        payments::{
+            self, callback_urls::ConnectorCallbackUrls, flows::ConstructFlowSpecificData, helpers,
+        },
     },
     errors, services,
     types::{
@@ -36,6 +38,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         todo!()
@@ -53,6 +56,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<RouterData<RecordReturn, FraudCheckRecordReturnData, FraudCheckResponseData>>
     {
         let status = storage_enums::AttemptStatus::Pending;
