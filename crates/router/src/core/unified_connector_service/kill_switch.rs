@@ -586,7 +586,7 @@ pub async fn trip_status(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to read the shadow kill switch counter")?;
-        let threshold = shadow::threshold(&state);
+        let threshold = shadow::threshold(&state).await;
         return Ok(crate::services::ApplicationResponse::Json(
             KillSwitchStatusResponse {
                 rollout_scope: key_or_scope,
@@ -873,7 +873,8 @@ mod tests {
 pub mod shadow {
     use std::{error::Error, io::ErrorKind};
 
-    use common_enums::ApiClientError;
+    use common_enums::{ApiClientError, UcsAvailability};
+    use external_services::grpc_client::unified_connector_service::UcsConfigSource;
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
     use router_env::logger;
@@ -881,8 +882,10 @@ pub mod shadow {
     use super::{exceeds_threshold, read_hash_counter, write_hash_counter, COUNTER_FIELD};
     use crate::{
         consts::{
+            superposition::UCS_SHADOW_KILL_SWITCH_THRESHOLD,
             UCS_SHADOW_KILL_SWITCH_REDIS_KEY as COUNTER_KEY, UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
         },
+        core::payments::helpers::get_ucs_config_source,
         routes::SessionState,
     };
 
@@ -920,12 +923,45 @@ pub mod shadow {
         .await
     }
 
-    pub(super) fn threshold(state: &SessionState) -> u64 {
-        state
+    /// Use a global Superposition value for the Superposition routing path. An invalid or
+    /// unavailable value preserves the configured comparison-service threshold.
+    pub(super) async fn threshold(state: &SessionState) -> u64 {
+        let fallback = state
             .conf
             .comparison_service
             .as_ref()
-            .map_or(1, |config| config.shadow_kill_switch_threshold)
+            .map_or(1, |config| config.shadow_kill_switch_threshold);
+        if get_ucs_config_source(state) != UcsConfigSource::Superposition {
+            return fallback;
+        }
+
+        let value = match state
+            .superposition_service
+            .get_config_value::<i64>(UCS_SHADOW_KILL_SWITCH_THRESHOLD, None, None)
+            .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                logger::warn!(
+                    ?error,
+                    fallback,
+                    "Failed to read Superposition UCS shadow kill switch threshold; using comparison-service configuration"
+                );
+                return fallback;
+            }
+        };
+
+        match u64::try_from(value) {
+            Ok(threshold) if threshold > 0 => threshold,
+            _ => {
+                logger::warn!(
+                    value,
+                    fallback,
+                    "Invalid Superposition UCS shadow kill switch threshold; using comparison-service configuration"
+                );
+                fallback
+            }
+        }
     }
 
     fn request_failure_reason(error: &error_stack::Report<ConnectorError>) -> ShadowFailureReason {
@@ -1033,7 +1069,7 @@ pub mod shadow {
                         "SHADOW_KILL_SWITCH_COUNTER_INCREMENTED"
                     );
 
-                    let configured_threshold = threshold(state);
+                    let configured_threshold = threshold(state).await;
                     // The atomic Redis increment returns the threshold value to only one
                     // request, so concurrent failures do not repeat the trip event.
                     if let Some(count) = count.filter(|count| *count == configured_threshold) {
@@ -1058,11 +1094,16 @@ pub mod shadow {
         }
     }
 
-    /// Read only for a resultant shadow path, before changing any proxy settings.
-    /// An unreadable Redis counter routes shadow to Direct.
-    pub async fn is_kill_switched(state: &SessionState) -> bool {
+    /// Stop shadow when manually disabled or when the global failure counter trips.
+    /// Called only for a resultant shadow path, before changing any proxy settings.
+    /// An unreadable Redis counter also stops shadow.
+    pub async fn should_stop(state: &SessionState, ucs_availability: UcsAvailability) -> bool {
+        if ucs_availability == UcsAvailability::ShadowDisabled {
+            return true;
+        }
+
         match read_counter(state).await {
-            Ok(count) => exceeds_threshold(count, threshold(state)),
+            Ok(count) => exceeds_threshold(count, threshold(state).await),
             Err(error) => {
                 logger::warn!(
                     ?error,

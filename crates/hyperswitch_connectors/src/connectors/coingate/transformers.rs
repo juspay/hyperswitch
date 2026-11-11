@@ -58,8 +58,8 @@ pub struct CoingatePaymentsRequest {
     price_currency: Currency,
     receive_currency: String,
     callback_url: String,
-    success_url: Option<String>,
-    cancel_url: Option<String>,
+    success_url: Option<Secret<String>>,
+    cancel_url: Option<Secret<String>>,
     title: String,
     token: Secret<String>,
 }
@@ -181,11 +181,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, CoingatePaymentsResponse, T, PaymentsRe
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.to_string()),
                 redirection_data: Box::new(Some(RedirectForm::Form {
-                    endpoint: item.response.payment_url.clone().ok_or(
+                    endpoint: (item.response.payment_url.clone().ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "payment_url".into(),
                         },
-                    )?,
+                    )?)
+                    .into(),
                     method: Method::Get,
                     form_fields: HashMap::new(),
                 })),

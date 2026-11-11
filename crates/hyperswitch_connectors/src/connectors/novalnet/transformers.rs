@@ -183,8 +183,8 @@ pub struct NovalnetPaymentsRequestTransaction {
     order_no: String,
     payment_data: Option<NovalNetPaymentData>,
     hook_url: Option<String>,
-    return_url: Option<String>,
-    error_return_url: Option<String>,
+    return_url: Option<Secret<String>>,
+    error_return_url: Option<Secret<String>>,
     enforce_3d: Option<i8>, //NOTE: Needed for CREDITCARD, GOOGLEPAY
     create_token: Option<i8>,
 }
@@ -769,7 +769,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                         .result
                         .redirect_url
                         .map(|url| RedirectForm::Form {
-                            endpoint: url.expose().to_string(),
+                            endpoint: url.expose().to_string().into(),
                             method: Method::Get,
                             form_fields: HashMap::new(),
                         });

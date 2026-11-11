@@ -358,8 +358,8 @@ pub struct CheckoutAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct ReturnUrl {
-    pub success_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
 }
 
 #[skip_serializing_none]
@@ -1168,13 +1168,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=success")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "success"))
+                .transpose()?,
             failure_url: item
                 .router_data
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=failure")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "failure"))
+                .transpose()?,
         };
 
         let connector_auth = &item.router_data.connector_auth_type;

@@ -3185,6 +3185,7 @@ impl ExecutionPath {
 pub enum UcsAvailability {
     Enabled,
     Disabled,
+    ShadowDisabled,
 }
 
 #[derive(
@@ -9425,6 +9426,40 @@ pub enum PayoutSendPriority {
     Wire,
     CrossBorder,
     Internal,
+}
+
+/// The category of funds transfer to use when processing a payout.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutFundsTransferType {
+    AccountToAccount,
+    FundsTransfer,
+    CrossBorderMoneyTransfer,
+    PeerToPeer,
+    StagedDigitalWalletTransfer,
+    FundsDisbursement,
+    LoyaltyPayments,
+    PayrollAndPensionDisbursements,
+    OnlineGambling,
+    MastercardPersonToPerson,
+    MastercardTransferToOwnAccount,
+    MastercardBusinessDisbursement,
+    MastercardBusinessToBusiness,
+    MastercardGamingRepay,
 }
 
 #[derive(
