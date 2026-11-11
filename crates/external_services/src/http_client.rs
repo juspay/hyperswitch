@@ -5,7 +5,7 @@ use quick_xml::{
     Writer,
 };
 use request::{HeaderExt, RequestBuilderExt};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 /// client module
 pub mod client;
 /// metrics module

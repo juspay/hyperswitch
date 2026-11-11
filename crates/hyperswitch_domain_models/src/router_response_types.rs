@@ -12,6 +12,7 @@ pub use disputes::{
     SubmitEvidenceResponse,
 };
 use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -219,16 +220,14 @@ impl CaptureSyncResponse {
     }
 }
 impl PaymentsResponseData {
-    pub fn get_connector_metadata(&self) -> Option<hyperswitch_masking::Secret<serde_json::Value>> {
+    pub fn get_connector_metadata(&self) -> Option<Secret<serde_json::Value>> {
         match self {
             Self::TransactionResponse {
                 connector_metadata, ..
             }
             | Self::PreProcessingResponse {
                 connector_metadata, ..
-            } => connector_metadata
-                .clone()
-                .map(hyperswitch_masking::Secret::new),
+            } => connector_metadata.clone().map(Secret::new),
             _ => None,
         }
     }
@@ -399,15 +398,24 @@ impl PreprocessingResponseId {
     }
 }
 
+/// Callback endpoint used by a connector's browser redirect form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectCallback {
+    /// Process a connector redirect response.
+    Response,
+    /// Complete authorization after a browser interaction.
+    Complete,
+}
+
 #[derive(Debug, Eq, PartialEq, Clone, Serialize, serde::Deserialize)]
 pub enum RedirectForm {
     Form {
-        endpoint: String,
+        endpoint: Secret<String>,
         method: Method,
-        form_fields: HashMap<String, String>,
+        form_fields: HashMap<String, Secret<String>>,
     },
     Html {
-        html_data: String,
+        html_data: Secret<String>,
     },
     BarclaycardAuthSetup {
         access_token: String,
@@ -439,12 +447,12 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        acs_url: String,
+        acs_url: Secret<String>,
     },
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: hyperswitch_masking::Secret<String>,
+        public_key: Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -471,14 +479,14 @@ impl From<(url::Url, Method)> for RedirectForm {
         let form_fields = HashMap::from_iter(
             redirect_url
                 .query_pairs()
-                .map(|(key, value)| (key.to_string(), value.to_string())),
+                .map(|(key, value)| (key.to_string(), value.to_string().into())),
         );
 
         // Do not include query params in the endpoint
         redirect_url.set_query(None);
 
         Self::Form {
-            endpoint: redirect_url.to_string(),
+            endpoint: redirect_url.to_string().into(),
             method,
             form_fields,
         }
@@ -753,7 +761,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<hyperswitch_masking::Secret<String>>,
+        authentication_value: Option<Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
@@ -765,7 +773,7 @@ pub enum AuthenticationResponseData {
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<hyperswitch_masking::Secret<String>>,
+        authentication_value: Option<Secret<String>>,
         eci: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
@@ -856,8 +864,8 @@ impl PaymentMethodDetails {
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
-        session_id: hyperswitch_masking::Secret<String>,
-        client_secret: hyperswitch_masking::Secret<String>,
+        session_id: Secret<String>,
+        client_secret: Secret<String>,
     },
     ExternalVaultInsertResponse {
         connector_vault_id: VaultIdType,
@@ -880,16 +888,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_number: Option<Secret<String>>,
+        tokenized_card_expiry_year: Option<Secret<String>>,
+        tokenized_card_expiry_month: Option<Secret<String>>,
+        tokenized_card_cvc: Option<Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
-        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token: Option<Secret<String>>,
+        tokenized_network_token_exp_year: Option<Secret<String>>,
+        tokenized_network_token_exp_month: Option<Secret<String>>,
+        tokenized_cryptogram: Option<Secret<String>>,
     },
 }
 
@@ -956,34 +964,4 @@ impl Default for VaultResponseData {
 }
 
 #[cfg(test)]
-mod pii_masking_tests {
-    use super::ConnectorCustomerResponseData;
-
-    /// Connectors parse the customer email into a masked `Email`; this domain
-    /// type used to strip it back to a plain `String`, so the address reached
-    /// any log that serializes the struct via `masked_serialize`.
-    #[test]
-    fn connector_customer_email_is_masked_for_logging() {
-        let email = common_utils::pii::Email::try_from("jane.doe@example.com".to_string())
-            .expect("valid email");
-        let data = ConnectorCustomerResponseData::new(
-            "cus_1".to_string(),
-            Some("Jane Doe".to_string()),
-            Some(email),
-            None,
-        );
-
-        let masked = hyperswitch_masking::masked_serialize(&data)
-            .expect("masked serialization")
-            .to_string();
-
-        assert!(
-            !masked.contains("jane.doe@example.com"),
-            "email leaked into the log view: {masked}"
-        );
-        assert!(
-            masked.contains("@example.com"),
-            "EmailStrategy should retain the domain, got: {masked}"
-        );
-    }
-}
+mod tests;
