@@ -49925,7 +49925,7 @@
           },
           "parameters": {
             "type": "object",
-            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id` and `customer_id` are also read.",
+            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id`, `customer_id` and `capture_method` are also read. `capture_method` takes `automatic` (the default) or `manual`.",
             "nullable": true
           }
         }
