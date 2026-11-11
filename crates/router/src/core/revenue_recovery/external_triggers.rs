@@ -844,10 +844,10 @@ async fn decrypt_report_request(
     Ok(decrypted.into_inner().expose())
 }
 
-/// Records a transaction the merchant reported and decides the next retry of its invoice. Called by
-/// the recovery report workflow: every outcome finishes the job here, apart from a wait for the
-/// invoice's lock, which puts the job back in the queue, and only a temporary error is returned, for
-/// the workflow to run the report again.
+/// Records a transaction the merchant reported, decides the next retry of its invoice and tells the
+/// merchant by webhook. Called by the recovery report workflow: every outcome finishes the job here,
+/// apart from a wait for the invoice's lock, which puts the job back in the queue, and only a
+/// temporary error is returned, for the workflow to run the report again.
 #[instrument(
     skip_all,
     fields(
@@ -994,8 +994,8 @@ async fn load_report_context(
     Ok((platform, profile))
 }
 
-/// Records the reported transaction and decides the next retry, under the invoice's lock. An error
-/// is temporary, and the report runs again.
+/// Records the reported transaction, decides the next retry and tells the merchant, under the
+/// invoice's lock. An error is temporary, and the report runs again.
 async fn apply_reported_transaction(
     state: &SessionState,
     tracking_data: &pcr::RecoveryReportTrackingData,
@@ -1048,6 +1048,7 @@ async fn apply_reported_transaction(
                     tracking_data,
                     &invoice.payment_id,
                     get_next_retry_for_intent_status(invoice.status, saved_state.next_retry),
+                    true,
                 ))
                 .await;
             }
@@ -1170,13 +1171,14 @@ async fn apply_reported_transaction(
         tracking_data,
         &invoice.payment_id,
         next_retry,
+        false,
     ))
     .await
 }
 
 /// Tells the merchant the next retry of the invoice by webhook, for a decision that has one, and
-/// returns how the report ends. The webhook's event is keyed by the report, so a later run of the
-/// report does not send it again.
+/// returns how the report ends. The webhook's event is keyed by the report. A later run answering
+/// from the decision an earlier run saved (`is_saved_decision`) sends it only if that run did not.
 async fn send_next_retry(
     state: &SessionState,
     platform: &Platform,
@@ -1184,6 +1186,7 @@ async fn send_next_retry(
     tracking_data: &pcr::RecoveryReportTrackingData,
     payment_id: &common_utils::id_type::GlobalPaymentId,
     next_retry: RecoveryNextRetry,
+    is_saved_decision: bool,
 ) -> Result<ReportOutcome, sch_errors::ProcessTrackerError> {
     let outcome = ReportOutcome::from_next_retry(&next_retry);
     let Some(event_type) = outcome.webhook_event() else {
@@ -1211,6 +1214,17 @@ async fn send_next_retry(
     ) {
         return Ok(ReportOutcome::WebhookDisabled(next_retry.reason));
     }
+    if is_saved_decision
+        && is_webhook_queued(state, platform, &webhook_recipient, &idempotent_event_id).await?
+    {
+        logger::info!(
+            %event_type,
+            %idempotent_event_id,
+            "Recovery webhook already queued by an earlier run of the report"
+        );
+        return Ok(outcome);
+    }
+
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
         platform.clone(),
@@ -1236,6 +1250,28 @@ async fn send_next_retry(
     );
     logger::info!(%event_type, %idempotent_event_id, "Recovery webhook queued");
     Ok(outcome)
+}
+
+/// Whether an earlier run of the report already queued its webhook, which it stored as an event.
+async fn is_webhook_queued(
+    state: &SessionState,
+    platform: &Platform,
+    webhook_recipient: &webhooks::utils::WebhookRecipientContext,
+    idempotent_event_id: &str,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    match state
+        .store
+        .find_event_by_merchant_id_idempotent_event_id(
+            platform.get_provider().get_account().get_id(),
+            idempotent_event_id,
+            &webhook_recipient.key_store,
+        )
+        .await
+    {
+        Ok(_) => Ok(true),
+        Err(error) if error.current_context().is_db_not_found() => Ok(false),
+        Err(error) => Err(report_step_failed("webhook", error)),
+    }
 }
 
 /// Only a transaction made off session with the customer absent is merchant initiated. A request

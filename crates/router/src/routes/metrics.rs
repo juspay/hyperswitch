@@ -426,11 +426,14 @@ histogram_metric_f64!(
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
     ],
 );
-// Seconds from the API accepting a report to the webhook with its next retry being queued, by
-// `outcome`. Past 900 seconds the merchant has fallen back to its own retry timing.
+// Past 900 seconds the merchant has fallen back to its own retry timing.
 histogram_metric_f64!(
     REVENUE_RECOVERY_REPORT_TIME_TO_WEBHOOK,
     GLOBAL_METER,
+    name: "revenue_recovery.report.time_to_webhook",
+    description: "Seconds from the API accepting a recovery report to the webhook with its next \
+                  retry being queued, once per report, by `outcome`",
+    unit: "s",
     boundaries: vec![
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
     ],
