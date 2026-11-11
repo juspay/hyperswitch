@@ -1354,6 +1354,7 @@ async fn payout_incoming_webhook_update_status(
             &payout_data.payouts,
             payouts_update,
             payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

@@ -210,6 +210,7 @@ async fn update_blocked_payout_tracker(
                 status: common_enums::PayoutStatus::Failed,
             },
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await
