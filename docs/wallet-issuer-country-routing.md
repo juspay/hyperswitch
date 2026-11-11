@@ -26,7 +26,9 @@ flow uses the same wallet-specific MCA recorded in the attempt's `pre_routing_re
 that wallet eligibility uses to resolve decryption keys. Only configured Hyperswitch-side
 decryption is attempted. An unknown session MCA or connector-side-only decryption leaves
 issuer country absent. This routing-only operation does not replace the encrypted payment
-data or change the later connector-specific decryption and validation flow.
+data or change the later connector-specific decryption and validation flow. The selected
+connector must still support the original token under its wallet configuration; this does
+not translate tokens between incompatible connector-specific wallet sessions.
 
 ## Missing data and routing precedence
 
