@@ -5,8 +5,12 @@ use common_types::payments::{
     RecoveryNoRetryReason, RecoveryTransactionStatus,
 };
 use common_utils::{
-    consts::BASE64_ENGINE, crypto::Encryptable, encryption::Encryption, errors::CustomResult,
-    type_name, types::keymanager,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_URL_SAFE_NO_PAD},
+    crypto::{self, Encryptable, GenerateDigest},
+    encryption::Encryption,
+    errors::CustomResult,
+    id_type, type_name,
+    types::keymanager,
 };
 use diesel_models::{business_profile::RevenueRecoveryConfig, process_tracker::business_status};
 use error_stack::{report, ResultExt};
@@ -761,7 +765,7 @@ enum ReportOutcome {
     CustomerInitiated,
     /// A newer report of the invoice was applied first, so only recorded.
     Stale,
-    /// Another report already recorded the transaction.
+    /// The transaction is recorded on the invoice, but not by this report.
     Duplicate,
     /// The invoice is closed, so nothing is recorded.
     InvoiceClosed,
@@ -839,8 +843,10 @@ fn reason_name(reason: RecoveryNoRetryReason) -> &'static str {
 }
 
 /// Queues a transaction the merchant reported, to be recorded and answered by the recovery report
-/// workflow, and returns the report's id, which is also the id of its job. The job keeps
-/// `request_body`, the request exactly as the merchant sent it, and reads `request` back from it.
+/// workflow, and returns the report's id, which is also the id of its job. A transaction already
+/// reported in the profile is refused, as its job id is taken, whatever became of that job. The job
+/// keeps `request_body`, the request exactly as the merchant sent it, and reads `request` back from
+/// it.
 pub(crate) async fn queue_report(
     state: &SessionState,
     platform: &Platform,
@@ -849,7 +855,11 @@ pub(crate) async fn queue_report(
     request_body: &Secret<String>,
     connector: RecoveryConnector,
 ) -> RouterResult<String> {
-    let report_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "revenue_recovery");
+    let report_id = get_report_id(
+        profile.get_id(),
+        &request.merchant_reference_id,
+        &request.connector_transaction_id,
+    )?;
     let received_at = common_utils::date_time::now();
     let encrypted_request = encrypt_report_request(
         state,
@@ -881,12 +891,21 @@ pub(crate) async fn queue_report(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct the recovery report task")?;
-    state
-        .store
-        .insert_process(process)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to queue the recovery report")?;
+    state.store.insert_process(process).await.map_err(|error| {
+        if error.current_context().is_db_unique_violation() {
+            error.change_context(errors::ApiErrorResponse::GenericDuplicateError {
+                message: format!(
+                    "The transaction {} is already reported for the invoice {}",
+                    request.connector_transaction_id,
+                    request.merchant_reference_id.get_string_repr()
+                ),
+            })
+        } else {
+            error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to queue the recovery report")
+        }
+    })?;
     metrics::TASKS_ADDED_COUNT.add(
         1,
         router_env::metric_attributes!(("flow", "RevenueRecoveryReport")),
@@ -898,6 +917,33 @@ pub(crate) async fn queue_report(
         "Recovery report queued"
     );
     Ok(report_id)
+}
+
+/// The id of a report and of its job, the same for every report of a transaction: the profile, the
+/// invoice and the transaction, in that order, hashed with SHA-256 so that it always fits the job id
+/// column. The format must not change, or a transaction reported before the change could be
+/// reported again.
+fn get_report_id(
+    profile_id: &id_type::ProfileId,
+    merchant_reference_id: &id_type::PaymentReferenceId,
+    connector_transaction_id: &str,
+) -> RouterResult<String> {
+    // Profile and invoice ids hold only letters, digits, `_` and `-`, so the separators cannot be
+    // mistaken for part of them.
+    let key = format!(
+        "{}:{}:{}",
+        profile_id.get_string_repr(),
+        merchant_reference_id.get_string_repr(),
+        connector_transaction_id
+    );
+    let digest = crypto::Sha256
+        .generate_digest(key.as_bytes())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to hash the recovery report's id")?;
+    Ok(format!(
+        "revenue_recovery_{}",
+        BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest)
+    ))
 }
 
 /// The request body encrypted with the merchant's key and base64 encoded.
@@ -1272,7 +1318,7 @@ async fn read_invoice(
     state: &SessionState,
     platform: &Platform,
     profile: &domain::Profile,
-    payment_id: &common_utils::id_type::GlobalPaymentId,
+    payment_id: &id_type::GlobalPaymentId,
 ) -> RouterResult<PaymentIntent> {
     let (payment_data, _, _) = Box::pin(payments::payments_intent_operation_core::<
         api_types::PaymentGetIntent,

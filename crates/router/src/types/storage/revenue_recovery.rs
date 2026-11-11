@@ -22,7 +22,8 @@ use crate::{
 /// key, and only identifiers are kept in clear, for debugging.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct RecoveryReportTrackingData {
-    /// Id of the report, which is also the id of its process tracker job.
+    /// Id of the report, which is also the id of its process tracker job: one for each transaction
+    /// of an invoice in a profile.
     pub report_id: String,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
