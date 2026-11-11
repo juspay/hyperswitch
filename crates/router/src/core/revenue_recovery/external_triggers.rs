@@ -708,7 +708,12 @@ pub(super) async fn accept_report(
 
     queue_report(state, platform, profile, request, request_body, connector)
         .await
-        .inspect_err(|_| record_received_report("failed"))?;
+        .inspect_err(|error| {
+            record_received_report(match error.current_context() {
+                errors::ApiErrorResponse::GenericDuplicateError { .. } => "duplicate",
+                _ => "failed",
+            })
+        })?;
     record_received_report("queued");
 
     Ok(api_models::payments::RecoveryReportAccepted {
