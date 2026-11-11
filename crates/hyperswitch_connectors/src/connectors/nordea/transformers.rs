@@ -307,6 +307,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
                 PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_),
             )
+            | Some(PaymentMethodData::ProxyCard(_))
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))

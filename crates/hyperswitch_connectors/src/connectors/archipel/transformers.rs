@@ -797,6 +797,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::MobilePayment(..)
             | PaymentMethodData::CardWithOptionalCVC(..)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::ProxyCard(..)
             | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
@@ -857,6 +858,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::ProxyCard(..)
             | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::PayLater(..)

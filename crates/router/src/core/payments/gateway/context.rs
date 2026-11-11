@@ -9,8 +9,28 @@ use common_utils::id_type;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::api::gateway::GatewayContext;
+use hyperswitch_masking::Secret;
 
 use crate::core::payments::helpers;
+
+/// Aliases can only be submitted on the primary UCS path, where the vault injector runs.
+#[cfg(feature = "v1")]
+pub(crate) fn validate_external_vault_proxy_execution_path(
+    execution_path: ExecutionPath,
+    requires_proxy: bool,
+) -> crate::core::errors::RouterResult<()> {
+    match (requires_proxy, execution_path) {
+        (false, _) | (true, ExecutionPath::UnifiedConnectorService) => Ok(()),
+        (true, ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService) => {
+            Err(crate::core::errors::ApiErrorResponse::NotSupported {
+                message:
+                    "External vault proxy requires primary Unified Connector Service execution"
+                        .to_string(),
+            }
+            .into())
+        }
+    }
+}
 
 /// Router's gateway execution context
 ///
@@ -19,6 +39,9 @@ use crate::core::payments::helpers;
 #[derive(Clone, Debug)]
 pub struct RouterGatewayContext {
     pub creds_identifier: Option<String>,
+    /// Provider vault configuration resolved upstream and carried to the primary UCS RPC headers.
+    /// Auxiliary flows, including refunds, leave this unset.
+    pub external_vault_proxy_metadata: Option<Secret<String>>,
     /// Processor context for payment execution
     pub processor: Processor,
 
@@ -83,6 +106,7 @@ impl RouterGatewayContext {
     ) -> Self {
         let lineage_ids = LineageIds::new(merchant_id, profile_id);
         Self {
+            external_vault_proxy_metadata: None,
             processor,
             header_payload: HeaderPayload::default(),
             lineage_ids,
@@ -112,6 +136,7 @@ impl RouterGatewayContext {
         rollout_result: helpers::RolloutExecutionResult,
     ) -> Self {
         Self {
+            external_vault_proxy_metadata: None,
             creds_identifier,
             processor,
             header_payload,

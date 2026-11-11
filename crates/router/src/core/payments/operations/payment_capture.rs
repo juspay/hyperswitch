@@ -117,7 +117,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             )?;
         }
 
-        helpers::validate_capture_method(capture_method)?;
+        let payment_method_data = payment_method_fetch_data
+            .payment_method_with_raw_data
+            .and_then(|pm| pm.raw_payment_method_data)
+            .or(request
+                .payment_method_data
+                .clone()
+                .map(domain::PaymentMethodData::from));
+        helpers::validate_capture_method(capture_method, payment_method_data.as_ref())?;
 
         let payment_feature_metadata = payment_intent
             .get_optional_feature_metadata()
@@ -253,15 +260,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
-
-        let payment_method_data = payment_method_fetch_data
-            .payment_method_with_raw_data
-            .clone()
-            .and_then(|pm| pm.raw_payment_method_data)
-            .or(request
-                .payment_method_data
-                .clone()
-                .map(domain::PaymentMethodData::from));
 
         let payment_data = payments::PaymentData {
             capture_feature_metadata,

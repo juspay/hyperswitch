@@ -138,7 +138,6 @@ impl<F: Send + Clone + Sync>
 
         let payment_method_data = payment_method_fetch_data
             .payment_method_with_raw_data
-            .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(request
                 .payment_method_data

@@ -4272,7 +4272,20 @@ pub fn should_store_payment_method_data_in_vault(
 #[instrument(skip_all)]
 pub(crate) fn validate_capture_method(
     capture_method: storage_enums::CaptureMethod,
+    payment_method_data: Option<&domain::PaymentMethodData>,
 ) -> RouterResult<()> {
+    utils::when(
+        matches!(
+            payment_method_data,
+            Some(domain::PaymentMethodData::ProxyCard(_))
+        ) && capture_method == storage_enums::CaptureMethod::ManualMultiple,
+        || {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: "External vault proxy is not supported for multiple captures".to_string(),
+            }))
+        },
+    )?;
+
     utils::when(
         capture_method == storage_enums::CaptureMethod::Automatic,
         || {
@@ -6797,6 +6810,7 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
+        domain::PaymentMethodData::ProxyCard(_) => Ok(None),
     }
 }
 
@@ -8151,7 +8165,8 @@ pub fn get_key_params_for_surcharge_details(
             mobile_payment.get_payment_method_type(),
             None,
         )),
-        domain::PaymentMethodData::CardToken(_)
+        domain::PaymentMethodData::ProxyCard(_)
+        | domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)

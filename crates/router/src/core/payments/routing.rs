@@ -305,6 +305,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::ProxyCard(card) => card.card_network.clone(),
 
                 _ => None,
             }),
@@ -425,6 +426,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::ProxyCard(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
@@ -473,6 +475,7 @@ pub fn make_dsl_input(
             .as_ref()
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
+                domain::PaymentMethodData::ProxyCard(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardWithNetworkTokenDetails(
                     card_with_network_token_details,
