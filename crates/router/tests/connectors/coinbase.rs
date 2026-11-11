@@ -91,7 +91,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
         session_token: None,
         enrolled_for_3ds: false,
         related_transaction_id: None,
-        router_return_url: Some(String::from("https://google.com/")),
+        router_return_url: Some(String::from("https://google.com/").into()),
         webhook_url: None,
         complete_authorize_url: None,
         capture_method: None,

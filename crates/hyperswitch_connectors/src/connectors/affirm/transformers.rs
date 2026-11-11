@@ -85,8 +85,8 @@ impl TryFrom<&PaymentsCompleteAuthorizeRouterData> for AffirmCompleteAuthorizeRe
 #[derive(Debug, Serialize)]
 pub struct Merchant {
     pub public_api_key: Secret<String>,
-    pub user_confirmation_url: String,
-    pub user_cancel_url: String,
+    pub user_confirmation_url: Secret<String>,
+    pub user_cancel_url: Secret<String>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Shipping {

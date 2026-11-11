@@ -1,0 +1,2 @@
+ALTER TABLE payouts
+ADD COLUMN IF NOT EXISTS funds_transfer_type VARCHAR(64) DEFAULT NULL;
