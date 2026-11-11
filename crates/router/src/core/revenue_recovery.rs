@@ -2180,7 +2180,7 @@ pub fn map_recovery_status(
             execute_process_tracker_status,
             || match external_trigger_next_retry {
                 Some(next_retry) => map_external_trigger_recovery_status(next_retry),
-                None if attempt_count > max_retry_threshold => RecoveryStatus::NoPicked,
+                None if attempt_count > max_retry_threshold => RecoveryStatus::Terminated,
                 None => RecoveryStatus::Monitoring,
             },
         ),
@@ -2196,23 +2196,22 @@ pub fn map_recovery_status(
         }
 
         // For all other intent statuses, return the mapped recovery status
-        IntentStatus::Succeeded => RecoveryStatus::Recovered,
+        IntentStatus::Succeeded => RecoveryStatus::Succeeded,
         IntentStatus::Processing | IntentStatus::PartiallyCapturedAndProcessing => {
             RecoveryStatus::Processing
         }
-        IntentStatus::Cancelled
-        | IntentStatus::CancelledPostCapture
+        IntentStatus::Cancelled => RecoveryStatus::Cancelled,
+        IntentStatus::CancelledPostCapture
         | IntentStatus::Conflicted
         | IntentStatus::Expired
         | IntentStatus::Review => RecoveryStatus::Terminated,
 
-        // For statuses that don't need recovery
         IntentStatus::RequiresCustomerAction
         | IntentStatus::RequiresMerchantAction
         | IntentStatus::RequiresPaymentMethod
         | IntentStatus::RequiresConfirmation
         | IntentStatus::RequiresCapture
-        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Pending,
+        | IntentStatus::PartiallyAuthorizedAndRequiresCapture => RecoveryStatus::Monitoring,
     }
 }
 
@@ -2388,5 +2387,26 @@ mod tests {
         );
 
         assert_eq!(recovery_status, RecoveryStatus::Terminated);
+    }
+
+    #[test]
+    fn recovery_status_without_workflows_follows_the_intent() {
+        for (intent_status, attempt_count, expected) in [
+            (IntentStatus::Succeeded, 1, "succeeded"),
+            (IntentStatus::Cancelled, 1, "cancelled"),
+            (IntentStatus::CancelledPostCapture, 1, "terminated"),
+            (IntentStatus::RequiresPaymentMethod, 1, "monitoring"),
+            (IntentStatus::Failed, 3, "monitoring"),
+            (IntentStatus::Failed, 4, "terminated"),
+        ] {
+            let recovery_status =
+                map_recovery_status(intent_status, None, None, attempt_count, 3, None);
+
+            assert_eq!(
+                serde_json::to_value(recovery_status).ok(),
+                Some(serde_json::json!(expected)),
+                "{intent_status:?} with {attempt_count} attempts"
+            );
+        }
     }
 }

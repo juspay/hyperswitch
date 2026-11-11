@@ -4,7 +4,10 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, callback_urls::ConnectorCallbackUrls, helpers, transformers,
+            PaymentData,
+        },
     },
     routes::{metrics, SessionState},
     services,
@@ -29,6 +32,7 @@ impl
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsExtendAuthorizationRouterData> {
         todo!()
     }
@@ -45,6 +49,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsExtendAuthorizationRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::ExtendAuthorization,
@@ -60,6 +65,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
