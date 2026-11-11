@@ -4031,13 +4031,9 @@ pub async fn make_payout_data(
                     None => (None, None, None),
                 }
             }
-            // Only recover temporary source bank data when retrieval will sync with the connector.
-            // Proxy retrieval never needs temporary locker values.
-            payouts::PayoutRequest::PayoutRetrieveRequest(req)
+            payouts::PayoutRequest::PayoutRetrieveRequest(_)
                 if payout_attempt.execution_kind
-                    == api_enums::PayoutExecutionKind::ExternalVaultProxy
-                    || !matches!(req.force_sync, Some(true))
-                    || !helpers::should_call_retrieve(payout_attempt.status) =>
+                    == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
             {
                 (None, None, None)
             }
@@ -4068,7 +4064,12 @@ pub async fn make_payout_data(
                                 Some(customer_id),
                                 platform.get_processor().get_key_store(),
                             )
-                            .await?;
+                            .await
+                            .inspect_err(|error| {
+                                logger::error!(?error, "Failed to retrieve source bank data")
+                            })
+                            .ok()
+                            .flatten();
 
                         (source_bank_data, None, None)
                     }
