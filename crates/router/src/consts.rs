@@ -516,6 +516,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
@@ -596,6 +602,12 @@ pub mod superposition {
         "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// Global request-failure threshold for the UCS shadow kill switch.
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
+    pub const UCS_ENABLED: &str = "ucs_enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode

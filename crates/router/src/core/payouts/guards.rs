@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use common_utils::payout_method_utils;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::PayoutData;
 use crate::{
@@ -210,6 +210,7 @@ async fn update_blocked_payout_tracker(
                 status: common_enums::PayoutStatus::Failed,
             },
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await

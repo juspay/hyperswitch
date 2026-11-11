@@ -22,8 +22,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
@@ -551,6 +551,21 @@ lazy_static! {
 
     static ref MIFINITY_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 
+}
+
+impl api::ConnectorRedirectResponse for Mifinity {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::Mifinity { .. }).then_some(RedirectCallback::Response)
+    }
+
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: enums::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        Ok(enums::CallConnectorAction::Trigger)
+    }
 }
 
 impl ConnectorSpecifications for Mifinity {

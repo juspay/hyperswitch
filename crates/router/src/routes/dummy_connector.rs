@@ -1,5 +1,5 @@
 use actix_web::web;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::app;
 use crate::{
