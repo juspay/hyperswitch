@@ -1750,8 +1750,6 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    // Generic refund validations run before any surcharge work, so an over-refund (e.g. re-refunding
-    // a fully-refunded payment) is rejected with "exceeds amount captured" before the Init call.
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
