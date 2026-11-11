@@ -10,15 +10,14 @@ import State from "../../../../utils/State";
 // exploitable since the update route has no profile-scoped auth path, but
 // a real asymmetry worth documenting.
 //
-// CONFIRMED BUG: refund_create_core's authenticated-profile parameter is
-// literally named `_profile_id` (crates/router/src/core/refunds.rs) - the
-// leading underscore means the compiler itself flags it unused. It's
-// received and never checked against the referenced payment's profile. A
-// caller authenticated as profile PB can create a refund for a payment
-// that belongs to profile PA, same merchant - this is the most severe
-// finding in this audit (an actual money-movement action, not just a data
-// read). The test below documents the CURRENT (bad) behavior so it flips
-// red -> green once fixed, rather than silently assuming either outcome.
+// Create and update both assert the correct, secure behavior (denial) -
+// refund_create_core's authenticated-profile parameter is literally named
+// `_profile_id` (crates/router/src/core/refunds.rs) and refund_update_core
+// has the same gap, so both of these are expected to fail against the
+// current server rather than pass. Leaving them asserting denial (not the
+// current buggy behavior) means they fail honestly and visibly until the
+// missing profile check is added upstream, instead of a green checkmark
+// on incorrect behavior.
 let globalState;
 let apiKeyM1;
 let profileIdPA;
@@ -99,51 +98,27 @@ describe("OMP Scoping - Refund", () => {
     });
   });
 
-  context("Update - no profile check exists (documented asymmetry)", () => {
-    it("PA updates PB's refund - no profile check, live-verify actual result", () => {
+  context("Update", () => {
+    it("PA updates PB's refund - denied", () => {
       cy.ompUpdateRefund(
         refundIdPA,
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPB },
         { metadata: { attempted_by: "PB" } },
         globalState
       ).then((res) => {
-        // No assertion of denial here deliberately - the audit found no
-        // profile_id check on this path at all, only the merchant-scoped
-        // query filter. Document whatever the server actually returns.
-        cy.task(
-          "cli_log",
-          `Refund update across profiles returned status ${res.status} - ` +
-            "no profile check exists in refund_update_core, this result " +
-            "documents current behavior rather than asserting denial."
-        );
+        expect(res.status).to.be.within(400, 499);
       });
     });
   });
 
-  context("Create - CONFIRMED BUG", () => {
-    it("create a refund in PB for a payment that exists in PA - currently SUCCEEDS (bug)", () => {
+  context("Create", () => {
+    it("create a refund in PB for a payment that exists in PA - denied", () => {
       cy.ompCreateRefund(
         { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPB },
         { payment_id: capturedPaymentIdPA, reason: "omp_scoping_poc" },
         globalState
       ).then((res) => {
-        // This asserts the CURRENT (incorrect) behavior: refund_create_core
-        // never checks the authenticated profile (PB) against the
-        // payment's actual profile (PA), so this succeeds today. Once
-        // fixed upstream, this test should be updated to assert denial -
-        // until then it documents the live bug rather than silently
-        // passing or failing on an assumption.
-        expect(
-          res.status,
-          "refund creation currently succeeds across profiles - this is the bug"
-        ).to.eq(200);
-        if (res.status === 200) {
-          cy.task(
-            "cli_log",
-            `BUG CONFIRMED: refund ${res.body.refund_id} was created under ` +
-              "profile PB for a payment that belongs to profile PA."
-          );
-        }
+        expect(res.status).to.be.within(400, 499);
       });
     });
   });

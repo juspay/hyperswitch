@@ -1,4 +1,5 @@
 import State from "../../../../utils/State";
+import getConnectorDetails from "../../../configs/Payment/Utils";
 
 // Customer, Payment Method, and Mandate are merchant-scoped only - none of
 // their DB tables carry a profile_id column at all, so only the M1-vs-M2
@@ -122,20 +123,16 @@ describe("OMP Scoping - Customer, Payment Method, Mandate", () => {
     });
 
     it("M2 creates a payment method against M1's customer_id - denied", () => {
+      // Reuses the shared card_pm "PaymentMethod" fixture's Request
+      // (configs/Payment/Commons.js, same one 24-PaymentMethods.cy.js and
+      // 00-Setup.cy.js's PAYMENT_METHOD_M1 step use) rather than hand-rolling
+      // card details, per review feedback.
+      const { Request: paymentMethodRequest } =
+        getConnectorDetails("commons")["card_pm"]["PaymentMethod"];
+
       cy.ompCreatePaymentMethod(
         { type: "apiKey", apiKey: apiKeyM2 },
-        {
-          customer_id: customerIdM1,
-          payment_method: "card",
-          payment_method_type: "credit",
-          card: {
-            card_number: "4111111111111111",
-            card_exp_month: "03",
-            card_exp_year: "2030",
-            card_holder_name: "John Doe",
-            card_cvc: "100",
-          },
-        },
+        { ...paymentMethodRequest, customer_id: customerIdM1 },
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);

@@ -774,6 +774,69 @@ Cypress.Commands.add("ompQueryPaymentMetrics", (auth, body, globalState) => {
   });
 });
 
+// Org-level variant (get_org_payment_metrics, analytics.rs:628-669) - same
+// array-wrapped GetPaymentMetricRequest body as the merchant-level route
+// above, but AuthInfo is built from auth.platform.to_org_level_auth_info()
+// rather than the request body, and the auth requirement is
+// OrganizationAnalyticsRead (PlatformOrgAdminAuth or JWT), not
+// MerchantAnalyticsRead.
+Cypress.Commands.add("ompQueryOrgPaymentMetrics", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/analytics/v1/org/metrics/payments`,
+    auth,
+    body: [body],
+  });
+});
+
+// --- OMP scoping: role-based user provisioning, for Analytics org_admin vs
+// merchant_admin test cases (17-Analytics.cy.js). No existing Cypress
+// command covers inviting a user or logging one in from scratch (the
+// existing userLogin/terminate2Fa commands assume a single fixed
+// globalState "email"/"password" pair from the initial dashboard signup,
+// not a second, separately-provisioned user) - these are deliberately raw/
+// low-level rather than folded into the existing 3-command signup chain,
+// since the invited-user flow has an extra mandatory step
+// (force_set_password) that signup doesn't.
+
+Cypress.Commands.add("ompInviteUser", (auth, invitees, globalState) =>
+  // Nested scope: outer web::scope("/user") (app.rs:2992) + inner
+  // web::scope("/user") (app.rs:3180) = /user/user/invite_multiple,
+  // confirmed against the route registration - not /user/invite_multiple.
+  ompCall("POST", "/user/user/invite_multiple", auth, invitees, globalState)
+);
+
+Cypress.Commands.add("ompUserSignin", (email, password, globalState) =>
+  ompCall(
+    "POST",
+    "/user/v2/signin?token_only=true",
+    { type: "none" },
+    { email, password },
+    globalState
+  )
+);
+
+Cypress.Commands.add("ompTerminate2FaRaw", (token, globalState) =>
+  ompCall(
+    "GET",
+    "/user/2fa/terminate?skip_two_factor_auth=true",
+    { type: "jwt", token },
+    undefined,
+    globalState
+  )
+);
+
+Cypress.Commands.add("ompRotatePassword", (token, newPassword, globalState) =>
+  ompCall(
+    "POST",
+    "/user/rotate_password",
+    { type: "jwt", token },
+    { password: newPassword },
+    globalState
+  )
+);
+
 // --- OMP scoping: Relay (cypress/e2e/spec/Security/OMPScoping/18-Relay.cy.js) ---
 
 Cypress.Commands.add("ompRetrieveRelay", (relayId, auth, globalState) => {

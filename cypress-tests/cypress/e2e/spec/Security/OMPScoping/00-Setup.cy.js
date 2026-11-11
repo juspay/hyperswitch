@@ -25,6 +25,55 @@ import { PaymentIntent, CardPayout } from "../../../configs/Security/Commons";
 // merchant, this can be simplified to create M1 up front instead.
 let globalState;
 
+// Completes the invited-user login chain for a temp-password invite
+// response: signin -> terminate 2FA (lands on force_set_password, since a
+// temp password always has last_password_modified_at=None, user.rs:
+// 1227-1247) -> rotate_password (no token returned) -> signin again with
+// the new password -> terminate 2FA again (lands on user_info this time).
+// Stores the final usable session JWT as globalState "jwtMerchantAdminM1".
+// Only ever called when invite_multiple actually returned a password - see
+// the GAP comment at its call site in 00-Setup.cy.js.
+function completeInvitedUserLogin(email, tempPassword, globalState) {
+  const newPassword = "OmpScoping_Test_Pwd1!";
+  const tokens = {};
+
+  cy.ompUserSignin(email, tempPassword, globalState).then((res) => {
+    expect(res.status, "signin with temp password").to.eq(200);
+    expect(res.body?.token_type).to.eq("totp");
+    tokens.totp1 = res.body.token;
+  });
+
+  cy.then(() => cy.ompTerminate2FaRaw(tokens.totp1, globalState)).then(
+    (res) => {
+      expect(res.status, "terminate 2FA (first pass)").to.eq(200);
+      expect(res.body?.token_type).to.eq("force_set_password");
+      tokens.forceSetPw = res.body.token;
+    }
+  );
+
+  cy.then(() =>
+    cy.ompRotatePassword(tokens.forceSetPw, newPassword, globalState)
+  ).then((res) => {
+    expect(res.status, "rotate password").to.eq(200);
+  });
+
+  cy.then(() => cy.ompUserSignin(email, newPassword, globalState)).then(
+    (res) => {
+      expect(res.status, "signin with rotated password").to.eq(200);
+      expect(res.body?.token_type).to.eq("totp");
+      tokens.totp2 = res.body.token;
+    }
+  );
+
+  return cy
+    .then(() => cy.ompTerminate2FaRaw(tokens.totp2, globalState))
+    .then((res) => {
+      expect(res.status, "terminate 2FA (second pass)").to.eq(200);
+      expect(res.body?.token_type).to.eq("user_info");
+      globalState.set("jwtMerchantAdminM1", res.body.token);
+    });
+}
+
 describe("OMP Scoping - shared fixtures", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -423,20 +472,13 @@ describe("OMP Scoping - shared fixtures", () => {
         globalState.set("customerId", globalState.get("customerIdM1"));
       });
 
-      cy.createPaymentMethodTest(globalState, {
-        Request: {
-          payment_method: "card",
-          payment_method_type: "credit",
-          card: {
-            card_number: "4111111111111111",
-            card_exp_month: "03",
-            card_exp_year: "2030",
-            card_holder_name: "John Doe",
-            card_cvc: "100",
-          },
-        },
-        Response: { status: 200, body: {} },
-      });
+      // Reuses the shared card_pm "PaymentMethod" fixture
+      // (configs/Payment/Commons.js, same one 24-PaymentMethods.cy.js
+      // uses) rather than hand-rolling card details, per review feedback.
+      cy.createPaymentMethodTest(
+        globalState,
+        getConnectorDetails("commons")["card_pm"]["PaymentMethod"]
+      );
 
       cy.then(() => {
         globalState.set(
@@ -785,4 +827,90 @@ describe("OMP Scoping - shared fixtures", () => {
       });
     });
   });
+
+  context(
+    "M3 and a merchant_admin user, for Analytics role-scope tests",
+    () => {
+      // M1's own dashboard user is org_admin (signup_with_merchant_id grants
+      // ROLE_ID_ORGANIZATION_ADMIN, core/user.rs:96-103) and M1 sits in its
+      // own, freshly-created organization - M2 (above) is a SEPARATE org
+      // entirely, so M1-vs-M2 never actually exercised "two merchants under
+      // one org." M3 here is a genuine sibling of M1: created with
+      // organization_id explicitly set to M1's own org, so
+      // CreateOrValidateOrganization validates/reuses that org instead of
+      // minting a new one (core/admin.rs:505-523, 708-719).
+      it("creates M3, a second merchant in M1's own organization", () => {
+        const m1OrganizationId = globalState.get("organizationId");
+        const m3Body = {
+          ...structuredClone(fixtures.merchantCreateBody),
+          organization_id: m1OrganizationId,
+        };
+
+        cy.merchantCreateCallTest(m3Body, globalState, {
+          merchantIdStateKey: "merchantIdM3",
+          profileIdStateKey: "profileIdM3Default",
+          publishableKeyStateKey: "publishableKeyM3",
+        });
+
+        cy.then(() => {
+          // merchantCreateCallTest unconditionally overwrites globalState
+          // "organizationId" with whatever the server echoes back - confirm
+          // it's still M1's org (validated/reused), not a freshly minted one.
+          expect(
+            globalState.get("organizationId"),
+            "M3 must land in M1's existing org, not a fresh one"
+          ).to.eq(m1OrganizationId);
+        });
+      });
+
+      // GAP: bootstrapping a second, merchant_admin-scoped user under M1
+      // would need the real invite flow (POST /user/user/invite_multiple),
+      // but confirmed live: this environment never returns a temp password
+      // in the invite response (is_email_sent-style flow instead - a real
+      // inbox is required to accept the invite), so the no-email-feature
+      // shortcut this was built against (core/user.rs:1080-1249, returns
+      // a password directly when the "email" cargo feature is off) doesn't
+      // apply here. There is no black-box way to complete this invite
+      // without real email access, so this is skipped gracefully rather
+      // than chased further - same convention as the Disputes/Relay
+      // "no fabrication command exists" gaps elsewhere in this file. The
+      // merchant_admin-specific tests in 17-Analytics.cy.js already gate
+      // on jwtMerchantAdminM1 being present and skip themselves when it's
+      // not; the org_admin-vs-sibling tests there don't depend on this
+      // user at all and still run for real.
+      it("invites a merchant_admin user scoped to M1 (best effort - see GAP above)", () => {
+        const inviteEmail = `omp_scoping_merchant_admin_${Date.now()}@example.com`;
+
+        cy.ompInviteUser(
+          { type: "jwt", token: globalState.get("userInfoTokenPA") },
+          [
+            {
+              email: inviteEmail,
+              name: "OMP Scoping Merchant Admin",
+              role_id: "merchant_admin",
+            },
+          ],
+          globalState
+        ).then((res) => {
+          expect(res.status, "invite_multiple call").to.eq(200);
+          const invitee = Array.isArray(res.body) ? res.body[0] : res.body;
+
+          if (!invitee?.password) {
+            cy.task(
+              "cli_log",
+              "Skipping merchant_admin bootstrap: invite_multiple did not " +
+                "return a temp password (this environment requires a real " +
+                "email invite accept, which this suite can't automate). " +
+                "17-Analytics.cy.js's merchant_admin tests will skip."
+            );
+            return;
+          }
+
+          cy.then(() =>
+            completeInvitedUserLogin(inviteEmail, invitee.password, globalState)
+          );
+        });
+      });
+    }
+  );
 });
