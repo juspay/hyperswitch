@@ -579,18 +579,18 @@ fn update_nexi_meta_data(
 pub fn get_error_response(
     operation_result: NexixpayPaymentStatus,
     status_code: u16,
-    auth_status: Option<String>,
+    decline_code: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         status_code,
-        code: auth_status.clone().unwrap_or(NO_ERROR_CODE.to_string()),
+        code: decline_code.clone().unwrap_or(NO_ERROR_CODE.to_string()),
         message: operation_result.to_string(),
         reason: Some(operation_result.to_string()),
         attempt_status: None,
         connector_transaction_id: None,
         connector_response_reference_id: None,
         network_advice_code: None,
-        network_decline_code: auth_status,
+        network_decline_code: decline_code,
         network_error_message: None,
         connector_metadata: None,
     }
@@ -670,8 +670,19 @@ pub struct DetailedWarnings {
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
     authorization_status: Option<String>,
+    result_code: Option<String>,
     card_id4: Option<Secret<String>>,
     card_expiry_date: Option<Secret<String>>,
+}
+
+impl AdditionalData {
+    // MIT responses use resultCode; preserve authorizationStatus for other payment flows.
+    fn decline_code(&self) -> Option<String> {
+        self.authorization_status
+            .as_ref()
+            .or(self.result_code.as_ref())
+            .cloned()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1328,7 +1339,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 .operation
                                 .additional_data
                                 .as_ref()
-                                .and_then(|data| data.authorization_status.clone()),
+                                .and_then(AdditionalData::decline_code),
                         ));
                         Ok(Self {
                             response,
@@ -1388,7 +1399,7 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                                 .operation
                                 .additional_data
                                 .as_ref()
-                                .and_then(|data| data.authorization_status.clone()),
+                                .and_then(AdditionalData::decline_code),
                         ));
                         Ok(Self {
                             response,
@@ -1472,7 +1483,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                                 .operation
                                 .additional_data
                                 .as_ref()
-                                .and_then(|data| data.authorization_status.clone()),
+                                .and_then(AdditionalData::decline_code),
                         ));
                         Ok(Self {
                             response,
@@ -1525,7 +1536,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                                 .operation
                                 .additional_data
                                 .as_ref()
-                                .and_then(|data| data.authorization_status.clone()),
+                                .and_then(AdditionalData::decline_code),
                         ));
                         Ok(Self {
                             response,
@@ -1699,7 +1710,7 @@ impl<F>
                         .operation
                         .additional_data
                         .as_ref()
-                        .and_then(|data| data.authorization_status.clone()),
+                        .and_then(AdditionalData::decline_code),
                 ));
                 Ok(Self {
                     response,
@@ -1900,7 +1911,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                     item.response
                         .additional_data
                         .as_ref()
-                        .and_then(|data| data.authorization_status.clone()),
+                        .and_then(AdditionalData::decline_code),
                 ));
                 Ok(Self {
                     response,
@@ -2103,7 +2114,7 @@ impl
                         .operation
                         .additional_data
                         .as_ref()
-                        .and_then(|data| data.authorization_status.clone()),
+                        .and_then(AdditionalData::decline_code),
                 ));
                 Ok(Self {
                     response,
@@ -2138,5 +2149,97 @@ impl
                 ..item.data
             }),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mit_result_code_is_exposed_in_decline_response() -> Result<(), serde_json::Error> {
+        let response: NexixpayMandateResponse = serde_json::from_value(serde_json::json!({
+            "operation": {
+                "additionalData": { "resultCode": "116", "details": "NOT APPROVED" },
+                "channel": "BACKOFFICE",
+                "operationAmount": "9999",
+                "operationCurrency": "EUR",
+                "operationId": "mit_operation",
+                "operationResult": "DECLINED",
+                "operationType": "AUTHORIZATION",
+                "orderId": "mit_order"
+            },
+            "warnings": []
+        }))?;
+        let operation = response.operation;
+        assert_eq!(
+            get_payment_attempt_status(operation.operation_result.clone(), AttemptStatus::Pending),
+            AttemptStatus::Failure
+        );
+        let error = get_error_response(
+            operation.operation_result,
+            200,
+            operation
+                .additional_data
+                .as_ref()
+                .and_then(AdditionalData::decline_code),
+        );
+        assert_eq!(error.code, "116");
+        assert_eq!(error.network_decline_code.as_deref(), Some("116"));
+        assert_eq!(error.message, "Declined");
+        Ok(())
+    }
+
+    #[test]
+    fn sync_result_code_is_exposed_in_decline_response() -> Result<(), serde_json::Error> {
+        let response: NexixpayTransactionResponse = serde_json::from_value(serde_json::json!({
+            "additionalData": { "resultCode": "116" },
+            "operationId": "mit_operation",
+            "operationResult": "DECLINED",
+            "operationType": "AUTHORIZATION",
+            "orderId": "mit_order"
+        }))?;
+        let error = get_error_response(
+            response.operation_result,
+            200,
+            response
+                .additional_data
+                .as_ref()
+                .and_then(AdditionalData::decline_code),
+        );
+        assert_eq!(error.code, "116");
+        assert_eq!(error.network_decline_code.as_deref(), Some("116"));
+        Ok(())
+    }
+
+    #[test]
+    fn decline_code_preserves_authorization_status_and_missing_code_fallback(
+    ) -> Result<(), serde_json::Error> {
+        for (additional_data, expected) in [
+            (
+                serde_json::json!({ "authorizationStatus": "101" }),
+                Some("101"),
+            ),
+            (
+                serde_json::json!({ "authorizationStatus": "101", "resultCode": "116" }),
+                Some("101"),
+            ),
+            (
+                serde_json::json!({ "authorizationStatus": null, "resultCode": "116" }),
+                Some("116"),
+            ),
+            (serde_json::json!({}), None),
+            (serde_json::Value::Null, None),
+        ] {
+            let data: Option<AdditionalData> = serde_json::from_value(additional_data)?;
+            let error = get_error_response(
+                NexixpayPaymentStatus::Declined,
+                200,
+                data.as_ref().and_then(AdditionalData::decline_code),
+            );
+            assert_eq!(error.code, expected.unwrap_or(NO_ERROR_CODE));
+            assert_eq!(error.network_decline_code.as_deref(), expected);
+        }
+        Ok(())
     }
 }
