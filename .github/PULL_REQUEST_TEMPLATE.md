@@ -25,7 +25,7 @@ Provide links to the files with corresponding changes.
 Following are the paths where you can find config files:
 1. `config`
 2. `crates/router/src/configs`
-3. `loadtest/config`
+3. `loadtest/loadtest.config.example.json` (load-test console)
 -->
 
 
