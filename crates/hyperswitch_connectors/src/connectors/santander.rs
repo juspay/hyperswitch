@@ -2519,29 +2519,33 @@ impl ConnectorSpecifications for Santander {
         Some(&SANTANDER_CONNECTOR_INFO)
     }
 
-    fn is_pre_authorize_cancel_supported(
-        &self,
-        payment_method_type: Option<enums::PaymentMethodType>,
-        intent_status: enums::IntentStatus,
-        is_mit_payment: bool,
-    ) -> bool {
-        let supports_non_recurring_cancel = matches!(
-            payment_method_type,
-            Some(enums::PaymentMethodType::PixQr) | Some(enums::PaymentMethodType::Boleto)
-        );
-        let supports_recurring_mit_cancel = is_mit_payment
-            && matches!(
+    fn is_pre_authorize_cancel_supported(&self, current_flow: CurrentFlowInfo) -> bool {
+        match current_flow {
+            CurrentFlowInfo::PreAuthorizeVoid {
                 payment_method_type,
-                Some(enums::PaymentMethodType::PixAutomaticoQr)
-                    | Some(enums::PaymentMethodType::PixAutomaticoPush)
-            );
+                attempt_status,
+                is_mit_payment,
+            } => {
+                let supports_non_recurring_cancel = matches!(
+                    payment_method_type,
+                    Some(enums::PaymentMethodType::PixQr) | Some(enums::PaymentMethodType::Boleto)
+                );
+                let supports_recurring_mit_cancel = is_mit_payment
+                    && matches!(
+                        payment_method_type,
+                        Some(enums::PaymentMethodType::PixAutomaticoQr)
+                            | Some(enums::PaymentMethodType::PixAutomaticoPush)
+                    );
 
-        match intent_status {
-            enums::IntentStatus::RequiresCustomerAction => {
-                supports_non_recurring_cancel || supports_recurring_mit_cancel
+                match attempt_status {
+                    enums::AttemptStatus::AuthenticationPending => {
+                        supports_non_recurring_cancel || supports_recurring_mit_cancel
+                    }
+                    // A created recurring charge is tracked as Processing until Santander executes it.
+                    enums::AttemptStatus::Pending => supports_recurring_mit_cancel,
+                    _ => false,
+                }
             }
-            // A created recurring charge is tracked as Processing until Santander executes it.
-            enums::IntentStatus::Processing => supports_recurring_mit_cancel,
             _ => false,
         }
     }
@@ -2689,7 +2693,8 @@ impl ConnectorSpecifications for Santander {
             | Some(CurrentFlowInfo::Psync { .. })
             | Some(CurrentFlowInfo::UpdatePostConfirm { .. })
             | None => false,
-            Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
+            Some(CurrentFlowInfo::PreAuthorizeVoid { .. })
+            | Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
         }
     }
     fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2704,6 +2709,7 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
+            | CurrentFlowInfo::PreAuthorizeVoid { .. }
             | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -2719,6 +2725,7 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
+            | CurrentFlowInfo::PreAuthorizeVoid { .. }
             | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

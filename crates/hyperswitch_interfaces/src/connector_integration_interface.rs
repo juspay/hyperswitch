@@ -708,23 +708,10 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Check if connector supports pre-authorize cancel
-    fn is_pre_authorize_cancel_supported(
-        &self,
-        payment_method_type: Option<common_enums::PaymentMethodType>,
-        intent_status: common_enums::IntentStatus,
-        is_mit_payment: bool,
-    ) -> bool {
+    fn is_pre_authorize_cancel_supported(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
-            Self::Old(connector) => connector.is_pre_authorize_cancel_supported(
-                payment_method_type,
-                intent_status,
-                is_mit_payment,
-            ),
-            Self::New(connector) => connector.is_pre_authorize_cancel_supported(
-                payment_method_type,
-                intent_status,
-                is_mit_payment,
-            ),
+            Self::Old(connector) => connector.is_pre_authorize_cancel_supported(current_flow),
+            Self::New(connector) => connector.is_pre_authorize_cancel_supported(current_flow),
         }
     }
 

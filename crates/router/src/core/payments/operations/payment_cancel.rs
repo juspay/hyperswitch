@@ -102,9 +102,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
                 })
                 .is_some_and(|connector_data| {
                     connector_data.connector.is_pre_authorize_cancel_supported(
-                        payment_attempt.payment_method_type,
-                        payment_intent.status,
-                        true,
+                        hyperswitch_interfaces::api::CurrentFlowInfo::PreAuthorizeVoid {
+                            payment_method_type: payment_attempt.payment_method_type,
+                            attempt_status: payment_attempt.status,
+                            is_mit_payment: true,
+                        },
                     )
                 });
 
