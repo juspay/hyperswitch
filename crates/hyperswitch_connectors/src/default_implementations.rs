@@ -1678,7 +1678,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
-    connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
