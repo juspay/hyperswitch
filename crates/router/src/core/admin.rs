@@ -544,17 +544,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
 
             OrganizationType::Platform => {
-                let accounts = state
-                    .store
-                    .list_merchant_accounts_by_organization_id(&organization.get_organization_id())
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-                let platform_account_exists = accounts
-                    .iter()
-                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
-
-                if accounts.is_empty() || !platform_account_exists {
+                if organization.platform_merchant_id.is_none() {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
@@ -1451,6 +1441,12 @@ pub async fn merchant_account_delete(
         .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    fp_utils::when(merchant_account.is_platform_account(), || {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Platform merchant account cannot be deleted".to_string(),
+        }))
+    })?;
 
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
