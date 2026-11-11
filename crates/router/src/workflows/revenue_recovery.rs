@@ -37,10 +37,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,

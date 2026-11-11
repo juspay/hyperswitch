@@ -11,12 +11,12 @@ pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
 pub mod card_issuer;
+pub mod client_secret;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
 pub mod dynamic_routing_stats;
-pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
@@ -111,8 +111,7 @@ pub trait StorageInterface:
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
-    + ephemeral_key::EphemeralKeyInterface
-    + ephemeral_key::ClientSecretInterface
+    + client_secret::ClientSecretInterface
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface

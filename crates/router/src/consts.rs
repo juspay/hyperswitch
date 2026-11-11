@@ -74,6 +74,9 @@ pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
+pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
+pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
+
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
@@ -505,6 +508,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key

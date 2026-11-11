@@ -11,7 +11,7 @@ This Tool is a solution designed to automate testing for the [Hyperswitch](https
 Before installing Cypress, ensure you have the following prerequisites installed:
 
 - npm (Node Package Manager)
-- Node.js (18.x and above)
+- Node.js 24.x or newer (matching the CI runtime)
 
 ### Run Test Cases on your local
 

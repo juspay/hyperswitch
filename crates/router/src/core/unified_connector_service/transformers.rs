@@ -96,6 +96,43 @@ fn build_redirect_completion_payment_method(
         })
 }
 
+impl transformers::ForeignTryFrom<&payments_grpc::Money>
+    for router_request_types::AuthoriseIntegrityObject
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(money: &payments_grpc::Money) -> Result<Self, Self::Error> {
+        let grpc_currency = super::parse_grpc_enum::<payments_grpc::Currency>(money.currency)
+            .attach_printable("Invalid currency received from UCS response")?;
+        let currency = <common_enums::Currency as transformers::ForeignTryFrom<
+            payments_grpc::Currency,
+        >>::foreign_try_from(grpc_currency)?;
+
+        Ok(Self {
+            amount: MinorUnit::new(money.minor_amount),
+            currency,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&payments_grpc::Money>
+    for router_request_types::SyncIntegrityObject
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(money: &payments_grpc::Money) -> Result<Self, Self::Error> {
+        let integrity_object =
+            <router_request_types::AuthoriseIntegrityObject as transformers::ForeignTryFrom<
+                &payments_grpc::Money,
+            >>::foreign_try_from(money)?;
+
+        Ok(Self {
+            amount: Some(integrity_object.amount),
+            currency: Some(integrity_object.currency),
+        })
+    }
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -656,6 +693,9 @@ impl
                 .as_ref()
                 .map(ConnectorState::foreign_from),
             browser_info,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -778,6 +818,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -948,6 +989,9 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -1074,6 +1118,7 @@ impl
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
 
         Ok(Self {
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -1216,6 +1261,9 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -1428,6 +1476,17 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
             mandate_reference: Option::<payments_grpc::ConnectorMandateReferenceId>::foreign_from(
                 router_data,
             ),
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
+            is_overcapture_enabled: router_data
+                .request
+                .is_overcapture_enabled
+                .map(|enabled| *enabled),
+            enable_partial_authorization: router_data
+                .request
+                .enable_partial_authorization
+                .map(|enabled| enabled.is_true()),
         })
     }
 }
@@ -2287,6 +2346,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
 
         Ok(Self {
             split_settlement: None,
+            payment_method: None,
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
             amount_to_capture: Some(payments_grpc::Money {
@@ -2335,6 +2395,13 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     currency: currency.into(),
                 }
             }),
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
+            is_overcapture_enabled: router_data
+                .request
+                .is_overcapture_enabled
+                .map(|enabled| *enabled),
         })
     }
 }
@@ -2407,6 +2474,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
             domain_data: None,
@@ -2514,6 +2582,9 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -2589,6 +2660,7 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
                 .request
@@ -2731,6 +2803,9 @@ impl
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -2796,6 +2871,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            risk_assessment_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
             business_country: None,
@@ -2917,6 +2993,9 @@ impl
             currency_conversion_data: None,
             additional_connector_details: None,
             enable_avs_check: None,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -3387,6 +3466,9 @@ impl
             recipient_details: None,
             additional_connector_details: None,
             session_token: None,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -3708,6 +3790,9 @@ impl
                 .as_ref()
                 .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             session_token: None,
+            integrity_specifications: Some(payments_grpc::IntegritySpecifications {
+                allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
+            }),
         })
     }
 }
@@ -3837,6 +3922,7 @@ impl
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
             state,
+            payment_method: None,
         })
     }
 }
@@ -4875,11 +4961,11 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
             common_enums::CardNetwork::Prop => Self::Prop,
             common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
             common_enums::CardNetwork::Dinacard => Self::Dinacard,
-            common_enums::CardNetwork::AirPlus
-            | common_enums::CardNetwork::Aurore
-            | common_enums::CardNetwork::EftposAustralia
-            | common_enums::CardNetwork::GeCapital
-            | common_enums::CardNetwork::Uatp => Self::Unspecified,
+            common_enums::CardNetwork::AirPlus => Self::AirPlus,
+            common_enums::CardNetwork::Aurore => Self::Aurore,
+            common_enums::CardNetwork::EftposAustralia => Self::EftposAustralia,
+            common_enums::CardNetwork::GeCapital => Self::GeCapital,
+            common_enums::CardNetwork::Uatp => Self::Uatp,
         }
     }
 }
@@ -4907,6 +4993,11 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
             payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
             payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::AirPlus => Ok(Self::AirPlus),
+            payments_grpc::CardNetwork::Aurore => Ok(Self::Aurore),
+            payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
+            payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
+            payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
             payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
@@ -8871,6 +8962,7 @@ impl transformers::ForeignTryFrom<&RouterData<api::Void, PaymentsCancelData, Pay
                 .split_payments
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
+            payment_method: None,
         })
     }
 }
@@ -8915,6 +9007,7 @@ impl
             metadata: None,
             state,
             test_mode: router_data.test_mode,
+            payment_method: None,
         })
     }
 }

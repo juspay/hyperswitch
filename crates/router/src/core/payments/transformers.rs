@@ -28,12 +28,9 @@ use common_utils::{
         StringMajorUnitForConnector,
     },
 };
-use diesel_models::{
-    ephemeral_key,
-    payment_attempt::{
-        ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
-        NetworkDetails as DieselNetworkDetails,
-    },
+use diesel_models::payment_attempt::{
+    ConnectorMandateReferenceId as DieselConnectorMandateReferenceId,
+    NetworkDetails as DieselNetworkDetails,
 };
 #[cfg(all(feature = "v1", feature = "olap"))]
 use diesel_models::{
@@ -59,7 +56,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
 use crate::{
@@ -255,8 +252,8 @@ where
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentConfirmData<api::ExternalVaultProxy>,
@@ -812,8 +809,8 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
-    state: &'a SessionState,
+pub async fn construct_external_vault_proxy_payment_router_data_v1(
+    state: &SessionState,
     payment_data: PaymentData<api::ExternalVaultProxy>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -1380,8 +1377,8 @@ pub async fn construct_router_data_for_psync<'a>(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_cancel_router_data_v2<'a>(
-    state: &'a SessionState,
+pub async fn construct_cancel_router_data_v2(
+    state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &hyperswitch_domain_models::payments::PaymentCancelData<api::Void>,
@@ -1490,8 +1487,13 @@ pub async fn construct_router_data_for_cancel<'a>(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("connector_request_reference_id not found in payment_attempt")?;
 
+    // Void the capturable amount, fall back to net amount if amount_capturable is not set
+    let void_amount = Some(attempt.amount_details.get_amount_capturable())
+        .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+        .unwrap_or_else(|| attempt.amount_details.get_net_amount());
+
     let request = types::PaymentsCancelData {
-        amount: Some(attempt.amount_details.get_net_amount().get_amount_as_i64()),
+        amount: Some(void_amount.get_amount_as_i64()),
         currency: Some(payment_intent.amount_details.currency),
         connector_transaction_id: attempt
             .get_connector_payment_id()
@@ -1501,7 +1503,7 @@ pub async fn construct_router_data_for_cancel<'a>(
         connector_meta: attempt.connector_metadata.clone().expose_option(),
         browser_info: None,
         metadata: None,
-        minor_amount: Some(attempt.amount_details.get_net_amount()),
+        minor_amount: Some(void_amount),
         webhook_url: None,
         capture_method: Some(payment_intent.capture_method),
         split_payments: None,
@@ -2329,8 +2331,8 @@ where
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_metadata<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_metadata(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdateMetadata>,
     connector_id: &str,
     processor: &domain::Processor,
@@ -5126,18 +5128,6 @@ impl ForeignFrom<(storage::PaymentIntent, Option<storage::PaymentAttempt>)>
 }
 
 #[cfg(feature = "v1")]
-impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralKeyCreateResponse {
-    fn foreign_from(from: ephemeral_key::EphemeralKey) -> Self {
-        Self {
-            customer_id: from.customer_id,
-            created_at: from.created_at,
-            expires: from.expires,
-            secret: from.secret,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
 pub fn bank_transfer_next_steps_check(
     payment_attempt: storage::PaymentAttempt,
 ) -> RouterResult<Option<api_models::payments::BankTransferNextStepsData>> {
@@ -6100,7 +6090,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .clone()
             .map(types::BrowserInformation::from);
 
-        let amount = payment_data.payment_attempt.amount_details.get_net_amount();
+        // Void the capturable amount, fall back to net amount if amount_capturable is not set
+        let amount_details = &payment_data.payment_attempt.amount_details;
+        let amount = Some(amount_details.get_amount_capturable())
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| amount_details.get_net_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -6169,7 +6163,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             .get_optional_feature_metadata()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse feature metadata")?;
-        let amount = payment_data.payment_attempt.get_total_amount();
+        // Void the capturable amount, fall back to total amount if amount_capturable is not set
+        let amount = Some(payment_data.payment_attempt.amount_capturable)
+            .filter(|amount_capturable| amount_capturable.is_greater_than(0))
+            .unwrap_or_else(|| payment_data.payment_attempt.get_total_amount());
 
         let router_base_url = &additional_data.router_base_url;
         let attempt = &payment_data.payment_attempt;
@@ -8353,8 +8350,8 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
-    state: &'a SessionState,
+pub async fn construct_payment_router_data_for_update_post_confirm(
+    state: &SessionState,
     payment_data: PaymentData<api::UpdatePostConfirm>,
     connector_id: &str,
     processor: &domain::Processor,
