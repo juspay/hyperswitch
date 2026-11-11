@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.0
+
+### Bug Fixes
+
+- **nexixpay:** Map authorization status decline code ([#15143](https://github.com/juspay/hyperswitch/pull/15143)) ([`c68b4dc`](https://github.com/juspay/hyperswitch/commit/c68b4dca9ac98ec4f6868b6762ca8ee1a865186b))
+- **storage_impl:** Finish cache population after lock timeout ([#15200](https://github.com/juspay/hyperswitch/pull/15200)) ([`0cb3ab1`](https://github.com/juspay/hyperswitch/commit/0cb3ab1c27239cac6c5fe9ef3c60cc5f7c274472))
+
+**Full Changelog:** [`2026.11.10.0...2026.11.11.0`](https://github.com/juspay/hyperswitch/compare/2026.11.10.0...2026.11.11.0)
+
+- - -
+
 ## 2026.11.10.0
 
 ### Features
