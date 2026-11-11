@@ -1697,11 +1697,6 @@ impl PaymentAttempt {
         self.amount_details.get_net_amount()
     }
 
-    /// Surcharge refunds are a v1-only feature.
-    pub fn has_surcharge(&self) -> bool {
-        false
-    }
-
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.amount_details.surcharge_amount
     }
@@ -1855,15 +1850,6 @@ impl PaymentAttempt {
 
     pub fn get_total_amount(&self) -> MinorUnit {
         self.net_amount.get_total_amount()
-    }
-
-    /// Whether this payment has a usable external (InterPayments) surcharge that a refund must
-    /// account for via the Init/Complete protocol. An error-only surcharge record returns `false`
-    /// and is handled by the reconciliation check in the refund flow.
-    pub fn has_surcharge(&self) -> bool {
-        self.external_surcharge_details
-            .as_ref()
-            .is_some_and(|details| details.usable_connector_id().is_some())
     }
 
     /// Infer the payment type (Normal / NewMandate / SetupMandate / RecurringMandate)

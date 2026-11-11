@@ -24,7 +24,6 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers,
         unified_connector_service as ucs,
-        utils::refunds_validator,
     },
     routes::SessionState,
     types::{domain, storage, transformers::ForeignTryFrom},
@@ -121,7 +120,7 @@ impl SurchargeRefundBalances {
         &self,
         requested_order_amount: MinorUnit,
     ) -> RouterResult<()> {
-        refunds_validator::validate_order_refund_amount(
+        hyperswitch_domain_models::refunds::validate_surcharge_order_amount(
             self.original_order_amount,
             self.remaining_order_amount,
             requested_order_amount.get_amount_as_i64(),
@@ -205,55 +204,65 @@ pub fn validate_partial_refund(
     previous_refunds: &[Refund],
 ) -> RouterResult<Option<SurchargeRefundContext>> {
     // The usable surcharge charged on the original payment (same condition as `has_surcharge`).
-    let Some(details) = attempt
+    let usable_surcharge = attempt
         .external_surcharge_details
         .as_ref()
-        .filter(|details| details.usable_connector_id().is_some())
-    else {
-        // No usable surcharge on the attempt. If one was actually charged, its details are lost.
-        let surcharge_was_calculated = intent.external_surcharge_applicable == Some(true)
-            && attempt
-                .net_amount
-                .get_surcharge_amount()
-                .is_some_and(|surcharge| surcharge > MinorUnit::zero());
-        if surcharge_was_calculated {
-            return Err(error_stack::Report::new(
+        .filter(|details| details.usable_connector_id().is_some());
+
+    match usable_surcharge {
+        // No usable surcharge: a plain refund (legacy path), unless one was actually charged and its
+        // details are now lost — then reconciliation is required.
+        None => {
+            let surcharge_was_calculated = intent.external_surcharge_applicable == Some(true)
+                && attempt
+                    .net_amount
+                    .get_surcharge_amount()
+                    .is_some_and(|surcharge| surcharge > MinorUnit::zero());
+            if surcharge_was_calculated {
+                Err(error_stack::Report::new(
+                    errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "Missing original external surcharge details; reconciliation required"
+                                .to_string(),
+                    },
+                ))
+            } else {
+                Ok(None)
+            }
+        }
+        // The charged surcharge on the attempt must match the stored breakdown.
+        Some(details)
+            if attempt.net_amount.get_surcharge_amount()
+                != Some(details.external_surcharge_amount) =>
+        {
+            Err(error_stack::Report::new(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Missing original external surcharge details; reconciliation required"
+                    message: "Charged surcharge breakdown mismatch; reconciliation required"
                         .to_string(),
                 },
-            ));
+            ))
         }
-        return Ok(None);
-    };
-    // The charged surcharge on the attempt must match the stored breakdown.
-    if attempt.net_amount.get_surcharge_amount() != Some(details.external_surcharge_amount) {
-        return Err(error_stack::Report::new(
-            errors::ApiErrorResponse::PreconditionFailed {
-                message: "Charged surcharge breakdown mismatch; reconciliation required"
-                    .to_string(),
-            },
-        ));
+        Some(details) => {
+            let balances = SurchargeRefundBalances::from_previous_refunds(
+                attempt,
+                details.external_surcharge_amount,
+                previous_refunds,
+            )?;
+            // A whole-order refund keeps the legacy single-call path; only partial refunds use
+            // Init/Complete.
+            if balances.is_whole_order_refund(requested_amount, previous_refunds) {
+                Ok(None)
+            } else {
+                let order_amount = requested_amount
+                    .unwrap_or_else(|| MinorUnit::new(balances.remaining_order_amount));
+                balances.validate_requested_order_amount(order_amount)?;
+                Ok(Some(SurchargeRefundContext {
+                    order_amount,
+                    balances,
+                }))
+            }
+        }
     }
-
-    let balances = SurchargeRefundBalances::from_previous_refunds(
-        attempt,
-        details.external_surcharge_amount,
-        previous_refunds,
-    )?;
-    // A whole-order refund keeps the legacy single-call path; only partial refunds use Init/Complete.
-    if balances.is_whole_order_refund(requested_amount, previous_refunds) {
-        return Ok(None);
-    }
-
-    let order_amount =
-        requested_amount.unwrap_or_else(|| MinorUnit::new(balances.remaining_order_amount));
-    balances.validate_requested_order_amount(order_amount)?;
-
-    Ok(Some(SurchargeRefundContext {
-        order_amount,
-        balances,
-    }))
 }
 
 /// Step 2 (initiate/calculate): call InterPayments Init for the validated order amount, validate the

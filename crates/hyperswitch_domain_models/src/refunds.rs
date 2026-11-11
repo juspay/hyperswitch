@@ -28,18 +28,6 @@ impl RefundAmountDetails {
         self.refund_surcharge_amount
     }
 
-    /// Checked at the processor boundary and before persisting a surcharge reservation.
-    pub fn checked_net_refund_amount(&self) -> Option<MinorUnit> {
-        self.refund_amount
-            .get_amount_as_i64()
-            .checked_add(
-                self.refund_surcharge_amount
-                    .unwrap_or_default()
-                    .get_amount_as_i64(),
-            )
-            .map(MinorUnit::new)
-    }
-
     pub fn get_net_refund_amount(&self) -> MinorUnit {
         self.refund_amount + self.refund_surcharge_amount.unwrap_or_default()
     }

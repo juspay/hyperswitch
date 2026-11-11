@@ -37,12 +37,14 @@ use hyperswitch_domain_models::{
         self, fraud_check::FraudCheckCheckoutData, AuthenticationData,
         ExternalVaultProxyPaymentsData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData, SyncRequestType,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSurchargeRefundCompleteData,
+        PaymentsSurchargeRefundInitData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        SyncRequestType,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, NotifyConnectorResponseData, PaymentsResponseData,
         PayoutsResponseData, RedirectForm, RefundsResponseData,
+        SurchargeRefundCompleteResponseData, SurchargeRefundInitResponseData,
     },
     ApiModelToDieselModelConvertor,
 };
@@ -12099,11 +12101,6 @@ impl
         })
     }
 }
-
-use hyperswitch_domain_models::{
-    router_request_types::{PaymentsSurchargeRefundCompleteData, PaymentsSurchargeRefundInitData},
-    router_response_types::{SurchargeRefundCompleteResponseData, SurchargeRefundInitResponseData},
-};
 
 impl transformers::ForeignTryFrom<&PaymentsSurchargeRefundInitData>
     for payments_grpc::SurchargeServiceSurchargeRefundInitRequest
