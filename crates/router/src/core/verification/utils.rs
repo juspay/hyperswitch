@@ -234,6 +234,7 @@ pub async fn check_if_profile_id_is_present_in_payouts(
         .find_payout_by_merchant_id_payout_id(
             processor.get_account().get_id(),
             &payout_id,
+            processor.get_key_store(),
             processor.get_account().storage_scheme,
         )
         .await

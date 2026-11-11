@@ -51,7 +51,7 @@ pub struct PaymentInitiation {
     pub amount: Amount,
     pub local_instrument: LocalInstrument,
     pub creditor: Creditor,
-    pub callback_url: Option<String>,
+    pub callback_url: Option<Secret<String>>,
     pub flow_type: FlowType,
 }
 
@@ -458,7 +458,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TokenioPaymentsResponse, T, PaymentsRes
                             match auth {
                                 Authentication::RedirectUrl { redirect_url } => {
                                     RedirectForm::Form {
-                                        endpoint: redirect_url.to_string(),
+                                        endpoint: redirect_url.to_string().into(),
                                         method: Method::Get,
                                         form_fields: HashMap::new(),
                                     }
