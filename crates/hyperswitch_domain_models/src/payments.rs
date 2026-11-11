@@ -1668,7 +1668,7 @@ pub struct RevenueRecoveryData {
 /// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
 /// not touch its recovery metadata, and the state saved after a report can fail to be written.
 #[cfg(feature = "v2")]
-fn get_next_retry_for_intent_status(
+pub fn get_next_retry_for_intent_status(
     intent_status: common_enums::IntentStatus,
     next_retry: common_types::payments::RecoveryNextRetry,
 ) -> common_types::payments::RecoveryNextRetry {

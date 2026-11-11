@@ -412,11 +412,15 @@ counter_metric!(
                   retried or ended",
     unit: "1",
 );
-// Seconds from the API accepting a report to its workflow starting. The merchant falls back to its
-// own retry timing after 15 minutes, so the buckets reach well past 900 seconds.
+// The merchant falls back to its own retry timing after 15 minutes, so the buckets reach well past
+// 900 seconds.
 histogram_metric_f64!(
     REVENUE_RECOVERY_REPORT_QUEUE_DELAY,
     GLOBAL_METER,
+    name: "revenue_recovery.report.queue_delay",
+    description: "Seconds from the API accepting a recovery report to the run of its workflow that \
+                  takes the invoice's lock, so any wait for the lock is included",
+    unit: "s",
     boundaries: vec![
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
     ],

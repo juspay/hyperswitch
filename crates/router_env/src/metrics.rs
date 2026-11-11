@@ -104,6 +104,19 @@ macro_rules! histogram_metric_f64 {
                 .build()
         });
     };
+    ($name:ident, $meter:ident, name: $metric_name:literal, description: $description:literal, unit: $unit:literal, boundaries: $boundaries:expr $(,)?) => {
+        #[doc = $description]
+        pub(crate) static $name: ::std::sync::LazyLock<
+            $crate::opentelemetry::metrics::Histogram<f64>,
+        > = ::std::sync::LazyLock::new(|| {
+            $meter
+                .f64_histogram($metric_name)
+                .with_description($description)
+                .with_unit($unit)
+                .with_boundaries($boundaries)
+                .build()
+        });
+    };
 }
 
 /// Create a [`Histogram`][Histogram] u64 metric with the specified name and an optional description,

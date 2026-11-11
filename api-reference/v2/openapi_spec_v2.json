@@ -32210,7 +32210,8 @@
           {
             "type": "object",
             "required": [
-              "id"
+              "id",
+              "merchant_reference_id"
             ],
             "properties": {
               "id": {
@@ -32224,7 +32225,6 @@
                 "type": "string",
                 "description": "Unique identifier of the invoice in the merchant's billing system.",
                 "example": "invoice_mbabizu24mvu3mela5njyh",
-                "nullable": true,
                 "maxLength": 30,
                 "minLength": 30
               }
