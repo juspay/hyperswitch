@@ -15,11 +15,12 @@ use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
-    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
+    payment_methods::PaymentMethodCustomerMigrate, sdk_auth::SdkAuthorization,
+    transformers::ForeignTryFrom,
 };
 #[cfg(feature = "v1")]
 pub use migrate::modular_migrate_payment_methods;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(feature = "v2")]
@@ -37,6 +38,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
+    headers,
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -818,10 +820,7 @@ pub async fn list_customer_payment_method_api(
                 allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                 allow_platform_self_operation: api_auth.allow_platform_self_operation,
             }),
-            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-                Ok(auth) => auth,
-                Err(err) => return api::log_and_return_error_response(err),
-            },
+            None => Box::new(auth::HeaderAuth(api_auth)),
         };
     Box::pin(api::server_wrap(
         flow,
@@ -841,7 +840,6 @@ pub async fn list_customer_payment_method_api(
                     auth.platform,
                     Some(req),
                     Some(&customer_id),
-                    None,
                 )
                 .await
             })
@@ -864,17 +862,13 @@ pub async fn list_customer_payment_method_api_client(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let api_key = auth::get_api_key(req.headers()).ok();
     let api_auth = auth::ApiKeyAuth {
         allow_connected_scope_operation: true,
         allow_platform_self_operation: false,
     };
 
     // Check if Authorization header is present for SDK authorization
-    let (auth, _, is_ephemeral_auth) = match req
-        .headers()
-        .get(actix_web::http::header::AUTHORIZATION)
-    {
+    let auth = match req.headers().get(actix_web::http::header::AUTHORIZATION) {
         Some(_) => {
             // If Authorization header is present, use SdkAuthorizationAuth
             let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
@@ -882,17 +876,12 @@ pub async fn list_customer_payment_method_api_client(
                     allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                     allow_platform_self_operation: api_auth.allow_platform_self_operation,
                 });
-            (auth, api::AuthFlow::Client, false)
+            auth
         }
-        None => {
-            // If Authorization header is not present, use existing logic
-            match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
-                .await
-            {
-                Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
-                Err(e) => return api::log_and_return_error_response(e),
-            }
-        }
+        None => match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, _)) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        },
     };
 
     Box::pin(api::server_wrap(
@@ -913,7 +902,6 @@ pub async fn list_customer_payment_method_api_client(
                     auth.platform,
                     Some(req),
                     None,
-                    is_ephemeral_auth.then_some(api_key).flatten(),
                 )
                 .await
             })
@@ -994,6 +982,7 @@ pub async fn list_customer_payment_method_api(
                     auth.platform.get_provider().clone(),
                     customer_id.clone(),
                     payload.include_new.unwrap_or(false),
+                    api_key_type,
                 ),
             )
         },
@@ -1260,11 +1249,6 @@ pub async fn payment_method_delete_api(
         allow_platform_self_operation: true,
     };
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -1279,7 +1263,7 @@ pub async fn payment_method_delete_api(
             .delete_payment_method(req, auth.platform.get_initiator())
             .await
         },
-        &*ephemeral_auth,
+        &auth::HeaderAuth(api_auth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1397,10 +1381,7 @@ pub async fn default_payment_method_set_api(
                 allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                 allow_platform_self_operation: api_auth.allow_platform_self_operation,
             }),
-            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-                Ok(auth) => auth,
-                Err(err) => return api::log_and_return_error_response(err),
-            },
+            None => Box::new(auth::HeaderAuth(api_auth)),
         };
     Box::pin(api::server_wrap(
         flow,
@@ -2222,6 +2203,18 @@ pub async fn list_payment_methods_for_payments_client(
     let api_auth = auth::ApiKeyAuth {
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
+    };
+
+    let sdk_client_secret =
+        auth::get_header_value_by_key(headers::AUTHORIZATION.to_string(), req.headers())
+            .ok()
+            .flatten()
+            .and_then(|header| SdkAuthorization::decode(header).ok())
+            .map(|sdk_auth| sdk_auth.client_secret);
+
+    let payload = payment_methods::PaymentMethodListRequest {
+        client_secret: payload.client_secret.or(sdk_client_secret),
+        ..payload
     };
 
     match auth::check_sdk_auth_or_client_secret_auth(req.headers(), &payload, api_auth) {

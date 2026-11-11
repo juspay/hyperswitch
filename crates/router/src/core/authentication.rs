@@ -8,7 +8,7 @@ use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -17,7 +17,10 @@ use crate::{
         errors::ApiErrorResponse, payment_methods::vault, payments as payments_core,
         unified_connector_service,
     },
-    routes::SessionState,
+    routes::{
+        payments::callback_routes::{ConnectorCallbackPath, PaymentCallbackRoute},
+        SessionState,
+    },
     types::{
         self as core_types, api,
         domain::{self},
@@ -43,7 +46,7 @@ pub async fn perform_authentication(
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
     authentication_data: authentication::Authentication,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
@@ -218,7 +221,7 @@ pub async fn perform_post_authentication(
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication: authentication_update,
         };
 
@@ -378,7 +381,9 @@ pub async fn perform_pre_authentication(
 
 #[cfg(feature = "v1")]
 struct ProxyUcsGatewayContext {
-    execution_mode: common_enums::ExecutionMode,
+    /// The gate's read of this scope's rollout config, so a failure on the proxy path counts
+    /// against the threshold the gate used. Carries the execution mode.
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
     session_state: SessionState,
     platform: domain::Platform,
     external_vault_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
@@ -399,7 +404,7 @@ async fn resolve_proxy_ucs_gateway_and_vault_mca<PayF: Clone, RdF: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -441,7 +446,7 @@ where
             provider_account,
             provider_key_store,
             processor.get_account().clone(),
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             initiator.cloned(),
         );
         let provider_business_profile =
@@ -468,7 +473,13 @@ where
             ));
 
         Ok(Some(ProxyUcsGatewayContext {
-            execution_mode,
+            rollout_settings: unified_connector_service::kill_switch::RolloutSettings {
+                execution_mode,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
+            },
             session_state: updated_state,
             platform,
             external_vault_merchant_connector_account,
@@ -496,7 +507,7 @@ async fn call_ucs_pre_authenticate_proxy(
     external_vault_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
     processor: &domain::Processor,
     connector_enum: common_enums::connector_enums::Connector,
-    execution_mode: common_enums::ExecutionMode,
+    rollout_settings: unified_connector_service::kill_switch::RolloutSettings,
 ) -> CustomResult<
     Result<core_types::authentication::AuthenticationResponseData, core_types::ErrorResponse>,
     ApiErrorResponse,
@@ -512,7 +523,7 @@ async fn call_ucs_pre_authenticate_proxy(
             external_vault_merchant_connector_account,
             processor,
             connector_enum,
-            execution_mode,
+            rollout_settings,
         ),
     )
     .await;
@@ -566,8 +577,8 @@ async fn call_ucs_pre_authenticate_proxy(
                     connector_authentication_id: threeds_server_transaction_id.clone(),
                     threeds_server_transaction_id,
                     maximum_supported_3ds_version: message_version.clone(),
-                    three_ds_method_data,
-                    three_ds_method_url,
+                    three_ds_method_data: three_ds_method_data.map(ExposeInterface::expose),
+                    three_ds_method_url: three_ds_method_url.map(ExposeInterface::expose),
                     message_version,
                     connector_metadata: None,
                     directory_server_id,
@@ -626,16 +637,22 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
 
     let pre_authenticate_request_data = core_types::PaymentsPreAuthenticateData {
         payment_method_data: domain::PaymentMethodData::Card(domain::Card::default()),
+        // Standalone authentication has no preceding order-create leg.
+        order_id: None,
         amount: payment_data
             .payment_attempt
             .get_total_amount()
             .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.get_total_amount(),
         email: None,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         currency: payment_data.payment_intent.currency,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
-        router_return_url: payment_data.payment_intent.return_url.clone(),
+        router_return_url: payment_data
+            .payment_intent
+            .return_url
+            .clone()
+            .map(Into::into),
         complete_authorize_url: None,
         browser_info: None,
         enrolled_for_3ds: true,
@@ -661,7 +678,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     )?;
 
     let ProxyUcsGatewayContext {
-        execution_mode,
+        rollout_settings,
         session_state: updated_state,
         platform: _,
         external_vault_merchant_connector_account,
@@ -758,7 +775,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         external_vault_merchant_connector_account,
         processor,
         connector_enum,
-        execution_mode,
+        rollout_settings,
     )
     .await?;
 
@@ -876,7 +893,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         minor_amount: Some(amount),
         email: None,
         currency: payment_data.payment_intent.currency,
-        capture_method: payment_data.payment_attempt.capture_method,
+        capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
         redirect_response: authentication
@@ -884,7 +901,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             .clone()
             .map(|tds| {
                 hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
-                    params: Some(hyperswitch_masking::Secret::new(tds)),
+                    params: Some(Secret::new(tds)),
                     payload: None,
                 }
             }),
@@ -910,7 +927,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
     )?;
 
     let Some(ProxyUcsGatewayContext {
-        execution_mode,
+        rollout_settings,
         session_state: updated_state,
         platform,
         external_vault_merchant_connector_account,
@@ -970,7 +987,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             auth_merchant_connector_account,
             external_vault_merchant_connector_account,
             processor,
-            execution_mode,
+            rollout_settings,
         ),
     )
     .await;
@@ -1050,7 +1067,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 > {
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let authentication = state
         .store
@@ -1059,7 +1076,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1142,7 +1159,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             None,
             key_store,
             authentication_info,
-            storage_scheme,
+            storage_scheme.inner(),
         ))
         .await?
     } else {
@@ -1162,7 +1179,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 
     Ok(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication,
         },
     )
@@ -1219,8 +1236,8 @@ async fn call_ucs_authenticate_proxy(
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
-    let processor_merchant_id = processor.get_account().get_id();
+    let storage_scheme = processor.get_storage_scheme();
+    let processor_merchant_id = processor.get_processor_merchant_id();
 
     let payment_token = payment_attempt
         .payment_token
@@ -1286,11 +1303,11 @@ async fn call_ucs_authenticate_proxy(
     let authentication = state
         .store
         .find_authentication_by_processor_merchant_id_authentication_id(
-            processor_merchant_id,
+            &processor_merchant_id,
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1332,12 +1349,13 @@ async fn call_ucs_authenticate_proxy(
         complete_authorize_url: None,
         browser_info: browser_info.clone(),
         redirect_response: None,
-        capture_method: payment_attempt.capture_method,
+        capture_method: payment_attempt.get_effective_capture_method(),
         authentication_data: Some(ucs_authentication_data),
         sdk_information: sdk_information.clone(),
         device_channel: Some(device_channel.clone()),
         webhook_url: None,
         force_3ds_challenge: None,
+        router_return_url: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -1381,7 +1399,7 @@ async fn call_ucs_authenticate_proxy(
             )
         });
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, rollout_result) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -1411,14 +1429,21 @@ async fn call_ucs_authenticate_proxy(
         business_profile.get_id().clone(),
     );
 
-    let notification_url = Some(common_utils::types::Url::wrap(
-        url::Url::parse(&payments_core::helpers::create_authorize_url(
-            &state.base_url,
-            payment_attempt,
-            &psp_connector_name,
-        ))
-        .change_context(ApiErrorResponse::InternalServerError)?,
-    ));
+    let notification_url = PaymentCallbackRoute::authorize_url(
+        &state.base_url,
+        state.payment_callback_config().await?.mode,
+        &ConnectorCallbackPath {
+            payment_id: payment_attempt.payment_id.clone(),
+            merchant_id: payment_attempt.processor_merchant_id.clone(),
+            connector: psp_connector_name.to_string(),
+        },
+    )
+    .persist(state)
+    .await?;
+    let notification_url = Some(Secret::new(common_utils::types::Url::wrap(
+        url::Url::parse(notification_url.peek())
+            .change_context(ApiErrorResponse::InternalServerError)?,
+    )));
 
     // Prefer acquirer details set directly on the PSP connector's own metadata; fall back to the
     // profile's card-network-keyed acquirer config the same way
@@ -1463,7 +1488,13 @@ async fn call_ucs_authenticate_proxy(
             auth_merchant_connector_account.clone(),
             external_vault_merchant_connector_account,
             processor,
-            execution_mode,
+            unified_connector_service::kill_switch::RolloutSettings {
+                execution_mode,
+                kill_switch_enabled: rollout_result.kill_switch_enabled,
+                kill_switch_threshold: rollout_result.kill_switch_threshold,
+                connector_decline_threshold: rollout_result.connector_decline_threshold,
+                rollout_scope: rollout_result.rollout_scope.clone(),
+            },
             Some(
                 payment_intent
                     .force_3ds_challenge
@@ -1581,7 +1612,7 @@ fn parse_ucs_authenticate_response(
     let authentication_type = common_enums::DecoupledAuthenticationType::from(trans_status.clone());
 
     let acs_url = acs_url
-        .map(|url| url::Url::parse(&url))
+        .map(|url| url::Url::parse(url.peek()))
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("acs_url returned by UCS authenticate is not a valid URL")?;
@@ -1591,7 +1622,7 @@ fn parse_ucs_authenticate_response(
             hyperswitch_domain_models::router_request_types::authentication::AuthNFlowType::Challenge(Box::new(
                 hyperswitch_domain_models::router_request_types::authentication::ChallengeParams {
                     acs_url: acs_url.clone(),
-                    challenge_request: challenge_request.clone(),
+                    challenge_request: challenge_request.clone().map(ExposeInterface::expose),
                     challenge_request_key: None,
                     acs_reference_number: acs_reference_number.clone(),
                     acs_trans_id: acs_trans_id.clone(),
@@ -1632,7 +1663,7 @@ fn parse_ucs_authenticate_response(
         authentication_type,
         trans_status,
         acs_url,
-        challenge_request,
+        challenge_request: challenge_request.map(ExposeInterface::expose),
         acs_reference_number,
         acs_trans_id,
         three_ds_server_transaction_id,
@@ -1661,7 +1692,7 @@ pub async fn perform_authentication_proxy(
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let AuthenticateProxyContext {
         authenticate_router_data,
@@ -1753,7 +1784,7 @@ pub async fn perform_authentication_proxy(
         None,
         key_store,
         authentication_info,
-        storage_scheme,
+        storage_scheme.inner(),
     ))
     .await?;
 
@@ -1763,7 +1794,7 @@ pub async fn perform_authentication_proxy(
         external_threeds_authentication_type: Some(authentication_type),
         authentication_connector: authentication.authentication_connector.clone(),
         authentication_id: Some(authentication_id),
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     state
         .store

@@ -35,6 +35,7 @@ pub struct CustomerNew {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub preferred_connectors: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -68,6 +69,8 @@ impl From<CustomerNew> for Customer {
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
             id: customer_new.id,
+            preferred_connectors: customer_new.preferred_connectors,
+            merchant_reference_id: None,
         }
     }
 }
@@ -96,6 +99,7 @@ pub struct CustomerNew {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub preferred_connectors: Option<pii::SecretSerdeValue>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -137,6 +141,7 @@ impl From<CustomerNew> for Customer {
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
             customer_id: customer_new.customer_id,
+            preferred_connectors: customer_new.preferred_connectors,
         }
     }
 }
@@ -167,6 +172,9 @@ pub struct Customer {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub preferred_connectors: Option<pii::SecretSerdeValue>,
+    #[serde(default)]
+    pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]
@@ -193,6 +201,7 @@ pub struct Customer {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub preferred_connectors: Option<pii::SecretSerdeValue>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -231,6 +240,7 @@ pub struct CustomerUpdateInternal {
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub preferred_connectors: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]

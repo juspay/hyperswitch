@@ -62,14 +62,10 @@ pub async fn delete_card_issuer() {}
 
 /// Card Issuer - List
 ///
-/// Lists card issuers with optional search filter
+/// Lists all card issuers
 #[utoipa::path(
     get,
     path = "/card_issuers",
-    params(
-        ("query" = Option<String>, Query, description = "Optional search term to filter issuers by name"),
-        ("limit" = Option<u8>, Query, description = "Maximum number of results to return"),
-    ),
     responses(
         (status = 200, description = "Card issuers listed", body = CardIssuerListResponse),
     ),

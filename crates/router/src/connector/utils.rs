@@ -1,7 +1,9 @@
-use std::{collections::HashMap, ops::Deref, str::FromStr, sync::LazyLock};
+use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{self, PayoutVendorAccountDetails};
+use api_models::payouts;
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments,
@@ -197,19 +199,8 @@ where
                     payment_data.payment_attempt.status,
                 );
                 let total_capturable_amount = payment_data.payment_attempt.get_total_amount();
-                let is_overcapture_enabled = *payment_data
-                    .payment_attempt
-                    .is_overcapture_enabled
-                    .unwrap_or_default()
-                    .deref();
 
-                if Some(total_capturable_amount) == capturable_amount.map(MinorUnit::new)
-                    || (capturable_amount.is_some_and(|capturable_amount| {
-                        MinorUnit::new(capturable_amount) > total_capturable_amount
-                    }) && is_overcapture_enabled)
-                {
-                    Ok(enums::AttemptStatus::Authorized)
-                } else if capturable_amount.is_some_and(|capturable_amount| {
+                if capturable_amount.is_some_and(|capturable_amount| {
                     MinorUnit::new(capturable_amount) < total_capturable_amount
                 }) && payment_data
                     .payment_intent
@@ -217,37 +208,8 @@ where
                     .is_some_and(|val| val.is_true())
                 {
                     Ok(enums::AttemptStatus::PartiallyAuthorized)
-                } else if capturable_amount.is_some_and(|capturable_amount| {
-                    MinorUnit::new(capturable_amount) < total_capturable_amount
-                }) && !payment_data
-                    .payment_intent
-                    .enable_partial_authorization
-                    .is_some_and(|val| val.is_true())
-                {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "capturable_amount is less than the total attempt amount"
-                            .to_string(),
-                        field_names: "amount_capturable".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                    })?
-                } else if capturable_amount.is_some_and(|capturable_amount| {
-                    MinorUnit::new(capturable_amount) > total_capturable_amount
-                }) && !is_overcapture_enabled
-                {
-                    Err(ApiErrorResponse::IntegrityCheckFailed {
-                        reason: "capturable_amount is greater than the total attempt amount"
-                            .to_string(),
-                        field_names: "amount_capturable".to_string(),
-                        connector_transaction_id: payment_data
-                            .payment_attempt
-                            .connector_transaction_id
-                            .clone(),
-                    })?
                 } else {
-                    Ok(self.status)
+                    Ok(enums::AttemptStatus::Authorized)
                 }
             }
             enums::AttemptStatus::CaptureFailed => {
@@ -779,103 +741,6 @@ impl AddressData for hyperswitch_domain_models::address::Address {
     }
 }
 
-pub trait PaymentsPreProcessingData {
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> i64;
-    fn get_minor_amount(&self) -> MinorUnit;
-    fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
-    fn connector_mandate_id(&self) -> Option<String>;
-}
-
-impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
-    fn get_email(&self) -> Result<Email, Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
-    }
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
-        self.payment_method_type
-            .to_owned()
-            .ok_or_else(missing_field_err("payment_method_type"))
-    }
-    fn get_currency(&self) -> Result<enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
-    }
-    fn get_amount(&self) -> i64 {
-        self.amount
-    }
-
-    // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> MinorUnit {
-        self.minor_amount
-    }
-
-    fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(enums::CaptureMethod::Automatic)
-            | None
-            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(enums::CaptureMethod::Manual) => Ok(false),
-            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
-        }
-    }
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
-        self.order_details
-            .clone()
-            .ok_or_else(missing_field_err("order_details"))
-    }
-    fn get_webhook_url(&self) -> Result<String, Error> {
-        self.webhook_url
-            .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
-    }
-    fn get_router_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
-        self.browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))
-    }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
-        self.complete_authorize_url
-            .clone()
-            .ok_or_else(missing_field_err("complete_authorize_url"))
-    }
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
-        self.redirect_response
-            .as_ref()
-            .and_then(|res| res.payload.to_owned())
-            .ok_or(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload".into(),
-                }
-                .into(),
-            )
-    }
-    fn connector_mandate_id(&self) -> Option<String> {
-        self.mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_id()
-                }
-                Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
-                | None
-                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
-            })
-    }
-}
-
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
@@ -973,12 +838,12 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_cit_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_original_amount(&self) -> i64;
     fn get_surcharge_amount(&self) -> Option<i64>;
@@ -1035,7 +900,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
         }
     }
 
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -1089,7 +954,7 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
     }
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
@@ -1261,7 +1126,7 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
@@ -1291,7 +1156,7 @@ impl PaymentsCompleteAuthorizeRequestData for types::CompleteAuthorizeData {
                 .into(),
             )
     }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -2427,89 +2292,13 @@ pub fn get_card_details(
         domain::PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
+            connector: connector_name.into(),
         })?,
     }
 }
 
 #[cfg(test)]
-mod error_code_error_message_tests {
-    use super::*;
-
-    struct TestConnector;
-
-    impl ConnectorErrorTypeMapping for TestConnector {
-        fn get_connector_error_type(
-            &self,
-            error_code: String,
-            error_message: String,
-        ) -> ConnectorErrorType {
-            match (error_code.as_str(), error_message.as_str()) {
-                ("01", "INVALID_MERCHANT") => ConnectorErrorType::BusinessError,
-                ("03", "INVALID_CVV") => ConnectorErrorType::UserError,
-                ("04", "04") => ConnectorErrorType::TechnicalError,
-                _ => ConnectorErrorType::UnknownError,
-            }
-        }
-    }
-
-    #[test]
-    fn test_get_error_code_error_message_based_on_priority() {
-        let error_code_message_list_unknown = vec![
-            ErrorCodeAndMessage {
-                error_code: "01".to_string(),
-                error_message: "INVALID_MERCHANT".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "05".to_string(),
-                error_message: "05".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "04".to_string(),
-                error_message: "04".to_string(),
-            },
-        ];
-        let error_code_message_list_user = vec![
-            ErrorCodeAndMessage {
-                error_code: "01".to_string(),
-                error_message: "INVALID_MERCHANT".to_string(),
-            },
-            ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            },
-        ];
-        let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
-            TestConnector,
-            error_code_message_list_unknown,
-        );
-        let error_code_error_message_user = get_error_code_error_message_based_on_priority(
-            TestConnector,
-            error_code_message_list_user,
-        );
-        let error_code_error_message_none =
-            get_error_code_error_message_based_on_priority(TestConnector, vec![]);
-        assert_eq!(
-            error_code_error_message_unknown,
-            Some(ErrorCodeAndMessage {
-                error_code: "05".to_string(),
-                error_message: "05".to_string(),
-            })
-        );
-        assert_eq!(
-            error_code_error_message_user,
-            Some(ErrorCodeAndMessage {
-                error_code: "03".to_string(),
-                error_message: "INVALID_CVV".to_string(),
-            })
-        );
-        assert_eq!(error_code_error_message_none, None);
-    }
-}
+mod tests;
 
 #[derive(Debug, strum::Display, Eq, PartialEq, Hash)]
 pub enum PaymentMethodDataType {

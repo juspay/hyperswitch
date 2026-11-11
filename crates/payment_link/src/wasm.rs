@@ -52,6 +52,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
             .clone(),
         show_merchant_name: payment_link_details.show_merchant_name,
         payment_methods_separator_text: payment_link_details.payment_methods_separator_text.clone(),
+        redirect_delay_seconds: None,
     };
 
     if let Ok(config_from_json) = serde_json::from_str::<PaymentLinkConfig>(config_json) {
@@ -81,7 +82,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         redirection_log_endpoint: None,
     };
 
-    build_payment_link_html(payment_link_form_data)
+    build_payment_link_html(payment_link_form_data, None)
         .map_err(|e| format!("Failed to build payment link HTML: {:?}", e))
 }
 

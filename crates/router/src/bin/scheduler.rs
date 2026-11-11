@@ -15,10 +15,7 @@ use router::{
     services::{self, api},
     workflows,
 };
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerSessionState,
@@ -29,6 +26,12 @@ use tokio::sync::{mpsc, oneshot};
 const SCHEDULER_FLOW: &str = "SCHEDULER_FLOW";
 #[tokio::main]
 async fn main() -> CustomResult<(), ProcessTrackerError> {
+    // Pin the rustls crypto backend;
+    #[allow(clippy::expect_used)]
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install default rustls CryptoProvider");
+
     let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
@@ -423,6 +426,36 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                         Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
                             .attach_printable(
                                 "Cannot run blocklist export workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::AnalyticsReportWorkflow => {
+                    #[cfg(feature = "olap")]
+                    {
+                        Ok(Box::new(
+                            workflows::analytics_report::AnalyticsReportWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "olap"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run analytics report workflow when olap feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::BlocklistProfileCloneWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::blocklist_profile_clone::BlocklistProfileCloneWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run blocklist profile clone workflow when v1 feature is disabled",
                             )
                     }
                 }

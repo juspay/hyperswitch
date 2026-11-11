@@ -129,13 +129,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             profile_id: &attempt.profile_id,
             organization_id: &attempt.organization_id,
             card_network: attempt
-                .payment_method_data
-                .as_ref()
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: attempt
                 .card_discovery
@@ -230,6 +224,9 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub network_decline_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    /// Standardised error code of a failed revenue recovery attempt, lifted out of the
+    /// attempt's error details so that the sessionizer can pass it on as its own field.
+    pub standardised_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -293,6 +290,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             external_surcharge_details: _,
             applied_offer_details: _,
             payment_account_reference: _,
+            active_frm_id: _,
         } = attempt;
 
         let (connector_payment_id, connector_payment_data) = connector_payment_id
@@ -300,6 +298,10 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             .map(types::ConnectorTransactionId::form_id_and_data)
             .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
             .unwrap_or((None, None));
+
+        let standardised_code = error
+            .as_ref()
+            .and_then(|error_details| error_details.standardised_code);
 
         Self {
             payment_id,
@@ -344,14 +346,8 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             client_version: client_version.as_ref(),
             profile_id,
             organization_id,
-            card_network: payment_method_data
-                .as_ref()
-                .map(|data| data.peek())
-                .and_then(|data| data.as_object())
-                .and_then(|pm| pm.get("card"))
-                .and_then(|data| data.as_object())
-                .and_then(|card| card.get("card_network"))
-                .and_then(|network| network.as_str())
+            card_network: attempt
+                .extract_card_network()
                 .map(|network| network.to_string()),
             card_discovery: card_discovery.map(|discovery| discovery.to_string()),
             payment_token: payment_token.clone(),
@@ -395,6 +391,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             connector_request_reference_id: connector_request_reference_id.clone(),
+            standardised_code,
         }
     }
 }

@@ -1,28 +1,29 @@
 use common_utils::id_type;
-use diesel::{associations::HasTable, ExpressionMethods, PgTextExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use error_stack::ResultExt;
 
-use super::generics;
+use super::{generics, generics::db_metrics::DatabaseOperation};
 use crate::{
-    card_issuer::{CardIssuer, NewCardIssuer, UpdateCardIssuer},
+    card_issuer::{CardIssuer, CardIssuerListItem, NewCardIssuer, UpdateCardIssuer},
+    errors,
     schema::card_issuers::dsl,
     DatabaseConnectionWithContext, StorageResult,
 };
 
 impl CardIssuer {
-    pub async fn list_filtered(
+    pub async fn list_all(
         conn: &DatabaseConnectionWithContext<'_>,
-        query: Option<String>,
-        limit: Option<i64>,
-    ) -> StorageResult<Vec<Self>> {
-        let pattern = query.map_or("%".to_string(), |q| format!("{}%", q));
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
-            conn,
-            dsl::issuer_name.ilike(pattern),
-            limit,
-            None,
-            Some(dsl::issuer_name.asc()),
-        )
-        .await
+        limit: i64,
+    ) -> StorageResult<Vec<CardIssuerListItem>> {
+        let query =
+            crate::list::into_boxed_list(<Self as HasTable>::table().order(dsl::issuer_name.asc()))
+                .select((dsl::id, dsl::issuer_name))
+                .limit(limit);
+
+        conn.track_get_results::<Self, _, CardIssuerListItem>(DatabaseOperation::Filter, query)
+            .await
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error while listing card issuers")
     }
 
     pub async fn find_by_ids(

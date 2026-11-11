@@ -66,6 +66,7 @@ pub async fn create_subscription(
         .attach_printable("subscriptions: failed to create subscription entry")?;
 
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
+        client_secret: None,
         plan_id: request.plan_id.clone(),
         item_price_id: request.item_price_id.clone(),
         coupon_code: None,
@@ -474,6 +475,12 @@ pub async fn get_estimate(
     let profile = SubscriptionHandler::find_business_profile(&state, &platform, &profile_id)
         .await
         .attach_printable("subscriptions: failed to find business profile in get_estimate")?;
+
+    if let Some(client_secret) = query.client_secret.clone() {
+        SubscriptionHandler::new(&state, &platform)
+            .find_and_validate_subscription(&client_secret.into())
+            .await?
+    };
     let billing_handler = BillingHandler::create(
         &state,
         platform.get_processor().get_account(),
@@ -678,6 +685,7 @@ pub async fn update_subscription(
     .await?;
 
     let estimate_request = subscription_types::EstimateSubscriptionQuery {
+        client_secret: None,
         plan_id: Some(request.plan_id.clone()),
         item_price_id: request.item_price_id.clone(),
         coupon_code: None,
@@ -739,12 +747,12 @@ pub async fn list_subscriptions(
         .await
         .attach_printable("subscriptions: failed to list subscriptions by profile id")?;
 
-    let mut subscriptions_resonse = Vec::new();
+    let mut subscriptions_response = Vec::new();
     for subscription in subscriptions {
         let response = SubscriptionWithHandler::to_subscription_response(&subscription, None, None)
             .attach_printable("subscriptions: failed to convert subscription entry to response")?;
-        subscriptions_resonse.push(response);
+        subscriptions_response.push(response);
     }
 
-    Ok(ApplicationResponse::Json(subscriptions_resonse))
+    Ok(ApplicationResponse::Json(subscriptions_response))
 }

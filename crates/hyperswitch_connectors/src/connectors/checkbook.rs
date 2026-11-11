@@ -424,7 +424,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
     ) -> CustomResult<String, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Refunds are not supported".to_string(),
-            connector: "checkbook",
+            connector: "checkbook".into(),
         }
         .into())
     }
@@ -436,7 +436,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkbo
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
             message: "Refunds are not supported".to_string(),
-            connector: "checkbook",
+            connector: "checkbook".into(),
         }
         .into())
     }

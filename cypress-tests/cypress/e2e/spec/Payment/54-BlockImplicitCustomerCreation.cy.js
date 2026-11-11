@@ -17,7 +17,8 @@ describe("Block Implicit Customer Creation", () => {
       );
       if (
         !globalState.get("superpositionBaseUrl") ||
-        !globalState.get("superpositionSecret")
+        !globalState.get("superpositionSecret") ||
+        !globalState.get("superpositionAuthToken")
       ) {
         cy.task(
           "cli_log",
@@ -37,7 +38,7 @@ describe("Block Implicit Customer Creation", () => {
   after("cleanup superposition config + flush global state", () => {
     cy.setSuperpositionConfig(
       globalState,
-      "block_implicit_customer_creation",
+      "payments.block_implicit_customer_creation",
       false,
       {
         organization_id: globalState.get("organizationId"),
@@ -96,7 +97,7 @@ describe("Block Implicit Customer Creation", () => {
         () => {
           cy.setSuperpositionConfig(
             globalState,
-            "block_implicit_customer_creation",
+            "payments.block_implicit_customer_creation",
             true,
             {
               organization_id: globalState.get("organizationId"),
@@ -110,7 +111,11 @@ describe("Block Implicit Customer Creation", () => {
           cy.task("cli_log", "Skipping step: Wait for config propagation");
           return;
         }
-        cy.waitForConfigPropagation(globalState, 404, "block");
+        cy.waitForConfigPropagation(
+          globalState,
+          404,
+          "payments.block_implicit_customer_creation"
+        );
       });
 
       cy.step(
@@ -120,7 +125,7 @@ describe("Block Implicit Customer Creation", () => {
             cy.task("cli_log", "Skipping step: Create payment");
             return;
           }
-          globalState.set("customerId", `non_existent_customer_${Date.now()}`);
+          globalState.set("customerId", `non_existent_cust_${Date.now()}`);
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["BlockImplicitCustomerCreationBlocked"];
@@ -157,7 +162,7 @@ describe("Block Implicit Customer Creation", () => {
           () => {
             cy.setSuperpositionConfig(
               globalState,
-              "block_implicit_customer_creation",
+              "payments.block_implicit_customer_creation",
               false,
               {
                 organization_id: globalState.get("organizationId"),
@@ -171,7 +176,11 @@ describe("Block Implicit Customer Creation", () => {
             cy.task("cli_log", "Skipping step: Wait for config propagation");
             return;
           }
-          cy.waitForConfigPropagation(globalState, 200, "allow");
+          cy.waitForConfigPropagation(
+            globalState,
+            200,
+            "payments.block_implicit_customer_creation"
+          );
         });
 
         cy.step(

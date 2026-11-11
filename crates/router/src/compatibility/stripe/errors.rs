@@ -1,3 +1,4 @@
+use actix_web::http;
 use common_utils::{errors::ErrorSwitch, id_type};
 use hyperswitch_domain_models::errors::api_error_response as errors;
 
@@ -102,6 +103,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such fraud check")]
+    FraudCheckNotFound,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
@@ -137,6 +141,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "Duplicate payout request")]
     DuplicatePayout { payout_id: id_type::PayoutId },
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "The fraud check with the specified frm_id '{frm_id}' already exists in our records")]
+    DuplicateFraudCheck { frm_id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "parameter_missing", message = "Return url is not available")]
     ReturnUrlUnavailable,
@@ -274,6 +281,7 @@ pub enum StripeErrorCode {
     LinkConfigurationError { message: String },
     #[error(error_type = StripeErrorType::ConnectorError, code = "CE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
+        payment_id: Option<id_type::PaymentId>,
         reason: String,
         field_names: String,
         connector_transaction_id: Option<String>,
@@ -461,7 +469,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
-            | errors::ApiErrorResponse::InvalidEphemeralKey
             | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
             | errors::ApiErrorResponse::ExpiredJwtToken
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
@@ -551,9 +558,13 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::DuplicatePayout { payout_id } => {
                 Self::DuplicatePayout { payout_id }
             }
+            errors::ApiErrorResponse::DuplicateFraudCheck { frm_id } => {
+                Self::DuplicateFraudCheck { frm_id }
+            }
             errors::ApiErrorResponse::RefundNotFound => Self::RefundNotFound,
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
+            errors::ApiErrorResponse::FraudCheckNotFound => Self::FraudCheckNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
@@ -668,9 +679,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::WebhookProcessingFailure
             | errors::ApiErrorResponse::WebhookAuthenticationFailed
             | errors::ApiErrorResponse::WebhookUnprocessableEntity
-            | errors::ApiErrorResponse::WebhookInvalidMerchantSecret => {
-                Self::WebhookProcessingError
-            }
+            | errors::ApiErrorResponse::WebhookInvalidMerchantSecret
+            | errors::ApiErrorResponse::WebhookRateLimited => Self::WebhookProcessingError,
             errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
                 Self::PaymentMethodUnactivated
             }
@@ -691,10 +701,12 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 reason,
                 field_names,
                 connector_transaction_id,
+                payment_id,
             } => Self::IntegrityCheckFailed {
                 reason,
                 field_names,
                 connector_transaction_id,
+                payment_id,
             },
             errors::ApiErrorResponse::InvalidTenant { tenant_id: _ }
             | errors::ApiErrorResponse::MissingTenantId => Self::InvalidTenant,
@@ -723,8 +735,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
 }
 
 impl actix_web::ResponseError for StripeErrorCode {
-    fn status_code(&self) -> reqwest::StatusCode {
-        use reqwest::StatusCode;
+    fn status_code(&self) -> http::StatusCode {
+        use http::StatusCode;
 
         match self {
             Self::Unauthorized
@@ -742,12 +754,14 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InvalidCardType
             | Self::DuplicateRefundRequest
             | Self::DuplicatePayout { .. }
+            | Self::DuplicateFraudCheck { .. }
             | Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::ConfigNotFound
             | Self::DuplicateConfig
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
+            | Self::FraudCheckNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound { .. }
@@ -812,7 +826,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
-            Self::IntegrityCheckFailed { .. } => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::IntegrityCheckFailed { .. } => StatusCode::OK,
             Self::PaymentBlockedError { code, .. } => {
                 StatusCode::from_u16(*code).unwrap_or(StatusCode::OK)
             }

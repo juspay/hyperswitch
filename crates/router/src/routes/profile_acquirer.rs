@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::profile_acquirer::{ProfileAcquirerCreate, ProfileAcquirerUpdate};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
@@ -17,6 +17,7 @@ pub async fn create_profile_acquirer(
 ) -> HttpResponse {
     let flow = Flow::ProfileAcquirerCreate;
     let payload = json_payload.into_inner();
+    let profile_id = payload.profile_id.clone();
 
     Box::pin(api::server_wrap(
         flow,
@@ -35,8 +36,9 @@ pub async fn create_profile_acquirer(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileAccountWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id,
+                required_permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },
@@ -81,8 +83,9 @@ pub async fn profile_acquirer_update(
                 allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileAccountWrite,
+            &auth::JWTAuthProfileFromRoute {
+                profile_id: profile_id.clone(),
+                required_permission: Permission::ProfileAccountWrite,
                 allow_connected: true,
                 allow_platform: false,
             },

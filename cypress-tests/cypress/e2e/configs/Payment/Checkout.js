@@ -40,6 +40,22 @@ const partialAuthCardDetails = {
   card_cvc: "152",
 };
 
+const parPositiveCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
+const parNegativeCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "joseph Doe",
+  card_cvc: "1000",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -220,6 +236,57 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method_data: {},
+        },
+      },
+    },
+    PARPositiveNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parPositiveCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: "dynamic_par",
+        },
+      },
+    },
+    PARNegativeNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: parNegativeCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_account_reference: null,
+        },
+      },
+    },
+    AuthCodeNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -948,6 +1015,119 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "partially_captured",
+        },
+      },
+    },
+    ConnectorIntentMetadata: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          checkout: {
+            purpose_of_payment: "wallet top-up",
+          },
+        },
+      },
+      // Non-AFT payment: purpose_of_payment is optional at the API level, but
+      // hyperswitch validates the connector_metadata schema (unknown fields are
+      // rejected with IR_06) and echoes connector_metadata back on the payment
+      // response. The payment itself proceeds as a standard card payment and
+      // succeeds.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector_metadata: {
+            apple_pay: null,
+            airwallex: null,
+            noon: null,
+            braintree: null,
+            adyen: null,
+            peachpayments: null,
+            santander: null,
+            paypal: null,
+            worldpayxml: null,
+            checkout: {
+              purpose_of_payment: "wallet top-up",
+            },
+            stripe: null,
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataMissing: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        is_account_funded_transaction: true,
+        connector_metadata: null,
+      },
+      // With the AFT flag set, connector_metadata.checkout.purpose_of_payment
+      // becomes a required field: hyperswitch rejects the payment with IR_04
+      // before the recipient_details validation is reached, so this negative
+      // is asserted without recipient_details.
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Missing required param: connector_metadata.checkout.purpose_of_payment",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    ConnectorIntentMetadataUnknownField: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: null,
+        customer: {
+          date_of_birth: "1990-01-31",
+        },
+        connector_metadata: {
+          checkout: {
+            purpose_of_payment: "wallet top-up",
+            unknown_field: "x",
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: unknown field `unknown_field`, expected `purpose_of_payment`",
+            code: "IR_06",
+          },
         },
       },
     },

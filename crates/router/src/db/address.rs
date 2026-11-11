@@ -78,7 +78,7 @@ where
 mod storage {
     use common_utils::{ext_traits::AsyncExt, id_type, types::keymanager::KeyManagerState};
     use error_stack::{report, ResultExt};
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::AddressInterface;
     use crate::{
@@ -300,7 +300,7 @@ mod storage {
     use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };
@@ -441,7 +441,6 @@ mod storage {
             key_store: &domain::MerchantKeyStore,
             storage_scheme: MerchantStorageScheme,
         ) -> CustomResult<domain::PaymentAddress, errors::StorageError> {
-            let conn = connection::pg_connection_write(self).await?;
             let address = Conversion::convert(this)
                 .await
                 .change_context(errors::StorageError::EncryptionError)?;
@@ -459,6 +458,7 @@ mod storage {
             .await;
             match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_write(self).await?;
                     address
                         .update(&conn, address_update.into())
                         .await

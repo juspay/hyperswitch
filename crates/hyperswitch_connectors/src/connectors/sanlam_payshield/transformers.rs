@@ -1,9 +1,9 @@
-use api_models::payments::{additional_info::BankDebitAdditionalData, AdditionalPaymentData};
-use common_enums::FraudCheckStatus;
-use common_utils::{ext_traits::ValueExt, pii::SecretSerdeValue};
+use common_enums::{Currency, FraudCheckStatus};
+use common_utils::{ext_traits::ValueExt, pii::SecretSerdeValue, types::StringMinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType, router_request_types::ResponseId,
+    router_data::{ConnectorAuthType, RouterData},
+    router_request_types::ResponseId,
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
@@ -11,9 +11,23 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{FrmCheckoutRouterData, ResponseRouterData},
+    types::{FrmCheckoutRouterData, PoFrmRouterData, ResponseRouterData},
     utils::get_unimplemented_payment_method_error_message,
 };
+
+pub struct SanlamPayshieldRouterData<T> {
+    pub amount: StringMinorUnit,
+    pub router_data: T,
+}
+
+impl<T> From<(StringMinorUnit, T)> for SanlamPayshieldRouterData<T> {
+    fn from((amount, router_data): (StringMinorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data,
+        }
+    }
+}
 
 pub struct SanlamPayshieldAuthType {
     pub(super) api_key: Secret<String>,
@@ -47,6 +61,7 @@ pub struct SanlamPayshieldCheckoutRequest {
     connector_id: String,
     connector_type: ConnectorType,
     transaction: Transaction,
+    #[serde(skip_serializing_if = "Option::is_none")]
     metadata: Option<SecretSerdeValue>,
 }
 
@@ -61,8 +76,8 @@ pub enum ConnectorType {
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
     payment_id: String,
-    amount_in_cents: String,
-    currency: String,
+    amount_in_cents: StringMinorUnit,
+    currency: Currency,
     payment_method_type: PaymentMethodType,
     created_at: String,
 }
@@ -71,12 +86,36 @@ pub struct Transaction {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodType {
     EftDebitOrder,
+    Payshap,
+    PayshapProxy,
 }
 
-impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
+impl TryFrom<&common_enums::PaymentMethodType> for PaymentMethodType {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(data: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> Result<Self, Self::Error> {
+        match payment_method_type {
+            common_enums::PaymentMethodType::EftDebitOrder => Ok(Self::EftDebitOrder),
+            common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),
+            common_enums::PaymentMethodType::PayshapProxy => Ok(Self::PayshapProxy),
+            _ => Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("sanlam_paysheild"),
+            ))?,
+        }
+    }
+}
+
+impl TryFrom<&SanlamPayshieldRouterData<&FrmCheckoutRouterData>>
+    for SanlamPayshieldCheckoutRequest
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: &SanlamPayshieldRouterData<&FrmCheckoutRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let data = item.router_data;
         let SanlamPayshieldFrmMetadata {
             profile_id,
             connector_id,
@@ -103,15 +142,14 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
                 field_name: "currency".into(),
             })?;
 
-        let payment_method_type = match data.request.payment_method_data.as_ref() {
-            Some(AdditionalPaymentData::BankDebit {
-                details: Some(BankDebitAdditionalData::EftDebitOrder { .. }),
-            }) => Ok(PaymentMethodType::EftDebitOrder),
-
-            _ => Err(ConnectorError::NotImplemented(
-                get_unimplemented_payment_method_error_message("sanlam_paysheild"),
-            )),
-        }?;
+        let payment_method_type = data
+            .payment_method_type
+            .as_ref()
+            .map(PaymentMethodType::try_from)
+            .transpose()?
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type".into(),
+            })?;
 
         let created_at = created_at
             .assume_utc()
@@ -128,8 +166,73 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
             connector_type: ConnectorType::Payin,
             transaction: Transaction {
                 payment_id: data.payment_id.clone(),
-                amount_in_cents: data.request.amount.to_string(),
-                currency: currency.to_string(),
+                amount_in_cents: item.amount.clone(),
+                currency,
+                payment_method_type,
+                created_at,
+            },
+            metadata: data.frm_metadata.clone(),
+        })
+    }
+}
+
+impl TryFrom<&SanlamPayshieldRouterData<&PoFrmRouterData>> for SanlamPayshieldCheckoutRequest {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: &SanlamPayshieldRouterData<&PoFrmRouterData>) -> Result<Self, Self::Error> {
+        let data = item.router_data;
+        let SanlamPayshieldFrmMetadata {
+            profile_id,
+            connector_id,
+            created_at,
+        } = data
+            .request
+            .gateway_metadata
+            .clone()
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "gateway_metadata".into(),
+            })?
+            .parse_value("SanlamPayshieldFrmMetadata")
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
+
+        let connector_id = connector_id.ok_or(ConnectorError::MissingRequiredField {
+            field_name: "connector_id".into(),
+        })?;
+
+        let payment_method_type = data
+            .payment_method_type
+            .as_ref()
+            .map(PaymentMethodType::try_from)
+            .transpose()?
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "payment_method_type".into(),
+            })?;
+
+        let payout_id = data
+            .payout_id
+            .clone()
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "payout_id".into(),
+            })?;
+
+        let created_at = created_at
+            .assume_utc()
+            .to_offset(time::macros::offset!(+2))
+            .format(time::macros::format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
+            ))
+            .change_context(ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self {
+            request_id: data.connector_request_reference_id.clone(),
+            profile_id,
+            connector_id,
+            connector_type: ConnectorType::Payout,
+            transaction: Transaction {
+                payment_id: payout_id,
+                amount_in_cents: item.amount.clone(),
+                currency: data.request.currency,
                 payment_method_type,
                 created_at,
             },
@@ -166,25 +269,14 @@ impl From<Decision> for FraudCheckStatus {
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::Checkout,
-            SanlamPayshieldCheckoutResponse,
-            hyperswitch_domain_models::router_request_types::fraud_check::FraudCheckCheckoutData,
-            FraudCheckResponseData,
-        >,
-    > for FrmCheckoutRouterData
+impl<F, T>
+    TryFrom<ResponseRouterData<F, SanlamPayshieldCheckoutResponse, T, FraudCheckResponseData>>
+    for RouterData<F, T, FraudCheckResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            hyperswitch_domain_models::router_flow_types::Checkout,
-            SanlamPayshieldCheckoutResponse,
-            hyperswitch_domain_models::router_request_types::fraud_check::FraudCheckCheckoutData,
-            FraudCheckResponseData,
-        >,
+        item: ResponseRouterData<F, SanlamPayshieldCheckoutResponse, T, FraudCheckResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_metadata = serde_json::json!({
             "reasonCodes": item.response.reason_codes,

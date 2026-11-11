@@ -12,3 +12,6 @@ pub struct Fulfillment;
 
 #[derive(Debug, Clone)]
 pub struct RecordReturn;
+
+#[derive(Debug, Clone)]
+pub struct PoFrm;

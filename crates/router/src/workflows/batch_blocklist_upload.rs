@@ -1,6 +1,6 @@
 use common_utils::{ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::{
     consumer::{self, types::process_data},
     utils as pt_utils,
@@ -104,6 +104,7 @@ async fn run_batch_job(
                 file_key: None,
                 error_message: None,
                 expires_at: None,
+                metadata: None,
                 updated_at: common_utils::date_time::now(),
             },
         )
@@ -186,6 +187,7 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                     file_key: None,
                     error_message: None,
                     expires_at: None,
+                    metadata: None,
                     updated_at: common_utils::date_time::now(),
                 },
             )
@@ -209,6 +211,7 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                         file_key: None,
                         error_message: None,
                         expires_at: None,
+                        metadata: None,
                         updated_at: common_utils::date_time::now(),
                     },
                 )
@@ -275,6 +278,7 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                                 file_key: None,
                                 error_message: None,
                                 expires_at: None,
+                                metadata: None,
                                 updated_at: common_utils::date_time::now(),
                             },
                         )

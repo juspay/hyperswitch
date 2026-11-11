@@ -10,6 +10,15 @@
         (status = 200, description = "Profile Acquirer created", body = ProfileAcquirerResponse),
         (status = 400, description = "Invalid data")
     ),
+    params(
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
+    ),
     tag = "Profile Acquirer",
     operation_id = "Create a Profile Acquirer",
     security(("api_key" = []))
@@ -26,7 +35,14 @@ pub async fn profile_acquirer_create() { /* … */
     path = "/profile_acquirers/{profile_id}/{profile_acquirer_id}",
     params (
         ("profile_id" = String, Path, description = "The unique identifier for the Profile"),
-        ("profile_acquirer_id" = String, Path, description = "The unique identifier for the Profile Acquirer")
+        ("profile_acquirer_id" = String, Path, description = "The unique identifier for the Profile Acquirer"),
+        (
+            "X-Connected-Merchant-Id" = Option<String>, Header,
+            description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
+            Required when authenticating with a platform merchant's API key. \
+            Standard and connected merchants must not send it.",
+            example = "merchant_abc"
+        )
     ),
     request_body = ProfileAcquirerUpdate,
     responses(

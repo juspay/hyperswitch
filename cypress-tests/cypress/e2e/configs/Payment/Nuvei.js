@@ -152,6 +152,8 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },
@@ -181,6 +183,8 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           // payment_method_data removed - Nuvei returns dynamic card metadata (issuer, country) that varies per transaction
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },
@@ -250,6 +254,8 @@ export const connectorDetails = {
           amount: 11500,
           amount_capturable: 0,
           amount_received: 11500,
+          // Placeholder value: asserts the field is a non-empty string in the response (actual TLID is dynamic per transaction)
+          network_transaction_link_id: "dynamic_tlid",
         },
       },
     },

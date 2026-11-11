@@ -2722,7 +2722,7 @@ fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
     payment_method_token: PaymentMethodToken,
     card_details: PaymentMethodData,
-    complete_authorize_url: String,
+    complete_authorize_url: Secret<String>,
 ) -> Result<RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(RedirectForm::Braintree {
         client_token: client_token_data
@@ -2905,6 +2905,7 @@ fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> S
             "D".to_string()
         }
         common_enums::TransactionStatus::InformationOnly => "I".to_string(),
+        common_enums::TransactionStatus::SecurePaymentConfirmationRequired => "S".to_string(),
     }
 }
 

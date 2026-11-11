@@ -29,8 +29,7 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
         PaymentsCompleteAuthorizeRouterData, PaymentsPostAuthenticateRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefundsRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_CODE, errors};
@@ -43,15 +42,14 @@ use crate::{
     types::{
         PaymentsCancelResponseRouterData, PaymentsCaptureResponseRouterData,
         PaymentsPostAuthenticateResponseRouterData, PaymentsPreAuthenticateResponseRouterData,
-        PaymentsPreprocessingResponseRouterData, PaymentsResponseRouterData,
-        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
+        ResponseRouterData,
     },
     utils::{
         get_unimplemented_payment_method_error_message, to_connector_meta,
         to_connector_meta_from_secret, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
         PaymentsCompleteAuthorizeRequestData, PaymentsPostAuthenticateRequestData,
-        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, PaymentsSyncRequestData,
-        RouterData as _,
+        PaymentsSetupMandateRequestData, PaymentsSyncRequestData, RouterData as _,
     },
 };
 
@@ -367,6 +365,7 @@ pub struct NexixpayCompleteAuthorizeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationData {
+    additional_data: Option<AdditionalData>,
     operation_id: String,
     operation_currency: Option<Currency>,
     operation_result: NexixpayPaymentStatus,
@@ -511,7 +510,7 @@ pub enum NexixpayPaymentIntent {
 pub struct NexixpayRedirectionRequest {
     pub three_d_s_auth_url: String,
     pub three_ds_request: String,
-    pub return_url: String,
+    pub return_url: Secret<String>,
     pub transaction_id: String,
 }
 
@@ -580,17 +579,18 @@ fn update_nexi_meta_data(
 pub fn get_error_response(
     operation_result: NexixpayPaymentStatus,
     status_code: u16,
+    auth_status: Option<String>,
 ) -> ErrorResponse {
     ErrorResponse {
         status_code,
-        code: NO_ERROR_CODE.to_string(),
+        code: auth_status.clone().unwrap_or(NO_ERROR_CODE.to_string()),
         message: operation_result.to_string(),
         reason: Some(operation_result.to_string()),
         attempt_status: None,
         connector_transaction_id: None,
         connector_response_reference_id: None,
         network_advice_code: None,
-        network_decline_code: None,
+        network_decline_code: auth_status,
         network_error_message: None,
         connector_metadata: None,
     }
@@ -669,8 +669,7 @@ pub struct DetailedWarnings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdditionalData {
-    masked_pan: String,
-    card_id: Secret<String>,
+    authorization_status: Option<String>,
     card_id4: Option<Secret<String>>,
     card_expiry_date: Option<Secret<String>>,
 }
@@ -682,33 +681,6 @@ pub struct RedirectPayload {
 
     #[serde(rename = "paymentId")]
     payment_id: Option<String>,
-}
-
-impl TryFrom<&PaymentsPreProcessingRouterData> for NexixpayRedirectRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let redirect_response = item.request.redirect_response.clone().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response".into(),
-            },
-        )?;
-        let redirect_payload = redirect_response
-            .payload
-            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload".into(),
-            })?
-            .expose();
-        let customer_details_encrypted: RedirectPayload =
-            serde_json::from_value::<RedirectPayload>(redirect_payload.clone()).change_context(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "redirection_payload".into(),
-                },
-            )?;
-        Ok(Self {
-            operation_id: customer_details_encrypted.payment_id,
-            three_d_s_auth_response: customer_details_encrypted.pa_res,
-        })
-    }
 }
 
 impl TryFrom<&PaymentsPostAuthenticateRouterData> for NexixpayRedirectRequest {
@@ -784,6 +756,7 @@ fn process_nexixpay_preprocessing_response(
         AttemptStatus::Failure => Err(get_error_response(
             response.operation.operation_result.clone(),
             http_code,
+            None,
         )),
         _ => Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.operation.order_id.clone()),
@@ -801,32 +774,6 @@ fn process_nexixpay_preprocessing_response(
     };
 
     Ok((status, result))
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<NexixpayRedirectionResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<NexixpayRedirectionResponse>,
-    ) -> Result<Self, Self::Error> {
-        let is_auto_capture = item.data.request.is_auto_capture()?;
-        let prev_status = item.data.status;
-        let (status, response) = process_nexixpay_preprocessing_response(
-            item.response,
-            item.data.request.redirect_response.as_ref(),
-            item.data.request.metadata.clone(),
-            is_auto_capture,
-            item.http_code,
-            prev_status,
-        )?;
-
-        Ok(Self {
-            status,
-            response,
-            ..item.data
-        })
-    }
 }
 
 impl TryFrom<PaymentsPostAuthenticateResponseRouterData<NexixpayRedirectionResponse>>
@@ -959,7 +906,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsAuthorizeRouterData>> for NexixpayPaym
                         } else {
                             Err(errors::ConnectorError::NotSupported {
                                 message: "No threeds is not supported".to_string(),
-                                connector: "nexixpay",
+                                connector: "nexixpay".into(),
                             }
                             .into())
                         }
@@ -1111,7 +1058,7 @@ impl TryFrom<&NexixpayRouterData<&PaymentsPreAuthenticateRouterData>>
                 } else {
                     Err(errors::ConnectorError::NotSupported {
                         message: "No threeds is not supported".to_string(),
-                        connector: "nexixpay",
+                        connector: "nexixpay".into(),
                     }
                     .into())
                 }
@@ -1218,6 +1165,7 @@ pub enum NexixpayRefundResultStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexixpayTransactionResponse {
+    additional_data: Option<AdditionalData>,
     order_id: String,
     operation_id: String,
     operation_result: NexixpayPaymentStatus,
@@ -1376,6 +1324,11 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         let response = Err(get_error_response(
                             response_body.operation.operation_result.clone(),
                             item.http_code,
+                            response_body
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1431,6 +1384,11 @@ impl TryFrom<PaymentsResponseRouterData<NexixpayPaymentsResponse>> for PaymentsA
                         let response = Err(get_error_response(
                             mandate_response.operation.operation_result.clone(),
                             item.http_code,
+                            mandate_response
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1510,6 +1468,11 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         let response = Err(get_error_response(
                             response_body.operation.operation_result.clone(),
                             item.http_code,
+                            response_body
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1558,6 +1521,11 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
                         let response = Err(get_error_response(
                             mandate_response.operation.operation_result.clone(),
                             item.http_code,
+                            mandate_response
+                                .operation
+                                .additional_data
+                                .as_ref()
+                                .and_then(|data| data.authorization_status.clone()),
                         ));
                         Ok(Self {
                             response,
@@ -1594,13 +1562,16 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<NexixpayPaymentsResponse>
 fn nexixpay_threeds_link(
     request: NexixpayRedirectionRequest,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
-    let mut form_fields = HashMap::<String, String>::new();
-    form_fields.insert(String::from("ThreeDsRequest"), request.three_ds_request);
+    let mut form_fields = HashMap::<String, Secret<String>>::new();
+    form_fields.insert(
+        String::from("ThreeDsRequest"),
+        request.three_ds_request.into(),
+    );
     form_fields.insert(String::from("ReturnUrl"), request.return_url);
-    form_fields.insert(String::from("transactionId"), request.transaction_id);
+    form_fields.insert(String::from("transactionId"), request.transaction_id.into());
 
     Ok(RedirectForm::Form {
-        endpoint: request.three_d_s_auth_url,
+        endpoint: request.three_d_s_auth_url.into(),
         method: Method::Post,
         form_fields,
     })
@@ -1724,6 +1695,11 @@ impl<F>
                 let response = Err(get_error_response(
                     item.response.operation.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .operation
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,
@@ -1921,6 +1897,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<NexixpayTransactionResponse>>
                 let response = Err(get_error_response(
                     item.response.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,
@@ -2119,6 +2099,11 @@ impl
                 let response = Err(get_error_response(
                     item.response.operation.operation_result.clone(),
                     item.http_code,
+                    item.response
+                        .operation
+                        .additional_data
+                        .as_ref()
+                        .and_then(|data| data.authorization_status.clone()),
                 ));
                 Ok(Self {
                     response,

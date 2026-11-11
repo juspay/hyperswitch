@@ -67,8 +67,8 @@ use hyperswitch_domain_models::{
         MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsSyncData, RefundIntegrityObject, RefundsData,
-        ResponseId, SetupMandateRequestData, SyncIntegrityObject,
+        PaymentsSyncData, RefundIntegrityObject, RefundsData, ResponseId, SetupMandateRequestData,
+        SyncIntegrityObject,
     },
     router_response_types::{CaptureSyncResponse, PaymentsResponseData},
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
@@ -99,7 +99,7 @@ pub(crate) fn construct_not_supported_error_report(
 ) -> error_stack::Report<errors::ConnectorError> {
     errors::ConnectorError::NotSupported {
         message: capture_method.to_string(),
-        connector: connector_name,
+        connector: connector_name.into(),
     }
     .into()
 }
@@ -461,7 +461,7 @@ pub(crate) fn validate_currency(
             message: format!(
                 "currency {request_currency} is not supported for this merchant account",
             ),
-            connector: "Braintree",
+            connector: "Braintree".into(),
         })?
     }
     Ok(())
@@ -2490,14 +2490,14 @@ pub trait PaymentsAuthorizeRequestData {
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_optional_webhook_url(&self) -> Option<String>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
     fn is_wallet(&self) -> bool;
     fn is_card(&self) -> bool;
     fn is_mit_payment(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_connector_mandate_data(&self) -> Option<mandates::ConnectorMandateReferenceId>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
     fn get_optional_user_agent(&self) -> Option<String>;
@@ -2565,7 +2565,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
         }
     }
 
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -2601,7 +2601,7 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
     fn get_optional_webhook_url(&self) -> Option<String> {
         self.webhook_url.clone()
     }
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
@@ -3054,12 +3054,12 @@ impl RefundsRequestData for RefundsData {
 pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_email(&self) -> Result<Email, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
     fn is_card(&self) -> bool;
-    fn get_return_url(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<Secret<String>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_optional_language_from_browser_info(&self) -> Option<String>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
 }
@@ -3073,7 +3073,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
     }
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("router_return_url"))
@@ -3081,7 +3081,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
     fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
     }
-    fn get_return_url(&self) -> Result<String, Error> {
+    fn get_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
@@ -3096,7 +3096,7 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
             .clone()
             .and_then(|browser_info| browser_info.language)
     }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -3120,7 +3120,7 @@ pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>>;
     fn get_optional_user_agent(&self) -> Option<String>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
     fn is_stripe_split_payment(&self) -> bool;
@@ -3146,7 +3146,7 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
             .and_then(|browser_info| browser_info.user_agent.clone())
     }
 
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("router_return_url"))
@@ -3176,14 +3176,14 @@ pub trait PaymentsCompleteAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
     fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn get_connector_mandate_request_reference_id(&self) -> Result<String, Error>;
     fn is_cit_mandate_payment(&self) -> bool;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
     fn get_threeds_method_comp_ind(&self) -> Result<payments::ThreeDsCompletionIndicator, Error>;
     fn get_connector_mandate_id(&self) -> Option<String>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error>;
 }
 
 impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
@@ -3196,7 +3196,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }
-    fn get_router_return_url(&self) -> Result<String, Error> {
+    fn get_router_return_url(&self) -> Result<Secret<String>, Error> {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("router_return_url"))
@@ -3215,7 +3215,7 @@ impl PaymentsCompleteAuthorizeRequestData for CompleteAuthorizeData {
                 .into(),
             )
     }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -3350,7 +3350,7 @@ impl PaymentsPreAuthenticateRequestData for PaymentsPreAuthenticateData {
 pub trait PaymentsAuthenticateRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error>;
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
 }
 
@@ -3373,7 +3373,7 @@ impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
             .ok_or_else(missing_field_err("payment_method_data"))
     }
 
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
+    fn get_complete_authorize_url(&self) -> Result<Secret<String>, Error> {
         self.complete_authorize_url
             .clone()
             .ok_or_else(missing_field_err("complete_authorize_url"))
@@ -3383,115 +3383,6 @@ impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
-    }
-}
-
-pub trait PaymentsPreProcessingRequestData {
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error>;
-    fn get_email(&self) -> Result<Email, Error>;
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error>;
-    fn get_currency(&self) -> Result<enums::Currency, Error>;
-    fn get_amount(&self) -> i64;
-    fn get_minor_amount(&self) -> MinorUnit;
-    fn is_auto_capture(&self) -> Result<bool, Error>;
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
-    fn get_webhook_url(&self) -> Result<String, Error>;
-    fn get_router_return_url(&self) -> Result<String, Error>;
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
-    fn get_complete_authorize_url(&self) -> Result<String, Error>;
-    fn connector_mandate_id(&self) -> Option<String>;
-    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error>;
-    fn is_customer_initiated_mandate_payment(&self) -> bool;
-}
-
-impl PaymentsPreProcessingRequestData for PaymentsPreProcessingData {
-    fn get_email(&self) -> Result<Email, Error> {
-        self.email.clone().ok_or_else(missing_field_err("email"))
-    }
-    fn get_payment_method_type(&self) -> Result<enums::PaymentMethodType, Error> {
-        self.payment_method_type
-            .to_owned()
-            .ok_or_else(missing_field_err("payment_method_type"))
-    }
-    fn get_payment_method_data(&self) -> Result<PaymentMethodData, Error> {
-        self.payment_method_data
-            .to_owned()
-            .ok_or_else(missing_field_err("payment_method_data"))
-    }
-    fn get_currency(&self) -> Result<enums::Currency, Error> {
-        self.currency.ok_or_else(missing_field_err("currency"))
-    }
-    fn get_amount(&self) -> i64 {
-        self.amount
-    }
-
-    // New minor amount function for amount framework
-    fn get_minor_amount(&self) -> MinorUnit {
-        self.minor_amount
-    }
-    fn is_auto_capture(&self) -> Result<bool, Error> {
-        match self.capture_method {
-            Some(enums::CaptureMethod::Automatic)
-            | None
-            | Some(enums::CaptureMethod::SequentialAutomatic) => Ok(true),
-            Some(enums::CaptureMethod::Manual) => Ok(false),
-            Some(enums::CaptureMethod::ManualMultiple) | Some(enums::CaptureMethod::Scheduled) => {
-                Err(errors::ConnectorError::CaptureMethodNotSupported.into())
-            }
-        }
-    }
-    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
-        self.order_details
-            .clone()
-            .ok_or_else(missing_field_err("order_details"))
-    }
-    fn get_webhook_url(&self) -> Result<String, Error> {
-        self.webhook_url
-            .clone()
-            .ok_or_else(missing_field_err("webhook_url"))
-    }
-    fn get_router_return_url(&self) -> Result<String, Error> {
-        self.router_return_url
-            .clone()
-            .ok_or_else(missing_field_err("return_url"))
-    }
-    fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
-        self.browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))
-    }
-    fn get_complete_authorize_url(&self) -> Result<String, Error> {
-        self.complete_authorize_url
-            .clone()
-            .ok_or_else(missing_field_err("complete_authorize_url"))
-    }
-    fn get_redirect_response_payload(&self) -> Result<pii::SecretSerdeValue, Error> {
-        self.redirect_response
-            .as_ref()
-            .and_then(|res| res.payload.to_owned())
-            .ok_or(
-                errors::ConnectorError::MissingConnectorRedirectionPayload {
-                    field_name: "request.redirect_response.payload".into(),
-                }
-                .into(),
-            )
-    }
-    fn connector_mandate_id(&self) -> Option<String> {
-        self.mandate_id
-            .as_ref()
-            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
-                Some(mandates::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
-                    connector_mandate_ids.get_connector_mandate_id()
-                }
-                Some(mandates::MandateReferenceId::NetworkMandateId(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
-                | None
-                | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_)) => None,
-            })
-    }
-    fn is_customer_initiated_mandate_payment(&self) -> bool {
-        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
-            && self.setup_future_usage == Some(FutureUsage::OffSession)
     }
 }
 
@@ -3660,14 +3551,14 @@ macro_rules! capture_method_not_supported {
     ($connector:expr, $capture_method:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for selected payment method", $capture_method),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
     ($connector:expr, $capture_method:expr, $payment_method_type:expr) => {
         Err(errors::ConnectorError::NotSupported {
             message: format!("{} for {}", $capture_method, $payment_method_type),
-            connector: $connector,
+            connector: $connector.into(),
         }
         .into())
     };
@@ -6852,14 +6743,7 @@ impl QrImage {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::utils;
-    #[test]
-    fn test_image_data_source_url() {
-        let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
-        assert!(qr_image_data_source_url.is_ok());
-    }
-}
+mod tests;
 
 pub fn get_mandate_details(
     setup_mandate_details: Option<mandates::MandateData>,
@@ -6955,6 +6839,7 @@ pub enum PaymentMethodDataType {
     SamsungPay,
     TwintRedirect,
     VippsRedirect,
+    WeroRedirect,
     TouchNGoRedirect,
     WeChatPayRedirect,
     WeChatPayQr,
@@ -7111,6 +6996,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                 payment_method_data::WalletData::SamsungPay(_) => Self::SamsungPay,
                 payment_method_data::WalletData::TwintRedirect {} => Self::TwintRedirect,
                 payment_method_data::WalletData::VippsRedirect {} => Self::VippsRedirect,
+                payment_method_data::WalletData::WeroRedirect {} => Self::WeroRedirect,
                 payment_method_data::WalletData::TouchNGoRedirect(_) => Self::TouchNGoRedirect,
                 payment_method_data::WalletData::WeChatPayRedirect(_) => Self::WeChatPayRedirect,
                 payment_method_data::WalletData::WeChatPayQr(_) => Self::WeChatPayQr,
@@ -7825,6 +7711,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         setup_future_usage: data.request.setup_future_usage,
         off_session: data.request.off_session,
         setup_mandate_details: data.request.setup_mandate_details.clone(),
+        router_notification_url: None,
         router_return_url: data.request.router_return_url.clone(),
         email: data.request.email.clone(),
         customer_name: data.request.customer_name.clone(),
@@ -7879,6 +7766,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         recipient_details: data.request.recipient_details.clone(),
         business_country: data.request.business_country,
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
+        enable_avs_check: data.request.enable_avs_check,
+        enable_account_name_verification: None,
     }
 }
 
@@ -7933,6 +7822,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         payout_id: data.payout_id.clone(),
         connector_response: data.connector_response.clone(),
         integrity_check: Ok(()),
+        accept_amount_mismatch: data.accept_amount_mismatch,
         additional_merchant_data: data.additional_merchant_data.clone(),
         header_payload: data.header_payload.clone(),
         connector_mandate_request_reference_id: data.connector_mandate_request_reference_id.clone(),
@@ -8164,7 +8054,7 @@ pub fn get_card_details(
         PaymentMethodData::Card(details) => Ok(details),
         _ => Err(errors::ConnectorError::NotSupported {
             message: SELECTED_PAYMENT_METHOD.to_string(),
-            connector: connector_name,
+            connector: connector_name.into(),
         })?,
     }
 }
@@ -8184,6 +8074,80 @@ pub fn get_authorise_integrity_object<T>(
         amount: amount_in_minor_unit,
         currency: currency_enum,
     })
+}
+
+/// Returns the connector-reported amount as the captured amount when the payment is charged
+/// (fully or partially), `None` otherwise.
+pub fn get_amount_captured(status: AttemptStatus, amount: Option<MinorUnit>) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
+}
+
+/// Returns the connector-reported amount as the capturable amount when the payment is
+/// authorized (fully or partially), `None` otherwise.
+pub fn get_amount_capturable(
+    status: AttemptStatus,
+    amount: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match status {
+        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => amount,
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::Charged
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::Voided
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::CaptureReview
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::AutoRefunded
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::Failure
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::Expired => None,
+    }
 }
 
 pub fn get_sync_integrity_object<T>(
@@ -8374,6 +8338,42 @@ where
     }
 }
 
+/// Parses an optional connector response value, logging and discarding one that isn't recognised
+/// so an unexpected value doesn't fail the whole response.
+pub fn parse_or_log_unrecognised<T: FromStr>(value: &str) -> Option<T> {
+    value
+        .parse::<T>()
+        .inspect_err(|_| {
+            logger::debug!(
+                value,
+                target_type = std::any::type_name::<T>(),
+                "Unrecognised value received from connector"
+            );
+        })
+        .ok()
+}
+
+/// Converts an ISO 3166 country code from a connector response, alpha-2 or numeric, to alpha-2.
+/// A value outside either table is logged and discarded.
+pub fn parse_country_code(code: &str) -> Option<enums::CountryAlpha2> {
+    code.parse::<enums::CountryAlpha2>()
+        .ok()
+        .or_else(|| {
+            code.parse::<u32>()
+                .ok()
+                .and_then(|numeric| common_enums::Country::from_numeric(numeric).ok())
+                .map(|country| country.to_alpha2())
+        })
+        .or_else(|| {
+            logger::debug!(
+                value = code,
+                target_type = std::any::type_name::<enums::CountryAlpha2>(),
+                "Unrecognised value received from connector"
+            );
+            None
+        })
+}
+
 #[macro_export]
 macro_rules! convert_connector_response_to_domain_response {
     ($connector_type:ty, $response_type:ty, $convert_fn:expr) => {
@@ -8434,4 +8434,16 @@ impl ExtendedAuthorizationData for PaymentsCancelData {
     ) -> Option<primitive_wrappers::RequestExtendedAuthorizationBool> {
         None
     }
+}
+
+/// Append a connector query parameter without replacing callback credentials.
+pub fn append_url_query_param(
+    value: &Secret<String>,
+    key: &str,
+    parameter: &str,
+) -> CustomResult<Secret<String>, errors::ConnectorError> {
+    let mut url = url::Url::parse(value.peek())
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    url.query_pairs_mut().append_pair(key, parameter);
+    Ok(Secret::new(url.to_string()))
 }

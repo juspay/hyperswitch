@@ -1,7 +1,87 @@
+use common_utils::types::MinorUnit;
+
 #[cfg(feature = "v2")]
 use crate::business_profile::Profile;
 #[cfg(feature = "v1")]
 use crate::errors;
+
+/// Amounts that make up a refund. Older refunds have no surcharge component.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RefundAmountDetails {
+    refund_amount: MinorUnit,
+    #[serde(default)]
+    refund_surcharge_amount: Option<MinorUnit>,
+}
+
+impl RefundAmountDetails {
+    pub fn new(refund_amount: MinorUnit, refund_surcharge_amount: Option<MinorUnit>) -> Self {
+        Self {
+            refund_amount,
+            refund_surcharge_amount,
+        }
+    }
+
+    pub fn get_refund_amount(&self) -> MinorUnit {
+        self.refund_amount
+    }
+
+    pub fn get_refund_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.refund_surcharge_amount
+    }
+
+    pub fn get_net_refund_amount(&self) -> MinorUnit {
+        self.refund_amount + self.refund_surcharge_amount.unwrap_or_default()
+    }
+
+    /// Values for the flat amount columns in the Diesel refund model.
+    pub fn into_storage_amounts(self) -> (MinorUnit, Option<MinorUnit>, MinorUnit) {
+        (
+            self.refund_amount,
+            self.refund_surcharge_amount,
+            self.get_net_refund_amount(),
+        )
+    }
+
+    pub fn get_remaining_refundable_amount(
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> MinorUnit {
+        let total_refunded: MinorUnit = previous_refunds
+            .into_iter()
+            .filter(|(status, _)| {
+                !matches!(
+                    status,
+                    diesel_models::enums::RefundStatus::Failure
+                        | diesel_models::enums::RefundStatus::TransactionFailure
+                )
+            })
+            .map(|(_, amount_details)| amount_details.get_net_refund_amount())
+            .sum();
+
+        amount_captured - total_refunded
+    }
+
+    pub fn exceeds_remaining_refundable_amount(
+        &self,
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> bool {
+        self.get_net_refund_amount()
+            > Self::get_remaining_refundable_amount(amount_captured, previous_refunds)
+    }
+}
+
+impl From<MinorUnit> for RefundAmountDetails {
+    fn from(refund_amount: MinorUnit) -> Self {
+        Self::new(refund_amount, None)
+    }
+}
+
+impl From<&diesel_models::refund::Refund> for RefundAmountDetails {
+    fn from(refund: &diesel_models::refund::Refund) -> Self {
+        Self::new(refund.refund_amount, refund.refund_surcharge_amount)
+    }
+}
 
 #[cfg(feature = "v1")]
 pub struct RefundListConstraints {
@@ -16,6 +96,7 @@ pub struct RefundListConstraints {
     pub merchant_connector_id: Option<Vec<common_utils::id_type::MerchantConnectorAccountId>>,
     pub currency: Option<Vec<common_enums::Currency>>,
     pub refund_status: Option<Vec<common_enums::RefundStatus>>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[cfg(feature = "v2")]
@@ -89,9 +170,6 @@ impl
             payment_id,
             refund_id,
             profile_id: profile_id_list,
-            // API keeps `Option<PageSize>` for wire compat; the domain holds a resolved
-            // value. `PageSize::default()` is the semantically-correct "no preference"
-            // — same behavior as the previous `Option<i64>` validator's `None → 10`.
             limit: limit.unwrap_or_default(),
             offset,
             time_range,
@@ -100,7 +178,48 @@ impl
             merchant_connector_id,
             currency,
             refund_status,
+            processor_merchant_id: None,
         })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<api_models::refunds::PlatformRefundListRequest> for RefundListConstraints {
+    fn from(value: api_models::refunds::PlatformRefundListRequest) -> Self {
+        let api_models::refunds::PlatformRefundListRequest {
+            processor_merchant_id,
+            payment_id,
+            refund_id,
+            profile_id,
+            limit,
+            offset,
+            time_range,
+            start_amount,
+            end_amount,
+            connector,
+            merchant_connector_id,
+            currency,
+            refund_status,
+        } = value;
+        Self {
+            payment_id,
+            refund_id,
+            profile_id: profile_id.map(|profile_id| vec![profile_id]),
+            limit: limit.unwrap_or_default(),
+            offset,
+            time_range,
+            amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some(
+                api_models::payments::AmountFilter {
+                    start_amount,
+                    end_amount,
+                },
+            ),
+            connector,
+            merchant_connector_id,
+            currency,
+            refund_status,
+            processor_merchant_id,
+        }
     }
 }
 

@@ -32,16 +32,19 @@ use hyperswitch_interfaces::{
 };
 use router_env::RequestId;
 use scheduler::SchedulerInterface;
-use storage_impl::{redis::RedisStore, MockDb};
-use tokio::sync::oneshot;
+use storage_impl::{
+    redis::{cache::Caches, RedisStore},
+    MockDb,
+};
+use tokio::sync::{oneshot, OnceCell};
 
 use self::settings::Tenant;
+#[cfg(all(feature = "v2", feature = "oltp"))]
+use super::client_secret::{client_secret_create, client_secret_delete};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
-use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
 #[cfg(feature = "payouts")]
@@ -60,6 +63,8 @@ use super::recovery_webhooks::*;
 use super::refunds;
 #[cfg(feature = "olap")]
 use super::routing;
+#[cfg(all(feature = "oltp", feature = "v1"))]
+use super::telephone_order;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
 #[cfg(feature = "olap")]
@@ -89,8 +94,6 @@ use crate::analytics::routes::{
 };
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-#[cfg(feature = "partial-auth")]
-use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
 use crate::routes::authentication;
 #[cfg(feature = "v1")]
@@ -115,7 +118,9 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings},
+    core::configs::payment_callback::PaymentCallbackConfig,
     db::kafka_store::{KafkaStore, TenantID},
+    errors::RouterResult,
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
@@ -152,6 +157,7 @@ pub struct SessionState {
     pub superposition_service: Arc<SuperpositionClient>,
     /// Bounded request context used to correlate v1 payment I/O metrics.
     pub payment_metrics_context: Option<PaymentMetricsContext>,
+    payment_callback_config: Arc<OnceCell<PaymentCallbackConfig>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -159,6 +165,9 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
     fn get_application_source(&self) -> common_enums::ApplicationSource {
         self.conf.application_source
+    }
+    fn get_tenant_id(&self) -> &id_type::TenantId {
+        &self.tenant.tenant_id
     }
     fn get_request_id(&self) -> Option<RequestId> {
         self.request_id.clone()
@@ -175,6 +184,13 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
 }
 impl SessionState {
+    /// Resolve the runtime callback policy once for this request and its clones.
+    pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
+        self.payment_callback_config
+            .get_or_try_init(|| PaymentCallbackConfig::load(self))
+            .await
+    }
+
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
         self.store = store;
     }
@@ -234,6 +250,7 @@ pub trait SessionStateInfo {
     fn event_handler(&self) -> EventsHandler;
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
+    fn start_read_ledger(&mut self, flow: String);
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -242,6 +259,21 @@ pub trait SessionStateInfo {
 }
 
 impl SessionStateInfo for SessionState {
+    /// Begin tracking which records this session reads. Store-labelled ledgers
+    /// share one set, so a record read through two stores is one record.
+    /// Called once where the session begins; background work
+    /// (scheduler, drainer) is not a session and starts none.
+    fn start_read_ledger(&mut self, flow: String) {
+        use common_utils::read_ledger::{ReadLedger, ReadStore};
+
+        let read_ledger = Arc::new(ReadLedger::new(flow));
+        self.accounts_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Accounts)));
+        self.global_store
+            .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
+        self.store.attach_read_ledger(read_ledger);
+    }
+
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
@@ -362,10 +394,16 @@ pub struct AppState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// In-memory caches, shared with every tenant's store and with the redis subscriber
+    /// that invalidates them.
+    pub caches: Arc<Caches>,
 }
 impl scheduler::SchedulerAppState for AppState {
     fn get_tenants(&self) -> Vec<id_type::TenantId> {
         self.conf.multitenancy.get_tenant_ids()
+    }
+    fn get_application_source(&self) -> common_enums::ApplicationSource {
+        self.conf.application_source
     }
 }
 pub trait AppStateInfo {
@@ -452,11 +490,13 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
+        #[allow(clippy::expect_used)]
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
             &*secret_management_client,
         ))
-        .await;
+        .await
+        .expect("Failed to decrypt application configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -499,6 +539,9 @@ impl AppState {
             )
             .await
             .expect("Failed to create store");
+            // One set for the whole process: every tenant store and the single redis
+            // subscriber that invalidates entries must point at the same caches.
+            let caches = Arc::new(Caches::new(&conf.cache));
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,
@@ -508,6 +551,7 @@ impl AppState {
                     conf.global_database_config(),
                     conf.global_database_config(),
                     Arc::clone(&cache_store),
+                    Arc::clone(&caches),
                     testable,
                 ))
                 .await
@@ -521,7 +565,13 @@ impl AppState {
             let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
+                .get_store_interface_maps(
+                    &storage_impl,
+                    &conf,
+                    Arc::clone(&cache_store),
+                    Arc::clone(&caches),
+                    testable,
+                )
                 .await;
 
             #[cfg(feature = "email")]
@@ -564,6 +614,7 @@ impl AppState {
                 infra_components: infra_component_values,
                 enhancement,
                 superposition_service,
+                caches,
             }
         })
         .await
@@ -581,6 +632,7 @@ impl AppState {
         master_config: settings::Database,
         accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
+        caches: Arc<Caches>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
         let km_conf = conf.key_manager.get_inner();
@@ -615,6 +667,7 @@ impl AppState {
                             master_config.clone(),
                             accounts_config.clone(),
                             Arc::clone(&cache_store),
+                            Arc::clone(&caches),
                             testable,
                             key_manager_state,
                         )
@@ -634,6 +687,7 @@ impl AppState {
                         master_config,
                         accounts_config,
                         Arc::clone(&cache_store),
+                        caches,
                         testable,
                         key_manager_state,
                     )
@@ -706,6 +760,7 @@ impl AppState {
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
             payment_metrics_context: None,
+            payment_callback_config: Arc::default(),
         })
     }
 
@@ -852,8 +907,13 @@ impl Payments {
                     .route(web::get().to(payments::revenue_recovery_invoices_list)),
             )
             .service(
+                web::resource("/profile/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list_profile)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
+            // TODO: Deprecated. Remove this in favour of /v2/recovery
             .service(
                 web::resource("/recovery")
                     .route(web::post().to(payments::recovery_payments_create)),
@@ -971,6 +1031,17 @@ impl Proxy {
 }
 
 #[cfg(feature = "v1")]
+fn configure_payment_callback_routes(config: &mut web::ServiceConfig) {
+    use strum::IntoEnumIterator;
+
+    use super::payments::callback_routes::PaymentCallbackRoute;
+
+    for callback in PaymentCallbackRoute::iter() {
+        config.service(callback.resource());
+    }
+}
+
+#[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -982,6 +1053,14 @@ impl Payments {
                     web::resource("/list")
                         .route(web::get().to(payments::payments_list))
                         .route(web::post().to(payments::payments_list_by_filter)),
+                )
+                .service(
+                    web::resource("/platform/list")
+                        .route(web::get().to(payments::payments_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(payments::payments_list_for_platform_filters)),
                 )
                 .service(
                     web::resource("/profile/list")
@@ -1021,14 +1100,23 @@ impl Payments {
                 )
                 .service(
                     web::resource("/{payment_id}/manual-status-update")
-                        .route(web::post().to(payments::payments_manual_status_update)),
+                        .route(web::post().to(payments::payments_manual_status_update))
+                        .route(
+                            web::get()
+                                .to(payments::payments_manual_status_update_eligible_statuses),
+                        ),
                 )
         }
         #[cfg(feature = "oltp")]
         {
+            use super::payments::callback_routes::PaymentCallbackRoute;
+
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
-                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
+                .service(
+                    web::resource("/payment_link")
+                        .route(web::post().to(payments::payment_link_create)),
+                )
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),
@@ -1043,21 +1131,25 @@ impl Payments {
                         .route(web::post().to(payments::payments_update)),
                 )
                 .service(
-                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments::payments_post_session_tokens)),
+                    web::resource("/{payment_id}/post_session_tokens")
+                        .route(web::post().to(payments::payments_post_session_tokens)),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm").route(web::post().to(payments::payments_confirm)),
+                    web::resource("/{payment_id}/confirm")
+                        .route(web::post().to(payments::payments_confirm)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                    web::resource("/{payment_id}/cancel")
+                        .route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
                     web::resource("/{payment_id}/cancel_post_capture")
-                    .route(web::post().to(payments::payments_cancel_post_capture))
-                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
+                        .route(web::post().to(payments::payments_cancel_post_capture))
+                        .route(web::get().to(payments::payments_cancel_post_capture_retrieve)),
                 )
                 .service(
-                    web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
+                    web::resource("/{payment_id}/capture")
+                        .route(web::post().to(payments::payments_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/approve")
@@ -1071,63 +1163,43 @@ impl Payments {
                     web::resource("/{payment_id}/eligibility_check")
                         .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
-                .service(
-                    web::resource("/{payment_id}/client")
-                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
-                )
+                .service(web::resource("/{payment_id}/client").route(
+                    web::get().to(payment_methods::list_payment_methods_for_payments_client),
+                ))
                 .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
+                .configure(configure_payment_callback_routes)
+                .service(PaymentCallbackRoute::Start.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponse.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponseWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectComplete.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectCompleteWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::Authorize.legacy_resource())
                 .service(
-                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
-                        .route(web::get().to(payments::payments_start)),
-                )
-                .service(
-                    web::resource(
-                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
-                    )
-                    .route(web::get().to(payments::payments_redirect_response_with_creds_identifier)),
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments::payments_redirect_response))
-                        .route(web::post().to(payments::payments_redirect_response))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/{creds_identifier}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect)),
+                    web::resource("/{payment_id}/3ds/authentication")
+                        .route(web::post().to(payments::payments_external_authentication)),
                 )
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments::payments_complete_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                    web::resource("/{payment_id}/incremental_authorization")
+                        .route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
+                    web::resource("/{payment_id}/extend_authorization")
+                        .route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
-                        .route(web::post().to(payments::post_3ds_payments_authorize))
-                        .route(web::get().to(payments::post_3ds_payments_authorize))
+                    web::resource("/{payment_id}/extended_card_info")
+                        .route(web::get().to(payments::retrieve_extended_card_info)),
                 )
                 .service(
-                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
-                )
-                .service(
-                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),
-                )
-                .service(
-                web::resource("{payment_id}/calculate_tax")
-                    .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                    web::resource("{payment_id}/calculate_tax")
+                        .route(web::post().to(payments::payments_dynamic_tax_calculation)),
                 )
                 .service(
                     web::resource("{payment_id}/update_metadata")
@@ -1180,10 +1252,6 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
-            .service(
-                web::resource("/decision-engine/{profile_id}/diff-counter")
-                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
-            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -1260,19 +1328,6 @@ impl Routing {
                     routing::routing_retrieve_default_config(state, req, &TransactionType::Payment)
                 })),
             );
-
-        #[cfg(feature = "dynamic_routing")]
-        {
-            route = route
-                .service(
-                    web::resource("/evaluate")
-                        .route(web::post().to(routing::call_decide_gateway_open_router)),
-                )
-                .service(
-                    web::resource("/feedback")
-                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
-                )
-        }
 
         #[cfg(feature = "payouts")]
         {
@@ -1394,10 +1449,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
-            )
-            .service(
-                web::resource("/rule/evaluate")
-                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }
@@ -1572,6 +1623,13 @@ impl Refunds {
         {
             route = route
                 .service(web::resource("/list").route(web::post().to(refunds_list)))
+                .service(
+                    web::resource("/platform/list").route(web::get().to(refunds_list_for_platform)),
+                )
+                .service(
+                    web::resource("/platform/filter")
+                        .route(web::get().to(refunds_filter_list_for_platform)),
+                )
                 .service(web::resource("/profile/list").route(web::post().to(refunds_list_profile)))
                 .service(web::resource("/filter").route(web::post().to(refunds_filter_list)))
                 .service(web::resource("/v2/filter").route(web::get().to(get_refunds_filters)))
@@ -2000,6 +2058,9 @@ impl Blocklist {
             .service(
                 web::resource("/export").route(web::post().to(blocklist::create_blocklist_export)),
             )
+            .service(
+                web::resource("/clone").route(web::post().to(blocklist::clone_blocklist_entries)),
+            )
     }
 }
 
@@ -2217,20 +2278,11 @@ impl HierarchicalResources {
     }
 }
 
-pub struct EphemeralKey;
-
-#[cfg(all(feature = "v1", feature = "oltp"))]
-impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys")
-            .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
-    }
-}
+#[cfg(feature = "v2")]
+pub struct ClientSecret;
 
 #[cfg(feature = "v2")]
-impl EphemeralKey {
+impl ClientSecret {
     pub fn server(config: AppState) -> Scope {
         web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
@@ -2266,38 +2318,20 @@ pub struct Webhooks;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/network_token_requestor/ref")
-                    .route(
-                        web::post().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::get().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::put().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    ),
+                    .route(web::post().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::get().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::put().to(receive_network_token_requestor_incoming_webhook)),
             )
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(feature = "frm")]
@@ -2317,41 +2351,33 @@ pub struct RelayWebhooks;
 #[cfg(feature = "oltp")]
 impl RelayWebhooks {
     pub fn server(state: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
         web::scope("/webhooks/relay")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{merchant_id}/{connector_id}").route(
-                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
-            ))
+            .service(
+                web::resource("/{merchant_id}/{connector_id}")
+                    .route(web::post().to(receive_incoming_relay_webhook)),
+            )
     }
 }
 
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/v2/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{profile_id}/{connector_id}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         {
             route = route.service(
-                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
-                    web::post()
-                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                ),
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(web::post().to(recovery_receive_incoming_webhook)),
             );
         }
 
@@ -2482,6 +2508,14 @@ impl Disputes {
             .service(
                 web::resource("/profile/filter")
                     .route(web::get().to(disputes::get_disputes_filters_profile)),
+            )
+            .service(
+                web::resource("/platform/list")
+                    .route(web::get().to(disputes::retrieve_disputes_list_for_platform)),
+            )
+            .service(
+                web::resource("/platform/filter")
+                    .route(web::get().to(disputes::get_platform_disputes_filters)),
             )
             .service(
                 web::resource("/accept/{dispute_id}")
@@ -2678,58 +2712,35 @@ impl Profile {
 
         #[cfg(feature = "dynamic_routing")]
         {
-            route = route.service(
-                web::scope("/{profile_id}/dynamic_routing")
-                    .service(
-                        web::scope("/success_based")
-                            .service(
+            route =
+                route.service(
+                    web::scope("/{profile_id}/dynamic_routing")
+                        .service(
+                            web::scope("/success_based").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_success_based_routing)),
-                            )
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::success_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::resource("/set_volume_split")
-                            .route(web::post().to(routing::set_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::resource("/get_volume_split")
-                            .route(web::get().to(routing::get_dynamic_routing_volume_split)),
-                    )
-                    .service(
-                        web::scope("/elimination")
-                            .service(
+                            ),
+                        )
+                        .service(
+                            web::resource("/set_volume_split")
+                                .route(web::post().to(routing::set_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::resource("/get_volume_split")
+                                .route(web::get().to(routing::get_dynamic_routing_volume_split)),
+                        )
+                        .service(
+                            web::scope("/elimination").service(
                                 web::resource("/create")
                                     .route(web::post().to(routing::create_elimination_routing)),
-                            )
-                            .service(web::resource("config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::elimination_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    )
-                    .service(
-                        web::scope("/contracts")
-                            .service(web::resource("/toggle").route(
+                            ),
+                        )
+                        .service(web::scope("/contracts").service(
+                            web::resource("/toggle").route(
                                 web::post().to(routing::contract_based_routing_setup_config),
-                            ))
-                            .service(web::resource("/config/{algorithm_id}").route(
-                                web::patch().to(|state, req, path, payload| {
-                                    routing::contract_based_routing_update_configs(
-                                        state, req, path, payload,
-                                    )
-                                }),
-                            )),
-                    ),
-            );
+                            ),
+                        )),
+                );
         }
 
         route = route.service(
@@ -2811,6 +2822,20 @@ impl ThreeDsDecisionRule {
             .service(
                 web::resource("/execute")
                     .route(web::post().to(three_ds_decision_rule::execute_decision_rule)),
+            )
+    }
+}
+
+pub struct TelephoneOrder;
+
+#[cfg(all(feature = "oltp", feature = "v1"))]
+impl TelephoneOrder {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/telephone_order")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/{provider}")
+                    .route(web::post().to(telephone_order::telephone_order_charge)),
             )
     }
 }
@@ -3488,38 +3513,46 @@ impl ProfileAcquirer {
 }
 
 #[cfg(feature = "v2")]
-pub struct RecoveryDataBackfill;
+pub struct RevenueRecovery;
+
 #[cfg(feature = "v2")]
-impl RecoveryDataBackfill {
+impl RevenueRecovery {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/v2/recovery/data-backfill")
+        use super::{
+            payments, revenue_recovery, revenue_recovery_data_backfill, revenue_recovery_redis,
+        };
+        web::scope("/v2/recovery")
             .app_data(web::Data::new(state))
+            .service(web::resource("").route(web::post().to(payments::recovery_payments_create)))
             .service(
-                web::resource("").route(
-                    web::post()
-                        .to(super::revenue_recovery_data_backfill::revenue_recovery_data_backfill),
-                ),
+                web::resource("/{merchant_reference_id}/cancel")
+                    .route(web::post().to(revenue_recovery::revenue_recovery_cancel)),
             )
-            .service(web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
-                ),
-            ))
-            .service(web::resource("/redis-data/{connector_cutomer_id}").route(
-                web::get().to(
-                    super::revenue_recovery_redis::get_revenue_recovery_redis_data,
-                ),
-            ))
-            .service(web::resource("/update-token").route(
-                web::put().to(
-                    super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
-                ),
-            ))
-            .service(web::resource("/retry-stats").route(
-                web::post().to(
-                    super::revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
-                ),
-            ))
+            .service(
+                web::scope("/data-backfill")
+                    .service(
+                        web::resource("").route(
+                            web::post()
+                                .to(revenue_recovery_data_backfill::revenue_recovery_data_backfill),
+                        ),
+                    )
+                    .service(
+                        web::resource("/status/{connector_cutomer_id}/{payment_intent_id}").route(
+                            web::post().to(
+                                revenue_recovery_data_backfill::revenue_recovery_data_backfill_status,
+                            ),
+                        ),
+                    )
+                    .service(web::resource("/redis-data/{connector_cutomer_id}").route(
+                        web::get().to(revenue_recovery_redis::get_revenue_recovery_redis_data),
+                    ))
+                    .service(web::resource("/update-token").route(web::put().to(
+                        revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
+                    )))
+                    .service(web::resource("/retry-stats").route(web::post().to(
+                        revenue_recovery_data_backfill::revenue_recovery_retry_stats_migration,
+                    ))),
+            )
     }
 }
 

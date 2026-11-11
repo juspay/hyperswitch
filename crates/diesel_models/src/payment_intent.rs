@@ -92,6 +92,11 @@ pub struct PaymentIntent {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
+    pub order_commodity_code: Option<String>,
+    pub settlement_conclusion_applied: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -218,6 +223,11 @@ pub struct PaymentIntent {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
+    pub order_commodity_code: Option<String>,
+    pub settlement_conclusion_applied: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
@@ -282,6 +292,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub show_merchant_name: Option<bool>,
     /// Custom text for the separator shown between wallet and card payment method sections
     pub payment_methods_separator_text: Option<String>,
+    /// Duration in seconds before the status page auto-redirects. Set to 0 to disable auto-redirect. Maximum 900 seconds.
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);
@@ -321,6 +333,16 @@ pub struct TaxDetails {
     /// This is calculated when calling the /calculate_tax API
     pub payment_method_type: Option<PaymentMethodTypeTax>,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct ValueAddedTaxDetails {
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
+    pub vat_invoice_reference_number: Option<String>,
+}
+
+common_utils::impl_to_sql_from_sql_json!(ValueAddedTaxDetails);
 
 impl TaxDetails {
     /// Get the tax amount
@@ -430,6 +452,7 @@ pub struct PaymentIntentNew {
     pub discount_amount: Option<MinorUnit>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
     pub order_date: Option<PrimitiveDateTime>,
     pub mit_category: Option<storage_enums::MitCategory>,
     pub tokenization: Option<common_enums::Tokenization>,
@@ -442,6 +465,10 @@ pub struct PaymentIntentNew {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -523,7 +550,9 @@ pub struct PaymentIntentNew {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub mit_category: Option<storage_enums::MitCategory>,
@@ -538,6 +567,9 @@ pub struct PaymentIntentNew {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -683,6 +715,9 @@ pub struct PaymentIntentUpdateFields {
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -725,7 +760,9 @@ pub struct PaymentIntentUpdateFields {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
@@ -735,6 +772,9 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 // TODO: uncomment fields as necessary
@@ -787,6 +827,9 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
+    pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -842,7 +885,9 @@ pub struct PaymentIntentUpdateInternal {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_details: Option<ValueAddedTaxDetails>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
     pub enable_partial_authorization: Option<EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
@@ -853,6 +898,9 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryption>,
+    pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
+    pub settlement_conclusion_applied: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -919,7 +967,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -928,6 +978,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::StateMetadataUpdate {
                 state_metadata,
@@ -981,7 +1034,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -991,6 +1046,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::Update(value) => Self {
                 amount: Some(value.amount),
@@ -1041,7 +1099,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: value.discount_amount,
                 order_date: value.order_date,
                 shipping_amount_tax: value.shipping_amount_tax,
+                value_added_tax_details: None,
                 duty_amount: value.duty_amount,
+                order_commodity_code: value.order_commodity_code.clone(),
                 enable_partial_authorization: value.enable_partial_authorization,
                 enable_overcapture: value.enable_overcapture,
                 shipping_cost: value.shipping_cost,
@@ -1052,6 +1112,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: value.external_surcharge_applicable,
                 is_account_funded_transaction: value.is_account_funded_transaction,
                 recipient_details: value.recipient_details,
+                enable_avs_check: value.enable_avs_check,
+                enable_account_name_verification: value.enable_account_name_verification,
+                settlement_conclusion_applied: value.settlement_conclusion_applied,
             },
             PaymentIntentUpdate::PaymentCreateUpdate {
                 return_url,
@@ -1111,7 +1174,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1120,6 +1185,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::PGStatusUpdate {
                 status,
@@ -1176,7 +1244,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1185,6 +1255,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
@@ -1241,7 +1314,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1250,6 +1325,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ResponseUpdate {
                 // amount,
@@ -1314,7 +1392,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1323,6 +1403,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -1378,7 +1461,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1387,6 +1472,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
@@ -1443,7 +1531,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1452,6 +1542,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ApproveUpdate {
                 status,
@@ -1507,7 +1600,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1516,6 +1611,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
@@ -1571,7 +1669,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1580,6 +1680,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::SurchargeApplicableUpdate {
                 surcharge_applicable,
@@ -1634,7 +1737,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1643,6 +1748,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ExternalSurchargeApplicableUpdate {
                 external_surcharge_applicable,
@@ -1698,7 +1806,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1706,6 +1816,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_strategy: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::IncrementalAuthorizationAmountUpdate { amount } => Self {
                 amount: Some(amount),
@@ -1757,7 +1870,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1766,6 +1881,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::AuthorizationCountUpdate {
                 authorization_count,
@@ -1819,7 +1937,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1828,6 +1948,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::CompleteAuthorizeUpdate {
                 shipping_address_id,
@@ -1881,7 +2004,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1890,6 +2015,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::ManualUpdate {
                 status,
@@ -1945,7 +2073,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1954,6 +2084,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::SessionResponseUpdate {
                 tax_details,
@@ -2010,7 +2143,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -2019,6 +2154,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
@@ -2070,7 +2208,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_details: None,
                 duty_amount: None,
+                order_commodity_code: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -2079,6 +2219,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                enable_avs_check: None,
+                enable_account_name_verification: None,
+                settlement_conclusion_applied: None,
             },
         }
     }

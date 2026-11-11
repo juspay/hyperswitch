@@ -1,6 +1,6 @@
 use common_utils::ext_traits::{OptionExt, ValueExt};
 use error_stack::ResultExt;
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 
 use crate::{
     core::{
@@ -127,6 +127,7 @@ pub async fn construct_fulfillment_router_data<'a>(
         payout_id: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,

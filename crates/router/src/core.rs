@@ -1,6 +1,8 @@
 #[cfg(feature = "v2")]
 pub mod account_updater;
 pub mod admin;
+#[cfg(feature = "olap")]
+pub mod analytics_report;
 pub mod api_keys;
 pub mod api_locking;
 #[cfg(feature = "v1")]
@@ -70,6 +72,8 @@ pub mod superposition_proxy;
 #[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
+#[cfg(feature = "v1")]
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 pub mod unified_authentication_service;

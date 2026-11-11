@@ -46,7 +46,7 @@ pub struct BitpayPaymentsRequest {
     price: FloatMajorUnit,
     currency: String,
     #[serde(rename = "redirectURL")]
-    redirect_url: String,
+    redirect_url: Secret<String>,
     #[serde(rename = "notificationURL")]
     notification_url: String,
     transaction_speed: TransactionSpeed,
@@ -129,7 +129,7 @@ pub struct BitpayPaymentResponseData {
     pub low_fee_detected: Option<bool>,
     pub display_amount_paid: Option<String>,
     pub exception_status: ExceptionStatus,
-    pub redirect_url: Option<String>,
+    pub redirect_url: Option<Secret<String>>,
     pub refund_address_request_pending: Option<bool>,
     pub merchant_name: Option<Secret<String>>,
     pub token: Option<Secret<String>>,

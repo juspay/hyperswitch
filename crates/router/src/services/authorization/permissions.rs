@@ -84,7 +84,7 @@ generate_permissions! {
             entities: [Merchant]
         },
         Theme: {
-            scopes: [Read,Write],
+            scopes: [Read, Write],
             entities: [Organization]
         },
         ReconIngestion: {
@@ -111,6 +111,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile]
         },
+        ReconApiKey: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
         SuperpositionConfig: {
             scopes: [Read, Write],
             entities: [Profile]
@@ -118,6 +122,14 @@ generate_permissions! {
         Offers: {
             scopes: [Read, Write],
             entities: [Profile]
+        },
+        Alert: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        Monitoring: {
+            scopes: [Read, Write],
+            entities: [Merchant]
         },
     ]
 }
@@ -149,15 +161,18 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
-        (Resource::CloneConnector, _) => None,
+        (Resource::CloneConnector, _) => Some("Clone Connectors"),
         (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
         (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
         (Resource::ReconException, _) => Some("Recon Exception Management"),
         (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
+        (Resource::ReconApiKey, _) => Some("Recon API Keys"),
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
         (Resource::Offers, _) => Some("Offers"),
+        (Resource::Alert, _) => None,
+        (Resource::Monitoring, _) => None,
     }
 }
 

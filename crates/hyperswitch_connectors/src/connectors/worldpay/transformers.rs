@@ -183,6 +183,7 @@ fn fetch_payment_instrument(
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::CashappQr(_)
@@ -252,7 +253,8 @@ impl TryFrom<(enums::PaymentMethod, Option<enums::PaymentMethodType>)> for Payme
 
 // Trait to abstract common functionality between Authorize and SetupMandate
 trait WorldpayPaymentsRequestData {
-    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>>;
+    fn get_return_url(&self)
+        -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>>;
     fn get_auth_type(&self) -> &enums::AuthenticationType;
     fn get_browser_info(&self) -> Option<&BrowserInformation>;
     fn get_payment_method_data(&self) -> &PaymentMethodData;
@@ -278,7 +280,9 @@ trait WorldpayPaymentsRequestData {
 impl WorldpayPaymentsRequestData
     for RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
 {
-    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    fn get_return_url(
+        &self,
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.request.get_complete_authorize_url()
     }
 
@@ -362,7 +366,9 @@ impl WorldpayPaymentsRequestData
 impl WorldpayPaymentsRequestData
     for RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
 {
-    fn get_return_url(&self) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    fn get_return_url(
+        &self,
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.request.get_complete_authorize_url()
     }
 
@@ -879,11 +885,11 @@ impl<F, T>
                 WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
                     None,
                     Some(RedirectForm::Form {
-                        endpoint: res.challenge.url.to_string(),
+                        endpoint: res.challenge.url.to_string().into(),
                         method: common_utils::request::Method::Post,
                         form_fields: HashMap::from([(
                             "JWT".to_string(),
-                            res.challenge.jwt.clone().expose(),
+                            res.challenge.jwt.clone(),
                         )]),
                     }),
                     None,

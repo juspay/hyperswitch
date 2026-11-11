@@ -84,6 +84,9 @@ pub const PROPHETPAY_TOKEN: &str = "cctoken";
 /// Payment intent default client secret expiry (in seconds)
 pub const DEFAULT_SESSION_EXPIRY: i64 = 15 * 60;
 
+/// Maximum allowed redirect delay in seconds for payment link status page
+pub const MAX_PAYMENT_LINK_REDIRECT_DELAY_SECONDS: u32 = 900;
+
 /// Payment intent fulfillment time (in seconds)
 pub const DEFAULT_INTENT_FULFILLMENT_TIME: i64 = 15 * 60;
 
@@ -168,6 +171,8 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
+/// Role ID for Internal Operator
+pub const ROLE_ID_INTERNAL_OPERATOR: &str = "internal_operator";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -273,9 +278,6 @@ pub const REQUEST_TIME_OUT: u64 = 30;
 
 /// API client request timeout for ai service (in seconds)
 pub const REQUEST_TIME_OUT_FOR_AI_SERVICE: u64 = 120;
-
-/// Default number of card issuers returned in a list request
-pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
 
 /// Length of a generated card issuer ID
 pub const CARD_ISSUER_ID_LENGTH: u8 = 5;

@@ -56,7 +56,7 @@ pub fn check_currency(
     } else {
         Err(errors::ConnectorError::NotSupported {
             message: format!("currency {currency} is not supported for this merchant account"),
-            connector: "Helcim",
+            connector: "Helcim".into(),
         })?
     }
 }
@@ -204,7 +204,7 @@ impl TryFrom<(&HelcimRouterData<&PaymentsAuthorizeRouterData>, &Card)> for Helci
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Helcim",
+                connector: "Helcim".into(),
             })?
         }
         let card_data = HelcimCard {

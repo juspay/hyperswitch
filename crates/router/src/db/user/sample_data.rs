@@ -120,6 +120,7 @@ impl BatchSampleDataInterface for Store {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
+        use storage_impl::behaviour::Conversion;
         let conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
@@ -200,9 +201,12 @@ impl BatchSampleDataInterface for Store {
         state: &KeyManagerState,
         key_store: &MerchantKeyStore,
     ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
+        use storage_impl::behaviour::Conversion;
+
         let conn = pg_connection_write(self)
             .await
             .change_context(StorageError::DatabaseConnectionError)?;
+
         sample_data_queries::delete_payment_attempts(&conn, merchant_id)
             .await
             .map_err(diesel_error_to_data_error)

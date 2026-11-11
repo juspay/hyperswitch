@@ -127,8 +127,8 @@ enum PaymentDetails {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PayPalDetails {
-    pub success_url: Option<String>,
-    pub cancel_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub cancel_url: Option<Secret<String>>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -162,6 +162,8 @@ struct TransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     bill_to: Option<BillTo>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    retail: Option<RetailDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     user_fields: Option<UserFields>,
     #[serde(skip_serializing_if = "Option::is_none")]
     surcharge: Option<Surcharge>,
@@ -169,6 +171,47 @@ struct TransactionRequest {
     processing_options: Option<ProcessingOptions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     subsequent_auth_information: Option<SubsequentAuthInformation>,
+}
+
+/// Retail details sent to Authorize.net to indicate the market type of the transaction.
+/// If the `retail` element is sent, both `marketType` and `deviceType` are required.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RetailDetails {
+    market_type: MarketType,
+    device_type: DeviceType,
+}
+
+#[derive(Debug, Serialize)]
+enum MarketType {
+    /// Mail Order / Telephone Order
+    #[serde(rename = "1")]
+    Moto,
+}
+
+#[derive(Debug, Serialize)]
+enum DeviceType {
+    #[serde(rename = "1")]
+    Unknown,
+}
+
+impl RetailDetails {
+    fn from_payment_channel(
+        payment_channel: Option<&common_enums::PaymentChannel>,
+    ) -> Option<Self> {
+        match payment_channel {
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                | common_enums::PaymentChannel::TelephoneOrder,
+            ) => Some(Self {
+                market_type: MarketType::Moto,
+                device_type: DeviceType::Unknown,
+            }),
+            Some(common_enums::PaymentChannel::Ecommerce)
+            | Some(common_enums::PaymentChannel::Other(_))
+            | None => None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -539,6 +582,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1003,6 +1047,8 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            // MIT via network transaction id is merchant-initiated, not MOTO
+            retail: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1098,6 +1144,8 @@ impl
             },
             customer: None,
             bill_to: None,
+            // MIT via connector mandate (customer profile) is merchant-initiated, not MOTO
+            retail: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1129,7 +1177,7 @@ impl
         if item.router_data.is_three_ds() {
             return Err(errors::ConnectorError::NotSupported {
                 message: "3DS flow".to_string(),
-                connector: "Authorizedotnet",
+                connector: "Authorizedotnet".into(),
             }
             .into());
         };
@@ -1213,6 +1261,9 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            retail: RetailDetails::from_payment_channel(
+                item.router_data.request.payment_channel.as_ref(),
+            ),
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1318,6 +1369,8 @@ impl
                     zip: address.zip.clone(),
                     country: address.country,
                 }),
+            // Wallet payments are customer-authenticated on device, so always ecommerce
+            retail: None,
             user_fields: match item.router_data.request.metadata.clone() {
                 Some(metadata) => Some(UserFields {
                     user_field: Vec::<UserField>::foreign_try_from(metadata)?,
@@ -1616,6 +1669,13 @@ fn convert_to_additional_payment_method_connector_response(
                 card_network: None,
                 domestic_network: None,
                 auth_code: None,
+                processor_card_network: None,
+                card_subtype: None,
+                card_segment_type: None,
+                funding_source: None,
+                card_type: None,
+                issuer_name: None,
+                issuer_country: None,
             })
         }
     }
@@ -2416,7 +2476,7 @@ impl TryFrom<AuthorizedotnetWebhookObjectId> for AuthorizedotnetSyncResponse {
 
 fn get_wallet_data(
     wallet_data: &WalletData,
-    return_url: &Option<String>,
+    return_url: &Option<Secret<String>>,
 ) -> CustomResult<PaymentDetails, errors::ConnectorError> {
     match wallet_data {
         WalletData::GooglePay(_) => Ok(PaymentDetails::OpaqueData(WalletDetails {
@@ -2464,6 +2524,7 @@ fn get_wallet_data(
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::WeroRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)
@@ -2550,12 +2611,12 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
             Some(enums::CaptureMethod::ManualMultiple) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: enums::CaptureMethod::ManualMultiple.to_string(),
-                    connector: "authorizedotnet",
+                    connector: "authorizedotnet".into(),
                 })
             }
             Some(enums::CaptureMethod::Scheduled) => Err(errors::ConnectorError::NotSupported {
                 message: enums::CaptureMethod::Scheduled.to_string(),
-                connector: "authorizedotnet",
+                connector: "authorizedotnet".into(),
             }),
         }?;
         let transaction_request = TransactionConfirmRequest {

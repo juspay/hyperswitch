@@ -17,13 +17,13 @@ use hyperswitch_domain_models::{
         AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
         ConnectorResponseData, ErrorResponse, RouterData,
     },
-    router_request_types::{BrowserInformation, PaymentsPreProcessingData, ResponseId},
+    router_request_types::{BrowserInformation, ResponseId},
     router_response_types::{
         PaymentsResponseData, PreprocessingResponseId, RedirectForm, RefundsResponseData,
     },
     types::{
-        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefreshTokenRouterData, RefundsRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, RefreshTokenRouterData,
+        RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -32,14 +32,10 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{
-        CreateOrderResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
-    },
+    types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
-        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData,
-        RouterData as OtherRouterData,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -167,9 +163,9 @@ pub struct BankPaymentInformationResponse {
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct CallbackURLs {
-    pub success: String,
-    pub cancel: String,
-    pub error: String,
+    pub success: Secret<String>,
+    pub cancel: Secret<String>,
+    pub error: Secret<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -183,7 +179,7 @@ pub struct PaymentRequestCards {
     pub cardholder: Secret<String>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]
-    pub redirect_url: String,
+    pub redirect_url: Secret<String>,
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
@@ -249,7 +245,7 @@ pub struct PaymentRequestNetworkToken {
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
     #[serde(rename = "RedirectUrl")]
-    pub redirect_url: String,
+    pub redirect_url: Secret<String>,
     #[serde(rename = "threeDSecureEnrollmentStatus")]
     pub enrollment_status: char,
     #[serde(rename = "threeDSecureEci")]
@@ -348,7 +344,7 @@ fn get_card_request_data(
     params: TrustpayMandatoryParams,
     amount: StringMajorUnit,
     ccard: &Card,
-    return_url: String,
+    return_url: Secret<String>,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
     let customer_ip_address = browser_info.get_ip_address()?;
@@ -474,7 +470,7 @@ fn get_bank_redirection_request_data(
                 debtor: get_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
-                success: format!("{return_url}?status=SuccessOk"),
+                success: utils::append_url_query_param(&return_url, "status", "SuccessOk")?,
                 cancel: return_url.clone(),
                 error: return_url,
             },
@@ -508,7 +504,7 @@ fn get_bank_transfer_request_data(
                 debtor: get_bank_transfer_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
-                success: format!("{return_url}?status=SuccessOk"),
+                success: utils::append_url_query_param(&return_url, "status", "SuccessOk")?,
                 cancel: return_url.clone(),
                 error: return_url,
             },
@@ -904,9 +900,12 @@ fn handle_cards_response(
 
     let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response.redirect_url.map(|url| RedirectForm::Form {
-        endpoint: url.to_string(),
+        endpoint: url.to_string().into(),
         method: Method::Post,
-        form_fields,
+        form_fields: (form_fields)
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect(),
     });
     let error = if msg.is_some() {
         Some(ErrorResponse {
@@ -1311,40 +1310,6 @@ impl TryFrom<&TrustpayRouterData<&CreateOrderRouterData>> for TrustpayCreateInte
     }
 }
 
-impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
-    for TrustpayCreateIntentRequest
-{
-    type Error = Error;
-    fn try_from(
-        item: &TrustpayRouterData<&PaymentsPreProcessingRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let is_apple_pay = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| matches!(pmt, enums::PaymentMethodType::ApplePay));
-
-        let is_google_pay = item
-            .router_data
-            .request
-            .payment_method_type
-            .as_ref()
-            .map(|pmt| matches!(pmt, enums::PaymentMethodType::GooglePay));
-
-        let currency = item.router_data.request.get_currency()?;
-        let amount = item.amount.to_owned();
-
-        Ok(Self {
-            amount,
-            currency: currency.to_string(),
-            init_apple_pay: is_apple_pay,
-            init_google_pay: is_google_pay,
-            reference: item.router_data.connector_request_reference_id.clone(),
-        })
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentResponse {
@@ -1462,32 +1427,6 @@ impl TryFrom<CreateOrderResponseRouterData<TrustpayCreateIntentResponse>>
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "payment_method_type".into(),
             })?;
-
-        match (pmt, create_intent_response) {
-            (
-                enums::PaymentMethodType::ApplePay,
-                InitResultData::AppleInitResultData(apple_pay_response),
-            ) => get_apple_pay_session(instance_id, &secrets, apple_pay_response, item),
-            (
-                enums::PaymentMethodType::GooglePay,
-                InitResultData::GoogleInitResultData(google_pay_response),
-            ) => get_google_pay_session(instance_id, &secrets, google_pay_response, item),
-            _ => Err(report!(errors::ConnectorError::InvalidWallet)),
-        }
-    }
-}
-
-impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>>
-    for PaymentsPreProcessingRouterData
-{
-    type Error = Error;
-    fn try_from(
-        item: PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentResponse>,
-    ) -> Result<Self, Self::Error> {
-        let create_intent_response = item.response.init_result_data.to_owned();
-        let secrets = item.response.secrets.to_owned();
-        let instance_id = item.response.instance_id.to_owned();
-        let pmt = PaymentsPreProcessingData::get_payment_method_type(&item.data.request)?;
 
         match (pmt, create_intent_response) {
             (

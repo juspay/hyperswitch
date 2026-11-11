@@ -66,13 +66,13 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetKey,
-            self.redis_conn.pool.set(
+            Box::pin(self.redis_conn.pool.set(
                 key.tenant_aware_key(&self.redis_conn),
                 value,
                 Some(Expiration::EX(self.redis_conn.config.default_ttl.into())),
                 None,
                 false,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::SetFailed)
@@ -104,13 +104,13 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetKeyWithoutModifyingTtl,
-            self.redis_conn.pool.set(
+            Box::pin(self.redis_conn.pool.set(
                 key.tenant_aware_key(&self.redis_conn),
                 value,
                 Some(Expiration::KEEPTTL),
                 None,
                 false,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::SetFailed)
@@ -149,7 +149,7 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetMultipleKeysIfNotExist,
-            self.redis_conn.pool.msetnx(map),
+            Box::pin(self.redis_conn.pool.msetnx(map)),
         )
         .await
         .change_context(errors::RedisError::SetFailed)
@@ -231,13 +231,13 @@ impl super::RedisConnectionWithContext {
                 self.request_id.as_deref(),
                 self.redis_conn.event_emitter.as_ref(),
                 RedisOperation::SerializeAndSetKeyWithExpiry,
-                self.redis_conn.pool.set(
+                Box::pin(self.redis_conn.pool.set(
                     key.tenant_aware_key(&self.redis_conn),
                     serialized.as_slice(),
                     Some(Expiration::EX(seconds)),
                     None,
                     false,
-                ),
+                )),
             )
             .await
             .change_context(errors::RedisError::SetExFailed)
@@ -272,9 +272,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetKey,
-            self.redis_conn
-                .pool
-                .get::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .get::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -292,9 +294,11 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetKey,
-                        self.redis_conn
-                            .pool
-                            .get::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
+                        Box::pin(
+                            self.redis_conn
+                                .pool
+                                .get::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
+                        ),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -324,9 +328,11 @@ impl super::RedisConnectionWithContext {
                 self.request_id.as_deref(),
                 self.redis_conn.event_emitter.as_ref(),
                 RedisOperation::GetKey,
-                self.redis_conn
-                    .pool
-                    .get(key.tenant_aware_key(&self.redis_conn)),
+                Box::pin(
+                    self.redis_conn
+                        .pool
+                        .get(key.tenant_aware_key(&self.redis_conn)),
+                ),
             )
             .await
             .change_context(errors::RedisError::GetFailed)
@@ -344,9 +350,11 @@ impl super::RedisConnectionWithContext {
                             self.request_id.as_deref(),
                             self.redis_conn.event_emitter.as_ref(),
                             RedisOperation::GetKey,
-                            self.redis_conn
-                                .pool
-                                .get(key.tenant_unaware_key(&self.redis_conn)),
+                            Box::pin(
+                                self.redis_conn
+                                    .pool
+                                    .get(key.tenant_unaware_key(&self.redis_conn)),
+                            ),
                         )
                         .await
                         .change_context(errors::RedisError::GetFailed)
@@ -376,7 +384,7 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetMultipleKeys,
-            self.redis_conn.pool.mget(tenant_aware_keys),
+            Box::pin(self.redis_conn.pool.mget(tenant_aware_keys)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -403,7 +411,7 @@ impl super::RedisConnectionWithContext {
                 self.request_id.as_deref(),
                 self.redis_conn.event_emitter.as_ref(),
                 RedisOperation::GetKey,
-                self.redis_conn.pool.get::<Option<V>, _>(redis_key),
+                Box::pin(self.redis_conn.pool.get::<Option<V>, _>(redis_key)),
             )
         });
 
@@ -511,9 +519,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::Exists,
-            self.redis_conn
-                .pool
-                .exists(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .exists(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -531,9 +541,11 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::Exists,
-                        self.redis_conn
-                            .pool
-                            .exists(key.tenant_unaware_key(&self.redis_conn)),
+                        Box::pin(
+                            self.redis_conn
+                                .pool
+                                .exists(key.tenant_unaware_key(&self.redis_conn)),
+                        ),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -552,7 +564,6 @@ impl super::RedisConnectionWithContext {
         T: serde::de::DeserializeOwned,
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
-
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
 
         value_bytes
@@ -610,9 +621,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::DeleteKey,
-            self.redis_conn
-                .pool
-                .del(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .del(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::DeleteFailed)
@@ -630,9 +643,11 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::DeleteKey,
-                        self.redis_conn
-                            .pool
-                            .del(key.tenant_unaware_key(&self.redis_conn)),
+                        Box::pin(
+                            self.redis_conn
+                                .pool
+                                .del(key.tenant_unaware_key(&self.redis_conn)),
+                        ),
                     )
                     .await
                     .change_context(errors::RedisError::DeleteFailed)
@@ -686,13 +701,13 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetKeyWithExpiry,
-            self.redis_conn.pool.set(
+            Box::pin(self.redis_conn.pool.set(
                 key.tenant_aware_key(&self.redis_conn),
                 value,
                 Some(Expiration::EX(seconds)),
                 None,
                 false,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::SetExFailed)
@@ -732,7 +747,7 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetKeyIfNotExistsWithExpiry,
-            self.redis_conn.pool.set(
+            Box::pin(self.redis_conn.pool.set(
                 key.tenant_aware_key(&self.redis_conn),
                 value,
                 Some(Expiration::EX(
@@ -740,7 +755,7 @@ impl super::RedisConnectionWithContext {
                 )),
                 Some(SetOptions::NX),
                 false,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::SetFailed)
@@ -770,9 +785,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetExpiry,
-            self.redis_conn
-                .pool
-                .expire(key.tenant_aware_key(&self.redis_conn), seconds),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .expire(key.tenant_aware_key(&self.redis_conn), seconds),
+            ),
         )
         .await
         .change_context(errors::RedisError::SetExpiryFailed)
@@ -802,9 +819,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetExpireAt,
-            self.redis_conn
-                .pool
-                .expire_at(key.tenant_aware_key(&self.redis_conn), timestamp),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .expire_at(key.tenant_aware_key(&self.redis_conn), timestamp),
+            ),
         )
         .await
         .change_context(errors::RedisError::SetExpiryFailed)
@@ -829,9 +848,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetTtl,
-            self.redis_conn
-                .pool
-                .ttl(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .ttl(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -875,9 +896,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetHashFields,
-            self.redis_conn
-                .pool
-                .hset(key.tenant_aware_key(&self.redis_conn), map),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .hset(key.tenant_aware_key(&self.redis_conn), map),
+            ),
         )
         .await
         .change_context(errors::RedisError::SetHashFailed);
@@ -907,10 +930,10 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::SetExpiry,
-                        self.redis_conn.pool.expire(
+                        Box::pin(self.redis_conn.pool.expire(
                             key.tenant_aware_key(&self.redis_conn),
                             ttl.unwrap_or(self.redis_conn.config.default_hash_ttl.into()),
-                        ),
+                        )),
                     )
                     .await
                     .change_context(errors::RedisError::SetExpiryFailed)?;
@@ -951,9 +974,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetHashFieldIfNotExist,
-            self.redis_conn
-                .pool
-                .hsetnx(key.tenant_aware_key(&self.redis_conn), field, value),
+            Box::pin(self.redis_conn.pool.hsetnx(
+                key.tenant_aware_key(&self.redis_conn),
+                field,
+                value,
+            )),
         )
         .await
         .change_context(errors::RedisError::SetHashFieldFailed);
@@ -984,10 +1009,12 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::SetExpiry,
-                        self.redis_conn.pool.expire(
-                            key.tenant_aware_key(&self.redis_conn),
-                            ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
-                                .into(),
+                        Box::pin(
+                            self.redis_conn.pool.expire(
+                                key.tenant_aware_key(&self.redis_conn),
+                                ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
+                                    .into(),
+                            ),
                         ),
                     )
                     .await
@@ -1043,6 +1070,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "increment_fields_in_hash",
+            codec = deja::codec::ResultCodec::<Vec<usize>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1067,11 +1095,11 @@ impl super::RedisConnectionWithContext {
                     self.request_id.as_deref(),
                     self.redis_conn.event_emitter.as_ref(),
                     RedisOperation::IncrementFieldsInHash,
-                    self.redis_conn.pool.hincrby(
+                    Box::pin(self.redis_conn.pool.hincrby(
                         key.tenant_aware_key(&self.redis_conn),
                         field.to_string(),
                         *increment,
-                    ),
+                    )),
                 )
                 .await
                 .change_context(errors::RedisError::IncrementHashFieldFailed)?,
@@ -1231,9 +1259,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetHashField,
-            self.redis_conn
-                .pool
-                .hget::<RedisValue, _, _>(key.tenant_aware_key(&self.redis_conn), field),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .hget::<RedisValue, _, _>(key.tenant_aware_key(&self.redis_conn), field),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1246,10 +1276,10 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetHashField,
-                        self.redis_conn.pool.hget::<RedisValue, _, _>(
+                        Box::pin(self.redis_conn.pool.hget::<RedisValue, _, _>(
                             key.tenant_unaware_key(&self.redis_conn),
                             field,
-                        ),
+                        )),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1288,9 +1318,11 @@ impl super::RedisConnectionWithContext {
                 self.request_id.as_deref(),
                 self.redis_conn.event_emitter.as_ref(),
                 RedisOperation::GetHashField,
-                self.redis_conn
-                    .pool
-                    .hget(key.tenant_aware_key(&self.redis_conn), field),
+                Box::pin(
+                    self.redis_conn
+                        .pool
+                        .hget(key.tenant_aware_key(&self.redis_conn), field),
+                ),
             )
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1303,9 +1335,11 @@ impl super::RedisConnectionWithContext {
                             self.request_id.as_deref(),
                             self.redis_conn.event_emitter.as_ref(),
                             RedisOperation::GetHashField,
-                            self.redis_conn
-                                .pool
-                                .hget(key.tenant_unaware_key(&self.redis_conn), field),
+                            Box::pin(
+                                self.redis_conn
+                                    .pool
+                                    .hget(key.tenant_unaware_key(&self.redis_conn), field),
+                            ),
                         )
                         .await
                         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1341,9 +1375,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetHashFields,
-            self.redis_conn
-                .pool
-                .hgetall::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .hgetall::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1356,9 +1392,11 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetHashFields,
-                        self.redis_conn
-                            .pool
-                            .hgetall::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
+                        Box::pin(
+                            self.redis_conn
+                                .pool
+                                .hgetall::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
+                        ),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1393,9 +1431,11 @@ impl super::RedisConnectionWithContext {
                 self.request_id.as_deref(),
                 self.redis_conn.event_emitter.as_ref(),
                 RedisOperation::GetHashFields,
-                self.redis_conn
-                    .pool
-                    .hgetall(key.tenant_aware_key(&self.redis_conn)),
+                Box::pin(
+                    self.redis_conn
+                        .pool
+                        .hgetall(key.tenant_aware_key(&self.redis_conn)),
+                ),
             )
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1408,9 +1448,11 @@ impl super::RedisConnectionWithContext {
                             self.request_id.as_deref(),
                             self.redis_conn.event_emitter.as_ref(),
                             RedisOperation::GetHashFields,
-                            self.redis_conn
-                                .pool
-                                .hgetall(key.tenant_unaware_key(&self.redis_conn)),
+                            Box::pin(
+                                self.redis_conn
+                                    .pool
+                                    .hgetall(key.tenant_unaware_key(&self.redis_conn)),
+                            ),
                         )
                         .await
                         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1459,14 +1501,18 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::DeleteHashFields,
-            self.redis_conn
-                .pool
-                .hdel(key.tenant_aware_key(&self.redis_conn), fields),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .hdel(key.tenant_aware_key(&self.redis_conn), fields),
+            ),
         )
         .await
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
+    // Deja: no `on_miss`, unlike the redis-rs twin. A miss arm must answer with the
+    // member count, and this identity carries only the key.
     #[cfg_attr(
         feature = "deja",
         deja::redis(
@@ -1496,9 +1542,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::Sadd,
-            self.redis_conn
-                .pool
-                .sadd(key.tenant_aware_key(&self.redis_conn), members),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .sadd(key.tenant_aware_key(&self.redis_conn), members),
+            ),
         )
         .await
         .change_context(errors::RedisError::SetAddMembersFailed)
@@ -1510,6 +1558,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_append_entry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1543,13 +1592,13 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamAppendEntry,
-            self.redis_conn.pool.xadd(
+            Box::pin(self.redis_conn.pool.xadd(
                 stream.tenant_aware_key(&self.redis_conn),
                 false,
                 None,
                 entry_id,
                 fred_fields,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::StreamAppendFailed)
@@ -1561,6 +1610,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_delete_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1579,9 +1629,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamDeleteEntries,
-            self.redis_conn
-                .pool
-                .xdel(stream.tenant_aware_key(&self.redis_conn), fred_ids),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .xdel(stream.tenant_aware_key(&self.redis_conn), fred_ids),
+            ),
         )
         .await
         .change_context(errors::RedisError::StreamDeleteFailed)
@@ -1593,6 +1645,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_trim_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1613,9 +1666,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamTrimEntries,
-            self.redis_conn
-                .pool
-                .xtrim(stream.tenant_aware_key(&self.redis_conn), xcap),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .xtrim(stream.tenant_aware_key(&self.redis_conn), xcap),
+            ),
         )
         .await
         .change_context(errors::RedisError::StreamTrimFailed)
@@ -1627,6 +1682,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "stream_acknowledge_entries",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -1647,9 +1703,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamAcknowledgeEntries,
-            self.redis_conn
-                .pool
-                .xack(stream.tenant_aware_key(&self.redis_conn), group, fred_ids),
+            Box::pin(self.redis_conn.pool.xack(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                fred_ids,
+            )),
         )
         .await
         .change_context(errors::RedisError::StreamAcknowledgeFailed)
@@ -1676,9 +1734,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamGetLength,
-            self.redis_conn
-                .pool
-                .xlen(stream.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .xlen(stream.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetLengthFailed)
@@ -1716,12 +1776,12 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamReadEntries,
-            self.redis_conn.pool.xread_map(
+            Box::pin(self.redis_conn.pool.xread_map(
                 Some(read_count.unwrap_or(self.redis_conn.config.default_stream_read_count)),
                 None,
                 strms,
                 ids,
-            ),
+            )),
         )
         .await
         .map_err(|err| match err.kind() {
@@ -1785,7 +1845,7 @@ impl super::RedisConnectionWithContext {
                     self.request_id.as_deref(),
                     self.redis_conn.event_emitter.as_ref(),
                     RedisOperation::StreamReadWithOptions,
-                    self.redis_conn.pool.xreadgroup_map(
+                    Box::pin(self.redis_conn.pool.xreadgroup_map(
                         group_name,
                         consumer_name,
                         count,
@@ -1793,7 +1853,7 @@ impl super::RedisConnectionWithContext {
                         false,
                         strms,
                         ids,
-                    ),
+                    )),
                 )
                 .await
             }
@@ -1802,7 +1862,7 @@ impl super::RedisConnectionWithContext {
                     self.request_id.as_deref(),
                     self.redis_conn.event_emitter.as_ref(),
                     RedisOperation::StreamReadWithOptions,
-                    self.redis_conn.pool.xread_map(count, block, strms, ids),
+                    Box::pin(self.redis_conn.pool.xread_map(count, block, strms, ids)),
                 )
                 .await
             }
@@ -1849,6 +1909,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "append_elements_to_list",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1870,9 +1931,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::AppendElementsToList,
-            self.redis_conn
-                .pool
-                .rpush(key.tenant_aware_key(&self.redis_conn), elements),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .rpush(key.tenant_aware_key(&self.redis_conn), elements),
+            ),
         )
         .await
         .change_context(errors::RedisError::AppendElementsToListFailed)
@@ -1903,9 +1966,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetListElements,
-            self.redis_conn
-                .pool
-                .lrange(key.tenant_aware_key(&self.redis_conn), start, stop),
+            Box::pin(self.redis_conn.pool.lrange(
+                key.tenant_aware_key(&self.redis_conn),
+                start,
+                stop,
+            )),
         )
         .await
         .change_context(errors::RedisError::GetListElementsFailed)
@@ -1929,9 +1994,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetListLength,
-            self.redis_conn
-                .pool
-                .llen(key.tenant_aware_key(&self.redis_conn)),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .llen(key.tenant_aware_key(&self.redis_conn)),
+            ),
         )
         .await
         .change_context(errors::RedisError::GetListLengthFailed)
@@ -1943,6 +2010,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "lpop_list_elements",
+            codec = deja::codec::ResultCodec::<Vec<String>, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": key.as_str(),
@@ -1961,9 +2029,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::LpopListElements,
-            self.redis_conn
-                .pool
-                .lpop(key.tenant_aware_key(&self.redis_conn), count),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .lpop(key.tenant_aware_key(&self.redis_conn), count),
+            ),
         )
         .await
         .change_context(errors::RedisError::PopListElementsFailed)
@@ -1977,6 +2047,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_create",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2004,12 +2075,12 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupCreate,
-            self.redis_conn.pool.xgroup_create(
+            Box::pin(self.redis_conn.pool.xgroup_create(
                 stream.tenant_aware_key(&self.redis_conn),
                 group,
                 id,
                 true,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupCreateFailed)
@@ -2021,6 +2092,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_destroy",
+            codec = deja::codec::ResultCodec::<crate::types::ConsumerGroupDestroyReply, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2039,9 +2111,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupDestroy,
-            self.redis_conn
-                .pool
-                .xgroup_destroy(stream.tenant_aware_key(&self.redis_conn), group),
+            Box::pin(
+                self.redis_conn
+                    .pool
+                    .xgroup_destroy(stream.tenant_aware_key(&self.redis_conn), group),
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
@@ -2055,6 +2129,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_delete_consumer",
+            codec = deja::codec::ResultCodec::<usize, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2075,11 +2150,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupDeleteConsumer,
-            self.redis_conn.pool.xgroup_delconsumer(
+            Box::pin(self.redis_conn.pool.xgroup_delconsumer(
                 stream.tenant_aware_key(&self.redis_conn),
                 group,
                 consumer,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
@@ -2091,6 +2166,7 @@ impl super::RedisConnectionWithContext {
         deja::redis(
             replay = Substitute,
             operation = "consumer_group_set_last_id",
+            codec = deja::codec::ResultCodec::<String, errors::RedisError>,
             args = {
                 serde_json::json!({
                     "key": stream.as_str(),
@@ -2111,45 +2187,66 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetLastId,
-            self.redis_conn.pool.xgroup_setid::<(), _, _, _>(
+            Box::pin(self.redis_conn.pool.xgroup_setid::<(), _, _, _>(
                 stream.tenant_aware_key(&self.redis_conn),
                 group,
                 &id_str,
-            ),
+            )),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
         Ok(id_str)
     }
 
+    // Records the raw wire reply; the public method converts it to `R`, so callers
+    // need no serde bounds.
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "consumer_group_set_message_owner",
-            args = {
-                serde_json::json!({
-                    "key": stream.as_str(),
-                    "command": "XCLAIM",
-                    "group": group,
-                    "consumer": consumer,
-                })
-            },
-            // Generic `R: FromRedis` is NOT `Debug`, so the default `result_debug`
-            // capture would not compile. Record only the ok/err verdict (record-only
-            // leaf — no replay reconstruction needed).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
+    #[deja::redis(
+        replay = Substitute,
+        operation = "consumer_group_set_message_owner",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "key": stream.as_str(),
+                "command": "XCLAIM",
+                "group": group,
+                "consumer": consumer,
+            })
+        },
     )]
+    async fn consumer_group_set_message_owner_raw(
+        &self,
+        stream: &RedisKey,
+        group: &str,
+        consumer: &str,
+        min_idle_time: u64,
+        ids: Vec<String>,
+    ) -> CustomResult<RedisWireValue, errors::RedisError> {
+        let fred_ids: MultipleIDs = ids.into();
+        let value: RedisValue = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupSetMessageOwner,
+            Box::pin(self.redis_conn.pool.xclaim(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                consumer,
+                min_idle_time,
+                fred_ids,
+                None,
+                None,
+                None,
+                false,
+                false,
+            )),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupClaimFailed)?;
+        Ok(value.into())
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn consumer_group_set_message_owner<R>(
         &self,
         stream: &RedisKey,
@@ -2161,54 +2258,78 @@ impl super::RedisConnectionWithContext {
     where
         R: FromRedis + Unpin + Send + 'static,
     {
-        let fred_ids: MultipleIDs = ids.into();
-        track_redis_call(
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .consumer_group_set_message_owner_raw(stream, group, consumer, min_idle_time, ids)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+            })?;
+            R::from_value(value).change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let fred_ids: MultipleIDs = ids.into();
+            track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::ConsumerGroupSetMessageOwner,
+                Box::pin(self.redis_conn.pool.xclaim(
+                    stream.tenant_aware_key(&self.redis_conn),
+                    group,
+                    consumer,
+                    min_idle_time,
+                    fred_ids,
+                    None,
+                    None,
+                    None,
+                    false,
+                    false,
+                )),
+            )
+            .await
+            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        }
+    }
+
+    // Records the raw wire reply; `T` is converted through fred after substitution.
+    #[cfg(feature = "deja")]
+    #[instrument(level = "DEBUG", skip(self))]
+    #[deja::redis(
+        replay = Substitute,
+        operation = "evaluate_redis_script",
+        codec = deja::codec::ResultCodec::<RedisWireValue, errors::RedisError>,
+        args = {
+            serde_json::json!({
+                "command": "EVAL",
+                "key_count": key.len(),
+            })
+        },
+    )]
+    async fn evaluate_redis_script_raw<V>(
+        &self,
+        lua_script: &'static str,
+        key: Vec<String>,
+        values: V,
+    ) -> CustomResult<RedisWireValue, errors::RedisError>
+    where
+        V: TryInto<MultipleValues> + Debug + Send + Sync,
+        V::Error: Into<fred::error::RedisError> + Send + Sync,
+    {
+        let value: RedisValue = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::ConsumerGroupSetMessageOwner,
-            self.redis_conn.pool.xclaim(
-                stream.tenant_aware_key(&self.redis_conn),
-                group,
-                consumer,
-                min_idle_time,
-                fred_ids,
-                None,
-                None,
-                None,
-                false,
-                false,
-            ),
+            RedisOperation::EvaluateRedisScript,
+            Box::pin(self.redis_conn.pool.eval(lua_script, key, values)),
         )
         .await
-        .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+        Ok(value.into())
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    #[cfg_attr(
-        feature = "deja",
-        deja::redis(
-            replay = Substitute,
-            operation = "evaluate_redis_script",
-            args = {
-                serde_json::json!({
-                    "command": "EVAL",
-                    "key_count": key.len(),
-                })
-            },
-            // Generic `T` is NOT `Debug`, so the default `result_debug` capture
-            // would not compile. Record only the ok/err verdict (record-only leaf —
-            // an EVAL result is never reconstructed without an explicit override).
-            result = {
-                (
-                    match &__deja_result {
-                        Ok(_) => serde_json::json!({"ok": true}),
-                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
-                    },
-                    __deja_result.is_err(),
-                )
-            },
-        )
-    )]
     pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
@@ -2220,15 +2341,29 @@ impl super::RedisConnectionWithContext {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
         T: serde::de::DeserializeOwned + FromRedis,
     {
-        let val: T = track_redis_call(
-            self.request_id.as_deref(),
-            self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::EvaluateRedisScript,
-            self.redis_conn.pool.eval(lua_script, key, values),
-        )
-        .await
-        .change_context(errors::RedisError::IncrementHashFieldFailed)?;
-        Ok(val)
+        #[cfg(feature = "deja")]
+        {
+            let raw = self
+                .evaluate_redis_script_raw(lua_script, key, values)
+                .await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::IncrementHashFieldFailed)
+            })?;
+            T::from_value(value).change_context(errors::RedisError::IncrementHashFieldFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let val: T = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::EvaluateRedisScript,
+                Box::pin(self.redis_conn.pool.eval(lua_script, key, values)),
+            )
+            .await
+            .change_context(errors::RedisError::IncrementHashFieldFailed)?;
+            Ok(val)
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -2256,6 +2391,37 @@ impl super::RedisConnectionWithContext {
             .change_context(errors::RedisError::SetFailed)?;
 
         Ok(del_result)
+    }
+
+    /// Atomically read and delete a string using MULTI/GET/DEL/EXEC.
+    /// Missing keys are never created. A successful return requires both a value
+    /// and confirmation that this transaction deleted exactly one key.
+    #[instrument(level = "DEBUG", skip_all)]
+    pub async fn consume_key(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<Option<String>, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let transaction = self.get_transaction();
+        Box::pin(transaction.get::<(), _>(&redis_key))
+            .await
+            .change_context(errors::RedisError::GetFailed)?;
+        Box::pin(transaction.del::<(), _>(&redis_key))
+            .await
+            .change_context(errors::RedisError::DeleteFailed)?;
+        let result: (Option<String>, i64) = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumeKey,
+            transaction.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteFailed)?;
+        match result {
+            (Some(value), 1) => Ok(Some(value)),
+            (None, 0) => Ok(None),
+            _ => Err(report!(errors::RedisError::UnknownResult)),
+        }
     }
 
     /// Sets a value in Redis if not already present, and returns the value (either existing or newly set).
@@ -2304,19 +2470,19 @@ impl super::RedisConnectionWithContext {
         let trx = self.get_transaction();
 
         // Try to set if not exists with expiry - queue the command
-        trx.set::<(), _, _>(
+        Box::pin(trx.set::<(), _, _>(
             &redis_key,
             value,
             Some(Expiration::EX(ttl_seconds)),
             Some(SetOptions::NX),
             false,
-        )
+        ))
         .await
         .change_context(errors::RedisError::SetFailed)
         .attach_printable("Failed to queue set command")?;
 
         // Always get the value after the SET attempt - queue the command
-        trx.get::<V, _>(&redis_key)
+        Box::pin(trx.get::<V, _>(&redis_key))
             .await
             .change_context(errors::RedisError::GetFailed)
             .attach_printable("Failed to queue get command")?;
@@ -2355,5 +2521,109 @@ impl super::RedisConnectionWithContext {
             _ => Err(report!(errors::RedisError::SetFailed))
                 .attach_printable("Unexpected result from SET NX operation"),
         }
+    }
+
+    /// Increments `key` by one and returns the value after the increment.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the increment without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn increment_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
+
+        Box::pin(trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
+
+        Box::pin(trx.incr::<(), _>(&redis_key))
+            .await
+            .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to queue increment command")?;
+
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::IncrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::IncrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the INCR reply
+        let value_after_increment = results
+            .pop()
+            .ok_or(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_increment)
+            .change_context(errors::RedisError::IncrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
+    }
+
+    /// Decrements `key` by one and returns the value after the decrement.
+    ///
+    /// If the key does not exist, it is first created at 0 with `ttl_in_secs` as its expiry, so a key
+    /// written by this command always has an expiry. A key that already exists keeps the expiry it
+    /// has. The two commands run in one transaction on the single key, so the key cannot expire
+    /// between them and be recreated by the decrement without an expiry.
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn decrement_key_with_expiry(
+        &self,
+        key: &RedisKey,
+        ttl_in_secs: i64,
+    ) -> CustomResult<i64, errors::RedisError> {
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let trx = self.get_transaction();
+
+        Box::pin(trx.set::<(), _, _>(
+            &redis_key,
+            0,
+            Some(Expiration::EX(ttl_in_secs)),
+            Some(SetOptions::NX),
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to queue set command")?;
+
+        Box::pin(trx.decr::<(), _>(&redis_key))
+            .await
+            .change_context(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Failed to queue decrement command")?;
+
+        let mut results: Vec<RedisValue> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DecrementKeyWithExpiry,
+            trx.exec(true),
+        )
+        .await
+        .change_context(errors::RedisError::DecrementKeyFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
+
+        // The results are the SET reply followed by the DECR reply
+        let value_after_decrement = results
+            .pop()
+            .ok_or(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Got unexpected number of results from transaction")?;
+
+        i64::from_value(value_after_decrement)
+            .change_context(errors::RedisError::DecrementKeyFailed)
+            .attach_printable("Failed to convert from redis value")
     }
 }

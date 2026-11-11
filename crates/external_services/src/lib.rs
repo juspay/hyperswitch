@@ -21,10 +21,28 @@ pub mod http_client;
 pub mod hubspot_proxy;
 pub mod managers;
 pub mod no_encryption;
+#[cfg(feature = "oci_kms")]
+pub mod oci_kms;
 #[cfg(feature = "superposition")]
 pub mod superposition;
 /// deserializers module_path
 pub mod utils;
+
+/// Builds a report from a shared [`cloud_services`] client error, attaching the error's cause as
+/// text: `error-stack` prints only a context's own message, so the cause would otherwise be
+/// missing from logged reports.
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "email"))]
+fn report_with_cause<E>(error: E) -> error_stack::Report<E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let cause = error.source().map(ToString::to_string);
+    let report = error_stack::Report::new(error);
+    match cause {
+        Some(cause) => report.attach_printable(cause),
+        None => report,
+    }
+}
 
 #[cfg(feature = "revenue_recovery")]
 /// date_time module
@@ -67,10 +85,19 @@ pub mod consts {
     /// Default per-RPC timeout (seconds) for unified connector service calls.
     pub(crate) const DEFAULT_UCS_REQUEST_TIMEOUT_SECS: u64 = 35;
 
-    /// General purpose base64 engine
-    #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
-    pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-        base64::engine::general_purpose::STANDARD;
+    /// Default HTTP/2 PING keepalive interval (seconds) on the shared channel to the unified
+    /// connector service. PINGs are sent while idle so a dead connection is detected and
+    /// re-established in the background instead of by the next payment RPC.
+    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_INTERVAL_SECS: u64 = 30;
+
+    /// Default time (seconds) to wait for a keepalive PING acknowledgement before the
+    /// connection to the unified connector service is treated as dead. Matches the gRPC-Go
+    /// client default; a tighter value drops connections during ordinary load spikes.
+    pub(crate) const DEFAULT_UCS_KEEP_ALIVE_TIMEOUT_SECS: u64 = 20;
+
+    /// Default TCP keepalive idle time (seconds) on the shared channel to the unified connector
+    /// service. OS-level backstop for the HTTP/2 PING keepalive.
+    pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
 
     /// Header key used to specify the connector name in UCS requests.
     pub(crate) const UCS_HEADER_CONNECTOR: &str = "x-connector";
@@ -80,6 +107,7 @@ pub mod consts {
 
     /// Header key used to specify the surcharge connector name in UCS requests.
     pub(crate) const UCS_HEADER_SURCHARGE_CONNECTOR: &str = "x-surcharge-connector";
+    pub(crate) const UCS_HEADER_FRM_CONNECTOR: &str = "x-frm-connector";
 
     /// Header key used to indicate the authentication type being used.
     pub(crate) const UCS_HEADER_AUTH_TYPE: &str = "x-auth";
@@ -116,7 +144,7 @@ pub mod consts {
 }
 
 /// Metrics for interactions with external systems.
-#[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "oci_kms"))]
 pub mod metrics {
     use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
@@ -141,6 +169,16 @@ pub mod metrics {
     histogram_metric_f64!(GCP_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for GCP KMS decryption time (in sec)
     #[cfg(feature = "gcp_kms")]
     histogram_metric_f64!(GCP_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for GCP KMS encryption time (in sec)
+
+    #[cfg(feature = "oci_kms")]
+    counter_metric!(OCI_KMS_DECRYPTION_FAILURES, GLOBAL_METER); // No. of OCI KMS Decryption failures
+    #[cfg(feature = "oci_kms")]
+    counter_metric!(OCI_KMS_ENCRYPTION_FAILURES, GLOBAL_METER); // No. of OCI KMS Encryption failures
+
+    #[cfg(feature = "oci_kms")]
+    histogram_metric_f64!(OCI_KMS_DECRYPT_TIME, GLOBAL_METER); // Histogram for OCI KMS decryption time (in sec)
+    #[cfg(feature = "oci_kms")]
+    histogram_metric_f64!(OCI_KMS_ENCRYPT_TIME, GLOBAL_METER); // Histogram for OCI KMS encryption time (in sec)
 }
 
 /// Metrics for config-related operations

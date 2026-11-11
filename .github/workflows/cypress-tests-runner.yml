@@ -20,7 +20,7 @@ env:
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
@@ -28,9 +28,9 @@ env:
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
   MOCK_PAYMENTS_CONNECTORS_BATCH_1: "gigadat zift loonio payload redsys worldpayxml"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "cybersource braintree nmi calida adyen peachpayments"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode fiuu nexixpay"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode nexixpay"
   MOCK_PAYMENTS_CONNECTORS_BATCH_4: "finix"
-  MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
+  MOCK_PAYOUTS_CONNECTORS: "adyenplatform"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -41,19 +41,22 @@ jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     steps:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
         uses: actions/create-github-app-token@v3
+        env:
+          # v3 refuses to run behind hypersage-runners' proxy without this.
+          NODE_USE_ENV_PROXY: "1"
         with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -61,7 +64,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -99,7 +102,7 @@ jobs:
 
   check-cypress-prerequisites:
     name: Check Cypress prerequisites
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       run-checks: ${{ steps.check.outputs.run-checks }}
     steps:
@@ -145,8 +148,15 @@ jobs:
     # use hyperswitch-runners-merge for merge queue level checks
     runs-on: ${{ case(github.event_name == 'merge_group', 'hyperswitch-runners-merge', 'hyperswitch-runners') }}
     env:
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — avoids per-request round trips under load.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "4G"
+      # Default 600s idle timeout can kill the server mid-compile once
+      # parallelism narrows to one long-running crate near the tail of the
+      # build (mozilla/sccache#204) — reproduced on a real run here.
+      SCCACHE_IDLE_TIMEOUT: "0"
     steps:
       - name: Skip tests for PRs from forks
         shell: bash
@@ -155,7 +165,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -176,6 +186,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -183,18 +197,40 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh build-hyperswitch "${{ github.event.pull_request.number }}"
+
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
-        run: cargo build --package router --bin router --jobs 2
+        env:
+          CARGO_BUILD_JOBS: 5
+        run: cargo build --package router --bin router
 
-      - name: Upload binary artifact
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
+
+      # RUN_TESTS excludes fork PRs, so this never writes from an untrusted
+      # checkout. PR runs save PR-scoped (empty PR number on merge_group
+      # falls back to the shared job-scope key — see sccache-save-s3.sh).
+      - name: Compress and upload sccache cache to S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: hyperswitch-server
-          overwrite: true
-          path: target/debug/router
-          retention-days: 1
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh build-hyperswitch "${{ github.event.pull_request.number }}"
+
+      # Keyed by run id so concurrent runs (different PRs) never collide.
+      - name: Upload binary to S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          aws s3 cp target/debug/router \
+            "s3://${CACHE_S3_BUCKET}/${CACHE_S3_KEY_PREFIX}build-artifacts/${{ github.run_id }}/router" \
+            --region "${CACHE_S3_REGION}" --no-progress --only-show-errors
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
@@ -286,7 +322,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -295,19 +331,14 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Download hyperswitch server artifact
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -347,11 +378,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -377,6 +406,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -462,7 +496,7 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
@@ -576,7 +610,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -584,17 +618,13 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Download hyperswitch server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+      - name: Download hyperswitch server binary from S3
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -629,11 +659,9 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -655,6 +683,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -748,7 +780,7 @@ jobs:
     name: Prepare Mock Connectors matrix
     needs: [check-cypress-prerequisites]
     if: ${{ needs.check-cypress-prerequisites.outputs.run-checks == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     outputs:
       mock-matrix: ${{ steps.set-mock-matrix.outputs.matrix }}
     steps:
@@ -859,7 +891,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -868,19 +900,14 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Download hyperswitch server artifact
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -919,11 +946,9 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -949,6 +974,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1188,7 +1218,7 @@ jobs:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: hypersage-runners
     permissions:
       pull-requests: write
     steps:
@@ -1299,7 +1329,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1307,17 +1337,13 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
-        uses: taiki-e/install-action@v2
-        with:
-          tool: sccache
-          checksum: true
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
 
-      - name: Download hyperswitch server artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+      - name: Download hyperswitch server binary from S3
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         run: chmod +x target/debug/router
@@ -1352,11 +1378,9 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1378,6 +1402,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -1500,14 +1528,16 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
-      - name: Download hyperswitch server artifact
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
+      - name: Download hyperswitch server binary from S3
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/download-artifact@v8
-        with:
-          name: hyperswitch-server
-          path: target/debug
+        shell: bash
+        run: .github/scripts/download-hyperswitch-binary-s3.sh
 
       - name: Make server executable
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1534,20 +1564,11 @@ jobs:
           toolchain: stable 2 weeks ago
           components: rustfmt
 
-      - name: Install sccache
+      - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: sccache
-          checksum: true
-
-      - name: Install Diesel CLI
-        if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
-        with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1573,6 +1594,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1688,8 +1714,13 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      # Use `sccache` for caching compilation artifacts
+      # sccache on local disk, restored/saved as one archive instead of its
+      # native S3 backend — see build-hyperswitch for why.
       RUSTC_WRAPPER: sccache
+      SCCACHE_DIR: ${{ github.workspace }}/.sccache
+      SCCACHE_CACHE_SIZE: "4G"
+      # See build-hyperswitch for why.
+      SCCACHE_IDLE_TIMEOUT: "0"
 
     services:
       redis:
@@ -1730,7 +1761,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1782,6 +1813,10 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Mask S3 cache location in job logs
+        shell: bash
+        run: .github/scripts/sccache-mask-s3-env.sh
+
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
@@ -1789,13 +1824,17 @@ jobs:
           tool: sccache
           checksum: true
 
+      - name: Restore sccache cache from S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-restore-s3.sh runner-v2 "${{ github.event.pull_request.number }}"
+
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: baptiste0928/cargo-install@v3.4.0
+        uses: taiki-e/install-action@v2
         with:
-          crate: diesel_cli
-          features: postgres
-          args: --no-default-features
+          tool: diesel_cli
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1829,6 +1868,11 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate_v2 run --locked-schema
 
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
+
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
@@ -1852,8 +1896,22 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           RUSTFLAGS: "-Cinstrument-coverage"
-          CARGO_BUILD_JOBS: 6
+          CARGO_BUILD_JOBS: 5
         run: just build_v2
+
+      - name: Show sccache stats
+        if: ${{ always() && env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: sccache --show-stats
+
+      # RUN_TESTS excludes fork PRs, so this never writes from an untrusted
+      # checkout. PR runs save PR-scoped (empty PR number on merge_group
+      # falls back to the shared job-scope key — see sccache-save-s3.sh).
+      - name: Compress and upload sccache cache to S3
+        if: ${{ env.RUN_TESTS == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: .github/scripts/sccache-save-s3.sh runner-v2 "${{ github.event.pull_request.number }}"
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}

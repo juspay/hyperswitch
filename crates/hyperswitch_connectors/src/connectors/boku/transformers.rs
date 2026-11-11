@@ -94,7 +94,7 @@ impl fmt::Display for BokuChargeType {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "kebab-case")]
 struct BokuHostedData {
-    forward_url: String,
+    forward_url: Secret<String>,
 }
 
 impl TryFrom<&BokuRouterData<&types::PaymentsAuthorizeRouterData>> for BokuPaymentsRequest {
@@ -204,6 +204,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
+        | WalletData::WeroRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

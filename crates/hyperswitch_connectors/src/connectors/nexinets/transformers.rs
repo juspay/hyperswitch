@@ -127,9 +127,9 @@ pub struct NexinetsBankRedirects {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsAsyncDetails {
-    pub success_url: Option<String>,
-    pub cancel_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub cancel_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -756,6 +756,7 @@ fn get_wallet_details(
         | WalletData::SamsungPay(_)
         | WalletData::TwintRedirect { .. }
         | WalletData::VippsRedirect { .. }
+        | WalletData::WeroRedirect { .. }
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

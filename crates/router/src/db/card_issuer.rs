@@ -1,6 +1,6 @@
 use common_utils::id_type;
 use hyperswitch_domain_models::card_issuer::CardIssuersInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::errors::{self, CustomResult},
@@ -40,10 +40,9 @@ impl CardIssuersInterface for KafkaStore {
     #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
-        query: Option<String>,
-        limit: Option<u8>,
-    ) -> CustomResult<Vec<storage::CardIssuer>, errors::StorageError> {
-        self.diesel_store.list_card_issuers(query, limit).await
+        limit: i64,
+    ) -> CustomResult<Vec<storage::CardIssuerListItem>, errors::StorageError> {
+        self.diesel_store.list_card_issuers(limit).await
     }
 
     #[instrument(skip_all)]

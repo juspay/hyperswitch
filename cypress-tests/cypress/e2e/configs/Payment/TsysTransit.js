@@ -134,7 +134,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -209,7 +209,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -296,8 +296,8 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
+          amount_capturable: 0,
+          amount_received: 6000,
         },
       },
     },
@@ -309,10 +309,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "partially_captured",
           amount: 6000,
-          amount_capturable: 6000,
-          amount_received: null,
+          amount_capturable: 0,
+          amount_received: 2000,
         },
       },
     },
@@ -489,7 +489,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -515,7 +515,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -663,7 +663,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -734,7 +734,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
       },
       Request: {
@@ -807,7 +807,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },
@@ -861,7 +861,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: 5000,
+          TIMEOUT: 10000,
         },
         TRIGGER_SKIP: true,
       },

@@ -18,7 +18,12 @@ use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperati
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::logger;
 
-use super::PayoutData;
+use super::{
+    validator::{self, PayoutExecutionKindValidation},
+    PayoutData,
+};
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "payouts")]
 use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
@@ -60,6 +65,11 @@ pub async fn make_payout_method_data(
     payout_data: Option<&mut PayoutData>,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<api::PayoutMethodData>> {
+    payout_data
+        .as_ref()
+        .map(|data| data.payout_attempt.execution_kind)
+        .unwrap_or_default()
+        .validate_normal_execution_kind()?;
     let db = &*state.store;
     let hyperswitch_token = if let Some(payout_token) = payout_token {
         if payout_token.starts_with("temporary_token_") {
@@ -141,12 +151,12 @@ pub async fn make_payout_method_data(
                     )?;
                     Ok(pm)
                 } else {
-                    let resp = cards::get_card_from_locker(
+                    let resp = Box::pin(cards::get_card_from_locker(
                         state,
                         customer_id,
                         merchant_id,
                         payout_token.as_ref(),
-                    )
+                    ))
                     .await
                     .attach_printable("Payout method [card] could not be fetched from HS locker")?
                     .get_card();
@@ -326,6 +336,10 @@ pub async fn fetch_payout_method_data(
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let connector_transfer_method_id =
         should_create_connector_transfer_method(payout_data, connector_data)?;
 
@@ -343,7 +357,7 @@ pub async fn fetch_payout_method_data(
         let merchant_id = payout_data.payout_attempt.merchant_id.clone();
         let payout_type = payout_data.payouts.payout_type;
 
-        let payout_method_data = make_payout_method_data(
+        let payout_method_data = Box::pin(make_payout_method_data(
             state,
             payout_method_data_clone.as_ref(),
             payout_token.as_deref(),
@@ -353,7 +367,7 @@ pub async fn fetch_payout_method_data(
             platform.get_processor().get_key_store(),
             Some(payout_data),
             platform.get_processor().get_account().storage_scheme,
-        )
+        ))
         .await?
         .get_required_value("payout_method_data")?;
 
@@ -372,6 +386,10 @@ pub async fn save_payout_data_to_locker(
     connector_mandate_details: Option<serde_json::Value>,
     platform: &domain::Platform,
 ) -> RouterResult<()> {
+    payout_data
+        .payout_attempt
+        .execution_kind
+        .validate_normal_execution_kind()?;
     let mut pm_id: Option<String> = None;
     let payouts = &payout_data.payouts;
     let key_manager_state = state.into();
@@ -872,6 +890,7 @@ pub async fn save_payout_data_to_locker(
             payouts,
             updated_payout,
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -923,12 +942,20 @@ pub(super) async fn get_or_create_customer_details(
         .get_inner()
         .peek();
 
+    let use_merchant_reference_id =
+        payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            state,
+            platform.get_provider(),
+            Some(&customer_id),
+        )
+        .await;
     match db
         .find_customer_optional_by_customer_id_merchant_id(
             &customer_id,
             merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?
@@ -1106,6 +1133,7 @@ pub async fn decide_payout_connector(
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1155,6 +1183,7 @@ pub async fn decide_payout_connector(
                 &TransactionData::Payout(payout_data),
                 eligible_connectors,
                 &business_profile,
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1390,10 +1419,16 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
     let result = db
-        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .filter_payouts_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            merchant_key_store,
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1428,6 +1463,28 @@ pub async fn update_payouts_and_payout_attempt(
         }));
     }
 
+    let payouts = payout_data.payouts.to_owned();
+    let profile_id = payout_data.business_profile.get_id();
+    let payout_cap_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone());
+    validator::validate_payout_amount_against_config(
+        state,
+        &payout_cap_dimensions,
+        profile_id,
+        Some(req.amount.unwrap_or(payouts.amount.into())),
+        Some(req.currency.unwrap_or(payouts.destination_currency)),
+    )
+    .await?;
+
     // Fetch customer details from request and create new or else use existing customer that was attached
     let customer = get_customer_details_from_request(req);
     let customer_id = if customer.customer_id.is_some()
@@ -1461,8 +1518,26 @@ pub async fn update_payouts_and_payout_attempt(
     payout_data.billing_address = billing_address;
 
     // Update DB with new data
-    let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
+    let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
+    let sender_details = req
+        .sender_details
+        .clone()
+        .or_else(|| payouts.get_optional_sender_details().cloned())
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
@@ -1489,6 +1564,8 @@ pub async fn update_payouts_and_payout_attempt(
             .or(payouts.return_url.clone()),
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
+        funds_transfer_type,
+        sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
         confirm: req.confirm.to_owned(),
@@ -1505,6 +1582,7 @@ pub async fn update_payouts_and_payout_attempt(
             &payouts,
             updated_payouts,
             &payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

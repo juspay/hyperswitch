@@ -5,7 +5,7 @@ use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::{
     core::{
@@ -41,7 +41,7 @@ pub fn construct_authentication_router_data(
     device_channel: payments::DeviceChannel,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: authentication::Authentication,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
@@ -205,6 +205,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         payment_method_status: None,
         connector_response: None,
         integrity_check: Ok(()),
+        accept_amount_mismatch: None,
         additional_merchant_data: None,
         header_payload: None,
         connector_mandate_request_reference_id: None,
@@ -233,6 +234,7 @@ impl ForeignFrom<common_enums::TransactionStatus> for common_enums::Authenticati
             | common_enums::TransactionStatus::NotVerified => Self::Failed,
             common_enums::TransactionStatus::ChallengeRequired
             | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::SecurePaymentConfirmationRequired
             | common_enums::TransactionStatus::InformationOnly => Self::Pending,
         }
     }

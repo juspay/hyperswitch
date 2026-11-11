@@ -110,8 +110,8 @@ pub struct FiservInteractions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservReturnUrls {
-    success_url: String,
-    cancel_url: String,
+    success_url: Secret<String>,
+    cancel_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -384,7 +384,7 @@ impl TryFrom<&FiservRouterData<&types::PaymentsAuthorizeRouterData>> for FiservP
         if item.router_data.is_three_ds() {
             Err(errors::ConnectorError::NotSupported {
                 message: "Cards 3DS".to_string(),
-                connector: "Fiserv",
+                connector: "Fiserv".into(),
             })?
         }
 

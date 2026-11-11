@@ -18,6 +18,7 @@ use fred::{
     clients::Transaction,
     interfaces::{ClientLike, EventInterface, PubsubInterface},
     prelude::TransactionInterface,
+    rustls,
 };
 use tracing::Instrument;
 
@@ -210,6 +211,22 @@ impl RedisConnectionWithContext {
     }
 }
 
+fn redis_tls_client_config(
+    root_store: rustls::RootCertStore,
+) -> CustomResult<rustls::ClientConfig, crate::errors::RedisError> {
+    // Other application dependencies can enable another Rustls provider.
+    // Select Fred 8's ring backend locally rather than relying on global state.
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let builder = rustls::ClientConfig::builder_with_provider(provider)
+        .with_safe_default_protocol_versions()
+        .change_context(crate::errors::RedisError::RedisConnectionError)
+        .attach_printable("Failed to configure TLS protocol versions for Redis")?;
+
+    Ok(builder
+        .with_root_certificates(root_store)
+        .with_no_client_auth())
+}
+
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new_without_event_emitter(
@@ -238,9 +255,73 @@ impl RedisConnectionPool {
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
 
+        // Fred 8 tried configured and cached cluster nodes when reconnecting.
+        // Preserve that behavior instead of adopting Fred 9's new default.
+        if let fred::types::ServerConfig::Clustered { policy, .. } = &mut config.server {
+            *policy = fred::types::ClusterDiscoveryPolicy::UseCache;
+        }
+
         // ACL / AUTH credentials apply to standalone and cluster alike.
         config.username = conf.auth_username().map(ToOwned::to_owned);
         config.password = conf.auth_password().map(ToOwned::to_owned);
+
+        if conf.tls_enabled {
+            let root_store = match conf.read_tls_ca_certificates()? {
+                // Verify the server against the CA certificate(s) from the
+                // configured PEM file instead of the platform's trusted roots.
+                Some(ca_pem) => {
+                    use rustls::{
+                        pki_types::{pem::PemObject, CertificateDer},
+                        RootCertStore,
+                    };
+
+                    let certificates = CertificateDer::pem_slice_iter(&ca_pem)
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|error| {
+                            error_stack::report!(crate::errors::RedisError::InvalidConfiguration(
+                                format!("Failed to parse the Redis CA certificate file: {error}")
+                            ))
+                        })?;
+
+                    if certificates.is_empty() {
+                        return Err(error_stack::report!(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "The Redis CA certificate file contains no PEM certificates"
+                                    .to_string()
+                            )
+                        ));
+                    }
+
+                    let mut root_store = RootCertStore::empty();
+                    for certificate in certificates {
+                        root_store.add(certificate).change_context(
+                            crate::errors::RedisError::InvalidConfiguration(
+                                "Invalid certificate in the Redis CA certificate file".to_string(),
+                            ),
+                        )?;
+                    }
+
+                    root_store
+                }
+                // Verify the server against the platform's trusted CA roots.
+                None => {
+                    let system_certs = rustls_native_certs::load_native_certs()
+                        .change_context(crate::errors::RedisError::RedisConnectionError)
+                        .attach_printable("Failed to build the TLS configuration for Redis")?;
+                    let mut root_store = rustls::RootCertStore::empty();
+                    for certificate in system_certs {
+                        root_store
+                            .add(certificate)
+                            .change_context(crate::errors::RedisError::RedisConnectionError)
+                            .attach_printable("Failed to build the TLS configuration for Redis")?;
+                    }
+                    root_store
+                }
+            };
+            let tls_connector =
+                fred::types::TlsConnector::from(redis_tls_client_config(root_store)?);
+            config.tls = Some(tls_connector.into());
+        }
 
         let perf = fred::types::PerformanceConfig {
             auto_pipeline: conf.auto_pipeline,
@@ -399,5 +480,24 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             default_hash_ttl: config.default_hash_ttl,
             cluster_enabled: config.cluster_enabled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use super::rustls;
+
+    #[test]
+    fn redis_tls_client_builds_without_provider_auto_selection() {
+        let config = super::redis_tls_client_config(rustls::RootCertStore::empty())
+            .expect("Redis TLS config must work even when multiple providers are compiled");
+        let server_name = rustls::pki_types::ServerName::try_from("redis.example.com")
+            .expect("valid Redis server name");
+        let client = rustls::ClientConnection::new(Arc::new(config), server_name)
+            .expect("Redis TLS client must use its explicitly configured provider");
+
+        assert!(client.wants_write());
     }
 }

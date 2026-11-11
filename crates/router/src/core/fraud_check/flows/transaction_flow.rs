@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::{FeatureFrm, FrmData},
-        payments::{self, flows::ConstructFlowSpecificData, helpers},
+        payments::{
+            self, callback_urls::ConnectorCallbackUrls, flows::ConstructFlowSpecificData, helpers,
+        },
     },
     errors, services,
     types::{
@@ -39,6 +41,7 @@ impl
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {
@@ -57,6 +60,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         RouterData<frm_api::Transaction, FraudCheckTransactionData, FraudCheckResponseData>,
     > {
@@ -147,6 +151,7 @@ impl
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload,
             connector_mandate_request_reference_id: None,
@@ -182,6 +187,8 @@ impl FeatureFrm<frm_api::Transaction, FraudCheckTransactionData> for FrmTransact
         connector: &frm_api::FraudCheckConnectorData,
         call_connector_action: payments::CallConnectorAction,
         platform: &domain::Platform,
+        // No UCS equivalent for this flow; always direct.
+        _gateway_context: payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         decide_frm_flow(&mut self, state, connector, call_connector_action, platform).await
     }

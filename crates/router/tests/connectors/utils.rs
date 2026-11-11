@@ -391,6 +391,8 @@ pub trait ConnectorActions: Connector {
         let integration = self.get_data().connector.get_connector_integration();
         let request = self.generate_data(
             payment_data.unwrap_or_else(|| types::RefundsData {
+                payment_feature_metadata: None,
+                feature_metadata: None,
                 payment_amount: 1000,
                 minor_payment_amount: MinorUnit::new(1000),
                 currency: enums::Currency::USD,
@@ -411,6 +413,8 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_method_data: None,
+                mandate_id: None,
                 payment_connector_request_reference_id: None,
             }),
             payment_info,
@@ -483,10 +487,12 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
                 webhook_url: None,
                 browser_info: None,
+                funds_transfer_type: None,
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
                 billing_descriptor: None,
+                external_vault_pmd: None,
             },
             payment_info,
         )
@@ -562,6 +568,7 @@ pub trait ConnectorActions: Connector {
             payout_id: None,
             connector_response: None,
             integrity_check: Ok(()),
+            accept_amount_mismatch: None,
             additional_merchant_data: None,
             header_payload: None,
             connector_mandate_request_reference_id: None,
@@ -988,6 +995,7 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
+            router_notification_url: None,
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
@@ -1046,6 +1054,8 @@ impl Default for PaymentAuthorizeType {
             installment_details: None,
             connector_intent_metadata: None,
             business_country: None,
+            enable_avs_check: None,
+            enable_account_name_verification: None,
         };
         Self(data)
     }
@@ -1121,6 +1131,8 @@ impl Default for PaymentSyncType {
 impl Default for PaymentRefundType {
     fn default() -> Self {
         let data = types::RefundsData {
+            payment_feature_metadata: None,
+            feature_metadata: None,
             payment_amount: 100,
             minor_payment_amount: MinorUnit::new(100),
             currency: enums::Currency::USD,
@@ -1141,6 +1153,8 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: None,
         };
         Self(data)

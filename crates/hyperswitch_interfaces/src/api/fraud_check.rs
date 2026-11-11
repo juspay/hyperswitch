@@ -1,9 +1,9 @@
 //! FRM interface
 use hyperswitch_domain_models::{
-    router_flow_types::{Checkout, Fulfillment, RecordReturn, Sale, Transaction},
+    router_flow_types::{Checkout, Fulfillment, PoFrm, RecordReturn, Sale, Transaction},
     router_request_types::fraud_check::{
-        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckRecordReturnData,
-        FraudCheckSaleData, FraudCheckTransactionData,
+        FraudCheckCheckoutData, FraudCheckFulfillmentData, FraudCheckPayoutData,
+        FraudCheckRecordReturnData, FraudCheckSaleData, FraudCheckTransactionData,
     },
     router_response_types::fraud_check::FraudCheckResponseData,
 };
@@ -40,6 +40,12 @@ pub trait FraudCheckRecordReturn:
 {
 }
 
+/// Trait for payout fraud checks.
+pub trait FraudCheckPayout:
+    ConnectorIntegration<PoFrm, FraudCheckPayoutData, FraudCheckResponseData>
+{
+}
+
 /// trait FraudCheck
 pub trait FraudCheck:
     super::ConnectorCommon
@@ -48,5 +54,6 @@ pub trait FraudCheck:
     + FraudCheckCheckout
     + FraudCheckFulfillment
     + FraudCheckRecordReturn
+    + FraudCheckPayout
 {
 }

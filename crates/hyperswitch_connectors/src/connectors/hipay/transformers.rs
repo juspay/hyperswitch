@@ -83,11 +83,11 @@ pub struct HipayPaymentsRequest {
     payment_product: String,
     amount: StringMajorUnit,
     description: String,
-    decline_url: Option<String>,
-    pending_url: Option<String>,
-    cancel_url: Option<String>,
-    accept_url: Option<String>,
-    notify_url: Option<String>,
+    decline_url: Option<Secret<String>>,
+    pending_url: Option<Secret<String>>,
+    cancel_url: Option<Secret<String>>,
+    accept_url: Option<Secret<String>>,
+    notify_url: Option<Secret<String>>,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     three_ds_data: Option<ThreeDSPaymentData>,
@@ -212,6 +212,11 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                         | Some(CardNetwork::Prop)
                         | Some(CardNetwork::PrivateLabel)
                         | Some(CardNetwork::Dinacard)
+                        | Some(CardNetwork::AirPlus)
+                        | Some(CardNetwork::Aurore)
+                        | Some(CardNetwork::EftposAustralia)
+                        | Some(CardNetwork::GeCapital)
+                        | Some(CardNetwork::Uatp)
                         | None => "".to_string(),
                     },
                 },
@@ -225,7 +230,7 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                 pending_url: item.router_data.request.router_return_url.clone(),
                 cancel_url: item.router_data.request.router_return_url.clone(),
                 accept_url: item.router_data.request.router_return_url.clone(),
-                notify_url: item.router_data.request.router_return_url.clone(),
+                notify_url: item.router_data.request.router_notification_url.clone(),
                 three_ds_data: if item.router_data.is_three_ds() {
                     let billing_address = item.router_data.get_billing_address()?;
                     Some(ThreeDSPaymentData {
@@ -286,6 +291,13 @@ impl From<&HipayTokenResponse> for AdditionalPaymentMethodConnectorResponse {
             card_network: Some(hipay_token_response.brand.clone()),
             domestic_network: hipay_token_response.domestic_network.clone(),
             auth_code: None,
+            processor_card_network: None,
+            card_subtype: None,
+            card_segment_type: None,
+            funding_source: None,
+            card_type: None,
+            issuer_name: None,
+            issuer_country: None,
         }
     }
 }
@@ -381,7 +393,7 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 ),
                 redirection_data: match item.data.is_three_ds() {
                     true => Box::new(Some(RedirectForm::Form {
-                        endpoint: item.response.forward_url,
+                        endpoint: item.response.forward_url.into(),
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     })),

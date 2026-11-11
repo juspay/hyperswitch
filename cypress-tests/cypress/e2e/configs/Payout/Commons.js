@@ -32,6 +32,17 @@ const billing = {
   },
 };
 
+const clientAuthRejection = {
+  status: 401,
+  body: {
+    error: {
+      type: "invalid_request",
+      message: "API key not provided or invalid API key used",
+      code: "IR_01",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     Create: getCustomExchange({
@@ -300,6 +311,68 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payout_method_data",
+        },
+      },
+    }),
+  },
+  wallet_pm: {
+    // Wallet connectors override create/merchant-confirm success responses.
+    // Publishable-key confirmation is rejected before payout processing.
+    Create: getCustomExchange({
+      Request: {
+        payout_type: "wallet",
+      },
+    }),
+    ConfirmClientAuthRestrictedFields: getCustomExchange({
+      Request: {
+        amount: 10000,
+        payout_type: "wallet",
+      },
+      Response: clientAuthRejection,
+    }),
+    ConfirmClientAuthMultipleRestrictedFields: getCustomExchange({
+      Request: {
+        amount: 10000,
+        currency: "USD",
+        auto_fulfill: false,
+        payout_type: "wallet",
+      },
+      Response: clientAuthRejection,
+    }),
+    ConfirmClientAuthMissingClientSecret: getCustomExchange({
+      Request: {
+        client_secret: null,
+        amount: 10000,
+        payout_type: "wallet",
+      },
+      Response: clientAuthRejection,
+    }),
+    ConfirmMerchantAuth: getCustomExchange({
+      Request: {
+        amount: 100,
+        payout_type: "wallet",
+      },
+    }),
+    ConfirmClientAuth: getCustomExchange({
+      Request: {
+        payout_type: "wallet",
+      },
+      Response: clientAuthRejection,
+    }),
+    RetrieveAfterClientAuthErrors: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+          payout_type: "wallet",
+        },
+      },
+    }),
+    RetrieveAfterConfirm: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
         },
       },
     }),

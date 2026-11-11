@@ -1,10 +1,11 @@
 pub mod dimension_config;
 pub mod dimension_state;
-use common_utils::errors::CustomResult;
+pub mod payment_callback;
+use common_utils::{errors::CustomResult, types::MinorUnit};
 pub use dimension_config::{
-    BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv,
-    ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
-    ShouldStoreEligibilityCheckDataForAuthentication,
+    BlockImplicitCustomerCreation, EnableExtendedCardBin, ImplicitCustomerUpdate,
+    PaymentBlocklistGuard, RequiresCvv, ShouldCallGsm, ShouldEnableMitWithLimitedCardData,
+    ShouldPerformEligibility, ShouldStoreEligibilityCheckDataForAuthentication,
 };
 use error_stack::ResultExt;
 use external_services::superposition;
@@ -35,9 +36,10 @@ pub async fn set_config(state: SessionState, config: api::Config) -> RouterRespo
 pub async fn read_config(state: SessionState, key: &str) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
-        .find_config_by_key(key)
+        .find_config_by_key_optional(key)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::ConfigNotFound)?
+        .ok_or(errors::ApiErrorResponse::ConfigNotFound)?;
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
@@ -102,6 +104,19 @@ impl ConfigType for i64 {
 
     fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
         Ok(self.to_string())
+    }
+}
+
+impl ConfigType for MinorUnit {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<i64>()
+            .map(Self::new)
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.get_amount_as_i64().to_string())
     }
 }
 
@@ -232,10 +247,11 @@ where
             for db_key in db_keys.into_iter().flatten() {
                 attempted = true;
                 if resolved_value.is_none() {
-                    let config_result = storage.find_config_by_key(db_key).await;
+                    let config_result = storage.find_config_by_key_optional(db_key).await;
 
                     if let Some(value) = config_result
                         .ok()
+                        .flatten()
                         .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
                     {
                         router_env::logger::info!(

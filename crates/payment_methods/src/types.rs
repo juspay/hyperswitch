@@ -23,7 +23,7 @@ pub struct PaymentMethodResponseItemV1 {
     pub id: String,
     pub customer_id: id_type::CustomerId,
     pub payment_method_type: PaymentMethod,
-    pub payment_method_subtype: PaymentMethodType,
+    pub payment_method_subtype: Option<PaymentMethodType>,
     pub recurring_enabled: Option<bool>,
     pub payment_method_data: Option<PaymentMethodResponseData>,
     pub bank: Option<api_models::payment_methods::MaskedBankDetails>,
@@ -118,6 +118,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
+    Wallet(api_models::payment_methods::WalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 

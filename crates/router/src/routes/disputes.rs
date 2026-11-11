@@ -1,7 +1,7 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::disputes as dispute_models;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{core::api_locking, services::authorization::permissions::Permission};
 pub mod utils;
@@ -86,7 +86,14 @@ pub async fn fetch_disputes(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::connector_sync_disputes(state, auth.platform, connector_id.clone(), req)
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            disputes::connector_sync_disputes(
+                state,
+                auth.platform,
+                profile_id,
+                connector_id.clone(),
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -159,6 +166,103 @@ pub async fn retrieve_disputes_list(
                 permission: Permission::MerchantDisputeRead,
                 allow_connected: true,
                 allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+/// Disputes - List Disputes Across a Platform's Connected Merchants
+#[utoipa::path(
+    get,
+    path = "/disputes/platform/list",
+    params(
+        ("processor_merchant_id" = Option<String>, Query, description = "Comma separated connected merchant ids to filter by"),
+        ("limit" = Option<i64>, Query, description = "The maximum number of Dispute Objects to include in the response"),
+        ("dispute_status" = Option<DisputeStatus>, Query, description = "The status of dispute"),
+        ("dispute_stage" = Option<DisputeStage>, Query, description = "The stage of dispute"),
+        ("reason" = Option<String>, Query, description = "The reason for dispute"),
+        ("connector" = Option<String>, Query, description = "The connector linked to dispute"),
+    ),
+    responses(
+        (status = 200, description = "The platform dispute list was retrieved successfully", body = PlatformDisputeListResponse),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Disputes",
+    operation_id = "List Disputes for a Platform",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PlatformDisputesList))]
+pub async fn retrieve_disputes_list_for_platform(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<dispute_models::PlatformDisputeListConstraints>,
+) -> HttpResponse {
+    let flow = Flow::PlatformDisputesList;
+    let payload = query.into_inner();
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            disputes::retrieve_disputes_list_for_platform(state, auth.platform, None, req)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: true,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantDisputeRead,
+                allow_connected: false,
+                allow_platform: true,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+/// Disputes - Platform Disputes Filters
+#[utoipa::path(
+    get,
+    path = "/disputes/platform/filter",
+    responses(
+        (status = 200, description = "List of filters", body = PlatformDisputeListFilters),
+    ),
+    tag = "Disputes",
+    operation_id = "List all dispute filters for a Platform",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::PlatformDisputesFilters))]
+pub async fn get_platform_disputes_filters(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> HttpResponse {
+    let flow = Flow::PlatformDisputesFilters;
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            disputes::get_platform_disputes_filters(state, auth.platform, None)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: true,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantDisputeRead,
+                allow_connected: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -565,7 +669,16 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::delete_evidence(state, auth.platform.get_processor().clone(), req)
+            #[cfg(feature = "v1")]
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            #[cfg(feature = "v2")]
+            let profile_id = Some(auth.profile.get_id().clone());
+            disputes::delete_evidence(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

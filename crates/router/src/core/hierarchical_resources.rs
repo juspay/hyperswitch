@@ -13,6 +13,7 @@ use openssl::{
     pkey::PKey,
     x509::{X509NameBuilder, X509Req, X509},
 };
+use storage_impl::behaviour::ForeignInto;
 
 use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
@@ -553,7 +554,7 @@ async fn link_hierarchical_resource_data_to_scope(
         RequestorAccount::MerchantConnectorAccount(mca) => {
             db.update_merchant_connector_account(
                 *mca,
-                update.for_merchant_connector_account().into(),
+                update.for_merchant_connector_account().foreign_into(),
                 key_store,
             )
             .await
@@ -715,8 +716,7 @@ fn parse_apple_merchant_identifier(
         .next()
         .ok_or_else(openssl::error::ErrorStack::get)?
         .data()
-        .as_utf8()?
-        .to_string();
+        .to_string()?;
 
     Ok(common_name
         .rsplit(':')

@@ -74,6 +74,9 @@ pub const USER_BLACKLIST_PREFIX: &str = "BU_";
 
 pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
+pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
+pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
+
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
@@ -191,6 +194,15 @@ pub const V2_ADD_VAULT_REQUEST_URL: &str = "/api/v2/vault/add";
 
 /// Vault Get Fingerprint request url
 pub const V2_VAULT_FINGERPRINT_REQUEST_URL: &str = "/api/v2/vault/fingerprint";
+
+/// Label for the vault fingerprint in a batched vault fingerprint request
+pub const VAULT_FINGERPRINT_LABEL: &str = "vault";
+
+/// Label for the auxiliary fingerprint in a batched vault fingerprint request
+pub const AUXILIARY_FINGERPRINT_LABEL: &str = "auxiliary";
+
+/// Label for the merchant fingerprint in a batched vault fingerprint request
+pub const MERCHANT_FINGERPRINT_LABEL: &str = "merchant";
 
 /// Vault Retrieve request url
 pub const V2_VAULT_RETRIEVE_REQUEST_URL: &str = "/api/v2/vault/retrieve";
@@ -320,6 +332,12 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
+/// Redis key prefix for the merchant-scoped card fingerprint, which is never persisted
+pub const MERCHANT_FINGERPRINT_REDIS_PREFIX: &str = "merchant_fingerprint";
+
+/// How long a merchant-scoped card fingerprint stays retrievable after the card was last vaulted
+pub const MERCHANT_FINGERPRINT_TTL: i64 = 86400; // 1 day
+
 // Countries and separately encoded territories where PSD2 or the equivalent UK
 // strong customer authentication rules apply.
 pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
@@ -385,6 +403,10 @@ pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 // bound rather than left open. A week outlives a long weekend; a still-broken scope trips again
 // on its next request.
 pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
+/// Global request-failure counter shared by all shadow traffic and pods.
+pub const UCS_SHADOW_KILL_SWITCH_REDIS_KEY: &str = "ucs_shadow_killed";
+/// Shadow failures expire 24 hours after the latest counter increment.
+pub const UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS: i64 = 24 * 60 * 60;
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
@@ -429,10 +451,21 @@ pub mod superposition {
     pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater.credential_source";
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
+    /// Allow payment method data to be collected internally for follow-up payment operations
+    pub const ALLOW_PAYMENT_METHOD_DATA_COLLECTION: &str =
+        "system.allow_payment_method_data_collection";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
+    pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
+    /// Card testing guard configuration key
+    pub const CARD_TESTING_GUARD_CONFIG: &str = "payments.card_testing_guard_config";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
+    /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
+    /// customer (created via the v2 customers API) instead of the `customer_id` column
+    pub const USE_MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID: &str =
+        "payments.use_merchant_reference_id_as_customer_id";
     /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key
@@ -452,6 +485,13 @@ pub mod superposition {
     /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
     /// the smart algorithm — replaces the decider-based smart retry implementation
     pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Whether a retry may be made with any of the customer's cards stored in redis, rather than
+    /// only the card the invoice last used — whichever algorithm decides when it runs
+    pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
+    /// Whether A/B routing decides which retry implementation an invoice runs.
+    pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
+    /// Which retry implementation inside the `Smart` arm an invoice runs under A/B routing.
+    pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
@@ -476,6 +516,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
@@ -503,6 +549,10 @@ pub mod superposition {
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
+    /// Merchant-scoped payment method fingerprint configuration key (org and merchant scoped).
+    /// When enabled, vaulting a card also derives a merchant-keyed fingerprint for it.
+    pub const SHOULD_GENERATE_MERCHANT_SCOPED_PAYMENT_METHOD_FINGERPRINT: &str =
+        "vaulting.should_generate_merchant_scoped_payment_method_fingerprint";
     /// Timeout (in seconds) for fetching a network token from the tokenization service during a
     /// payment configuration key
     pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =
@@ -511,6 +561,9 @@ pub mod superposition {
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
     pub const SHOULD_PERFORM_SDK_VAULTING: &str = "vaulting.should_perform_sdk_vaulting";
+    /// Override applied future usage for merchant and payment method scoped contexts.
+    pub const SHOULD_OVERRIDE_SETUP_FUTURE_USAGE_TO_OFF_SESSION: &str =
+        "payments.should_override_setup_future_usage_to_off_session";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
@@ -523,12 +576,61 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Allowed incoming webhook source IPs/CIDRs, keyed by connector.
+    pub const INCOMING_WEBHOOK_ALLOWED_IP_RANGES: &str =
+        "webhooks.incoming_webhooks_allowed_ip_ranges";
+    /// Global incoming webhook IP verification kill switch, defaults to `false`.
+    pub const INCOMING_WEBHOOK_IP_VERIFICATION_ENABLED: &str =
+        "webhooks.incoming_webhooks_ip_verification_enabled";
+    /// Whether incoming webhook mTLS verification is enabled, defaults to `false`.
+    pub const INCOMING_WEBHOOK_MTLS_VERIFICATION_ENABLED: &str =
+        "incoming_webhooks.mtls_verification_enabled";
+    /// Whether unverified webhook rate limiting is enabled, defaults to `false`
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_ENABLED: &str =
+        "webhooks.unverified_webhook_rate_limit_enabled";
+    /// Fixed window, in seconds, over which unverified webhooks are counted
+    pub const UNVERIFIED_WEBHOOK_RATE_LIMIT_WINDOW_IN_SECS: &str =
+        "webhooks.unverified_webhook_rate_limit_window_in_secs";
+    /// Maximum unverified webhooks per merchant per window, defaults to 60, `0` disables the merchant level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_rate_limit";
+    /// Maximum unverified webhooks per profile per window, `0` disables the profile level
+    pub const UNVERIFIED_WEBHOOK_PROFILE_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_profile_rate_limit";
+    /// Maximum unverified webhooks per merchant connector account per window, `0` disables the merchant connector account level
+    pub const UNVERIFIED_WEBHOOK_MERCHANT_CONNECTOR_ACCOUNT_RATE_LIMIT: &str =
+        "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// Global request-failure threshold for the UCS shadow kill switch.
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
+    pub const UCS_ENABLED: &str = "ucs_enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode
     pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
+    /// Payout FRM call configuration key
+    pub const PAYOUT_FRM_CALL: &str = "payouts.payout_frm_call";
+    /// Whether to rerun payout FRM before automatic retries, overridable by connector
+    pub const RERUN_PAYOUT_FRM_BEFORE_AUTO_RETRY: &str =
+        "payouts.rerun_payout_frm_before_auto_retry";
+    /// Maximum number of card issuers a list request reads
+    pub const CARD_ISSUER_LIST_MAX_LIMIT: &str = "card_issuer.list_max_limit";
+    /// Preferred-connector routing enablement configuration key per profile
+    pub const PREFERRED_CONNECTORS_ROUTING_ENABLED: &str =
+        "routing.preferred_connectors_routing_enabled";
+    /// Payment method types eligible for preferred-connectors routing (comma-separated)
+    pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
+        "routing.preferred_connectors_enabled_payment_method_types";
+    /// Payout blocklist guard configuration key
+    pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
+    /// Accept connector payment amount mismatch configuration key (scoped by processor merchant
+    /// and payment method type). When enabled, a connector-reported payment amount that differs
+    /// from the requested amount does not fail the integrity check. Refunds are not affected.
+    pub const ACCEPT_PAYMENT_AMOUNT_MISMATCH: &str = "payments.accept_payment_amount_mismatch";
 }
 
 /// The value substituted for sensitive webhook header values in event retrieval responses.

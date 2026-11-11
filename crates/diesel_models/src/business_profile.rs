@@ -5,7 +5,6 @@ use common_types::primitive_wrappers;
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use hyperswitch_masking::Secret;
-use time::Duration;
 
 #[cfg(feature = "v1")]
 use crate::schema::business_profile;
@@ -100,6 +99,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -168,6 +168,7 @@ pub struct ProfileNew {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 #[cfg(feature = "v1")]
@@ -240,6 +241,7 @@ pub struct ProfileUpdateInternal {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -324,6 +326,7 @@ pub struct Profile {
     pub order_fulfillment_time: Option<i64>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -334,6 +337,8 @@ pub struct Profile {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
 }
 
 impl Profile {
@@ -413,7 +418,9 @@ pub struct ProfileNew {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -478,8 +485,10 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub is_l2_l3_enabled: Option<bool>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
@@ -657,6 +666,7 @@ pub struct PaymentLinkConfigRequest {
     pub color_icon_card_cvc_error: Option<String>,
     pub show_merchant_name: Option<bool>,
     pub payment_methods_separator_text: Option<String>,
+    pub redirect_delay_seconds: Option<u32>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq)]
@@ -693,15 +703,28 @@ pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
 }
 
-impl RevenueRecoveryAlgorithmData {
-    pub fn has_exceeded_monitoring_threshold(&self, monitoring_threshold_in_seconds: i64) -> bool {
-        let total_threshold_time = self.monitoring_configured_timestamp
-            + Duration::seconds(monitoring_threshold_in_seconds);
-        common_utils::date_time::now() >= total_threshold_time
-    }
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+
+fn default_grace_period_days() -> u16 {
+    30
 }
 
-common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct RevenueRecoveryConfig {
+    pub max_retry_count: u16,
+    pub billing_connector_retry_threshold: u16,
+    #[serde(default)]
+    pub max_hybrid_cascading_retry_count: u16,
+    #[serde(default = "default_grace_period_days")]
+    pub grace_period_days: u16,
+    #[serde(default)]
+    pub enable_partial_authorization: bool,
+    #[serde(default)]
+    pub max_hard_decline_retries: u16,
+}
+
+common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryConfig);
 
 /// Configuration for payment method blocking based on card attributes
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]

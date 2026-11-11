@@ -111,8 +111,8 @@ pub struct Settings {
 pub struct PaymentOptions {
     pub notification_url: Option<String>,
     pub notification_method: Option<String>,
-    pub redirect_url: String,
-    pub cancel_url: String,
+    pub redirect_url: Secret<String>,
+    pub cancel_url: Secret<String>,
     pub close_window: Option<bool>,
     pub settings: Option<Settings>,
     pub template_id: Option<String>,
@@ -282,7 +282,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             BankNames::Handelsbanken => Ok(Self::Handelsbanken),
             _ => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
-                connector: "Multisafepay",
+                connector: "Multisafepay".into(),
             })),
         }
     }
@@ -419,6 +419,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
@@ -492,6 +493,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)
@@ -677,6 +679,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | WalletData::SamsungPay(_)
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
+                | WalletData::WeroRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayQr(_)
                 | WalletData::CashappQr(_)

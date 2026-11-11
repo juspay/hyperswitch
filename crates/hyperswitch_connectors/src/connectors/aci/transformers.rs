@@ -126,7 +126,7 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
-    pub shopper_result_url: Option<String>,
+    pub shopper_result_url: Option<Secret<String>>,
     #[serde(rename = "customParameters[3DS2_enrolled]")]
     pub three_ds_two_enrolled: Option<bool>,
     pub recurring_type: Option<AciRecurringType>,
@@ -227,6 +227,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::Paze(_)
             | WalletData::TwintRedirect { .. }
             | WalletData::VippsRedirect { .. }
+            | WalletData::WeroRedirect { .. }
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)
@@ -555,7 +556,7 @@ fn get_aci_payment_brand(
         Some(common_enums::CardNetwork::Maestro) => Ok(PaymentBrand::Maestro),
         Some(unsupported_network) => Err(errors::ConnectorError::NotSupported {
             message: format!("Card network {unsupported_network} is not supported by ACI"),
-            connector: "ACI",
+            connector: "ACI".into(),
         })?,
         None => {
             if is_network_token_flow {
@@ -1183,7 +1184,7 @@ fn get_instruction_details(
 
         let transaction_type = match item.router_data.request.mit_category.as_ref() {
             Some(MitCategory::Installment) => InstructionType::Installment,
-            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Recurring | MitCategory::Subscription) => InstructionType::Recurring,
             Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
                 InstructionType::Unscheduled
             }
@@ -1246,7 +1247,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
                     Some(_) => {
                         return Err(errors::ConnectorError::NotSupported {
                             message: "Payment method not supported for mandate setup".to_string(),
-                            connector: "ACI",
+                            connector: "ACI".into(),
                         }
                         .into());
                     }
@@ -1271,7 +1272,7 @@ impl TryFrom<&RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponse
             _ => {
                 return Err(errors::ConnectorError::NotSupported {
                     message: "Payment method not supported for mandate setup".to_string(),
-                    connector: "ACI",
+                    connector: "ACI".into(),
                 }
                 .into());
             }
@@ -1411,11 +1412,14 @@ where
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
             RedirectForm::Form {
-                endpoint: data.url.to_string(),
+                endpoint: data.url.to_string().into(),
                 // Handles method for Bank redirects currently.
                 // 3DS response have method within preconditions. That would require replacing below line with a function.
                 method: data.method.unwrap_or(Method::Post),
-                form_fields,
+                form_fields: (form_fields)
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }
         });
 
