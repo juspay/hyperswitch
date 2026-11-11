@@ -304,6 +304,8 @@ pub struct Payment {
     fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
+    #[serde(rename = "IssuerResponseCode")]
+    issuer_response_code: Option<ReturnCode>,
     card_p_a_r: Option<String>,
 }
 
@@ -454,9 +456,9 @@ impl WorldpayXmlPaymentMethodCode {
 #[derive(Debug, Deserialize, Serialize)]
 struct ReturnCode {
     #[serde(rename = "@description")]
-    description: String,
+    description: Option<String>,
     #[serde(rename = "@code")]
-    code: String,
+    code: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2621,7 +2623,7 @@ struct ChallengeJwt {
     #[serde(rename = "OrgUnitId")]
     org_unit_id: Secret<String>,
     #[serde(rename = "ReturnUrl")]
-    return_url: String,
+    return_url: Secret<String>,
     #[serde(rename = "Payload")]
     payload: Payload,
     #[serde(rename = "ObjectifyPayload")]
@@ -2724,7 +2726,7 @@ fn generate_challenge_jwt(
     acs_url: String,
     payload: String,
     transaction_id: String,
-    return_url: String,
+    return_url: Secret<String>,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
     let iat: u64 = common_utils::date_time::now_unix_timestamp()
@@ -3617,11 +3619,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                             let error_code = payment_data
                                 .return_code
                                 .as_ref()
-                                .map(|code| code.code.clone());
+                                .and_then(|code| code.code.clone());
                             let error_message = payment_data
                                 .return_code
                                 .as_ref()
-                                .map(|code| code.description.clone());
+                                .and_then(|code| code.description.clone());
+
+                            let issuer_error_code = payment_data
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.code.clone());
+
+                            let issuer_error_message = payment_data
+                                .issuer_response_code
+                                .as_ref()
+                                .and_then(|code| code.description.clone());
 
                             Err(ErrorResponse {
                                 code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -3634,8 +3646,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                                 connector_transaction_id: None,
                                 connector_response_reference_id: None,
                                 network_advice_code: None,
-                                network_decline_code: None,
-                                network_error_message: None,
+                                network_decline_code: issuer_error_code,
+                                network_error_message: issuer_error_message,
                                 connector_metadata: None,
                             })
                         } else {
@@ -3686,11 +3698,21 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     let error_code = payment_data
                         .return_code
                         .as_ref()
-                        .map(|code| code.code.clone());
+                        .and_then(|code| code.code.clone());
                     let error_message = payment_data
                         .return_code
                         .as_ref()
-                        .map(|code| code.description.clone());
+                        .and_then(|code| code.description.clone());
+
+                    let issuer_error_code = payment_data
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.code.clone());
+
+                    let issuer_error_message = payment_data
+                        .issuer_response_code
+                        .as_ref()
+                        .and_then(|code| code.description.clone());
 
                     Err(ErrorResponse {
                         code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -3703,8 +3725,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                         connector_transaction_id: None,
                         connector_response_reference_id: None,
                         network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
+                        network_decline_code: issuer_error_code,
+                        network_error_message: issuer_error_message,
                         connector_metadata: None,
                     })
                 } else {
@@ -4305,6 +4327,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4322,6 +4345,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4395,11 +4419,21 @@ fn process_payment_response(
         let error_code = payment_data
             .return_code
             .as_ref()
-            .map(|code| code.code.clone());
+            .and_then(|code| code.code.clone());
         let error_message = payment_data
             .return_code
             .as_ref()
-            .map(|code| code.description.clone());
+            .and_then(|code| code.description.clone());
+
+        let issuer_error_code = payment_data
+            .issuer_response_code
+            .as_ref()
+            .and_then(|code| code.code.clone());
+
+        let issuer_error_message = payment_data
+            .issuer_response_code
+            .as_ref()
+            .and_then(|code| code.description.clone());
 
         Err(Box::new(ErrorResponse {
             code: error_code.unwrap_or(consts::NO_ERROR_CODE.to_string()),
@@ -4410,8 +4444,8 @@ fn process_payment_response(
             connector_transaction_id: Some(order_code.clone()),
             connector_response_reference_id: None,
             network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
+            network_decline_code: issuer_error_code,
+            network_error_message: issuer_error_message,
             connector_metadata: None,
         }))
     } else {
@@ -4662,8 +4696,10 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
 fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateType {
     match mit_category {
         Some(common_enums::MitCategory::Installment) => MandateType::Instalment,
-        Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
-        Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
-        _ => MandateType::Unscheduled,
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            MandateType::Recurring
+        }
+        Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission)
+        | None => MandateType::Unscheduled,
     }
 }

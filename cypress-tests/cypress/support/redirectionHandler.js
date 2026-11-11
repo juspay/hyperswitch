@@ -1819,11 +1819,25 @@ function bankRedirectRedirection(
         });
     };
 
-    clickAction(/go to bank/i, "Opening TrueLayer bank page");
-    clickAction(
-      /open mock uk payments\s*-\s*redirect flow on this device/i,
-      "Opening TrueLayer mock UK payments redirect flow"
-    );
+    // Some TrueLayer sandbox consent pages show an intermediate "Go to bank"
+    // button before the mock provider page; others render the mock provider
+    // entry point directly. Click it only when present so the flow does not
+    // hang waiting for a button that may not exist.
+    clickActionIfPresent(/go to bank/i, "Opening TrueLayer bank page");
+
+    // The "Open Mock UK Payments - Redirect Flow on this device" entry point
+    // sits below the fold on the TrueLayer sandbox page and is rendered as a
+    // selectable card rather than a button/anchor, so the action-selector
+    // lookups above cannot find it. Scroll the page down first, then click the
+    // exact label - anchoring on "this device" also avoids matching a sibling
+    // QR-code/other-device option when both are rendered.
+    cy.scrollTo("bottom", { ensureScrollable: false });
+    cy.contains(
+      /open mock uk payments[\s\S]*redirect flow[\s\S]*on this device/i,
+      { timeout: CONSTANTS.TIMEOUT }
+    )
+      .scrollIntoView()
+      .click({ force: true });
 
     fillTrueLayerMockCredentials();
     clickAction(
@@ -3315,36 +3329,11 @@ function threeDsRedirection(
   connectorId,
   paymentMethodType
 ) {
-  let responseContentType = null;
-
-  // First check what type of response we get from the redirect URL
-  cy.request({
-    url: redirectionUrl.href,
+  // Callback URLs are single-use: navigate directly without a probe or retries.
+  cy.visit(redirectionUrl.href, {
     failOnStatusCode: false,
-  }).then((response) => {
-    responseContentType = response.headers["content-type"];
-
-    // Check if the response is JSON
-    if (response.headers["content-type"]?.includes("application/json")) {
-      // For JSON responses, check if it contains useful info
-      if (response.body && typeof response.body === "object") {
-        // If the JSON contains redirect info, use it
-        if (response.body.redirect_url) {
-          cy.visit(response.body.redirect_url, { failOnStatusCode: false });
-        } else {
-          cy.visit(expectedUrl.href);
-          // Verify return URL and exit completely
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
-          return;
-        }
-      } else {
-        cy.visit(expectedUrl.href);
-        verifyReturnUrl(redirectionUrl, expectedUrl, true);
-        return;
-      }
-    } else {
-      cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-    }
+    retryOnNetworkFailure: false,
+    retryOnStatusCodeFailure: false,
   });
 
   if (connectorId === "paysafe") {
@@ -3466,8 +3455,6 @@ function threeDsRedirection(
   }
   // Nuvei 3DS: 2-step flow (auth button + redirect button)
   if (connectorId === "nuvei") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-
     cy.document()
       .should("have.property", "readyState")
       .and("equal", "complete");
@@ -3536,7 +3523,6 @@ function threeDsRedirection(
   // Using cy.origin() here causes a cross-origin crash because the sandbox
   // auto-redirect fires before the origin block can execute.
   if (connectorId === "paypal") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
@@ -3548,7 +3534,6 @@ function threeDsRedirection(
   // that's fixed on the router side, just visit the redirection URL and
   // confirm it loads, without waiting for the auto-submit/host change.
   if (connectorId === "paybox") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
     return;
   }
@@ -3588,6 +3573,46 @@ function threeDsRedirection(
       "include",
       new URL(expectedUrl.href).origin
     );
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
+  // Elavon PG uses its hosted page to collect the card details again before
+  // completing 3DS and redirecting through Hyperswitch's CompleteAuthorize
+  // endpoint. Keep this interaction in the test layer; the router only needs
+  // to preserve the connector-issued payment token across that redirect.
+  if (connectorId === "elavon_pg") {
+    cy.get("#qa_card_holder_name", { timeout: CONSTANTS.TIMEOUT })
+      .clear()
+      .type("Elavon PG Test");
+    cy.get("#qa_cc_section").clear().type("4546341111111119");
+    cy.get("#qa_expiryDate_section").clear().type("1230");
+    cy.get("#qa_secCode_section").clear().type("123");
+    cy.get("#shopperEmailAddress").clear().type("test@example.com");
+
+    cy.get("#qa_submit_payment", { timeout: CONSTANTS.WAIT_TIME })
+      .should("be.visible")
+      .and("be.enabled")
+      .click();
+
+    cy.get('iframe[name="acsIframe"]', { timeout: CONSTANTS.TIMEOUT })
+      .should("be.visible")
+      .should(($iframe) => {
+        const doc = $iframe[0].contentDocument;
+        expect(doc, "Elavon ACS iframe document").to.exist;
+        expect(
+          doc.querySelector("#challengeData"),
+          "Elavon ACS challenge form to render inside the iframe"
+        ).to.exist;
+      })
+      .its("0.contentDocument.body")
+      .within(() => {
+        cy.get("#challengeData").should("be.visible").clear().type("validdata");
+        cy.get("#transStatus").select("Y").should("have.value", "Y");
+        cy.get("a.buttonBase").should("contain.text", "Continue").click();
+      });
+
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
   }
@@ -3849,12 +3874,7 @@ function threeDsRedirection(
   );
 
   cy.then(() => {
-    if (
-      responseContentType &&
-      !responseContentType.includes("application/json")
-    ) {
-      verifyReturnUrl(redirectionUrl, expectedUrl, true);
-    }
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
   });
 }
 

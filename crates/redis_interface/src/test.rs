@@ -2409,7 +2409,7 @@ fn auth_settings_from_env() -> Option<RedisSettings> {
         host,
         port,
         username,
-        password: Some(password.into()),
+        primary_password: Some(password.into()),
         ..RedisSettings::default()
     })
 }
@@ -2508,7 +2508,7 @@ async fn test_authenticated_connection_wrong_password_fails() {
                 return true;
             };
 
-            settings.password = Some("definitely_the_wrong_password".to_string().into());
+            settings.primary_password = Some("definitely_the_wrong_password".to_string().into());
 
             test_connection(&settings).await.is_err()
         })
@@ -2572,7 +2572,7 @@ fn tls_settings_from_env() -> Option<RedisSettings> {
         host,
         port,
         username,
-        password: password.map(Into::into),
+        primary_password: password.map(Into::into),
         tls_enabled: true,
         tls_ca_certificate_path,
         ..RedisSettings::default()
@@ -2742,4 +2742,72 @@ async fn test_cluster_pubsub() {
     .expect("Spawn block failure");
 
     assert!(is_success);
+}
+
+#[tokio::test]
+async fn test_consume_key_single_winner_and_replay() {
+    tokio::task::spawn_blocking(|| {
+        futures::executor::block_on(async {
+            let connection = test_connection(&RedisSettings::default())
+                .await
+                .expect("Redis connection");
+            let key: RedisKey = format!("test_consume_concurrent_{}", unique_test_id()).into();
+            connection
+                .set_key_with_expiry(&key, "unused", 60)
+                .await
+                .expect("seed token");
+            let results =
+                futures::future::join_all((0..32).map(|_| connection.consume_key(&key))).await;
+            let values = results
+                .into_iter()
+                .map(|result| result.expect("consume transaction"))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                values
+                    .iter()
+                    .filter(|value| value.as_deref() == Some("unused"))
+                    .count(),
+                1
+            );
+            assert_eq!(values.iter().filter(|value| value.is_none()).count(), 31);
+            assert_eq!(connection.consume_key(&key).await.expect("replay"), None);
+            assert!(!connection.exists::<()>(&key).await.expect("key absent"));
+        })
+    })
+    .await
+    .expect("test task");
+}
+
+#[tokio::test]
+async fn test_consume_key_missing_and_expired_are_not_created() {
+    tokio::task::spawn_blocking(|| {
+        futures::executor::block_on(async {
+            let connection = test_connection(&RedisSettings::default())
+                .await
+                .expect("Redis connection");
+            let key: RedisKey = format!("test_consume_expired_{}", unique_test_id()).into();
+            for _ in 0..2 {
+                assert_eq!(
+                    connection.consume_key(&key).await.expect("unknown token"),
+                    None
+                );
+            }
+            assert!(!connection.exists::<()>(&key).await.expect("missing key"));
+            connection
+                .set_key_with_expiry(&key, "unused", 60)
+                .await
+                .expect("seed token");
+            connection
+                .set_expire_at(&key, 1)
+                .await
+                .expect("expire token");
+            assert_eq!(
+                connection.consume_key(&key).await.expect("expired token"),
+                None
+            );
+            assert!(!connection.exists::<()>(&key).await.expect("expired key"));
+        })
+    })
+    .await
+    .expect("test task");
 }

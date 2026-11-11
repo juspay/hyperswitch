@@ -5,7 +5,7 @@ pub use ::payment_methods::helpers::{
     validate_payment_method_type_against_payment_method,
 };
 #[cfg(feature = "v2")]
-use api_models::ephemeral_key::ClientSecretResponse;
+use api_models::client_secret::ClientSecretResponse;
 #[cfg(feature = "v2")]
 use api_models::payments::{additional_info::UpiAdditionalData, UpiSource};
 use api_models::{
@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
+use common_enums::{enums::ExecutionMode, ConnectorType, UcsAvailability, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -36,6 +36,8 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use external_services::superposition::Config;
 use futures::future::Either;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
@@ -66,7 +68,7 @@ use openssl::{
 };
 #[cfg(feature = "v2")]
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use rust_decimal::Decimal;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_with::{serde_as, VecSkipError};
@@ -80,9 +82,12 @@ use super::{
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
+    configs::dimension_config::ShouldOverrideSetupFutureUsageToOffSession,
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
+#[cfg(feature = "v2")]
+use crate::types::storage::client_secret;
 use crate::{
     configs::settings::{
         ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
@@ -112,7 +117,7 @@ use crate::{
             self,
             types::{self, CryptoOperation},
         },
-        storage::{self, enums as storage_enums, ephemeral_key, CardTokenData},
+        storage::{self, enums as storage_enums, CardTokenData},
         transformers::{ForeignFrom, ForeignTryFrom},
         AdditionalMerchantData, AdditionalPaymentMethodConnectorResponse, ErrorResponse,
         MandateReference, MerchantAccountData, MerchantRecipientData, PaymentsResponseData,
@@ -128,6 +133,60 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
+
+/// Use a profile-scoped lookup when authentication supplies a profile, otherwise retain merchant scope.
+#[cfg(feature = "v1")]
+pub async fn find_payment_intent(
+    db: &dyn StorageInterface,
+    payment_id: &id_type::PaymentId,
+    processor_merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
+    profile_id_from_auth_layer: Option<&id_type::ProfileId>,
+) -> CustomResult<PaymentIntent, errors::StorageError> {
+    match profile_id_from_auth_layer {
+        Some(profile_id) => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+                payment_id,
+                processor_merchant_id,
+                profile_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+        None => {
+            db.find_payment_intent_by_payment_id_processor_merchant_id(
+                payment_id,
+                processor_merchant_id,
+                key_store,
+                storage_scheme,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub(super) fn validate_payment_profile(
+    authenticated_profile_id: Option<&id_type::ProfileId>,
+    payment_profile_id: Option<&id_type::ProfileId>,
+) -> RouterResult<()> {
+    match (authenticated_profile_id, payment_profile_id) {
+        (Some(authenticated), Some(payment)) => fp_utils::when(authenticated != payment, || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Profile id authentication failed. Please use the correct JWT token"
+                    .to_string(),
+            }
+            .into())
+        }),
+        (Some(_), None) => Err(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Couldn't find profile_id in record for authentication".to_string(),
+        }
+        .into()),
+        (None, _) => Ok(()),
+    }
+}
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -486,7 +545,7 @@ pub async fn get_token_pm_type_mandate_details(
             mandate_data.clone(),
             None,
             None,
-            None,
+            pm_info,
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
@@ -846,9 +905,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_id| async {
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -863,9 +922,9 @@ pub async fn get_token_for_recurring_mandate(
         .async_map(|payment_intent| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &mandate.merchant_id,
+                &platform.get_processor().get_processor_merchant_id(),
                 payment_intent.active_attempt.get_id().as_str(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -1332,61 +1391,6 @@ pub fn validate_customer_id_mandatory_cases(
     }
 }
 
-#[cfg(feature = "v1")]
-pub fn create_startpay_url(
-    base_url: &str,
-    payment_attempt: &PaymentAttempt,
-    payment_intent: &PaymentIntent,
-) -> String {
-    format!(
-        "{}/payments/redirect/{}/{}/{}",
-        base_url,
-        payment_intent.get_id().get_string_repr(),
-        payment_intent.processor_merchant_id.get_string_repr(),
-        payment_attempt.attempt_id
-    )
-}
-
-pub fn create_redirect_url(
-    router_base_url: &String,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-    creds_identifier: Option<&str>,
-) -> String {
-    let creds_identifier_path = creds_identifier.map_or_else(String::new, |cd| format!("/{cd}"));
-    format!(
-        "{}/payments/{}/{}/redirect/response/{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name,
-    ) + creds_identifier_path.as_ref()
-}
-
-pub fn create_authentication_url(
-    router_base_url: &str,
-    payment_attempt: &PaymentAttempt,
-) -> String {
-    format!(
-        "{router_base_url}/payments/{}/3ds/authentication",
-        payment_attempt.payment_id.get_string_repr()
-    )
-}
-
-pub fn create_authorize_url(
-    router_base_url: &str,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-) -> String {
-    format!(
-        "{}/payments/{}/{}/authorize/{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name
-    )
-}
-
 pub fn create_webhook_url(
     router_base_url: &str,
     merchant_id: &id_type::MerchantId,
@@ -1397,25 +1401,6 @@ pub fn create_webhook_url(
         router_base_url,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
-    )
-}
-
-pub fn create_complete_authorize_url(
-    router_base_url: &String,
-    payment_attempt: &PaymentAttempt,
-    connector_name: impl std::fmt::Display,
-    creds_identifier: Option<&str>,
-) -> String {
-    let creds_identifier = creds_identifier.map_or_else(String::new, |creds_identifier| {
-        format!("/{creds_identifier}")
-    });
-    format!(
-        "{}/payments/{}/{}/redirect/complete/{}{}",
-        router_base_url,
-        payment_attempt.payment_id.get_string_repr(),
-        payment_attempt.processor_merchant_id.get_string_repr(),
-        connector_name,
-        creds_identifier
     )
 }
 
@@ -2026,6 +2011,87 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     todo!()
 }
 
+/// Resolves the Superposition flag that decides whether a customer identifier supplied in a
+/// request should be interpreted as the customer's `merchant_reference_id`.
+///
+/// Merchants creating customers via the v2 customers API get a global id as the `customer_id`, but
+/// can continue sending their own `merchant_reference_id` in request fields that historically
+/// accepted `customer_id`. This function only resolves the provider-merchant and organization
+/// scoped configuration; each caller remains responsible for applying it to its lookup flow.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_use_merchant_reference_id_as_customer_id(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
+/// Convenience wrapper over [`should_use_merchant_reference_id_as_customer_id`] for the common
+/// case where only a `Provider` (and no additional dimensions) is available.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub async fn should_use_merchant_reference_id_as_customer_id_for_provider(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: Option<&id_type::CustomerId>,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(provider.get_provider_merchant_id())
+        .with_organization_id(provider.get_account().organization_id.clone());
+
+    should_use_merchant_reference_id_as_customer_id(state, &dimensions, customer_id).await
+}
+
+/// Resolves the customer id received in a payments request to the id of the customer record, so
+/// that it can be compared with ids that are stored against the customer (like the customer id of
+/// a payment method). When the customer cannot be resolved, the id is returned as it is.
+#[cfg(feature = "v1")]
+pub async fn resolve_request_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+) -> id_type::CustomerId {
+    let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id_for_provider(
+        state,
+        provider,
+        Some(customer_id),
+    )
+    .await;
+
+    // Skip the customer-table lookup entirely for the (overwhelming) majority of merchants who
+    // don't have this config enabled: the request's `customer_id` is already correct for them, and
+    // this function sits on the hot path of every payment create/confirm.
+    if use_merchant_reference_id {
+        state
+            .store
+            .find_customer_optional_by_customer_id_merchant_id(
+                customer_id,
+                provider.get_account().get_id(),
+                provider.get_key_store(),
+                provider.get_account().storage_scheme,
+                use_merchant_reference_id,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to resolve the customer using the merchant reference id"
+                )
+            })
+            .ok()
+            .flatten()
+            .map_or_else(|| customer_id.clone(), |customer| customer.get_id().clone())
+    } else {
+        customer_id.clone()
+    }
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 #[allow(clippy::type_complexity)]
@@ -2053,12 +2119,22 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     let key_manager_state = &state.into();
     let optional_customer = match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id = should_use_merchant_reference_id_as_customer_id(
+                state,
+                &dimensions
+                    .without_profile_id()
+                    .without_processor_merchant_id()
+                    .with_organization_id(provider.get_account().organization_id.clone()),
+                Some(&customer_id),
+            )
+            .await;
             let customer_data = db
                 .find_customer_optional_by_customer_id_merchant_id(
                     &customer_id,
                     merchant_id,
                     key_store,
                     storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             let key = key_store.key.get_inner().peek();
@@ -2174,8 +2250,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|last_modified_by| last_modified_by.to_string()),
                         };
 
+                        // The id of the fetched record is used for the update, because the id
+                        // received in the request can be the `merchant_reference_id`.
                         db.update_customer_by_customer_id_merchant_id(
-                            customer_id,
+                            c.get_id().clone(),
                             merchant_id.to_owned(),
                             c,
                             customer_update,
@@ -2202,7 +2280,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             )
                             .await;
 
-                    if should_block_implicit_customer_creation {
+                    // A customer looked up through the `merchant_reference_id` has to exist already,
+                    // because it can only be created via the v2 customers API. Creating a v1 customer
+                    // with the reference id as the `customer_id` would leave it unreachable by the
+                    // same lookup.
+                    if should_block_implicit_customer_creation || use_merchant_reference_id {
                         Err(report!(errors::StorageError::ValueNotFound(
                             "customer".to_owned()
                         )))?
@@ -2335,12 +2417,21 @@ pub async fn get_customer_if_exists(
 
     match customer_id {
         Some(customer_id) => {
+            let use_merchant_reference_id =
+                should_use_merchant_reference_id_as_customer_id_for_provider(
+                    state,
+                    provider,
+                    Some(customer_id),
+                )
+                .await;
+
             let customer = db
                 .find_customer_by_customer_id_merchant_id(
                     customer_id,
                     provider.get_account().get_id(),
                     provider.get_key_store(),
                     provider.get_account().storage_scheme,
+                    use_merchant_reference_id,
                 )
                 .await?;
             Ok(Some(customer))
@@ -2538,6 +2629,44 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
                 .ok()
         })
         .unwrap_or(false)
+}
+
+/// Reads UCS enabled mode purely from Superposition service (no DB fallback).
+pub async fn get_ucs_enabled_mode_from_superposition(state: &SessionState) -> UcsAvailability {
+    match state
+        .superposition_service
+        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
+        .await
+    {
+        Ok(value) => value.parse::<UcsAvailability>().unwrap_or_else(|err| {
+            logger::warn!(
+                error = ?err,
+                ucs_enabled_value = %value,
+                "Failed to parse ucs_enabled value from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }),
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch UCS enabled from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }
+    }
+}
+
+/// Reads the UCS config source setting from the application config.
+pub fn get_ucs_config_source(
+    state: &SessionState,
+) -> external_services::grpc_client::unified_connector_service::UcsConfigSource {
+    state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .map(|c| c.config_source)
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -2899,6 +3028,45 @@ pub async fn should_execute_based_on_rollout_with_precedence(
     // No key found at any level — caller will apply default execution mode
     logger::debug!("No rollout config found at any precedence level, using default execution mode");
     Ok(RolloutExecutionResult::default())
+}
+
+/// Reads rollout config purely from Superposition — dimensions handle precedence via context.
+/// No DB fallback.
+pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
+    state: &SessionState,
+    superposition_key: &str,
+    context: Option<external_services::superposition::ConfigContext>,
+) -> RouterResult<RolloutExecutionResult> {
+    match state
+        .superposition_service
+        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
+        .await
+    {
+        Ok(json_value) => {
+            let mut execution_result = json_value
+                .parse_value::<RolloutConfig>("RolloutConfig")
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to parse superposition rollout config. Defaulting to not execute."
+                    );
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default();
+            if execution_result.should_execute {
+                execution_result.proxy_override = build_rollout_proxy_override(state);
+            }
+            Ok(execution_result)
+        }
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from superposition. Defaulting to not execute."
+            );
+            Ok(RolloutExecutionResult::default())
+        }
+    }
 }
 
 pub fn determine_standard_vault_action(
@@ -4291,9 +4459,9 @@ where
 pub(super) async fn filter_by_constraints(
     state: &SessionState,
     constraints: &PaymentIntentFetchConstraints,
-    merchant_id: &id_type::MerchantId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: storage_enums::MerchantStorageScheme,
+    merchant_id: &domain::ProcessorMerchantId,
+    key_store: &domain::ProcessorKeyStore,
+    storage_scheme: domain::ProcessorStorageScheme,
 ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
     let db = &*state.store;
     let result = db
@@ -4331,7 +4499,7 @@ pub fn get_handle_response_url_for_modular_authentication(
     business_profile: &domain::Profile,
     response: &api_models::authentication::AuthenticationAuthenticateResponse,
     connector: String,
-    return_url: Option<String>,
+    return_url: Option<hyperswitch_masking::Secret<String>>,
     client_secret: Option<&hyperswitch_masking::Secret<String>>,
     amount: Option<MinorUnit>,
 ) -> RouterResult<api::RedirectionResponse> {
@@ -4351,7 +4519,7 @@ pub fn get_handle_response_url_for_modular_authentication(
     let return_url = make_merchant_url_with_response_for_authentication(
         business_profile,
         redirection_response,
-        authentication_return_url.as_ref(),
+        authentication_return_url.as_ref().map(PeekInterface::peek),
         client_secret,
         None,
     )
@@ -4489,40 +4657,17 @@ pub fn make_merchant_url_with_response(
     Ok(merchant_url_with_response.to_string())
 }
 
-#[cfg(feature = "v1")]
-pub async fn make_ephemeral_key(
-    state: SessionState,
-    customer_id: id_type::CustomerId,
-    merchant_id: id_type::MerchantId,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let store = &state.store;
-    let id = utils::generate_id(consts::ID_LENGTH, "eki");
-    let secret = format!("epk_{}", common_utils::generate_uuid_v4().simple());
-    let ek = ephemeral_key::EphemeralKeyNew {
-        id,
-        customer_id,
-        merchant_id: merchant_id.to_owned(),
-        secret,
-    };
-    let ek = store
-        .create_ephemeral_key(ek, state.conf.eph_key.validity)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to create ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
-}
-
 #[cfg(feature = "v2")]
 pub async fn make_client_secret(
     state: SessionState,
-    resource_id: api_models::ephemeral_key::ResourceId,
+    resource_id: api_models::client_secret::ResourceId,
     platform: domain::Platform,
     headers: &actix_web::http::header::HeaderMap,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = &state.store;
 
     match &resource_id {
-        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+        api_models::client_secret::ResourceId::Customer(global_customer_id) => {
             db.find_customer_by_global_id(
                 global_customer_id,
                 platform.get_processor().get_key_store(),
@@ -4534,7 +4679,7 @@ pub async fn make_client_secret(
     }
 
     let resource_id = match resource_id {
-        api_models::ephemeral_key::ResourceId::Customer(global_customer_id) => {
+        api_models::client_secret::ResourceId::Customer(global_customer_id) => {
             common_utils::types::authentication::ResourceId::Customer(global_customer_id)
         }
     };
@@ -4558,14 +4703,14 @@ pub async fn create_client_secret(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     resource_id: common_utils::types::authentication::ResourceId,
-) -> RouterResult<ephemeral_key::ClientSecretType> {
+) -> RouterResult<client_secret::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
 
     let store = &state.store;
     let id = id_type::ClientSecretId::generate();
     let secret = hyperswitch_masking::Secret::new(generate_time_ordered_id("cs"));
 
-    let client_secret = ephemeral_key::ClientSecretTypeNew {
+    let client_secret = client_secret::ClientSecretTypeNew {
         id,
         merchant_id: merchant_id.to_owned(),
         secret,
@@ -4579,40 +4724,26 @@ pub async fn create_client_secret(
     Ok(client_secret)
 }
 
-#[cfg(feature = "v1")]
-pub async fn delete_ephemeral_key(
-    state: SessionState,
-    ek_id: String,
-) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let db = state.store.as_ref();
-    let ek = db
-        .delete_ephemeral_key(&ek_id)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to delete ephemeral key")?;
-    Ok(services::ApplicationResponse::Json(ek))
-}
-
 #[cfg(feature = "v2")]
 pub async fn delete_client_secret(
     state: SessionState,
-    ephemeral_key_id: String,
+    client_secret_id: String,
 ) -> errors::RouterResponse<ClientSecretResponse> {
     let db = state.store.as_ref();
-    let ephemeral_key = db
-        .delete_client_secret(&ephemeral_key_id)
+    let client_secret = db
+        .delete_client_secret(&client_secret_id)
         .await
         .map_err(|err| match err.current_context() {
             errors::StorageError::ValueNotFound(_) => {
                 err.change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "Ephemeral Key not found".to_string(),
+                    message: "Client secret not found".to_string(),
                 })
             }
             _ => err.change_context(errors::ApiErrorResponse::InternalServerError),
         })
-        .attach_printable("Unable to delete ephemeral key")?;
+        .attach_printable("Unable to delete client secret")?;
 
-    let response = ClientSecretResponse::foreign_try_from(ephemeral_key)
+    let response = ClientSecretResponse::foreign_try_from(client_secret)
         .attach_printable("Only customer is supported as resource_id in response")?;
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -4682,13 +4813,13 @@ pub fn make_url_with_signature(
         .query_pairs()
         .collect::<Vec<_>>()
         .iter()
-        .map(|(key, value)| (key.clone().into_owned(), value.clone().into_owned()))
+        .map(|(key, value)| (key.clone().into_owned(), value.clone().into_owned().into()))
         .collect::<Vec<_>>();
 
     Ok(api::RedirectionResponse {
         return_url: base_url.to_string(),
         params: parameters,
-        return_url_with_query_params: url.to_string(),
+        return_url_with_query_params: url.to_string().into(),
         http_method: if business_profile.redirect_to_merchant_with_http_post {
             services::Method::Post.to_string()
         } else {
@@ -4810,61 +4941,6 @@ pub fn generate_mandate(
     }
 }
 
-#[cfg(test)]
-mod generate_mandate_tests {
-    use std::borrow::Cow;
-
-    use common_types::payments::{AcceptanceType, CustomerAcceptance};
-    use common_utils::{id_type, types::MinorUnit};
-    use hyperswitch_domain_models::mandates::{MandateAmountData, MandateData, MandateDataType};
-
-    use super::generate_mandate;
-
-    /// A new mandate sets its own `created_at` rather than taking the database default.
-    #[test]
-    fn a_new_mandate_carries_its_own_created_at() {
-        let mandate_data = MandateData {
-            update_mandate_id: None,
-            customer_acceptance: Some(CustomerAcceptance {
-                acceptance_type: AcceptanceType::Offline,
-                accepted_at: None,
-                online: None,
-            }),
-            mandate_type: Some(MandateDataType::SingleUse(MandateAmountData {
-                amount: MinorUnit::new(100),
-                currency: common_enums::Currency::USD,
-                start_date: None,
-                end_date: None,
-                metadata: None,
-            })),
-        };
-        let customer_id = Some(id_type::CustomerId::try_from(Cow::Borrowed("cus_1")).unwrap());
-
-        let before = common_utils::date_time::now();
-        let mandate = generate_mandate(
-            id_type::MerchantId::default(),
-            id_type::PaymentId::try_from(Cow::Borrowed("pay_1")).unwrap(),
-            "stripe".to_owned(),
-            Some(mandate_data),
-            &customer_id,
-            "pm_1".to_owned(),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
-        .unwrap()
-        .expect("a mandate for mandate data and a customer");
-
-        let after = common_utils::date_time::now();
-
-        let created_at = mandate.created_at.expect("created_at is set");
-        assert!(before <= created_at && created_at <= after, "{created_at}");
-    }
-}
-
 #[cfg(feature = "v1")]
 // A function to manually authenticate the client secret with intent fulfillment time
 pub fn authenticate_client_secret(
@@ -4941,10 +5017,10 @@ pub(crate) fn validate_installment_data_in_create(
 
 #[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
-    payment_method: &Option<api_enums::PaymentMethod>,
+    payment_method: Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
-    payment_method_type: &Option<api_enums::PaymentMethodType>,
-    mandate_type: &Option<api::MandateTransactionType>,
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+    mandate_type: Option<api::MandateTransactionType>,
     token: &Option<String>,
     ctp_service_details: &Option<api_models::payments::CtpServiceDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
@@ -5000,9 +5076,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_id,
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     platform.get_processor().get_key_store(),
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -5067,295 +5143,8 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
     Ok(payment_id.to_string())
 }
 
-#[cfg(feature = "v1")]
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_authenticate_client_secret_session_not_expired() {
-        let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
-            merchant_id: id_type::MerchantId::default(),
-            status: storage_enums::IntentStatus::RequiresCapture,
-            amount: MinorUnit::new(200),
-            currency: None,
-            amount_captured: None,
-            customer_id: None,
-            description: None,
-            return_url: None,
-            metadata: None,
-            connector_id: None,
-            shipping_address_id: None,
-            billing_address_id: None,
-            mit_category: None,
-            tokenization: None,
-            statement_descriptor_name: None,
-            statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now(),
-            modified_at: common_utils::date_time::now(),
-            last_synced: None,
-            setup_future_usage: None,
-            fingerprint_id: None,
-            off_session: None,
-            client_secret: Some("1".to_string()),
-            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
-                "nopes".to_string(),
-            ),
-            business_country: None,
-            business_label: None,
-            order_details: None,
-            allowed_payment_method_types: None,
-            connector_metadata: None,
-            feature_metadata: None,
-            attempt_count: 1,
-            payment_link_id: None,
-            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
-            merchant_decision: None,
-            payment_confirm_source: None,
-            surcharge_applicable: None,
-            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization: Some(
-                common_enums::RequestIncrementalAuthorization::default(),
-            ),
-            incremental_authorization_allowed: None,
-            authorization_count: None,
-            session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
-            ),
-            request_external_three_ds_authentication: None,
-            split_payments: None,
-            frm_metadata: None,
-            customer_details: None,
-            billing_details: None,
-            merchant_order_reference_id: None,
-            shipping_details: None,
-            is_payment_processor_token_flow: None,
-            organization_id: id_type::OrganizationId::default(),
-            shipping_cost: None,
-            tax_details: None,
-            skip_external_tax_calculation: None,
-            request_extended_authorization: None,
-            psd2_sca_exemption_type: None,
-            processor_merchant_id: id_type::MerchantId::default(),
-            created_by: None,
-            force_3ds_challenge: None,
-            force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled: None,
-            is_payment_id_from_merchant: None,
-            payment_channel: None,
-            tax_status: None,
-            discount_amount: None,
-            order_date: None,
-            shipping_amount_tax: None,
-            duty_amount: None,
-            enable_partial_authorization: None,
-            enable_overcapture: None,
-            billing_descriptor: None,
-            is_account_funded_transaction: None,
-            recipient_details: None,
-            partner_merchant_identifier_details: None,
-            state_metadata: None,
-            installment_options: None,
-            profile_acquirer_id: None,
-            external_surcharge_strategy: None,
-            external_surcharge_applicable: None,
-        };
-        let req_cs = Some("1".to_string());
-        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_ok());
-        // Check if the result is an Ok variant
-    }
-
-    #[test]
-    fn test_authenticate_client_secret_session_expired() {
-        let created_at =
-            common_utils::date_time::now().saturating_sub(time::Duration::seconds(20 * 60));
-        let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
-            merchant_id: id_type::MerchantId::default(),
-            status: storage_enums::IntentStatus::RequiresCapture,
-            amount: MinorUnit::new(200),
-            currency: None,
-            amount_captured: None,
-            customer_id: None,
-            description: None,
-            return_url: None,
-            metadata: None,
-            connector_id: None,
-            shipping_address_id: None,
-            mit_category: None,
-            billing_address_id: None,
-            statement_descriptor_name: None,
-            statement_descriptor_suffix: None,
-            created_at,
-            modified_at: common_utils::date_time::now(),
-            fingerprint_id: None,
-            last_synced: None,
-            setup_future_usage: None,
-            off_session: None,
-            client_secret: Some("1".to_string()),
-            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
-                "nopes".to_string(),
-            ),
-            business_country: None,
-            business_label: None,
-            order_details: None,
-            allowed_payment_method_types: None,
-            connector_metadata: None,
-            feature_metadata: None,
-            attempt_count: 1,
-            payment_link_id: None,
-            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
-            merchant_decision: None,
-            payment_confirm_source: None,
-            surcharge_applicable: None,
-            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization: Some(
-                common_enums::RequestIncrementalAuthorization::default(),
-            ),
-            incremental_authorization_allowed: None,
-            authorization_count: None,
-            session_expiry: Some(
-                created_at.saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
-            ),
-            request_external_three_ds_authentication: None,
-            split_payments: None,
-            frm_metadata: None,
-            customer_details: None,
-            billing_details: None,
-            merchant_order_reference_id: None,
-            shipping_details: None,
-            is_payment_processor_token_flow: None,
-            organization_id: id_type::OrganizationId::default(),
-            shipping_cost: None,
-            tax_details: None,
-            skip_external_tax_calculation: None,
-            request_extended_authorization: None,
-            psd2_sca_exemption_type: None,
-            processor_merchant_id: id_type::MerchantId::default(),
-            created_by: None,
-            force_3ds_challenge: None,
-            force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled: None,
-            is_payment_id_from_merchant: None,
-            payment_channel: None,
-            tax_status: None,
-            discount_amount: None,
-            order_date: None,
-            shipping_amount_tax: None,
-            duty_amount: None,
-            enable_partial_authorization: None,
-            enable_overcapture: None,
-            billing_descriptor: None,
-            is_account_funded_transaction: None,
-            recipient_details: None,
-            tokenization: None,
-            partner_merchant_identifier_details: None,
-            state_metadata: None,
-            installment_options: None,
-            profile_acquirer_id: None,
-            external_surcharge_strategy: None,
-            external_surcharge_applicable: None,
-        };
-        let req_cs = Some("1".to_string());
-        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent,).is_err())
-    }
-
-    #[test]
-    fn test_authenticate_client_secret_expired() {
-        let payment_intent = PaymentIntent {
-            payment_id: id_type::PaymentId::try_from(Cow::Borrowed("23")).unwrap(),
-            merchant_id: id_type::MerchantId::default(),
-            status: storage_enums::IntentStatus::RequiresCapture,
-            amount: MinorUnit::new(200),
-            currency: None,
-            amount_captured: None,
-            customer_id: None,
-            description: None,
-            return_url: None,
-            metadata: None,
-            connector_id: None,
-            mit_category: None,
-            tokenization: None,
-            shipping_address_id: None,
-            billing_address_id: None,
-            statement_descriptor_name: None,
-            statement_descriptor_suffix: None,
-            created_at: common_utils::date_time::now().saturating_sub(time::Duration::seconds(20)),
-            modified_at: common_utils::date_time::now(),
-            last_synced: None,
-            setup_future_usage: None,
-            off_session: None,
-            client_secret: None,
-            fingerprint_id: None,
-            active_attempt: hyperswitch_domain_models::RemoteStorageObject::ForeignID(
-                "nopes".to_string(),
-            ),
-            business_country: None,
-            business_label: None,
-            order_details: None,
-            allowed_payment_method_types: None,
-            connector_metadata: None,
-            feature_metadata: None,
-            attempt_count: 1,
-            payment_link_id: None,
-            profile_id: Some(common_utils::generate_profile_id_of_default_length()),
-            merchant_decision: None,
-            payment_confirm_source: None,
-            surcharge_applicable: None,
-            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
-            request_incremental_authorization: Some(
-                common_enums::RequestIncrementalAuthorization::default(),
-            ),
-            incremental_authorization_allowed: None,
-            authorization_count: None,
-            session_expiry: Some(
-                common_utils::date_time::now()
-                    .saturating_add(time::Duration::seconds(consts::DEFAULT_SESSION_EXPIRY)),
-            ),
-            request_external_three_ds_authentication: None,
-            split_payments: None,
-            frm_metadata: None,
-            customer_details: None,
-            billing_details: None,
-            merchant_order_reference_id: None,
-            shipping_details: None,
-            is_payment_processor_token_flow: None,
-            organization_id: id_type::OrganizationId::default(),
-            shipping_cost: None,
-            tax_details: None,
-            skip_external_tax_calculation: None,
-            request_extended_authorization: None,
-            psd2_sca_exemption_type: None,
-            processor_merchant_id: id_type::MerchantId::default(),
-            created_by: None,
-            force_3ds_challenge: None,
-            force_3ds_challenge_trigger: None,
-            is_iframe_redirection_enabled: None,
-            is_payment_id_from_merchant: None,
-            payment_channel: None,
-            tax_status: None,
-            discount_amount: None,
-            order_date: None,
-            shipping_amount_tax: None,
-            duty_amount: None,
-            enable_partial_authorization: None,
-            enable_overcapture: None,
-            billing_descriptor: None,
-            is_account_funded_transaction: None,
-            recipient_details: None,
-            partner_merchant_identifier_details: None,
-            state_metadata: None,
-            installment_options: None,
-            profile_acquirer_id: None,
-            external_surcharge_strategy: None,
-            external_surcharge_applicable: None,
-        };
-        let req_cs = Some("1".to_string());
-        assert!(authenticate_client_secret(req_cs.as_ref(), &payment_intent).is_err())
-    }
-}
+mod tests;
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
 #[instrument(skip_all)]
@@ -5364,7 +5153,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     processor: &domain::Processor,
     merchant_connector_details: admin::MerchantConnectorDetailsWrap,
 ) -> RouterResult<()> {
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = processor.get_processor_merchant_id();
     if let Some(encoded_data) = merchant_connector_details.encoded_data {
         let redis = &db
             .get_redis_conn()
@@ -5966,8 +5755,8 @@ impl AttemptType {
         fetched_payment_intent: PaymentIntent,
         fetched_payment_attempt: PaymentAttempt,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: storage::enums::MerchantStorageScheme,
+        key_store: &domain::ProcessorKeyStore,
+        storage_scheme: domain::ProcessorStorageScheme,
     ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
@@ -5978,7 +5767,7 @@ impl AttemptType {
                     request,
                     fetched_payment_attempt,
                     new_attempt_count,
-                    storage_scheme,
+                    storage_scheme.inner(),
                 );
 
                 #[cfg(feature = "v1")]
@@ -6018,7 +5807,7 @@ impl AttemptType {
                             ),
                             active_attempt_id: new_payment_attempt.get_id().to_owned(),
                             attempt_count: new_attempt_count,
-                            updated_by: storage_scheme.to_string(),
+                            updated_by: storage_scheme.inner().to_string(),
                         },
                         key_store,
                         storage_scheme,
@@ -6105,30 +5894,6 @@ pub fn is_manual_retry_allowed(
         .contains(merchant_id);
     is_payment_status_eligible_for_retry
         .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    fn test_client_secret_parse() {
-        let client_secret1 = "pay_3TgelAms4RQec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
-        let client_secret2 = "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_fc34taHLw1ekPgNh92qr";
-        let client_secret3 =
-            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret__secret_fc34taHLw1ekPgNh92qr";
-
-        assert_eq!(
-            "pay_3TgelAms4RQec8xSStjF",
-            super::get_payment_id_from_client_secret(client_secret1).unwrap()
-        );
-        assert_eq!(
-            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF",
-            super::get_payment_id_from_client_secret(client_secret2).unwrap()
-        );
-        assert_eq!(
-            "pay_3Tgel__Ams4RQ_secret_ec8xSStjF_secret_",
-            super::get_payment_id_from_client_secret(client_secret3).unwrap()
-        );
-    }
 }
 
 #[instrument(skip_all)]
@@ -6605,6 +6370,7 @@ pub async fn get_additional_payment_data(
                         funding_source: None,
                         issuer_name: None,
                         issuer_country: None,
+                        payment_checks: None,
                     })),
                     google_pay: None,
                     samsung_pay: None,
@@ -6652,6 +6418,7 @@ pub async fn get_additional_payment_data(
                             card_type: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6690,6 +6457,7 @@ pub async fn get_additional_payment_data(
                             funding_source: None,
                             issuer_name: None,
                             issuer_country: None,
+                            payment_checks: None,
                         },
                     )),
                     paypal: None,
@@ -7029,6 +6797,38 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
+    }
+}
+
+#[cfg(feature = "v1")]
+pub fn validate_and_update_settlement_conclusion(
+    auth_flow: services::AuthFlow,
+    request: &api::PaymentsRequest,
+    payment_intent: &mut PaymentIntent,
+    operation: &'static str,
+) -> Result<(), errors::ApiErrorResponse> {
+    match (auth_flow, request.settlement_conclusion_applied) {
+        (services::AuthFlow::Client, Some(_)) => {
+            logger::error!(
+                error_status_code = 400,
+                error_status_class = "4xx",
+                error_category = "invalid_integration",
+                operation,
+                "Invalid integration: settlement_conclusion_applied supplied with client authentication"
+            );
+            metrics::CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED
+                .add(1, router_env::metric_attributes!(("operation", operation)));
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "settlement_conclusion_applied can only be updated with merchant authentication"
+                        .to_string(),
+            })
+        }
+        (services::AuthFlow::Merchant, Some(settlement_conclusion_applied)) => {
+            payment_intent.settlement_conclusion_applied = Some(settlement_conclusion_applied);
+            Ok(())
+        }
+        (services::AuthFlow::Client | services::AuthFlow::Merchant, None) => Ok(()),
     }
 }
 
@@ -8825,6 +8625,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -8846,6 +8647,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     funding_source,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     ..(**apple_pay).clone()
                 })
             }),
@@ -8862,6 +8664,7 @@ pub fn add_connector_response_to_additional_payment_data(
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks,
                 device_pan_bin,
                 card_bin,
                 card_subtype,
@@ -8882,6 +8685,7 @@ pub fn add_connector_response_to_additional_payment_data(
                     card_type,
                     issuer_name: issuer_name.clone(),
                     issuer_country,
+                    payment_checks,
                     device_pan_bin: device_pan_bin
                         .clone()
                         .or_else(|| google_pay.device_pan_bin.clone()),
@@ -9538,6 +9342,55 @@ where
     )
 }
 
+/// Override the attempt's applied future usage during routing, preserving the intent's usage.
+/// Missing or unavailable configuration
+/// leaves the usage unchanged. Direct connector mandate support checks still run afterward.
+#[cfg(feature = "v1")]
+pub async fn override_setup_future_usage_to_off_session<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    let payment_attempt = payment_data.get_payment_attempt();
+    if let Some(payment_method) = payment_attempt.get_payment_method() {
+        let merchant_id = &payment_data.get_payment_intent().processor_merchant_id;
+        let context = setup_future_usage_override_context(
+            merchant_id,
+            payment_method,
+            payment_attempt.get_payment_method_type(),
+        );
+        if ShouldOverrideSetupFutureUsageToOffSession::fetch(
+            state.superposition_service.as_ref(),
+            Some(&context),
+            Some(merchant_id),
+        )
+        .await
+        .unwrap_or_else(|_| ShouldOverrideSetupFutureUsageToOffSession::default_value())
+        {
+            logger::debug!("Override setup_future_usage_applied to off_session based on Superposition configuration");
+            payment_data
+                .set_setup_future_usage_applied_in_payment_attempt(enums::FutureUsage::OffSession);
+        }
+    }
+}
+
+fn setup_future_usage_override_context(
+    merchant_id: &id_type::MerchantId,
+    payment_method: enums::PaymentMethod,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> external_services::superposition::ConfigContext {
+    // Payment method dimensions use PascalCase values in the Superposition seed schema.
+    let mut context = external_services::superposition::ConfigContext::new()
+        .with("processor_merchant_id", merchant_id.get_string_repr())
+        .with("payment_method", &format!("{payment_method:?}"));
+    if let Some(payment_method_type) = payment_method_type {
+        context = context.with("payment_method_type", &format!("{payment_method_type:?}"));
+    }
+    context
+}
+
 pub async fn config_skip_saving_wallet_at_connector(
     db: &dyn StorageInterface,
     merchant_id: &id_type::MerchantId,
@@ -9561,6 +9414,20 @@ pub async fn config_skip_saving_wallet_at_connector(
     })
 }
 
+/// Apply the off-session override before the merchant's on-session override.
+#[cfg(feature = "v1")]
+pub async fn override_setup_feature_usage<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+) -> CustomResult<(), errors::ApiErrorResponse>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
+{
+    override_setup_future_usage_to_off_session(state, payment_data).await;
+    override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data).await
+}
+
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     db: &dyn StorageInterface,
@@ -9570,7 +9437,10 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send,
 {
-    if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
+    if payment_data
+        .get_payment_attempt()
+        .get_setup_future_usage_with_fallback(payment_data.get_payment_intent())
+        == Some(enums::FutureUsage::OffSession)
     {
         let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
             db,
@@ -9583,9 +9453,10 @@ where
                 payment_data.get_payment_attempt().get_payment_method_type()
             {
                 if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                    logger::debug!("Override setup_future_usage_applied from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data.set_setup_future_usage_applied_in_payment_attempt(
+                        enums::FutureUsage::OnSession,
+                    );
                 }
             }
         };
@@ -10228,109 +10099,5 @@ pub fn update_request_data_with_mandate_id(
                 });
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod connector_response_card_merge_tests {
-    use hyperswitch_domain_models::router_data::AdditionalPaymentMethodConnectorResponse;
-
-    use super::add_connector_response_to_additional_payment_data;
-
-    /// A connector that reports every card attribute it can, as Worldpay does when `<cardBin>` is
-    /// enabled on the account.
-    fn connector_card_response() -> AdditionalPaymentMethodConnectorResponse {
-        AdditionalPaymentMethodConnectorResponse::Card {
-            authentication_data: None,
-            payment_checks: None,
-            card_network: None,
-            domestic_network: None,
-            auth_code: Some("123456".to_string()),
-            processor_card_network: Some(common_enums::CardNetwork::Visa),
-            card_subtype: Some("ELECTRON".to_string()),
-            card_segment_type: Some(common_enums::CardSegmentType::Commercial),
-            funding_source: Some(common_enums::FundingSource::Debit),
-            card_type: Some(common_enums::CardType::Debit),
-            issuer_name: Some("CONNECTOR ISSUER".to_string()),
-            issuer_country: Some(common_enums::CountryAlpha2::GB),
-        }
-    }
-
-    fn merge(
-        additional_card_info: api_models::payments::AdditionalCardInfo,
-    ) -> api_models::payments::AdditionalCardInfo {
-        let merged = add_connector_response_to_additional_payment_data(
-            api_models::payments::AdditionalPaymentData::Card(Box::new(additional_card_info)),
-            connector_card_response(),
-        );
-
-        match merged {
-            api_models::payments::AdditionalPaymentData::Card(card) => *card,
-            other => panic!("expected card additional payment data, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn connector_card_attributes_fill_an_empty_card_record() {
-        let card = merge(api_models::payments::AdditionalCardInfo {
-            card_isin: Some("444433".to_string()),
-            ..Default::default()
-        });
-
-        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
-        assert_eq!(card.card_type.as_deref(), Some("DEBIT"));
-        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
-        assert_eq!(
-            card.card_segment_type,
-            Some(common_enums::CardSegmentType::Commercial)
-        );
-        assert_eq!(
-            card.funding_source,
-            Some(common_enums::FundingSource::Debit)
-        );
-        assert_eq!(card.card_issuing_country.as_deref(), Some("GB"));
-        assert_eq!(card.card_issuing_country_code.as_deref(), Some("GB"));
-        assert_eq!(card.card_network, Some(common_enums::CardNetwork::Visa));
-        assert_eq!(card.auth_code.as_deref(), Some("123456"));
-        assert_eq!(card.card_isin.as_deref(), Some("444433"));
-    }
-
-    #[test]
-    fn resolved_values_win_and_the_connector_only_fills_the_gaps() {
-        let card = merge(api_models::payments::AdditionalCardInfo {
-            card_issuer: Some("CURATED ISSUER".to_string()),
-            card_type: Some("CREDIT".to_string()),
-            card_issuing_country: Some("IN".to_string()),
-            ..Default::default()
-        });
-
-        assert_eq!(card.card_issuer.as_deref(), Some("CURATED ISSUER"));
-        assert_eq!(card.card_type.as_deref(), Some("CREDIT"));
-        assert_eq!(card.card_issuing_country.as_deref(), Some("IN"));
-        // The columns the BIN record left null are filled from the connector rather than staying
-        // empty, which is the case that matters for BINs whose subtype is not recorded.
-        assert_eq!(card.card_subtype.as_deref(), Some("ELECTRON"));
-        assert_eq!(
-            card.funding_source,
-            Some(common_enums::FundingSource::Debit)
-        );
-        assert_eq!(
-            card.card_segment_type,
-            Some(common_enums::CardSegmentType::Commercial)
-        );
-        assert_eq!(card.auth_code.as_deref(), Some("123456"));
-    }
-
-    #[test]
-    fn a_cobadge_resolved_network_is_not_overwritten() {
-        let card = merge(api_models::payments::AdditionalCardInfo {
-            card_network: Some(common_enums::CardNetwork::RuPay),
-            ..Default::default()
-        });
-
-        // Debit routing selects the rail the payment authorizes on, so the connector's plain scheme
-        // network must not replace it.
-        assert_eq!(card.card_network, Some(common_enums::CardNetwork::RuPay));
-        assert_eq!(card.card_issuer.as_deref(), Some("CONNECTOR ISSUER"));
     }
 }

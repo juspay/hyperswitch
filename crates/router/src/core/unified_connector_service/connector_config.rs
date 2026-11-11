@@ -9,7 +9,7 @@ use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
@@ -63,10 +63,24 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
+/// Checkout payout configuration stored on the merchant connector account.
+#[derive(Debug, serde::Deserialize)]
+pub struct CheckoutMetadata {
+    connector_client_id: Option<Secret<String>>,
+    /// Checkout currency account (`ca_...`) used as the payout `source.id`.
+    connector_currency_account_id: Option<Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+    merchant_id: HashMap<Currency, Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct WorldpayvantivMetadata {
+    merchant_id: Option<HashMap<Currency, Secret<String>>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -224,6 +238,32 @@ pub struct GlobalpayMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct RapydMetadata {
+    country_of_incorporation: Option<common_enums::CountryAlpha2>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for RapydMetadata {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(meta_data) => meta_data
+                .clone()
+                .expose()
+                .parse_value::<Self>("RapydMetadata")
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "country_of_incorporation",
+                }),
+            None => Ok(Self {
+                country_of_incorporation: None,
+            }),
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
     merchant_payment_method_route_id: Secret<String>,
@@ -344,6 +384,11 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         api_secret: Secret<String>,
         processing_channel_id: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_client_id: Option<Secret<String>>,
+        /// Payout-only Checkout currency account (`ca_...`) used as `source.id`.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        connector_currency_account_id: Option<Secret<String>>,
     },
     /// Authorize.net connector configuration
     Authorizedotnet {
@@ -472,6 +517,8 @@ pub enum ConnectorSpecificConfig {
     Rapyd {
         access_key: Secret<String>,
         secret_key: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        country_of_incorporation: Option<i32>,
     },
     /// Payu connector configuration
     Payu {
@@ -512,6 +559,18 @@ pub enum ConnectorSpecificConfig {
         organization_id: Secret<String>,
         location_id: Secret<String>,
         api_secret_key: Secret<String>,
+    },
+    /// Global Payments RealEx (legacy Global Payments XML API) configuration.
+    /// Field names mirror `GlobalpaymentsRealexConfig` in the connector-service proto.
+    /// `shared_secret`   = shared secret used to build the sha1 digest (never sent verbatim)
+    /// `merchant_id`     = Merchant Id / Client Id (`<merchantid>`)
+    /// `account`         = RealEx sub-account, e.g. "internet" (`<account>`)
+    /// `refund_password` = rebate/refund password, hashed into `<refundhash>`
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
     },
     /// Paytm connector configuration
     Paytm {
@@ -682,7 +741,10 @@ pub enum ConnectorSpecificConfig {
     /// Jpmorgan connector configuration
     Jpmorgan {
         client_id: Secret<String>,
-        client_secret: Secret<String>,
+        thumbprint: Secret<String>,
+        private_key: Secret<String>,
+        resource_id: Secret<String>,
+        merchant_id: Option<HashMap<Currency, Secret<String>>>,
         #[serde(skip_serializing_if = "Option::is_none")]
         company_name: Option<Secret<String>>,
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -756,6 +818,14 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Ecommpay connector configuration (Gate API v2).
+    /// Field names must match `EcommpayConfig` in the connector-service repo.
+    /// `project_id` = `general.project_id` (from `key1`)
+    /// `secret_key` = HMAC-SHA512 signing key (from `api_key`); never transmitted
+    Ecommpay {
+        project_id: Secret<String>,
+        secret_key: Secret<String>,
+    },
     /// JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4).
     /// NOT the `Jpmorgan` variant, which is the OAuth2-based Payments API v2.
     /// Field names must match `ConnectorSpecificConfig::JpmorganOrbital` in the
@@ -782,7 +852,12 @@ pub enum ConnectorSpecificConfig {
     Worldpayvantiv {
         user: Secret<String>,
         password: Secret<String>,
-        merchant_id: Secret<String>,
+        /// Merchant ID from the connector credentials, for `SignatureKey` / `MultiAuthKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id: Option<Secret<String>>,
+        /// Merchant IDs keyed by currency from the connector metadata, for `BodyKey` auth
+        #[serde(skip_serializing_if = "Option::is_none")]
+        merchant_id_by_currency: Option<HashMap<Currency, Secret<String>>>,
     },
     /// Trustly connector configuration
     Trustly {
@@ -869,6 +944,16 @@ pub enum ConnectorSpecificConfig {
     /// Pay.com connector configuration
     /// `api_key` = the `x-paycom-api-key` value (`test_…` sandbox, `live_…` production)
     Paydotcom { api_key: Secret<String> },
+    /// Better Payment connector configuration
+    Betterpayment {
+        /// API key (HTTP Basic Auth username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic Auth password)
+        api_password: Secret<String>,
+        /// Incoming key used for webhook HMAC-SHA256 signature verification
+        #[serde(skip_serializing_if = "Option::is_none")]
+        webhook_key: Option<Secret<String>>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1072,6 +1157,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Paydotcom requires HeaderKey auth type")),
             },
+            Connector::Betterpayment => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Betterpayment {
+                    api_key: api_key.clone(),
+                    api_password: key1.clone(),
+                    webhook_key: None,
+                }),
+                _ => Err(err("Betterpayment requires BodyKey auth type")),
+            },
             Connector::Helcim => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Helcim {
                     api_key: api_key.clone(),
@@ -1181,25 +1274,41 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
-            Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let jpm_meta = metadata
-                        .map(|m| {
-                            m.clone()
-                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)
-                                .attach_printable("Invalid Jpmorgan metadata format")
-                        })
-                        .transpose()?;
-                    Ok(Self::Jpmorgan {
-                        client_id: api_key.clone(),
-                        client_secret: key1.clone(),
-                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
-                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+            Connector::Jpmorgan => {
+                let (client_id, thumbprint, private_key, resource_id) = match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => (
+                        api_key.clone(),
+                        key1.clone(),
+                        api_secret.clone(),
+                        key2.clone(),
+                    ),
+                    _ => return Err(err("Jpmorgan requires MultiAuthKey auth type")),
+                };
+                let jpm_meta = metadata
+                    .map(|m| {
+                        m.clone()
+                            .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid Jpmorgan metadata format")
                     })
-                }
-                _ => Err(err("Jpmorgan requires BodyKey auth type")),
-            },
+                    .transpose()?;
+                Ok(Self::Jpmorgan {
+                    client_id,
+                    thumbprint,
+                    private_key,
+                    resource_id,
+                    merchant_id: jpm_meta
+                        .as_ref()
+                        .map(|m| m.merchant_id.clone()),
+                    company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                    product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                })
+            }
             Connector::Loonio => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
                     merchant_id: api_key.clone(),
@@ -1245,10 +1354,29 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Powertranz requires BodyKey auth type")),
             },
             Connector::Rapyd => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Rapyd {
-                    access_key: api_key.clone(),
-                    secret_key: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let rapyd_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<RapydMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid rapyd metadata format"))
+                        })
+                        .transpose()?;
+                    let country_of_incorporation = rapyd_meta
+                        .and_then(|meta| meta.country_of_incorporation)
+                        .map(|country| {
+                            unified_connector_service_client::payments::CountryAlpha2::from_str_name(
+                                &country.to_string(),
+                            )
+                            .map(i32::from)
+                            .ok_or_else(|| err("Invalid rapyd country_of_incorporation"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Rapyd {
+                        access_key: api_key.clone(),
+                        secret_key: key1.clone(),
+                        country_of_incorporation,
+                    })
+                }
                 _ => Err(err("Rapyd requires BodyKey auth type")),
             },
             Connector::Peachpayments => match auth {
@@ -1394,6 +1522,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Ilixium requires SignatureKey auth type")),
             },
+            Connector::Ecommpay => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Ecommpay {
+                    project_id: key1.clone(),
+                    secret_key: api_key.clone(),
+                }),
+                _ => Err(err("Ecommpay requires BodyKey auth type")),
+            },
             Connector::JpmorganOrbital => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1422,11 +1557,30 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Checkout {
-                    api_key: api_key.clone(),
-                    api_secret: api_secret.clone(),
-                    processing_channel_id: key1.clone(),
-                }),
+                } => {
+                    let checkout_metadata = metadata
+                        .map(|metadata| {
+                            serde_json::from_value::<CheckoutMetadata>(metadata.clone())
+                                .map_err(|_| err("Invalid Checkout metadata format"))
+                        })
+                        .transpose()?;
+
+                    let (connector_client_id, connector_currency_account_id) = checkout_metadata
+                        .map(|metadata| {
+                            (
+                                metadata.connector_client_id,
+                                metadata.connector_currency_account_id,
+                            )
+                        })
+                        .unwrap_or_default();
+                    Ok(Self::Checkout {
+                        api_key: api_key.clone(),
+                        api_secret: api_secret.clone(),
+                        processing_channel_id: key1.clone(),
+                        connector_client_id,
+                        connector_currency_account_id,
+                    })
+                }
                 _ => Err(err("Checkout requires SignatureKey auth type")),
             },
             Connector::Dlocal => match auth {
@@ -1829,6 +1983,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Forte requires MultiAuthKey auth type")),
             },
+            Connector::GlobalpaymentsRealex => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    account: key2.clone(),
+                    refund_password: api_secret.clone(),
+                }),
+                _ => Err(err(
+                    "GlobalpaymentsRealex requires MultiAuthKey auth type \
+                     (api_key = shared secret, key1 = merchant id, key2 = account, \
+                     api_secret = refund password)",
+                )),
+            },
             Connector::Paybox => match auth {
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -1915,7 +2087,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
@@ -1925,10 +2098,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => Ok(Self::Worldpayvantiv {
                     user: api_key.clone(),
                     password: api_secret.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: Some(key1.clone()),
+                    merchant_id_by_currency: None,
                 }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let merchant_id_by_currency = metadata
+                        .map(|m| {
+                            m.clone()
+                                .parse_value::<WorldpayvantivMetadata>("WorldpayvantivMetadata")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Worldpayvantiv metadata format")
+                        })
+                        .transpose()?
+                        .and_then(|m| m.merchant_id);
+                    Ok(Self::Worldpayvantiv {
+                        user: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: None,
+                        merchant_id_by_currency,
+                    })
+                }
                 _ => Err(err(
-                    "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
+                    "Worldpayvantiv requires SignatureKey, MultiAuthKey or BodyKey auth type",
                 )),
             },
             Connector::Payme => match auth {

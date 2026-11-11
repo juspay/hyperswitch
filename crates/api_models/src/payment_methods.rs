@@ -9,6 +9,7 @@ use cards::CardNumber;
 use common_types::payments::{
     ApplePayPredecryptData, BillingFrequency, GPayPredecryptData, InstallmentInterestRate,
 };
+pub use common_types::{payment_methods::PayViaSingleUseToken, payments::SurchargeErrorDetails};
 #[cfg(feature = "v1")]
 use common_utils::crypto::OptionalEncryptableName;
 use common_utils::{
@@ -551,6 +552,9 @@ impl PaymentMethodCreate {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Card Details
     #[schema(example = json!({
     "card_number": "4111111145551142",
@@ -570,6 +574,9 @@ pub struct PaymentMethodUpdate {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct PaymentMethodUpdate {
+    #[schema(example = true)]
+    pub update_last_used_at: Option<bool>,
+
     /// Payment method details to be updated for the payment_method
     pub payment_method_data: Option<PaymentMethodUpdateData>,
 
@@ -597,6 +604,44 @@ pub struct PaymentMethodUpdate {
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
     BankDebit(BankDebitDetailUpdate),
+    Wallet(WalletDetailUpdate),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
+pub enum WalletDetailUpdate {
+    PayPal {
+        #[schema(value_type = Option<String>)]
+        email: Option<pii::Email>,
+        #[schema(value_type = Option<String>)]
+        payer_id: Option<hyperswitch_masking::Secret<String>>,
+    },
+}
+
+#[cfg(feature = "v2")]
+impl WalletDetailUpdate {
+    pub fn is_metadata_update(&self) -> bool {
+        match self {
+            Self::PayPal { email, payer_id } => email.is_some() || payer_id.is_some(),
+        }
+    }
+
+    /// Preserve stored wallet fields omitted from the update.
+    pub fn apply_to(self, mut saved: PaymentMethodDataWalletInfo) -> PaymentMethodDataWalletInfo {
+        match self {
+            Self::PayPal { email, payer_id } => {
+                saved.email = email.or(saved.email);
+                if let Some(payer_id) = payer_id {
+                    saved.provider_details =
+                        Some(WalletProviderDetails::PayPal(PaypalWalletInfo {
+                            payer_id: Some(payer_id),
+                        }));
+                }
+            }
+        }
+        saved
+    }
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
@@ -1556,6 +1601,12 @@ pub struct PaymentMethodResponse {
     /// The acknowledgement status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    /// A merchant-scoped fingerprint of the card, identical for the same card saved against
+    /// different customers of the merchant. Present only when payment method fingerprinting is
+    /// enabled.
+    #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
+    pub fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1712,6 +1763,7 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
                     card_exp_month: None,
                     card_exp_year: None,
                     auth_code: None,
+                    provider_details: None,
                     email: data.email,
                 })
             }
@@ -1889,6 +1941,36 @@ pub struct PaymentMethodDataWalletInfo {
     /// Email address associated with the wallet (e.g. PayPal email)
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<pii::Email>,
+    /// Details specific to the wallet provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_details: Option<WalletProviderDetails>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub enum WalletProviderDetails {
+    PayPal(PaypalWalletInfo),
+}
+
+impl WalletProviderDetails {
+    /// Merge provider details without erasing a saved identifier omitted by the response.
+    pub fn merge(incoming: Option<Self>, saved: Option<Self>) -> Option<Self> {
+        match (incoming, saved) {
+            (Some(Self::PayPal(incoming)), Some(Self::PayPal(saved))) => {
+                Some(Self::PayPal(PaypalWalletInfo {
+                    payer_id: incoming.payer_id.or(saved.payer_id),
+                }))
+            }
+            (incoming, saved) => incoming.or(saved),
+        }
+    }
+}
+
+/// PayPal-specific wallet details. Email belongs to the shared wallet model.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaypalWalletInfo {
+    /// Unique identifier of the payer's PayPal account.
+    #[schema(value_type = Option<String>, example = "7DY7FRMPQ8CT6")]
+    pub payer_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1917,6 +1999,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
+            provider_details: None,
         }
     }
 }
@@ -1939,6 +2022,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }
     }
 }
@@ -1962,6 +2046,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: None,
+            provider_details: None,
         }
     }
 }
@@ -1997,6 +2082,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             funding_source: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }))
     }
 }
@@ -2555,6 +2641,26 @@ pub struct SurchargeDetailsResponse {
     pub display_total_surcharge_amount: f64,
     /// Surcharge percentage returned by the external surcharge connector, if provided.
     pub surcharge_percentage: Option<f64>,
+    /// Connector error details when the external calculation failed; null on success.
+    pub error_details: Option<SurchargeErrorDetails>,
+}
+
+impl SurchargeDetailsResponse {
+    pub fn connector_error(code: Option<String>, message: String, reason: Option<String>) -> Self {
+        Self {
+            surcharge: SurchargeResponse::Fixed(MinorUnit::zero()),
+            tax_on_surcharge: None,
+            display_surcharge_amount: 0.0,
+            display_tax_on_surcharge_amount: 0.0,
+            display_total_surcharge_amount: 0.0,
+            surcharge_percentage: None,
+            error_details: Some(SurchargeErrorDetails {
+                error_code: code,
+                error_message: Some(message),
+                error_reason: reason,
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -2702,6 +2808,11 @@ pub struct RequestPaymentMethodTypes {
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment should be made via a single-use token.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 impl RequestPaymentMethodTypes {
     /// Get payment_method_type
@@ -3654,13 +3765,18 @@ pub struct PaymentMethodResponseItem {
     )]
     pub customer_id: id_type::GlobalCustomerId,
 
+    /// The customer reference supplied in the request path when merchant reference ID lookup is enabled.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>, example = "merchant_customer_123")]
+    pub merchant_customer_reference_id: Option<id_type::CustomerId>,
+
     /// The type of payment method use for the payment.
     #[schema(value_type = PaymentMethod,example = "card")]
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method supports recurring payments. Optional.
     #[schema(example = true)]
@@ -3724,8 +3840,8 @@ pub struct CustomerPaymentMethodResponseItem {
     pub payment_method_type: api_enums::PaymentMethod,
 
     /// This is a sub-category of payment method.
-    #[schema(value_type = PaymentMethodType,example = "credit")]
-    pub payment_method_subtype: api_enums::PaymentMethodType,
+    #[schema(value_type = Option<PaymentMethodType>,example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
 
     /// Indicates whether the payment method is eligible for recurring payments
     #[schema(example = true)]
@@ -3818,6 +3934,10 @@ pub struct CustomerPaymentMethod {
     /// Card details from card locker
     #[schema(example = json!({"last4": "1142","exp_month": "03","exp_year": "2030"}))]
     pub card: Option<CardDetailFromLocker>,
+
+    /// Saved wallet account details.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallets: Option<WalletPaymentMethodDataForClient>,
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
@@ -4793,6 +4913,9 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
                         bank_account_holder_name,
                     } => bank_account_holder_name.is_some(),
                 }
+            }
+            Some(PaymentMethodUpdateData::Wallet(wallet_update)) => {
+                wallet_update.is_metadata_update()
             }
             None => false,
         }

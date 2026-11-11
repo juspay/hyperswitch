@@ -24,6 +24,7 @@ pub trait PaymentAttemptExt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
@@ -37,6 +38,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         todo!()
     }
@@ -46,6 +48,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
         let now = common_utils::date_time::now();
@@ -75,6 +78,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_capture_id: None,
             connector_response_reference_id: None,
             processor_capture_data: None,
+            feature_metadata,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         })
@@ -146,7 +150,7 @@ mod tests {
         configs::settings::Settings,
         db::StorageImpl,
         routes, services,
-        types::{self, storage::enums},
+        types::{self, domain},
     };
 
     async fn create_single_connection_test_transaction_pool() -> routes::AppState {
@@ -281,11 +285,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         let response = store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -409,11 +414,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -421,10 +427,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &attempt_id,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -552,11 +558,12 @@ mod tests {
             )
             .await
             .unwrap();
+        let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
         store
             .insert_payment_attempt(
                 payment_attempt,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();
@@ -564,10 +571,10 @@ mod tests {
         let response = store
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_id,
-                &merchant_id,
+                &domain::ProcessorMerchantId::from(merchant_id),
                 &uuid,
-                enums::MerchantStorageScheme::PostgresOnly,
-                &key_store,
+                domain::ProcessorStorageScheme::postgres_only(),
+                &processor_key_store,
             )
             .await
             .unwrap();

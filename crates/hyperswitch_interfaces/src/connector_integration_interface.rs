@@ -11,7 +11,9 @@ use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
     router_request_types::CurrentFlowInfo,
-    router_response_types::{ConnectorInfo, SupportedPaymentMethods},
+    router_response_types::{
+        ConnectorInfo, RedirectCallback, RedirectForm, SupportedPaymentMethods,
+    },
 };
 
 use crate::{
@@ -489,6 +491,20 @@ impl IncomingWebhook for ConnectorEnum {
 }
 
 impl ConnectorRedirectResponse for ConnectorEnum {
+    fn get_notification_callback(&self) -> Option<RedirectCallback> {
+        match self {
+            Self::Old(connector) => connector.get_notification_callback(),
+            Self::New(connector) => connector.get_notification_callback(),
+        }
+    }
+
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        match self {
+            Self::Old(connector) => connector.get_redirect_callback(form),
+            Self::New(connector) => connector.get_redirect_callback(form),
+        }
+    }
+
     fn get_flow_type(
         &self,
         query_params: &str,
@@ -580,6 +596,27 @@ impl ConnectorValidation for ConnectorEnum {
     }
 }
 impl ConnectorSpecifications for ConnectorEnum {
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_ip_verification_required(),
+            Self::New(connector) => connector.is_webhook_ip_verification_required(),
+        }
+    }
+
+    fn is_webhook_mtls_required(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_webhook_mtls_required(),
+            Self::New(connector) => connector.is_webhook_mtls_required(),
+        }
+    }
+
+    fn is_multi_currency_processing_supported(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_multi_currency_processing_supported(),
+            Self::New(connector) => connector.is_multi_currency_processing_supported(),
+        }
+    }
+
     fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
         match self {
             Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
@@ -905,6 +942,38 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
+
+    fn get_single_use_token_support(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+            Self::New(connector) => {
+                connector.get_single_use_token_support(payment_method_data, payment_method_token)
+            }
+        }
+    }
+
+    fn get_single_use_token_support_for_setup_mandate(
+        &self,
+        payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+        payment_method_token: Option<&hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    ) -> Option<api::SingleUseTokenSupport> {
+        match self {
+            Self::Old(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
+            Self::New(connector) => connector.get_single_use_token_support_for_setup_mandate(
+                payment_method_data,
+                payment_method_token,
+            ),
         }
     }
 

@@ -75,15 +75,24 @@ pub struct PaymentMethodsEnabled {
     pub payment_method_types: Option<Vec<payment_methods::RequestPaymentMethodTypes>>,
 }
 
+/// Merchant IDs accepted by the connector configuration request helpers.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum MerchantIdMetadata {
+    Single(String),
+    ByCurrency(std::collections::HashMap<api_models::enums::Currency, String>),
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ApiModelMetaData {
     pub merchant_config_currency: Option<api_models::enums::Currency>,
+    pub country_of_incorporation: Option<api_models::enums::CountryAlpha2>,
     pub merchant_account_id: Option<String>,
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,
-    pub merchant_id: Option<String>,
+    pub merchant_id: Option<MerchantIdMetadata>,
     pub google_pay: Option<GoogleApiModelData>,
     pub paypal_sdk: Option<PaypalSdkData>,
     pub apple_pay: Option<ApplePayData>,
@@ -116,6 +125,7 @@ pub struct ApiModelMetaData {
     pub merchant_street_address: Option<String>,
     pub customer_service_phone_number: Option<String>,
     pub merchant_url: Option<String>,
+    pub enable_stc: Option<bool>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -176,6 +186,10 @@ pub struct Provider {
     ), value_type = Option<AcceptedCountries>)]
     pub accepted_countries: Option<api_models::admin::AcceptedCountries>,
     pub payment_experience: Option<api_models::enums::PaymentExperience>,
+    /// Indicates whether the payment should be made via a single-use token at the connector.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<payment_methods::PayViaSingleUseToken>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

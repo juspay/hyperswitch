@@ -1,10 +1,15 @@
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
+
+use crate::core::payouts::gateway as payout_gateway;
+#[cfg(feature = "v1")]
+use crate::core::payouts::kill_switch::PayoutKillSwitch;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
+pub mod kill_switch;
 #[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
@@ -29,6 +34,7 @@ use common_utils::{
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
     payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
+    validation::ValidateXSSOrSQLi,
 };
 use diesel_models::{
     enums as storage_enums,
@@ -41,17 +47,18 @@ use external_services::grpc_client;
 #[cfg(feature = "olap")]
 use futures::future::join_all;
 use hyperswitch_domain_models::{self as domain_models, payment_methods::PaymentMethod};
-use hyperswitch_interfaces::api::gateway as payout_gateway;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "payout_retry")]
 use retry::GsmValidation;
-use router_env::{instrument, logger, tracing, Env};
+use router_env::{instrument, logger, Env};
 use scheduler::utils as pt_utils;
 use time::Duration;
 use validator::PayoutExecutionKindValidation;
 
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
+#[cfg(feature = "payout_retry")]
+use crate::core::fraud_check::types::PayoutFrmApplicability;
 #[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
@@ -115,6 +122,9 @@ macro_rules! handle_payout_pre_frm_result {
         }
     }};
 }
+
+#[cfg(feature = "payout_retry")]
+pub(super) use handle_payout_pre_frm_result;
 
 // ********************************************** TYPES **********************************************
 #[derive(Clone)]
@@ -292,14 +302,14 @@ pub async fn make_connector_decision(
 
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &routing_data.connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -330,6 +340,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -345,14 +357,14 @@ pub async fn make_connector_decision(
 
             let connector_data = get_next_connector(&mut routing_data)?.connector_data;
 
-            let frm_outcome = match payout_frm_applicability {
+            let frm_outcome = match payout_frm_applicability.as_ref() {
                 Some(applicability) => handle_payout_pre_frm_result!(
                     Box::pin(fraud_check::pre_payouts_frm_core(
                         state,
                         platform,
                         payout_data,
                         &connector_data,
-                        applicability,
+                        applicability.clone(),
                         &pre_frm_failure_mode,
                     ))
                     .await,
@@ -384,6 +396,8 @@ pub async fn make_connector_decision(
                         platform,
                         dimensions,
                         header_payload,
+                        &pre_frm_failure_mode,
+                        payout_frm_applicability.as_ref(),
                     )
                     .await?;
                 }
@@ -401,6 +415,7 @@ pub async fn make_connector_decision(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn predetermined_call_connector_type_payout_retry(
     state: &SessionState,
     connector_data: api::ConnectorData,
@@ -408,6 +423,8 @@ async fn predetermined_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_bool = retry::config_should_call_gsm_payout(
         state,
@@ -425,6 +442,8 @@ async fn predetermined_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload,
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
@@ -433,6 +452,7 @@ async fn predetermined_call_connector_type_payout_retry(
 }
 
 #[cfg(feature = "payout_retry")]
+#[allow(clippy::too_many_arguments)]
 async fn retryable_call_connector_type_payout_retry(
     state: &SessionState,
     routing_data: IntoIter<api::ConnectorRoutingData>,
@@ -441,6 +461,8 @@ async fn retryable_call_connector_type_payout_retry(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
+    pre_frm_failure_mode: &common_enums::PreFrmFailureMode,
+    payout_frm_applicability: Option<&PayoutFrmApplicability>,
 ) -> RouterResult<()> {
     let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
         state,
@@ -450,8 +472,10 @@ async fn retryable_call_connector_type_payout_retry(
     )
     .await;
 
+    let mut frm_outcome = PayoutFrmOutcome::Continue;
+
     if config_multiple_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_multiple_connector_actions(
+        frm_outcome = Box::pin(retry::do_gsm_multiple_connector_actions(
             state,
             routing_data,
             connector_data.clone(),
@@ -459,28 +483,34 @@ async fn retryable_call_connector_type_payout_retry(
             platform,
             dimensions,
             header_payload.clone(),
+            pre_frm_failure_mode,
+            payout_frm_applicability,
         ))
         .await?;
     }
 
-    let config_single_connector_bool = retry::config_should_call_gsm_payout(
-        state,
-        dimensions,
-        PayoutRetryType::SingleConnector,
-        payout_data.payouts.customer_id.as_ref(),
-    )
-    .await;
-
-    if config_single_connector_bool && payout_data.should_call_gsm() {
-        Box::pin(retry::do_gsm_single_connector_actions(
+    if frm_outcome == PayoutFrmOutcome::Continue {
+        let config_single_connector_bool = retry::config_should_call_gsm_payout(
             state,
-            connector_data,
-            payout_data,
-            platform,
             dimensions,
-            header_payload,
-        ))
-        .await?;
+            PayoutRetryType::SingleConnector,
+            payout_data.payouts.customer_id.as_ref(),
+        )
+        .await;
+
+        if config_single_connector_bool && payout_data.should_call_gsm() {
+            Box::pin(retry::do_gsm_single_connector_actions(
+                state,
+                connector_data,
+                payout_data,
+                platform,
+                dimensions,
+                header_payload,
+                pre_frm_failure_mode,
+                payout_frm_applicability,
+            ))
+            .await?;
+        }
     }
 
     Ok(())
@@ -541,6 +571,7 @@ async fn update_frm_blocked_payout_tracker(
                 status: common_enums::PayoutStatus::Failed,
             },
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             storage_scheme,
         )
         .await
@@ -737,6 +768,7 @@ pub async fn payouts_create_core(
 pub async fn payouts_confirm_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -747,9 +779,10 @@ pub async fn payouts_confirm_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
+        true,
     ))
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
@@ -806,6 +839,7 @@ pub async fn payouts_confirm_core(
 pub async fn payouts_update_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
@@ -817,9 +851,10 @@ pub async fn payouts_update_core(
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -896,6 +931,7 @@ pub async fn payouts_retrieve_core(
         profile_id,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         &state.locale,
+        false,
     ))
     .await?;
     let dimensions = dimension_state::Dimensions::new()
@@ -937,15 +973,17 @@ pub async fn payouts_retrieve_core(
 pub async fn payouts_cancel_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -1003,6 +1041,7 @@ pub async fn payouts_cancel_core(
                 &payout_data.payouts,
                 storage::PayoutsUpdate::StatusUpdate { status },
                 &payout_data.payout_attempt,
+                platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
             )
             .await
@@ -1048,15 +1087,17 @@ pub async fn payouts_cancel_core(
 pub async fn payouts_fulfill_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
-        None,
+        profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
+        true,
     ))
     .await?;
 
@@ -1162,6 +1203,7 @@ pub async fn payouts_list_core(
         db,
         &constraints,
         merchant_id,
+        platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
     .await
@@ -1194,6 +1236,7 @@ pub async fn payouts_list_core(
                             merchant_id,
                             platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
+                            false,
                         )
                         .await
                         .map_err(|err| {
@@ -1311,6 +1354,7 @@ pub async fn payouts_filtered_list_core(
         .filter_payouts_and_attempts(
             platform.get_processor().get_account().get_id(),
             &constraints,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1323,7 +1367,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1345,7 +1389,7 @@ pub async fn payouts_filtered_list_core(
                     <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
-                        &(platform.get_processor().get_key_store().clone()).key,
+                        &(platform.get_processor().get_key_store().inner().clone()).key,
                         platform
                             .get_processor()
                             .get_key_store()
@@ -1420,6 +1464,7 @@ pub async fn payouts_list_available_filters_core(
         .filter_payouts_by_time_range_constraints(
             platform.get_processor().get_account().get_id(),
             &time_range,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1904,6 +1949,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
+                            platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
                         )
                         .await
@@ -1946,6 +1992,7 @@ pub async fn create_recipient(
                             &payout_data.payouts,
                             storage::PayoutsUpdate::StatusUpdate { status },
                             &payout_data.payout_attempt,
+                            platform.get_processor().get_key_store(),
                             platform.get_processor().get_account().storage_scheme,
                         )
                         .await
@@ -2013,6 +2060,7 @@ pub async fn create_recipient(
                         &payout_data.payouts,
                         storage::PayoutsUpdate::StatusUpdate { status },
                         &payout_data.payout_attempt,
+                        platform.get_processor().get_key_store(),
                         platform.get_processor().get_account().storage_scheme,
                     )
                     .await
@@ -2161,6 +2209,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusAndMetadataUpdate { status, metadata },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2226,6 +2275,7 @@ pub async fn check_payout_eligibility(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2291,6 +2341,7 @@ pub async fn complete_create_payout(
                         status: storage::enums::PayoutStatus::RequiresFulfillment,
                     },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2412,6 +2463,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2474,6 +2526,7 @@ pub async fn create_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -2719,6 +2772,7 @@ pub async fn update_retrieve_payout_tracker<F, T>(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3062,6 +3116,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3127,6 +3182,7 @@ pub async fn cancel_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3245,6 +3301,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3336,6 +3393,7 @@ pub async fn fulfill_payout(
                     &payout_data.payouts,
                     storage::PayoutsUpdate::StatusUpdate { status },
                     &payout_data.payout_attempt,
+                    platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -3438,6 +3496,8 @@ pub async fn response_handler(
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
+        funds_transfer_type: payouts.funds_transfer_type,
+        sender_details: payouts.get_optional_sender_details().cloned(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
@@ -3580,6 +3640,29 @@ pub async fn payout_create_db_entries(
         consts::ID_LENGTH,
         format!("payout_{}_secret", payout_id.get_string_repr()).as_str(),
     );
+    let sender_details = req
+        .sender_details
+        .clone()
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                common_utils::type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(|encrypted_sender_details| {
+            encrypted_sender_details
+                .deserialize_inner_value(|value| value.parse_value("PayoutSenderDetails"))
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to parse payout sender details")?;
     let amount = MinorUnit::from(req.amount.unwrap_or(api::Amount::Zero));
     let status = if req.payout_method_data.is_some()
         || req.payout_token.is_some()
@@ -3613,6 +3696,8 @@ pub async fn payout_create_db_entries(
         profile_id: profile_id.to_owned(),
         attempt_count: 1,
         metadata: req.metadata.clone(),
+        funds_transfer_type: req.funds_transfer_type,
+        sender_details,
         confirm: req.confirm,
         payout_link_id: payout_link
             .clone()
@@ -3637,6 +3722,7 @@ pub async fn payout_create_db_entries(
     let payouts = db
         .insert_payout(
             payouts_req,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -3767,18 +3853,22 @@ pub async fn make_payout_data(
     _platform: &domain::Platform,
     _auth_profile_id: Option<id_type::ProfileId>,
     _req: &payouts::PayoutRequest,
-    locale: &str,
+    _locale: &str,
+    _enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
+/// Load payout data, checking the kill switch for mutation and standalone execution callers.
+/// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
     auth_profile_id: Option<id_type::ProfileId>,
     req: &payouts::PayoutRequest,
     locale: &str,
+    enforce_kill_switch: bool,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3828,11 +3918,30 @@ pub async fn make_payout_data(
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &payout_id,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
+
+    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+        validator::validate_payout_condition(
+            request
+                .merchant_id
+                .as_ref()
+                .is_some_and(|request_merchant_id| request_merchant_id != merchant_id),
+            "Payout merchant does not match the authenticated merchant",
+        )?;
+        validator::validate_payout_condition(
+            request
+                .profile_id
+                .as_ref()
+                .is_some_and(|request_profile_id| request_profile_id != &payouts.profile_id),
+            "Payout profile does not match the existing payout",
+        )?;
+    }
 
     let payout_attempt_id =
         utils::get_payout_attempt_id(payouts.payout_id.get_string_repr(), payouts.attempt_count);
@@ -3846,6 +3955,16 @@ pub async fn make_payout_data(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
+
+    let profile_id = payout_attempt.profile_id.clone();
+
+    // Validate the persisted profile before checking its scope or accessing payout data.
+    let business_profile =
+        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
+    match enforce_kill_switch {
+        true => PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(&profile_id)).await,
+        false => Ok(()),
+    }?;
 
     // Reject proxy mutations before normal method or locker resolution.
     payout_attempt
@@ -3886,6 +4005,7 @@ pub async fn make_payout_data(
                 merchant_id,
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().storage_scheme,
+                false,
             )
             .await
             .map_err(|err| err.change_context(errors::ApiErrorResponse::InternalServerError))
@@ -3898,11 +4018,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?
         .and_then(|c| c);
-    let profile_id = payout_attempt.profile_id.clone();
-
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile =
-        validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
     let payout_method_data_req = match req {
         payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
         payouts::PayoutRequest::PayoutActionRequest(_) => {
@@ -4208,6 +4323,9 @@ pub async fn create_payout_link(
         .as_ref()
         .and_then(|config| config.ui_config.clone())
         .or(profile_ui_config);
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     let test_mode_in_config = payout_link_config_req
         .as_ref()
@@ -4451,6 +4569,7 @@ pub async fn payouts_manual_update_core(
             .find_payout_by_merchant_id_payout_id(
                 &merchant_id,
                 &payout_id,
+                &key_store,
                 merchant_account.storage_scheme,
             )
             .await
@@ -4514,6 +4633,7 @@ pub async fn payouts_manual_update_core(
                     &payouts,
                     payout_update,
                     &updated_payout_attempt,
+                    &key_store,
                     merchant_account.storage_scheme,
                 )
                 .await

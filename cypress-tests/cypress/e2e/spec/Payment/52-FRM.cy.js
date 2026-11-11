@@ -97,13 +97,87 @@ describe("FRM - Fraud Risk Management Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest({ globalState });
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: {
+            Response: { body: { frm_message: { frm_name: "signifyd" } } },
+          },
+        });
         cy.screenshot("frm-approve-payment-status");
       });
     });
 
     afterEach("Delete FRM connector", () => {
       cy.deleteFrmConnector(globalState);
+    });
+  });
+
+  context("FRM routing - profile precedence", () => {
+    it("skip-frm-when-profile-routes-to-connector-without-mca", () => {
+      let shouldContinue = true;
+
+      cy.step("Create FRM Connector (Signifyd)", () => {
+        cy.createNamedConnectorCallTest(
+          "payment_vas",
+          fixtures.createConnectorBody,
+          {},
+          globalState,
+          "signifyd",
+          "signifyd_frm",
+          "profile",
+          "frmConnector"
+        );
+      });
+
+      cy.step("Set business profile FRM routing to riskified (no MCA)", () => {
+        cy.setProfileFrmRoutingAlgorithm(
+          { type: "single", data: "riskified" },
+          globalState
+        );
+      });
+
+      cy.step("Create and Confirm Payment - FRM is not invoked", () => {
+        const data = getConnectorDetails("signifyd")["card_pm"]["FRMApprove"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment - no FRM message", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: { Response: { body: { frm_message: null } } },
+        });
+      });
+    });
+
+    afterEach("Delete FRM connector and restore profile FRM routing", () => {
+      cy.deleteFrmConnector(globalState);
+      // The business profile endpoint's update is a diesel AsChangeset over
+      // Option<T> fields with no `treat_none_as_null`, so sending `null` here
+      // would be silently skipped rather than clearing the override set above
+      // — it must be reset to an explicit, known-good value instead. Reset to
+      // signifyd (the merchant account's value) so later specs in this phase,
+      // which share this same merchant/profile via globalState, don't inherit
+      // a profile-level override pointing at a connector with no MCA.
+      cy.setProfileFrmRoutingAlgorithm(
+        { type: "single", data: "signifyd" },
+        globalState
+      );
     });
   });
 });

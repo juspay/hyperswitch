@@ -5,7 +5,10 @@ use super::ConstructFlowSpecificData;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, Feature, PaymentData},
+        payments::{
+            self, access_token, callback_urls::ConnectorCallbackUrls, helpers, transformers,
+            Feature, PaymentData,
+        },
     },
     routes::SessionState,
     services,
@@ -29,6 +32,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsCaptureRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Capture,
@@ -44,6 +48,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -64,6 +69,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>,
     > {
@@ -99,17 +105,22 @@ impl Feature<api::Capture, types::PaymentsCaptureData>
         // Read before the connector call: connectors on the V2 interface rebuild the returned
         // router data from `PaymentFlowData`, which does not carry this flag.
         let accept_amount_mismatch = self.accept_amount_mismatch;
-        let mut new_router_data =
-            payments::gateway::handle_gateway_call::<_, _, _, PaymentFlowData, _>(
-                state,
-                self,
-                connector,
-                &gateway_context,
-                call_connector_action,
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await?;
+        let mut new_router_data = Box::pin(payments::gateway::handle_gateway_call::<
+            _,
+            _,
+            _,
+            PaymentFlowData,
+            _,
+        >(
+            state,
+            self,
+            connector,
+            &gateway_context,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        ))
+        .await?;
 
         // Initiating Integrity check
         let integrity_result = helpers::check_integrity_based_on_flow(

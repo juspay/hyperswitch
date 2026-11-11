@@ -1,4 +1,3 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::{report, ResultExt};
 use time::PrimitiveDateTime;
@@ -6,7 +5,7 @@ use time::PrimitiveDateTime;
 use crate::{
     enums,
     errors::DatabaseError,
-    query::generics,
+    query::generics::{self, db_metrics::DatabaseOperation},
     routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
     schema::routing_algorithm::dsl,
     DatabaseConnectionWithContext, StorageResult,
@@ -64,7 +63,7 @@ impl RoutingAlgorithm {
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
-        Self::table()
+        let query = Self::table()
             .select((
                 dsl::profile_id,
                 dsl::algorithm_id,
@@ -80,17 +79,17 @@ impl RoutingAlgorithm {
                     .eq(algorithm_id.to_owned())
                     .and(dsl::profile_id.eq(profile_id.to_owned())),
             )
-            .limit(1)
-            .load_async::<(
-                common_utils::id_type::ProfileId,
-                common_utils::id_type::RoutingId,
-                String,
-                Option<String>,
-                enums::RoutingAlgorithmKind,
-                PrimitiveDateTime,
-                PrimitiveDateTime,
-                enums::TransactionType,
-            )>(conn.raw_connection())
+            .limit(1);
+        conn.track_load::<Self, _, (
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::RoutingId,
+            String,
+            Option<String>,
+            enums::RoutingAlgorithmKind,
+            PrimitiveDateTime,
+            PrimitiveDateTime,
+            enums::TransactionType,
+        )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -127,7 +126,7 @@ impl RoutingAlgorithm {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
-        Ok(Self::table()
+        let query = Self::table()
             .select((
                 dsl::algorithm_id,
                 dsl::profile_id,
@@ -143,8 +142,9 @@ impl RoutingAlgorithm {
             // a total order the pages of one limit/offset walk overlap and leave rules unvisited.
             .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
             .limit(limit)
-            .offset(offset)
-            .load_async::<(
+            .offset(offset);
+        Ok(conn
+            .track_load::<Self, _, (
                 common_utils::id_type::RoutingId,
                 common_utils::id_type::ProfileId,
                 String,
@@ -153,7 +153,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn.raw_connection())
+            )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -189,7 +189,7 @@ impl RoutingAlgorithm {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
-        Ok(Self::table()
+        let query = Self::table()
             .select((
                 dsl::profile_id,
                 dsl::algorithm_id,
@@ -210,8 +210,9 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
-            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
-            .load_async::<(
+            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()));
+        Ok(conn
+            .track_load::<Self, _, (
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -220,7 +221,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn.raw_connection())
+            )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -257,7 +258,7 @@ impl RoutingAlgorithm {
         limit: i64,
         offset: i64,
     ) -> StorageResult<Vec<RoutingProfileMetadata>> {
-        Ok(Self::table()
+        let query = Self::table()
             .select((
                 dsl::profile_id,
                 dsl::algorithm_id,
@@ -279,8 +280,9 @@ impl RoutingAlgorithm {
             .limit(limit)
             .offset(offset)
             // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
-            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
-            .load_async::<(
+            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()));
+        Ok(conn
+            .track_load::<Self, _, (
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
                 String,
@@ -289,7 +291,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn.raw_connection())
+            )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -340,7 +342,7 @@ impl RoutingAlgorithm {
             enums::RoutingAlgorithmKind,
         )>,
     > {
-        Self::table()
+        let query = Self::table()
             .select((
                 dsl::profile_id,
                 dsl::processor_merchant_id,
@@ -349,14 +351,14 @@ impl RoutingAlgorithm {
                 dsl::kind,
             ))
             .filter(dsl::profile_id.eq_any(profile_ids.to_vec()))
-            .order((dsl::profile_id.asc(), dsl::algorithm_id.asc()))
-            .load_async::<(
-                common_utils::id_type::ProfileId,
-                Option<common_utils::id_type::MerchantId>,
-                common_utils::id_type::MerchantId,
-                common_utils::id_type::RoutingId,
-                enums::RoutingAlgorithmKind,
-            )>(conn.raw_connection())
+            .order((dsl::profile_id.asc(), dsl::algorithm_id.asc()));
+        conn.track_load::<Self, _, (
+            common_utils::id_type::ProfileId,
+            Option<common_utils::id_type::MerchantId>,
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)
             .map(|rows| {
@@ -387,16 +389,16 @@ impl RoutingAlgorithm {
             common_utils::id_type::MerchantId,
         )>,
     > {
-        Self::table()
+        let query = Self::table()
             .group_by((dsl::merchant_id, dsl::profile_id))
             .select((dsl::profile_id, dsl::merchant_id))
             .order((dsl::merchant_id.asc(), dsl::profile_id.asc()))
             .limit(limit)
-            .offset(offset)
-            .load_async::<(
-                common_utils::id_type::ProfileId,
-                common_utils::id_type::MerchantId,
-            )>(conn.raw_connection())
+            .offset(offset);
+        conn.track_load::<Self, _, (
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+        )>(DatabaseOperation::Filter, query)
             .await
             .change_context(DatabaseError::Others)
     }

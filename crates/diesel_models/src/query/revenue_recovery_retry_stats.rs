@@ -3,7 +3,7 @@ use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 
-use super::generics;
+use super::generics::{self, db_metrics::DatabaseOperation};
 use crate::{
     errors,
     revenue_recovery_retry_stats::{RevenueRecoveryRetryStats, RevenueRecoveryRetryStatsNew},
@@ -16,10 +16,11 @@ impl RevenueRecoveryRetryStatsNew {
         self,
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<RevenueRecoveryRetryStats> {
-        diesel::insert_into(<RevenueRecoveryRetryStats as HasTable>::table())
-            .values(self)
-            .get_result_async::<RevenueRecoveryRetryStats>(conn.raw_connection())
-            .await
+        conn.track_get_result::<<RevenueRecoveryRetryStats as HasTable>::Table, _, RevenueRecoveryRetryStats>(
+            DatabaseOperation::Insert,
+            diesel::insert_into(<RevenueRecoveryRetryStats as HasTable>::table()).values(self),
+        )
+        .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("error inserting revenue_recovery_retry_stats row")
     }
@@ -31,12 +32,14 @@ impl RevenueRecoveryRetryStats {
         cluster_key: String,
         stats: Secret<serde_json::Value>,
     ) -> StorageResult<Self> {
-        diesel::update(<Self as HasTable>::table().filter(dsl::cluster_key.eq(cluster_key)))
-            .set(dsl::stats.eq(stats))
-            .get_result_async::<Self>(conn.raw_connection())
-            .await
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("error updating revenue_recovery_retry_stats row")
+        conn.track_get_result::<<Self as HasTable>::Table, _, Self>(
+            DatabaseOperation::Update,
+            diesel::update(<Self as HasTable>::table().filter(dsl::cluster_key.eq(cluster_key)))
+                .set(dsl::stats.eq(stats)),
+        )
+        .await
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("error updating revenue_recovery_retry_stats row")
     }
 
     pub async fn find_by_key(

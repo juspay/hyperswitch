@@ -90,8 +90,8 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             co_badged_card_data: None,
         }),
         capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
-        router_return_url: Some("https://google.com".to_string()),
-        complete_authorize_url: Some("https://google.com".to_string()),
+        router_return_url: Some("https://google.com".to_string().into()),
+        complete_authorize_url: Some("https://google.com".to_string().into()),
         ..utils::PaymentAuthorizeType::default().0
     })
 }

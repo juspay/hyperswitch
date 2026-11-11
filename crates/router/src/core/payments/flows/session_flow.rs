@@ -12,7 +12,6 @@ use common_utils::{
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
-use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
@@ -22,7 +21,9 @@ use crate::{
         configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, customers,
+            self, access_token,
+            callback_urls::ConnectorCallbackUrls,
+            customers, gateway,
             gateway::context as gateway_context,
             helpers::{self},
             transformers, PaymentData,
@@ -54,6 +55,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         Box::pin(transformers::construct_payment_router_data_for_sdk_session(
             state,
@@ -86,6 +88,7 @@ impl
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         fp_utils::when(merchant_connector_account.is_disabled(), || {
             Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -105,6 +108,7 @@ impl
             header_payload,
             payment_method,
             payment_method_type,
+            connector_callback_urls,
         ))
         .await
     }
@@ -1544,7 +1548,7 @@ where
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self>;
 }
 
@@ -1746,7 +1750,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
         call_connector_action: payments::CallConnectorAction,
         business_profile: &domain::Profile,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        gateway_context: payments::gateway::context::RouterGatewayContext,
+        gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {

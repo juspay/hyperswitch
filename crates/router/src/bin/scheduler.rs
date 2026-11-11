@@ -15,10 +15,7 @@ use router::{
     services::{self, api},
     workflows,
 };
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerSessionState,
@@ -444,6 +441,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                         Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
                             .attach_printable(
                                 "Cannot run blocklist export workflow when v1 feature is disabled",
+                            )
+                    }
+                }
+                storage::ProcessTrackerRunner::AnalyticsReportWorkflow => {
+                    #[cfg(feature = "olap")]
+                    {
+                        Ok(Box::new(
+                            workflows::analytics_report::AnalyticsReportWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "olap"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run analytics report workflow when olap feature is disabled",
                             )
                     }
                 }

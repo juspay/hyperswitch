@@ -3,6 +3,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::Engine;
+use common_enums::{CallConnectorAction, PaymentAction};
 use common_types::payments::GpayTokenizationData;
 use common_utils::{
     errors::CustomResult,
@@ -30,8 +31,8 @@ use hyperswitch_domain_models::{
         SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback, RedirectForm,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -1388,7 +1389,7 @@ impl webhooks::IncomingWebhook for Worldpayxml {
         >,
         _connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        // Bypass Source Verification since it is done via MTLS
+        // The router establishes source verification only after successful mTLS validation.
         Ok(false)
     }
 
@@ -1572,7 +1573,27 @@ static WORLDPAYXML_SUPPORTED_WEBHOOK_FLOWS: &[common_enums::EventClass] = &[
     common_enums::EventClass::Payouts,
 ];
 
+impl api::ConnectorRedirectResponse for Worldpayxml {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::WorldpayxmlDDCForm { .. })
+            .then_some(RedirectCallback::Complete)
+    }
+
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
+        Ok(CallConnectorAction::Trigger)
+    }
+}
+
 impl ConnectorSpecifications for Worldpayxml {
+    fn is_webhook_mtls_required(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&WORLDPAYXML_CONNECTOR_INFO)
     }
@@ -1590,6 +1611,7 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => {
                 // Googlepay would require 3ds if cryptogram is not present which indicates it is Fpan
                 auth_type == common_enums::AuthenticationType::ThreeDs

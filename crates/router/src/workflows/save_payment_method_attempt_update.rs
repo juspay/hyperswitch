@@ -4,6 +4,9 @@
 
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::platform::{
+    ProcessorKeyStore, ProcessorMerchantAccount, ProcessorMerchantId,
+};
 use scheduler::{
     consumer::{self, types::process_data},
     utils as pt_utils,
@@ -69,13 +72,17 @@ async fn reconcile(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to fetch merchant account")?;
+    let storage_scheme = ProcessorMerchantAccount::from_untagged(merchant_account)
+        .get_storage_scheme();
+    let processor_merchant_id = ProcessorMerchantId::from(tracking_data.processor_merchant_id.clone());
+    let key_store = ProcessorKeyStore::from_untagged(key_store);
 
     let payment_attempt = match db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &tracking_data.payment_id,
-            &tracking_data.processor_merchant_id,
+            &processor_merchant_id,
             &tracking_data.attempt_id,
-            merchant_account.storage_scheme,
+            storage_scheme,
             &key_store,
         )
         .await
@@ -106,7 +113,7 @@ async fn reconcile(
         .update_payment_attempt_with_attempt_id(
             payment_attempt,
             payment_attempt_update,
-            merchant_account.storage_scheme,
+            storage_scheme,
             &key_store,
         )
         .await

@@ -1,18 +1,15 @@
 use actix_web::{web, HttpRequest, Responder};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{
-        api_locking,
-        webhooks::{self, types},
-    },
+    core::{api_locking, webhooks},
     services::{api, authentication as auth},
     types::domain,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
-pub async fn recovery_receive_incoming_webhook<W: types::OutgoingWebhookType>(
+pub async fn recovery_receive_incoming_webhook(
     state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Bytes,
@@ -31,7 +28,7 @@ pub async fn recovery_receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         (),
         |state, auth, _, req_state| {
-            webhooks::incoming_webhooks_wrapper::<W>(
+            webhooks::incoming_webhooks_wrapper(
                 state.to_owned(),
                 req_state,
                 &req,

@@ -33,7 +33,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        RedirectCallback, RedirectForm, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData,
@@ -2366,6 +2367,22 @@ static CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
+impl api::ConnectorRedirectResponse for Cybersource {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::CybersourceAuthSetup { .. })
+            .then_some(RedirectCallback::Complete)
+    }
+
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: enums::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        Ok(enums::CallConnectorAction::Trigger)
+    }
+}
+
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CYBERSOURCE_CONNECTOR_INFO)
@@ -2411,6 +2428,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => {
                 if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
@@ -2431,6 +2449,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => self.is_3ds_setup_required(&request_data, auth_type),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,

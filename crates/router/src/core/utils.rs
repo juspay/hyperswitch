@@ -25,6 +25,7 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
+    mandates,
     merchant_connector_account::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
@@ -37,15 +38,15 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "frm")]
 use hyperswitch_interfaces::configs::Connectors;
+#[cfg(feature = "payouts")]
+use hyperswitch_masking::ExposeInterface;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeOptionInterface;
-use hyperswitch_masking::Secret;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use maud::{html, PreEscaped};
 use redis_interface::errors::RedisError;
 use regex::Regex;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::StorageError;
 
 use super::payments::helpers;
@@ -55,6 +56,8 @@ use super::payouts::{helpers as payout_helpers, PayoutData};
 use crate::core::payments;
 #[cfg(feature = "v2")]
 use crate::core::payments::helpers as payment_helpers;
+#[cfg(feature = "v2")]
+use crate::types::transformers::ForeignFrom;
 use crate::{
     configs::Settings,
     consts,
@@ -73,6 +76,34 @@ use crate::{
     },
     utils::{generate_id, OptionExt, ValueExt},
 };
+
+pub async fn get_merchant_fingerprint_secret(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+) -> RouterResult<String> {
+    match merchant_account.fingerprint_secret.as_ref() {
+        Some(secret) => Ok(secret.peek().clone()),
+        None => {
+            router_env::logger::warn!(
+                merchant_id = ?merchant_account.get_id(),
+                "fingerprint_secret missing from merchant account; falling back to Superposition"
+            );
+            super::metrics::FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT.add(1, &[]);
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(merchant_account.get_id().clone().into());
+            let secret = dimensions
+                .get_fingerprint_secret(&*state.store, state.superposition_service.as_ref(), None)
+                .await;
+
+            match secret.is_empty() {
+                false => Ok(secret),
+                true => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                    "fingerprint_secret not found in merchant account or Superposition",
+                ),
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
@@ -171,7 +202,7 @@ const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_di
 
 #[cfg(all(feature = "payouts", feature = "v2"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     _state: &SessionState,
     _connector_data: &api::ConnectorData,
     _platform: &domain::Platform,
@@ -182,7 +213,7 @@ pub async fn construct_payout_router_data<'a, F>(
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn construct_payout_router_data<'a, F>(
+pub async fn construct_payout_router_data<F>(
     state: &SessionState,
     connector_data: &api::ConnectorData,
     platform: &domain::Platform,
@@ -259,21 +290,40 @@ pub(super) async fn construct_payout_router_data_common<F>(
         })
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
-    let vendor_details: Option<PayoutVendorAccountDetails> =
+    let vendor_details: Option<PayoutVendorAccountDetails> = if let Some(sender_details) =
+        payout_data.payouts.get_optional_sender_details()
+    {
+        // Persisted sender input is normalized to the vendor type only at this
+        // domain boundary; the raw sender identity stays on the payout row.
+        Some(sender_details.clone().into())
+    } else {
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
-            api_models::enums::PayoutConnectors::Stripe => {
-                payout_data.payouts.metadata.as_ref().and_then(|metadata| {
-                    metadata
-                        .peek()
-                        .to_owned()
-                        .parse_value("PayoutVendorAccountDetails")
-                        .ok()
+            api_models::enums::PayoutConnectors::Stripe => payout_data
+                .payouts
+                .metadata
+                .as_ref()
+                // Parse only metadata that carries vendor details; unrelated
+                // merchant metadata keeps the previous behavior and is treated
+                // as absent.
+                .filter(|metadata| {
+                    let value = metadata.peek();
+                    value.get("vendor_details").is_some()
+                        || value.get("individual_details").is_some()
                 })
-            }
+                .map(|metadata| {
+                    serde_json::from_value::<PayoutVendorAccountDetails>(metadata.peek().to_owned())
+                        .map_err(|error| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: format!("Invalid payout metadata: {error}"),
+                            })
+                        })
+                })
+                .transpose()?,
             _ => None,
-        };
+        }
+    };
 
     let webhook_url = helpers::create_webhook_url(
         &state.base_url,
@@ -358,6 +408,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
+            funds_transfer_type: payouts.funds_transfer_type,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
@@ -519,6 +570,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.id.get_string_repr().to_string(),
+            payment_feature_metadata: payment_intent
+                .feature_metadata
+                .as_ref()
+                .map(api_models::payments::FeatureMetadata::foreign_from),
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -538,6 +594,8 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_method_data: None,
+            mandate_id: None,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -630,6 +688,8 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a diesel_refund::Refund,
     split_refunds: Option<router_request_types::SplitRefundsRequest>,
     merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    payment_method_data: Option<domain::PaymentMethodData>,
+    mandate_id: Option<mandates::MandateIds>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -746,6 +806,11 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_captured: payment_intent.amount_captured,
         request: types::RefundsData {
             refund_id: refund.refund_id.clone(),
+            payment_feature_metadata: payment_intent
+                .get_optional_feature_metadata()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse payment feature metadata")?,
+            feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
             refund_amount: refund.refund_amount.get_amount_as_i64(),
             minor_refund_amount: refund.refund_amount,
@@ -765,6 +830,8 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_method_data,
+            mandate_id,
             payment_connector_request_reference_id: payment_attempt
                 .connector_request_reference_id
                 .clone(),
@@ -1070,106 +1137,7 @@ pub fn get_split_refunds(
     }
 }
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn validate_id_length_constraint() {
-        let payment_id =
-            "abcdefghijlkmnopqrstuvwzyzabcdefghijknlmnopsjkdnfjsknfkjsdnfspoig".to_string(); //length = 65
-
-        let result = validate_id(payment_id, "payment_id");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn validate_id_proper_response() {
-        let payment_id = "abcdefghijlkmnopqrstjhbjhjhkhbhgcxdfxvmhb".to_string();
-
-        let result = validate_id(payment_id.clone(), "payment_id");
-        assert!(result.is_ok());
-        let result = result.unwrap_or_default();
-        assert_eq!(result, payment_id);
-    }
-
-    #[test]
-    fn test_generate_id() {
-        let generated_id = generate_id(consts::ID_LENGTH, "ref");
-        assert_eq!(generated_id.len(), consts::ID_LENGTH + 4)
-    }
-
-    #[test]
-    fn test_filter_objects_based_on_profile_id_list() {
-        #[derive(PartialEq, Debug, Clone)]
-        struct Object {
-            profile_id: Option<common_utils::id_type::ProfileId>,
-        }
-
-        impl Object {
-            pub fn new(profile_id: &'static str) -> Self {
-                Self {
-                    profile_id: Some(
-                        common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(
-                            profile_id,
-                        ))
-                        .expect("invalid profile ID"),
-                    ),
-                }
-            }
-        }
-
-        impl GetProfileId for Object {
-            fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
-                self.profile_id.as_ref()
-            }
-        }
-
-        fn new_profile_id(profile_id: &'static str) -> common_utils::id_type::ProfileId {
-            common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id))
-                .expect("invalid profile ID")
-        }
-
-        // non empty object_list and profile_id_list
-        let object_list = vec![
-            Object::new("p1"),
-            Object::new("p2"),
-            Object::new("p2"),
-            Object::new("p4"),
-            Object::new("p5"),
-        ];
-        let profile_id_list = vec![
-            new_profile_id("p1"),
-            new_profile_id("p2"),
-            new_profile_id("p3"),
-        ];
-        let filtered_list =
-            filter_objects_based_on_profile_id_list(Some(profile_id_list), object_list.clone());
-        let expected_result = vec![Object::new("p1"), Object::new("p2"), Object::new("p2")];
-        assert_eq!(filtered_list, expected_result);
-
-        // non empty object_list and empty profile_id_list
-        let empty_profile_id_list = vec![];
-        let filtered_list = filter_objects_based_on_profile_id_list(
-            Some(empty_profile_id_list),
-            object_list.clone(),
-        );
-        let expected_result = vec![];
-        assert_eq!(filtered_list, expected_result);
-
-        // non empty object_list and None profile_id_list
-        let profile_id_list_as_none = None;
-        let filtered_list =
-            filter_objects_based_on_profile_id_list(profile_id_list_as_none, object_list);
-        let expected_result = vec![
-            Object::new("p1"),
-            Object::new("p2"),
-            Object::new("p2"),
-            Object::new("p4"),
-            Object::new("p5"),
-        ];
-        assert_eq!(filtered_list, expected_result);
-    }
-}
+mod tests;
 
 // Dispute Stage can move linearly from PreDispute -> Dispute -> PreArbitration -> Arbitration -> DisputeReversal
 pub fn validate_dispute_stage(
@@ -1602,8 +1570,8 @@ pub async fn construct_upload_file_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_dispute_list_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_dispute_list_router_data(
+    state: &SessionState,
     merchant_connector_account: MerchantConnectorAccount,
     req: types::FetchDisputesRequestData,
 ) -> RouterResult<types::FetchDisputesRouterData> {
@@ -2058,8 +2026,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn construct_retrieve_file_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_retrieve_file_router_data(
+    state: &SessionState,
     processor: &domain::Processor,
     file_metadata: &diesel_models::file::FileMetadata,
     dispute: Option<storage::Dispute>,
@@ -2493,9 +2461,10 @@ pub fn get_modular_authentication_request_poll_id(
 }
 
 pub fn get_html_redirect_response_after_ddc(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     redirect_mode: &str, // "required" or "if_required"
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     Ok(html! {
         head {
             title { "Redirect Form" }
@@ -2534,12 +2503,14 @@ pub fn get_html_redirect_response_after_ddc(
             "#)))
         }
     }
-    .into_string())
+    .into_string()
+    .into())
 }
 
 pub fn get_html_redirect_response_popup(
-    return_url_with_query_params: String,
-) -> RouterResult<String> {
+    return_url_with_query_params: Secret<String>,
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     Ok(html! {
         head {
             title { "Redirect Form" }
@@ -2567,16 +2538,17 @@ pub fn get_html_redirect_response_popup(
                     "#)))
         }
     }
-    .into_string())
+    .into_string().into())
 }
 
 #[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_authentication(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     payment_response: &api_models::payments::PaymentsResponse,
     payment_id: common_utils::id_type::PaymentId,
     poll_config: &PollConfig,
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     // if intent_status is requires_customer_action then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
     let html = match payment_response.status {
             IntentStatus::RequiresCustomerAction => {
@@ -2650,16 +2622,17 @@ pub fn get_html_redirect_response_for_external_authentication(
                 .into_string()
             },
         };
-    Ok(html)
+    Ok(html.into())
 }
 
 #[cfg(feature = "v1")]
 pub fn get_html_redirect_response_for_external_modular_authentication(
-    return_url_with_query_params: String,
+    return_url_with_query_params: Secret<String>,
     authentication_response: &api_models::authentication::AuthenticationResponse,
     authentication_id: common_utils::id_type::AuthenticationId,
     poll_config: &PollConfig,
-) -> RouterResult<String> {
+) -> RouterResult<Secret<String>> {
+    let return_url_with_query_params = return_url_with_query_params.peek();
     // if authentication_status is pending then set poll_id, fetch poll config and do a poll_status post message, else do open_url post message to redirect to return_url
     let html = match authentication_response.status {
             common_enums::AuthenticationStatus::Pending => {
@@ -2733,7 +2706,7 @@ pub fn get_html_redirect_response_for_external_modular_authentication(
                 .into_string()
             },
         };
-    Ok(html)
+    Ok(html.into())
 }
 
 #[inline]
@@ -2855,6 +2828,12 @@ impl GetProfileId for diesel_models::routing_algorithm::RoutingProfileMetadata {
 impl GetProfileId for domain::Profile {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(self.get_id())
+    }
+}
+
+impl GetProfileId for hyperswitch_domain_models::authentication::Authentication {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
     }
 }
 

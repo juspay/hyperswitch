@@ -60,12 +60,16 @@ impl
             error_code: payout_attempt.error_code.clone(),
             error_message: payout_attempt.error_message.clone(),
             payment_method: payout.payout_type,
-            payout_method_type: None,
+            payout_method_type: payout_attempt
+                .additional_payout_method_data
+                .as_ref()
+                .map(From::from),
             connector_transaction_id: payout_attempt.connector_payout_id,
             cancellation_reason: None,
             unified_code: None,
             unified_message: None,
         };
+        let sender_details = payout.get_optional_sender_details().cloned();
         Self {
             payout_id: payout.payout_id,
             merchant_id: payout.merchant_id,
@@ -86,6 +90,8 @@ impl
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
+            funds_transfer_type: payout.funds_transfer_type,
+            sender_details,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
             error_code: payout_attempt.error_code,

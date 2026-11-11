@@ -194,7 +194,7 @@ pub enum NoonPaymentActions {
 pub struct NoonConfiguration {
     tokenize_c_c: Option<bool>,
     payment_action: NoonPaymentActions,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -269,7 +269,7 @@ pub struct NoonGooglePay {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPayPal {
-    return_url: String,
+    return_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -639,7 +639,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NoonPaymentsResponse, T, PaymentsRespon
                 .result
                 .checkout_data
                 .map(|redirection_data| RedirectForm::Form {
-                    endpoint: redirection_data.post_url.to_string(),
+                    endpoint: redirection_data.post_url.to_string().into(),
                     method: Method::Post,
                     form_fields: std::collections::HashMap::new(),
                 });
