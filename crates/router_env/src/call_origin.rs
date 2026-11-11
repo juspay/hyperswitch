@@ -7,7 +7,7 @@ tokio::task_local! {
 }
 
 /// Run a future with a caller location in the current task's context.
-pub fn scope<F: Future>(
+pub fn with_origin<F: Future>(
     origin: &'static Location<'static>,
     future: F,
 ) -> impl Future<Output = F::Output> {
@@ -15,7 +15,7 @@ pub fn scope<F: Future>(
 }
 
 /// Return the current caller location, if one was scoped.
-pub fn current() -> Option<&'static Location<'static>> {
+pub fn current_origin() -> Option<&'static Location<'static>> {
     ORIGIN.try_with(|origin| *origin).ok()
 }
 
@@ -25,16 +25,16 @@ mod tests {
 
     #[tokio::test]
     async fn origin_survives_await_and_is_removed_after_scope() {
-        assert!(current().is_none());
+        assert!(current_origin().is_none());
 
         let expected = line!() + 1;
-        let observed = scope(Location::caller(), async {
+        let observed = with_origin(Location::caller(), async {
             tokio::task::yield_now().await;
-            current().map(Location::line)
+            current_origin().map(Location::line)
         })
         .await;
 
         assert_eq!(observed, Some(expected));
-        assert!(current().is_none());
+        assert!(current_origin().is_none());
     }
 }

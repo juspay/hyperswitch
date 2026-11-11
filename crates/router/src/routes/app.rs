@@ -196,7 +196,7 @@ impl SessionState {
         Fut: Future + 's,
     {
         let origin = Location::caller();
-        router_env::call_origin::scope(origin, async move {
+        router_env::call_origin::with_origin(origin, async move {
             operation(self.accounts_store.as_ref()).await
         })
     }

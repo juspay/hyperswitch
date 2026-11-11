@@ -223,7 +223,7 @@ impl DatabaseConnectionWithContext<'_> {
         logger::debug!(query = %statement);
 
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
-            let location = router_env::call_origin::current().copied();
+            let location = router_env::call_origin::current_origin().copied();
             if ledger.record_read(statement, location) {
                 crate::metrics::DUPLICATE_DB_READ_COUNT.add(
                     1,
