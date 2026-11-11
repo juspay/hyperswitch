@@ -45,6 +45,7 @@ docker compose up -d --build
 Open http://127.0.0.1:4174. Configure **Settings**, create a **Scenario**, provision
 **Fixtures**, start load in **Performance**, and inspect **Results**. The console
 also manages faults, pause/resume, distributed workers and PostgreSQL reconciliation.
+Grafana embeds use a separate listener on port 4176; see the deployment guide for HTTPS setup.
 
 See the [setup guide](console/README.md) for configuration and native development
 (Node 24.19+, Go 1.24.4 and a C compiler), the

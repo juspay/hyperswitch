@@ -9,9 +9,41 @@ import path from 'node:path';
 const root=await mkdtemp(path.join(os.tmpdir(),'distributed-runtime-'));process.env.LOADTEST_DATA_DIR=root;process.env.LOADTEST_CONSOLE_ROOT=path.resolve('.');process.env.LOADTEST_ROOT=path.resolve('..');
 const seed=JSON.parse(await readFile('../loadtest.config.example.json','utf8'));seed.output=path.join(root,'artifacts');process.env.LOADTEST_CONFIG_FILE=path.join(root,'seed.json');await writeFile(process.env.LOADTEST_CONFIG_FILE,JSON.stringify(seed));
 const state=await import('../server/state.mjs');state.initializeConfig();
-const registry=await import('../server/worker-registry.mjs'),{launchDistributedRun}=await import('../server/distributed-runner.mjs'),{readWorkerBundle,storeWorkerArtifact}=await import('../server/worker-artifacts.mjs');
+const registry=await import('../server/worker-registry.mjs'),{launchDistributedRun,aggregate}=await import('../server/distributed-runner.mjs'),{readWorkerBundle,storeWorkerArtifact}=await import('../server/worker-artifacts.mjs');
+test('distributed chart rates use wall time while pause and stage clocks retain active time',()=>{
+ const shards=[{status:'paused',progress:JSON.stringify({elapsed_seconds:30,control:{active_seconds:10},flows:{guest:{successes:20}}})}];
+ const progress=aggregate(shards,{wallElapsedSeconds:31});assert.equal(progress.elapsed_seconds,31);assert.equal(progress.control.active_seconds,10);
+ const {elapsed_seconds}=aggregate(shards);assert.equal(elapsed_seconds,30);
+});
 
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function caseRun(name,count=1){
+ state.controlDb().prepare('UPDATE load_workers SET last_seen=0').run();
+ const fixturePath=path.join(root,name+'-fixtures'),runPath=path.join(root,name);await mkdir(fixturePath);await mkdir(runPath);
+ const merchants=JSON.stringify([{merchant_id:'fake'}]);await writeFile(path.join(fixturePath,'merchants.json'),merchants);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',merchants_sha256:createHash('sha256').update(merchants).digest('hex')}));
+ const identities=Array.from({length:count},(_,i)=>registry.enrollWorker({name:`${name}-${i}`,capacityTps:1,capacityVus:10},'fake','fake'));
+ let result=null;
+ const runner=await launchDistributedRun({runId:name,runPath,fixturePath,config:{mode:'single',load:{total_rps:count,duration_seconds:60,max_vus_multiplier:5},scenarios:[]},onDone:(error,value)=>{result={error,value};}});
+ return {identities,runner,get result(){return result;}};
+}
+test('cancel settles after workers finish and removes pending preparation/start commands',async()=>{
+ const probe=await caseRun('cancel-terminal');probe.runner.cancel();
+ const identity=probe.identities[0],commands=registry.pendingWorkerCommands(identity.id,identity.token);
+ assert.deepEqual(commands.map(c=>c.kind),['stop']);
+ registry.heartbeatWorker(identity.id,identity.token,{status:'idle',runId:'cancel-terminal',runStatus:'complete'});
+ await Promise.race([probe.runner.done,delay(3000).then(()=>{throw Error('Stop did not settle');})]);
+ assert.equal(probe.result.error,null);
+});
+test('one failed worker stops siblings and retains ownership until they drain',async()=>{
+ const probe=await caseRun('failure-drain',2),[failed,sibling]=probe.identities;
+ registry.heartbeatWorker(failed.id,failed.token,{status:'failed',runId:'failure-drain',runStatus:'failed',error:'injected failure'});
+ registry.heartbeatWorker(sibling.id,sibling.token,{status:'running',runId:'failure-drain',runStatus:'running'});
+ await delay(1200);
+ assert.equal(probe.result,null,'must not release a still-running sibling');
+ assert.deepEqual(registry.pendingWorkerCommands(sibling.id,sibling.token).map(c=>c.kind),['stop']);
+ registry.heartbeatWorker(sibling.id,sibling.token,{status:'idle',runId:'failure-drain',runStatus:'failed'});
+ await probe.runner.done;assert.match(probe.result.error.message,/injected failure/);
+});
 test('control plane prepares synchronized workers, receives artifacts and merges a run',async()=>{
   const fixturePath=path.join(root,'fixtures'),runPath=path.join(root,'run');await mkdir(fixturePath);await mkdir(runPath);
   const merchants=[{merchant_id:'m1'},{merchant_id:'m2'}],merchantText=JSON.stringify(merchants);await writeFile(path.join(fixturePath,'merchants.json'),merchantText);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',router:'https://router.example',merchants_sha256:createHash('sha256').update(merchantText).digest('hex')}));

@@ -51,6 +51,20 @@ test('persistent login limiting and strict origin checks',async()=>{
   assert.ok(auth.sameOrigin(new Request(url,{headers:{origin:url.origin}}),url));
   assert.equal(auth.sameOrigin(new Request(url,{headers:{origin:'https://other.example'}}),url),false);
 });
+test('parallel password checks cannot bypass the five-attempt limit',async()=>{
+  const attempts=await Promise.allSettled(Array.from({length:20},()=>auth.login('admin','wrong','parallel-ip')));
+  assert.equal(attempts.filter(r=>r.status==='fulfilled').length,5);
+  assert.equal(attempts.filter(r=>r.status==='rejected'&&r.reason.status===429).length,15);
+});
+test('masked credentials cannot follow edited connection destinations',async()=>{
+  assert.throws(()=>state.superpositionConnection({endpoint:'https://replacement.invalid'}),/credential|token/i);
+  const {databaseTestConnection}=await import('../server/connection-secrets.mjs');
+  const saved={host:'db.internal',port:5432,database:'payments',user:'reader',password:'saved',tlsMode:'verify'};
+  assert.throws(()=>databaseTestConnection(saved,{host:'replacement.invalid'}),/password/i);
+  assert.throws(()=>databaseTestConnection(saved,{tlsMode:'disable'}),/password/i);
+  assert.equal(databaseTestConnection(saved,{host:'replacement.invalid',password:'replacement'}).password,'replacement');
+  assert.equal(databaseTestConnection(saved,{host:'db.internal'}).password,'saved');
+});
 test('workers enroll, heartbeat, receive ordered commands and acknowledge once',()=>{
   const identity=registry.enrollWorker({name:'worker-a',capacityTps:250,capacityVus:2000,version:'1'},'enroll-secret','enroll-secret');
   assert.equal(registry.heartbeatWorker(identity.id,identity.token,{status:'ready'}).ok,true);
@@ -169,7 +183,7 @@ test('versioned profiles are isolated from connection edits and reject stale sav
  const second=saveProfile({...first,totalRps:1000},first.id);
  assert.equal(second.version,2);assert.equal(getProfile(first.id,1).totalRps,200);
  assert.throws(()=>saveProfile({...first,totalRps:300},first.id),/changed/);
- const settings=state.publicSettings();await state.saveConnections({...settings,scenarios:[],database:{...settings.database,user:'existing_user'}});
+ const settings=state.publicSettings();await state.saveConnections({...settings,scenarios:[],database:{...settings.database,user:'existing_user',password:'replacement-db-secret'}});
  assert.equal(getProfile(first.id).totalRps,1000);assert.equal(state.publicSettings().database.user,'existing_user');
  assert.throws(()=>saveProfile({...first,name:'bad',mode:'single',merchantCount:1500}),/Single/);
 });

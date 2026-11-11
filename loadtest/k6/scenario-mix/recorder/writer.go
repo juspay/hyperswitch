@@ -155,6 +155,7 @@ func (w *Writer) fail(err error) {
 func (w *Writer) SetStop(stop func(error)) { w.mu.Lock(); w.stop = stop; w.mu.Unlock() }
 
 func (w *Writer) Enqueue(r Record) error {
+	r = sanitizeDiagnostics(r)
 	r.size = r.bytes()
 	w.mu.Lock()
 	if w.err != nil {
@@ -327,6 +328,7 @@ func (w *Writer) Begin(r Record) (uint64, error) {
 	return r.AttemptID, nil
 }
 func (w *Writer) Finish(id uint64, r Record) error {
+	r = sanitizeDiagnostics(r)
 	w.mu.Lock()
 	pending, ok := w.pending[id]
 	if !ok {

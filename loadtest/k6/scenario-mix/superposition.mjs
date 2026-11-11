@@ -87,6 +87,9 @@ export async function configureSuperposition(config, recorder, merchants, organi
       }
     } finally { bar.finish(); }
   }
+  // A progress callback can cross the deadline after the last timer tick.
+  // Always publish the terminal countdown before entering verification.
+  await onProgress({status:"waiting",remainingSeconds:0,totalSeconds:config.refresh_interval_seconds});
   await onProgress({status:"verifying",remainingSeconds:0});
   await verify("Verify refreshed flags");
   await onProgress({status:"complete",remainingSeconds:0});

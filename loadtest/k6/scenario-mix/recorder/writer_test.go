@@ -137,7 +137,9 @@ func TestDatabaseFailureAndGracefulAbort(t *testing.T) {
 			t.Fatal(err)
 		}
 		r := paymentRecord("pay", "failed")
-		r.ErrorBody = str(string(make([]byte, 1<<20)))
+		// Raw error bodies are now deliberately projected and bounded. Exercise
+		// SQLite disk exhaustion with an unrelated large event field instead.
+		r.FlowID = string(make([]byte, 1<<20))
 		if err = w.Enqueue(r); err != nil {
 			t.Fatal(err)
 		}

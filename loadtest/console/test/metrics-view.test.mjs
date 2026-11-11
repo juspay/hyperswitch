@@ -18,8 +18,8 @@ test('native mode does not load Grafana iframes',()=>{
  const html=render(View,{props}).body;
  assert.match(html,/Metrics source/);assert.doesNotMatch(html,/<iframe|<details/);
 });
-test('Grafana mode shows three panels without duplicate wrapper headings or a dropdown',()=>{
+test('Grafana mode reserves three panels while isolated embed URLs load on the client',()=>{
  const html=render(View,{props:{...props,value:'grafana'}}).body;
- assert.equal((html.match(/<iframe /g)||[]).length,3);
+ assert.equal((html.match(/class="grafana-panel"/g)||[]).length,3);assert.doesNotMatch(html,/<iframe /);
  assert.doesNotMatch(html,/<h3|<details/);assert.match(html,/Open ↗/);
 });

@@ -13,6 +13,7 @@ import {successfulServerLatency} from './successful-latency.mjs';
 import {scenarioChecks} from './scenario-checks.mjs';
 import {seedPaymentIndex,outcomeWriter} from './reconciliation-index.mjs';
 import {databaseConnectionOptions,databaseConnectionError} from './database-options.mjs';
+import {diagnosticText,diagnosticBody} from '../../k6/scenario-mix/diagnostics.mjs';
 
 const value = (summary,name,key,fallback=0) => Number(summary?.metrics?.[name]?.values?.[key] ?? fallback);
 const labels = { guest:'Guest payment',cit_off_session:'CIT off-session',cit_on_session:'CIT on-session',sdk_checkout:'SDK checkout',
@@ -139,7 +140,7 @@ export function requestHistory({id,after=0,limit=100,search='',operation='',stat
     if(search){predicates.push("(payment_id LIKE ? ESCAPE '\\' OR message LIKE ? ESCAPE '\\' OR merchant_id LIKE ? ESCAPE '\\')");args.push(...Array(3).fill('%'+search.replace(/[\\%_]/g,'\\$&')+'%'));}
     const rows=db.prepare(`SELECT event_id,flow_id,merchant_id,operation,role,observed_at,payment_id,customer_id,
       status,api_status_code,request_id,latency_ms,message,error_body FROM request_events WHERE ${predicates.join(' AND ')} ORDER BY event_id LIMIT ?`).all(...args,limit+1);
-    return {rows:rows.slice(0,limit),next:rows.length>limit?rows[limit-1].event_id:null};
+    return {rows:rows.slice(0,limit).map(row=>({...row,message:row.message==null?null:diagnosticText(row.message),error_body:row.error_body==null?null:diagnosticBody(row.error_body)})),next:rows.length>limit?rows[limit-1].event_id:null};
   } finally {db.close();}
 }
 

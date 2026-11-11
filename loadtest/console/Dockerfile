@@ -34,7 +34,7 @@ COPY --from=recorder /k6-sqlite /usr/local/bin/k6-sqlite
 RUN mkdir /data && chown node:node /data
 USER node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=4174 LOADTEST_DATA_DIR=/data LOADTEST_ROOT=/app/loadtest K6_BINARY=/usr/local/bin/k6-sqlite SHUTDOWN_TIMEOUT=70
-EXPOSE 4174
+EXPOSE 4174 4176
 STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://127.0.0.1:4174/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 ENTRYPOINT ["/usr/bin/tini","--"]

@@ -14,7 +14,8 @@ export function planWorkerShards(totalTps,requiredVus,workers,{now=Date.now()}={
   // Divide by TPS capacity while capping the last worker so the sum is exact.
   let remaining=totalTps,start=0;
   return selected.map((worker,index)=>{
-    const workersLeft=selected.length-index,share=index===selected.length-1?remaining:Math.min(worker.effectiveTps,Math.max(1,Math.round(remaining/workersLeft)));
+    const laterCapacity=selected.slice(index+1).reduce((sum,w)=>sum+w.effectiveTps,0);
+    const workersLeft=selected.length-index,share=Math.min(worker.effectiveTps,Math.max(remaining-laterCapacity,Math.min(remaining,Math.max(1,Math.round(remaining/workersLeft)))));
     const end=Math.min(1,start+share/totalTps),shard={workerId:worker.id,workerName:worker.name,offeredTps:share,requiredVus:Math.ceil(requiredVus*share/totalTps),segmentStart:start,segmentEnd:index===selected.length-1?1:end};
     remaining-=share;start=shard.segmentEnd;return shard;
   });

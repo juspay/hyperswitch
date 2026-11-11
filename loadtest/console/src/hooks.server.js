@@ -2,6 +2,7 @@ import { redirect, json } from '@sveltejs/kit';
 import { authenticated, sessionCookie, sameOrigin } from '../server/auth.mjs';
 import { initializeConfig } from '../server/state.mjs';
 import { building } from '$app/environment';
+import {boundedRequest} from '../server/request-body.mjs';
 
 export async function handle({ event, resolve }) {
   if(building)return resolve(event);
@@ -13,6 +14,9 @@ export async function handle({ event, resolve }) {
   if(path.startsWith('/api/worker/v1/'))return resolve(event);
   if(!['GET','HEAD','OPTIONS'].includes(event.request.method) && !sameOrigin(event.request,event.url)) return json({error:'Invalid request origin'},{status:403});
   const isAuthenticated=authenticated(event.cookies.get(sessionCookie));
+  if(!['GET','HEAD','OPTIONS'].includes(event.request.method)){
+    try{event.request=await boundedRequest(event.request);}catch(e){return json({error:e.message},{status:e.status||400,headers:{connection:'close'}});}
+  }
   if(path==='/login') {if(isAuthenticated && event.request.method==='GET')redirect(303,'/');return resolve(event);}
   if(!isAuthenticated) {
     if(path.startsWith('/api/')||path.startsWith('/grafana/'))return json({error:'Authentication required'},{status:401});

@@ -8,6 +8,7 @@ services:
     env_file: .env
     ports:
       - "${CONSOLE_BIND_ADDRESS:-127.0.0.1}:4174:4174"
+      - "${CONSOLE_BIND_ADDRESS:-127.0.0.1}:4176:4176"
     volumes:
       - "${CONSOLE_DATA_PATH:-./.data}:/data"
     stop_grace_period: 75s

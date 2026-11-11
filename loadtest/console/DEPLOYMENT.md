@@ -55,6 +55,27 @@ that require encryption but do not expose a verifiable server CA, choose
 
 ## Grafana
 
+Grafana panels run on a separate origin, served on port 4176 by default. Publish
+that port through a separate same-site HTTPS hostname (for example
+`metrics.loadtest.example.com`) and set `GRAFANA_EMBED_ORIGIN` accordingly. Route
+only that hostname to port 4176; keep the console hostname on 4174. Both listeners
+must reach the same console data directory. The normal Compose file exposes both
+ports on loopback for local use. Grafana access uses one-time embed tickets and a
+separate HttpOnly cookie, revoked when its console session ends.
+
+`GRAFANA_URL` binds the server's Grafana identity to its upstream origin. Changing
+the saved base URL to another origin cannot forward that identity; change the
+server configuration explicitly when moving Grafana. Similarly, changing Router,
+Superposition or database destinations requires entering their credentials again.
+
+Workers stop active load if control-plane contact is lost for 30 seconds, with a
+10-second drain before forced termination. Cancellation and worker failures stop
+sibling workers before the coordinator finishes; unverified stops fail explicitly.
+
+The Node adapter permits streamed artifacts up to 2 GB by default. Other API requests and
+login forms retain a streamed 1 MiB limit. Reverse proxies must allow the artifact
+upload size and sufficient upload time on worker routes.
+
 The console automatically detects root-hosted Grafana and rewrites its frontend
 paths under the authenticated `/grafana/` proxy. Existing Grafana deployments
 can stay at `/`; no deployment changes are required for path compatibility.

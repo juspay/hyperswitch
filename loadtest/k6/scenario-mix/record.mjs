@@ -1,5 +1,6 @@
 // Node fixture response extraction. Go load capture uses the same SQLite schema.
 // No request headers/card data or successful raw bodies are retained.
+import {diagnosticText,diagnosticBody,diagnosticUrl} from './diagnostics.mjs';
 export function responseRecord(context, method, url, request, response, text, latencyMs, transportError = null, parsedBody = undefined) {
   let body = {};
   let parseError = null;
@@ -30,12 +31,12 @@ export function responseRecord(context, method, url, request, response, text, la
   const message = transportError || (failed ? body.error?.message || (typeof body.error === "string" ? body.error : null) || body.message || response?.error || (parseError ? "non_json_error_response" : `HTTP ${apiStatus}`) : parseError);
   return {
     flow_id: context.flow_id, merchant_id: context.merchant_id || null,
-    operation, role, observed_at: Date.now(), method, url,
+    operation, role, observed_at: Date.now(), method, url:diagnosticUrl(url),
     customer_id: customerId, merchant_reference_id: body.merchant_reference_id || request?.merchant_reference_id || null,
     payment_id: paymentId, amount: Number.isSafeInteger(body.amount) ? body.amount : Number.isSafeInteger(request?.amount) ? request.amount : null,
     status: isPayment && typeof body.status === "string" ? body.status : null,
     api_status_code: apiStatus, request_id: requestId || null, latency_ms: latencyMs,
-    message: message == null ? null : String(message), error_body: failed ? text || null : null,
+    message: message == null ? null : diagnosticText(message), error_body: failed&&text ? diagnosticBody(text) : null,
     entity_type: isCustomer ? "customer" : isPayment ? "payment" : null,
   };
 }

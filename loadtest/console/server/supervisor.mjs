@@ -10,7 +10,7 @@ import path from 'node:path';
 import {dataRoot,consoleRoot,redact} from './state.mjs';
 import {HttpError} from './errors.mjs';
 const descriptor=path.join(dataRoot,'worker-service.json'),lock=path.join(dataRoot,'worker-service.lock');
-const protocolVersion=3;
+const protocolVersion=4;
 const alive=pid=>{try{process.kill(pid,0);return true;}catch{return false;}};
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let starting;

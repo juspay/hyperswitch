@@ -79,7 +79,7 @@ test('stalled DB recovery permits only a verified TLS repair with no active jobs
  const previous=state.publicSettings();await state.saveConnections(state.publicSettings('gcp'));
  const before=state.publicSettings(),ledger=path.join(dir,'fault-ledger.json');
  await writeFile(ledger,JSON.stringify({target:{adapter:'gcp-alloydb'},status:'restoring',action:'failover'}));
- const input={...before,database:{...before.database,tlsMode:'require'}};let probes=0;
+ const input={...before,database:{...before.database,tlsMode:'require',password:'gcp-db-secret'}};let probes=0;
  const options={databaseTest:async database=>{probes++;assert.equal(database.tlsMode,'require');return {ok:true};}};
  try{
   await assert.rejects(state.saveConnections({...input,database:{...input.database,host:'other-db'}},options),/Finish active/);

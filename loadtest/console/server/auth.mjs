@@ -5,6 +5,7 @@ import { HttpError } from './errors.mjs';
 const derive = promisify(scrypt);
 export const sessionCookie = 'loadtest_session';
 const digest = token => createHash('sha256').update(token).digest('hex');
+let passwordChecks=0;
 
 export async function passwordHash(password) {
   const salt = randomBytes(16).toString('hex');
@@ -22,12 +23,17 @@ export function authenticated(token) {
 }
 export async function login(username,password,ip) {
   const db = controlDb(), now = Date.now(), key = digest(ip);
-  const limit = db.prepare('SELECT * FROM login_limits WHERE key=?').get(key);
-  if (limit?.reset_at > now && limit.failures >= 5) throw new HttpError(429,'Too many attempts. Try again in 15 minutes.');
-  const valid = await verifyPassword(password,process.env.ADMIN_PASSWORD_HASH);
+  if(passwordChecks>=8)throw new HttpError(429,'Login is busy. Try again shortly.');
+  // Reserve before yielding to scrypt, atomically across web processes too.
+  const reserved=db.prepare(`INSERT INTO login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET
+    failures=CASE WHEN reset_at<=? THEN 1 ELSE failures+1 END,
+    reset_at=CASE WHEN reset_at<=? THEN excluded.reset_at ELSE reset_at END
+    WHERE reset_at<=? OR failures<5 RETURNING key`).get(key,now+900000,now,now,now);
+  if(!reserved)throw new HttpError(429,'Too many attempts. Try again in 15 minutes.');
+  let valid=false;passwordChecks++;
+  try{if(password.length<=4096&&username.length<=256)valid=await verifyPassword(password,process.env.ADMIN_PASSWORD_HASH);}
+  finally{passwordChecks--;}
   if (username !== (process.env.ADMIN_USERNAME || 'admin') || !valid) {
-    db.prepare(`INSERT INTO login_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET
-      failures=CASE WHEN reset_at<=? THEN 1 ELSE failures+1 END,reset_at=CASE WHEN reset_at<=? THEN excluded.reset_at ELSE reset_at END`).run(key,now+900000,now,now);
     return null;
   }
   const token = randomBytes(32).toString('hex');

@@ -38,5 +38,7 @@ async function cycle(){
     identity.revision=revision;await writeFile(stateFile,JSON.stringify(identity,null,2)+'\n',{mode:0o600});
   }
 }
+let lastContact=Date.now();
 process.once('SIGINT',()=>stopping=true);process.once('SIGTERM',()=>stopping=true);
-while(!stopping){try{await cycle();}catch(e){console.error(e.message);}await new Promise(resolve=>setTimeout(resolve,pollMs));}
+while(!stopping){try{await cycle();lastContact=Date.now();}catch(e){console.error(e.message);if(Date.now()-lastContact>=30000)await executor.shutdown();}await new Promise(resolve=>setTimeout(resolve,pollMs));}
+await executor.shutdown();

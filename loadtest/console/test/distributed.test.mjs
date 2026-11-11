@@ -21,6 +21,12 @@ test('distributed planner selects healthy capacity and creates exact contiguous 
 test('distributed planner rejects insufficient live workers',()=>{
   assert.throws(()=>planWorkerShards(1000,1000,[{id:'w1',status:'idle',lastSeen:now,capacityTps:250,capacityVus:1000}],{now}),/250\/1000 TPS/);
 });
+test('heterogeneous shards never exceed an individual worker capacity',()=>{
+  const workers=[90,10].map((capacityTps,i)=>({id:`w${i}`,status:'idle',lastSeen:now,capacityTps,capacityVus:capacityTps*10}));
+  const plan=planWorkerShards(100,1000,workers,{now});
+  assert.deepEqual(plan.map(s=>s.offeredTps),[90,10]);
+  for(const shard of plan){const worker=workers.find(w=>w.id===shard.workerId);assert.ok(shard.offeredTps<=worker.capacityTps);assert.ok(shard.requiredVus<=worker.capacityVus);}
+});
 
 test('worker bundles contain load inputs but no fault or fixture-control credentials',()=>{
   const config={mode:'single',services:{router:'https://router'},load:{start_rps:1,stages:[{target_rps:4,duration_seconds:60,fault:{targetId:'postgres',action:'failover'}}]},scenarios:[{name:'guest'}],payment:{amount:100},thresholds:{failed:['rate<1']},fixtures:{admin_api_key:'secret',superposition:{token:'secret'}},faultPlan:[{target:{adapter:'gcp-alloydb',project:'secret-project'}}],database:{password:'secret'}};

@@ -9,13 +9,18 @@ import {testServiceEndpoint,testSuperpositionEndpoint} from '../../../../server/
 import {listCertificates,importCertificate,removeCertificate} from '../../../../server/certificates.mjs';
 import {listWorkers,enrollWorker,heartbeatWorker,pendingWorkerCommands,acknowledgeWorkerCommand,removeWorker} from '../../../../server/worker-registry.mjs';
 import {readWorkerBundle,storeWorkerArtifact} from '../../../../server/worker-artifacts.mjs';
+import {databaseTestConnection} from '../../../../server/connection-secrets.mjs';
+import {boundedRequest} from '../../../../server/request-body.mjs';
+import {createGrafanaEmbed} from '../../../../server/grafana-embed.mjs';
+import {sessionCookie} from '../../../../server/auth.mjs';
 
 async function dispatch(event) {
   const method=event.request.method,segments=(event.params.path || '').split('/');
   const input=async()=>{
-    const text=await event.request.text();if(text.length>1024*1024)throw new Error('Request body exceeds 1 MiB');return text?JSON.parse(text):{};
+    const text=await (await boundedRequest(event.request)).text();return text?JSON.parse(text):{};
   };
   try {
+    if(segments.join('/')==='grafana/embed'&&method==='GET')return json(createGrafanaEmbed(event.cookies.get(sessionCookie),event.url.searchParams.get('panel')));
     if(segments[0]==='worker'&&segments[1]==='v1'){
       const bearer=(event.request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
       if(segments[2]==='enroll'&&segments.length===3&&method==='POST')return json(enrollWorker(await input(),bearer),{status:201});
@@ -64,7 +69,7 @@ async function dispatch(event) {
     if(segments.join('/')==='scenarios/save'&&method==='POST')return json(await workerCommand('save-scenario',await input()));
     if(segments.join('/')==='settings/database/test'&&method==='POST') {
       const draft=await input();requireSupportedEnvironment(draft.environment||activeEnvironment());const saved=environmentDatabase(draft.environment);
-      const database={...saved,...draft,password:draft.password || saved.password};
+      const database=databaseTestConnection(saved,draft);
       return json(await queryWorker('database-test',{database}));
     }
     if(segments.join('/')==='settings/services/test'&&method==='POST') {
@@ -126,6 +131,6 @@ async function dispatch(event) {
       }
     }
     return json({error:'Not found'},{status:404});
-  }catch(e){return json({error:redact(e.message)},{status:e.status || 400});}
+  }catch(e){return json({error:redact(e.message)},{status:e.status || 400,...(e.status===413?{headers:{connection:'close'}}:{})});}
 }
 export const GET=dispatch,POST=dispatch,PUT=dispatch,DELETE=dispatch;

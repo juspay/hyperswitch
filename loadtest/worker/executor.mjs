@@ -1,7 +1,7 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {createReadStream} from 'node:fs';
-import {mkdir,readFile,writeFile,readdir} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,readdir,stat} from 'node:fs/promises';
 import path from 'node:path';
 
 const digest=value=>createHash('sha256').update(value).digest('hex');
@@ -35,20 +35,44 @@ export class WorkerExecutor{
   async start(command){
     const run=this.runs.get(command.runId);if(!run)throw new Error('Run is not prepared');if(run.status!=='ready'){if(['running','pausing','paused','draining','recorded','uploading','complete'].includes(run.status))return {runId:command.runId,status:run.status};throw new Error('Run is not prepared');}const delay=Number(command.payload.startAt||0)-Date.now();if(delay>0)await wait(delay);
     const binary=process.env.K6_BINARY||path.join(this.loadtestRoot,'k6/scenario-mix/bin/k6-sqlite'),entry=path.join(this.loadtestRoot,'k6/scenario-mix/run.mjs');
-    run.status='running';run.controlToken=randomUUID();await this.persist(command.runId,run);run.child=spawn(process.execPath,[entry,'load','--config',path.join(run.directory,'config.json'),'--fixtures',run.fixtures,'--output',run.output,'--k6',binary],{stdio:['ignore','pipe','pipe'],env:{...process.env,LOADTEST_CONSOLE_JOB:'1',SQLITE_RECORDER_CONTROL_TOKEN:run.controlToken,SQLITE_RECORDER_CONTROL_FILE:path.join(run.output,'control.json'),SQLITE_RECORDER_PROGRESS_FILE:path.join(run.output,'progress.json')}});
+    run.status='running';run.controlToken=randomUUID();await this.persist(command.runId,run);run.child=spawn(process.execPath,[entry,'load','--config',path.join(run.directory,'config.json'),'--fixtures',run.fixtures,'--output',run.output,'--k6',binary],{stdio:['ignore','pipe','pipe'],env:{...process.env,LOADTEST_CONSOLE_JOB:'1',K6_PID_FILE:path.join(run.directory,'k6-pid.json'),SQLITE_RECORDER_CONTROL_TOKEN:run.controlToken,SQLITE_RECORDER_CONTROL_FILE:path.join(run.output,'control.json'),SQLITE_RECORDER_PROGRESS_FILE:path.join(run.output,'progress.json')}});
     run.log='';for(const stream of [run.child.stdout,run.child.stderr])stream.on('data',chunk=>run.log=(run.log+chunk).slice(-100000));
     run.done=new Promise(resolve=>run.child.once('close',async code=>{run.exitCode=code??1;run.status=[0,99].includes(run.exitCode)?'recorded':'failed';await this.persist(command.runId,run);resolve(run);}));return {runId:command.runId,status:'running'};
   }
   async control(command){
     const run=this.runs.get(command.runId);if(!run)throw new Error('Run does not exist');
     const delay=Number(command.payload?.effectiveAt||0)-Date.now();if(delay>0)await wait(delay);
-    if(command.kind==='stop'){if(!['complete','failed','recorded','uploading'].includes(run.status)){run.child?.kill('SIGTERM');run.status='draining';}return {status:run.status};}
+    if(command.kind==='stop'){
+      if(!run.child&&run.status==='ready'){run.status='failed';run.log='Cancelled before load started';await this.persist(command.runId,run);}
+      else if(!['complete','failed','recorded','uploading'].includes(run.status)){run.child?.kill('SIGTERM');run.status='draining';}
+      return {status:run.status};
+    }
     if((command.kind==='pause'&&run.status==='paused')||(command.kind==='resume'&&run.status==='running'))return {state:run.status};
     const control=JSON.parse(await readFile(path.join(run.output,'control.json'),'utf8')),response=await fetch(control.endpoint,{method:'POST',headers:{authorization:`Bearer ${run.controlToken}`,'content-type':'application/json'},body:JSON.stringify({action:command.kind,...command.payload}),signal:AbortSignal.timeout(5000)});
     if(!response.ok)throw new Error(await response.text());const state=await response.json();run.status=state.state==='paused'?'paused':state.state==='pausing'?'pausing':'running';return state;
   }
   async state(){const active=[...this.runs.entries()].find(([,run])=>!['complete','failed'].includes(run.status));if(active){let progress={};try{progress=JSON.parse(await readFile(path.join(active[1].output,'progress.json'),'utf8'));}catch{}return {runId:active[0],runStatus:active[1].status,status:['recorded'].includes(active[1].status)?'uploading':active[1].status,progress:{...progress,exitCode:active[1].exitCode}};}const finished=[...this.runs.entries()].at(-1);return finished?{runId:finished[0],runStatus:finished[1].status,status:'idle',progress:{exitCode:finished[1].exitCode},error:finished[1].status==='failed'?finished[1].log:null}:{status:'idle'};}
+  async shutdown(){
+    const active=[...this.runs.entries()].filter(([,run])=>!['complete','failed','recorded','uploading'].includes(run.status));
+    for(const [runId] of active)await this.control({runId,kind:'stop',payload:{}});
+    let timer;
+    try{await Promise.race([Promise.all(active.map(([,run])=>run.done)),new Promise(resolve=>{timer=setTimeout(resolve,10000);})]);}finally{clearTimeout(timer);}
+    for(const [,run] of active)if(run.child&&run.child.exitCode===null&&run.child.signalCode===null){
+      // run.mjs owns this detached k6 process group and is still waiting for it.
+      const child=JSON.parse(await readFile(path.join(run.directory,'k6-pid.json'),'utf8').catch(()=>'null'));
+      if(Number.isSafeInteger(child?.pid)&&child.pid>1)try{process.kill(-child.pid,'SIGKILL');}catch(error){if(error.code!=='ESRCH')throw error;}
+      run.child.kill('SIGKILL');
+    }
+    await Promise.all(active.map(([,run])=>run.done));
+  }
   async upload(runId,headers){
-    const run=this.runs.get(runId);if(!run)throw new Error('Run does not exist');for(const name of ['results.sqlite','summary.json','progress.json']){const file=path.join(run.output,name);try{await readFile(file);}catch{continue;}const response=await fetch(`${this.server}/api/worker/v1/workers/${this.identity.id}/runs/${runId}/artifacts/${name}`,{method:'PUT',headers,body:createReadStream(file),duplex:'half'});if(!response.ok)throw new Error(`Artifact upload failed (${response.status})`);}return {uploaded:true};
+    const run=this.runs.get(runId);if(!run)throw new Error('Run does not exist');
+    for(const name of ['results.sqlite','summary.json','progress.json']){
+      const file=path.join(run.output,name);let info;
+      try{info=await stat(file);}catch(error){if(error.code==='ENOENT'&&name==='progress.json')continue;throw error;}
+      const response=await fetch(`${this.server}/api/worker/v1/workers/${this.identity.id}/runs/${runId}/artifacts/${name}`,{method:'PUT',headers:{...headers,'content-type':name.endsWith('.json')?'application/json':'application/octet-stream','content-length':String(info.size)},body:createReadStream(file),duplex:'half'});
+      await response.body?.cancel();if(!response.ok)throw new Error(`Artifact upload failed (${response.status})`);
+    }
+    return {uploaded:true};
   }
 }

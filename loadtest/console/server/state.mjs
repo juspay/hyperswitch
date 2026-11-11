@@ -10,6 +10,7 @@ import {decodeStages,encodeStages} from '../src/ramp-editor.mjs';
 import {validateEnvironment} from '../src/environments.mjs';
 import {normalizePaymentFlows} from '../src/payment-flows.mjs';
 import {hasCertificate} from './certificates.mjs';
+import {requireBoundSecret,databaseTestConnection,sameEndpoint} from './connection-secrets.mjs';
 
 export const consoleRoot = path.resolve(process.env.LOADTEST_CONSOLE_ROOT || process.cwd());
 export const loadtestRoot = path.resolve(process.env.LOADTEST_ROOT || path.join(consoleRoot, '..'));
@@ -244,6 +245,12 @@ export async function saveSettings(input,{databaseTest=async database=>(await im
   initializeConfig();
   const beforeConfig=readJsonSync(configPath),beforeLocal=localSettings(),before=activeEnvironment();
   const {config,local}=validateSettings(input);
+  const assertCredentials=()=>{
+   const source=settingsSource(input.environment);
+   requireBoundSecret(source.config.fixtures.admin_api_key,input.adminApiKey,sameEndpoint(source.config.services.router,input.router),'Router admin key');
+   requireBoundSecret(source.config.fixtures.superposition?.token,input.superposition.token,sameEndpoint(source.config.fixtures.superposition.endpoint,input.superposition.endpoint),'Superposition token');
+   databaseTestConnection(source.local.database,input.database);
+  };
   if(config.environment!==before||!isDeepStrictEqual({...connectionBundle(config,local),grafana:null},{...connectionBundle(beforeConfig,beforeLocal),grafana:null})){
    const busy=()=>Boolean(controlDb().prepare("SELECT 1 FROM jobs WHERE status IN ('starting','running','pausing','paused','cancelling') LIMIT 1").get());
    const ledgerPath=path.join(dataRoot,'fault-ledger.json'),recovery=readJsonSync(ledgerPath);
@@ -254,10 +261,12 @@ export async function saveSettings(input,{databaseTest=async database=>(await im
     const comparable=(c,l)=>({...connectionBundle(c,l),grafana:null,database:withoutTls(l.database)});
     const tlsRepair=!busy()&&before===config.environment&&recovery?.target?.adapter==='gcp-alloydb'&&recovery.action==='failover'&&['restoring','recovery_failed'].includes(recovery.status)&&isDeepStrictEqual(comparable(config,local),comparable(beforeConfig,beforeLocal));
     if(!tlsRepair)throw new Error('Finish active jobs and fault recovery before changing environment or connections');
+    assertCredentials();
     if((await databaseTest(local.database))?.ok!==true)throw new Error('Database TLS repair could not be verified; settings were not saved');
     if(busy()||!isDeepStrictEqual(recovery,readJsonSync(ledgerPath)))throw new Error('Recovery state changed while testing the database; retry saving settings');
    }
   }
+  assertCredentials();
   local.environmentProfiles={...beforeLocal.environmentProfiles};
   if(before!=='unassigned')local.environmentProfiles[before]=connectionBundle(beforeConfig,beforeLocal);
   local.environmentProfiles[config.environment]=connectionBundle(config,local);
@@ -277,7 +286,7 @@ export function superpositionConnection(draft={},environment=null) {
   const saved=settingsSource(environment).config.fixtures?.superposition || {};
   const defaults=draft.defaultsJson?JSON.parse(draft.defaultsJson):saved.defaults;
   return {
-    ...saved,endpoint:draft.endpoint || saved.endpoint,token:draft.token || saved.token,
+    ...saved,endpoint:draft.endpoint || saved.endpoint,token:requireBoundSecret(saved.token,draft.token,sameEndpoint(saved.endpoint,draft.endpoint||saved.endpoint),'Superposition token'),
     access_header:draft.accessHeader || saved.access_header || 'authorization',
     organization_id:draft.organizationId || saved.organization_id,workspace_id:draft.workspaceId || saved.workspace_id,defaults
   };
