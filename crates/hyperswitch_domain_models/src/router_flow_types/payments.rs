@@ -77,6 +77,14 @@ pub struct CompleteSurcharge;
 #[derive(Debug, Clone)]
 pub struct CompleteRefundSurchrge;
 
+/// Initialize a surcharge refund before submitting the processor refund.
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundInit;
+
+/// Complete the initialized surcharge refund after processor success.
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundComplete;
+
 #[derive(Debug, Clone)]
 pub struct SdkSessionUpdate;
 
