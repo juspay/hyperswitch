@@ -1,1 +1,1 @@
-ALTER TABLE refund DROP COLUMN external_surcharge_refund_details;
+ALTER TABLE refund DROP COLUMN IF EXISTS external_surcharge_refund_details;
