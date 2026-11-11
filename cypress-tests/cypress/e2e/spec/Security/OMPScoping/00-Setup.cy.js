@@ -34,7 +34,12 @@ let globalState;
 // Only ever called when invite_multiple actually returned a password - see
 // the GAP comment at its call site in 00-Setup.cy.js.
 function completeInvitedUserLogin(email, tempPassword, globalState) {
-  const newPassword = "OmpScoping_Test_Pwd1!";
+  // Generated per-run, not a static literal - a hardcoded password-shaped
+  // string here trips generic secret scanners (confirmed: GitGuardian
+  // flagged a prior literal version of this on push) even though it's a
+  // throwaway value this test sets itself via rotate_password for a
+  // randomly-emailed test user, never a real credential.
+  const newPassword = `OmpScoping_${Date.now()}_Aa1!`;
   const tokens = {};
 
   cy.ompUserSignin(email, tempPassword, globalState).then((res) => {
