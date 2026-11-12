@@ -121,11 +121,21 @@ async fn decide_reported_retry(
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .unwrap_or(1);
+    let max_hybrid_cascading_retry_count = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(payment_intent.profile_id.clone())
+        .get_recovery_max_hybrid_cascading_retry_count(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
     let ladder_progress = get_ladder_progress(
         previous_trigger_state,
         is_existing_invoice,
         retry_count,
-        revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(state, &dimensions).await,
+        max_hybrid_cascading_retry_count,
     );
     let last_failure_code = get_last_failure_code(request.transaction_status, recovery_attempt);
     let card_availability =
@@ -237,7 +247,7 @@ async fn decide_next_retry(
         retry_algorithm_type,
         RetryLimitChecks {
             is_retry_budget_spent: is_retry_budget_exhausted(
-                i32::from(retry_count),
+                retry_count,
                 retry_config.max_retry_count,
             ),
             is_grace_window_over: grace_window_end.is_none(),
@@ -260,7 +270,7 @@ async fn decide_next_retry(
         revenue_recovery_workflow::RetryTimingParams {
             payment_intent,
             retry_algorithm_type,
-            retry_count: i32::from(retry_count),
+            retry_count: u32::from(retry_count),
             prev_attempt_error_code: last_failure_code,
             static_ladder_progress: ladder_progress,
             remaining_grace_days: u32::try_from((grace_window_end - now).whole_days().max(0))
@@ -293,7 +303,7 @@ async fn decide_next_retry(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 dimensions,
-                i32::from(retry_count),
+                u32::from(retry_count),
             )
             .await
             {
@@ -419,7 +429,7 @@ fn get_ladder_progress(
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
     retry_count: u16,
-    max_hybrid_cascading_retry_count: u16,
+    max_hybrid_cascading_retry_count: u32,
 ) -> StaticLadderProgress {
     match previous_trigger_state {
         Some(ExternalTriggerState {

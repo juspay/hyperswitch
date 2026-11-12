@@ -6,19 +6,17 @@ use time::PrimitiveDateTime;
 pub struct StaticLadderProgress {
     /// Rungs already used; the next one to offer is `consumed_rungs + 1`.
     #[serde(default)]
-    pub consumed_rungs: i32,
+    pub consumed_rungs: u32,
 }
 
 impl StaticLadderProgress {
     /// Opening position for an invoice entering recovery for the first time.
     pub fn seed_for_new_invoice(
         intent_retry_count: u16,
-        max_hybrid_cascading_retry_count: u16,
+        max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: intent_retry_count
-                .min(max_hybrid_cascading_retry_count)
-                .into(),
+            consumed_rungs: u32::from(intent_retry_count).min(max_hybrid_cascading_retry_count),
         }
     }
 
@@ -26,17 +24,16 @@ impl StaticLadderProgress {
     /// — a row written before this field existed.
     pub fn seed_for_existing_invoice(
         intent_retry_count: u16,
-        max_hybrid_cascading_retry_count: u16,
+        max_hybrid_cascading_retry_count: u32,
     ) -> Self {
         Self {
-            consumed_rungs: intent_retry_count
-                .min(max_hybrid_cascading_retry_count.saturating_sub(1))
-                .into(),
+            consumed_rungs: u32::from(intent_retry_count)
+                .min(max_hybrid_cascading_retry_count.saturating_sub(1)),
         }
     }
 
     /// The rung to ask the ladder for on this decision — the one after those already used.
-    pub fn next_rung(&self) -> i32 {
+    pub fn next_rung(&self) -> u32 {
         self.consumed_rungs + 1
     }
 }
@@ -91,7 +88,7 @@ fn keep_rung(
 
 /// A decision taken off the ladder, which uses up the rung it supplied. The only way the ladder
 /// advances, and so the only way it is spent.
-fn spend_rung(queried_rung: i32, schedule_time: PrimitiveDateTime) -> ScheduleDecision {
+fn spend_rung(queried_rung: u32, schedule_time: PrimitiveDateTime) -> ScheduleDecision {
     ScheduleDecision {
         schedule_time,
         next_progress: StaticLadderProgress {
@@ -110,7 +107,7 @@ fn spend_rung(queried_rung: i32, schedule_time: PrimitiveDateTime) -> ScheduleDe
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
     ladder: StaticLadderRole,
-    queried_rung: i32,
+    queried_rung: u32,
     model_time: Option<PrimitiveDateTime>,
     static_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
@@ -154,7 +151,7 @@ mod tests {
         epoch + Duration::hours(hours)
     }
 
-    fn at_rung(consumed_rungs: i32) -> StaticLadderProgress {
+    fn at_rung(consumed_rungs: u32) -> StaticLadderProgress {
         StaticLadderProgress { consumed_rungs }
     }
 
@@ -164,7 +161,7 @@ mod tests {
     // allowance. They differ only in whether the ladder may open fully consumed: a new invoice
     // may, an invoice already in recovery keeps one position in hand.
 
-    const HYBRID_CAP: u16 = 5;
+    const HYBRID_CAP: u32 = 5;
 
     #[test]
     fn a_new_invoice_below_the_cap_consumes_what_the_connector_spent() {
@@ -180,7 +177,7 @@ mod tests {
         // The connector used the whole allowance before recovery ever saw the invoice, so there
         // is no cascading position left and the model carries it alone.
         assert_eq!(
-            StaticLadderProgress::seed_for_new_invoice(HYBRID_CAP, HYBRID_CAP).consumed_rungs,
+            StaticLadderProgress::seed_for_new_invoice(5, HYBRID_CAP).consumed_rungs,
             5
         );
         // Beyond the cap clamps rather than running past it.
@@ -203,7 +200,7 @@ mod tests {
         // Unlike a new invoice, one position is held back — an invoice mid-recovery always has a
         // cascading retry left to offer.
         assert_eq!(
-            StaticLadderProgress::seed_for_existing_invoice(HYBRID_CAP, HYBRID_CAP).consumed_rungs,
+            StaticLadderProgress::seed_for_existing_invoice(5, HYBRID_CAP).consumed_rungs,
             4
         );
         assert_eq!(
