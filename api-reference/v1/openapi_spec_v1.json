@@ -20456,6 +20456,42 @@
           }
         }
       },
+      "CorporateSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
+            "nullable": true
+          }
+        }
+      },
       "Country": {
         "type": "string",
         "enum": [
@@ -26932,55 +26968,6 @@
           }
         }
       },
-      "IndividualSenderDetails": {
-        "type": "object",
-        "description": "An individual providing the funds in an account funded transaction.",
-        "properties": {
-          "first_name": {
-            "type": "string",
-            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
-            "example": "John",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "last_name": {
-            "type": "string",
-            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
-            "example": "Doe",
-            "nullable": true,
-            "maxLength": 255
-          },
-          "date_of_birth": {
-            "type": "string",
-            "format": "date",
-            "description": "The sender's date of birth, in the format yyyy-mm-dd.",
-            "example": "1990-01-31",
-            "nullable": true
-          },
-          "address": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SenderAddress"
-              }
-            ],
-            "nullable": true
-          },
-          "phone": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PhoneDetails"
-              }
-            ],
-            "nullable": true
-          },
-          "email": {
-            "type": "string",
-            "description": "The sender's email address.",
-            "example": "john.doe@example.com",
-            "nullable": true
-          }
-        }
-      },
       "IndividualSenderDetailsResponse": {
         "type": "object",
         "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
@@ -27000,7 +26987,7 @@
           "address": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/SenderAddress"
+                "$ref": "#/components/schemas/AddressDetails"
               }
             ],
             "nullable": true
@@ -28123,7 +28110,7 @@
       },
       "MaskedSenderPhoneDetails": {
         "type": "object",
-        "description": "A partially masked view of `PhoneDetails`, safe to return in API responses.",
+        "description": "A partially masked view of [`PhoneDetails`], safe to return in API responses.",
         "properties": {
           "number": {
             "type": "string",
@@ -47736,6 +47723,56 @@
           }
         ],
         "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SenderDetailsResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's\ndate of birth is never returned.",
         "discriminator": {
           "propertyName": "type"
         }

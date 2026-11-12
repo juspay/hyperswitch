@@ -114,6 +114,22 @@ pub enum SenderDetails {
 }
 
 impl SenderDetails {
+    /// The names identifying the sender that are provided, keyed by their field path, for validation.
+    pub fn get_name_fields(&self) -> Vec<(&'static str, &Secret<String>)> {
+        match self {
+            Self::Individual(individual) => [
+                ("sender_details.first_name", individual.first_name.as_ref()),
+                ("sender_details.last_name", individual.last_name.as_ref()),
+            ]
+            .into_iter()
+            .filter_map(|(field_name, value)| value.map(|value| (field_name, value)))
+            .collect(),
+            Self::Corporate(corporate) => {
+                vec![("sender_details.company_name", &corporate.company_name)]
+            }
+        }
+    }
+
     /// The individual sender's first name, if provided.
     pub fn get_individual_first_name(&self) -> Option<&Secret<String>> {
         match self {

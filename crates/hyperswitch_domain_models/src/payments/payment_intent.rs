@@ -279,7 +279,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
-    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[cfg(feature = "v1")]
@@ -337,7 +337,7 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
@@ -580,7 +580,7 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
-    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,

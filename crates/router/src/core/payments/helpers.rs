@@ -8415,7 +8415,7 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 
 /// Validates that the names identifying an account funded transaction sender are not blank.
 pub fn validate_sender_details(
-    sender_details: Option<&api_models::payments::SenderDetails>,
+    sender_details: Option<&api_models::sender::SenderDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
     sender_details
         .map(|sender_details| sender_details.get_name_fields())
@@ -8432,27 +8432,33 @@ pub fn validate_sender_details(
 /// Fills in the sender of an account funded transaction from the billing address of the payment
 /// method.
 pub fn get_sender_details_with_billing_fallback(
-    sender_details: Option<api_models::payments::SenderDetails>,
+    sender_details: Option<api_models::sender::SenderDetails>,
     billing: Option<&hyperswitch_domain_models::address::Address>,
-) -> Option<api_models::payments::SenderDetails> {
-    use api_models::payments::{IndividualSenderDetails, SenderAddress, SenderDetails};
+) -> Option<api_models::sender::SenderDetails> {
+    use api_models::{
+        payments::AddressDetails,
+        sender::{IndividualSenderDetails, SenderDetails},
+    };
 
     let billing_details = billing.and_then(|billing| billing.address.as_ref());
+    // Only the location is taken from billing; the sender's name is resolved separately below.
     let billing_address = billing_details
-        .map(|details| SenderAddress {
+        .map(|details| AddressDetails {
             line1: details.line1.clone(),
             line2: details.line2.clone(),
+            line3: details.line3.clone(),
             city: details.city.clone(),
             state: details.state.clone(),
             zip: details.zip.clone(),
             country: details.country,
+            ..Default::default()
         })
-        .filter(|address| !address.is_empty());
+        .filter(has_sender_address_location);
     let billing_first_name = || billing_details.and_then(|details| details.first_name.clone());
     let billing_last_name = || billing_details.and_then(|details| details.last_name.clone());
-    let resolve_address = |address: Option<SenderAddress>| {
+    let resolve_address = |address: Option<AddressDetails>| {
         address
-            .filter(|address| !address.is_empty())
+            .filter(has_sender_address_location)
             .or_else(|| billing_address.clone())
     };
 
@@ -8465,6 +8471,8 @@ pub fn get_sender_details_with_billing_fallback(
                 address: billing_address.clone(),
                 phone: None,
                 email: None,
+                reference_id: None,
+                source_of_funds: None,
             })
         }),
         Some(SenderDetails::Individual(individual)) => {
@@ -8485,7 +8493,7 @@ pub fn get_sender_details_with_billing_fallback(
                     && is_same_name_part(last_name.as_ref(), billing_last_name().as_ref()));
             let address = individual
                 .address
-                .filter(|address| !address.is_empty())
+                .filter(has_sender_address_location)
                 .or_else(|| {
                     billing_address
                         .clone()
@@ -8500,12 +8508,23 @@ pub fn get_sender_details_with_billing_fallback(
             }))
         }
         Some(SenderDetails::Corporate(corporate)) => Some(SenderDetails::Corporate(
-            api_models::payments::CorporateSenderDetails {
+            api_models::sender::CorporateSenderDetails {
                 address: resolve_address(corporate.address),
                 ..corporate
             },
         )),
     }
+}
+
+/// Whether a sender address carries any location field
+fn has_sender_address_location(address: &api_models::payments::AddressDetails) -> bool {
+    address.line1.is_some()
+        || address.line2.is_some()
+        || address.line3.is_some()
+        || address.city.is_some()
+        || address.state.is_some()
+        || address.zip.is_some()
+        || address.country.is_some()
 }
 
 /// Compares a part of a name ignoring case and surrounding whitespace.

@@ -1550,7 +1550,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
 /// In an account funded transaction, the sender's email takes precedence as the shopper's email.
 fn get_aft_sender_email(
     is_account_funded_transaction: Option<bool>,
-    sender_details: Option<&api_models::payments::SenderDetails>,
+    sender_details: Option<&api_models::sender::SenderDetails>,
 ) -> Option<pii::Email> {
     is_account_funded_transaction
         .unwrap_or(false)
@@ -1839,7 +1839,7 @@ fn get_worldpayxml_company_full_name(
 }
 
 fn build_worldpayxml_sender_funding_address(
-    address: &api_models::payments::SenderAddress,
+    address: &api_models::payments::AddressDetails,
 ) -> Result<FundingAddress, error_stack::Report<errors::ConnectorError>> {
     let country_code = address
         .country
@@ -1896,10 +1896,10 @@ fn build_worldpayxml_sender_funding_address(
 /// details of the payment method when the merchant does not send them.
 fn build_worldpayxml_sender_party<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
-    sender_details: Option<&api_models::payments::SenderDetails>,
+    sender_details: Option<&api_models::sender::SenderDetails>,
     card_number: Secret<String>,
 ) -> Result<FundingParty, error_stack::Report<errors::ConnectorError>> {
-    use api_models::payments::SenderDetails;
+    use api_models::sender::SenderDetails;
 
     let sender_details =
         sender_details.ok_or_else(connector_utils::missing_field_err("sender_details"))?;
@@ -2066,7 +2066,7 @@ fn get_worldpayxml_sender_account_number(
 fn build_worldpayxml_funding_transfer<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
     card_number: Secret<String>,
-    sender_details: Option<&api_models::payments::SenderDetails>,
+    sender_details: Option<&api_models::sender::SenderDetails>,
     recipient_details: Option<&api_models::payments::RecipientDetails>,
     business_country: Option<common_enums::CountryAlpha2>,
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,

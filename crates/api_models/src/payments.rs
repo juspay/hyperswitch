@@ -6,7 +6,6 @@ use std::{
 };
 pub mod additional_info;
 pub mod recipient;
-pub mod sender;
 pub mod trait_impls;
 use cards::{CardBin, CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -38,18 +37,14 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
-pub use self::{
-    recipient::{
-        MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails,
-        RecipientAccount, RecipientBankAccount, RecipientDetails,
-    },
-    sender::{
-        CorporateSenderDetails, CorporateSenderDetailsResponse, IndividualSenderDetails,
-        IndividualSenderDetailsResponse, MaskedSenderPhoneDetails, SenderAddress, SenderDetails,
-        SenderDetailsResponse,
-    },
+pub use self::recipient::{
+    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
+    RecipientBankAccount, RecipientDetails,
 };
-use crate::customers::CustomerDocumentDetails;
+use crate::{
+    customers::CustomerDocumentDetails,
+    sender::{SenderDetails, SenderDetailsResponse},
+};
 
 #[cfg(any(feature = "v1", feature = "v2"))]
 pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>

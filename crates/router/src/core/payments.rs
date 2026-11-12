@@ -10832,7 +10832,7 @@ pub struct PaymentDataUpdateRequestFields {
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
-    pub sender_details: Option<api_models::payments::SenderDetails>,
+    pub sender_details: Option<api_models::sender::SenderDetails>,
 }
 
 #[derive(Clone)]

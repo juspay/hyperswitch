@@ -570,7 +570,7 @@ fn build_checkout_recipient(
 }
 
 fn build_checkout_sender_address(
-    address: &api_models::payments::SenderAddress,
+    address: &api_models::payments::AddressDetails,
 ) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
     let country = address
         .country
@@ -608,7 +608,7 @@ fn build_checkout_sender_address(
 fn build_checkout_sender(
     router_data: &PaymentsAuthorizeRouterData,
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
-    use api_models::payments::SenderDetails;
+    use api_models::sender::SenderDetails;
 
     // The sender details are filled in from the billing address of the payment method in core,
     // so any field missing here is missing from both.

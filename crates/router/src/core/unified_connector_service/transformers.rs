@@ -1,16 +1,19 @@
 use std::{collections::HashMap, str::FromStr};
 
-use api_models::payments::{
-    additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
-    GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
-    GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
-    PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
-    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SenderAddress, SenderDetails,
-    SessionToken, ThirdPartySdkSessionResponse,
+use api_models::{
+    payments::{
+        additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
+        AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
+        ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
+        GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+        GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+        GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters,
+        GpayTokenParameters, GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall,
+        PaypalFlow, PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount,
+        RecipientBankAccount, RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk,
+        SessionToken, ThirdPartySdkSessionResponse,
+    },
+    sender::SenderDetails,
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
@@ -634,8 +637,8 @@ impl transformers::ForeignTryFrom<&RecipientDetails> for payments_grpc::Recipien
     }
 }
 
-impl ForeignFrom<&SenderAddress> for payments_grpc::SenderAddress {
-    fn foreign_from(address: &SenderAddress) -> Self {
+impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::SenderAddress {
+    fn foreign_from(address: &api_models::payments::AddressDetails) -> Self {
         let country_alpha2_code = address
             .country
             .as_ref()
@@ -645,6 +648,7 @@ impl ForeignFrom<&SenderAddress> for payments_grpc::SenderAddress {
         Self {
             line1: address.line1.clone(),
             line2: address.line2.clone(),
+            line3: address.line3.clone(),
             city: address.city.clone().map(Secret::new),
             state: address.state.clone(),
             zip_code: address.zip.clone(),

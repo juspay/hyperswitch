@@ -164,7 +164,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt(ty = Value)]
-    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
@@ -447,7 +447,7 @@ impl PaymentIntent {
             .transpose()
     }
 
-    pub fn get_sender_details(&self) -> Option<api_models::payments::SenderDetails> {
+    pub fn get_sender_details(&self) -> Option<api_models::sender::SenderDetails> {
         self.sender_details
             .as_ref()
             .map(|details| details.get_inner().clone())
@@ -1083,7 +1083,7 @@ pub struct PaymentIntent {
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     /// The details of the party providing the funds in an account funded transaction.
     #[encrypt(ty = Value)]
-    pub sender_details: Option<Encryptable<api_models::payments::SenderDetails>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
