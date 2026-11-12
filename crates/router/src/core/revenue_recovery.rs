@@ -873,9 +873,6 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
-    // Every limit and retry time below reads the invoice's own count of retries so far, not
-    // counting its first attempt. The process tracker's retry count is only this job's
-    // bookkeeping, and goes stale when an attempt is recorded while the job waits.
     let total_retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .ok_or(errors::RecoveryError::ValueNotFound)
