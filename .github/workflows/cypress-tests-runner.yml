@@ -36,6 +36,7 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
+  DUPLICATE_READ_LOG_PATH: ${{ github.workspace }}/duplicate-read-logs.txt
 
 jobs:
   formatter:
@@ -462,6 +463,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -473,6 +475,21 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+
+      - name: Check duplicate database reads
+        id: duplicate_reads
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        shell: bash
+        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
+
+      - name: Upload duplicate-read lines on failure
+        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: duplicate-read-logs-mandatory-${{ matrix.batch.name }}
+          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -726,6 +743,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -736,6 +754,21 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+
+      - name: Check duplicate database reads
+        id: duplicate_reads
+        if: ${{ !cancelled() && steps.cypress.outcome != 'skipped' }}
+        shell: bash
+        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
+
+      - name: Upload duplicate-read lines on failure
+        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: duplicate-read-logs-extended-${{ matrix.batch.name }}
+          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: failure()
@@ -1168,6 +1201,7 @@ jobs:
           echo "mitmproxy replay started (PID=${MITM_PID})"
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -1186,6 +1220,21 @@ jobs:
 
           kill "${{ env.PID }}"
           kill "${{ env.MITM_PID }}" 2>/dev/null || true
+
+      - name: Check duplicate database reads
+        id: duplicate_reads
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
+        shell: bash
+        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
+
+      - name: Upload duplicate-read lines on failure
+        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: duplicate-read-logs-mitm-${{ matrix.batch.name }}
+          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -1453,6 +1502,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -1462,6 +1512,21 @@ jobs:
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
+
+      - name: Check duplicate database reads
+        id: duplicate_reads
+        if: ${{ !cancelled() && steps.cypress.outcome != 'skipped' }}
+        shell: bash
+        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
+
+      - name: Upload duplicate-read lines on failure
+        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: duplicate-read-logs-optional-${{ matrix.batch.name }}
+          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
