@@ -2074,7 +2074,7 @@ pub async fn payments_cancel(
                         }
                 };
 
-                // Check if the payment status is RequiresCustomerAction and connector supports pre-authorize cancel
+                // Check whether the connector supports pre-authorize cancel for this payment attempt.
                 let supports_pre_authorize_cancel =
                     if let Some(ref connector_name_str) = payment_pre_fetched_info.payment_attempt.connector {
                         ConnectorData::get_connector_by_name(
@@ -2084,16 +2084,25 @@ pub async fn payments_cancel(
                             None,
                         )
                         .map(|connector_data| {
-                            connector_data.connector.is_pre_authorize_cancel_supported(payment_pre_fetched_info.payment_attempt.payment_method_type)
+                            connector_data.connector.is_pre_authorize_cancel_supported(
+                                hyperswitch_interfaces::api::CurrentFlowInfo::PreAuthorizeVoid {
+                                    payment_method_type: payment_pre_fetched_info
+                                        .payment_attempt
+                                        .payment_method_type,
+                                    attempt_status: payment_pre_fetched_info.payment_attempt.status,
+                                    is_mit_payment: payment_pre_fetched_info
+                                        .payment_attempt
+                                        .payment_method_id
+                                        .is_some(),
+                                },
+                            )
                         })
                         .unwrap_or(false)
                     } else {
                         false
                     };
 
-                if payment_pre_fetched_info.payment_intent.status == api_enums::IntentStatus::RequiresCustomerAction
-                    && supports_pre_authorize_cancel
-                {
+                if supports_pre_authorize_cancel {
                     Box::pin(payments::payments_core::<
                         api_types::PreAuthorizeVoid,
                         payment_types::PaymentsResponse,
