@@ -4822,6 +4822,12 @@ pub struct PaymentAttemptRecoveryData {
     /// Transaction id returned by the billing connector when the payment was recorded
     /// back to it. Used to issue an offline refund if a dispute is later lost.
     pub billing_connector_transaction_id: Option<String>,
+    /// Whether the customer was present for the transaction of this attempt, as reported. Absent on
+    /// attempts recorded before this was kept.
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    /// Absent on attempts recorded before this was kept.
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
     /// Id of the recovery report that recorded this transaction, written with the attempt so a
     /// re-run of that report recognises it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
