@@ -5,10 +5,7 @@ use api_models::{
 };
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use router_env::{
-    instrument, logger,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, logger, tracing::Instrument};
 use strum::IntoEnumIterator;
 pub mod transformers;
 
@@ -1266,8 +1263,9 @@ pub async fn schedule_dispute_sync_task(
             .attach_printable("Error while fetching the merchant account for processor")?;
 
         let organization = state
-            .accounts_store
-            .find_organization_by_org_id(processor_account.get_org_id())
+            .track_accounts_query(|db| {
+                db.find_organization_by_org_id(processor_account.get_org_id())
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the organization for processor merchant")?;

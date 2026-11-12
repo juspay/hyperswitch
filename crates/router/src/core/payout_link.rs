@@ -50,6 +50,7 @@ pub async fn initiate_payout_link(
         .find_payout_by_merchant_id_payout_id(
             merchant_id,
             &req.payout_id,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

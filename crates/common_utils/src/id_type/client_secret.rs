@@ -1,6 +1,6 @@
 crate::id_type!(
     ClientSecretId,
-    "A type for key_id that can be used for Ephemeral key IDs"
+    "A type for key_id that can be used for client secret IDs"
 );
 crate::impl_id_type_methods!(ClientSecretId, "key_id");
 

@@ -387,6 +387,36 @@ pub enum RevenueRecoveryAlgorithmType {
     Cascading,
 }
 
+/// Decides who triggers the retries of a failed invoice under revenue recovery, and so which
+/// model the recovery API follows.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryTriggerModel {
+    /// Hyperswitch triggers the retries through the billing and payment merchant connector
+    /// accounts the transactions are recorded against.
+    #[default]
+    InternalTriggers,
+    /// The merchant triggers the retries and reports their results. Transactions are recorded
+    /// without any merchant connector account, and the retry limits come from the
+    /// `revenue_recovery_config` of the profile, which this model requires.
+    ExternalTriggers,
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,
@@ -2337,12 +2367,13 @@ pub enum RecoveryStatus {
     /// The payment has been successfully recovered through retry mechanisms.
     /// This indicates that a previously failed payment has been completed.
     Recovered,
+    /// The payment has been fully paid.
+    Succeeded,
+    /// The payment has been cancelled.
+    Cancelled,
     /// The payment is scheduled for retry and will be processed automatically.
     /// This status is shown when a retry is queued but not yet picked up for processing.
     Scheduled,
-    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
-    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
-    NoPicked,
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
@@ -2353,7 +2384,8 @@ pub enum RecoveryStatus {
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
     /// The payment is being monitored for potential recovery.
-    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up,
+    /// or the payment is waiting on customer or merchant action.
     #[default]
     Monitoring,
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
@@ -2362,9 +2394,6 @@ pub enum RecoveryStatus {
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,
-    /// The payment is pending action from the customer, merchant, or requires additional information.
-    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
-    Pending,
 }
 
 /// Specifies how the payment method can be used for future payments.
@@ -3155,6 +3184,7 @@ impl ExecutionPath {
 pub enum UcsAvailability {
     Enabled,
     Disabled,
+    ShadowDisabled,
 }
 
 #[derive(
@@ -3391,6 +3421,10 @@ pub enum RefundStatus {
 impl RefundStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Success)
+    }
+
+    pub fn is_failure(self) -> bool {
+        matches!(self, Self::Failure | Self::TransactionFailure)
     }
 }
 
@@ -9397,6 +9431,40 @@ pub enum PayoutSendPriority {
     Internal,
 }
 
+/// The category of funds transfer to use when processing a payout.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutFundsTransferType {
+    AccountToAccount,
+    FundsTransfer,
+    CrossBorderMoneyTransfer,
+    PeerToPeer,
+    StagedDigitalWalletTransfer,
+    FundsDisbursement,
+    LoyaltyPayments,
+    PayrollAndPensionDisbursements,
+    OnlineGambling,
+    MastercardPersonToPerson,
+    MastercardTransferToOwnAccount,
+    MastercardBusinessDisbursement,
+    MastercardBusinessToBusiness,
+    MastercardGamingRepay,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9955,6 +10023,9 @@ pub enum PermissionGroup {
     ReconRulesManage,
     ReconApiKeyView,
     ReconApiKeyManage,
+    ReconAccountsView,
+    ReconAccountsManage,
+    ReconAuditView,
     OffersView,
     OffersManage,
     AlertsView,
@@ -9983,6 +10054,8 @@ pub enum ParentGroup {
     ReconTransactions,
     ReconRules,
     ReconApiKey,
+    ReconAccounts,
+    ReconAudit,
     Offers,
     Alerts,
     Monitoring,
@@ -10019,6 +10092,8 @@ pub enum Resource {
     ReconTransaction,
     ReconRule,
     ReconApiKey,
+    ReconAccount,
+    ReconAudit,
     SuperpositionConfig,
     Offers,
     Alert,
