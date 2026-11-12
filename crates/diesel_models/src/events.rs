@@ -118,6 +118,10 @@ pub enum EventMetadata {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
     },
+    #[cfg(feature = "v2")]
+    RevenueRecovery {
+        payment_id: common_utils::id_type::GlobalPaymentId,
+    },
 }
 
 common_utils::impl_to_sql_from_sql_json!(EventMetadata);
