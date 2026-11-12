@@ -116,3 +116,17 @@ pub fn should_call_proxy_for_payments_core(payment_request: api::PaymentsRequest
         })
         .unwrap_or(false)
 }
+
+/// The external vault counterpart of [`should_call_proxy_for_payments_core`].
+#[cfg(feature = "v1")]
+pub fn should_call_external_vault_proxy_for_payments_core(
+    payment_request: &api::PaymentsRequest,
+) -> bool {
+    payment_request
+        .recurring_details
+        .clone()
+        .map(|recurring_details| {
+            recurring_details.is_network_transaction_id_and_vault_card_details_flow()
+        })
+        .unwrap_or(false)
+}

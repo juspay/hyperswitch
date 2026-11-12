@@ -1800,3 +1800,15 @@ pub struct AppliedOfferDetailsV1 {
 }
 
 impl_to_sql_from_sql_json!(AppliedOfferDetails);
+
+/// Values the router applied to a payment attempt in place of what was requested (stored as JSONB)
+#[derive(
+    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct AppliedOverrides {
+    /// Capture method actually sent to the connector for this attempt
+    pub capture_method_applied: Option<enums::CaptureMethod>,
+}
+
+impl_to_sql_from_sql_json!(AppliedOverrides);

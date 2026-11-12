@@ -188,6 +188,40 @@ pub async fn construct_payout_router_data<'a, F>(
     platform: &domain::Platform,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    use crate::core::payouts::proxy::ExternalVaultPayout;
+
+    match payout_data.payout_attempt.execution_kind {
+        common_enums::PayoutExecutionKind::ExternalVaultProxy => {
+            Box::pin(
+                ExternalVaultPayout { state, platform }
+                    .construct_proxy_payout_router_data(connector_data, payout_data),
+            )
+            .await
+        }
+        common_enums::PayoutExecutionKind::Normal => match payout_data.external_vault_pmd.is_some()
+            || !matches!(
+                payout_data.execution_context,
+                crate::core::payouts::proxy::PayoutExecutionContext::Normal
+            ) {
+            true => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Normal payouts cannot carry external vault execution data".to_owned(),
+            })),
+            false => {
+                construct_payout_router_data_common(state, connector_data, platform, payout_data)
+                    .await
+            }
+        },
+    }
+}
+
+/// Execution-specific checks run before this shared request builder.
+#[cfg(all(feature = "payouts", feature = "v1"))]
+pub(super) async fn construct_payout_router_data_common<F>(
+    state: &SessionState,
+    connector_data: &api::ConnectorData,
+    platform: &domain::Platform,
+    payout_data: &mut PayoutData,
+) -> RouterResult<types::PayoutsRouterData<F>> {
     let merchant_connector_account = payout_data
         .merchant_connector_account
         .clone()
@@ -251,8 +285,9 @@ pub async fn construct_payout_router_data<'a, F>(
             .get_string_repr(),
     );
 
-    let connector_transfer_method_id =
-        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?;
+    let connector_transfer_method_id = payout_data.connector_transfer_method_id.clone().or(
+        payout_helpers::should_create_connector_transfer_method(&*payout_data, connector_data)?,
+    );
 
     let browser_info = payout_data.browser_info.to_owned();
 
@@ -328,6 +363,7 @@ pub async fn construct_payout_router_data<'a, F>(
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
             billing_descriptor: payouts.billing_descriptor.clone(),
+            external_vault_pmd: payout_data.external_vault_pmd.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -656,7 +692,7 @@ pub async fn construct_refund_router_data<'a, F>(
         })?;
 
     let connector_refund_id = refund.get_optional_connector_refund_id().cloned();
-    let capture_method = payment_attempt.capture_method;
+    let capture_method = payment_attempt.get_effective_capture_method();
 
     let braintree_metadata = payment_intent
         .connector_metadata

@@ -432,6 +432,7 @@ impl TryFrom<&WalletData> for PaymentMethodType {
             | WalletData::SamsungPay(_)
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
+            | WalletData::WeroRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayQr(_)
             | WalletData::CashappQr(_)

@@ -38,6 +38,7 @@ futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
 hex = "0.4.3"
 http = "0.2.12"
+ip_network = { version = "0.4.1", default-features = false }
 md5 = "0.7.0"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
@@ -70,7 +71,7 @@ ammonia = "3.3"
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums" }
-hyperswitch_masking = { version = "0.0.1", features = ["diesel", "time"] }
+hyperswitch_masking = { version = "0.0.1", features = ["diesel", "serde", "time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]

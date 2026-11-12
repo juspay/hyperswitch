@@ -33,19 +33,20 @@ impl StaticLadderProgress {
         }
     }
 
-    /// Ladder position to query for this decision.
+    /// The next ladder position after those already consumed. Unused in production since the
+    /// static ladder was removed from the decision; kept with the inert counter.
     pub fn next_rung(&self) -> i32 {
         self.consumed_rungs + 1
     }
 }
 
-/// Which algorithm produced the scheduled time.
+/// Which source produced the scheduled time.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ScheduleSource {
-    Static,
-    Adaptive,
-    /// The MIT cascading ladder, consulted only once the other two have nothing to offer.
+    /// Whichever retry model the invoice was routed to.
+    Model,
+    /// The MIT cascading ladder, the global fallback for whatever the model declines.
     Fallback,
 }
 
@@ -56,56 +57,39 @@ pub struct ScheduleDecision {
     pub schedule_time: PrimitiveDateTime,
     /// State to persist back onto the tracking data.
     pub next_progress: StaticLadderProgress,
-    /// Which algorithm won, for logging and analytics.
+    /// Which source won, for logging and analytics.
     pub source: ScheduleSource,
 }
 
-/// Choose between the two candidates, falling back to the MIT cascading ladder when neither has
-/// one to offer, and `None` when nothing is left to schedule.
+/// The retry model decides whenever it has an opinion; the MIT cascading ladder is the global
+/// fallback for everything it declines. `None` when neither has anything to offer.
+///
+/// The two are NOT compared — the model's time is taken as it stands, however much later than the
+/// fallback's it falls. The fallback is a standby, not a ceiling.
+///
+/// Neither source spends a ladder position, so `next_progress` echoes what it was handed. The
+/// counter is inert here and kept only so the persisted field keeps round-tripping; removing it
+/// reaches merchant-facing config and belongs in its own change.
 pub fn decide_next_retry(
     schedule: &StaticLadderProgress,
-    queried_rung: i32,
-    static_time: Option<PrimitiveDateTime>,
-    adaptive_time: Option<PrimitiveDateTime>,
+    model_time: Option<PrimitiveDateTime>,
     fallback_time: Option<PrimitiveDateTime>,
 ) -> Option<ScheduleDecision> {
-    // Adaptive spends no ladder position, so the count stays put and the same position is offered
-    // again on the next decision.
-    let adaptive = |schedule_time| ScheduleDecision {
+    let decision = |schedule_time, source| ScheduleDecision {
         schedule_time,
         next_progress: StaticLadderProgress {
             consumed_rungs: schedule.consumed_rungs,
         },
-        source: ScheduleSource::Adaptive,
-    };
-    let static_ladder = |schedule_time| ScheduleDecision {
-        schedule_time,
-        next_progress: StaticLadderProgress {
-            consumed_rungs: queried_rung,
-        },
-        source: ScheduleSource::Static,
+        source,
     };
 
-    match (static_time, adaptive_time) {
-        // The earlier calendar day wins. A tie goes to static: the ladder already covers that
-        // day, so an earlier hour on it does not earn a second attempt.
-        (Some(static_time), Some(adaptive_time)) if adaptive_time.date() < static_time.date() => {
-            Some(adaptive(adaptive_time))
-        }
-        (Some(static_time), _) => Some(static_ladder(static_time)),
-        // Ladder spent, so the adaptive time stands unopposed.
-        (None, Some(adaptive_time)) => Some(adaptive(adaptive_time)),
-        // The adaptive ladder is spent and the model declined, so the MIT cascading ladder gets
-        // the last word. It spends no adaptive position, so the count stays put; `None` here
-        // means there is genuinely nothing left to schedule for this invoice.
-        (None, None) => fallback_time.map(|schedule_time| ScheduleDecision {
-            schedule_time,
-            next_progress: StaticLadderProgress {
-                consumed_rungs: schedule.consumed_rungs,
-            },
-            source: ScheduleSource::Fallback,
-        }),
-    }
+    model_time
+        .map(|schedule_time| decision(schedule_time, ScheduleSource::Model))
+        // The model declined, so the global fallback gets the last word. `None` here means there is
+        // genuinely nothing left to schedule for this invoice.
+        .or_else(|| {
+            fallback_time.map(|schedule_time| decision(schedule_time, ScheduleSource::Fallback))
+        })
 }
 
 #[cfg(test)]
@@ -131,12 +115,10 @@ mod tests {
     /// A decision the caller would act on. Panics where the test's premise is that one exists.
     fn expect_decision(
         schedule: &StaticLadderProgress,
-        queried_rung: i32,
-        static_time: Option<PrimitiveDateTime>,
-        adaptive_time: Option<PrimitiveDateTime>,
+        model_time: Option<PrimitiveDateTime>,
+        fallback_time: Option<PrimitiveDateTime>,
     ) -> ScheduleDecision {
-        decide_next_retry(schedule, queried_rung, static_time, adaptive_time, None)
-            .expect("a time was available")
+        decide_next_retry(schedule, model_time, fallback_time).expect("a time was available")
     }
 
     // ---- seeding ----------------------------------------------------------
@@ -159,7 +141,7 @@ mod tests {
     #[test]
     fn a_new_invoice_at_or_past_the_cap_opens_the_ladder_fully_consumed() {
         // The connector used the whole allowance before recovery ever saw the invoice, so there
-        // is no cascading position left and the adaptive algorithm carries it alone.
+        // is no cascading position left and the model carries it alone.
         assert_eq!(
             StaticLadderProgress::seed_for_new_invoice(HYBRID_CAP, HYBRID_CAP).consumed_rungs,
             5
@@ -217,179 +199,56 @@ mod tests {
         );
     }
 
-    // ---- rung sourcing ----------------------------------------------------
+    // ---- the model decides, the global fallback covers what it declines ---
 
     #[test]
-    fn a_fresh_schedule_starts_the_ladder_at_one() {
-        // Nothing consumed yet, so the first position offered is 1. Never 0 — `get_delay`
-        // returns `None` for a non-positive index, which would fail the very first decision.
-        assert_eq!(StaticLadderProgress::default().consumed_rungs, 0);
-        assert_eq!(StaticLadderProgress::default().next_rung(), 1);
+    fn a_later_model_time_still_wins() {
+        // The fallback is not a ceiling: a model day after the fallback's is taken as it stands.
+        // Nothing here compares the two.
+        let fallback_time = at(240);
+        let model_time = at(336);
+        assert!(model_time.date() > fallback_time.date());
+
+        let decision = expect_decision(&at_rung(2), Some(model_time), Some(fallback_time));
+
+        assert_eq!(decision.schedule_time, model_time);
+        assert_eq!(decision.source, ScheduleSource::Model);
     }
 
     #[test]
-    fn stored_rung_advances_by_one() {
-        // Independent of `retry_count`, which runs ahead as adaptive retries are inserted.
-        // Following it would exhaust a five-entry ladder long before rung 5.
-        assert_eq!(at_rung(3).next_rung(), 4);
-    }
-
-    // ---- adaptive wins ----------------------------------------------------
-
-    #[test]
-    fn adaptive_earlier_day_wins_and_leaves_the_rung_unconsumed() {
-        let schedule = at_rung(2);
-        let decision = expect_decision(&schedule, 3, Some(at(240)), Some(at(72)));
-
-        assert_eq!(decision.schedule_time, at(72));
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-        // Rung 3 was offered but not used, so it is offered again next time.
-        assert_eq!(decision.next_progress.consumed_rungs, 2);
-        assert_eq!(decision.next_progress.next_rung(), 3);
-    }
-
-    #[test]
-    fn adaptive_the_day_before_static_wins() {
-        let static_time = at(240);
-        let adaptive_time = at(240 - 1);
-        assert!(adaptive_time.date() < static_time.date());
-
-        let decision = expect_decision(
-            &StaticLadderProgress::default(),
-            1,
-            Some(static_time),
-            Some(adaptive_time),
-        );
-
-        assert_eq!(decision.schedule_time, adaptive_time);
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-    }
-
-    // ---- static wins ------------------------------------------------------
-
-    #[test]
-    fn adaptive_later_day_loses_and_consumes_the_rung() {
-        let decision = expect_decision(&at_rung(2), 3, Some(at(240)), Some(at(336)));
+    fn no_model_opinion_uses_the_global_fallback() {
+        let decision = expect_decision(&StaticLadderProgress::default(), None, Some(at(240)));
 
         assert_eq!(decision.schedule_time, at(240));
-        assert_eq!(decision.source, ScheduleSource::Static);
-        assert_eq!(decision.next_progress.consumed_rungs, 3);
+        assert_eq!(decision.source, ScheduleSource::Fallback);
     }
 
     #[test]
-    fn no_adaptive_opinion_uses_static_and_consumes_the_rung() {
-        let decision = expect_decision(&StaticLadderProgress::default(), 1, Some(at(240)), None);
-
-        assert_eq!(decision.schedule_time, at(240));
-        assert_eq!(decision.source, ScheduleSource::Static);
-        assert_eq!(decision.next_progress.consumed_rungs, 1);
+    fn both_declining_yields_no_decision() {
+        assert_eq!(decide_next_retry(&at_rung(5), None, None), None);
     }
 
-    // ---- ties go to static ------------------------------------------------
+    // ---- the rung counter is inert ----------------------------------------
 
     #[test]
-    fn adaptive_earlier_on_the_same_day_still_loses() {
-        // Static on day 10 at 18:00, adaptive on day 10 at 09:00. Static already covers that
-        // day, so the earlier instant does not earn a second attempt on it.
-        let static_time = at(240 + 18);
-        let adaptive_time = at(240 + 9);
-        assert_eq!(static_time.date(), adaptive_time.date());
+    fn no_source_spends_a_ladder_position() {
+        // With the static ladder gone, neither source advances the count: whatever a decision is
+        // handed, it hands back. Pinned because the field is still persisted and still seeded, so
+        // a future edit that starts moving it would otherwise change stored state unnoticed.
+        for (model_time, fallback_time, expected_source) in [
+            (Some(at(72)), None, ScheduleSource::Model),
+            (Some(at(72)), Some(at(240)), ScheduleSource::Model),
+            (None, Some(at(240)), ScheduleSource::Fallback),
+        ] {
+            for consumed_rungs in [0, 1, 5] {
+                let schedule = at_rung(consumed_rungs);
+                let decision = expect_decision(&schedule, model_time, fallback_time);
 
-        let decision = expect_decision(
-            &StaticLadderProgress::default(),
-            1,
-            Some(static_time),
-            Some(adaptive_time),
-        );
-
-        assert_eq!(decision.schedule_time, static_time);
-        assert_eq!(decision.source, ScheduleSource::Static);
-        assert_eq!(decision.next_progress.consumed_rungs, 1);
-    }
-
-    #[test]
-    fn adaptive_identical_to_static_loses() {
-        let decision = expect_decision(
-            &StaticLadderProgress::default(),
-            1,
-            Some(at(240)),
-            Some(at(240)),
-        );
-
-        assert_eq!(decision.source, ScheduleSource::Static);
-    }
-
-    // ---- successive decisions ---------------------------------------------
-
-    #[test]
-    fn a_rung_survives_repeated_adaptive_wins_and_is_spent_once() {
-        // Driven through `next_rung` exactly as the workflow does, so rung sourcing is under
-        // test rather than assumed.
-        let schedule = StaticLadderProgress::default();
-
-        // Fresh invoice: rung 1 is offered, adaptive takes the slot.
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let first = expect_decision(&schedule, queried_rung, Some(at(240)), Some(at(72)));
-        assert_eq!(first.source, ScheduleSource::Adaptive);
-
-        // The process tracker's retry_count is now 2, but rung 1 was never used, so it is
-        // offered again.
-        let schedule = first.next_progress;
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let second = expect_decision(&schedule, queried_rung, Some(at(240)), Some(at(120)));
-        assert_eq!(second.source, ScheduleSource::Adaptive);
-
-        // retry_count 3, and still rung 1.
-        let schedule = second.next_progress;
-        let queried_rung = schedule.next_rung();
-        assert_eq!(queried_rung, 1);
-        let third = expect_decision(&schedule, queried_rung, Some(at(240)), None);
-        assert_eq!(third.source, ScheduleSource::Static);
-        assert_eq!(third.next_progress.consumed_rungs, 1);
-
-        // Three attempts in, exactly one static position spent — the next query is rung 2,
-        // not rung 4 as `retry_count` alone would have given.
-        assert_eq!(third.next_progress.next_rung(), 2);
-    }
-
-    // ---- an exhausted ladder ----------------------------------------------
-
-    #[test]
-    fn an_exhausted_ladder_hands_the_slot_to_adaptive() {
-        // Past the ladder's last entry there is no static candidate, but the invoice is not
-        // finished — the adaptive algorithm carries it for the rest of the grace window.
-        let decision = expect_decision(&at_rung(5), 6, None, Some(at(72)));
-
-        assert_eq!(decision.schedule_time, at(72));
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
-    }
-
-    #[test]
-    fn an_exhausted_ladder_does_not_advance_the_position() {
-        // There was no position to spend, so the count stays where the ladder left it rather
-        // than creeping past the end on every adaptive retry.
-        let decision = expect_decision(&at_rung(5), 6, None, Some(at(72)));
-
-        assert_eq!(decision.next_progress.consumed_rungs, 5);
-    }
-
-    #[test]
-    fn both_algorithms_declining_yields_no_decision() {
-        // The ladder is spent and the model has no opinion. Only here is there genuinely
-        // nothing left to schedule, and the caller ends the invoice.
-        assert_eq!(decide_next_retry(&at_rung(5), 6, None, None, None), None);
-    }
-
-    #[test]
-    fn an_exhausted_ladder_ignores_the_day_comparison() {
-        // With no static day to beat, an adaptive time far in the future still wins — the tie
-        // rule only applies when there are two candidates.
-        let decision = expect_decision(&StaticLadderProgress::default(), 1, None, Some(at(2400)));
-
-        assert_eq!(decision.schedule_time, at(2400));
-        assert_eq!(decision.source, ScheduleSource::Adaptive);
+                assert_eq!(decision.source, expected_source);
+                assert_eq!(decision.next_progress, schedule);
+                assert_eq!(decision.next_progress.consumed_rungs, consumed_rungs);
+            }
+        }
     }
 
     // ---- persistence ------------------------------------------------------

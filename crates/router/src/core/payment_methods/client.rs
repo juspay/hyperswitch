@@ -568,8 +568,9 @@ fn filter_customer_pms_by_enabled(
 
 /// Filter out saved cards whose BIN (`card_isin`) has an active blocklist entry for this
 /// merchant/profile (merchant-wide entries with a NULL `profile_id` match every profile).
-/// Runs only when the merchant has enabled the blocklist guard (the same config
-/// key that gates confirm-time and eligibility-time blocklist checks). BIN lookups are
+/// Runs only when the merchant has enabled the blocklist guard (the same
+/// `payments.payment_blocklist_guard` config that gates confirm-time and eligibility-time
+/// blocklist checks). BIN lookups are
 /// deduplicated across the list and run concurrently. Non-card payment methods and cards
 /// without a stored `card_isin` are passed through unchanged — fingerprint-level (exact
 /// card) blocklist entries cannot be evaluated at list time since the stored record does
@@ -581,8 +582,16 @@ async fn filter_customer_pms_by_blocklist(
     customer_pms: Vec<CustomerPaymentMethodForClient>,
 ) -> Vec<CustomerPaymentMethodForClient> {
     let processor = platform.get_processor();
-    let guard_enabled =
-        blocklist_utils::is_blocklist_guard_enabled(state, processor.get_account().get_id()).await;
+    let guard_enabled = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone())
+        .get_payment_blocklist_guard(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
 
     let bins: std::collections::HashSet<String> = if guard_enabled {
         customer_pms

@@ -4452,6 +4452,7 @@ pub async fn build_merchant_enabled_pms_context(
 ) -> errors::RouterResult<MerchantEnabledPmsContext> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
+    let auto_fallback_capture_method = business_profile.auto_fallback_capture_method;
 
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
@@ -4507,6 +4508,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -4560,6 +4562,7 @@ pub async fn build_merchant_enabled_pms_context(
                 billing_address,
                 mca.connector_name.clone(),
                 &state.conf,
+                auto_fallback_capture_method,
             )
             .await?;
         }
@@ -5713,7 +5716,7 @@ pub async fn call_surcharge_decision_management(
     #[cfg(feature = "v2")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
-    let (surcharge_results, merchant_sucharge_configs) =
+    let (surcharge_results, merchant_sucharge_configs) = Box::pin(
         perform_surcharge_decision_management_for_payment_method_list(
             &state,
             algorithm_ref,
@@ -5721,10 +5724,11 @@ pub async fn call_surcharge_decision_management(
             &payment_intent,
             billing_address.as_ref().map(Into::into),
             response_payment_method_types,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error performing surcharge decision operation")?;
+        ),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("error performing surcharge decision operation")?;
     if !surcharge_results.is_empty_result() {
         surcharge_results
             .persist_individual_surcharge_details_in_redis(&state, business_profile)
@@ -5775,13 +5779,13 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     let algorithm_ref: routing_types::RoutingAlgorithmRef = todo!();
 
     // TODO: Move to business profile surcharge column
-    let surcharge_results = perform_surcharge_decision_management_for_saved_cards(
+    let surcharge_results = Box::pin(perform_surcharge_decision_management_for_saved_cards(
         state,
         algorithm_ref,
         payment_attempt,
         &payment_intent,
         &mut customer_payment_method_response.customer_payment_methods,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("error performing surcharge decision operation")?;
@@ -5824,6 +5828,7 @@ pub async fn filter_payment_methods(
     address: Option<&domain::Address>,
     connector: String,
     configs: &settings::Settings<RawSecret>,
+    auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     for payment_method in payment_methods.iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(
@@ -5983,8 +5988,16 @@ pub async fn filter_payment_methods(
                             }
                         });
 
+                    // With auto_fallback_capture_method enabled an unsupported capture method is
+                    // replaced by automatic at confirm, so it must not hide payment methods here.
+                    // A payment already requesting automatic capture has no fallback and is
+                    // still filtered.
                     payment_attempt
                         .and_then(|inner| inner.capture_method)
+                        .filter(|&capture_method| {
+                            !auto_fallback_capture_method
+                                .is_some_and(|setting| setting.can_fall_back_from(capture_method))
+                        })
                         .map(|capture_method| {
                             context_values.push(dir::DirValue::CaptureMethod(capture_method));
                         });
@@ -6659,14 +6672,14 @@ async fn perform_surcharge_ops(
         .zip(business_profile)
         .map(|((pa, pi), bp)| (pa, pi, bp))
     {
-        call_surcharge_decision_management_for_saved_card(
+        Box::pin(call_surcharge_decision_management_for_saved_card(
             state,
             platform,
             &business_profile,
             payment_attempt,
             payment_intent.clone(),
             response,
-        )
+        ))
         .await?;
     }
 

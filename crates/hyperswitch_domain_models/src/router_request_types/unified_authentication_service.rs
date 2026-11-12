@@ -207,10 +207,6 @@ pub struct UasConfirmationRequestData {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ThreeDsMetaData {
-    // Connector metadata has historically stored this under the key "mcc" (see e.g.
-    // `NetceteraMetaData::mcc`, `diesel_models::authentication`'s `mcc` column); accept both
-    // so existing stored metadata deserializes without a data migration.
-    #[serde(alias = "mcc")]
     pub merchant_category_code: Option<MerchantCategoryCode>,
     pub merchant_country_code: Option<MerchantCountryCode>,
     pub merchant_name: Option<String>,

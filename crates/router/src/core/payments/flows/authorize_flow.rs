@@ -1777,23 +1777,12 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
         .ok_or(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-    let mut payment_pre_authenticate_request =
+    let payment_pre_authenticate_request =
         payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_try_from(
             (router_data, external_vault_pmd),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct external-vault Payment Pre Authenticate Request")?;
-
-    payment_pre_authenticate_request.connector_feature_data =
-        unified_connector_service::build_connector_feature_data_from_auth_mca(
-            &merchant_connector_account,
-            None,
-            None,
-            None,
-            None,
-        )
-        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-        .attach_printable("Failed to build connector_feature_data from authentication MCA")?;
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(

@@ -8,10 +8,7 @@ use std::collections::HashMap;
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    router_data::ConnectorAuthType,
-    router_request_types::unified_authentication_service::ThreeDsMetaData,
-};
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
@@ -246,6 +243,17 @@ pub struct JuspayMetadata {
     pub juspay_encryption_public_key: Secret<String>,
     pub response_decryption_private_key: Secret<String>,
     pub card_sync_key_id: String,
+}
+
+/// Netcetera authentication-connector metadata, keyed as the Netcetera MCA form stores it.
+#[derive(Debug, serde::Deserialize)]
+pub struct NetceteraMetadata {
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
 }
 
 /// Connector-specific configuration enum for all supported connectors
@@ -2112,9 +2120,9 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
             Connector::Netcetera => {
-                let three_ds_meta = metadata
+                let netcetera_meta = metadata
                     .map(|m| {
-                        serde_json::from_value::<ThreeDsMetaData>(m.clone())
+                        serde_json::from_value::<NetceteraMetadata>(m.clone())
                             .map_err(|_| err("Invalid Netcetera metadata format"))
                     })
                     .transpose()?;
@@ -2129,13 +2137,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 Ok(Self::Netcetera {
                     certificate,
                     private_key,
-                    merchant_configuration_id: three_ds_meta
+                    merchant_configuration_id: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.merchant_configuration_id.clone()),
-                    three_ds_requestor_id: three_ds_meta
+                    three_ds_requestor_id: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.three_ds_requestor_id.clone()),
-                    three_ds_requestor_name: three_ds_meta
+                    three_ds_requestor_name: netcetera_meta
                         .as_ref()
                         .and_then(|m| m.three_ds_requestor_name.clone()),
                     base_url: None,
@@ -2234,15 +2242,6 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    // Netcetera has no connector-specific config on the wire: connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
-    // this header makes UCS hard-error on deserialization instead of falling back
-    // to the legacy auth header. Suppress it here so UCS takes the legacy-header
-    // path (`x-auth` / `x-api-key` / `x-key1`), which does work for Netcetera.
-    if matches!(connector, Connector::Netcetera) {
-        return Ok(None);
-    }
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,

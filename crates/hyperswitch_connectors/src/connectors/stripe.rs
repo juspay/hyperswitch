@@ -2869,11 +2869,7 @@ impl IncomingWebhook for Stripe {
                 ))
             }
             stripe::WebhookEventObjectType::Source => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PreprocessingId(
-                        details.event_data.event_object.id,
-                    ),
-                ))
+                Err(ConnectorError::WebhookReferenceIdNotFound)?
             }
             stripe::WebhookEventObjectType::Refund => {
                 match details

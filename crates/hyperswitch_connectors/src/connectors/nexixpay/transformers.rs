@@ -491,6 +491,10 @@ impl ForeignTryFrom<(&ThreeDSAuthResult, String)> for UcsAuthenticationData {
             challenge_cancel: None,
             challenge_code_reason: None,
             message_extension: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }

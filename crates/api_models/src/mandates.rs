@@ -186,6 +186,11 @@ pub enum RecurringDetails {
         Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
     ),
 
+    /// Network transaction ID and external vault card details for MIT payments where the card
+    /// is held in an external vault and referenced by a vault alias rather than by PAN.
+    #[smithy(value_type = "NetworkTransactionIdAndVaultCardDetails")]
+    NetworkTransactionIdAndVaultCardDetails(Box<NetworkTransactionIdAndVaultCardDetails>),
+
     /// Card with Limited Data to do MIT payment
     /// Can only be used if enabled for Merchant
     /// Allows doing MIT with only Card data (no reference id)
@@ -407,6 +412,96 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     pub transaction_link_id: Option<String>,
 }
 
+/// Card details held in an external vault, referenced by a vault alias rather than by PAN.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct VaultCardData {
+    /// The vault alias which refers to the card number
+    #[schema(value_type = String, example = "token_card_number")]
+    #[smithy(value_type = "String")]
+    pub card_number: Secret<String>,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    /// The type of the card such as Credit, Debit
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    /// The country in which the card was issued
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    /// The bank code of the bank that issued the card
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+
+    /// The first six digits of the card number
+    #[schema(value_type = Option<String>, example = "424242")]
+    #[smithy(value_type = "Option<String>")]
+    pub bin_number: Option<String>,
+
+    /// The last four digits of the card number
+    #[schema(value_type = Option<String>, example = "4242")]
+    #[smithy(value_type = "Option<String>")]
+    pub last_four: Option<String>,
+}
+
+/// Network transaction ID and external vault card details for an MIT.
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct NetworkTransactionIdAndVaultCardDetails {
+    /// The external vault card details
+    #[smithy(value_type = "VaultCardData")]
+    pub vault_card_data: VaultCardData,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated
+    /// Transaction (CIT) when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    #[smithy(value_type = "String")]
+    pub network_transaction_id: Secret<String>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT
+    /// (Customer Initiated Transaction), when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub transaction_link_id: Option<String>,
+}
+
 impl RecurringDetails {
     pub fn is_network_transaction_id_and_card_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndCardDetails(_))
@@ -421,6 +516,10 @@ impl RecurringDetails {
             self,
             Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         )
+    }
+
+    pub fn is_network_transaction_id_and_vault_card_details_flow(self) -> bool {
+        matches!(self, Self::NetworkTransactionIdAndVaultCardDetails(_))
     }
 
     pub fn is_card_limited_details_flow(self) -> bool {

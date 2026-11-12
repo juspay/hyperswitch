@@ -423,6 +423,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     | WalletData::AmazonPay(_)
                     | WalletData::TwintRedirect {}
                     | WalletData::VippsRedirect {}
+                    | WalletData::WeroRedirect {}
                     | WalletData::TouchNGoRedirect(_)
                     | WalletData::WeChatPayRedirect(_)
                     | WalletData::WeChatPayQr(_)
@@ -2755,6 +2756,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         | WalletData::PaypalSdk(_)
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
+                        | WalletData::WeroRedirect {}
                         | WalletData::TouchNGoRedirect(_)
                         | WalletData::WeChatPayRedirect(_)
                         | WalletData::WeChatPayQr(_)
@@ -4244,6 +4246,10 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
             challenge_cancel: None,
             challenge_code_reason: None,
             message_extension: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
