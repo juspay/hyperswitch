@@ -36,6 +36,7 @@ use common_utils::{
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
 use external_services::superposition::Config;
 use futures::future::Either;
 #[cfg(feature = "v1")]
@@ -96,10 +97,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::{
-            dimension_config::{UcsEnabled, UcsRolloutConfig},
-            dimension_state,
-        },
+        configs::dimension_state,
         customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{
@@ -2655,7 +2653,11 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
 
 /// Reads UCS enabled mode purely from Superposition service (no DB fallback).
 pub async fn get_ucs_enabled_mode_from_superposition(state: &SessionState) -> UcsAvailability {
-    match UcsEnabled::fetch(state.superposition_service.as_ref(), None, None).await {
+    match state
+        .superposition_service
+        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
+        .await
+    {
         Ok(value) => value.parse::<UcsAvailability>().unwrap_or_else(|err| {
             logger::warn!(
                 error = ?err,
@@ -3052,9 +3054,12 @@ pub async fn should_execute_based_on_rollout_with_precedence(
 /// No DB fallback.
 pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
     state: &SessionState,
+    superposition_key: &str,
     context: Option<external_services::superposition::ConfigContext>,
 ) -> RouterResult<RolloutExecutionResult> {
-    match UcsRolloutConfig::fetch(state.superposition_service.as_ref(), context.as_ref(), None)
+    match state
+        .superposition_service
+        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
         .await
     {
         Ok(json_value) => {

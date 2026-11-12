@@ -1195,6 +1195,7 @@ where
 
     let mut rollout_result = should_execute_based_on_rollout_with_precedence_from_superposition(
         state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
         Some(superposition_context),
     )
     .await?;
@@ -1538,6 +1539,7 @@ pub async fn is_ucs_execution_path_for_external_vault_proxy(
                 UcsConfigSource::Superposition => {
                     should_execute_based_on_rollout_with_precedence_from_superposition(
                         state,
+                        consts::superposition::UCS_ROLLOUT_CONFIG,
                         Some(superposition_context),
                     )
                     .await?
