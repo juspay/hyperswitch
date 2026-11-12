@@ -721,10 +721,6 @@ fn get_next_retry(
     }
 }
 
-// The recovery report workflow. On `external_triggers` the recovery API validates a report and
-// queues it with `queue_report`; the workflow records the transaction and decides the next retry of
-// its invoice with `process_reported_transaction`, one report of an invoice at a time.
-
 /// Version of the request stored in a recovery report's tracking data.
 const REPORT_REQUEST_VERSION: u8 = 1;
 
@@ -914,8 +910,6 @@ fn get_report_id(
     merchant_reference_id: &id_type::PaymentReferenceId,
     connector_transaction_id: &str,
 ) -> RouterResult<String> {
-    // Profile and invoice ids hold only letters, digits, `_` and `-`, so the separators cannot be
-    // mistaken for part of them.
     let key = format!(
         "{}:{}:{}",
         profile_id.get_string_repr(),
@@ -994,7 +988,6 @@ pub(crate) async fn process_reported_transaction(
     tracking_data: pcr::RecoveryReportTrackingData,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let now = common_utils::date_time::now();
-    // A stored request that cannot be read now cannot be read on a later run either.
     if tracking_data.request_version != REPORT_REQUEST_VERSION {
         logger::error!(
             request_version = tracking_data.request_version,
@@ -1067,7 +1060,6 @@ pub(crate) async fn process_reported_transaction(
             _ => Err(report_step_failed("lock", error)),
         };
     }
-    // Once per report, by the run that takes the invoice's lock, so any wait for it is included.
     if process.retry_count == 0 {
         metrics::REVENUE_RECOVERY_REPORT_QUEUE_DELAY
             .record((now - tracking_data.received_at).as_seconds_f64(), &[]);
@@ -1162,9 +1154,6 @@ async fn apply_reported_transaction(
             if recorded_by != Some(report_id) {
                 return Ok(ReportOutcome::Duplicate);
             }
-            // This report recorded it on an earlier run. If that run also saved the decision, the
-            // report only needs its answer, for the invoice as it stands now: a cancel or a charge
-            // since then has closed it.
             if let Some(saved_state) = previous_trigger_state
                 .as_ref()
                 .filter(|trigger_state| trigger_state.last_report_id.as_deref() == Some(report_id))
@@ -1173,9 +1162,6 @@ async fn apply_reported_transaction(
                     &get_next_retry_for_intent_status(invoice.status, saved_state.next_retry),
                 ));
             }
-            // Recording writes the attempt and then the invoice, and each recorded attempt adds
-            // one to the invoice's retry count. A run that stopped between the two writes left an
-            // invoice that does not show this attempt, which is not decided on.
             let recorded_on_invoice = previous_recovery_metadata
                 .map(|recovery_metadata| usize::from(recovery_metadata.total_retry_count));
             if recorded_on_invoice != Some(attempts.total) {
@@ -1227,8 +1213,6 @@ async fn apply_reported_transaction(
         return Ok(ReportOutcome::Stale);
     }
 
-    // Both come from the attempts recorded before this report's, which every run of the report
-    // sees alike, whereas the invoice holds this report's card once the transaction is recorded.
     let is_existing_invoice = attempts.earlier > 0;
     let is_same_card = attempts.previous_card.as_ref()
         == Some(
@@ -1269,7 +1253,6 @@ async fn apply_reported_transaction(
     .await
     .map_err(|error| report_step_failed("save_state", error))?;
 
-    // Counted only once the state is saved, so that a later run of this report never counts it again.
     if let Some((failure_code, success)) =
         get_retry_outcome(previous_trigger_state.as_ref(), request.transaction_status)
     {
