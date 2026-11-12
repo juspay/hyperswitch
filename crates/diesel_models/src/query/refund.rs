@@ -14,7 +14,7 @@ use crate::{
 
 impl RefundNew {
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Refund> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(

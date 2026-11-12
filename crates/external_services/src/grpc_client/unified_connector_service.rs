@@ -102,6 +102,27 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+    /// Set to "database" to use the configs table, or "superposition" to use
+    /// the Superposition service. Allows runtime switching without redeployment.
+    #[serde(default = "default_config_source")]
+    pub config_source: UcsConfigSource,
+}
+
+/// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UcsConfigSource {
+    /// Read UCS config from the `configs` database table (legacy behavior).
+    #[default]
+    Database,
+    /// Read UCS config from Superposition service.
+    Superposition,
+}
+
+fn default_config_source() -> UcsConfigSource {
+    UcsConfigSource::Database
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
@@ -877,9 +898,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .capture(request)
+        Box::pin(self.payment_service_client.clone().capture(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1000,6 +1019,41 @@ impl UnifiedConnectorServiceClient {
                     method="payment_void",
                     connector_name=?connector_name,
                     "UCS payment void gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payment Post Capture Void (Reverse)
+    pub async fn payment_reverse(
+        &self,
+        payment_reverse_request: payments_grpc::PaymentServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceReverseResponse>>
+    {
+        let mut request = tonic::Request::new(payment_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.payment_service_client
+            .clone()
+            .reverse(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_reverse",
+                    connector_name=?connector_name,
+                    "UCS payment reverse gRPC call failed"
                 )
             })
     }
@@ -1275,9 +1329,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payout_service_client
-            .clone()
-            .transfer(request)
+        // Box the transfer future: the merged UCS proto request types are large enough
+        // to trip clippy::large_futures when this is awaited inline.
+        Box::pin(self.payout_service_client.clone().transfer(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1586,9 +1640,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.frm_service_client
-            .clone()
-            .pre_risk_check(request)
+        Box::pin(self.frm_service_client.clone().pre_risk_check(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(

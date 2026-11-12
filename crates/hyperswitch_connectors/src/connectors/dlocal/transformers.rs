@@ -86,7 +86,7 @@ pub struct DlocalPaymentsRequest {
     pub card: Option<Card>,
     pub order_id: String,
     pub three_dsecure: Option<ThreeDSecureReqData>,
-    pub callback_url: Option<String>,
+    pub callback_url: Option<Secret<String>>,
     pub description: Option<String>,
 }
 

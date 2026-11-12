@@ -8,13 +8,13 @@ use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
 };
-#[cfg(feature = "v2")]
-use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     AuthenticationConnectorDetails, BusinessPaymentLinkConfig, BusinessPayoutLinkConfig,
     CardTestingGuardConfig, ExternalVaultConnectorDetails, PaymentMethodBlockingConfig,
     SurchargeConnectorDetails, WebhookDetails,
 };
+#[cfg(feature = "v2")]
+use diesel_models::business_profile::{RevenueRecoveryAlgorithmData, RevenueRecoveryConfig};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
@@ -689,9 +689,11 @@ pub struct Profile {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
     pub is_manual_retry_enabled: Option<bool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -750,8 +752,10 @@ pub struct ProfileSetter {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -815,9 +819,11 @@ impl From<ProfileSetter> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
+            revenue_recovery_trigger_model: value.revenue_recovery_trigger_model,
             is_manual_retry_enabled: None,
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
+            revenue_recovery_config: value.revenue_recovery_config,
         }
     }
 }
@@ -879,9 +885,11 @@ pub struct ProfileDbBuilder {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
     pub is_manual_retry_enabled: Option<bool>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]
@@ -945,9 +953,11 @@ impl From<ProfileDbBuilder> for Profile {
             merchant_category_code: value.merchant_category_code,
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
+            revenue_recovery_trigger_model: value.revenue_recovery_trigger_model,
             is_manual_retry_enabled: value.is_manual_retry_enabled,
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
+            revenue_recovery_config: value.revenue_recovery_config,
         }
     }
 }
@@ -1319,8 +1329,10 @@ pub struct ProfileGeneralUpdate {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[cfg(feature = "v2")]

@@ -9,10 +9,7 @@ use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use api_models::subscription as subscription_types;
 use error_stack::report;
 use hyperswitch_domain_models::errors;
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{tracing::instrument, Flow};
 
 use crate::{
     core::api_locking,
@@ -436,8 +433,11 @@ pub async fn get_estimate(
         allow_connected_scope_operation: false,
         allow_platform_self_operation: false,
     };
+    let payload = query.into_inner();
+    // Publishable-key requests must carry a subscription client secret, which the core
+    // validates; a bare publishable key is not sufficient.
     let (auth_type, _auth_flow) =
-        match auth::check_authorization_header_or_get_auth(req.headers(), api_auth) {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
             Ok(auth) => auth,
             Err(err) => return oss_api::log_and_return_error_response(report!(err)),
         };
@@ -445,8 +445,11 @@ pub async fn get_estimate(
         flow,
         state,
         &req,
-        query.into_inner(),
-        |state, auth, query, _| {
+        payload,
+        |state, auth, mut query, _| {
+            if let Some(client_secret) = auth.client_secret {
+                query.client_secret = Some(subscription_types::ClientSecret::new(client_secret));
+            }
             subscriptions::get_estimate(state.into(), auth.platform, profile_id.clone(), query)
         },
         &*auth_type,

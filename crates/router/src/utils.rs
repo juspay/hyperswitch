@@ -1271,11 +1271,14 @@ where
         let payment_id = payment_data.get_payment_intent().get_id().to_owned();
         let payment_attempt = payment_data.get_payment_attempt().clone();
         let created_by = payment_attempt.created_by.clone();
+        let mut sdk_callback_urls =
+            crate::core::payments::callback_urls::SdkCallbackUrls::default();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
             services::AuthFlow::Merchant,
             &state.base_url,
+            state.payment_callback_config().await?.mode,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,
@@ -1283,7 +1286,9 @@ where
             None,
             platform.get_processor(),
             platform.get_initiator(),
+            &mut sdk_callback_urls,
         )?;
+        sdk_callback_urls.persist(state).await?;
 
         let event_type = status.into();
 
@@ -1435,6 +1440,17 @@ pub async fn trigger_refund_outgoing_webhook(
     profile_id: id_type::ProfileId,
 ) -> RouterResult<()> {
     todo!()
+}
+
+/// Checks that a resource fetched by id alone belongs to the authenticated merchant and profile
+#[cfg(feature = "v2")]
+pub fn is_owned_by_merchant_and_profile(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    merchant_id == platform.get_processor().get_account().get_id() && profile_id == profile.get_id()
 }
 
 pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {

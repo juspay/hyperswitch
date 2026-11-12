@@ -104,7 +104,7 @@ pub struct Settings<S: SecretState> {
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
-    pub eph_key: EphemeralConfig,
+    pub eph_key: ClientSecretConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -1019,6 +1019,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1165,7 +1166,7 @@ pub struct Refund {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct EphemeralConfig {
+pub struct ClientSecretConfig {
     pub validity: i64,
 }
 
@@ -1638,6 +1639,7 @@ impl Settings<SecuredSecret> {
         self.connectors.validate("connectors")?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
+        self.user.validate()?;
 
         self.scheduler
             .as_ref()

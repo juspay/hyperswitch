@@ -57,7 +57,7 @@ use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
 
@@ -79,8 +79,6 @@ use crate::core::payment_methods::{
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "v1")]
 use crate::core::payments::tokenization;
-#[cfg(feature = "v1")]
-use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
 use crate::types::domain::types::AsyncLift;
 use crate::{
@@ -3417,6 +3415,7 @@ pub async fn prepare_bank_redirect_payment_method_update(
                 pm_create_req,
                 None, // card_detail not needed for bank redirect
                 business_profile,
+                common_enums::WalletDecryptedToken::None,
             ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4149,11 +4148,11 @@ pub async fn get_card_from_vault<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn delete_card_from_vault<'a>(
+pub async fn delete_card_from_vault(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    card_reference: &'a str,
+    card_reference: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResp, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
@@ -4257,9 +4256,9 @@ pub async fn mock_call_to_locker_hs(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_get_card<'a>(
+pub async fn mock_get_card(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<(payment_methods::GetCardResponse, Option<String>), errors::VaultError> {
     let locker_mock_up = db
         .find_locker_by_card_id(card_id)
@@ -4293,10 +4292,10 @@ pub async fn mock_get_card<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_get_payment_method<'a>(
+pub async fn mock_get_payment_method(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::GetPaymentMethodResponse, errors::VaultError> {
     let db = &*state.store;
     let locker_mock_up = db
@@ -4325,9 +4324,9 @@ pub async fn mock_get_payment_method<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_delete_card_hs<'a>(
+pub async fn mock_delete_card_hs(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResp, errors::VaultError> {
     db.delete_locker_mock_up(card_id)
         .await
@@ -4340,9 +4339,9 @@ pub async fn mock_delete_card_hs<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_delete_card<'a>(
+pub async fn mock_delete_card(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResponse, errors::VaultError> {
     let locker_mock_up = db
         .delete_locker_mock_up(card_id)
@@ -4537,7 +4536,7 @@ impl MerchantEnabledPmsContext {
         out
     }
 
-    /// Converts `card_networks_consolidated_hm` → client PM entries (card, card_redirect)
+    /// Converts `card_networks_consolidated_hm` → client PM entries with network data only for cards.
     pub fn card_network_pms_for_client(
         &self,
         customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
@@ -4545,13 +4544,20 @@ impl MerchantEnabledPmsContext {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
             for (payment_method_type, card_network_hashmap) in pmt_map {
-                let card_networks: Vec<api_enums::CardNetwork> =
-                    card_network_hashmap.keys().cloned().collect();
+                // Preserve enabled non-card methods even when no payment experience is
+                // configured, but do not expose their incidental card-network metadata.
+                let data = matches!(
+                    payment_method,
+                    api_enums::PaymentMethod::Card | api_enums::PaymentMethod::CardRedirect
+                )
+                .then(|| PaymentMethodSubtypeSpecificDataForClient::Card {
+                    card_networks: card_network_hashmap.keys().cloned().collect(),
+                });
 
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
-                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks }),
+                    data,
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
                     collect_billing_details_from_wallets: None,
@@ -5929,6 +5935,12 @@ pub async fn call_surcharge_decision_management(
     billing_address: Option<domain::Address>,
     response_payment_method_types: &mut [ResponsePaymentMethodsEnabled],
 ) -> errors::RouterResult<api_surcharge_decision_configs::MerchantSurchargeConfigs> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(api_surcharge_decision_configs::MerchantSurchargeConfigs {
+            show_surcharge_breakup_screen: Some(false),
+        });
+    }
+
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = platform
         .get_processor()
@@ -5993,6 +6005,10 @@ pub async fn call_surcharge_decision_management_for_saved_card(
     payment_intent: storage::PaymentIntent,
     customer_payment_method_response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> errors::RouterResult<()> {
+    if payment_intent.is_settlement_conclusion_applied() {
+        return Ok(());
+    }
+
     #[cfg(feature = "v1")]
     let algorithm_ref: routing_types::RoutingAlgorithmRef = platform
         .get_processor()
@@ -6351,26 +6367,11 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     platform: domain::Platform,
     req: Option<api::PaymentMethodListRequest>,
     customer_id: Option<&id_type::CustomerId>,
-    ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
-
-    let auth_cust = if let Some(key) = ephemeral_api_key {
-        let key = state
-            .store()
-            .get_ephemeral_key(key)
-            .await
-            .change_context(errors::ApiErrorResponse::Unauthorized)?;
-
-        Some(key.customer_id.clone())
-    } else {
-        None
-    };
-
-    let customer_id = customer_id.or(auth_cust.as_ref());
 
     if let Some(customer_id) = customer_id {
         Box::pin(list_customer_payment_method(
