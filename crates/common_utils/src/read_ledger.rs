@@ -4,7 +4,7 @@
 //! statement including bind values, so different parameters stay distinct.
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     panic::Location,
     sync::{Arc, Mutex},
 };
@@ -31,6 +31,38 @@ impl ReadStore {
     }
 }
 
+/// Single reads are promoted into `duplicates` on their second occurrence.
+/// Both collections share a lock so concurrent reads and snapshots stay consistent.
+#[derive(Debug, Default)]
+struct ReadLedgerState {
+    single_reads: HashMap<String, Option<Location<'static>>>,
+    duplicates: BTreeMap<String, Vec<Option<Location<'static>>>>,
+}
+
+impl ReadLedgerState {
+    fn record_read(&mut self, statement: &str, location: Option<Location<'static>>) -> bool {
+        if let Some(locations) = self.duplicates.get_mut(statement) {
+            locations.push(location);
+            true
+        } else if let Some((statement, first_location)) = self.single_reads.remove_entry(statement)
+        {
+            self.duplicates
+                .insert(statement, vec![first_location, location]);
+            true
+        } else {
+            self.single_reads.insert(statement.to_owned(), location);
+            false
+        }
+    }
+
+    fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
+        self.duplicates
+            .iter()
+            .map(|(statement, locations)| (statement.clone(), locations.clone()))
+            .collect()
+    }
+}
+
 /// Statements already read in an API session, shared across its stores.
 #[derive(Debug, Clone)]
 pub struct ReadLedger {
@@ -38,7 +70,7 @@ pub struct ReadLedger {
     store: ReadStore,
     // Keep complete statements rather than fingerprints to avoid treating hash
     // collisions as duplicate reads. Bind values are never emitted as metrics.
-    reads: Arc<Mutex<HashMap<String, Vec<Option<Location<'static>>>>>>,
+    state: Arc<Mutex<ReadLedgerState>>,
 }
 
 impl ReadLedger {
@@ -47,7 +79,7 @@ impl ReadLedger {
         Self {
             flow,
             store: ReadStore::Main,
-            reads: Arc::new(Mutex::new(HashMap::new())),
+            state: Arc::new(Mutex::new(ReadLedgerState::default())),
         }
     }
 
@@ -70,35 +102,21 @@ impl ReadLedger {
     }
 
     /// Record a read with its optional captured origin, returning whether the session
-    /// already read the same SQL with the same bind values. Every read appends
-    /// its location, while only the first read allocates a stored SQL key.
+    /// already read the same SQL with the same bind values. A second read promotes
+    /// the statement into the duplicate collection; later reads append their origins.
     pub fn record_read(&self, statement: &str, location: Option<Location<'static>>) -> bool {
-        let mut reads = self
-            .reads
+        self.state
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(locations) = reads.get_mut(statement) {
-            locations.push(location);
-            true
-        } else {
-            reads.insert(statement.to_owned(), vec![location]);
-            false
-        }
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .record_read(statement, location)
     }
 
-    /// Return statements read more than once, with locations in recording order.
+    /// Snapshot duplicate statements in SQL order, with locations in recording order.
     pub fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
-        let reads = self
-            .reads
+        self.state
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut duplicates = reads
-            .iter()
-            .filter(|(_, locations)| locations.len() > 1)
-            .map(|(statement, locations)| (statement.clone(), locations.clone()))
-            .collect::<Vec<_>>();
-        duplicates.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
-        duplicates
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .duplicate_reads()
     }
 }
 
@@ -135,12 +153,31 @@ mod tests {
         assert!(ledger.record_read(PI, Some(second)));
         assert!(ledger.record_read(PI, None));
 
-        let reads = ledger.reads.lock().expect("read ledger lock");
-        assert_eq!(reads.get(PI), Some(&vec![Some(first), Some(second), None]));
-        drop(reads);
         assert_eq!(
             ledger.duplicate_reads(),
             vec![(PI.to_owned(), vec![Some(first), Some(second), None])]
+        );
+    }
+
+    #[test]
+    fn duplicate_snapshots_are_sorted_and_independent() {
+        let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
+        assert!(!ledger.record_read(OTHER, None));
+        assert!(ledger.record_read(OTHER, None));
+        let snapshot = ledger.duplicate_reads();
+
+        assert!(!ledger.record_read(PI, None));
+        assert!(ledger.record_read(PI, None));
+        assert!(ledger.record_read(OTHER, None));
+        assert!(!ledger.record_read("SELECT 1", None));
+
+        assert_eq!(snapshot, vec![(OTHER.to_owned(), vec![None, None])]);
+        assert_eq!(
+            ledger.duplicate_reads(),
+            vec![
+                (PI.to_owned(), vec![None, None]),
+                (OTHER.to_owned(), vec![None, None, None]),
+            ]
         );
     }
 
@@ -179,6 +216,9 @@ mod tests {
         assert!(record_read(&global, PI));
         assert!(!record_read(&accounts, OTHER));
         assert!(record_read(&main, OTHER));
+        assert_eq!(main.duplicate_reads(), accounts.duplicate_reads());
+        assert_eq!(main.duplicate_reads(), global.duplicate_reads());
+        assert_eq!(main.duplicate_reads().len(), 2);
     }
 
     #[test]
@@ -219,5 +259,10 @@ mod tests {
             .map(|thread| usize::from(thread.join().expect("read thread")))
             .sum::<usize>();
         assert_eq!(repeats, 7);
+        let duplicates = ledger.duplicate_reads();
+        assert_eq!(duplicates.len(), 1);
+        let (statement, locations) = duplicates.first().expect("duplicate read");
+        assert_eq!(statement, PI);
+        assert_eq!(locations.len(), 8);
     }
 }
