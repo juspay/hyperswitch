@@ -1673,9 +1673,10 @@ fn build_unified_connector_service_grpc_headers_for_authentication(
 
 #[cfg(test)]
 mod authentication_header_tests {
+    use std::borrow::Cow;
+
     use super::*;
     use crate::grpc_client::LineageIds;
-    use std::borrow::Cow;
 
     #[test]
     fn authentication_headers_preserve_config_and_vault_routing() {
