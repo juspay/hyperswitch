@@ -501,8 +501,8 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
-                data.get_customer_present(),
-                data.get_setup_future_usage(),
+                data.customer_present,
+                data.setup_future_usage,
             )
             .await
     }
@@ -709,8 +709,8 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
-        customer_present: common_enums::PresenceOfCustomerDuringPayment,
-        setup_future_usage: common_enums::FutureUsage,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -839,8 +839,8 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
-        customer_present: common_enums::PresenceOfCustomerDuringPayment,
-        setup_future_usage: common_enums::FutureUsage,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -851,8 +851,8 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
-                customer_present: Some(customer_present),
-                setup_future_usage: Some(setup_future_usage),
+                customer_present,
+                setup_future_usage,
             }),
         };
 
@@ -1006,8 +1006,8 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
-                                common_enums::PresenceOfCustomerDuringPayment::Absent,
-                                common_enums::FutureUsage::OffSession,
+                                None,
+                                None,
                             )
                             .await
                     })

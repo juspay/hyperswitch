@@ -2502,12 +2502,12 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
-    /// Whether the customer was present for the transaction of this attempt, as reported, or
-    /// `absent` when it was not reported. Absent on attempts recorded before this was kept.
+    /// Whether the customer was present for the transaction of this attempt, as reported. Absent
+    /// when it was not reported, and on attempts recorded before this was kept.
     #[schema(value_type = Option<PresenceOfCustomerDuringPayment>, example = "absent")]
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
-    /// How the payment method of this attempt's transaction is set up for future use, as reported,
-    /// or `off_session` when it was not reported. Absent on attempts recorded before this was kept.
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    /// Absent when it was not reported, and on attempts recorded before this was kept.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
@@ -15138,26 +15138,13 @@ pub struct RecoveryPaymentsCreate {
 
 #[cfg(feature = "v2")]
 impl RecoveryPaymentsCreate {
-    /// Whether the customer was present, `absent` when the request leaves it out, as the invoice is
-    /// created with.
-    pub fn get_customer_present(&self) -> common_enums::PresenceOfCustomerDuringPayment {
-        self.customer_present
-            .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
-    }
-
-    /// How the payment method is set up for future use, `off_session` when the request leaves it
-    /// out, as the invoice is created with.
-    pub fn get_setup_future_usage(&self) -> api_enums::FutureUsage {
-        self.setup_future_usage
-            .unwrap_or(api_enums::FutureUsage::OffSession)
-    }
-
-    /// Who started the reported transaction.
-    pub fn get_transaction_initiator(&self) -> common_enums::TransactionInitiator {
-        common_enums::TransactionInitiator::new(
-            self.get_customer_present(),
-            self.get_setup_future_usage(),
-        )
+    /// Who started the reported transaction, when the request says both whether the customer was
+    /// present and how the payment method is set up for future use.
+    pub fn get_transaction_initiator(&self) -> Option<common_enums::TransactionInitiator> {
+        Some(common_enums::TransactionInitiator::new(
+            self.customer_present?,
+            self.setup_future_usage?,
+        ))
     }
 }
 
