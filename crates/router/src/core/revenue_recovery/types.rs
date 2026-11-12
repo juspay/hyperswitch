@@ -1293,13 +1293,18 @@ impl Action {
     pub(crate) async fn decide_retry_failure_action(
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        pt: storage::ProcessTracker,
+        _pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        let next_retry_count = pt.retry_count + 1;
+        let total_retry_count = payment_intent
+            .get_revenue_recovery_retry_count()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable(
+                "Failed to get the retry count from the payment intent's revenue recovery metadata",
+            )?;
         let error_message = payment_attempt
             .error
             .as_ref()
@@ -1338,7 +1343,7 @@ impl Action {
             .get_schedule_time_based_on_retry_type(
                 state,
                 merchant_id,
-                next_retry_count,
+                u32::from(total_retry_count),
                 payment_attempt,
                 payment_intent,
                 is_hard_decline,
