@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_request_types::DefendDisputeRequestData, router_response_types::DefendDisputeResponse,
 };
 use hyperswitch_interfaces::api::gateway as interface_gateway;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{DirectDisputeGateway, DisputeGatewayExecutionContext};
