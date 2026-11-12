@@ -245,10 +245,8 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: u32,
 ) -> Option<time::PrimitiveDateTime> {
-    // The process tracker keeps its retry count as an `i32`, which is never negative.
-    let retry_count = u32::try_from(retry_count).ok()?;
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
         .await;
@@ -807,7 +805,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
+    retry_count: u32,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     // Needed only to resolve the A/B gate

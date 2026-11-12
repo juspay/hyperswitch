@@ -806,8 +806,8 @@ fn get_recovery_grace_window_end(
 
 /// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
 /// be scheduled is retry number `attempts_already_made`.
-fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: u16) -> bool {
-    attempts_already_made > i32::from(max_retry_count)
+fn is_retry_budget_exhausted(attempts_already_made: u16, max_retry_count: u16) -> bool {
+    attempts_already_made > max_retry_count
 }
 
 pub async fn perform_calculate_workflow(
@@ -873,6 +873,16 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
+    // Every limit and retry time below reads the invoice's own count of attempts. The process
+    // tracker's retry count is only this job's bookkeeping, and goes stale when an attempt is
+    // recorded while the job waits.
+    let total_retry_count = payment_intent
+        .get_revenue_recovery_retry_count()
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable(
+            "Failed to get the retry count from the payment intent's revenue recovery metadata",
+        )?;
+
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
@@ -887,14 +897,8 @@ pub async fn perform_calculate_workflow(
                     None,
                 )
                 .await;
-            let intent_retry_count = payment_intent
-                .get_revenue_recovery_retry_count()
-                .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable(
-                    "Failed to get the retry count from the payment intent's revenue recovery metadata",
-                )?;
             schedule::StaticLadderProgress::seed_for_existing_invoice(
-                intent_retry_count,
+                total_retry_count,
                 max_hybrid_cascading_retry_count,
             )
         }
@@ -909,7 +913,7 @@ pub async fn perform_calculate_workflow(
             "Failed to get max retry count from billing merchant connector account",
         )?;
 
-    let retry_budget_exhausted = is_retry_budget_exhausted(process.retry_count, max_retry_count);
+    let retry_budget_exhausted = is_retry_budget_exhausted(total_retry_count, max_retry_count);
 
     // 2b. Bound the invoice by its grace window as well as its retry count.
     let grace_window_end = if retry_budget_exhausted {
@@ -935,7 +939,7 @@ pub async fn perform_calculate_workflow(
     {
         logger::info!(
             process_id = %process.id,
-            retry_count = process.retry_count,
+            retry_count = total_retry_count,
             ?max_retry_count,
             "Invoice reached the retry ceiling configured on the billing MCA"
         );
@@ -946,7 +950,7 @@ pub async fn perform_calculate_workflow(
     } else if grace_window_elapsed {
         logger::info!(
             process_id = %process.id,
-            retry_count = process.retry_count,
+            retry_count = total_retry_count,
             ?grace_window_end,
             "Invoice is past its recovery grace window"
         );
@@ -973,14 +977,9 @@ pub async fn perform_calculate_workflow(
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("The days left in the grace window do not fit a day count")?;
 
-        let retries_already_made = u32::try_from(process.retry_count)
-            .inspect_err(|_| metrics::REVENUE_RECOVERY_RETRY_COUNT_INVALID.add(1, &[]))
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to read how many retries have already been made")?;
-
         // Saturating so an invoice already past its ceiling reads as no budget left rather
         // than wrapping to an enormous one.
-        let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
+        let remaining_budget = u32::from(max_retry_count.saturating_sub(total_retry_count));
 
         // 3. Get best available token
         match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -989,7 +988,7 @@ pub async fn perform_calculate_workflow(
             payment_intent,
             revenue_recovery_payment_data.billing_mca.connector_name,
             retry_algorithm_type,
-            process.retry_count,
+            u32::from(total_retry_count),
             tracking_data,
             &static_ladder_progress,
             platform.get_provider().get_provider_merchant_id(),
@@ -1128,7 +1127,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                retry_count = process.retry_count,
+                retry_count = total_retry_count,
                 "Retry ladder exhausted, finishing CALCULATE_WORKFLOW"
             );
 
@@ -1156,7 +1155,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                retry_count = process.retry_count,
+                retry_count = total_retry_count,
                 "Grace window expired, finishing CALCULATE_WORKFLOW"
             );
 
