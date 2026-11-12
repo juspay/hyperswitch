@@ -228,9 +228,9 @@ impl<F: Send + Clone>
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
-        &'b self,
+        &self,
         request: &PaymentsCreateIntentRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         helpers::validate_sender_details(request.sender_details.as_ref())?;
 
