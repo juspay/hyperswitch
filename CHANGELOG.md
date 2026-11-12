@@ -70,7 +70,9 @@ All notable changes to HyperSwitch will be documented here.
 
 ### Deployment prerequisites
 
-- **router:** Before deploying the router application with [#15144](https://github.com/juspay/hyperswitch/pull/15144), insert the `payment_callback` configuration with `{"mode":"legacy"}` into the database for every configured tenant using the currently running application's Config API. The updated router will fail to start if this configuration is missing or invalid. See the PR's [deployment prerequisite](https://github.com/juspay/hyperswitch/pull/15144#deployment-prerequisite) for the curl command.
+- **router:** Before deploying the router application with [#15144](https://github.com/juspay/hyperswitch/pull/15144), insert a valid `payment_callback` configuration into the database for every configured tenant. The updated router will fail to start if this configuration is missing or invalid.
+- **Fresh installations:** If there are no existing payment flows or older router replicas, initialize `payment_callback` with `{"mode":"enforced"}` to require tokens for all protected payment callbacks. Use the [SQL seed query in the PR description](https://github.com/juspay/hyperswitch/pull/15144#user-content-sql-seed-for-fresh-installations) in each configured tenant's database/schema before the first router startup; the Config API is unavailable until the router starts.
+- **Existing installations:** Initialize `payment_callback` with `{"mode":"legacy"}` using the currently running application's Config API before deploying the updated router. After all router replicas are updated, switch to `migration`, then to `enforced` once payment flows using legacy callback URLs have drained. See the PR's [deployment prerequisite](https://github.com/juspay/hyperswitch/pull/15144#user-content-deployment-prerequisite) for the curl command.
 
 ### Features
 
