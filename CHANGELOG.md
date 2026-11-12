@@ -68,6 +68,10 @@ All notable changes to HyperSwitch will be documented here.
 
 ## 2026.11.09.0
 
+### Deployment prerequisites
+
+- **router:** Before deploying the router application with [#15144](https://github.com/juspay/hyperswitch/pull/15144), insert the `payment_callback` configuration with `{"mode":"legacy"}` into the database for every configured tenant using the currently running application's Config API. The updated router will fail to start if this configuration is missing or invalid. See the PR's [deployment prerequisite](https://github.com/juspay/hyperswitch/pull/15144#deployment-prerequisite) for the curl command.
+
 ### Features
 
 - **connector:** [Authorizedotnet] Adds MOTO support for card payments ([#15139](https://github.com/juspay/hyperswitch/pull/15139)) ([`f71ad21`](https://github.com/juspay/hyperswitch/commit/f71ad21ce9a230fe0c56d80f61e173b0f5001e29))
