@@ -2586,13 +2586,13 @@ pub async fn create_specific_dynamic_routing(
         }
         routing::DynamicRoutingFeatures::None => {
             // disable specific dynamic routing for the requested profile
-            helpers::disable_dynamic_routing_algorithm(
+            Box::pin(helpers::disable_dynamic_routing_algorithm(
                 &state,
                 processor.get_key_store().inner().clone(),
                 business_profile,
                 dynamic_routing_algo_ref,
                 dynamic_routing_type,
-            )
+            ))
             .await
         }
     }
@@ -2743,13 +2743,13 @@ pub async fn contract_based_dynamic_routing_setup(
             .clone()
             .get_required_value("dynamic_routing_algo_ref")
             .attach_printable("Failed to get dynamic_routing_algo_ref")?;
-        return helpers::disable_dynamic_routing_algorithm(
+        return Box::pin(helpers::disable_dynamic_routing_algorithm(
             &state,
             processor.get_key_store().inner().clone(),
             business_profile,
             algorithm,
             routing_types::DynamicRoutingType::ContractBasedRouting,
-        )
+        ))
         .await;
     }
 

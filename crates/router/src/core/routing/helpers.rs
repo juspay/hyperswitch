@@ -2104,7 +2104,7 @@ where
 {
     //Check for payload
     if let Some(payload) = payload {
-        return create_specific_dynamic_routing_setup(
+        return Box::pin(create_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
@@ -2112,19 +2112,19 @@ where
             dynamic_routing_algo_ref,
             dynamic_routing_type,
             payload,
-        )
+        ))
         .await;
     }
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
-        return default_specific_dynamic_routing_setup(
+        return Box::pin(default_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-        )
+        ))
         .await;
     };
 
@@ -2134,14 +2134,14 @@ where
         .get_algorithm_id_with_timestamp()
         .algorithm_id
     else {
-        return default_specific_dynamic_routing_setup(
+        return Box::pin(default_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-        )
+        ))
         .await;
     };
     let db = state.store.as_ref();
