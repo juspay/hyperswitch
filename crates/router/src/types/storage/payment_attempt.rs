@@ -173,6 +173,7 @@ mod tests {
         let payment_attempt = PaymentAttempt {
             payment_id: payment_id.clone(),
             connector: Some(connector),
+            connector_label: None,
             created_at: current_time,
             modified_at: current_time,
             merchant_id: merchant_id.clone(),
@@ -304,6 +305,7 @@ mod tests {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             connector: Some(connector),
+            connector_label: None,
             created_at: current_time,
             modified_at: current_time,
             attempt_id: attempt_id.clone(),
@@ -448,6 +450,7 @@ mod tests {
             payment_id: payment_id.clone(),
             merchant_id: merchant_id.clone(),
             connector: Some(connector),
+            connector_label: None,
             created_at: current_time,
             modified_at: current_time,
             mandate_id: Some("man_121212".to_string()),

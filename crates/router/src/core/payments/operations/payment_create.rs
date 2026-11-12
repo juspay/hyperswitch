@@ -1161,6 +1161,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let payment_token = payment_data.token.clone();
         let connector = payment_data.payment_attempt.connector.clone();
+        let connector_label = payment_data.payment_attempt.connector_label.clone();
         let straight_through_algorithm = payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -1191,6 +1192,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
                     connector,
+                    connector_label,
                     straight_through_algorithm,
                     amount_capturable: match payment_data.confirm.unwrap_or(true) {
                         true => Some(authorized_amount),
@@ -1802,6 +1804,7 @@ impl PaymentCreate {
                 sender_payment_instrument_id: None,
                 payment_account_reference: None,
                 active_frm_id: None,
+                connector_label: None,
             },
             additional_pm_data,
 

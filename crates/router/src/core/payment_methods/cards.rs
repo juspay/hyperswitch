@@ -5044,6 +5044,7 @@ pub async fn build_merchant_enabled_pms_context(
         let attempt_update = storage::PaymentAttemptUpdate::UpdateTrackers {
             payment_token: None,
             connector: None,
+            connector_label: None,
             straight_through_algorithm: Some(encoded),
             amount_capturable: None,
             updated_by: platform
