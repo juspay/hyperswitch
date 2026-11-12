@@ -945,12 +945,17 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        let authentication_data = router_data
-            .request
-            .authentication_data
-            .clone()
-            .map(payments_grpc::AuthenticationData::foreign_try_from)
-            .transpose()?;
+        let authentication_data = match router_data.request.authentication_data.clone() {
+            Some(authentication_data) => Some(payments_grpc::AuthenticationData::foreign_try_from(
+                authentication_data,
+            )?),
+            None => router_data
+                .request
+                .ucs_authentication_data
+                .clone()
+                .map(payments_grpc::AuthenticationData::foreign_try_from)
+                .transpose()?,
+        };
         let metadata = router_data
             .request
             .metadata

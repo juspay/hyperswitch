@@ -785,10 +785,11 @@ async fn get_ab_routed_retry_time(
 #[cfg(feature = "v2")]
 pub(crate) enum RetryTiming {
     /// One time for the invoice, from the cascading ladder or the retry model, with the ladder
-    /// position to carry back if a retry is scheduled at it.
+    /// position to carry back if a retry is scheduled at it and the A/B arm the invoice ran.
     At {
         retry_time: time::PrimitiveDateTime,
         next_static_ladder_progress: Option<pcr::schedule::StaticLadderProgress>,
+        assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
     },
     /// The decider's time, asked of each card the selection admits.
     Decider,
@@ -798,7 +799,7 @@ pub(crate) enum RetryTiming {
     LadderExhausted,
 }
 
-/// What the retry time of an invoice is worked out from.
+/// What the retry time of an invoice is worked out from, whoever triggers the retry.
 #[cfg(feature = "v2")]
 pub(crate) struct RetryTimingParams<'a> {
     pub payment_intent: &'a PaymentIntent,
@@ -852,6 +853,7 @@ pub(crate) async fn get_retry_timing(
                 Some(time) => RetryTiming::At {
                     retry_time: time,
                     next_static_ladder_progress: None,
+                    assigned_ab_algorithm: None,
                 },
                 None => {
                     logger::info!(retry_count, "Retry ladder exhausted for this invoice");
@@ -1055,6 +1057,7 @@ pub(crate) async fn get_retry_timing(
                 RetryTiming::At {
                     retry_time: decision.schedule_time,
                     next_static_ladder_progress: Some(decision.next_progress),
+                    assigned_ab_algorithm: assigned_algorithm,
                 }
             } else {
                 RetryTiming::Decider
@@ -1136,6 +1139,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
+            assigned_ab_algorithm: _,
         } => {
             let payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,

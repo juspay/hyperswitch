@@ -1305,6 +1305,18 @@ impl PaymentIntent {
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
     }
 
+    /// When the merchant should trigger the next retry of this invoice. Absent unless the merchant
+    /// triggers its retries.
+    pub fn get_external_trigger_next_retry(
+        &self,
+    ) -> Option<common_types::payments::RecoveryNextRetry> {
+        self.get_revenue_recovery_metadata()
+            .and_then(|recovery_metadata| recovery_metadata.external_trigger_state)
+            .map(|trigger_state| {
+                get_next_retry_for_intent_status(self.status, trigger_state.next_retry)
+            })
+    }
+
     /// Retries already made against this invoice, by the billing connector and by recovery
     /// together. Zero for an intent that has not entered recovery.
     pub fn get_revenue_recovery_retry_count(&self) -> Option<u16> {
@@ -1653,6 +1665,27 @@ pub struct RevenueRecoveryData {
     pub card_issuer: Option<String>,
 }
 
+/// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
+/// not touch its recovery metadata, and the state saved after a report can fail to be written.
+#[cfg(feature = "v2")]
+fn get_next_retry_for_intent_status(
+    intent_status: common_enums::IntentStatus,
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> common_types::payments::RecoveryNextRetry {
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+
+    if intent_status == common_enums::IntentStatus::Succeeded {
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Recovered)
+    } else if matches!(
+        intent_status,
+        common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::CancelledPostCapture
+    ) {
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Cancelled)
+    } else {
+        next_retry
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F> PaymentAttemptRecordData<F>
 where
@@ -1771,6 +1804,9 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
+                external_trigger_state: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.external_trigger_state.clone()),
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata

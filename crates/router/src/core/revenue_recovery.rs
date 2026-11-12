@@ -2123,12 +2123,35 @@ fn determine_recovery_status_from_workflows(
     }
 }
 
+/// The recovery status of an invoice whose retries the merchant triggers. No job tracks it, so
+/// what the merchant was last told says where it stands.
+fn map_external_trigger_recovery_status(
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> RecoveryStatus {
+    use common_types::payments::RecoveryNoRetryReason;
+
+    match next_retry.reason {
+        None => RecoveryStatus::Scheduled,
+        Some(reason) => match reason {
+            RecoveryNoRetryReason::Recovered => RecoveryStatus::Recovered,
+            RecoveryNoRetryReason::Monitoring | RecoveryNoRetryReason::BelowRetryThreshold => {
+                RecoveryStatus::Monitoring
+            }
+            RecoveryNoRetryReason::RetriesExhausted
+            | RecoveryNoRetryReason::GracePeriodExceeded
+            | RecoveryNoRetryReason::HardDecline
+            | RecoveryNoRetryReason::Cancelled => RecoveryStatus::Terminated,
+        },
+    }
+}
+
 pub fn map_recovery_status(
     intent_status: IntentStatus,
     calculate_workflow: Option<&ProcessTrackerStorage>,
     execute_workflow: Option<&ProcessTrackerStorage>,
     attempt_count: i16,
     max_retry_threshold: i16,
+    external_trigger_next_retry: Option<common_types::payments::RecoveryNextRetry>,
 ) -> RecoveryStatus {
     let (calculate_business_status, calculate_process_tracker_status) = calculate_workflow
         .map(|calculate| {
@@ -2155,12 +2178,10 @@ pub fn map_recovery_status(
             calculate_process_tracker_status,
             execute_business_status,
             execute_process_tracker_status,
-            || {
-                if attempt_count > max_retry_threshold {
-                    RecoveryStatus::Terminated
-                } else {
-                    RecoveryStatus::Monitoring
-                }
+            || match external_trigger_next_retry {
+                Some(next_retry) => map_external_trigger_recovery_status(next_retry),
+                None if attempt_count > max_retry_threshold => RecoveryStatus::Terminated,
+                None => RecoveryStatus::Monitoring,
             },
         ),
 
@@ -2208,6 +2229,7 @@ pub fn map_to_recovery_payment_item(
         execute_workflow.as_ref(),
         payment_intent.attempt_count,
         max_retry_threshold,
+        payment_intent.get_external_trigger_next_retry(),
     );
 
     RecoveryPaymentsListResponseItem {
@@ -2377,7 +2399,8 @@ mod tests {
             (IntentStatus::Failed, 3, "monitoring"),
             (IntentStatus::Failed, 4, "terminated"),
         ] {
-            let recovery_status = map_recovery_status(intent_status, None, None, attempt_count, 3);
+            let recovery_status =
+                map_recovery_status(intent_status, None, None, attempt_count, 3, None);
 
             assert_eq!(
                 serde_json::to_value(recovery_status).ok(),
