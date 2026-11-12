@@ -8462,7 +8462,7 @@ pub fn get_sender_details_with_billing_fallback(
             .or_else(|| billing_address.clone())
     };
 
-    match sender_details {
+    let sender_details = match sender_details {
         None => billing_details.map(|_| {
             SenderDetails::Individual(IndividualSenderDetails {
                 first_name: billing_first_name(),
@@ -8513,7 +8513,10 @@ pub fn get_sender_details_with_billing_fallback(
                 ..corporate
             },
         )),
-    }
+    };
+
+    // Names are compared with billing after trimming, so they are sent trimmed as well.
+    sender_details.map(SenderDetails::with_trimmed_names)
 }
 
 /// Whether a sender address carries any location field

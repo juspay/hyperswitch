@@ -688,6 +688,8 @@ struct FundingAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
     address2: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    address3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
     city: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1535,7 +1537,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
                 last_name: address_data.get_optional_last_name(),
                 address1,
                 address2: address_data.get_optional_line2(),
-                address3: address_data.get_optional_line2(),
+                address3: address_data.get_optional_line3(),
                 postal_code,
                 city,
                 state: address_data.get_optional_state(),
@@ -1768,6 +1770,7 @@ fn build_worldpayxml_recipient_party(
                     "recipient_details.address.line1",
                 ))?,
             address2: address.line2.clone(),
+            address3: address.line3.clone(),
             postal_code: address.zip.clone(),
             city: address
                 .city
@@ -1871,6 +1874,7 @@ fn build_worldpayxml_sender_funding_address(
                 "sender_details.address.line1",
             ))?,
         address2: address.line2.clone(),
+        address3: address.line3.clone(),
         postal_code: address.zip.clone(),
         city: address
             .city

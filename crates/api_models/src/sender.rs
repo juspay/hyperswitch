@@ -12,7 +12,7 @@ use common_utils::{
     pii::Email,
     transformers::ForeignFrom,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use time::Date;
 use utoipa::ToSchema;
 
@@ -113,7 +113,41 @@ pub enum SenderDetails {
     Corporate(CorporateSenderDetails),
 }
 
+/// Trims surrounding whitespace from a name, dropping it when nothing is left.
+fn trim_name(name: Option<Secret<String>>) -> Option<Secret<String>> {
+    name.map(|name| name.expose().trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .map(Secret::new)
+}
+
+/// Trims the names on a sender address.
+fn trim_address_names(address: Option<AddressDetails>) -> Option<AddressDetails> {
+    address.map(|address| AddressDetails {
+        first_name: trim_name(address.first_name),
+        last_name: trim_name(address.last_name),
+        ..address
+    })
+}
+
 impl SenderDetails {
+    /// The sender with surrounding whitespace removed from every name, as connectors reject
+    /// names that are padded.
+    pub fn with_trimmed_names(self) -> Self {
+        match self {
+            Self::Individual(individual) => Self::Individual(IndividualSenderDetails {
+                first_name: trim_name(individual.first_name),
+                last_name: trim_name(individual.last_name),
+                address: trim_address_names(individual.address),
+                ..individual
+            }),
+            Self::Corporate(corporate) => Self::Corporate(CorporateSenderDetails {
+                company_name: Secret::new(corporate.company_name.expose().trim().to_owned()),
+                address: trim_address_names(corporate.address),
+                ..corporate
+            }),
+        }
+    }
+
     /// The names identifying the sender that are provided, keyed by their field path, for validation.
     pub fn get_name_fields(&self) -> Vec<(&'static str, &Secret<String>)> {
         match self {

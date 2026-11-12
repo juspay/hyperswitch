@@ -635,10 +635,14 @@ fn build_checkout_sender(
                 .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.
-            date_of_birth: Some(match individual.date_of_birth.clone() {
-                Some(date_of_birth) => date_of_birth,
-                None => router_data.get_customer_date_of_birth()?,
-            }),
+            // The error names the sender field, since that is where the merchant should send it.
+            date_of_birth: Some(
+                individual
+                    .date_of_birth
+                    .clone()
+                    .or_else(|| router_data.get_optional_customer_date_of_birth())
+                    .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))?,
+            ),
             address,
         }),
         SenderDetails::Corporate(corporate) => Ok(CheckoutSender::Corporate {
