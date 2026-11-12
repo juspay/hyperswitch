@@ -5,6 +5,7 @@ use bb8::CustomizeConnection;
 use common_utils::{
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
     id_type,
+    request_context::RequestContext,
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
@@ -15,6 +16,7 @@ use error_stack::ResultExt;
 use crate::{
     config::Database,
     errors::{StorageError, StorageResult},
+    metrics,
 };
 
 pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
@@ -53,9 +55,9 @@ impl PgPool {
 
 /// Shared database-pool ownership.
 ///
-/// Request context is intentionally not part of this trait. Request-scoped wrappers such as
-/// `RouterStore` and `KVRouterStore` implement `RequestContext` separately, and the connection
-/// helpers in `crate::connection` combine the two when leasing a connection.
+/// Request-scoped wrappers such as `RouterStore` and `KVRouterStore` implement
+/// `RequestContext` separately. Connection helpers require that context when leasing
+/// a connection, while pool-only stores can implement this trait without it.
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
@@ -70,6 +72,81 @@ pub trait DatabaseStore: Clone + Send + Sync {
     fn get_replica_pool(&self) -> &PgPool;
     fn get_accounts_master_pool(&self) -> &PgPool;
     fn get_accounts_replica_pool(&self) -> &PgPool;
+
+    /// Lease an accounts read connection with request and read-ledger context.
+    async fn pg_accounts_connection_read(&self) -> StorageResult<DatabaseConnectionWithContext<'_>>
+    where
+        Self: RequestContext,
+    {
+        // If only OLAP is enabled, get the replica pool.
+        #[cfg(all(feature = "olap", not(feature = "oltp")))]
+        let (pool, db_pool_label) = (
+            self.get_accounts_replica_pool(),
+            super::pool_metrics::DbPool::AccountsReplica,
+        );
+
+        // If either one of these is true, get the master pool:
+        //  1. Only OLTP is enabled.
+        //  2. Both OLAP and OLTP are enabled.
+        //  3. Both OLAP and OLTP are disabled.
+        #[cfg(any(
+            all(not(feature = "olap"), feature = "oltp"),
+            all(feature = "olap", feature = "oltp"),
+            all(not(feature = "olap"), not(feature = "oltp"))
+        ))]
+        let (pool, db_pool_label) = (
+            self.get_accounts_master_pool(),
+            super::pool_metrics::DbPool::AccountsMaster,
+        );
+        let tenant_id = pool.tenant_id.get_string_repr();
+
+        #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+        let mut connection = metrics::record_db_connection_acquire_duration(
+            pool.pg_pool.get(),
+            db_pool_label,
+            tenant_id,
+        )
+        .await
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+        #[cfg(feature = "deja")]
+        crate::utils::deja_route_replay_schema(&mut connection, self).await;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            self.request_id().map(str::to_owned),
+            pool.event_emitter.clone(),
+            self.read_ledger().cloned(),
+        ))
+    }
+
+    /// Lease an accounts-master write connection with request and read-ledger context.
+    async fn pg_accounts_connection_write(&self) -> StorageResult<DatabaseConnectionWithContext<'_>>
+    where
+        Self: RequestContext,
+    {
+        let pool = self.get_accounts_master_pool();
+        let tenant_id = pool.tenant_id.get_string_repr();
+
+        #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+        let mut connection = metrics::record_db_connection_acquire_duration(
+            pool.pg_pool.get(),
+            super::pool_metrics::DbPool::AccountsMaster,
+            tenant_id,
+        )
+        .await
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+        #[cfg(feature = "deja")]
+        crate::utils::deja_route_replay_schema(&mut connection, self).await;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            self.request_id().map(str::to_owned),
+            pool.event_emitter.clone(),
+            self.read_ledger().cloned(),
+        ))
+    }
 
     /// Request correlation used by deja replay to route database connections to
     /// the active replay schema. Stores without request identity return `None`.

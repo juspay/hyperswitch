@@ -12,11 +12,7 @@ use crate::redis::{
     cache,
     cache::{CacheId, CacheKind},
 };
-use crate::{
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
-};
+use crate::{kv_router_store, CustomResult, DatabaseStore, MockDb, RouterStore, StorageError};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> MerchantKeyStoreInterface for kv_router_store::KVRouterStore<T> {
@@ -84,7 +80,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         merchant_key_store: domain::MerchantKeyStore,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let merchant_id = merchant_key_store.merchant_id.clone();
         merchant_key_store
             .construct_new()
@@ -110,7 +106,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, Self::Error> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::find_by_merchant_id(
                 &conn,
@@ -155,7 +151,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, Self::Error> {
         let delete_func = || async {
-            let conn = pg_accounts_connection_write(self).await?;
+            let conn = self.pg_accounts_connection_write().await?;
             diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
                 &conn,
                 merchant_id,
@@ -190,7 +186,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
 
             diesel_models::merchant_key_store::MerchantKeyStore::list_multiple_key_stores(
                 &conn,
@@ -221,7 +217,7 @@ impl<T: DatabaseStore> MerchantKeyStoreInterface for RouterStore<T> {
         from: u32,
         to: u32,
     ) -> CustomResult<Vec<domain::MerchantKeyStore>, Self::Error> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         let stores = diesel_models::merchant_key_store::MerchantKeyStore::list_all_key_stores(
             &conn, from, to,
         )
