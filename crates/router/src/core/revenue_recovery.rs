@@ -804,10 +804,9 @@ fn get_recovery_grace_window_end(
         .attach_printable("The end of the grace window does not fit a timestamp")
 }
 
-/// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
-/// be scheduled is retry number `attempts_already_made`.
+/// Retries stop once the invoice's attempts, the initial charge included, reach `max_retry_count`.
 fn is_retry_budget_exhausted(attempts_already_made: u16, max_retry_count: u16) -> bool {
-    attempts_already_made > max_retry_count
+    attempts_already_made >= max_retry_count
 }
 
 pub async fn perform_calculate_workflow(
