@@ -367,7 +367,7 @@ pub async fn connect_account(
         .err()
         .unwrap_or(false)
     {
-        if matches!(env::which(), env::Env::Production) {
+        if matches!(env::which(), env::Env::Production | env::Env::Sandbox) {
             return Err(report!(UserErrors::InvalidCredentials));
         }
 
