@@ -40,12 +40,14 @@ use hyperswitch_domain_models::{
         self, fraud_check::FraudCheckCheckoutData, AuthenticationData,
         ExternalVaultProxyPaymentsData, PaymentsAuthorizeData, PaymentsCancelData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData, SyncRequestType,
+        PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSurchargeRefundCompleteData,
+        PaymentsSurchargeRefundInitData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        SyncRequestType,
     },
     router_response_types::{
         fraud_check::FraudCheckResponseData, NotifyConnectorResponseData, PaymentsResponseData,
         PayoutsResponseData, RedirectForm, RefundsResponseData,
+        SurchargeRefundCompleteResponseData, SurchargeRefundInitResponseData,
     },
     ApiModelToDieselModelConvertor,
 };
@@ -12220,6 +12222,133 @@ impl
                 .map(ConnectorState::foreign_from),
             ..Default::default()
         })
+    }
+}
+
+impl transformers::ForeignTryFrom<&PaymentsSurchargeRefundInitData>
+    for payments_grpc::SurchargeServiceSurchargeRefundInitRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+    fn foreign_try_from(data: &PaymentsSurchargeRefundInitData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_surcharge_refund_id: Some(data.refund_id.clone()),
+            connector_surcharge_id: data.original_surcharge_id.clone(),
+            amount: Some(payments_grpc::Money {
+                minor_amount: data.order_amount.get_amount_as_i64(),
+                currency:
+                    <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                        data.currency,
+                    )?
+                    .into(),
+            }),
+        })
+    }
+}
+
+impl ForeignFrom<&PaymentsSurchargeRefundCompleteData>
+    for payments_grpc::SurchargeServiceSurchargeRefundCompleteRequest
+{
+    fn foreign_from(data: &PaymentsSurchargeRefundCompleteData) -> Self {
+        Self {
+            merchant_surcharge_refund_id: Some(data.refund_id.clone()),
+            connector_surcharge_refund_id: data.connector_surcharge_refund_id.clone(),
+        }
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &payments_grpc::SurchargeServiceSurchargeRefundInitResponse,
+        &str,
+        common_enums::Currency,
+    )> for SurchargeRefundInitResponseData
+{
+    type Error = &'static str;
+    fn foreign_try_from(
+        (response, reference, payment_currency): (
+            &payments_grpc::SurchargeServiceSurchargeRefundInitResponse,
+            &str,
+            common_enums::Currency,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if response.error.is_some() || !(200..300).contains(&response.status_code) {
+            return Err("Surcharge Init returned a connector error");
+        }
+        if response.merchant_surcharge_refund_id.as_deref() != Some(reference) {
+            return Err("Surcharge Init reference mismatch");
+        }
+        if response
+            .connector_surcharge_refund_id
+            .as_ref()
+            .is_none_or(|id| id.trim().is_empty())
+        {
+            return Err("Surcharge Init is missing the new refund ID");
+        }
+        let currency: i32 =
+            <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                payment_currency,
+            )
+            .map_err(|_| "Unknown currency")?
+            .into();
+        let fee = response
+            .refund_amount
+            .as_ref()
+            .ok_or("Surcharge Init is missing refund_amount")?;
+        for money in [
+            Some(fee),
+            response.original_transaction_fee.as_ref(),
+            response.previously_refunded_transaction_fees.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if money.currency != currency || money.minor_amount < 0 {
+                return Err("Invalid surcharge fee or currency");
+            }
+        }
+        Ok(Self {
+            refund_surcharge_amount: MinorUnit::new(fee.minor_amount),
+            original_transaction_fee: response
+                .original_transaction_fee
+                .as_ref()
+                .map(|m| MinorUnit::new(m.minor_amount)),
+            previously_refunded_transaction_fees: response
+                .previously_refunded_transaction_fees
+                .as_ref()
+                .map(|m| MinorUnit::new(m.minor_amount)),
+        })
+    }
+}
+
+impl
+    transformers::ForeignTryFrom<(
+        &payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse,
+        &str,
+        &str,
+    )> for SurchargeRefundCompleteResponseData
+{
+    type Error = &'static str;
+    fn foreign_try_from(
+        (response, reference, refund_id): (
+            &payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse,
+            &str,
+            &str,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if response.error.is_some() || !(200..300).contains(&response.status_code) {
+            return Err("Surcharge Complete returned a connector error");
+        }
+        if reference.is_empty()
+            || response.merchant_surcharge_refund_id.as_deref() != Some(reference)
+        {
+            return Err("Surcharge Complete reference mismatch");
+        }
+        if refund_id.trim().is_empty()
+            || response.connector_surcharge_refund_id.as_deref() != Some(refund_id)
+        {
+            return Err("Surcharge Complete refund ID mismatch");
+        }
+        Ok(Self)
     }
 }
 

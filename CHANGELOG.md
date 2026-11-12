@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.12.0
+
+### Features
+
+- **connector:**
+  - [authorizedotnet] support post-capture void ([#15220](https://github.com/juspay/hyperswitch/pull/15220)) ([`33417f0`](https://github.com/juspay/hyperswitch/commit/33417f07ee5a7e8c1716b349169956a1349d8f20))
+  - [Stripe] support card_with_no_cvc in payment intent and tokenization flows ([#15201](https://github.com/juspay/hyperswitch/pull/15201)) ([`7760cb6`](https://github.com/juspay/hyperswitch/commit/7760cb6bf25b9415bac34bfc50433edc2997d205))
+- **refunds:** Add surcharge support for partial refunds ([#15155](https://github.com/juspay/hyperswitch/pull/15155)) ([`80ce67c`](https://github.com/juspay/hyperswitch/commit/80ce67cac056f708c5592ae5ff5312ad670e6c45))
+- **revenue_recovery:** Align recovery statuses with payment intent status ([#15213](https://github.com/juspay/hyperswitch/pull/15213)) ([`76ab6a7`](https://github.com/juspay/hyperswitch/commit/76ab6a77fb4d6e0e78dbfc774d2743bcff57a8b2))
+- **webhooks:** Send back mandate amount and currency in mandate outgoing webhooks ([#15038](https://github.com/juspay/hyperswitch/pull/15038)) ([`1505189`](https://github.com/juspay/hyperswitch/commit/15051894857f1463a52445c343ed9e47f681cd76))
+
+### Bug Fixes
+
+- **connector:**
+  - [SANTANDER] Consider solicitacao & recurrence status for PixAutomaticoPush(Journey 1) ([#13943](https://github.com/juspay/hyperswitch/pull/13943)) ([`8729fb6`](https://github.com/juspay/hyperswitch/commit/8729fb621dbe3e2f3680bc0c9f92257ae08207dc))
+  - [WorldpayXML] make AFT postcodes optional ([#15221](https://github.com/juspay/hyperswitch/pull/15221)) ([`1ffa1d9`](https://github.com/juspay/hyperswitch/commit/1ffa1d948a0227070fc6aa553589d5f1e3333ec9))
+- **core:**
+  - Allow request billing to override saved payment method billing ([#15059](https://github.com/juspay/hyperswitch/pull/15059)) ([`8c399f9`](https://github.com/juspay/hyperswitch/commit/8c399f9347c3a5c7b6ed1320110bbf56d2ffda9f))
+  - Skip locker health check when locker is disabled ([#15218](https://github.com/juspay/hyperswitch/pull/15218)) ([`124294a`](https://github.com/juspay/hyperswitch/commit/124294a779cfde3d069542aa38431e54ecd7a59d))
+- **nexixpay:** Map MIT result code in declined payments ([#15212](https://github.com/juspay/hyperswitch/pull/15212)) ([`a5258f8`](https://github.com/juspay/hyperswitch/commit/a5258f8b0dfa741c143b2c81ad09c029425082e0))
+- **payouts:** Tolerate source bank recovery failures on retrieval ([#15030](https://github.com/juspay/hyperswitch/pull/15030)) ([`a774f0f`](https://github.com/juspay/hyperswitch/commit/a774f0faf2e20623c1e46169e5e3e8be1f396a12))
+
+**Full Changelog:** [`2026.11.11.1...2026.11.12.0`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1...2026.11.12.0)
+
+- - -
+
 ## 2026.11.11.1
 
 ### Bug Fixes
