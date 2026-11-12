@@ -1099,8 +1099,9 @@ pub async fn list_invitations_for_user(
     let profile_name_map = futures::future::try_join_all(profile_ids_with_merchant_ids.iter().map(
         |(profile_id, merchant_id)| async {
             let merchant_key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(merchant_id, master_key)
+                .track_accounts_query(|db| {
+                    db.get_merchant_key_store_by_merchant_id(merchant_id, master_key)
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 

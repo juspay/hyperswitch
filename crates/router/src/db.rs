@@ -133,7 +133,6 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
     + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface

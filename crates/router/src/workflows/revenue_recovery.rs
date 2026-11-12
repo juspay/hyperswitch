@@ -205,11 +205,14 @@ pub(crate) async fn extract_data_and_perform_action(
 ) -> Result<pcr_storage_types::RevenueRecoveryPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &tracking_data.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(
+                &tracking_data.merchant_id,
+                &key_store_master_key,
+            )
+        })
         .await?;
 
     let merchant_account = state

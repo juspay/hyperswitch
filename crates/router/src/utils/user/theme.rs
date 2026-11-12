@@ -163,12 +163,11 @@ async fn validate_merchant_and_get_key_store(
     org_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
 ) -> UserResult<MerchantKeyStore> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
 

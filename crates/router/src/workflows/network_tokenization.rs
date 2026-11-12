@@ -85,8 +85,11 @@ async fn generate_network_token(
     let db = &*state.store;
     let merchant_id = tracking_data.merchant_id.clone();
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .inspect_err(|error| {
             logger::error!(
@@ -199,8 +202,11 @@ async fn generate_network_token(
     let db = &*state.store;
     let merchant_id = tracking_data.merchant_id.clone();
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .inspect_err(|error| {
             logger::error!(

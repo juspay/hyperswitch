@@ -297,12 +297,11 @@ pub async fn get_single_profile_id(
         .ok_or(UserErrors::InternalServerError)?;
     match entity_type {
         EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
+            let key_store_master_key = state.store.get_master_key().to_vec().into();
             let key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(
-                    merchant_id,
-                    &state.store.get_master_key().to_vec().into(),
-                )
+                .track_accounts_query(|db| {
+                    db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
@@ -641,12 +640,14 @@ pub async fn send_role_deletion_email_using_db(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let merchant_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(
+                &user_from_token.merchant_id,
+                &key_store_master_key,
+            )
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 

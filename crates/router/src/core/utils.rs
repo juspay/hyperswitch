@@ -927,12 +927,14 @@ pub async fn build_platform_from_refund_core(
     state: &SessionState,
     refund_core: &diesel_refund::RefundCoreWorkflow,
 ) -> RouterResult<domain::Platform> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let provider_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &refund_core.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(
+                &refund_core.merchant_id,
+                &key_store_master_key,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for provider merchant")?;
@@ -950,12 +952,11 @@ pub async fn build_platform_from_refund_core(
         .as_ref()
         .unwrap_or(&refund_core.merchant_id);
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let processor_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            processor_merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(processor_merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for processor merchant")?;

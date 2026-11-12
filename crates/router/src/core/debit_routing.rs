@@ -303,11 +303,14 @@ where
             debit_routing_output.co_badged_card_networks_info
         );
 
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &processor_merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    &processor_merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
             .map_err(|error| {
@@ -568,11 +571,14 @@ where
     if is_any_debit_routing_connector_supported {
         let debit_routing_output =
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &processor_merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    &processor_merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
             .map_err(|error| {

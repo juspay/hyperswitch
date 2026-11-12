@@ -56,12 +56,11 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .unwrap();
 
@@ -388,12 +387,11 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .unwrap();
 

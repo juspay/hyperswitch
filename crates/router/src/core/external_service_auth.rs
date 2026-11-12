@@ -161,11 +161,14 @@ async fn resolve_offer_engine_merchant_id(
             }
             offer_engine::OfferEngineCredentialSource::Merchant => {
                 let db = &*state.store;
-                let key_store = db
-                    .get_merchant_key_store_by_merchant_id(
-                        &payload.merchant_id,
-                        &db.get_master_key().to_vec().into(),
-                    )
+                let key_store_master_key = db.get_master_key().to_vec().into();
+                let key_store = state
+                    .track_accounts_query(|db| {
+                        db.get_merchant_key_store_by_merchant_id(
+                            &payload.merchant_id,
+                            &key_store_master_key,
+                        )
+                    })
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 let merchant_account = state

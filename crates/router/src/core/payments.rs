@@ -14564,12 +14564,11 @@ pub async fn payments_manual_update(
         update_amount_captured,
         amount_captured,
     } = req;
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
@@ -14842,12 +14841,11 @@ pub async fn payments_manual_status_update_eligible_statuses(
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
     let merchant_id = platform.get_processor().get_processor_merchant_id();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
@@ -14926,12 +14924,11 @@ pub async fn payments_manual_status_update(
 
     let merchant_id = platform.get_processor().get_processor_merchant_id();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;

@@ -386,7 +386,11 @@ pub async fn create_merchant_account(
         )
         .await?;
 
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    state
+        .track_accounts_query(|db| {
+            db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
+        })
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
@@ -1062,11 +1066,11 @@ pub async fn get_merchant_account(
     _profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &req.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&req.merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1421,8 +1425,11 @@ pub async fn merchant_account_update(
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1455,11 +1462,11 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
-    let merchant_key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
+    let merchant_key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1481,8 +1488,8 @@ pub async fn merchant_account_delete(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     if is_merchant_account_deleted {
-        let is_merchant_key_store_deleted = db
-            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+        let is_merchant_key_store_deleted = state
+            .track_accounts_query(|db| db.delete_merchant_key_store_by_merchant_id(&merchant_id))
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
@@ -3138,8 +3145,11 @@ pub async fn update_connector(
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -3256,8 +3266,11 @@ pub async fn delete_connector(
     merchant_connector_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -3418,8 +3431,11 @@ pub async fn kv_for_merchant(
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -3523,8 +3539,11 @@ pub async fn check_merchant_account_kv_status(
     merchant_id: id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -4171,8 +4190,11 @@ pub async fn list_profile(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::ProfileResponse>> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let profiles = state
@@ -4962,12 +4984,11 @@ pub async fn extended_card_info_toggle(
     profile_id: &id_type::ProfileId,
     ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
 ) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;

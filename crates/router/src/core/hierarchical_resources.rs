@@ -17,7 +17,6 @@ use storage_impl::behaviour::ForeignInto;
 
 use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-    db::StorageInterface,
     routes::SessionState,
     services::api::ApplicationResponse,
     types::domain,
@@ -601,7 +600,7 @@ pub async fn generate_hierarchical_resource(
     let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let (resource, response) = match req.resource_type {
         common_enums::ResourceType::ApplePayCertificate => {
@@ -661,7 +660,7 @@ pub async fn upload_hierarchical_resource(
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resource = db
         .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
@@ -749,7 +748,7 @@ pub async fn list_hierarchical_resources(
     let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resources = db
         .list_linked_resources_by_scope_id_and_resource_type(
@@ -845,7 +844,7 @@ pub async fn link_hierarchical_resource(
         fetch_requestor_account(&state, &processor, req.requestor_type, &req.requestor_id).await?;
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resource = db
         .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
@@ -887,7 +886,7 @@ fn authorize_scope_id_belongs_to_org(
 }
 
 pub(crate) async fn ensure_organization_key_store(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_manager_state: &KeyManagerState,
     organization_id: &id_type::OrganizationId,
 ) -> RouterResult<domain::MerchantKeyStore> {
@@ -896,15 +895,18 @@ pub(crate) async fn ensure_organization_key_store(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to derive organization key identifier")?;
 
-    let master_key = db.get_master_key();
+    let master_key = state.store.get_master_key();
 
-    match db
-        .get_merchant_key_store_by_merchant_id(&org_key_identifier, &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    match state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&org_key_identifier, &key_store_master_key)
+        })
         .await
     {
         Ok(key_store) => Ok(key_store),
         Err(error) if error.current_context().is_db_not_found() => {
-            create_organization_key_store(db, key_manager_state, &org_key_identifier, master_key)
+            create_organization_key_store(state, key_manager_state, &org_key_identifier, master_key)
                 .await
         }
         Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
@@ -912,7 +914,7 @@ pub(crate) async fn ensure_organization_key_store(
 }
 
 async fn create_organization_key_store(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_manager_state: &KeyManagerState,
     org_key_identifier: &id_type::MerchantId,
     master_key: &[u8],
@@ -950,7 +952,11 @@ async fn create_organization_key_store(
         created_at: date_time::now(),
     };
 
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    state
+        .track_accounts_query(|db| {
+            db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert organization key store")?;

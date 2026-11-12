@@ -758,12 +758,11 @@ pub async fn backfill_metadata(
     user: &UserFromToken,
     key: &DBEnum,
 ) -> UserResult<Option<DashboardMetadata>> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&user.merchant_id, &key_store_master_key)
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 

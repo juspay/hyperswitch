@@ -45,11 +45,14 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             .clone()
             .parse_value("ProcessDisputePTData")?;
 
-        let provider_key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &tracking_data.merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let provider_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    &tracking_data.merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await?;
         let provider_account = state
             .track_accounts_query(|db| {
@@ -64,11 +67,14 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             .processor_merchant_id
             .as_ref()
             .unwrap_or(&tracking_data.merchant_id);
-        let processor_key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                processor_merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let processor_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    processor_merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await?;
 
         let processor_account = state

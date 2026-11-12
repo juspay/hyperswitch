@@ -427,12 +427,14 @@ where
 
     if let Some(execution_mode) = execution_mode {
         let provider_merchant_id = payment_data.payment_intent.merchant_id.clone();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let provider_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &provider_merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    &provider_merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store for provider merchant")?;

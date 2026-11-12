@@ -29,12 +29,11 @@ pub async fn apple_pay_certificates_migration(
     let mut migration_successful_merchant_ids = vec![];
     let mut migration_failed_merchant_ids = vec![];
     for merchant_id in merchant_id_list {
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 

@@ -35,8 +35,10 @@ pub async fn list_initial_delivery_attempts(
     // to them. Events are filtered by `initiator_merchant_id = merchant_id`
     // (with a fallback on `merchant_id` column for rows created before the
     // initiator column existed).
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -276,8 +278,10 @@ pub async fn list_delivery_attempts(
     // scoped by the unique `initial_attempt_id`, so no merchant filter is
     // required in the query — but we verify ownership below to prevent a
     // merchant from reading another merchant's event chain.
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -350,8 +354,10 @@ pub async fn retry_delivery_attempt(
 
     // The calling merchant is the webhook recipient, so their keystore was used
     // to encrypt the original event. Use it for decryption.
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
