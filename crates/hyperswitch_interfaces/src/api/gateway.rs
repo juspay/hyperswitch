@@ -463,7 +463,7 @@ where
                     )
                     .await;
                 }
-                .instrument(router_env::tracing::Span::current()),
+                .instrument(tracing::Span::current()),
             );
             direct_result
         }
@@ -608,7 +608,7 @@ where
                     )
                     .await;
                 }
-                .instrument(router_env::tracing::Span::current()),
+                .instrument(tracing::Span::current()),
             );
             direct_result
         }
@@ -754,7 +754,7 @@ where
                         }
                     }
                 }
-                .instrument(router_env::tracing::Span::current()),
+                .instrument(tracing::Span::current()),
             );
             direct_result
         }

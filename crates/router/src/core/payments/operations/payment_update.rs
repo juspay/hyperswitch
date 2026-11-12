@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -311,13 +311,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_method,
+                request.payment_method,
                 &request
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.clone()),
-                &request.payment_method_type,
-                &mandate_type,
+                request.payment_method_type,
+                mandate_type,
                 &token,
                 &request.ctp_service_details,
             )?;
@@ -488,6 +488,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -1430,6 +1433,9 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                enable_account_name_verification: payment_data
+                    .payment_intent
+                    .enable_account_name_verification,
                 settlement_conclusion_applied: payment_data
                     .payment_intent
                     .settlement_conclusion_applied,

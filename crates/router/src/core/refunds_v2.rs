@@ -44,6 +44,7 @@ use crate::{
 pub async fn refund_create_core(
     state: SessionState,
     platform: domain::Platform,
+    profile: domain::Profile,
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
 ) -> errors::RouterResponse<refunds::RefundResponse> {
@@ -59,6 +60,10 @@ pub async fn refund_create_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    utils::when(payment_intent.profile_id != *profile.get_id(), || {
+        Err(report!(errors::ApiErrorResponse::PaymentNotFound))
+    })?;
+
     utils::when(
         !(payment_intent.status == enums::IntentStatus::Succeeded
             || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
@@ -70,6 +75,29 @@ pub async fn refund_create_core(
                 states: "succeeded, partially_captured".to_string()
             })
             .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
+    )?;
+
+    payment_attempt = db
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+            platform.get_processor().get_key_store(),
+            &req.payment_id,
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
+
+    // A transaction the merchant reported has no connector account to refund it through. Refused
+    // here, as a refund saved at this point would stay pending for good.
+    utils::when(
+        payment_attempt.merchant_connector_id.is_none()
+            && !state.conf.merchant_id_auth.merchant_id_auth_enabled,
+        || {
+            Err(report!(errors::ApiErrorResponse::RefundNotPossible {
+                connector: payment_attempt.connector.clone().unwrap_or_default(),
+            }))
         },
     )?;
 
@@ -88,17 +116,6 @@ pub async fn refund_create_core(
         })
         .attach_printable("amount less than or equal to zero"))
     })?;
-
-    payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            platform.get_processor().get_key_store(),
-            &req.payment_id,
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
     let merchant_connector_details = req.merchant_connector_details.clone();
 
@@ -1263,6 +1280,7 @@ pub async fn validate_and_create_refund(
         feature_metadata: refund_feature_metadata,
         refund_surcharge_amount: None,
         net_refund_amount: None,
+        external_surcharge_refund_details: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,

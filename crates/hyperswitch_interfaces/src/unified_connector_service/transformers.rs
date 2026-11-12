@@ -826,6 +826,16 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::GooglePay {
                 auth_code: google_pay_data.auth_code,
+                payment_checks: google_pay_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
                 device_pan_bin: google_pay_data.device_pan_bin,
                 card_bin: google_pay_data.card_bin,
                 card_subtype: google_pay_data.card_subtype,
@@ -860,6 +870,16 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 ),
             ) => Ok(Self::ApplePay {
                 auth_code: apple_pay_data.auth_code,
+                payment_checks: apple_pay_data.payment_checks.and_then(|data| {
+                    serde_json::from_slice(data.as_slice())
+                        .inspect_err(|e| {
+                            router_env::logger::warn!(
+                                deserialization_error=?e,
+                                "Failed to deserialize payment_checks from UCS connector response"
+                            );
+                        })
+                        .ok()
+                }),
                 device_pan_bin: apple_pay_data.device_pan_bin,
                 card_bin: apple_pay_data.card_bin,
                 card_subtype: apple_pay_data.card_subtype,
@@ -2011,12 +2031,17 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
     fn foreign_try_from(value: payments_grpc::RedirectForm) -> Result<Self, Self::Error> {
         match value.form_type {
             Some(payments_grpc::redirect_form::FormType::Form(form)) => Ok(Self::Form {
-                endpoint: form.clone().endpoint,
+                endpoint: form.clone().endpoint.into(),
                 method: Method::foreign_try_from(form.clone().method())?,
-                form_fields: form.clone().form_fields,
+                form_fields: form
+                    .clone()
+                    .form_fields
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }),
             Some(payments_grpc::redirect_form::FormType::Html(html)) => Ok(Self::Html {
-                html_data: html.html_data,
+                html_data: html.html_data.into(),
             }),
             Some(payments_grpc::redirect_form::FormType::Uri(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
@@ -2035,7 +2060,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     client_token: braintree.client_token,
                     card_token: braintree.card_token,
                     bin: braintree.bin,
-                    acs_url: braintree.acs_url,
+                    acs_url: braintree.acs_url.into(),
                 })
             }
             Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
@@ -2098,15 +2123,15 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                         .expose(),
                 })
             }
-            Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
+            Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Script form type is not implemented".to_string(),
+                    "QR data form type is not implemented".to_string(),
                 )
                 .into(),
             ),
-            Some(payments_grpc::redirect_form::FormType::QrData(_)) => Err(
+            Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "QrData form type is not implemented".to_string(),
+                    "Script form type is not implemented".to_string(),
                 )
                 .into(),
             ),
@@ -2783,67 +2808,4 @@ impl UnifiedConnectorServiceError {
 }
 
 #[cfg(test)]
-mod ucs_kill_switch_reason_tests {
-    use super::*;
-
-    fn tonic_status(code: tonic::Code) -> UnifiedConnectorServiceError {
-        UnifiedConnectorServiceError::TonicStatus {
-            code,
-            message: "from ucs".to_string(),
-            transport: None,
-        }
-    }
-
-    #[test]
-    fn ucs_wide_grpc_codes_still_qualify() {
-        // While UCS is unwell the payment has no fallback and fails outright, so these qualify
-        // like any other. They share a label so a run of them reads as one UCS-wide event.
-        for code in [
-            tonic::Code::Unavailable,
-            tonic::Code::DeadlineExceeded,
-            tonic::Code::ResourceExhausted,
-            tonic::Code::Aborted,
-            tonic::Code::Cancelled,
-        ] {
-            assert_eq!(
-                tonic_status(code).ucs_kill_switch_reason(),
-                Some(UcsKillSwitchReason::UcsUnreachable),
-                "{code:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn ucs_side_grpc_codes_are_kill_switch_worthy() {
-        // `from_grpc_error` extracts connector errors and timeouts before producing TonicStatus,
-        // so what reaches here is UCS-side and repeats identically for this scope.
-        let cases = [
-            (
-                tonic::Code::InvalidArgument,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::FailedPrecondition,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::Unauthenticated,
-                UcsKillSwitchReason::UcsRejectedRequest,
-            ),
-            (
-                tonic::Code::Unimplemented,
-                UcsKillSwitchReason::UcsFlowUnsupported,
-            ),
-            (tonic::Code::Internal, UcsKillSwitchReason::UcsInternalError),
-            (tonic::Code::Unknown, UcsKillSwitchReason::UcsInternalError),
-        ];
-
-        for (code, expected) in cases {
-            assert_eq!(
-                tonic_status(code).ucs_kill_switch_reason(),
-                Some(expected),
-                "{code:?}"
-            );
-        }
-    }
-}
+mod tests;

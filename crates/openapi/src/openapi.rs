@@ -919,7 +919,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::NetworkTokenWithVaultCardFallback,
         api_models::mandates::VaultCardData,
         api_models::mandates::ProcessorPaymentToken,
-        api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
@@ -931,6 +930,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Address,
         api_models::payments::BankCodeResponse,
         common_types::payouts::PayoutsBillingDescriptor,
+        api_models::enums::PayoutFundsTransferType,
+        api_models::sender::SenderDetails,
+        api_models::sender::IndividualSenderDetails,
+        api_models::sender::CorporateSenderDetails,
+        api_models::sender::SourceOfFunds,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
@@ -1305,14 +1309,6 @@ impl utoipa::Modify for SecurityAddon {
                         "api-key",
                         "Publishable keys are a type of keys that can be public and have limited \
                         scope of usage."
-                    ))),
-                ),
-                (
-                    "ephemeral_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Ephemeral keys provide temporary access to singular data, such as access \
-                        to a single customer object for a short period of time."
                     ))),
                 ),
                 (

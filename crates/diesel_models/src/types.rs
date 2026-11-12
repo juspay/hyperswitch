@@ -292,7 +292,7 @@ impl FeatureMetadata {
     ) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
+            .and_then(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
     // TODO: Check search_tags for relevant payment method type
@@ -498,10 +498,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
-    /// Billing Connector Id to update the invoices
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    /// Payment Connector Id to retry the payments
-    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Id to update the invoices. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Payment Connector Id to retry the payments. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type

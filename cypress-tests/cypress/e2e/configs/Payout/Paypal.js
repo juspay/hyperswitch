@@ -2,6 +2,17 @@ const wallet_data = {
   telephone_number: "16608213349",
 };
 
+const clientAuthRejection = {
+  status: 401,
+  body: {
+    error: {
+      type: "invalid_request",
+      message: "API key not provided or invalid API key used",
+      code: "IR_01",
+    },
+  },
+};
+
 export const connectorDetails = {
   wallet_pm: {
     Create: {
@@ -33,13 +44,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-          payout_type: "wallet",
-        },
-      },
+      Response: clientAuthRejection,
     },
     ConfirmClientAuthRestrictedFields: {
       Request: {
@@ -51,17 +56,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "The following fields cannot be provided for client-authenticated payout confirmation: amount",
-            code: "IR_06",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     },
     ConfirmClientAuthMultipleRestrictedFields: {
       Request: {
@@ -75,17 +70,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "The following fields cannot be provided for client-authenticated payout confirmation: amount, auto_fulfill, currency",
-            code: "IR_06",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     },
     ConfirmClientAuthMissingClientSecret: {
       Request: {
@@ -98,16 +83,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Missing required param: client_secret",
-            code: "IR_04",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     },
     ConfirmMerchantAuth: {
       Request: {

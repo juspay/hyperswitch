@@ -4,12 +4,10 @@ import getConnectorDetails, * as utils from "../e2e/configs/Payment/Utils";
  * Helper function to setup a 3DS payment flow
  * @param {Object} globalState - globalState object for managing test state and persisting data across test steps
  * @param {Object} options - Configuration options for customizing 3DS payment setup behavior
- * @param {boolean} options.includeRedirection - Controls whether to handle browser redirection after 3DS authentication (default: true). Set to false when testing signature/HMAC verification without full redirect flow.
  * @param {Object} options.fixtures - Test fixtures object containing createPaymentBody and confirmBody for payment setup
  */
 export function setup3DSPayment(globalState, options = {}) {
-  // Destructure options with defaults: includeRedirection controls redirect handling, fixtures provides test data
-  const { includeRedirection = true, fixtures } = options;
+  const { fixtures } = options;
   let shouldContinue = true;
 
   // Fetch PaymentIntent configuration for card payment method from the connector's config
@@ -50,12 +48,16 @@ export function setup3DSPayment(globalState, options = {}) {
   }
 
   if (shouldContinue) {
+    // Observe the real redirect; callback tokens cannot be polled or reused.
     cy.captureRedirectReturnUrl(globalState);
-  }
-
-  if (includeRedirection && shouldContinue) {
     const expected_redirection = fixtures.confirmBody["return_url"];
     cy.handleRedirection(globalState, expected_redirection);
+    cy.then(() => {
+      expect(
+        globalState.get("redirectReturnUrl"),
+        "signed merchant return URL"
+      ).to.be.a("string").and.not.be.empty;
+    });
   }
 
   globalState.set("_setup3DSContinue", shouldContinue);

@@ -8,10 +8,9 @@ use common_utils::{
     types::{keymanager::KeyManagerState, user::ThemeLineage, TenantConfig},
 };
 #[cfg(feature = "v2")]
-use diesel_models::ephemeral_key::{ClientSecretType, ClientSecretTypeNew};
+use diesel_models::client_secret::{ClientSecretType, ClientSecretTypeNew};
 use diesel_models::{
     enums::{self, ProcessTrackerStatus},
-    ephemeral_key::{EphemeralKey, EphemeralKeyNew},
     refund as diesel_refund,
     reverse_lookup::{ReverseLookup, ReverseLookupNew},
     user_role as user_storage,
@@ -43,7 +42,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::Secret;
 use redis_interface::{errors::RedisError, RedisEntryId};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     SchedulerInterface,
@@ -55,8 +54,8 @@ use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
+    client_secret::ClientSecretInterface,
     dashboard_metadata::DashboardMetadataInterface,
-    ephemeral_key::ClientSecretInterface,
     role::RoleInterface,
     user::{sample_data::BatchSampleDataInterface, theme::ThemeInterface, UserInterface},
     user_authentication_method::UserAuthenticationMethodInterface,
@@ -78,7 +77,6 @@ use crate::{
         configs::ConfigInterface,
         customers::CustomerInterface,
         dispute::DisputeInterface,
-        ephemeral_key::EphemeralKeyInterface,
         events::EventInterface,
         file::FileMetadataInterface,
         generic_link::GenericLinkInterface,
@@ -733,34 +731,6 @@ impl DisputeInterface for KafkaStore {
                 storage_scheme,
             )
             .await
-    }
-}
-
-#[async_trait::async_trait]
-impl EphemeralKeyInterface for KafkaStore {
-    #[cfg(feature = "v1")]
-    async fn create_ephemeral_key(
-        &self,
-        ek: EphemeralKeyNew,
-        validity: i64,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.create_ephemeral_key(ek, validity).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn get_ephemeral_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.get_ephemeral_key(key).await
-    }
-
-    #[cfg(feature = "v1")]
-    async fn delete_ephemeral_key(
-        &self,
-        id: &str,
-    ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        self.diesel_store.delete_ephemeral_key(id).await
     }
 }
 
@@ -2847,10 +2817,16 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         payout_id: &id_type::PayoutId,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::StorageError> {
         self.diesel_store
-            .find_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .find_payout_by_merchant_id_payout_id(
+                merchant_id,
+                payout_id,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -2859,11 +2835,18 @@ impl PayoutsInterface for KafkaStore {
         this: &storage::Payouts,
         payout_update: storage::PayoutsUpdate,
         payout_attempt: &storage::PayoutAttempt,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::StorageError> {
         let payout = self
             .diesel_store
-            .update_payout(this, payout_update, payout_attempt, storage_scheme)
+            .update_payout(
+                this,
+                payout_update,
+                payout_attempt,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await?;
         if let Err(err) = self
             .kafka_producer
@@ -2882,10 +2865,11 @@ impl PayoutsInterface for KafkaStore {
     async fn insert_payout(
         &self,
         payout: storage::PayoutsNew,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<storage::Payouts, errors::StorageError> {
         self.diesel_store
-            .insert_payout(payout, storage_scheme)
+            .insert_payout(payout, merchant_key_store, storage_scheme)
             .await
     }
 
@@ -2893,10 +2877,16 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         payout_id: &id_type::PayoutId,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<storage::Payouts>, errors::StorageError> {
         self.diesel_store
-            .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+            .find_optional_payout_by_merchant_id_payout_id(
+                merchant_id,
+                payout_id,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 
@@ -2905,10 +2895,11 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
         self.diesel_store
-            .filter_payouts_by_constraints(merchant_id, filters, storage_scheme)
+            .filter_payouts_by_constraints(merchant_id, filters, merchant_key_store, storage_scheme)
             .await
     }
 
@@ -2917,6 +2908,7 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<
         Vec<(
@@ -2928,7 +2920,7 @@ impl PayoutsInterface for KafkaStore {
         errors::StorageError,
     > {
         self.diesel_store
-            .filter_payouts_and_attempts(merchant_id, filters, storage_scheme)
+            .filter_payouts_and_attempts(merchant_id, filters, merchant_key_store, storage_scheme)
             .await
     }
 
@@ -2937,10 +2929,16 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         time_range: &common_utils::types::TimeRange,
+        merchant_key_store: &domain::MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
         self.diesel_store
-            .filter_payouts_by_time_range_constraints(merchant_id, time_range, storage_scheme)
+            .filter_payouts_by_time_range_constraints(
+                merchant_id,
+                time_range,
+                merchant_key_store,
+                storage_scheme,
+            )
             .await
     }
 

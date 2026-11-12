@@ -35,7 +35,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        RedirectCallback, RedirectForm, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
@@ -1190,6 +1191,10 @@ fn decode_webhook_payload(
 }
 
 impl ConnectorRedirectResponse for Braintree {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::Braintree { .. }).then_some(RedirectCallback::Response)
+    }
+
     fn get_flow_type(
         &self,
         _query_params: &str,

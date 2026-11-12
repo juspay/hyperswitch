@@ -1,9 +1,0 @@
-{
-  "childrenOrder": [
-    "Health check",
-    "MerchantAccounts",
-    "API Key",
-    "PaymentConnectors",
-    "Flow Testcases"
-  ]
-}
