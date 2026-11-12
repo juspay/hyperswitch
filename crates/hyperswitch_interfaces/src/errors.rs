@@ -214,8 +214,8 @@ pub enum HttpClientError {
     #[error("Server responded with unexpected response")]
     UnexpectedServerResponse,
 
-    #[error("Destination resolves to a non-public address")]
-    DestinationNotAllowed,
+    #[error("Destination host {0} resolves to a non-public address")]
+    DestinationNotAllowed(String),
 }
 
 impl ErrorSwitch<ApiClientError> for HttpClientError {
@@ -240,7 +240,7 @@ impl ErrorSwitch<ApiClientError> for HttpClientError {
             Self::ServiceUnavailableReceived => ApiClientError::ServiceUnavailableReceived,
             Self::GatewayTimeoutReceived => ApiClientError::GatewayTimeoutReceived,
             Self::UnexpectedServerResponse => ApiClientError::UnexpectedServerResponse,
-            Self::DestinationNotAllowed => ApiClientError::DestinationNotAllowed,
+            Self::DestinationNotAllowed(_) => ApiClientError::DestinationNotAllowed,
         }
     }
 }

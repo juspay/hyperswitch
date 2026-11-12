@@ -70,30 +70,33 @@ pub fn create_scoped_client(
             .fold(client_builder, |client_builder, certificate| {
                 client_builder.add_root_certificate(certificate)
             });
-        client_builder
+        return client_builder
             .identity(identity)
             .use_rustls_tls()
             .build()
             .change_context(HttpClientError::ClientConstructionFailed)
-            .attach_printable("Failed to construct client with certificate and certificate key")
-    } else if let Some(ca_pem) = ca_certificate {
-        // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+            .attach_printable("Failed to construct client with certificate and certificate key");
+    }
+
+    // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+    if let Some(ca_pem) = ca_certificate {
         logger::debug!("Creating HTTP client with one-way TLS (CA certificate)");
         let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
         let cert = reqwest::Certificate::from_pem(pem.as_bytes())
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
-        scoped_client_builder(proxy_config, egress_scope)?
-            .add_root_certificate(cert)
+        let client_builder =
+            scoped_client_builder(proxy_config, egress_scope)?.add_root_certificate(cert);
+        return client_builder
             .use_rustls_tls()
             .build()
             .change_context(HttpClientError::ClientConstructionFailed)
-            .attach_printable("Failed to construct client with CA certificate")
-    } else {
-        // Case 3: Default client (no certs)
-        logger::debug!("Creating default HTTP client (no client or CA certificates)");
-        get_base_client_for_scope(proxy_config, egress_scope)
+            .attach_printable("Failed to construct client with CA certificate");
     }
+
+    // Case 3: Default client (no certs)
+    logger::debug!("Creating default HTTP client (no client or CA certificates)");
+    get_base_client_for_scope(proxy_config, egress_scope)
 }
 
 #[allow(missing_docs)]

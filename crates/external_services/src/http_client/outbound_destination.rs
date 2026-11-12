@@ -13,6 +13,7 @@ use common_utils::{
     outbound_url::{is_global_ip, SafeOutboundUrl},
 };
 use error_stack::{Report, ResultExt};
+use hyperswitch_interfaces::errors::HttpClientError;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use router_env::logger;
 use url::Host;
@@ -25,13 +26,6 @@ fn invalid_dns_destination() -> ValidationError {
     ValidationError::InvalidValue {
         message: "URL hostname must resolve to publicly routable IP addresses".to_string(),
     }
-}
-
-/// Raised by [`GlobalOnlyResolver`] when a hostname resolves to a non-public address.
-#[derive(Debug, thiserror::Error)]
-#[error("destination host {host} resolves to a non-public address")]
-pub struct DestinationNotPublic {
-    host: String,
 }
 
 /// DNS resolver that rejects hostnames resolving to non-public addresses at connection time, so
@@ -51,15 +45,20 @@ impl Resolve for GlobalOnlyResolver {
     }
 }
 
-/// Whether any of the failure's causes is a [`DestinationNotPublic`].
-pub fn is_destination_not_public(error: &(dyn std::error::Error + 'static)) -> bool {
+/// The [`HttpClientError::DestinationNotAllowed`] raised by [`GlobalOnlyResolver`], if it is one of
+/// the failure's causes.
+pub fn find_destination_not_allowed(
+    error: &(dyn std::error::Error + 'static),
+) -> Option<HttpClientError> {
     std::iter::successors(Some(error), |err| err.source())
-        .any(|err| err.is::<DestinationNotPublic>())
+        .filter_map(|err| err.downcast_ref::<HttpClientError>())
+        .find(|err| matches!(err, HttpClientError::DestinationNotAllowed(_)))
+        .cloned()
 }
 
 /// Rejects a URL whose host is an IP literal that is not publicly routable. Connections to IP
 /// literals never reach the DNS resolver, so they are checked here instead.
-pub fn ensure_public_url_host(url: &url::Url) -> Result<(), DestinationNotPublic> {
+pub fn ensure_public_url_host(url: &url::Url) -> Result<(), HttpClientError> {
     let literal = match url.host() {
         Some(Host::Ipv4(address)) => Some(IpAddr::V4(address)),
         Some(Host::Ipv6(address)) => Some(IpAddr::V6(address)),
@@ -70,20 +69,18 @@ pub fn ensure_public_url_host(url: &url::Url) -> Result<(), DestinationNotPublic
     })
 }
 
-fn ensure_public(host: &str, addresses: &[SocketAddr]) -> Result<(), DestinationNotPublic> {
+fn ensure_public(host: &str, addresses: &[SocketAddr]) -> Result<(), HttpClientError> {
     when(contains_non_global(addresses), || report_blocked(host))
 }
 
-fn report_blocked(host: &str) -> Result<(), DestinationNotPublic> {
+fn report_blocked(host: &str) -> Result<(), HttpClientError> {
     metrics::OUTBOUND_DESTINATION_BLOCKED
         .add(1, router_env::metric_attributes!(("host", host.to_owned())));
     logger::warn!(
         host,
         "outbound destination resolves to a non-public address"
     );
-    Err(DestinationNotPublic {
-        host: host.to_owned(),
-    })
+    Err(HttpClientError::DestinationNotAllowed(host.to_owned()))
 }
 
 async fn lookup_addresses(host: &str) -> io::Result<Vec<SocketAddr>> {
