@@ -1280,6 +1280,7 @@ pub async fn validate_and_create_refund(
         feature_metadata: refund_feature_metadata,
         refund_surcharge_amount: None,
         net_refund_amount: None,
+        external_surcharge_refund_details: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
