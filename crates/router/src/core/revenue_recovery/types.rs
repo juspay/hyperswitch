@@ -1348,9 +1348,7 @@ impl Action {
                 payment_intent,
                 is_hard_decline,
             )
-            .await
-            .change_context(errors::RecoveryError::ProcessTrackerFailure)
-            .attach_printable("Failed to get the next retry time of the invoice")?;
+            .await;
 
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
