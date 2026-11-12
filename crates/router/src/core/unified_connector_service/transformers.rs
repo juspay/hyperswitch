@@ -1761,8 +1761,6 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                         serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
                     )
                 }),
-            network_transaction_id: None,
-            transaction_link_id: None,
         })
     }
 }
