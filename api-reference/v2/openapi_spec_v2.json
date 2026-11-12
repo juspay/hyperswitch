@@ -25686,6 +25686,12 @@
             "example": "0a_tok_01926c58bc6e77c09e809964e72af8c8",
             "nullable": true
           },
+          "associated_payment_method_id": {
+            "type": "string",
+            "description": "The payment method ID that was created during this session confirmation\nThis can be used with the proxy endpoint using token_type: \"payment_method_id\"",
+            "example": "12345_pm_01926c58bc6e77c09e809964e72af8c8",
+            "nullable": true
+          },
           "storage_type": {
             "$ref": "#/components/schemas/StorageType"
           },

@@ -1248,6 +1248,7 @@ pub fn generate_payment_method_session_response(
     payment_method_data: Option<api_models::payment_methods::PaymentMethodResponseData>,
     network_tokenization_response: Option<api_models::payment_methods::NetworkTokenResponse>,
     external_vault_details: Option<api_models::payments::VaultSessionDetails>,
+    payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 ) -> api_models::payment_methods::PaymentMethodSessionResponse {
     let next_action = associated_payment
         .as_ref()
@@ -1283,6 +1284,7 @@ pub fn generate_payment_method_session_response(
         associated_payment_methods: payment_method_session.associated_payment_methods,
         authentication_details,
         associated_token_id: token_id,
+        associated_payment_method_id: payment_method_id,
         storage_type,
         card_cvc_token_storage,
         payment_method_data,
