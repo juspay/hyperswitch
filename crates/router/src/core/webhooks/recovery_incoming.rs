@@ -541,6 +541,8 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
+                data.customer_present,
+                data.setup_future_usage,
                 None,
             )
             .await
@@ -610,6 +612,8 @@ impl RevenueRecoveryAttempt {
             profile,
             payment_intent,
             connector_details,
+            data.customer_present,
+            data.setup_future_usage,
             Some(report_id),
         )
         .await?;
@@ -833,6 +837,8 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
         report_id: Option<String>,
     ) -> CustomResult<
         (
@@ -846,6 +852,8 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
+                customer_present,
+                setup_future_usage,
                 report_id,
             )
             .await?;
@@ -961,6 +969,8 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
         report_id: Option<String>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
@@ -972,6 +982,8 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
+                customer_present,
+                setup_future_usage,
                 report_id,
             }),
         };
@@ -1126,6 +1138,8 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
+                                None,
+                                None,
                                 None,
                             )
                             .await
