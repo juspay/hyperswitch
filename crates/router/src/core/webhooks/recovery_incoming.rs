@@ -511,6 +511,8 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
+                data.customer_present,
+                data.setup_future_usage,
             )
             .await
     }
@@ -717,6 +719,8 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -729,6 +733,8 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
+                customer_present,
+                setup_future_usage,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -861,6 +867,8 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -871,6 +879,8 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
+                customer_present,
+                setup_future_usage,
             }),
         };
 
@@ -1043,6 +1053,8 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
+                                None,
+                                None,
                             )
                             .await
                     })
