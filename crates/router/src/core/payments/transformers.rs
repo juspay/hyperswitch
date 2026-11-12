@@ -479,6 +479,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
+    let intent_sender_details = payment_data.payment_intent.get_sender_details();
+    let sender_details = helpers::get_sender_details_with_billing_fallback(
+        intent_sender_details,
+        payment_data.payment_address.get_payment_method_billing(),
+    );
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         router_notification_url: connector_callback_urls.notification_url(
@@ -565,6 +571,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        sender_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
         enable_account_name_verification: payment_data
@@ -1907,6 +1914,12 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse recipient details")?;
 
+    let intent_sender_details = payment_data.payment_intent.get_sender_details();
+    let sender_details = helpers::get_sender_details_with_billing_fallback(
+        intent_sender_details,
+        payment_data.payment_address.get_payment_method_billing(),
+    );
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
         currency: payment_data.payment_intent.amount_details.currency,
@@ -1960,6 +1973,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        sender_details,
         business_country: None,
         enable_avs_check: payment_data.payment_intent.enable_avs_check,
         enable_account_name_verification: payment_data
@@ -3194,6 +3208,9 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?
             .map(api_models::payments::MaskedRecipientDetails::from);
+        let masked_sender_details = payment_intent
+            .get_sender_details()
+            .map(api_models::sender::SenderDetailsResponse::from);
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
@@ -3253,6 +3270,7 @@ where
                 enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
                 is_account_funded_transaction: payment_intent.is_account_funded_transaction,
                 recipient_details: masked_recipient_details,
+                sender_details: masked_sender_details,
                 enable_avs_check: payment_intent.enable_avs_check,
                 enable_account_name_verification: payment_intent.enable_account_name_verification,
             },
@@ -4656,6 +4674,9 @@ where
             .map(api_models::payments::MaskedRecipientDetails::from);
         let setup_future_usage =
             payment_attempt.get_setup_future_usage_with_fallback(&payment_intent);
+        let masked_sender_details = payment_intent
+            .get_sender_details()
+            .map(api_models::sender::SenderDetailsResponse::from);
         let payments_response = api::PaymentsResponse {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -4807,6 +4828,7 @@ where
             billing_descriptor: payment_intent.billing_descriptor,
             is_account_funded_transaction: payment_intent.is_account_funded_transaction,
             recipient_details: masked_recipient_details,
+            sender_details: masked_sender_details,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
             installment_options: payment_intent.installment_options,
@@ -5165,6 +5187,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             .ok()
             .flatten()
             .map(api_models::payments::MaskedRecipientDetails::from);
+        let masked_sender_details = pi
+            .get_sender_details()
+            .map(api_models::sender::SenderDetailsResponse::from);
         Self {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -5322,6 +5347,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             billing_descriptor: pi.billing_descriptor,
             is_account_funded_transaction: pi.is_account_funded_transaction,
             recipient_details: masked_recipient_details,
+            sender_details: masked_sender_details,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
@@ -5649,6 +5675,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
+
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_reference_id
@@ -5733,6 +5765,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            sender_details,
             business_country: None,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
             enable_account_name_verification: payment_data
@@ -5974,6 +6007,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
+
         Ok(Self {
             router_notification_url: additional_data.connector_callback_urls.notification_url(
                 api::ConnectorData::convert_connector(connector_name)?.get_notification_callback(),
@@ -6070,6 +6109,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            sender_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
             enable_account_name_verification: payment_data
@@ -7713,6 +7753,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
+
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -7801,6 +7847,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            sender_details,
             business_country: payment_data.payment_intent.business_country,
             enable_avs_check: payment_data.payment_intent.enable_avs_check,
             enable_account_name_verification: payment_data
@@ -7954,6 +8001,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?;
 
+        let intent_sender_details = payment_data.payment_intent.get_sender_details();
+        let sender_details = helpers::get_sender_details_with_billing_fallback(
+            intent_sender_details,
+            payment_data.address.get_payment_method_billing(),
+        );
+
         let connector_intent_metadata = payment_data
             .payment_intent
             .get_connector_metadata_from_intent()
@@ -8050,6 +8103,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            sender_details,
             business_country: payment_data.payment_intent.business_country,
             connector_intent_metadata,
             order_id,

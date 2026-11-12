@@ -23,7 +23,7 @@ use common_types::payments::InstallmentOption;
 use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ConfigExt, Encode, ValueExt},
     fp_utils, generate_id,
     id_type::{self},
     new_type::{MaskedIban, MaskedSortCode},
@@ -8411,6 +8411,134 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+/// Validates that the names identifying an account funded transaction sender are not blank.
+pub fn validate_sender_details(
+    sender_details: Option<&api_models::sender::SenderDetails>,
+) -> Result<(), errors::ApiErrorResponse> {
+    sender_details
+        .map(|sender_details| sender_details.get_name_fields())
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(_, value)| value.is_empty_after_trim())
+        .map_or(Ok(()), |(field_name, _)| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("{field_name} must not be empty"),
+            })
+        })
+}
+
+/// Fills in the sender of an account funded transaction from the billing address of the payment
+/// method.
+pub fn get_sender_details_with_billing_fallback(
+    sender_details: Option<api_models::sender::SenderDetails>,
+    billing: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<api_models::sender::SenderDetails> {
+    use api_models::{
+        payments::AddressDetails,
+        sender::{IndividualSenderDetails, SenderDetails},
+    };
+
+    let billing_details = billing.and_then(|billing| billing.address.as_ref());
+    // Only the location is taken from billing; the sender's name is resolved separately below.
+    let billing_address = billing_details
+        .map(|details| AddressDetails {
+            line1: details.line1.clone(),
+            line2: details.line2.clone(),
+            line3: details.line3.clone(),
+            city: details.city.clone(),
+            state: details.state.clone(),
+            zip: details.zip.clone(),
+            country: details.country,
+            ..Default::default()
+        })
+        .filter(has_sender_address_location);
+    let billing_first_name = || billing_details.and_then(|details| details.first_name.clone());
+    let billing_last_name = || billing_details.and_then(|details| details.last_name.clone());
+    let resolve_address = |address: Option<AddressDetails>| {
+        address
+            .filter(has_sender_address_location)
+            .or_else(|| billing_address.clone())
+    };
+
+    let sender_details = match sender_details {
+        None => billing_details.map(|_| {
+            SenderDetails::Individual(IndividualSenderDetails {
+                first_name: billing_first_name(),
+                last_name: billing_last_name(),
+                date_of_birth: None,
+                address: billing_address.clone(),
+                phone: None,
+                email: None,
+                reference_id: None,
+                source_of_funds: None,
+            })
+        }),
+        Some(SenderDetails::Individual(individual)) => {
+            // The first and last name are taken together, from the sender when either is
+            // provided, otherwise from the billing name.
+            let is_sender_named = individual.first_name.is_some() || individual.last_name.is_some();
+            let (first_name, last_name) = if is_sender_named {
+                (individual.first_name, individual.last_name)
+            } else {
+                (billing_first_name(), billing_last_name())
+            };
+
+            // The billing address belongs to the cardholder, so it is not used for a sender
+            // named as someone else.
+            let is_billing_named_differently = is_sender_named
+                && (billing_first_name().is_some() || billing_last_name().is_some())
+                && !(is_same_name_part(first_name.as_ref(), billing_first_name().as_ref())
+                    && is_same_name_part(last_name.as_ref(), billing_last_name().as_ref()));
+            let address = individual
+                .address
+                .filter(has_sender_address_location)
+                .or_else(|| {
+                    billing_address
+                        .clone()
+                        .filter(|_| !is_billing_named_differently)
+                });
+
+            Some(SenderDetails::Individual(IndividualSenderDetails {
+                first_name,
+                last_name,
+                address,
+                ..individual
+            }))
+        }
+        Some(SenderDetails::Corporate(corporate)) => Some(SenderDetails::Corporate(
+            api_models::sender::CorporateSenderDetails {
+                address: resolve_address(corporate.address),
+                ..corporate
+            },
+        )),
+    };
+
+    // Names are compared with billing after trimming, so they are sent trimmed as well.
+    sender_details.map(SenderDetails::with_trimmed_names)
+}
+
+/// Whether a sender address carries any location field
+fn has_sender_address_location(address: &api_models::payments::AddressDetails) -> bool {
+    address.line1.is_some()
+        || address.line2.is_some()
+        || address.line3.is_some()
+        || address.city.is_some()
+        || address.state.is_some()
+        || address.zip.is_some()
+        || address.country.is_some()
+}
+
+/// Compares a part of a name ignoring case and surrounding whitespace.
+fn is_same_name_part(
+    sender_name: Option<&hyperswitch_masking::Secret<String>>,
+    billing_name: Option<&hyperswitch_masking::Secret<String>>,
+) -> bool {
+    let normalize = |name: Option<&hyperswitch_masking::Secret<String>>| {
+        name.map(|name| name.peek().trim().to_lowercase())
+    };
+    normalize(sender_name) == normalize(billing_name)
 }
 
 pub fn get_recipient_id_for_open_banking(

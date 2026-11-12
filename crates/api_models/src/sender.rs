@@ -12,7 +12,7 @@ use common_utils::{
     pii::Email,
     transformers::ForeignFrom,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use time::Date;
 use utoipa::ToSchema;
 
@@ -113,19 +113,81 @@ pub enum SenderDetails {
     Corporate(CorporateSenderDetails),
 }
 
+/// Trims surrounding whitespace from a name, dropping it when nothing is left.
+fn trim_name(name: Option<Secret<String>>) -> Option<Secret<String>> {
+    name.map(|name| name.expose().trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .map(Secret::new)
+}
+
+/// Trims the names on a sender address.
+fn trim_address_names(address: Option<AddressDetails>) -> Option<AddressDetails> {
+    address.map(|address| AddressDetails {
+        first_name: trim_name(address.first_name),
+        last_name: trim_name(address.last_name),
+        ..address
+    })
+}
+
 impl SenderDetails {
-    /// The individual sender's first name, if provided.
+    /// The sender with surrounding whitespace removed from every name, as connectors reject
+    /// names that are padded.
+    pub fn with_trimmed_names(self) -> Self {
+        match self {
+            Self::Individual(individual) => Self::Individual(IndividualSenderDetails {
+                first_name: trim_name(individual.first_name),
+                last_name: trim_name(individual.last_name),
+                address: trim_address_names(individual.address),
+                ..individual
+            }),
+            Self::Corporate(corporate) => Self::Corporate(CorporateSenderDetails {
+                company_name: Secret::new(corporate.company_name.expose().trim().to_owned()),
+                address: trim_address_names(corporate.address),
+                ..corporate
+            }),
+        }
+    }
+
+    /// The names identifying the sender that are provided, keyed by their field path, for validation.
+    pub fn get_name_fields(&self) -> Vec<(&'static str, &Secret<String>)> {
+        match self {
+            Self::Individual(individual) => [
+                ("sender_details.first_name", individual.first_name.as_ref()),
+                ("sender_details.last_name", individual.last_name.as_ref()),
+            ]
+            .into_iter()
+            .filter_map(|(field_name, value)| value.map(|value| (field_name, value)))
+            .collect(),
+            Self::Corporate(corporate) => {
+                vec![("sender_details.company_name", &corporate.company_name)]
+            }
+        }
+    }
+
+    /// The individual sender's first name, falling back to the first name on the sender's
+    /// address when not provided.
     pub fn get_individual_first_name(&self) -> Option<&Secret<String>> {
         match self {
-            Self::Individual(individual) => individual.first_name.as_ref(),
+            Self::Individual(individual) => individual.first_name.as_ref().or_else(|| {
+                individual
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.first_name.as_ref())
+            }),
             Self::Corporate(_) => None,
         }
     }
 
-    /// The individual sender's last name, if provided.
+    /// The individual sender's last name, falling back to the last name on the sender's
+    /// address when not provided.
     pub fn get_individual_last_name(&self) -> Option<&Secret<String>> {
         match self {
-            Self::Individual(individual) => individual.last_name.as_ref(),
+            Self::Individual(individual) => individual.last_name.as_ref().or_else(|| {
+                individual
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.last_name.as_ref())
+            }),
             Self::Corporate(_) => None,
         }
     }

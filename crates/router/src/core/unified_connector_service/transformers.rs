@@ -1,16 +1,19 @@
 use std::{collections::HashMap, str::FromStr};
 
-use api_models::payments::{
-    additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
-    GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
-    GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
-    PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
-    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
-    ThirdPartySdkSessionResponse,
+use api_models::{
+    payments::{
+        additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
+        AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
+        ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
+        GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+        GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+        GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters,
+        GpayTokenParameters, GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall,
+        PaypalFlow, PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount,
+        RecipientBankAccount, RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk,
+        SessionToken, ThirdPartySdkSessionResponse,
+    },
+    sender::SenderDetails,
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
@@ -60,8 +63,9 @@ use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data,
     recipient_account::AccountType as RecipientAccountType,
-    recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
-    EventServiceHandleRequest, EventServiceParseRequest,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType,
+    sender_details::SenderType, ConnectorState, EventServiceHandleRequest,
+    EventServiceParseRequest,
 };
 
 use crate::{
@@ -635,6 +639,87 @@ impl transformers::ForeignTryFrom<&RecipientDetails> for payments_grpc::Recipien
     }
 }
 
+impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::SenderAddress {
+    fn foreign_from(address: &api_models::payments::AddressDetails) -> Self {
+        let country_alpha2_code = address
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into());
+
+        Self {
+            line1: address.line1.clone(),
+            line2: address.line2.clone(),
+            line3: address.line3.clone(),
+            city: address.city.clone().map(Secret::new),
+            state: address.state.clone(),
+            zip_code: address.zip.clone(),
+            country_alpha2_code,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&SenderDetails> for payments_grpc::SenderDetails {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(details: &SenderDetails) -> Result<Self, Self::Error> {
+        let sender_type = match details {
+            SenderDetails::Individual(individual) => {
+                SenderType::Individual(payments_grpc::IndividualSenderDetails {
+                    first_name: individual.first_name.clone(),
+                    last_name: individual.last_name.clone(),
+                    date_of_birth: individual
+                        .date_of_birth
+                        .as_ref()
+                        .map(format_date_of_birth)
+                        .transpose()?,
+                    address: individual
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: individual
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+            SenderDetails::Corporate(corporate) => {
+                SenderType::Corporate(payments_grpc::CorporateSenderDetails {
+                    company_name: Some(corporate.company_name.clone()),
+                    address: corporate
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: corporate
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+        };
+
+        Ok(Self {
+            sender_type: Some(sender_type),
+        })
+    }
+}
+
 impl transformers::ForeignTryFrom<&RecipientAccount> for payments_grpc::RecipientAccount {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -1154,6 +1239,12 @@ impl
                 }),
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -1444,6 +1535,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2848,6 +2945,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3083,6 +3186,12 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3167,6 +3276,7 @@ impl
         Ok(Self {
             risk_assessment_data: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             business_country: None,
             split_settlement: None,
@@ -3551,6 +3661,12 @@ impl
                     }),
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3795,6 +3911,7 @@ impl
             partner_merchant_identifier_details: None,
             payment_channel: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             additional_connector_details: None,
             session_token: None,
@@ -4125,6 +4242,12 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details

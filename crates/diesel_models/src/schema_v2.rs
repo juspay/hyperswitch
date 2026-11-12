@@ -1291,6 +1291,7 @@ diesel::table! {
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
         enable_account_name_verification -> Nullable<Bool>,
+        sender_details -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,

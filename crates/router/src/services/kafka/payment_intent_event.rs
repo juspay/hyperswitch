@@ -269,6 +269,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             external_surcharge_applicable: _,
             is_account_funded_transaction: _,
             recipient_details: _,
+            sender_details: _,
             enable_avs_check: _,
             enable_account_name_verification: _,
             mit_category: _,

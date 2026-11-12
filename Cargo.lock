@@ -2289,7 +2289,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4198,7 +4198,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "axum 0.8.4",
  "bytes",
@@ -6938,7 +6938,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
- "strum 0.26.3",
+ "strum 0.25.0",
  "thiserror 1.0.69",
 ]
 
@@ -8201,7 +8201,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10834,7 +10834,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "bytes",
  "error-stack 0.4.1",
@@ -10850,7 +10850,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10861,7 +10861,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.11.06.2#3597e805122646934cc94e82dc1e7f811e25c2c2"
+source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#b2116363e882bdf88ff3ff7b670a22dd42933f11"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -11661,7 +11661,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
