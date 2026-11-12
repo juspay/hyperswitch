@@ -196,17 +196,20 @@ pub async fn upsert_calculate_pcr_task(
                 payment_id.get_string_repr()
             );
 
-            let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
-                    state,
-                    &crate::core::configs::dimension_state::Dimensions::new()
-                        .with_processor_merchant_id(
-                            recovery_intent_from_payment_intent
-                                .merchant_id
-                                .clone()
-                                .into(),
-                        )
-                        .with_connector(billing_connector_account.connector_name),
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(
+                    recovery_intent_from_payment_intent
+                        .merchant_id
+                        .clone()
+                        .into(),
+                )
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
+            let max_hybrid_cascading_retry_count = dimensions
+                .get_recovery_max_hybrid_cascading_retry_count(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
                 )
                 .await;
 
@@ -795,10 +798,10 @@ fn get_recovery_grace_window_end(
         .attach_printable("The end of the grace window does not fit a timestamp")
 }
 
-/// `attempts_already_made` counts the initial charge, which is not a retry, so the retry about to
-/// be scheduled is retry number `attempts_already_made`.
-fn is_retry_budget_exhausted(attempts_already_made: i32, max_retry_count: u16) -> bool {
-    attempts_already_made > i32::from(max_retry_count)
+/// `retries_already_made` is the invoice's retries so far, not counting its first attempt, so
+/// retries stop once it reaches `max_retry_count`.
+fn is_retry_budget_exhausted(retries_already_made: u16, max_retry_count: u16) -> bool {
+    retries_already_made >= max_retry_count
 }
 
 pub async fn perform_calculate_workflow(
@@ -864,25 +867,29 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
+    let total_retry_count = payment_intent
+        .get_revenue_recovery_retry_count()
+        .ok_or(errors::RecoveryError::ValueNotFound)
+        .attach_printable(
+            "Failed to get the retry count from the payment intent's revenue recovery metadata",
+        )?;
+
     let static_ladder_progress = match tracking_data.static_ladder_progress.clone() {
         Some(static_ladder_progress) => static_ladder_progress,
         None => {
-            let max_hybrid_cascading_retry_count =
-                revenue_recovery_workflow::get_max_hybrid_cascading_retry_count(
-                    state,
-                    &crate::core::configs::dimension_state::Dimensions::new()
-                        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                        .with_connector(revenue_recovery_payment_data.billing_mca.connector_name),
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_profile_id(payment_intent.profile_id.clone());
+            let max_hybrid_cascading_retry_count = dimensions
+                .get_recovery_max_hybrid_cascading_retry_count(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
                 )
                 .await;
-            let intent_retry_count = payment_intent
-                .get_revenue_recovery_retry_count()
-                .ok_or(errors::RecoveryError::ValueNotFound)
-                .attach_printable(
-                    "Failed to get the retry count from the payment intent's revenue recovery metadata",
-                )?;
             schedule::StaticLadderProgress::seed_for_existing_invoice(
-                intent_retry_count,
+                total_retry_count,
                 max_hybrid_cascading_retry_count,
             )
         }
@@ -897,7 +904,7 @@ pub async fn perform_calculate_workflow(
             "Failed to get max retry count from billing merchant connector account",
         )?;
 
-    let retry_budget_exhausted = is_retry_budget_exhausted(process.retry_count, max_retry_count);
+    let retry_budget_exhausted = is_retry_budget_exhausted(total_retry_count, max_retry_count);
 
     // 2b. Bound the invoice by its grace window as well as its retry count.
     let grace_window_end = if retry_budget_exhausted {
@@ -923,7 +930,7 @@ pub async fn perform_calculate_workflow(
     {
         logger::info!(
             process_id = %process.id,
-            retry_count = process.retry_count,
+            retry_count = total_retry_count,
             ?max_retry_count,
             "Invoice reached the retry ceiling configured on the billing MCA"
         );
@@ -934,7 +941,7 @@ pub async fn perform_calculate_workflow(
     } else if grace_window_elapsed {
         logger::info!(
             process_id = %process.id,
-            retry_count = process.retry_count,
+            retry_count = total_retry_count,
             ?grace_window_end,
             "Invoice is past its recovery grace window"
         );
@@ -961,14 +968,9 @@ pub async fn perform_calculate_workflow(
         .change_context(errors::RecoveryError::ValueNotFound)
         .attach_printable("The days left in the grace window do not fit a day count")?;
 
-        let retries_already_made = u32::try_from(process.retry_count)
-            .inspect_err(|_| metrics::REVENUE_RECOVERY_RETRY_COUNT_INVALID.add(1, &[]))
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to read how many retries have already been made")?;
-
         // Saturating so an invoice already past its ceiling reads as no budget left rather
         // than wrapping to an enormous one.
-        let remaining_budget = u32::from(max_retry_count).saturating_sub(retries_already_made);
+        let remaining_budget = u32::from(max_retry_count.saturating_sub(total_retry_count));
 
         // 3. Get best available token
         match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
@@ -977,7 +979,7 @@ pub async fn perform_calculate_workflow(
             payment_intent,
             revenue_recovery_payment_data.billing_mca.connector_name,
             retry_algorithm_type,
-            process.retry_count,
+            u32::from(total_retry_count),
             tracking_data,
             &static_ladder_progress,
             platform.get_provider().get_provider_merchant_id(),
@@ -1116,7 +1118,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                retry_count = process.retry_count,
+                retry_count = total_retry_count,
                 "Retry ladder exhausted, finishing CALCULATE_WORKFLOW"
             );
 
@@ -1144,7 +1146,7 @@ pub async fn perform_calculate_workflow(
             logger::info!(
                 process_id = %process.id,
                 connector_customer_id = %connector_customer_id,
-                retry_count = process.retry_count,
+                retry_count = total_retry_count,
                 "Grace window expired, finishing CALCULATE_WORKFLOW"
             );
 

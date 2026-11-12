@@ -1154,6 +1154,7 @@ impl ConnectorSpecifications for Nmi {
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
