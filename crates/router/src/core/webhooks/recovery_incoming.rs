@@ -1006,8 +1006,6 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
-                                // A billing connector does not say, so these take the defaults
-                                // the invoice is created with.
                                 common_enums::PresenceOfCustomerDuringPayment::Absent,
                                 common_enums::FutureUsage::OffSession,
                             )

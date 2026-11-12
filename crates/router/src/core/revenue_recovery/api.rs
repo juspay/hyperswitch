@@ -227,7 +227,6 @@ pub async fn record_internal_attempt_api(
             state,
             &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
-            // Hyperswitch retries off session, with the customer absent.
             common_enums::PresenceOfCustomerDuringPayment::Absent,
             common_enums::FutureUsage::OffSession,
         )

@@ -441,9 +441,6 @@ impl TransactionInitiator {
             (PresenceOfCustomerDuringPayment::Present, setup_future_usage) => {
                 Self::CustomerInitiated(setup_future_usage)
             }
-            // A merchant charges only a payment method saved for off-session use, so a
-            // transaction on session with the customer absent is not a recovery case. It is read
-            // as one made on session.
             (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OnSession) => {
                 Self::CustomerInitiated(FutureUsage::OnSession)
             }
