@@ -1193,7 +1193,7 @@ pub struct ExternalTriggerState {
     #[schema(value_type = Option<StandardisedCode>)]
     pub last_failure_code: Option<common_enums::StandardisedCode>,
     /// Positions of the static retry ladder the invoice has used.
-    pub consumed_ladder_rungs: i32,
+    pub consumed_ladder_rungs: u32,
     /// Retries made with the card of the invoice since it was first hard declined. Absent while it
     /// has not been.
     #[serde(default, skip_serializing_if = "Option::is_none")]
