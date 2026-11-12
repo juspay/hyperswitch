@@ -130,18 +130,30 @@ impl SenderDetails {
         }
     }
 
-    /// The individual sender's first name, if provided.
+    /// The individual sender's first name, falling back to the first name on the sender's
+    /// address when not provided.
     pub fn get_individual_first_name(&self) -> Option<&Secret<String>> {
         match self {
-            Self::Individual(individual) => individual.first_name.as_ref(),
+            Self::Individual(individual) => individual.first_name.as_ref().or_else(|| {
+                individual
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.first_name.as_ref())
+            }),
             Self::Corporate(_) => None,
         }
     }
 
-    /// The individual sender's last name, if provided.
+    /// The individual sender's last name, falling back to the last name on the sender's
+    /// address when not provided.
     pub fn get_individual_last_name(&self) -> Option<&Secret<String>> {
         match self {
-            Self::Individual(individual) => individual.last_name.as_ref(),
+            Self::Individual(individual) => individual.last_name.as_ref().or_else(|| {
+                individual
+                    .address
+                    .as_ref()
+                    .and_then(|address| address.last_name.as_ref())
+            }),
             Self::Corporate(_) => None,
         }
     }
