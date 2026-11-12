@@ -1368,8 +1368,12 @@ pub async fn trigger_refund_outgoing_webhook(
     let refund_status = refund.refund_status;
 
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1468,8 +1472,12 @@ pub async fn trigger_payouts_webhook(
 ) -> RouterResult<()> {
     let profile_id = &payout_response.profile_id;
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1600,7 +1608,6 @@ pub async fn get_payment_response_hash_key(
     key_store: &domain::MerchantKeyStore,
     auth: &AuthInfo,
 ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
-    let store = state.store.as_ref();
     match auth {
         AuthInfo::ProfileLevel {
             merchant_id,
@@ -1608,8 +1615,14 @@ pub async fn get_payment_response_hash_key(
             ..
         } => {
             let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
-            let profile = store
-                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+            let profile = state
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_merchant_id_profile_id(
+                        key_store,
+                        merchant_id,
+                        profile_id,
+                    )
+                })
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
             Ok(profile.payment_response_hash_key)
@@ -1629,8 +1642,10 @@ pub async fn get_payment_response_hash_key(
             #[cfg(feature = "v2")]
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
-                let profiles = store
-                    .list_profile_by_merchant_id(key_store, merchant_id)
+                let profiles = state
+                    .track_accounts_query(|db| {
+                        db.list_profile_by_merchant_id(key_store, merchant_id)
+                    })
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
                 Ok(profiles

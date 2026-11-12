@@ -109,12 +109,14 @@ async fn generate_network_token(
             );
         })?;
 
-    let business_profile = db
-        .find_business_profile_by_merchant_id_profile_id(
-            &key_store,
-            &merchant_id,
-            &tracking_data.profile_id,
-        )
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                &merchant_id,
+                &tracking_data.profile_id,
+            )
+        })
         .await
         .inspect_err(|error| {
             logger::error!(
@@ -221,12 +223,14 @@ async fn generate_network_token(
             );
         })?;
 
-    let business_profile = db
-        .find_business_profile_by_merchant_id_profile_id(
-            &key_store,
-            &merchant_id,
-            &tracking_data.profile_id,
-        )
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                &merchant_id,
+                &tracking_data.profile_id,
+            )
+        })
         .await
         .inspect_err(|error| {
             logger::error!(

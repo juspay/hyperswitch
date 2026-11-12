@@ -118,12 +118,13 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in payment_intent")?;
     let business_profile = state
-        .store
-        .find_business_profile_by_merchant_id_profile_id(
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().get_id(),
-            profile_id,
-        )
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch business profile for FRM router data construction")?;

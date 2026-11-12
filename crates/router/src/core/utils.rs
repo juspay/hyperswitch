@@ -68,7 +68,6 @@ use crate::{
         payment_methods,
         payments::PaymentData,
     },
-    db::StorageInterface,
     routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
@@ -2346,21 +2345,24 @@ pub fn get_payout_connector_customer_id(
 
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     processor: &domain::Processor,
     profile_id: Option<&common_utils::id_type::ProfileId>,
 ) -> RouterResult<Option<domain::Profile>> {
     profile_id
         .async_map(|profile_id| async {
-            db.find_business_profile_by_merchant_id_profile_id(
-                processor.get_key_store(),
-                processor.get_account().get_id(),
-                profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })
+            state
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_merchant_id_profile_id(
+                        processor.get_key_store(),
+                        processor.get_account().get_id(),
+                        profile_id,
+                    )
+                })
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })
         })
         .await
         .transpose()
@@ -2415,15 +2417,17 @@ pub async fn get_profile_from_business_details(
     business_label: Option<&String>,
     processor: &domain::Processor,
     request_profile_id: Option<&common_utils::id_type::ProfileId>,
-    db: &dyn StorageInterface,
+    state: &SessionState,
 ) -> RouterResult<domain::Profile> {
     match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
-        Some(profile_id) => db
-            .find_business_profile_by_merchant_id_profile_id(
-                processor.get_key_store(),
-                processor.get_account().get_id(),
-                profile_id,
-            )
+        Some(profile_id) => state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    processor.get_key_store(),
+                    processor.get_account().get_id(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -2431,15 +2435,18 @@ pub async fn get_profile_from_business_details(
         None => match business_country.zip(business_label) {
             Some((business_country, business_label)) => {
                 let profile_name = format!("{business_country}_{business_label}");
-                db.find_business_profile_by_profile_name_merchant_id(
-                    processor.get_key_store(),
-                    &profile_name,
-                    processor.get_account().get_id(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                    id: profile_name,
-                })
+                state
+                    .track_accounts_query(|db| {
+                        db.find_business_profile_by_profile_name_merchant_id(
+                            processor.get_key_store(),
+                            &profile_name,
+                            processor.get_account().get_id(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_name,
+                    })
             }
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "profile_id or business_country, business_label".into()

@@ -79,11 +79,13 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let webhook_key_store = db
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
             .await?;
-        let business_profile = db
-            .find_business_profile_by_profile_id(
-                &webhook_key_store,
-                &tracking_data.business_profile_id,
-            )
+        let business_profile = state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    &webhook_key_store,
+                    &tracking_data.business_profile_id,
+                )
+            })
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();
@@ -333,11 +335,13 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let webhook_key_store = db
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
             .await?;
-        let business_profile = db
-            .find_business_profile_by_profile_id(
-                &webhook_key_store,
-                &tracking_data.business_profile_id,
-            )
+        let business_profile = state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    &webhook_key_store,
+                    &tracking_data.business_profile_id,
+                )
+            })
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();

@@ -5516,11 +5516,13 @@ pub async fn list_payment_methods(
     let (_profile_id, business_profile) =
         match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
             Some(profile_id) => {
-                let business_profile = db
-                    .find_business_profile_by_profile_id(
-                        platform.get_processor().get_key_store(),
-                        &profile_id,
-                    )
+                let business_profile = state
+                    .track_accounts_query(|db| {
+                        db.find_business_profile_by_profile_id(
+                            platform.get_processor().get_key_store(),
+                            &profile_id,
+                        )
+                    })
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_id.get_string_repr().to_owned(),
@@ -6599,7 +6601,7 @@ pub async fn list_customer_payment_method(
         .transpose()?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+        state,
         platform.get_processor(),
         profile_id.as_ref(),
     )

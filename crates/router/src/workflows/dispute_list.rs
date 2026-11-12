@@ -86,11 +86,12 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
         );
 
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &tracking_data.profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    &tracking_data.profile_id,
+                )
+            })
             .await?;
 
         if process.retry_count == 0 {

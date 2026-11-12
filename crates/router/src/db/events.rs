@@ -2100,8 +2100,9 @@ mod tests {
         });
 
         let business_profile = state
-            .store
-            .insert_business_profile(&merchant_key_store.clone(), business_profile_to_insert)
+            .track_accounts_query(|db| {
+                db.insert_business_profile(&merchant_key_store, business_profile_to_insert)
+            })
             .await?;
 
         // Same inputs for all threads

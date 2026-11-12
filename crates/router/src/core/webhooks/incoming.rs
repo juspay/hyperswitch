@@ -580,8 +580,12 @@ async fn process_webhook_business_logic(
     let profile_id = &merchant_connector_account.profile_id;
 
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

@@ -137,11 +137,12 @@ pub async fn retrieve_dispute(
             })?;
 
             let business_profile = state
-                .store
-                .find_business_profile_by_profile_id(
-                    platform.get_processor().get_key_store(),
-                    &payment_attempt.profile_id,
-                )
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_profile_id(
+                        platform.get_processor().get_key_store(),
+                        &payment_attempt.profile_id,
+                    )
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: payment_attempt.profile_id.get_string_repr().to_owned(),

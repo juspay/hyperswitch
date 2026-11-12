@@ -4053,11 +4053,10 @@ async fn is_clear_pan_retry_enabled_for_profile(
 ) -> bool {
     match network_token_response.profile_id.as_ref() {
         Some(profile_id) => state
-            .store
-            .find_business_profile_by_profile_id(
+            .track_accounts_query(|db| { db.find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,
-            )
+            ) })
             .await
             .map(|business_profile| business_profile.is_clear_pan_retries_enabled)
             .inspect_err(|error| {
@@ -5401,11 +5400,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -5599,11 +5599,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -5891,16 +5892,18 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing profile_id in payment_intent")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                payment_intent
-                    .profile_id
-                    .as_ref()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("missing profile_id in payment_intent")?,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: payment_intent
@@ -6180,11 +6183,12 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -14153,8 +14157,12 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     .await?;
 
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -15370,8 +15378,12 @@ pub async fn payments_submit_eligibility_check(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -15908,8 +15920,12 @@ pub async fn payments_submit_eligibility(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

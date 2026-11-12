@@ -35,7 +35,7 @@ pub async fn delete_entry_from_blocklist(
         None,
         processor,
         profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?
     .get_id()
@@ -201,7 +201,7 @@ pub async fn get_blocklist_count(
         None,
         processor,
         profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?
     .get_id()
@@ -280,7 +280,7 @@ pub async fn lookup_blocklist_entry(
         None,
         processor,
         profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?
     .get_id()
@@ -326,7 +326,7 @@ pub async fn insert_entry_into_blocklist(
         None,
         platform.get_processor(),
         profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?
     .get_id()

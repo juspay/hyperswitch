@@ -89,11 +89,12 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         .await?;
 
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &payment_attempt.profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    &payment_attempt.profile_id,
+                )
+            })
             .await?;
 
         // Check if the dispute already exists

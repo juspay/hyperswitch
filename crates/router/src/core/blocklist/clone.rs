@@ -30,8 +30,12 @@ async fn resolve_clone_targets(
     target_profile_ids: &HashSet<id_type::ProfileId>,
 ) -> RouterResult<Vec<id_type::ProfileId>> {
     let merchant_profile_ids = state
-        .store
-        .list_profile_by_merchant_id(processor.get_key_store(), processor.get_account().get_id())
+        .track_accounts_query(|db| {
+            db.list_profile_by_merchant_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to list the merchant's business profiles")?

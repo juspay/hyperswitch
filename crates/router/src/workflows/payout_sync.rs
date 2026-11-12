@@ -264,7 +264,6 @@ impl PayoutSyncWorkFlow {
         platform: &domain::Platform,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
-        let db = &*state.store;
         state
             .store
             .as_scheduler()
@@ -273,8 +272,10 @@ impl PayoutSyncWorkFlow {
 
         let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
 
-        let business_profile = db
-            .find_business_profile_by_profile_id(key_store, &payout_data.profile_id)
+        let business_profile = state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(key_store, &payout_data.profile_id)
+            })
             .await
             .map_err(errors::ProcessTrackerError::EStorageError)?;
 

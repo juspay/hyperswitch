@@ -444,8 +444,9 @@ async fn resolve_interpayments_account(
 ) -> RouterResult<helpers::MerchantConnectorAccountType> {
     let processor = platform.get_processor();
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+        })
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

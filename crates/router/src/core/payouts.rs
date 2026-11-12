@@ -666,7 +666,7 @@ pub async fn payouts_create_core_wrapper(
                 req.business_label.as_ref(),
                 platform.get_processor(),
                 req.profile_id.as_ref(),
-                &*state.store,
+                &state,
             )
             .await?
         }
@@ -4293,14 +4293,15 @@ async fn validate_and_get_business_profile(
     processor: &domain::Processor,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Profile> {
-    let db = &*state.store;
-
     if let Some(business_profile) =
-        core_utils::validate_and_get_business_profile(db, processor, Some(profile_id)).await?
+        core_utils::validate_and_get_business_profile(state, processor, Some(profile_id)).await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+        state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
