@@ -75,7 +75,6 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
-    // The merchant is the only one who reports the transactions when they trigger the retries.
     if business_profile.revenue_recovery_trigger_model
         == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
     {

@@ -638,8 +638,6 @@ fn webhook_status_config(event_class: EventClass) -> types::WebhookEventClassCon
             api_field: "invoice_statuses_enabled",
             statuses: webhook_status_metadata::<InvoiceStatus>(Into::<Option<EventType>>::into),
         },
-        // Revenue recovery webhooks go out whenever the profile has a webhook URL, so the profile
-        // has no field that switches them by status.
         #[cfg(feature = "v2")]
         EventClass::RevenueRecovery => types::WebhookEventClassConfig {
             event_class,
