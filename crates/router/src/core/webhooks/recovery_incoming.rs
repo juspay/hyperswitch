@@ -818,8 +818,6 @@ impl RevenueRecoveryAttempt {
             }
         }?;
 
-        // Every reported transaction counts, whatever the trigger model or the retry algorithm of
-        // the profile. An attempt with no outcome yet counts when its result is reported.
         if recovery_attempt.attempt_status.is_terminal_status() {
             retry_stats::RetryOutcomeEvent::from_retry_outcome(
                 recovery_attempt.created_at,
@@ -909,7 +907,6 @@ impl RevenueRecoveryAttempt {
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
 
-        // What the next transaction of the invoice is counted against. A charge leaves none.
         let standardised_error_code = match revenue_recovery_attempt_data.status {
             common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
                 None
