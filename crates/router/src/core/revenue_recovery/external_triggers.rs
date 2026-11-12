@@ -1182,8 +1182,6 @@ async fn apply_reported_transaction(
         reason = ?next_retry.reason,
         "Next retry of the invoice decided"
     );
-    // Queued under the invoice's lock, so that the merchant's webhooks are created in the order the
-    // reports of the invoice were decided.
     Box::pin(send_next_retry(
         state,
         platform,

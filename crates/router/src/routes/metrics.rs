@@ -422,7 +422,6 @@ histogram_metric_f64!(
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
     ],
 );
-// Past 900 seconds the merchant has fallen back to its own retry timing.
 histogram_metric_f64!(
     REVENUE_RECOVERY_REPORT_TIME_TO_WEBHOOK,
     GLOBAL_METER,
