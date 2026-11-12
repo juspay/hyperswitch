@@ -18,6 +18,35 @@ pub fn is_global_ip(address: IpAddr) -> bool {
     ip_network::IpNetwork::from(address).is_global()
 }
 
+/// Whether the host matches any entry of a comma-separated list of domains, IP addresses or CIDR
+/// ranges. A domain entry matches the domain itself and all of its subdomains.
+pub fn host_matches_list(host: Option<&Host<&str>>, list: Option<&str>) -> bool {
+    list.unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.trim_matches('.').is_empty())
+        .any(|entry| match host {
+            Some(Host::Domain(domain)) => {
+                let host = domain.trim_end_matches('.').to_ascii_lowercase();
+                let entry = entry.trim_matches('.').to_ascii_lowercase();
+                entry == "*"
+                    || host == entry
+                    || host
+                        .strip_suffix(&entry)
+                        .is_some_and(|prefix| prefix.ends_with('.'))
+            }
+            Some(Host::Ipv4(address)) => ip_matches_entry(IpAddr::V4(*address), entry),
+            Some(Host::Ipv6(address)) => ip_matches_entry(IpAddr::V6(*address), entry),
+            None => false,
+        })
+}
+
+fn ip_matches_entry(address: IpAddr, entry: &str) -> bool {
+    entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
+        || ip_network::IpNetwork::from_str_truncate(entry)
+            .is_ok_and(|network| network.contains(address))
+}
+
 /// An absolute HTTP or HTTPS URL with a publicly routable IP literal, if supplied.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize)]
 #[serde(into = "String")]
@@ -59,41 +88,14 @@ impl SafeOutboundUrl {
         &self,
         bypass_proxy_hosts: Option<&str>,
     ) -> CustomResult<(), ValidationError> {
-        let host = self.0.host();
-        let is_blocked = bypass_proxy_hosts
-            .unwrap_or_default()
-            .split(',')
-            .map(str::trim)
-            .filter(|entry| !entry.trim_matches('.').is_empty())
-            .any(|entry| match host.as_ref() {
-                Some(Host::Domain(domain)) => {
-                    let host = domain.trim_end_matches('.').to_ascii_lowercase();
-                    let entry = entry.trim_matches('.').to_ascii_lowercase();
-                    entry == "*"
-                        || host == entry
-                        || host
-                            .strip_suffix(&entry)
-                            .is_some_and(|prefix| prefix.ends_with('.'))
-                }
-                Some(Host::Ipv4(address)) => {
-                    let address = IpAddr::V4(*address);
-                    entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
-                        || ip_network::IpNetwork::from_str_truncate(entry)
-                            .is_ok_and(|network| network.contains(address))
-                }
-                Some(Host::Ipv6(address)) => {
-                    let address = IpAddr::V6(*address);
-                    entry.parse::<IpAddr>().is_ok_and(|ip| ip == address)
-                        || ip_network::IpNetwork::from_str_truncate(entry)
-                            .is_ok_and(|network| network.contains(address))
-                }
-                None => false,
-            });
-        when(is_blocked, || {
-            Err(Report::new(ValidationError::InvalidValue {
-                message: "URL matches a configured proxy bypass host".to_string(),
-            }))
-        })
+        when(
+            host_matches_list(self.0.host().as_ref(), bypass_proxy_hosts),
+            || {
+                Err(Report::new(ValidationError::InvalidValue {
+                    message: "URL matches a configured proxy bypass host".to_string(),
+                }))
+            },
+        )
     }
 
     /// Get the normalized URL string.

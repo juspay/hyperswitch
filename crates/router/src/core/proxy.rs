@@ -104,19 +104,26 @@ async fn execute_proxy_request(
 
     let response = services::call_connector_api(state, request, "proxy", None)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to call the destination");
+        .map_err(map_destination_call_error)
+        .attach_printable("Failed to call the destination")?;
 
-    response
-        .map(|inner| match inner {
-            Err(err_res) => {
-                logger::error!("Error while receiving response: {err_res:?}");
-                err_res
-            }
-            Ok(res) => res,
-        })
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while receiving response")
+    Ok(response.unwrap_or_else(|err_res| {
+        logger::error!("Error while receiving response: {err_res:?}");
+        err_res
+    }))
+}
+
+fn map_destination_call_error(
+    error: error_stack::Report<errors::ApiClientError>,
+) -> error_stack::Report<errors::ApiErrorResponse> {
+    match error.current_context() {
+        errors::ApiClientError::DestinationNotAllowed => {
+            error.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "destination_url is not valid".to_string(),
+            })
+        }
+        _ => error.change_context(errors::ApiErrorResponse::InternalServerError),
+    }
 }
 
 struct ProxyResponseWrapper(Response);

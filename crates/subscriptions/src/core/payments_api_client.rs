@@ -72,6 +72,7 @@ impl PaymentsApiClient {
         let mut request_builder = services::RequestBuilder::new()
             .method(method)
             .url(&url)
+            .egress_scope(common_utils::request::EgressScope::Intranet)
             .headers(headers);
 
         // Add request body only if provided (for POST requests)

@@ -1,4 +1,9 @@
-use common_utils::{consts, errors::CustomResult, request::Request};
+use common_utils::{
+    consts,
+    errors::CustomResult,
+    outbound_url::host_matches_list,
+    request::{EgressScope, Request},
+};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
@@ -116,8 +121,12 @@ pub async fn send_request(
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
 
-    let client = client::create_client(
+    let egress_scope = effective_egress_scope(request.egress_scope, &url, client_proxy);
+    ensure_destination_allowed(egress_scope, &url)?;
+
+    let client = client::create_scoped_client(
         client_proxy,
+        egress_scope,
         request.certificate,
         request.certificate_key,
         request.ca_certificate,
@@ -195,6 +204,9 @@ pub async fn send_request(
                 metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                 HttpClientError::RequestTimeoutReceived
             }
+            error if outbound_destination::is_destination_not_public(error) => {
+                HttpClientError::DestinationNotAllowed
+            }
             error if is_connection_closed_before_message_could_complete(error) => {
                 metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
                 HttpClientError::ConnectionClosedIncompleteMessage
@@ -263,6 +275,34 @@ pub async fn send_request(
     };
 
     response
+}
+
+fn effective_egress_scope(
+    declared_scope: EgressScope,
+    url: &url::Url,
+    client_proxy: &Proxy,
+) -> EgressScope {
+    let targets_bypass_proxy_host = host_matches_list(
+        url.host().as_ref(),
+        client_proxy.bypass_proxy_hosts.as_deref(),
+    );
+    match declared_scope {
+        EgressScope::Intranet => EgressScope::Intranet,
+        EgressScope::Internet if targets_bypass_proxy_host => EgressScope::Intranet,
+        EgressScope::Internet => EgressScope::Internet,
+    }
+}
+
+fn ensure_destination_allowed(
+    egress_scope: EgressScope,
+    url: &url::Url,
+) -> CustomResult<(), HttpClientError> {
+    match egress_scope {
+        EgressScope::Intranet => Ok(()),
+        EgressScope::Internet => outbound_destination::ensure_public_url_host(url)
+            .change_context(HttpClientError::DestinationNotAllowed)
+            .attach_printable("Destination is an IP address that is not publicly routable"),
+    }
 }
 
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {

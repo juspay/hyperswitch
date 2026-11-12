@@ -8,6 +8,16 @@ pub const DEFAULT_XML_VERSION: &str = "1.0";
 /// Default XML encoding
 pub const DEFAULT_XML_ENCODING: &str = "UTF-8";
 
+/// Where an outbound request is allowed to go.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum EgressScope {
+    /// A destination on the public internet. Connections to non-public addresses are filtered.
+    #[default]
+    Internet,
+    /// A service inside the deployment's own network, such as the locker.
+    Intranet,
+}
+
 /// Configuration for XML serialization
 #[derive(Debug, Clone)]
 pub struct XmlConfig {
@@ -80,6 +90,7 @@ pub struct Request {
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
     pub query_params: Option<serde_json::Value>,
+    pub egress_scope: EgressScope,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -133,6 +144,14 @@ impl Request {
             body: None,
             ca_certificate: None,
             query_params: None,
+            egress_scope: EgressScope::default(),
+        }
+    }
+
+    pub fn new_intranet(method: Method, url: &str) -> Self {
+        Self {
+            egress_scope: EgressScope::Intranet,
+            ..Self::new(method, url)
         }
     }
 
@@ -167,6 +186,7 @@ pub struct RequestBuilder {
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
     pub query_params: Option<serde_json::Value>,
+    pub egress_scope: EgressScope,
 }
 
 impl RequestBuilder {
@@ -180,6 +200,7 @@ impl RequestBuilder {
             body: None,
             ca_certificate: None,
             query_params: None,
+            egress_scope: EgressScope::default(),
         }
     }
 
@@ -238,6 +259,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn egress_scope(mut self, egress_scope: EgressScope) -> Self {
+        self.egress_scope = egress_scope;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -248,6 +274,7 @@ impl RequestBuilder {
             body: self.body,
             ca_certificate: self.ca_certificate,
             query_params: self.query_params,
+            egress_scope: self.egress_scope,
         }
     }
 }
