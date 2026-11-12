@@ -41,10 +41,12 @@ pub async fn get_platform_payment_filters(
     let db = state.store.as_ref();
 
     // Every connected merchant lives under the platform's organization.
-    let merchant_accounts = db
-        .list_merchant_accounts_by_organization_id(
-            platform.get_provider().get_account().get_org_id(),
-        )
+    let merchant_accounts = state
+        .track_accounts_query(|db| {
+            db.list_merchant_accounts_by_organization_id(
+                platform.get_provider().get_account().get_org_id(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

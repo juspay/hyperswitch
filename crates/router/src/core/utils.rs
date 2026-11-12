@@ -934,8 +934,9 @@ pub async fn build_platform_from_refund_core(
         .attach_printable("Error while fetching the key store for provider merchant")?;
 
     let provider_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant account for provider")?;
@@ -956,8 +957,9 @@ pub async fn build_platform_from_refund_core(
         .attach_printable("Error while fetching the key store for processor merchant")?;
 
     let processor_account = state
-        .store
-        .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant account for processor")?;

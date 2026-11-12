@@ -57,7 +57,6 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core, webhooks as webhooks_core,
     },
-    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
@@ -1598,10 +1597,11 @@ pub async fn trigger_subscriptions_outgoing_webhook(
 }
 
 pub async fn get_payment_response_hash_key(
-    store: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     auth: &AuthInfo,
 ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
+    let store = state.store.as_ref();
     match auth {
         AuthInfo::ProfileLevel {
             merchant_id,
@@ -1619,8 +1619,10 @@ pub async fn get_payment_response_hash_key(
             #[cfg(feature = "v1")]
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
-                let merchant = store
-                    .find_merchant_account_by_merchant_id(merchant_id, key_store)
+                let merchant = state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(merchant_id, key_store)
+                    })
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
                 Ok(merchant.payment_response_hash_key)

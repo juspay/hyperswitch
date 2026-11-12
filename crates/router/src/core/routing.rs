@@ -3023,8 +3023,7 @@ async fn get_merchant_account(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

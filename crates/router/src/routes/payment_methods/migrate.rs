@@ -959,8 +959,7 @@ async fn get_merchant_contexts_for_batch(
             )
         }
         Ok(key_stores) => match state
-            .store
-            .list_multiple_merchant_accounts(merchant_ids.clone())
+            .track_accounts_query(|db| db.list_multiple_merchant_accounts(merchant_ids.clone()))
             .await
         {
             Err(error) => {

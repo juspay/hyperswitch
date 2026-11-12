@@ -173,8 +173,7 @@ async fn validate_merchant_and_get_key_store(
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
 

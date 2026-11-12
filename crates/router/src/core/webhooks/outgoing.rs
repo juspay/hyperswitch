@@ -773,8 +773,9 @@ async fn update_payment_attempt_from_webhook_response(
 ) {
     if event.event_type == enums::EventType::SurchargePaymentSucceeded {
         let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
+            })
             .await;
 
         let storage_scheme = match &merchant_account {
