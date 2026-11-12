@@ -5,7 +5,7 @@ use common_enums::PaymentMethod;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, Secret};
 
 use crate::{
     core::{
@@ -41,7 +41,7 @@ pub fn construct_authentication_router_data(
     device_channel: payments::DeviceChannel,
     merchant_connector_account: payments_helpers::MerchantConnectorAccountType,
     authentication_data: authentication::Authentication,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,

@@ -197,7 +197,7 @@ impl<F: Send + Clone + Sync>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not insert payment attempt")?;
         let revenue_recovery_data = hyperswitch_domain_models::payments::RevenueRecoveryData {
-            billing_connector_id: request.billing_connector_id.clone(),
+            connector_details: request.connector_details.clone(),
             processor_payment_method_token: request.processor_payment_method_token.clone(),
             connector_customer_id: request.connector_customer_id.clone(),
             retry_count: request.retry_count,
@@ -303,10 +303,10 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsAttemptRecordRequest, PaymentAt
     for PaymentAttemptRecord
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsAttemptRecordRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

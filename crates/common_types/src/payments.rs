@@ -34,6 +34,72 @@ use crate::{
     consts::PERCENTAGE_BASE,
     domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
 };
+/// Phone contact details shared by payment and payout API models.
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PhoneDetails {
+    /// The contact number
+    #[schema(value_type = Option<String>, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
+    pub number: Option<Secret<String>>,
+    /// The country code attached to the number
+    #[schema(example = "+1")]
+    #[smithy(value_type = "Option<String>")]
+    pub country_code: Option<String>,
+}
+
+/// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct MultiCurrencyProcessingAmountData {
+    /// Merchant settlement amount in minor units.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Merchant settlement currency.
+    #[schema(value_type = Currency)]
+    #[smithy(value_type = "Currency")]
+    pub currency: enums::Currency,
+}
+
+#[derive(
+    Debug,
+    Default,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+/// Feature metadata for a capture operation.
+pub struct CaptureFeatureMetadata {
+    /// Settlement amount and currency for this capture.
+    #[smithy(value_type = "Option<MultiCurrencyProcessingAmountData>")]
+    pub multi_currency_processing: Option<MultiCurrencyProcessingAmountData>,
+}
+
+#[cfg(feature = "diesel")]
+impl_to_sql_from_sql_json!(CaptureFeatureMetadata);
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
@@ -977,6 +1043,89 @@ impl From<RecoveryTransactionStatus> for common_enums::AttemptStatus {
     }
 }
 
+/// Payment processor on which the reported transaction was made. Any other value is refused, as
+/// the standardised error code of a transaction is looked up by its processor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnector {
+    /// Adyen.
+    Adyen,
+    /// Stripe.
+    Stripe,
+    /// PayPal.
+    Paypal,
+}
+
+impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
+    fn from(connector: RecoveryConnector) -> Self {
+        match connector {
+            RecoveryConnector::Adyen => Self::Adyen,
+            RecoveryConnector::Stripe => Self::Stripe,
+            RecoveryConnector::Paypal => Self::Paypal,
+        }
+    }
+}
+
+/// The connector accounts a recovery transaction is recorded against.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecoveryConnectorAccounts {
+    /// Billing connector account the invoice belongs to.
+    pub billing_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// Payment connector account the transaction ran on and the retries run through.
+    pub payment_connector_id: common_utils::id_type::MerchantConnectorAccountId,
+    /// The payment connector of that account.
+    pub connector: common_enums::connector_enums::Connector,
+}
+
+/// What is known about the connector of a recovery transaction, which decides how it is recorded.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryConnectorDetails {
+    /// Recorded against connector accounts, so Hyperswitch can sync the transaction with the
+    /// connector and retry through it.
+    ConnectorAccounts(RecoveryConnectorAccounts),
+    /// Reported by the merchant without any connector account, so what was reported is final.
+    ReportedByMerchant {
+        /// The processor that was reported.
+        connector: common_enums::connector_enums::Connector,
+    },
+}
+
+impl RecoveryConnectorDetails {
+    /// Whether the transaction is recorded against connector accounts.
+    pub fn has_connector_accounts(&self) -> bool {
+        matches!(self, Self::ConnectorAccounts(_))
+    }
+
+    /// The billing connector account, when the transaction is recorded against one.
+    pub fn get_billing_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.billing_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector account, when the transaction is recorded against one.
+    pub fn get_payment_connector_id(
+        &self,
+    ) -> Option<&common_utils::id_type::MerchantConnectorAccountId> {
+        match self {
+            Self::ConnectorAccounts(accounts) => Some(&accounts.payment_connector_id),
+            Self::ReportedByMerchant { .. } => None,
+        }
+    }
+
+    /// The payment connector of the transaction.
+    pub fn get_connector(&self) -> common_enums::connector_enums::Connector {
+        match self {
+            Self::ConnectorAccounts(accounts) => accounts.connector,
+            Self::ReportedByMerchant { connector } => *connector,
+        }
+    }
+}
+
 /// Billing Descriptor information to be sent to the payment gateway
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(AsExpression, FromSqlRow))]
@@ -1617,6 +1766,30 @@ pub enum TokenSource {
     ApplePay,
 }
 
+/// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    smithy::SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct SurchargeErrorDetails {
+    /// Connector error code when the external calculation failed.
+    #[schema(example = "INVALID_NICN")]
+    pub error_code: Option<String>,
+    /// Connector error message when the external calculation failed.
+    #[schema(example = "Card BIN is invalid")]
+    pub error_message: Option<String>,
+    /// Connector reason for a failed calculation.
+    pub error_reason: Option<String>,
+}
+
 /// External surcharge details from InterPayments (stored as JSONB)
 #[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
 #[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
@@ -1632,9 +1805,31 @@ pub struct ExternalSurchargeDetails {
     pub surcharge_percentage: Option<Decimal>,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
+    /// Connector error details when the calculation failed; null on success.
+    #[serde(default)]
+    pub error_details: Option<SurchargeErrorDetails>,
 }
 
 impl ExternalSurchargeDetails {
+    /// Whether any connector error details are present.
+    pub fn has_error(&self) -> bool {
+        self.error_details.is_some()
+    }
+
+    /// Connector ID only when a successful calculation can be notified or reused.
+    pub fn usable_connector_id(&self) -> Option<&str> {
+        match self {
+            details
+                if !details.has_error()
+                    && !details.external_surcharge_id.is_empty()
+                    && details.external_surcharge_id != crate::consts::NO_SURCHARGE_ID_FOUND =>
+            {
+                Some(details.external_surcharge_id.as_str())
+            }
+            _ => None,
+        }
+    }
+
     /// Convert an `f64` surcharge percentage (as produced by the surcharge connector) into the
     /// `Decimal` representation stored on the attempt. Returns `None` for `None`/non-finite input.
     pub fn decimal_percentage_from_f64(value: Option<f64>) -> Option<Decimal> {

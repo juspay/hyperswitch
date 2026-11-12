@@ -16,7 +16,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount as DomainMerchantConnectorAccount;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use redis_interface::RedisConnectionWithContext;
-use router_env::{env, instrument, logger, tracing, tracing::Instrument};
+use router_env::{env, instrument, logger, tracing::Instrument};
 
 use crate::{
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},

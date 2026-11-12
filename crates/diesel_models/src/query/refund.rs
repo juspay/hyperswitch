@@ -14,7 +14,7 @@ use crate::{
 
 impl RefundNew {
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Refund> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
@@ -48,7 +48,7 @@ impl Refund {
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
                 .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
-            RefundUpdateInternal::from(refund),
+            RefundUpdateInternal::from(refund).populate_derived_fields(&self),
         )
         .await
         {
@@ -80,7 +80,7 @@ impl Refund {
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
                 .and(dsl::merchant_id.eq(processor_merchant_id)),
-            RefundUpdateInternal::from(refund),
+            RefundUpdateInternal::from(refund).populate_derived_fields(&self),
         )
         .await
         {

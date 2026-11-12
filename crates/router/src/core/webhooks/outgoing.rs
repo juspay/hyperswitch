@@ -17,10 +17,7 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 
 use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};
 #[cfg(feature = "stripe")]
@@ -693,26 +690,50 @@ async fn trigger_webhook_to_connector(
 
     let connector_name = mca.connector_name.clone();
 
-    let (notify_request, connector_auth_metadata, notify_event_type) =
-        crate::core::unified_connector_service::build_notify_connector_request(
-            &event,
-            &provider_merchant_id,
-            MerchantConnectorAccountType::DbVal(Box::new(mca)),
-            connector_name,
-            notify_feature_data,
-        )
-        .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
-
-    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+    // Partial surcharge refunds finalise via SurchargeRefundComplete; everything else takes the
+    // generic notify (`complete_from_webhook` returns `None`). Both yield NotifyConnectorResponseData
+    // so the handling below is shared — a failed Complete only reschedules the webhook, not the refund.
+    let surcharge_complete = if event.event_type == enums::EventType::SurchargeRefundSucceeded {
+        crate::core::refunds::surcharge::complete_from_webhook(
             &state,
-            &event,
-            connector_auth_metadata,
-            notify_request,
-            notify_event_type,
             &provider_merchant_id,
+            &merchant_key_store,
             business_profile.get_id(),
+            MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+            &event.primary_object_id,
         )
-        .await;
+        .await
+        .transpose()
+    } else {
+        None
+    };
+
+    let response = match surcharge_complete {
+        Some(result) => result,
+        // Original-payment surcharge, or a full refund, send the legacy single notify.
+        None => {
+            let (notify_request, connector_auth_metadata, notify_event_type) =
+                crate::core::unified_connector_service::build_notify_connector_request(
+                    &event,
+                    &provider_merchant_id,
+                    MerchantConnectorAccountType::DbVal(Box::new(mca)),
+                    connector_name,
+                    notify_feature_data,
+                )
+                .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
+
+            crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+                &state,
+                &event,
+                connector_auth_metadata,
+                notify_request,
+                notify_event_type,
+                &provider_merchant_id,
+                business_profile.get_id(),
+            )
+            .await
+        }
+    };
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,
@@ -829,8 +850,8 @@ async fn update_payment_attempt_from_webhook_response(
             }
         };
         let existing_details = match payment_attempt.external_surcharge_details.clone() {
-            Some(details) => details,
-            None => {
+            Some(details) if details.usable_connector_id().is_some() => details,
+            Some(_) | None => {
                 logger::debug!(
                     attempt_id = %attempt_id,
                     "No external_surcharge_details found; nothing to update"
@@ -843,6 +864,7 @@ async fn update_payment_attempt_from_webhook_response(
             external_surcharge_amount: existing_details.external_surcharge_amount,
             surcharge_percentage: existing_details.surcharge_percentage,
             sale_notified: true,
+            error_details: existing_details.error_details,
         };
         let update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ExternalSurchargeUpdate {
         external_surcharge_details: updated_details,

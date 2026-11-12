@@ -1,7 +1,86 @@
+use common_utils::types::MinorUnit;
+
 #[cfg(feature = "v2")]
 use crate::business_profile::Profile;
-#[cfg(feature = "v1")]
 use crate::errors;
+
+/// Amounts that make up a refund. Older refunds have no surcharge component.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct RefundAmountDetails {
+    refund_amount: MinorUnit,
+    #[serde(default)]
+    refund_surcharge_amount: Option<MinorUnit>,
+}
+
+impl RefundAmountDetails {
+    pub fn new(refund_amount: MinorUnit, refund_surcharge_amount: Option<MinorUnit>) -> Self {
+        Self {
+            refund_amount,
+            refund_surcharge_amount,
+        }
+    }
+
+    pub fn get_refund_amount(&self) -> MinorUnit {
+        self.refund_amount
+    }
+
+    pub fn get_refund_surcharge_amount(&self) -> Option<MinorUnit> {
+        self.refund_surcharge_amount
+    }
+
+    pub fn get_net_refund_amount(&self) -> MinorUnit {
+        self.refund_amount + self.refund_surcharge_amount.unwrap_or_default()
+    }
+
+    /// Values for the flat amount columns in the Diesel refund model.
+    pub fn into_storage_amounts(self) -> (MinorUnit, Option<MinorUnit>, MinorUnit) {
+        (
+            self.refund_amount,
+            self.refund_surcharge_amount,
+            self.get_net_refund_amount(),
+        )
+    }
+
+    pub fn get_remaining_refundable_amount(
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> MinorUnit {
+        let total_refunded: MinorUnit = previous_refunds
+            .into_iter()
+            .filter(|(status, _)| {
+                !matches!(
+                    status,
+                    diesel_models::enums::RefundStatus::Failure
+                        | diesel_models::enums::RefundStatus::TransactionFailure
+                )
+            })
+            .map(|(_, amount_details)| amount_details.get_net_refund_amount())
+            .sum();
+
+        amount_captured - total_refunded
+    }
+
+    pub fn exceeds_remaining_refundable_amount(
+        &self,
+        amount_captured: MinorUnit,
+        previous_refunds: impl IntoIterator<Item = (diesel_models::enums::RefundStatus, Self)>,
+    ) -> bool {
+        self.get_net_refund_amount()
+            > Self::get_remaining_refundable_amount(amount_captured, previous_refunds)
+    }
+}
+
+impl From<MinorUnit> for RefundAmountDetails {
+    fn from(refund_amount: MinorUnit) -> Self {
+        Self::new(refund_amount, None)
+    }
+}
+
+impl From<&diesel_models::refund::Refund> for RefundAmountDetails {
+    fn from(refund: &diesel_models::refund::Refund) -> Self {
+        Self::new(refund.refund_amount, refund.refund_surcharge_amount)
+    }
+}
 
 #[cfg(feature = "v1")]
 pub struct RefundListConstraints {
@@ -173,4 +252,28 @@ impl From<(api_models::refunds::RefundListRequest, Profile)> for RefundListConst
             refund_status,
         }
     }
+}
+
+pub fn validate_surcharge_order_amount(
+    original: i64,
+    remaining: i64,
+    requested: i64,
+) -> Result<(), error_stack::Report<errors::api_error_response::ApiErrorResponse>> {
+    if requested > original {
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount is greater than the original order amount."
+                    .to_string(),
+            },
+        ));
+    }
+    if requested > remaining {
+        return Err(error_stack::Report::new(
+            errors::api_error_response::ApiErrorResponse::PreconditionFailed {
+                message: "Requested refund amount exceeds the remaining refundable order amount."
+                    .to_string(),
+            },
+        ));
+    }
+    Ok(())
 }

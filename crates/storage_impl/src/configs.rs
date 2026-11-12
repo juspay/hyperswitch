@@ -1,7 +1,7 @@
 use diesel_models::configs as storage;
 use error_stack::report;
 use hyperswitch_domain_models::configs::ConfigInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     connection,

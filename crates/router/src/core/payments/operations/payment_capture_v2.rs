@@ -10,7 +10,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
-            helpers,
+            helpers, multi_currency_processing,
             operations::{self, ValidateStatusForOperation},
         },
     },
@@ -19,6 +19,7 @@ use crate::{
         api::{self, ConnectorCallType},
         domain::{self},
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -123,10 +124,10 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsCaptureRequest, PaymentCaptureD
     for PaymentsCapture
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsCaptureRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -200,7 +201,23 @@ impl<F: Send + Clone> GetTracker<F, PaymentCaptureData<F>, PaymentsCaptureReques
                 .set_amount_to_capture(amount_to_capture);
         }
 
+        let payment_feature_metadata = payment_intent
+            .feature_metadata
+            .as_ref()
+            .map(api_models::payments::FeatureMetadata::foreign_from);
+        let capture_connector = payment_attempt
+            .connector
+            .as_deref()
+            .get_required_value("connector")?;
+        let capture_feature_metadata =
+            multi_currency_processing::validate_multi_currency_processing_capture_settlement(
+                capture_connector,
+                payment_feature_metadata.as_ref(),
+                request.feature_metadata.as_ref(),
+                &[],
+            )?;
         let payment_data = PaymentCaptureData {
+            capture_feature_metadata,
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
