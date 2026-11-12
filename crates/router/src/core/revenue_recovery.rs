@@ -804,9 +804,10 @@ fn get_recovery_grace_window_end(
         .attach_printable("The end of the grace window does not fit a timestamp")
 }
 
-/// Retries stop once the invoice's attempts, the initial charge included, reach `max_retry_count`.
-fn is_retry_budget_exhausted(attempts_already_made: u16, max_retry_count: u16) -> bool {
-    attempts_already_made >= max_retry_count
+/// `retries_already_made` is the invoice's retries so far, not counting its first attempt, so
+/// retries stop once it reaches `max_retry_count`.
+fn is_retry_budget_exhausted(retries_already_made: u16, max_retry_count: u16) -> bool {
+    retries_already_made >= max_retry_count
 }
 
 pub async fn perform_calculate_workflow(
@@ -872,9 +873,9 @@ pub async fn perform_calculate_workflow(
     )
     .await?;
 
-    // Every limit and retry time below reads the invoice's own count of attempts. The process
-    // tracker's retry count is only this job's bookkeeping, and goes stale when an attempt is
-    // recorded while the job waits.
+    // Every limit and retry time below reads the invoice's own count of retries so far, not
+    // counting its first attempt. The process tracker's retry count is only this job's
+    // bookkeeping, and goes stale when an attempt is recorded while the job waits.
     let total_retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .ok_or(errors::RecoveryError::ValueNotFound)
