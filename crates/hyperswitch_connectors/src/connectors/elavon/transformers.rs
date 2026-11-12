@@ -159,6 +159,13 @@ impl TryFrom<&ConnectorAuthType> for ElavonAuthType {
                 api_key,
                 key1,
                 api_secret,
+            }
+            // `key2` carries the optional vendor ID, which only the UCS path sends.
+            | ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                ..
             } => Ok(Self {
                 account_id: api_key.to_owned(),
                 user_id: key1.to_owned(),
