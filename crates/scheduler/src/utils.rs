@@ -381,6 +381,8 @@ pub fn get_pcr_payments_retry_schedule_time(
     mapping: process_data::RevenueRecoveryPaymentProcessTrackerMapping,
     retry_count: u32,
 ) -> Option<i32> {
+    // `get_delay` is shared with every workflow and takes an `i32`.
+    let retry_count = i32::try_from(retry_count).ok()?;
     let mapping = mapping.default_mapping;
     // TODO: check if the current scheduled time is not more than the configured timerange
 
@@ -388,8 +390,7 @@ pub fn get_pcr_payments_retry_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        // `get_delay` is shared with every workflow and takes an `i32`.
-        get_delay(i32::try_from(retry_count).ok()?, &mapping.frequencies)
+        get_delay(retry_count, &mapping.frequencies)
     }
 }
 
