@@ -18,16 +18,22 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
     },
-    router_flow_types::RSync,
-    router_request_types::{ResponseId, SurchargeDetails},
+    router_flow_types::{
+        payments::{PostCaptureVoid, Void},
+        RSync,
+    },
+    router_request_types::{
+        PaymentsCancelData, PaymentsCancelPostCaptureData, ResponseId, SurchargeDetails,
+    },
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RedirectForm,
         RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
@@ -1404,6 +1410,26 @@ impl TryFrom<&PaymentsCancelRouterData> for CancelOrCaptureTransactionRequest {
     }
 }
 
+impl TryFrom<&PaymentsCancelPostCaptureRouterData> for CancelOrCaptureTransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsCancelPostCaptureRouterData) -> Result<Self, Self::Error> {
+        let transaction_request = TransactionVoidOrCaptureRequest {
+            amount: None, //amount is not accepted for void post capture
+            transaction_type: TransactionType::Void,
+            ref_trans_id: item.request.connector_transaction_id.to_string(),
+        };
+
+        let merchant_authentication = AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
+
+        Ok(Self {
+            create_transaction_request: AuthorizedotnetPaymentCancelOrCaptureRequest {
+                merchant_authentication,
+                transaction_request,
+            },
+        })
+    }
+}
+
 impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCaptureRouterData>>
     for CancelOrCaptureTransactionRequest
 {
@@ -1800,12 +1826,24 @@ impl<F, T>
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, AuthorizedotnetVoidResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+impl
+    TryFrom<
+        ResponseRouterData<
+            Void,
+            AuthorizedotnetVoidResponse,
+            PaymentsCancelData,
+            PaymentsResponseData,
+        >,
+    > for PaymentsCancelRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, AuthorizedotnetVoidResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            Void,
+            AuthorizedotnetVoidResponse,
+            PaymentsCancelData,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let prev_status = item.data.status;
         match &item.response.transaction_response {
@@ -2635,6 +2673,94 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsCompleteAuthorizeRouterData>>
                 merchant_authentication,
                 transaction_request,
             },
+        })
+    }
+}
+
+impl AuthorizedotnetVoidResponse {
+    fn transaction_errors(&self) -> Option<&Vec<ErrorMessage>> {
+        self.transaction_response
+            .as_ref()
+            .and_then(|transaction| transaction.errors.as_ref())
+            .filter(|errors| !errors.is_empty())
+    }
+
+    pub fn get_post_capture_void_status(&self) -> common_enums::PostCaptureVoidStatus {
+        if self.messages.result_code != ResultCode::Ok || self.transaction_errors().is_some() {
+            common_enums::PostCaptureVoidStatus::Failed
+        } else {
+            match self
+                .transaction_response
+                .as_ref()
+                .map(|transaction| &transaction.response_code)
+            {
+                Some(AuthorizedotnetVoidStatus::Approved) => {
+                    common_enums::PostCaptureVoidStatus::Succeeded
+                }
+                Some(AuthorizedotnetVoidStatus::HeldForReview) => {
+                    common_enums::PostCaptureVoidStatus::Pending
+                }
+                _ => common_enums::PostCaptureVoidStatus::Failed,
+            }
+        }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostCaptureVoid,
+            AuthorizedotnetVoidResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    > for PaymentsCancelPostCaptureRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PostCaptureVoid,
+            AuthorizedotnetVoidResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = item.response.get_post_capture_void_status();
+        let description = if post_capture_void_status == common_enums::PostCaptureVoidStatus::Failed
+        {
+            let messages = item
+                .response
+                .transaction_errors()
+                .map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| error.error_text.clone())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_else(|| {
+                    item.response
+                        .messages
+                        .message
+                        .iter()
+                        .map(|message| message.text.clone())
+                        .collect()
+                });
+            Some(messages.join(", "))
+        } else {
+            None
+        };
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: item
+                    .response
+                    .transaction_response
+                    .map(|transaction| transaction.transaction_id),
+                description,
+            }),
+            ..item.data
         })
     }
 }

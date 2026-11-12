@@ -1621,6 +1621,7 @@ diesel::table! {
         feature_metadata -> Nullable<Jsonb>,
         refund_surcharge_amount -> Nullable<Int8>,
         net_refund_amount -> Nullable<Int8>,
+        external_surcharge_refund_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]

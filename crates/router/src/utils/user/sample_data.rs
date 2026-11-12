@@ -454,6 +454,7 @@ pub async fn generate_sample_data(
                 refund_amount: MinorUnit::new(amount * 100),
                 refund_surcharge_amount: None,
                 net_refund_amount: Some(MinorUnit::new(amount * 100)),
+                external_surcharge_refund_details: None,
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,

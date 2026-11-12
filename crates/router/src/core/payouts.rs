@@ -4125,7 +4125,12 @@ pub async fn make_payout_data(
                                 Some(customer_id),
                                 platform.get_processor().get_key_store(),
                             )
-                            .await?;
+                            .await
+                            .inspect_err(|error| {
+                                logger::error!(?error, "Failed to retrieve source bank data")
+                            })
+                            .ok()
+                            .flatten();
 
                         (source_bank_data, None, None)
                     }
