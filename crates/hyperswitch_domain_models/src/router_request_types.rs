@@ -74,6 +74,15 @@ pub enum CurrentFlowInfo {
         /// The payment update post confirm request data
         request_data: Box<PaymentsUpdatePostConfirmData>,
     },
+    /// Pre-authorize void flow information
+    PreAuthorizeVoid {
+        /// The payment method type used for the payment
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        /// The current payment attempt status
+        attempt_status: storage_enums::AttemptStatus,
+        /// Whether this is a merchant-initiated transaction
+        is_mit_payment: bool,
+    },
     ConnectorWebhookRegister {
         /// The payment setup mandate request data
         request_data: Box<ConnectorWebhookRegisterRequest>,
@@ -88,6 +97,7 @@ impl CurrentFlowInfo {
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
         }
     }

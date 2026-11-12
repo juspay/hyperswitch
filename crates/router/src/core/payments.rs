@@ -11579,6 +11579,7 @@ where
                 "PreAuthorizeVoid" => matches!(
                     payment_data.get_payment_intent().status,
                     storage_enums::IntentStatus::RequiresCustomerAction
+                        | storage_enums::IntentStatus::Processing
                 ),
                 _ => false,
             }

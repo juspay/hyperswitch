@@ -242,7 +242,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
@@ -261,7 +261,7 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    queried_rung: i32,
+    queried_rung: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
@@ -270,24 +270,6 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
 
     scheduler_utils::get_time_from_delta(time_delta)
-}
-
-/// Positions on the static ladder available to an invoice under the hybrid static + adaptive
-/// scheme. Controlled internally rather than by merchants, so both trigger models read it here.
-#[cfg(feature = "v2")]
-pub(crate) async fn get_max_hybrid_cascading_retry_count(
-    state: &SessionState,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-) -> u16 {
-    let max_hybrid_cascading_retry_count = dimensions
-        .get_recovery_max_hybrid_cascading_retry_count(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await;
-
-    u16::try_from(max_hybrid_cascading_retry_count.max(0)).unwrap_or(u16::MAX)
 }
 
 #[derive(Debug, Clone)]
@@ -822,7 +804,7 @@ pub(crate) enum RetryTiming {
 pub(crate) struct RetryTimingParams<'a> {
     pub payment_intent: &'a PaymentIntent,
     pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    pub retry_count: i32,
+    pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
@@ -891,7 +873,7 @@ pub(crate) async fn get_retry_timing(
 
             let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(provider_merchant_id)
+                .with_provider_merchant_id(provider_merchant_id.clone())
                 .with_organization_id(payment_intent.organization_id.clone())
                 .with_profile_id(payment_intent.profile_id.clone());
 
@@ -968,9 +950,22 @@ pub(crate) async fn get_retry_timing(
                 let static_time = match ladder_role {
                     pcr::schedule::StaticLadderRole::Standby => None,
                     pcr::schedule::StaticLadderRole::Ceiling => {
-                        let max_hybrid_cascading_retry_count = i32::from(
-                            get_max_hybrid_cascading_retry_count(state, dimensions).await,
-                        );
+                        let max_hybrid_cascading_retry_count = {
+                            let dimensions =
+                                crate::core::configs::dimension_state::Dimensions::new()
+                                    .with_processor_merchant_id(
+                                        payment_intent.merchant_id.clone().into(),
+                                    )
+                                    .with_provider_merchant_id(provider_merchant_id)
+                                    .with_profile_id(payment_intent.profile_id.clone());
+                            dimensions
+                                .get_recovery_max_hybrid_cascading_retry_count(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    None,
+                                )
+                                .await
+                        };
 
                         if queried_rung <= max_hybrid_cascading_retry_count {
                             get_schedule_time_to_retry_adaptive_payments(
@@ -1081,7 +1076,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
+    retry_count: u32,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     // Needed only to resolve the A/B gate
