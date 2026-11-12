@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
     payment_address::PaymentAddress,
+    refunds::RefundAmountDetails,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_request_types,
@@ -576,8 +577,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .map(api_models::payments::FeatureMetadata::foreign_from),
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,
@@ -812,8 +815,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .attach_printable("Failed to parse payment feature metadata")?,
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,

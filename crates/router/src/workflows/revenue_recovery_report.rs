@@ -40,7 +40,6 @@ impl ProcessTrackerWorkflow<SessionState> for RevenueRecoveryReportWorkflow {
             .parse_value::<pcr::RecoveryReportTrackingData>("RecoveryReportTrackingData")
         {
             Ok(tracking_data) => tracking_data,
-            // Data that cannot be read now cannot be read on a later run either.
             Err(error) => {
                 logger::error!(
                     ?error,

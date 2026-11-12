@@ -330,8 +330,6 @@ pub async fn recovery_payments_create(
     json_payload: web::Json<Box<serde_json::value::RawValue>>,
 ) -> impl Responder {
     let flow = Flow::RecoveryPaymentsCreate;
-    // The body is kept exactly as sent: on `external_triggers` the report is recorded after the
-    // answer, from this body.
     let request_body = json_payload.into_inner();
     let payload =
         match serde_json::from_str::<payment_types::RecoveryPaymentsCreate>(request_body.get()) {

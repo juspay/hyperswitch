@@ -1859,7 +1859,15 @@ pub enum TokenSource {
 
 /// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
 #[derive(
-    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema, smithy::SmithyModel,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    smithy::SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SurchargeErrorDetails {

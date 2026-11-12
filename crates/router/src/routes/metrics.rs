@@ -382,9 +382,6 @@ counter_metric!(
     unit: "1",
 );
 
-// Recovery reports: transactions the merchant reports on `external_triggers`, processed by the
-// recovery report workflow after the API has answered. Nothing reaches the merchant if a report
-// fails there, so every report ends in exactly one `outcome`.
 counter_metric!(
     REVENUE_RECOVERY_REPORT_RECEIVED,
     GLOBAL_METER,
@@ -414,8 +411,6 @@ counter_metric!(
                   retried or ended",
     unit: "1",
 );
-// The merchant falls back to its own retry timing after 15 minutes, so the buckets reach well past
-// 900 seconds.
 histogram_metric_f64!(
     REVENUE_RECOVERY_REPORT_QUEUE_DELAY,
     GLOBAL_METER,
