@@ -527,6 +527,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers. Left out of the stored
+    /// data for every other invoice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_types::payments::ExternalTriggerState>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
