@@ -388,7 +388,8 @@ pub fn get_pcr_payments_retry_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        get_delay(retry_count, &mapping.frequencies)
+        // `get_delay` is shared with every workflow and takes an `i32`.
+        get_delay(i32::try_from(retry_count).ok()?, &mapping.frequencies)
     }
 }
 
@@ -409,13 +410,11 @@ pub fn get_subscription_invoice_sync_retry_schedule_time(
     }
 }
 
-/// Get the delay based on the retry count, which can be the process tracker's `i32` count or an
-/// unsigned one
+/// Get the delay based on the retry count
 pub fn get_delay<'a>(
-    retry_count: impl Into<i64>,
+    retry_count: i32,
     frequencies: impl IntoIterator<Item = &'a (i32, i32)>,
 ) -> Option<i32> {
-    let retry_count = retry_count.into();
     // Preferably, fix this by using unsigned ints
     if retry_count <= 0 {
         return None;
@@ -423,7 +422,7 @@ pub fn get_delay<'a>(
 
     let mut cumulative_count = 0;
     for &(frequency, count) in frequencies.into_iter() {
-        cumulative_count += i64::from(count);
+        cumulative_count += count;
         if cumulative_count >= retry_count {
             return Some(frequency);
         }
