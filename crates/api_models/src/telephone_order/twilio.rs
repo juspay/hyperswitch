@@ -63,8 +63,8 @@ pub struct TwilioGenericPayRequest {
     #[schema(example = "Order placed over the phone")]
     pub description: Option<String>,
 
-    /// Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id` and `customer_id` are also read.
-    #[schema(value_type = Option<Object>, example = json!({"payment_id": "pay_8320b449b06630271e378214dab80ce5", "profile_id": "pro_GUMsmmzTU7oadT00pJeo"}))]
+    /// Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id`, `customer_id` and `capture_method` are also read. `capture_method` takes `automatic` (the default) or `manual`.
+    #[schema(value_type = Option<Object>, example = json!({"payment_id": "pay_8320b449b06630271e378214dab80ce5", "profile_id": "pro_GUMsmmzTU7oadT00pJeo", "capture_method": "manual"}))]
     pub parameters: Option<HashMap<String, String>>,
 }
 
