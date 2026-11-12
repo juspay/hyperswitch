@@ -163,11 +163,11 @@ pub struct PaymentIntent {
     pub is_account_funded_transaction: Option<bool>,
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
-    #[encrypt(ty = Value)]
-    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1081,14 +1081,14 @@ pub struct PaymentIntent {
     /// The details of the party receiving the funds in an account funded transaction.
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
-    /// The details of the party providing the funds in an account funded transaction.
-    #[encrypt(ty = Value)]
-    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
+    /// The details of the party providing the funds in an account funded transaction.
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[cfg(feature = "v2")]

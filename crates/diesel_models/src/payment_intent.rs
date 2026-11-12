@@ -95,9 +95,9 @@ pub struct PaymentIntent {
     pub enable_avs_check: Option<bool>,
     pub value_added_tax_details: Option<ValueAddedTaxDetails>,
     pub order_commodity_code: Option<String>,
-    pub sender_details: Option<Encryption>,
     pub settlement_conclusion_applied: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
+    pub sender_details: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::PaymentReferenceId>,
     pub billing_address: Option<Encryption>,
     pub shipping_address: Option<Encryption>,
@@ -227,9 +227,9 @@ pub struct PaymentIntent {
     pub enable_avs_check: Option<bool>,
     pub value_added_tax_details: Option<ValueAddedTaxDetails>,
     pub order_commodity_code: Option<String>,
-    pub sender_details: Option<Encryption>,
     pub settlement_conclusion_applied: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression, PartialEq)]
