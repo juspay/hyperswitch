@@ -3440,6 +3440,10 @@ impl RefundStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Success)
     }
+
+    pub fn is_failure(self) -> bool {
+        matches!(self, Self::Failure | Self::TransactionFailure)
+    }
 }
 
 #[derive(
