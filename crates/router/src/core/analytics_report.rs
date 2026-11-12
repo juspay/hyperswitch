@@ -394,8 +394,7 @@ async fn payment_response_hash_key(
         )
         .await
         .change_context(AnalyticsError::UnknownError)?;
-    crate::utils::get_payment_response_hash_key(state.store.as_ref(), &key_store, &request.auth)
-        .await
+    crate::utils::get_payment_response_hash_key(state, &key_store, &request.auth).await
 }
 
 async fn send_emails(

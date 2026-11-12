@@ -825,8 +825,10 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
         )
         .await?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await?;
     let workflow = workflow.load_context(key_store, merchant_account);
 

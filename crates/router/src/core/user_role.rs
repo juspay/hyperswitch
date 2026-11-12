@@ -1080,8 +1080,7 @@ pub async fn list_invitations_for_user(
     .collect::<HashMap<_, _>>();
 
     let merchant_name_map = state
-        .store
-        .list_multiple_merchant_accounts(merchant_ids)
+        .track_accounts_query(|db| db.list_multiple_merchant_accounts(merchant_ids))
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()

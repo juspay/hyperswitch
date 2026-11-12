@@ -4549,8 +4549,9 @@ pub async fn payouts_manual_update_core(
             .attach_printable("Error while fetching the key store by merchant_id")?;
 
         let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
             .attach_printable("Error while fetching the merchant_account by merchant_id")?;

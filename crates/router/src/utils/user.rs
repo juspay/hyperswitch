@@ -59,8 +59,9 @@ impl UserFromToken {
                 }
             })?;
         let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
+            })
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {

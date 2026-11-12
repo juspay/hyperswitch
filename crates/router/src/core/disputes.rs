@@ -351,10 +351,12 @@ pub async fn get_platform_disputes_filters(
 
     let db = state.store.as_ref();
 
-    let merchant_accounts = db
-        .list_merchant_accounts_by_organization_id(
-            platform.get_provider().get_account().get_org_id(),
-        )
+    let merchant_accounts = state
+        .track_accounts_query(|db| {
+            db.list_merchant_accounts_by_organization_id(
+                platform.get_provider().get_account().get_org_id(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1256,8 +1258,12 @@ pub async fn schedule_dispute_sync_task(
             .attach_printable("Error while fetching the key store for processor merchant")?;
 
         let processor_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&processor_merchant_id, &processor_key_store)
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(
+                    &processor_merchant_id,
+                    &processor_key_store,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
             .attach_printable("Error while fetching the merchant account for processor")?;

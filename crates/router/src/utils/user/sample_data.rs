@@ -53,8 +53,7 @@ pub async fn generate_sample_data(
         .change_context(SampleDataError::InternalServerError)?;
 
     let merchant_from_db = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 

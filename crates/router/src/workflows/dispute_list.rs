@@ -51,8 +51,13 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
-        let provider_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
+        let provider_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(
+                    &tracking_data.merchant_id,
+                    &provider_key_store,
+                )
+            })
             .await?;
 
         let processor_merchant_id = tracking_data
@@ -66,8 +71,10 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             )
             .await?;
 
-        let processor_account = db
-            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+        let processor_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(

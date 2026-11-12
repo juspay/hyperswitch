@@ -2005,8 +2005,9 @@ mod tests {
             apple_pay_certificates_encrypted: None,
         });
         let merchant_account = state
-            .store
-            .insert_merchant(merchant_account_to_insert, &merchant_key_store)
+            .track_accounts_query(|db| {
+                db.insert_merchant(merchant_account_to_insert, &merchant_key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(

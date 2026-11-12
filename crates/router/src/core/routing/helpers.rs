@@ -210,14 +210,17 @@ pub async fn update_merchant_active_algorithm_ref(
     };
 
     let db = &*state.store;
-    db.update_specific_fields_in_merchant(
-        &key_store.merchant_id,
-        merchant_account_update,
-        key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update routing algorithm ref in merchant account")?;
+    state
+        .track_accounts_query(|db| {
+            db.update_specific_fields_in_merchant(
+                &key_store.merchant_id,
+                merchant_account_update,
+                key_store,
+            )
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
     cache::redact_from_redis_and_publish(db, [config_key])
         .await

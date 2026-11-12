@@ -306,8 +306,9 @@ async fn payments_create_core() {
         .unwrap();
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .unwrap();
 
@@ -629,8 +630,9 @@ async fn payments_create_core_adyen_no_redirect() {
         .unwrap();
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .unwrap();
 

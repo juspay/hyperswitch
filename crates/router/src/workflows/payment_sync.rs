@@ -53,24 +53,21 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
+        let merchant_id = tracking_data
+            .merchant_id
+            .as_ref()
+            .get_required_value("merchant_id")?;
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
+                merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
-                &key_store,
-            )
+        let merchant_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(merchant_id, &key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(

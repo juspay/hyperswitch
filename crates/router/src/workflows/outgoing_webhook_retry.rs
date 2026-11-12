@@ -172,11 +172,13 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 let provider_key_store = db
                     .get_merchant_key_store_by_merchant_id(&provider_merchant_id, master_key)
                     .await?;
-                let provider_account = db
-                    .find_merchant_account_by_merchant_id(
-                        &provider_merchant_id,
-                        &provider_key_store,
-                    )
+                let provider_account = state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(
+                            &provider_merchant_id,
+                            &provider_key_store,
+                        )
+                    })
                     .await?;
 
                 // Fetch processor merchant account and keystore (may be same as provider)
@@ -188,11 +190,13 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     let processor_key_store = db
                         .get_merchant_key_store_by_merchant_id(&processor_merchant_id, master_key)
                         .await?;
-                    let processor_account = db
-                        .find_merchant_account_by_merchant_id(
-                            &processor_merchant_id,
-                            &processor_key_store,
-                        )
+                    let processor_account = state
+                        .track_accounts_query(|db| {
+                            db.find_merchant_account_by_merchant_id(
+                                &processor_merchant_id,
+                                &processor_key_store,
+                            )
+                        })
                         .await?;
                     (processor_account, processor_key_store)
                 };

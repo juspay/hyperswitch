@@ -453,8 +453,6 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Platform> {
-    let db = &*state.store;
-
     let key_store = state
         .store()
         .get_merchant_key_store_by_merchant_id(
@@ -465,8 +463,8 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant account for the merchant id")?;

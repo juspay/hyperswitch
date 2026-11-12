@@ -53,8 +53,10 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             )
             .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+        let merchant_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(

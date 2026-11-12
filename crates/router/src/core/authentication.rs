@@ -437,8 +437,9 @@ where
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store for provider merchant")?;
         let provider_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&provider_merchant_id, &provider_key_store)
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(&provider_merchant_id, &provider_key_store)
+            })
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the merchant account for provider")?;

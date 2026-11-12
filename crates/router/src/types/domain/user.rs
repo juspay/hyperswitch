@@ -555,11 +555,12 @@ impl NewUserMerchant {
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(
-                &merchant_account_response.merchant_id,
-                &merchant_key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(
+                    &merchant_account_response.merchant_id,
+                    &merchant_key_store,
+                )
+            })
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant account by merchant_id")?;
@@ -603,11 +604,12 @@ impl NewUserMerchant {
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(
-                &merchant_account_response.id,
-                &merchant_key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(
+                    &merchant_account_response.id,
+                    &merchant_key_store,
+                )
+            })
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant account by merchant_id")?;

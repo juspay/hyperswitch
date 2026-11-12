@@ -127,8 +127,12 @@ pub async fn create_role(
         .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(
+                &user_from_token.merchant_id,
+                &merchant_key_store,
+            )
+        })
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -260,8 +264,12 @@ pub async fn create_role_v2(
         .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(
+                &user_from_token.merchant_id,
+                &merchant_key_store,
+            )
+        })
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -515,11 +523,12 @@ pub async fn update_role(
                     .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 let merchant_account = state
-                    .store
-                    .find_merchant_account_by_merchant_id(
-                        &user_from_token.merchant_id,
-                        &merchant_key_store,
-                    )
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(
+                            &user_from_token.merchant_id,
+                            &merchant_key_store,
+                        )
+                    })
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -647,11 +656,12 @@ pub async fn list_roles_with_info(
                     .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 let merchant_account = state
-                    .store
-                    .find_merchant_account_by_merchant_id(
-                        &user_from_token.merchant_id,
-                        &merchant_key_store,
-                    )
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(
+                            &user_from_token.merchant_id,
+                            &merchant_key_store,
+                        )
+                    })
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -824,11 +834,12 @@ pub async fn list_roles_at_entity_level(
                 .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
             let product_type = state
-                .store
-                .find_merchant_account_by_merchant_id(
-                    &user_from_token.merchant_id,
-                    &merchant_key_store,
-                )
+                .track_accounts_query(|db| {
+                    db.find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
+                })
                 .await
                 .map(|merchant_account| {
                     merchant_account

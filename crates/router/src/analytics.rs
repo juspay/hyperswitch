@@ -1998,9 +1998,7 @@ pub mod routes {
         payload: &ReportRequest,
     ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
         match payload.return_url {
-            Some(_) => {
-                get_payment_response_hash_key(state.store.as_ref(), key_store, auth_info).await
-            }
+            Some(_) => get_payment_response_hash_key(state, key_store, auth_info).await,
             None => Ok(None),
         }
     }

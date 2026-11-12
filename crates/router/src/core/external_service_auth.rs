@@ -168,8 +168,10 @@ async fn resolve_offer_engine_merchant_id(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                let merchant_account = db
-                    .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+                let merchant_account = state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
+                    })
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
                 offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(

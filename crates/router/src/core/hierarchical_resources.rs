@@ -243,8 +243,6 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
         account: RequestorAccount,
         account_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()> {
-        let db = state.store.as_ref();
-
         match resource.encrypted_data.as_ref() {
             Some(private_key) => {
                 let data = parse_apple_pay_certificate_data(&resource.data)?;
@@ -290,7 +288,7 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
                     apple_pay_certificates: Some(Secret::new(plain_data)),
                     apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
                 };
-                link_hierarchical_resource_data_to_scope(db, account_key_store, account, &update)
+                link_hierarchical_resource_data_to_scope(state, account_key_store, account, &update)
                     .await
             }
             None => Ok(()),
@@ -545,11 +543,12 @@ async fn resolve_apple_pay_certificate_data(
 }
 
 async fn link_hierarchical_resource_data_to_scope(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     account: RequestorAccount,
     update: &impl RequestorHierarchicalResourceUpdate,
 ) -> RouterResult<()> {
+    let db = state.store.as_ref();
     match account {
         RequestorAccount::MerchantConnectorAccount(mca) => {
             db.update_merchant_connector_account(
@@ -568,7 +567,10 @@ async fn link_hierarchical_resource_data_to_scope(
                 .attach_printable("Failed to link resource data to profile")?;
         }
         RequestorAccount::MerchantAccount(merchant_account) => {
-            db.update_merchant(*merchant_account, update.for_merchant_account(), key_store)
+            state
+                .track_accounts_query(|db| {
+                    db.update_merchant(*merchant_account, update.for_merchant_account(), key_store)
+                })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to merchant account")?;
