@@ -2815,7 +2815,7 @@ fn build_connector_auth_metadata(
                 // is presented on the VGS outbound route, not via UCS auth headers, and
                 // connector-service explicitly opts it out of the
                 // CertificateAuth->ConnectorSpecificConfig conversion (see
-                // `ConnectorEnum::Netcetera => Err(...)` in connector-service's
+                // `AuthenticatorConnectorEnum::Netcetera => Err(...)` in UCS's
                 // router_data.rs), routing it via the `x-auth: no-key` shortcut instead.
                 // Sending it as multi-auth-key (like Santander, which does need real cert/key
                 // transmitted) makes UCS fail with "Failed to convert legacy auth for

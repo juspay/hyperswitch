@@ -653,8 +653,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_pre_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -690,8 +692,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -765,8 +769,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_post_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1648,6 +1654,104 @@ pub fn build_unified_connector_service_grpc_headers(
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_CONNECTOR)
+}
+
+/// Select the authenticator registry for standalone 3DS connectors.
+fn build_unified_connector_service_grpc_headers_for_authentication(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    // Netcetera is an authenticator; payment connectors performing their own
+    // 3DS steps continue to use the payment connector registry.
+    let connector_header_key = if meta.connector_name == "netcetera" {
+        consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR
+    } else {
+        consts::UCS_HEADER_CONNECTOR
+    };
+    build_grpc_headers_internal(meta, grpc_headers, connector_header_key)
+}
+
+#[cfg(test)]
+mod authentication_header_tests {
+    use super::*;
+    use crate::grpc_client::LineageIds;
+    use std::borrow::Cow;
+
+    #[test]
+    fn authentication_headers_preserve_config_and_vault_routing() {
+        let netcetera_config =
+            r#"{"config":{"Netcetera":{"merchant_configuration_id":"synthetic-configuration"}}}"#;
+        for (connector_name, selected_header, absent_header) in [
+            (
+                "netcetera",
+                consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR,
+                consts::UCS_HEADER_CONNECTOR,
+            ),
+            (
+                "cybersource",
+                consts::UCS_HEADER_CONNECTOR,
+                consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR,
+            ),
+        ] {
+            let typed_config = (connector_name == "netcetera").then_some(netcetera_config);
+            let merchant_id =
+                common_utils::id_type::MerchantId::try_from(Cow::Borrowed("merchant_synthetic"))
+                    .expect("synthetic merchant id");
+            let profile_id =
+                common_utils::id_type::ProfileId::try_from(Cow::Borrowed("pro_synthetic"))
+                    .expect("synthetic profile id");
+            let meta = ConnectorAuthMetadata {
+                connector_name: connector_name.to_string(),
+                auth_type: "no-key".to_string(),
+                api_key: None,
+                key1: None,
+                key2: None,
+                api_secret: None,
+                auth_key_map: None,
+                merchant_id: Secret::new("merchant_synthetic".to_string()),
+                connector_config: typed_config.map(|config| Secret::new(config.to_string())),
+            };
+            let grpc_headers = GrpcHeadersUcs {
+                tenant_id: "public".to_string(),
+                request_id: None,
+                lineage_ids: LineageIds::new(merchant_id, profile_id),
+                external_vault_proxy_metadata: Some("synthetic-vault-metadata".to_string()),
+                merchant_reference_id: None,
+                resource_id: None,
+                shadow_mode: Some(false),
+                proxy_name: Some("primary"),
+                config_override: None,
+                payment_method: None,
+                payment_method_type: None,
+            };
+            let headers =
+                build_unified_connector_service_grpc_headers_for_authentication(meta, grpc_headers)
+                    .expect("authentication headers");
+            assert_eq!(
+                headers.get(selected_header).and_then(|v| v.to_str().ok()),
+                Some(connector_name)
+            );
+            assert!(headers.get(absent_header).is_none());
+            assert_eq!(
+                headers
+                    .get(consts::UCS_HEADER_CONNECTOR_CONFIG)
+                    .and_then(|v| v.to_str().ok()),
+                typed_config
+            );
+            assert_eq!(
+                headers
+                    .get(consts::UCS_HEADER_EXTERNAL_VAULT_METADATA)
+                    .and_then(|v| v.to_str().ok()),
+                Some("synthetic-vault-metadata")
+            );
+            assert_eq!(
+                headers
+                    .get(common_utils_consts::X_PROXY_NAME)
+                    .and_then(|v| v.to_str().ok()),
+                Some("primary")
+            );
+        }
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Payout Request

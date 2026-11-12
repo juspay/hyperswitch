@@ -2242,15 +2242,6 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    // Netcetera has no connector-specific config on the wire: connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
-    // this header makes UCS hard-error on deserialization instead of falling back
-    // to the legacy auth header. Suppress it here so UCS takes the legacy-header
-    // path (`x-auth` / `x-api-key` / `x-key1`), which does work for Netcetera.
-    if matches!(connector, Connector::Netcetera) {
-        return Ok(None);
-    }
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
