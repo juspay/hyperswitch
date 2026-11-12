@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{AsyncExt, Encode, ValueExt},
-    types::keymanager::ToEncryptable,
+    types::{keymanager::ToEncryptable, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
@@ -267,7 +267,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             common_enums::TriggeredBy::External => None,
         };
         let active_attempts_group_id = payment_data.payment_intent.active_attempts_group_id.clone();
-        let (status, amount_captured) = payment_data.get_intent_status_and_amount_captured();
+        let amount_captured = payment_data.payment_intent.amount_captured;
+        let status = if amount_captured > Some(MinorUnit::new(0))
+            && *payment_data.payment_intent.enable_partial_authorization
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            common_enums::IntentStatus::from(payment_data.payment_attempt.status)
+        };
         let payment_intent_update =
 
     hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::RecordUpdate
@@ -277,7 +284,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
             updated_by: storage_scheme.inner().to_string(),
             active_attempt_id,
             active_attempts_group_id,
-            amount_captured,
         }
     ;
         payment_data.payment_intent = state
@@ -298,10 +304,10 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsAttemptRecordRequest, PaymentAt
     for PaymentAttemptRecord
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsAttemptRecordRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

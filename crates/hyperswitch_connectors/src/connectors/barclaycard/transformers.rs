@@ -774,7 +774,7 @@ pub struct BarclaycardRedirectionAuthResponse {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BarclaycardConsumerAuthInformationRequest {
-    return_url: String,
+    return_url: Secret<String>,
     reference_id: String,
 }
 

@@ -74,6 +74,15 @@ pub enum CurrentFlowInfo {
         /// The payment update post confirm request data
         request_data: Box<PaymentsUpdatePostConfirmData>,
     },
+    /// Pre-authorize void flow information
+    PreAuthorizeVoid {
+        /// The payment method type used for the payment
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        /// The current payment attempt status
+        attempt_status: storage_enums::AttemptStatus,
+        /// Whether this is a merchant-initiated transaction
+        is_mit_payment: bool,
+    },
     ConnectorWebhookRegister {
         /// The payment setup mandate request data
         request_data: Box<ConnectorWebhookRegisterRequest>,
@@ -88,6 +97,7 @@ impl CurrentFlowInfo {
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -111,9 +121,11 @@ pub struct PaymentsAuthorizeData {
     pub currency: storage_enums::Currency,
     pub confirm: bool,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
+    /// Router callback for connector notifications, with a token independent of browser callbacks.
+    pub router_notification_url: Option<Secret<String>>,
     pub webhook_url: Option<String>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<mandates::MandateIds>,
@@ -179,6 +191,7 @@ pub struct PaymentsAuthorizeData {
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 impl PaymentsAuthorizeData {
@@ -211,9 +224,9 @@ pub struct ExternalVaultProxyPaymentsData {
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
     pub webhook_url: Option<String>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     // Mandates
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<mandates::MandateIds>,
@@ -306,7 +319,7 @@ pub struct PaymentsPostSessionTokensData {
     pub merchant_order_reference_id: Option<String>,
     pub shipping_cost: Option<MinorUnit>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -579,7 +592,7 @@ pub struct PaymentMethodTokenizationData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub mandate_id: Option<mandates::MandateIds>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
 }
 
@@ -696,7 +709,7 @@ pub struct CreateOrderRequestData {
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
 }
@@ -807,8 +820,8 @@ pub struct PaymentsPreAuthenticateData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub router_return_url: Option<String>,
-    pub complete_authorize_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
+    pub complete_authorize_url: Option<Secret<String>>,
     pub browser_info: Option<BrowserInformation>,
     pub enrolled_for_3ds: bool,
     pub customer_name: Option<Secret<String>>,
@@ -904,7 +917,7 @@ pub struct PaymentsAuthenticateData {
     pub amount: Option<i64>,
     pub email: Option<pii::Email>,
     pub currency: Option<storage_enums::Currency>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     pub browser_info: Option<BrowserInformation>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub minor_amount: Option<MinorUnit>,
@@ -915,7 +928,7 @@ pub struct PaymentsAuthenticateData {
     pub webhook_url: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     /// Merchant return URL, forwarded to the authentication leg.
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -960,7 +973,7 @@ pub struct PaymentsPostAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: Option<MinorUnit>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     pub order_id: Option<String>,
 }
 
@@ -1042,7 +1055,7 @@ pub struct CompleteAuthorizeData {
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     pub metadata: Option<serde_json::Value>,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
     pub request_incremental_authorization: bool,
@@ -1055,7 +1068,7 @@ pub struct CompleteAuthorizeData {
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub is_stored_credential: Option<bool>,
     pub tokenization: Option<common_enums::Tokenization>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
     pub merchant_order_reference_id: Option<String>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
@@ -1072,6 +1085,7 @@ pub struct CompleteAuthorizeData {
     pub enable_overcapture: Option<common_types::primitive_wrappers::EnableOvercaptureBool>,
     /// Payment feature metadata retained through redirect completion.
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1744,6 +1758,8 @@ pub struct PayoutsData {
     pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
+    /// Payout party details converted from explicit sender input or parsed from legacy
+    /// vendor metadata. Never persisted; only `sender_details` is stored on the payout row.
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
@@ -1752,6 +1768,9 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Connector-generated state persisted on the payout attempt for later payout steps.
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
@@ -1873,6 +1892,20 @@ pub struct PaymentsCompleteSurchargeData {
     pub amount: Option<MinorUnit>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundInitData {
+    pub refund_id: String,
+    pub original_surcharge_id: String,
+    pub order_amount: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundCompleteData {
+    pub refund_id: String,
+    pub connector_surcharge_refund_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsCompleteRefundSurchrgeData {
     /// transaction ID from surcharge connectors
@@ -1925,7 +1958,7 @@ pub struct SetupMandateRequestData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub setup_mandate_details: Option<mandates::MandateData>,
-    pub router_return_url: Option<String>,
+    pub router_return_url: Option<Secret<String>>,
     pub webhook_url: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub browser_info: Option<BrowserInformation>,
@@ -1935,7 +1968,7 @@ pub struct SetupMandateRequestData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub request_incremental_authorization: bool,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub complete_authorize_url: Option<String>,
+    pub complete_authorize_url: Option<Secret<String>>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub enrolled_for_3ds: bool,
     pub related_transaction_id: Option<String>,
@@ -1964,6 +1997,7 @@ pub struct SetupMandateRequestData {
     /// apply only to merchants in particular countries.
     pub business_country: Option<common_enums::CountryAlpha2>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
 }
 
 impl SetupMandateRequestData {
@@ -2034,6 +2068,7 @@ impl PushNotificationRequestData {
 pub struct GenerateQrRequestData {
     pub amount: Option<i64>,
     pub mandate_id: Option<mandates::MandateIds>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 impl MandateIdSettable for GenerateQrRequestData {
@@ -2065,6 +2100,7 @@ impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2076,6 +2112,7 @@ impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2087,6 +2124,7 @@ impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }
@@ -2098,6 +2136,7 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }

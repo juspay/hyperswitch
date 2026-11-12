@@ -15,6 +15,7 @@
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
     "cypress:platform": "cypress run --headless --spec 'cypress/e2e/spec/Platform/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
+    "cypress:security": "cypress run --headless --spec 'cypress/e2e/spec/Security/**/*'",
     "cypress:specs": "node scripts/run-cypress.js",
     "report:generate": "node scripts/report-generator.js",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
@@ -39,8 +40,8 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.2.1",
-    "cypress": "^14.5.4",
-    "cypress-mochawesome-reporter": "^4.0.2",
+    "cypress": "^15.21.1",
+    "cypress-mochawesome-reporter": "^5.0.0",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-cypress": "^5.1.0",
@@ -55,5 +56,10 @@
   },
   "optionalDependencies": {
     "fsevents": "^2.3.3"
+  },
+  "overrides": {
+    "hasha@5.2.2": {
+      "type-fest": "0.8.0"
+    }
   }
 }

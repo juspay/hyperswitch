@@ -34,6 +34,30 @@ use crate::{
     consts::PERCENTAGE_BASE,
     domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
 };
+/// Phone contact details shared by payment and payout API models.
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PhoneDetails {
+    /// The contact number
+    #[schema(value_type = Option<String>, example = "9123456789")]
+    #[smithy(value_type = "Option<String>")]
+    pub number: Option<Secret<String>>,
+    /// The country code attached to the number
+    #[schema(example = "+1")]
+    #[smithy(value_type = "Option<String>")]
+    pub country_code: Option<String>,
+}
+
 /// Merchant settlement leg for a single capture or refund. No conversion is recomputed.
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
@@ -1111,7 +1135,7 @@ pub enum RecoveryNoRetryReason {
     /// The invoice has used every retry it is allowed.
     RetriesExhausted,
     /// The grace period of the invoice is over, or would be over by the time of the next retry.
-    GraceWindowExpired,
+    GracePeriodExceeded,
     /// The card was hard declined, and the retries the profile allows after that are used up.
     HardDecline,
     /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
@@ -1123,22 +1147,41 @@ pub enum RecoveryNoRetryReason {
     BelowRetryThreshold,
 }
 
-/// When the merchant should trigger the next retry of an invoice.
+/// When the merchant should trigger the next retry of an invoice: at `schedule_time`, or not at all
+/// when that is `null`, for the given `reason`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum RecoveryNextRetry {
-    /// Trigger the retry at `schedule_time`, then report its result through the recovery API.
-    Scheduled {
-        /// The time to trigger the retry at.
-        #[schema(value_type = String, example = "2022-09-10T10:11:12.000Z")]
-        #[serde(with = "common_utils::custom_serde::iso8601")]
-        schedule_time: PrimitiveDateTime,
-    },
-    /// Do not trigger a retry.
-    NotScheduled {
-        /// Why no retry is scheduled.
-        reason: RecoveryNoRetryReason,
-    },
+pub struct RecoveryNextRetry {
+    /// Number of the next retry, counted the way the `max_retry_count` of the profile counts them:
+    /// the first retry after the original payment is 1.
+    pub retry_count: u16,
+    /// The time to trigger the retry at, then report its result through the recovery API. `null`
+    /// when no retry is scheduled.
+    #[schema(value_type = Option<String>, example = "2022-09-10T10:11:12.000Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub schedule_time: Option<PrimitiveDateTime>,
+    /// Why no retry is scheduled. `null` when one is.
+    #[serde(default)]
+    pub reason: Option<RecoveryNoRetryReason>,
+}
+
+impl RecoveryNextRetry {
+    /// A retry to trigger at `schedule_time`.
+    pub fn scheduled(retry_count: u16, schedule_time: PrimitiveDateTime) -> Self {
+        Self {
+            retry_count,
+            schedule_time: Some(schedule_time),
+            reason: None,
+        }
+    }
+
+    /// No retry, for `reason`.
+    pub fn not_scheduled(retry_count: u16, reason: RecoveryNoRetryReason) -> Self {
+        Self {
+            retry_count,
+            schedule_time: None,
+            reason: Some(reason),
+        }
+    }
 }
 
 /// The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled
@@ -1146,7 +1189,7 @@ pub enum RecoveryNextRetry {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ExternalTriggerState {
     /// Positions of the static retry ladder the invoice has used.
-    pub consumed_ladder_rungs: i32,
+    pub consumed_ladder_rungs: u32,
     /// Retries made with the card of the invoice since it was first hard declined. Absent while it
     /// has not been.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1797,7 +1840,15 @@ pub enum TokenSource {
 
 /// Connector error details shared by surcharge responses, cached quotes, and stored attempts.
 #[derive(
-    Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, ToSchema, smithy::SmithyModel,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    smithy::SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SurchargeErrorDetails {

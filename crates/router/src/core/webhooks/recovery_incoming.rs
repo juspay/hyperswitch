@@ -75,7 +75,6 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
-    // The merchant is the only one who reports the transactions when they trigger the retries.
     if business_profile.revenue_recovery_trigger_model
         == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
     {
@@ -512,7 +511,6 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
-                data.get_transaction_initiator(),
             )
             .await
     }
@@ -719,7 +717,6 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
-        transaction_initiator: common_enums::TransactionInitiator,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -732,7 +729,6 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
-                transaction_initiator,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -850,8 +846,8 @@ impl RevenueRecoveryAttempt {
                 "Failed to store payment processor tokens in Redis: {:?}",
                 error
             );
-            // A merchant who triggers the retries still has to be told when, and reporting the
-            // recorded transaction again would be refused as a duplicate.
+            // A transaction the merchant reports is recorded by now, and reporting it again would
+            // be refused as a duplicate, so they still get an answer.
             if connector_details.has_connector_accounts() {
                 return Err(errors::RevenueRecoveryError::RevenueRecoveryRedisInsertFailed.into());
             }
@@ -865,7 +861,6 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
-        transaction_initiator: common_enums::TransactionInitiator,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -876,7 +871,6 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
-                transaction_initiator: Some(transaction_initiator),
             }),
         };
 
@@ -1049,9 +1043,6 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
-                                // A billing connector does not say, so this takes the default the
-                                // invoice is created with.
-                                common_enums::TransactionInitiator::MerchantInitiated,
                             )
                             .await
                     })

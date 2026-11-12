@@ -24,23 +24,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
 #[cfg(feature = "v2")]
 /// Revenue Recovery - Create
 ///
-/// Record a transaction made outside of Hyperswitch against an invoice. The
-/// `revenue_recovery_trigger_model` of the profile decides what is needed and what follows.
-///
-/// `internal_triggers` needs the billing and payment merchant connector accounts, and Hyperswitch
-/// schedules and makes the retries.
-///
-/// `external_triggers` needs only the `connector`, and the merchant makes the retries within the
-/// limits in the `revenue_recovery_config` of the profile, which this model requires. For a
-/// transaction made off session with the customer absent, which is what a request leaving out
-/// `setup_future_usage` and `customer_present` means, `next_retry` in the response says when to
-/// trigger the next one. Trigger it at that time and report its result through this same API, until
-/// `next_retry` says no retry is scheduled and why. Any other transaction is only recorded, and its
-/// response has no `next_retry`. A transaction reported against a closed invoice is refused.
-///
-/// On `external_triggers` the `order_amount` of every transaction must be the amount of the
-/// invoice. What the transactions capture adds up towards it: reaching it closes the invoice, and
-/// going over it is refused.
+/// Record a transaction made outside of Hyperswitch against an invoice.
 #[utoipa::path(
     post,
     path = "/v2/recovery",
@@ -122,9 +106,29 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         "connector_transaction_id": "993672945374576J",
                         "transaction_created_at": "2022-09-10T10:11:12Z",
                         "billing_started_at": "2022-09-10T10:11:12Z",
+                        "billing": {
+                            "address": {
+                                "line1": "1467 Harrison Street",
+                                "city": "San Francisco",
+                                "state": "California",
+                                "zip": "94122",
+                                "country": "US",
+                                "first_name": "John",
+                                "last_name": "Doe"
+                            },
+                            "phone": {
+                                "number": "9123456789",
+                                "country_code": "+1"
+                            },
+                            "email": "john@example.com"
+                        },
                         "error": {
                             "code": "card_declined",
-                            "message": "The card was declined."
+                            "message": "The card was declined.",
+                            "reason": "Insufficient funds",
+                            "network_advice_code": "01",
+                            "network_decline_code": "51",
+                            "network_error_message": "Retry after some time"
                         },
                         "payment_method_data": {
                             "primary_processor_payment_method_token": "token_1234",
@@ -148,52 +152,11 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
             status = 200,
             description = "Revenue Recovery Transaction Recorded Successfully",
             body = RecoveryPaymentsResponse,
-            examples(
-                (
-                    "Recorded on a profile with internal triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                        })
-                    )
-                ),
-                (
-                    "Next retry scheduled on a profile with external triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                            "next_retry": {
-                                "status": "scheduled",
-                                "schedule_time": "2022-09-10T13:11:12.000Z"
-                            }
-                        })
-                    )
-                ),
-                (
-                    "No retry scheduled on a profile with external triggers" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
-                            "next_retry": {
-                                "status": "not_scheduled",
-                                "reason": "retries_exhausted"
-                            }
-                        })
-                    )
-                ),
-                (
-                    "Only recorded on a profile with external triggers, as the customer was present" = (
-                        value = json!({
-                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                            "intent_status": "failed",
-                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-                        })
-                    )
-                ),
-            )
+            example = json!({
+                "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                "intent_status": "failed",
+                "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+            })
         ),
         (status = 400, description = "Missing or invalid mandatory fields, or the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
