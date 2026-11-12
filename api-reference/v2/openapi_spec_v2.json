@@ -16261,7 +16261,8 @@
           "consumed_ladder_rungs": {
             "type": "integer",
             "format": "int32",
-            "description": "Positions of the static retry ladder the invoice has used."
+            "description": "Positions of the static retry ladder the invoice has used.",
+            "minimum": 0
           },
           "retries_after_hard_decline": {
             "type": "integer",
