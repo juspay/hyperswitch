@@ -167,7 +167,6 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: hyperswitch_masking::masked_serialize(&payout_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
-            // The invoice is a payment, so its recovery events are logged against the payment.
             Self::RecoveryRetryDetails(retry_payload) => {
                 Some(OutgoingWebhookEventContent::Payment {
                     payment_id: retry_payload.id.clone(),
