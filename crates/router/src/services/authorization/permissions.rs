@@ -115,6 +115,14 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Merchant]
         },
+        ReconAccount: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconAudit: {
+            scopes: [Read],
+            entities: [Profile]
+        },
         SuperpositionConfig: {
             scopes: [Read, Write],
             entities: [Profile]
@@ -169,6 +177,8 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
         (Resource::ReconApiKey, _) => Some("Recon API Keys"),
+        (Resource::ReconAccount, _) => Some("Recon Ledger Accounts"),
+        (Resource::ReconAudit, _) => Some("Recon Audit Trail"),
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
         (Resource::Offers, _) => Some("Offers"),
         (Resource::Alert, _) => None,
