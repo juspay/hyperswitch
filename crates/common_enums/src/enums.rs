@@ -417,6 +417,37 @@ pub enum RevenueRecoveryTriggerModel {
     ExternalTriggers,
 }
 
+/// Who started a transaction of a revenue recovery invoice, worked out from whether the customer
+/// was present and how the payment method is set up for future use. It is never stored: an attempt
+/// keeps those two as reported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransactionInitiator {
+    /// The customer was present, paying on session, or also saving the payment method for
+    /// off-session use.
+    CustomerInitiated(FutureUsage),
+    /// The merchant charged a payment method saved for off-session use, with the customer absent.
+    MerchantInitiated,
+}
+
+impl TransactionInitiator {
+    pub fn new(
+        customer_present: PresenceOfCustomerDuringPayment,
+        setup_future_usage: FutureUsage,
+    ) -> Self {
+        match (customer_present, setup_future_usage) {
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OffSession) => {
+                Self::MerchantInitiated
+            }
+            (PresenceOfCustomerDuringPayment::Present, setup_future_usage) => {
+                Self::CustomerInitiated(setup_future_usage)
+            }
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OnSession) => {
+                Self::CustomerInitiated(FutureUsage::OnSession)
+            }
+        }
+    }
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,
@@ -11282,7 +11313,7 @@ pub enum MitExemptionRequest {
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(
-    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {

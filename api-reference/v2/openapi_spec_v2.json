@@ -23512,6 +23512,22 @@
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
           }
         }
       },
