@@ -22,7 +22,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{env, instrument, logger, tracing};
+use router_env::{env, instrument, logger};
 use storage_impl::errors::StorageError;
 #[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
@@ -1804,14 +1804,16 @@ pub async fn create_platform_account(
         .create_new_merchant_and_insert_in_db(state.to_owned())
         .await?;
 
+    let organization_id = organization.get_organization_id();
     state
-        .accounts_store
-        .update_organization_by_org_id(
-            &organization.get_organization_id(),
-            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
-                platform_merchant_id: merchant_account.get_id().clone(),
-            },
-        )
+        .track_accounts_query(|db| {
+            db.update_organization_by_org_id(
+                &organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: merchant_account.get_id().clone(),
+                },
+            )
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1857,8 +1859,7 @@ pub async fn create_org_merchant_for_user(
 ) -> UserResponse<()> {
     let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
-        .accounts_store
-        .insert_organization(db_organization)
+        .track_accounts_query(|db| db.insert_organization(db_organization))
         .await
         .change_context(UserErrors::InternalServerError)?;
     let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
@@ -1961,8 +1962,7 @@ pub async fn list_user_roles_details(
         .collect::<HashSet<_>>();
 
     let org_name = state
-        .accounts_store
-        .find_organization_by_org_id(&user_from_token.org_id)
+        .track_accounts_query(|db| db.find_organization_by_org_id(&user_from_token.org_id))
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Org id not found")?
@@ -3054,7 +3054,7 @@ pub async fn get_sso_auth_url(
             return_url: String::new(),
             http_method: String::new(),
             params: Vec::with_capacity(0),
-            return_url_with_query_params: url.to_string(),
+            return_url_with_query_params: url.to_string().into(),
         })
     })
 }
@@ -3249,7 +3249,7 @@ pub async fn list_orgs_for_user(
 
     let resp = futures::future::try_join_all(
         orgs.iter()
-            .map(|org_id| state.accounts_store.find_organization_by_org_id(org_id)),
+            .map(|org_id| state.track_accounts_query(|db| db.find_organization_by_org_id(org_id))),
     )
     .await
     .change_context(UserErrors::InternalServerError)?

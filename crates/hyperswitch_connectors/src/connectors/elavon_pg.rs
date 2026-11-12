@@ -14,8 +14,8 @@
 //! Scope: card one-time payments (non-3DS and external-3DS passthrough). Elavon
 //! Payment Gateway's direct API performs no gateway-driven redirect authentication,
 //! so there is no redirect and no complete-authorize leg.
-//! Mandates: cards and pre-decrypted Apple Pay / Google Pay open one with a CIT, and cards
-//! also with a zero-amount setup. No bank transfers, no BNPL.
+//! Mandates and MIT, and the flows that create a shopper and a stored card, run in UCS. No bank
+//! transfers, no BNPL.
 
 pub mod transformers;
 
@@ -650,9 +650,8 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Credit,
             PaymentMethodDetails {
-                // Recurring cards: the initial sale opens a stored-credential agreement
-                // and each repeat is a merchant-initiated sale replaying EPG's
-                // `credentialOnFileData`. Refunds and refund sync are implemented in UCS
+                // Recurring cards: the card is saved as an EPG stored card and each repeat is
+                // a merchant-initiated sale on it. Refunds and refund sync are implemented in UCS
                 // (`POST /transactions` with `type: "refund"`, read back from
                 // `/transactions/{id}`).
                 mandates: enums::FeatureStatus::Supported,
@@ -680,9 +679,8 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             enums::PaymentMethod::Card,
             enums::PaymentMethodType::Debit,
             PaymentMethodDetails {
-                // Recurring cards: the initial sale opens a stored-credential agreement
-                // and each repeat is a merchant-initiated sale replaying EPG's
-                // `credentialOnFileData`. Refunds and refund sync are implemented in UCS
+                // Recurring cards: the card is saved as an EPG stored card and each repeat is
+                // a merchant-initiated sale on it. Refunds and refund sync are implemented in UCS
                 // (`POST /transactions` with `type: "refund"`, read back from
                 // `/transactions/{id}`).
                 mandates: enums::FeatureStatus::Supported,
@@ -706,7 +704,8 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
-        // Wallets are sent to EPG pre-decrypted, as the device PAN plus cryptogram.
+        // Wallets are sent to EPG pre-decrypted, as the device PAN plus cryptogram. EPG does not
+        // allow wallets for credential on file, so they are one-time payments only.
         for wallet in [
             enums::PaymentMethodType::ApplePay,
             enums::PaymentMethodType::GooglePay,
@@ -715,7 +714,7 @@ static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 enums::PaymentMethod::Wallet,
                 wallet,
                 PaymentMethodDetails {
-                    mandates: enums::FeatureStatus::Supported,
+                    mandates: enums::FeatureStatus::NotSupported,
                     refunds: enums::FeatureStatus::Supported,
                     supported_capture_methods: supported_capture_methods.clone(),
                     specific_features: None,
@@ -771,6 +770,7 @@ impl ConnectorSpecifications for ElavonPg {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -808,7 +808,37 @@ impl ConnectorSpecifications for ElavonPg {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
+    }
+
+    /// Elavon PG keeps a saved card as a stored card, which has to belong to a shopper. A
+    /// merchant-initiated charge uses the stored card it already has, so only the payment that
+    /// saves the card creates one.
+    #[cfg(feature = "v1")]
+    fn should_call_connector_customer(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> api::ConnectorCustomerAction {
+        if matches!(
+            payment_attempt.setup_future_usage_applied,
+            Some(enums::FutureUsage::OffSession)
+        ) && payment_attempt.customer_acceptance.is_some()
+            && matches!(
+                payment_attempt.payment_method,
+                Some(enums::PaymentMethod::Card)
+            )
+        {
+            api::ConnectorCustomerAction::CallConnectorCustomer
+        } else {
+            api::ConnectorCustomerAction::NoAction
+        }
+    }
+
+    /// A zero-amount setup is itself the call that creates the stored card, so it needs the
+    /// card rather than a token.
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        false
     }
 }

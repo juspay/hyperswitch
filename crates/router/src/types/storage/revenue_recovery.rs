@@ -56,7 +56,7 @@ impl RevenueRecoveryPaymentData {
         &self,
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        retry_count: i32,
+        retry_count: u32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,

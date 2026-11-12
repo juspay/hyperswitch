@@ -1,7 +1,7 @@
 use api_models::poll::PollResponse;
 use common_utils::ext_traits::StringExt;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::errors;
 use crate::{

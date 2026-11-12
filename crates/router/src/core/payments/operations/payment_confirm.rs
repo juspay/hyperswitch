@@ -27,12 +27,9 @@ use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "v1")]
+use crate::routes::payments::callback_routes::ConnectorCallbackPath;
 use crate::{
     consts,
-    core::utils::create_encrypted_data,
-    events::audit_events::{AuditEvent, AuditEventType},
-};
-use crate::{
     core::{
         authentication,
         blocklist::utils as blocklist_utils,
@@ -53,8 +50,10 @@ use crate::{
             types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
+        utils::create_encrypted_data,
     },
-    routes::{app::ReqState, SessionState},
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, payments::callback_routes::PaymentCallbackRoute, SessionState},
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -615,24 +614,49 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
+        let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
+            state,
+            dimensions,
+            platform.get_processor().get_account().get_id(),
+            billing_address
+                .as_ref()
+                .map(hyperswitch_domain_models::address::Address::from)
+                .is_some_and(|billing| billing.has_location_details()),
+        )
+        .await;
+
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
+
+        // A payment created with a saved payment method and no billing already has the saved
+        // billing persisted on the attempt, so overwrite it with the request billing when that is preferred.
+        let should_replace_persisted_saved_billing = !use_saved_pm_billing
+            && n_payment_method_billing_address_id.is_some()
+            && (request.payment_token.is_some() || payment_attempt.payment_token.is_some());
 
         let n_request_payment_method_billing_address = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
-                pm.payment_method
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .or(payment_method_with_raw_data
+                .clone()
+                .filter(|_| use_saved_pm_billing)
+                .and_then(|pm| {
+                    pm.payment_method
+                        .payment_method_billing_address
+                        .clone()
+                        .map(|decrypted_data| decrypted_data.into_inner().expose())
+                        .and_then(|decrypted_value| {
+                            decrypted_value
+                                .parse_value("payment method billing address")
+                                .ok()
+                        })
+                }))
+            .or(billing_address
+                .as_ref()
+                .filter(|_| should_replace_persisted_saved_billing)
+                .map(hyperswitch_domain_models::address::Address::from)
+                .map(api_models::payments::Address::from));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -717,13 +741,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
+            request.payment_method,
             &request
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
-            &request.payment_method_type,
-            &mandate_type,
+            request.payment_method_type,
+            mandate_type,
             &token,
             &request.ctp_service_details,
         )?;
@@ -874,18 +898,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_info.as_ref().and_then(|pm| {
-            pm.payment_method_billing_address
-                .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
-                })
-        });
+        let pm_pmd_billing = payment_method_info
+            .as_ref()
+            .filter(|_| use_saved_pm_billing)
+            .and_then(|pm| {
+                pm.payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
+                            .ok()
+                    })
+            });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
         let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
@@ -1051,6 +1078,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
             .payment_method_data
@@ -1070,6 +1098,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -1082,6 +1111,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -2177,11 +2207,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
 
 
-            let return_url = helpers::create_authorize_url(
+            let return_url = PaymentCallbackRoute::authorize_url(
                 &state.base_url,
-                &payment_data.payment_attempt.clone(),
-                payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
-            );
+                state.payment_callback_config().await?.mode,
+                &ConnectorCallbackPath {
+                    payment_id: payment_data.payment_attempt.payment_id.clone(),
+                    merchant_id: payment_data.payment_attempt.processor_merchant_id.clone(),
+                    connector: payment_data.payment_attempt.connector.as_ref()
+                        .get_required_value("connector")?.to_string(),
+                },
+            ).persist(state).await?;
 
             let domain_address  = payment_data.address.get_payment_method_billing().map(|address| address.clone().foreign_into());
             let shipping = payment_data.address.get_shipping().map(|address| address.clone().foreign_into());
