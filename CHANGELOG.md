@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix3
+
+### Bug Fixes
+
+- **ucs:** Preserve L2/L3 customer and address data in UCS requests ([#15234](https://github.com/juspay/hyperswitch/pull/15234)) ([`8cf647b`](https://github.com/juspay/hyperswitch/commit/8cf647bddade0056e16c29eeb0834ff07270a5d2))
+
+**Full Changelog:** [`2026.11.11.1-hotfix2...2026.11.11.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix2...2026.11.11.1-hotfix3)
+
+- - -
+
 ## 2026.11.11.1-hotfix2
 
 ### Bug Fixes
