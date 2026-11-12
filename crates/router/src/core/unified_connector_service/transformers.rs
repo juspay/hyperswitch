@@ -509,14 +509,42 @@ fn build_ucs_l2_l3_data(l2_l3_data: Option<&L2L3Data>) -> Option<payments_grpc::
             vat_invoice_reference_number,
         });
 
-    if order_info.is_none() && tax_info.is_none() {
-        None
-    } else {
-        Some(payments_grpc::L2l3Data {
-            order_info,
-            tax_info,
-        })
-    }
+    l2_l3_data.map(|data| payments_grpc::L2l3Data {
+        order_info,
+        tax_info,
+        customer_info: data
+            .customer_info
+            .as_ref()
+            .map(|customer| payments_grpc::Customer {
+                id: customer
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
+                name: customer
+                    .customer_name
+                    .as_ref()
+                    .map(|name| name.peek().to_owned()),
+                email: customer
+                    .customer_email
+                    .as_ref()
+                    .map(|email| email.peek().to_string().into()),
+                phone_number: customer.customer_phone_number.clone(),
+                phone_country_code: customer.customer_phone_country_code.clone(),
+                ..Default::default()
+            }),
+        shipping_details: data.shipping_details.as_ref().map(|address| {
+            payments_grpc::Address::foreign_from(&api_models::payments::AddressDetails::from(
+                address.clone(),
+            ))
+        }),
+        billing_details: data
+            .billing_details
+            .as_ref()
+            .map(|address| payments_grpc::Address {
+                city: address.address_city.clone().map(Into::into),
+                ..Default::default()
+            }),
+    })
 }
 
 pub fn build_upi_wait_screen_data(
@@ -5280,7 +5308,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
             common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             common_enums::PaymentMethodType::Skrill => Ok(Self::Skrill),
-            common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
+            common_enums::PaymentMethodType::Klarna => Ok(Self::KlarnaBnpl),
             common_enums::PaymentMethodType::BhnCardNetwork => Ok(Self::BhnCardNetwork),
             common_enums::PaymentMethodType::Bluecode => Ok(Self::Bluecode),
             common_enums::PaymentMethodType::Breadpay => Ok(Self::Breadpay),
@@ -5289,7 +5317,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(Self::IndonesianBankTransfer)
             }
-            common_enums::PaymentMethodType::Mifinity => Ok(Self::Mifinity),
+            common_enums::PaymentMethodType::Mifinity => Ok(Self::MifinityWallet),
             common_enums::PaymentMethodType::Payjustnow => Ok(Self::Payjustnow),
             common_enums::PaymentMethodType::Paysera => Ok(Self::Paysera),
             common_enums::PaymentMethodType::Payshap => Ok(Self::Payshap),
@@ -9230,6 +9258,8 @@ impl transformers::ForeignTryFrom<&RouterData<VoidPostRefund, RefundsData, Refun
                 .map(Into::into),
             merchant_request_id: None,
             connector_order_id: Some(router_data.request.connector_transaction_id.clone()),
+            payment_method: None,
+            refund_amount: None,
         })
     }
 }
