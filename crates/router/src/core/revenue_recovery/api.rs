@@ -200,6 +200,36 @@ pub async fn update_payment_intent_api(
     Ok(payment_data)
 }
 
+/// Reads an invoice through the get intent operation.
+pub(super) async fn get_payment_intent_api(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    global_payment_id: &id_type::GlobalPaymentId,
+) -> RouterResult<payments_domain::PaymentIntent> {
+    let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
+        api_types::PaymentGetIntent,
+        _,
+        _,
+        payments_domain::PaymentIntentData<api_types::PaymentGetIntent>,
+    >(
+        state,
+        req_state.clone(),
+        platform.clone(),
+        profile.clone(),
+        payments::operations::PaymentGetIntent,
+        payments_api::PaymentsGetIntentRequest {
+            id: global_payment_id.clone(),
+        },
+        global_payment_id.clone(),
+        payments_domain::HeaderPayload::default(),
+    ))
+    .await?;
+
+    Ok(payment_data.payment_intent)
+}
+
 pub async fn record_internal_attempt_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,

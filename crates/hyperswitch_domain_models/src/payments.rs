@@ -1653,11 +1653,84 @@ pub struct RevenueRecoveryData {
     pub card_issuer: Option<String>,
 }
 
+/// The status of an invoice after recording a transaction that no connector sync confirms. The
+/// invoice is paid once what it collected reaches its amount, and money already collected stays
+/// collected when a later transaction fails.
+#[cfg(feature = "v2")]
+fn get_intent_status_from_reported_transaction(
+    attempt_status: common_enums::AttemptStatus,
+    intent_amount_captured: Option<MinorUnit>,
+    order_amount: MinorUnit,
+) -> common_enums::IntentStatus {
+    if intent_amount_captured >= Some(order_amount) {
+        common_enums::IntentStatus::Succeeded
+    } else if attempt_status == common_enums::AttemptStatus::Failure
+        && intent_amount_captured > Some(MinorUnit::zero())
+    {
+        common_enums::IntentStatus::PartiallyCaptured
+    } else {
+        common_enums::IntentStatus::from(attempt_status)
+    }
+}
+
+/// The captured amount of an invoice after recording a transaction that no connector sync
+/// confirms. `None` leaves the amount the invoice already has.
+#[cfg(feature = "v2")]
+fn get_amount_captured_from_reported_transaction(
+    attempt_status: common_enums::AttemptStatus,
+    attempt_amount_captured: Option<MinorUnit>,
+    intent_amount_captured: Option<MinorUnit>,
+) -> Option<MinorUnit> {
+    match attempt_status {
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
+            intent_amount_captured
+                .map(|amount| amount + attempt_amount_captured.unwrap_or(MinorUnit::zero()))
+                .or(attempt_amount_captured)
+        }
+        _ => attempt_amount_captured,
+    }
+}
+
 #[cfg(feature = "v2")]
 impl<F> PaymentAttemptRecordData<F>
 where
     F: Clone,
 {
+    /// The status of the invoice and its captured amount after recording this attempt. A `None`
+    /// amount leaves the amount the invoice already has.
+    pub fn get_intent_status_and_amount_captured(
+        &self,
+    ) -> (common_enums::IntentStatus, Option<MinorUnit>) {
+        if !self
+            .revenue_recovery_data
+            .connector_details
+            .has_connector_accounts()
+        {
+            let amount_captured = get_amount_captured_from_reported_transaction(
+                self.payment_attempt.status,
+                self.payment_attempt.amount_details.get_amount_captured(),
+                self.payment_intent.amount_captured,
+            );
+            return (
+                get_intent_status_from_reported_transaction(
+                    self.payment_attempt.status,
+                    amount_captured.or(self.payment_intent.amount_captured),
+                    self.payment_intent.amount_details.order_amount,
+                ),
+                amount_captured,
+            );
+        }
+
+        let status = if self.payment_intent.amount_captured > Some(MinorUnit::new(0))
+            && *self.payment_intent.enable_partial_authorization
+        {
+            common_enums::IntentStatus::PartiallyCapturedAndProcessing
+        } else {
+            common_enums::IntentStatus::from(self.payment_attempt.status)
+        };
+        (status, None)
+    }
+
     pub fn get_updated_feature_metadata(
         &self,
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
