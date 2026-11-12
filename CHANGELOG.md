@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix4
+
+### Features
+
+- **connector:**
+  - [Stripe] support card_with_no_cvc in payment intent and tokenization flows ([#15231](https://github.com/juspay/hyperswitch/pull/15231)) ([`55aaa93`](https://github.com/juspay/hyperswitch/commit/55aaa93d14e2e454615e76a6d487d54c24bfa66c))
+  - [authorizedotnet] support post-capture void ([#15230](https://github.com/juspay/hyperswitch/pull/15230)) ([`94bff11`](https://github.com/juspay/hyperswitch/commit/94bff118a4f35a9ba2098fea62ecb5d0b4d2d0a1))
+
+**Full Changelog:** [`2026.11.11.1-hotfix3...2026.11.11.1-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix3...2026.11.11.1-hotfix4)
+
+- - -
+
 ## 2026.11.11.1-hotfix3
 
 ### Bug Fixes
