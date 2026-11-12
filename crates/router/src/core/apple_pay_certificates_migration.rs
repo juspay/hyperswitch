@@ -24,8 +24,6 @@ pub async fn apple_pay_certificates_migration(
     >,
     errors::ApiErrorResponse,
 > {
-    let db = state.store.as_ref();
-
     let merchant_id_list = &req.merchant_ids;
 
     let mut migration_successful_merchant_ids = vec![];
@@ -40,12 +38,14 @@ pub async fn apple_pay_certificates_migration(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let merchant_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_id,
-                true,
-                &key_store,
-            )
+        let merchant_connector_accounts = state
+            .track_accounts_query(|db| {
+                db.find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                    merchant_id,
+                    true,
+                    &key_store,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -88,8 +88,10 @@ pub async fn apple_pay_certificates_migration(
             }
         }
 
-        let merchant_connector_accounts_update = db
-            .update_multiple_merchant_connector_accounts(mca_to_update)
+        let merchant_connector_accounts_update = state
+            .track_accounts_query(|db| {
+                db.update_multiple_merchant_connector_accounts(mca_to_update)
+            })
             .await;
 
         match merchant_connector_accounts_update {

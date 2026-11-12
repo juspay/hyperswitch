@@ -482,18 +482,20 @@ impl RoutingAlgorithmHelpers<'_> {
 /// not an error), so it maps to `InternalServerError` rather than a 404.
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn validate_contract_based_label_info(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     label_info: &[routing_types::LabelInformation],
 ) -> RouterResult<()> {
     // Fetching disabled MCAs too: a contract config may reference a temporarily disabled
     // MCA — validation checks connector existence and label, not activity.
-    let all_mcas = db
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-            merchant_id,
-            profile_id,
-        )
+    let all_mcas = state
+        .track_accounts_query(|db| {
+            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+                merchant_id,
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -546,8 +548,9 @@ pub async fn validate_connectors_in_routing_config(
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
     // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
-        .store
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+        .track_accounts_query(|db| {
+            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+        })
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),

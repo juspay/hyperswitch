@@ -872,12 +872,13 @@ pub async fn get_merchant_connector_account_by_name(
     #[cfg(feature = "v1")]
     {
         state
-            .store
-            .find_merchant_connector_account_by_merchant_id_connector_name(
-                merchant_id,
-                connector_name,
-                key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_merchant_connector_account_by_merchant_id_connector_name(
+                    merchant_id,
+                    connector_name,
+                    key_store,
+                )
+            })
             .await
             .map_err(|e| {
                 e.change_context(UserErrors::InternalServerError)

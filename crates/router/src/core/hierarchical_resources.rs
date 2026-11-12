@@ -440,16 +440,17 @@ async fn fetch_requestor_account(
     requestor_type: common_enums::ResourceRequestorType,
     requestor_id: &str,
 ) -> RouterResult<RequestorAccount> {
-    let db = state.store.as_ref();
     match requestor_type {
         common_enums::ResourceRequestorType::MerchantConnectorAccount => {
             let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(requestor_id)?;
-            let mca = db
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    processor.get_account().get_id(),
-                    &mca_id,
-                    processor.get_key_store(),
-                )
+            let mca = state
+                .track_accounts_query(|db| {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        processor.get_account().get_id(),
+                        &mca_id,
+                        processor.get_key_store(),
+                    )
+                })
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -553,17 +554,19 @@ async fn link_hierarchical_resource_data_to_scope(
     account: RequestorAccount,
     update: &impl RequestorHierarchicalResourceUpdate,
 ) -> RouterResult<()> {
-    let db = state.store.as_ref();
     match account {
         RequestorAccount::MerchantConnectorAccount(mca) => {
-            db.update_merchant_connector_account(
-                *mca,
-                update.for_merchant_connector_account().foreign_into(),
-                key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to link resource data to merchant connector account")?;
+            state
+                .track_accounts_query(|db| {
+                    db.update_merchant_connector_account(
+                        *mca,
+                        update.for_merchant_connector_account().foreign_into(),
+                        key_store,
+                    )
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to link resource data to merchant connector account")?;
         }
         RequestorAccount::Profile(profile) => {
             state

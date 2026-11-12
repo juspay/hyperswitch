@@ -751,23 +751,27 @@ pub async fn relay<T: RelayInterface>(
         })?;
 
     #[cfg(feature = "v1")]
-    let connector_account = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor_merchant_id,
-            connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor_merchant_id,
+                connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
-        .find_merchant_connector_account_by_id(
-            connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(
+                connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -860,23 +864,27 @@ pub async fn relay_retrieve(
     };
 
     #[cfg(feature = "v1")]
-    let connector_account = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            &relay_record.connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                merchant_id,
+                &relay_record.connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: relay_record.connector_id.get_string_repr().to_string(),
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
-        .find_merchant_connector_account_by_id(
-            &relay_record.connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(
+                &relay_record.connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: relay_record.connector_id.get_string_repr().to_string(),
@@ -1014,23 +1022,27 @@ async fn process_unreferenced_refund(
     let connector_id: &id_type::MerchantConnectorAccountId = &request.connector_id;
 
     #[cfg(feature = "v1")]
-    let connector_account = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor_merchant_id,
-            connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor_merchant_id,
+                connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
-        .find_merchant_connector_account_by_id(
-            connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let connector_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(
+                connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),

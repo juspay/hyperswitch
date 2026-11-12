@@ -149,12 +149,14 @@ pub async fn update_payment_method_record(
         let mut cache = HashMap::new();
 
         for merchant_connector_id in parsed_mca_ids {
-            let mca = db
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &merchant_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
+            let mca = state
+                .track_accounts_query(|db| {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &merchant_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
+                })
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

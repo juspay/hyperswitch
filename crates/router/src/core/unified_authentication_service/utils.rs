@@ -530,12 +530,13 @@ pub async fn get_auth_multi_token_from_external_vault<F, Req>(
                 let external_vault_mca_id = external_vault_details.vault_connector_id.clone();
 
                 let merchant_connector_account_details = state
-                    .store
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        platform.get_processor().get_account().get_id(),
-                        &external_vault_mca_id,
-                        platform.get_processor().get_key_store(),
-                    )
+                    .track_accounts_query(|db| {
+                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            platform.get_processor().get_account().get_id(),
+                            &external_vault_mca_id,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
                     .await
                     .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: external_vault_mca_id.get_string_repr().to_string(),

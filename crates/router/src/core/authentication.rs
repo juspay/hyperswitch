@@ -461,12 +461,13 @@ where
         let external_vault_merchant_connector_account =
             payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
                 state
-                    .store
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        platform.get_provider().get_account().get_id(),
-                        &external_vault_mca_id,
-                        platform.get_provider().get_key_store(),
-                    )
+                    .track_accounts_query(|db| {
+                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            platform.get_provider().get_account().get_id(),
+                            &external_vault_mca_id,
+                            platform.get_provider().get_key_store(),
+                        )
+                    })
                     .await
                     .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: external_vault_mca_id.get_string_repr().to_string(),
@@ -1266,12 +1267,13 @@ async fn call_ucs_authenticate_proxy(
     let external_vault_merchant_connector_account =
         payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
             state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_provider().get_account().get_id(),
-                    &external_vault_mca_id,
-                    platform.get_provider().get_key_store(),
-                )
+                .track_accounts_query(|db| {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_provider().get_account().get_id(),
+                        &external_vault_mca_id,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
                 .await
                 .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                     id: external_vault_mca_id.get_string_repr().to_string(),

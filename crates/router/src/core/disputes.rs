@@ -960,12 +960,14 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let merchant_connector_account = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            platform.get_processor().get_account().get_id(),
-            &merchant_connector_id,
-            platform.get_processor().get_key_store(),
-        )
+    let merchant_connector_account = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_processor().get_account().get_id(),
+                &merchant_connector_id,
+                platform.get_processor().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),

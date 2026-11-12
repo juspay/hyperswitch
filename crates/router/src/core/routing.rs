@@ -772,11 +772,12 @@ pub async fn create_routing_algorithm_under_profile(
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
     // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
-        .store
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-            processor_merchant_id,
-            business_profile.get_id(),
-        )
+        .track_accounts_query(|db| {
+            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+                processor_merchant_id,
+                business_profile.get_id(),
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: processor_merchant_id.get_string_repr().to_owned(),
@@ -2812,7 +2813,7 @@ pub async fn contract_based_dynamic_routing_setup(
     // validate the contained mca_ids
     if let Some(info_vec) = &config.label_info {
         helpers::validate_contract_based_label_info(
-            db,
+            &state,
             processor.get_account().get_id(),
             &profile_id,
             info_vec,

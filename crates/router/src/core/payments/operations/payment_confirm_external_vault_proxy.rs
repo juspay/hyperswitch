@@ -1005,12 +1005,13 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 .get_required_value("external vault connector id")?;
 
             let vault_mca = state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &vault_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
+                .track_accounts_query(|db| {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &vault_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
+                })
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

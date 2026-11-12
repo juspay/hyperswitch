@@ -652,12 +652,13 @@ async fn fetch_merchant_connector_accounts(
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     state
-        .store
-        .list_enabled_connector_accounts_by_profile_id(
-            profile_id,
-            key_store,
-            common_enums::ConnectorType::PaymentProcessor,
-        )
+        .track_accounts_query(|db| {
+            db.list_enabled_connector_accounts_by_profile_id(
+                profile_id,
+                key_store,
+                common_enums::ConnectorType::PaymentProcessor,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector accounts")

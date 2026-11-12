@@ -118,7 +118,6 @@ pub trait StorageInterface:
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>

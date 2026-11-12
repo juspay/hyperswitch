@@ -4684,11 +4684,13 @@ pub async fn build_merchant_enabled_pms_context(
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
 
-    let all_mcas = db
-        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            platform.get_processor().get_account().get_id(),
-            &profile_id,
-        )
+    let all_mcas = state
+        .track_accounts_query(|db| {
+            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                platform.get_processor().get_account().get_id(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -6616,11 +6618,12 @@ pub async fn list_customer_payment_method(
     let merchant_connector_accounts = match business_profile.as_ref() {
         Some(business_profile) => Some(
             state
-                .store
-                .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    platform.get_processor().get_account().get_id(),
-                    business_profile.get_id(),
-                )
+                .track_accounts_query(|db| {
+                    db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                        platform.get_processor().get_account().get_id(),
+                        business_profile.get_id(),
+                    )
+                })
                 .await
                 .change_context(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

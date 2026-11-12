@@ -2068,12 +2068,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     })?;
                     let merchant_id = &business_profile.merchant_id;
                     let connector_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            merchant_id,
-                            &click_to_pay_mca_id,
-                            platform.get_processor().get_key_store(),
-                        )
+                        .track_accounts_query(|db| {
+                            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                merchant_id,
+                                &click_to_pay_mca_id,
+                                platform.get_processor().get_key_store(),
+                            )
+                        })
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

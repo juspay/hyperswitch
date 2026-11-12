@@ -224,8 +224,10 @@ pub(crate) async fn extract_data_and_perform_action(
         })
         .await?;
 
-    let billing_mca = db
-        .find_merchant_connector_account_by_id(&tracking_data.billing_mca_id, &key_store)
+    let billing_mca = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(&tracking_data.billing_mca_id, &key_store)
+        })
         .await?;
 
     let pcr_payment_data = pcr_storage_types::RevenueRecoveryPaymentData {

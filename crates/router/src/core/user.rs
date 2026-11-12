@@ -3956,12 +3956,13 @@ pub async fn clone_connector(
         ))?;
 
     let source_mca = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &user_from_token.merchant_id,
-            &request.source_mca_id,
-            &key_store,
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &user_from_token.merchant_id,
+                &request.source_mca_id,
+                &key_store,
+            )
+        })
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
             "Source merchant connector account not found".to_string(),

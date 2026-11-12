@@ -142,7 +142,6 @@ pub async fn get_profile_superposition_sdk_config(
     profile_id: String,
 ) -> RouterResponse<SuperPositionConfigResponse> {
     let merchant_account = platform.get_processor().get_account();
-    let db = &*state.store;
 
     let profile_id_typed =
         common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id.clone()))
@@ -162,11 +161,13 @@ pub async fn get_profile_superposition_sdk_config(
             id: profile_id.to_owned(),
         })?;
 
-    let mcas = db
-        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            platform.get_processor().get_account().get_id(),
-            &profile_id_typed,
-        )
+    let mcas = state
+        .track_accounts_query(|db| {
+            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                platform.get_processor().get_account().get_id(),
+                &profile_id_typed,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

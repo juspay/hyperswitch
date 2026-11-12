@@ -357,17 +357,18 @@ pub async fn find_mca_from_authentication_id_type(
             .merchant_connector_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
-        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            platform.get_processor().get_account().get_id(),
-            &mca_id,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        state
+            .track_accounts_query(|db| {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_processor().get_account().get_id(),
+                    &mca_id,
+                    platform.get_processor().get_key_store(),
+                )
+            })
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: mca_id.get_string_repr().to_string(),
-            },
-        )
+            })
     }
     #[cfg(feature = "v2")]
     //get mca using id
@@ -415,17 +416,20 @@ pub async fn get_mca_from_payment_intent(
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &merchant_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
+                state
+                    .track_accounts_query(|db| {
+                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            platform.get_processor().get_account().get_id(),
+                            &merchant_connector_id,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.get_string_repr().to_string(),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -448,20 +452,23 @@ pub async fn get_mca_from_payment_intent(
 
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            profile_id.get_string_repr()
-                        ),
-                    },
-                )
+                state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_connector_account_by_profile_id_connector_name(
+                            &profile_id,
+                            connector_name,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {connector_name}",
+                                profile_id.get_string_repr()
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -502,17 +509,20 @@ pub async fn get_mca_from_payout_attempt(
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &merchant_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
+                state
+                    .track_accounts_query(|db| {
+                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            platform.get_processor().get_account().get_id(),
+                            &merchant_connector_id,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.get_string_repr().to_string(),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -526,21 +536,24 @@ pub async fn get_mca_from_payout_attempt(
         None => {
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &payout.profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {}",
-                            payout.profile_id.get_string_repr(),
-                            connector_name
-                        ),
-                    },
-                )
+                state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_connector_account_by_profile_id_connector_name(
+                            &payout.profile_id,
+                            connector_name,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {}",
+                                payout.profile_id.get_string_repr(),
+                                connector_name
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -557,8 +570,6 @@ pub async fn get_mca_from_object_reference_id(
     platform: &domain::Platform,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
-    let db = &*state.store;
-
     #[cfg(feature = "v1")]
     let default_profile_id = platform
         .get_processor()
@@ -573,24 +584,26 @@ pub async fn get_mca_from_object_reference_id(
         Some(profile_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            profile_id.get_string_repr()
-                        ),
-                    },
-                )
+                state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_connector_account_by_profile_id_connector_name(
+                            profile_id,
+                            connector_name,
+                            platform.get_processor().get_key_store(),
+                        )
+                    })
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {connector_name}",
+                                profile_id.get_string_repr()
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
-                let _db = db;
                 let _profile_id = profile_id;
                 todo!()
             }

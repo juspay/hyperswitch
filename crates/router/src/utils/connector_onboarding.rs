@@ -60,12 +60,13 @@ pub async fn check_if_connector_exists(
     #[cfg(feature = "v1")]
     {
         let connector = state
-            .store
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                merchant_id,
-                connector_id,
-                &key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    merchant_id,
+                    connector_id,
+                    &key_store,
+                )
+            })
             .await
             .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: connector_id.get_string_repr().to_string(),

@@ -288,11 +288,12 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         // issued a mandate token is still enabled for this profile — mirroring the
         // `get_mca_status` check performed in the legacy DB flow.
         let merchant_connector_accounts = state
-            .store
-            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                &merchant_id,
-                &self.profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                    &merchant_id,
+                    &self.profile_id,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),

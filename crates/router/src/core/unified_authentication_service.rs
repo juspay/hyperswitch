@@ -2607,12 +2607,13 @@ pub async fn get_session_token_for_click_to_pay(
     let key_manager_state = &state.into();
 
     let merchant_connector_account = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            &click_to_pay_mca_id,
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor.get_account().get_id(),
+                &click_to_pay_mca_id,
+                processor.get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: click_to_pay_mca_id.get_string_repr().to_string(),

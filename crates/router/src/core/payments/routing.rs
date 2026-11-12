@@ -2384,11 +2384,12 @@ pub async fn refresh_cgraph_cache(
     // reusing a caller-supplied snapshot, so the cached graph is always built from
     // live data and cannot be poisoned by a stale pre-eviction snapshot.
     let mut merchant_connector_accounts = state
-        .store
-        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            &key_store.merchant_id,
-            profile_id,
-        )
+        .track_accounts_query(|db| {
+            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                &key_store.merchant_id,
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
 
@@ -4476,11 +4477,12 @@ pub async fn get_active_merchant_connector_accounts(
     profile_id: &common_utils::id_type::ProfileId,
 ) -> RoutingResult<domain::MerchantConnectorAccountsWithoutEncrypted> {
     state
-        .store
-        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            &key_store.merchant_id,
-            profile_id,
-        )
+        .track_accounts_query(|db| {
+            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                &key_store.merchant_id,
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::RoutingError::MerchantConnectorAccountsFetchFailed)
 }

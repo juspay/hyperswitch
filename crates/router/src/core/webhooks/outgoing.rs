@@ -152,12 +152,13 @@ async fn get_surcharge_webhook_event(
     merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<Option<types::WebhookPayload>, errors::ApiErrorResponse> {
     let merchant_surcharge_connector = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            platform.get_provider().get_account().get_id(),
-            &merchant_surcharge_connector_id,
-            platform.get_provider().get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_provider().get_account().get_id(),
+                &merchant_surcharge_connector_id,
+                platform.get_provider().get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_surcharge_connector_id
@@ -672,12 +673,13 @@ async fn trigger_webhook_to_connector(
     };
 
     let mca_result = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &provider_merchant_id,
-            merchant_connector_id,
-            &merchant_key_store,
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &provider_merchant_id,
+                merchant_connector_id,
+                &merchant_key_store,
+            )
+        })
         .await;
 
     let mca = match mca_result {
