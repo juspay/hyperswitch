@@ -247,6 +247,8 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
+    // The process tracker keeps its retry count as an `i32`, which is never negative.
+    let retry_count = u32::try_from(retry_count).ok()?;
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
         .await;
@@ -255,10 +257,6 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
-
-/// The rung asked for when one doesn't fit the `i32` that the scheduler's lookup takes.
-#[cfg(feature = "v2")]
-const MAX_QUERIED_RUNG: i32 = 15;
 
 /// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
 /// Read at the ladder position rather than the invoice's overall retry count, because
@@ -274,11 +272,7 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    // The scheduler's lookup takes an `i32`.
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(
-        mapping,
-        i32::try_from(queried_rung).unwrap_or(MAX_QUERIED_RUNG),
-    );
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
