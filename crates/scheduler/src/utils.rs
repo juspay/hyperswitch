@@ -388,9 +388,23 @@ pub fn get_pcr_payments_retry_schedule_time(
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
-        // `get_delay` is shared with every workflow and takes an `i32`.
-        get_delay(i32::try_from(retry_count).ok()?, &mapping.frequencies)
+        get_pcr_payments_delay(retry_count, &mapping.frequencies)
     }
+}
+
+/// The delay before a revenue recovery retry, from the ladder's `(delay, count)` slots: the slot
+/// whose running count first reaches `retry_count`. The recovery counterpart of `get_delay`, which
+/// every other workflow shares with the process tracker's `i32` count.
+fn get_pcr_payments_delay(retry_count: u32, frequencies: &[(i32, i32)]) -> Option<i32> {
+    let mut cumulative_count: u32 = 0;
+    for &(frequency, count) in frequencies {
+        // A negative count in the configuration holds no retries.
+        cumulative_count = cumulative_count.saturating_add(u32::try_from(count).unwrap_or(0));
+        if cumulative_count >= retry_count {
+            return Some(frequency);
+        }
+    }
+    None
 }
 
 pub fn get_subscription_invoice_sync_retry_schedule_time(
