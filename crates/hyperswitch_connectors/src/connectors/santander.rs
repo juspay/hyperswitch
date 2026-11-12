@@ -2470,7 +2470,7 @@ static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
     fn is_webhook_mtls_required(&self) -> bool {
-        Ok(false)
+        false
     }
 
     fn is_payment_recurrence_operation_needed(
