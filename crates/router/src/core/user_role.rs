@@ -1105,8 +1105,9 @@ pub async fn list_invitations_for_user(
                 .change_context(UserErrors::InternalServerError)?;
 
             let business_profile = state
-                .store
-                .find_business_profile_by_profile_id(&merchant_key_store, profile_id)
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_profile_id(&merchant_key_store, profile_id)
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 

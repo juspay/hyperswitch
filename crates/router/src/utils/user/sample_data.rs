@@ -80,7 +80,7 @@ pub async fn generate_sample_data(
             business_label_default.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
-            &*state.store,
+            state,
         )
         .await
         .map(|business_profile| business_profile.get_id().to_owned());
@@ -106,8 +106,12 @@ pub async fn generate_sample_data(
             );
 
             state
-                .store
-                .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
+                .track_accounts_query(|db| {
+                    db.list_profile_by_merchant_id(
+                        platform.get_processor().get_key_store(),
+                        merchant_id,
+                    )
+                })
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?

@@ -201,8 +201,9 @@ async fn validate_profile(
     key_store: &MerchantKeyStore,
 ) -> UserResult<()> {
     state
-        .store
-        .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+        })
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))
         .map(|_| ())

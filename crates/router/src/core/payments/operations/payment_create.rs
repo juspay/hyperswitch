@@ -116,7 +116,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request.business_label.as_ref(),
                     platform.get_processor(),
                     request.profile_id.as_ref(),
-                    &*state.store,
+                    state,
                 )
                 .await?
             }
@@ -953,7 +953,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             req.business_label.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
-            &*state.store,
+            state,
         )
         .await?;
         helpers::validate_payment_profile(

@@ -435,11 +435,12 @@ where
 /// check is needed since the fetch can never return an entity belonging to a different merchant.
 #[cfg(feature = "v1")]
 async fn fetch_requestor_account(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     processor: &domain::Processor,
     requestor_type: common_enums::ResourceRequestorType,
     requestor_id: &str,
 ) -> RouterResult<RequestorAccount> {
+    let db = state.store.as_ref();
     match requestor_type {
         common_enums::ResourceRequestorType::MerchantConnectorAccount => {
             let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(requestor_id)?;
@@ -459,12 +460,14 @@ async fn fetch_requestor_account(
         }
         common_enums::ResourceRequestorType::Profile => {
             let profile_id = parse_requestor_id::<id_type::ProfileId>(requestor_id)?;
-            let profile = db
-                .find_business_profile_by_merchant_id_profile_id(
-                    processor.get_key_store(),
-                    processor.get_account().get_id(),
-                    &profile_id,
-                )
+            let profile = state
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_merchant_id_profile_id(
+                        processor.get_key_store(),
+                        processor.get_account().get_id(),
+                        &profile_id,
+                    )
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -485,7 +488,7 @@ async fn fetch_requestor_account(
 
 #[cfg(feature = "v2")]
 async fn fetch_requestor_account(
-    _db: &dyn StorageInterface,
+    _state: &SessionState,
     _processor: &domain::Processor,
     _requestor_type: common_enums::ResourceRequestorType,
     _requestor_id: &str,
@@ -501,7 +504,7 @@ async fn fetch_requestor_account(
 /// already scoped to `processor`'s merchant, not caller-supplied ids.
 #[cfg(feature = "v1")]
 async fn resolve_apple_pay_certificate_data(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     processor: &domain::Processor,
     account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -510,12 +513,14 @@ async fn resolve_apple_pay_certificate_data(
         {
             Some(data) => Some(data),
             None => {
-                let profile = db
-                    .find_business_profile_by_merchant_id_profile_id(
-                        processor.get_key_store(),
-                        processor.get_account().get_id(),
-                        &mca.profile_id,
-                    )
+                let profile = state
+                    .track_accounts_query(|db| {
+                        db.find_business_profile_by_merchant_id_profile_id(
+                            processor.get_key_store(),
+                            processor.get_account().get_id(),
+                            &mca.profile_id,
+                        )
+                    })
                     .await
                     .ok()?;
                 profile
@@ -535,7 +540,7 @@ async fn resolve_apple_pay_certificate_data(
 
 #[cfg(feature = "v2")]
 async fn resolve_apple_pay_certificate_data(
-    _db: &dyn StorageInterface,
+    _state: &SessionState,
     _processor: &domain::Processor,
     _account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -561,7 +566,10 @@ async fn link_hierarchical_resource_data_to_scope(
             .attach_printable("Failed to link resource data to merchant connector account")?;
         }
         RequestorAccount::Profile(profile) => {
-            db.update_profile_by_profile_id(key_store, *profile, update.for_profile())
+            state
+                .track_accounts_query(|db| {
+                    db.update_profile_by_profile_id(key_store, *profile, update.for_profile())
+                })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to profile")?;
@@ -752,8 +760,9 @@ pub async fn list_hierarchical_resources(
 
     let effective_resource_id = match (req.scope_type, req.scope_id) {
         (Some(scope_type), Some(scope_id)) => {
-            let account = fetch_requestor_account(db, &processor, scope_type, &scope_id).await?;
-            match resolve_apple_pay_certificate_data(db, &processor, &account).await {
+            let account =
+                fetch_requestor_account(&state, &processor, scope_type, &scope_id).await?;
+            match resolve_apple_pay_certificate_data(&state, &processor, &account).await {
                 Some(data) => data
                     .get("resource_id")
                     .and_then(|value| value.as_str())
@@ -830,7 +839,7 @@ pub async fn link_hierarchical_resource(
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
     let account =
-        fetch_requestor_account(db, &processor, req.requestor_type, &req.requestor_id).await?;
+        fetch_requestor_account(&state, &processor, req.requestor_type, &req.requestor_id).await?;
 
     let org_key_store =
         ensure_organization_key_store(db, key_manager_state, &organization_id).await?;

@@ -24,7 +24,6 @@ pub async fn upsert_conditional_config(
     use common_utils::ext_traits::OptionExt;
 
     let key_manager_state: &KeyManagerState = &(&state).into();
-    let db = &*state.store;
     let name = request.name;
     let program = request.program;
     let timestamp = common_utils::date_time::now_unix_timestamp();
@@ -44,8 +43,10 @@ pub async fn upsert_conditional_config(
     let business_profile_update = domain::ProfileUpdate::DecisionManagerRecordUpdate {
         three_ds_decision_manager_config: decision_manager_record,
     };
-    let updated_profile = db
-        .update_profile_by_profile_id(&key_store, profile, business_profile_update)
+    let updated_profile = state
+        .track_accounts_query(|db| {
+            db.update_profile_by_profile_id(&key_store, profile, business_profile_update)
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update decision manager record in business profile")?;

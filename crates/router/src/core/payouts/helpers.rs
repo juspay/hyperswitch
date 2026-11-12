@@ -1111,7 +1111,7 @@ pub async fn decide_payout_connector(
 
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
-        state.store.as_ref(),
+        state,
         processor,
         Some(&payout_attempt.profile_id),
     )

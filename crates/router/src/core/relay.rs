@@ -737,12 +737,14 @@ pub async fn relay<T: RelayInterface>(
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
-    let profile = db
-        .find_business_profile_by_merchant_id_profile_id(
-            platform.get_processor().get_key_store(),
-            processor_merchant_id,
-            &profile_id_from_auth_layer,
-        )
+    let profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                processor_merchant_id,
+                &profile_id_from_auth_layer,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id_from_auth_layer.get_string_repr().to_owned(),
@@ -825,15 +827,18 @@ pub async fn relay_retrieve(
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
-    db.find_business_profile_by_merchant_id_profile_id(
-        platform.get_processor().get_key_store(),
-        merchant_id,
-        &profile_id_from_auth_layer,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id_from_auth_layer.get_string_repr().to_owned(),
-    })?;
+    state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                merchant_id,
+                &profile_id_from_auth_layer,
+            )
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id_from_auth_layer.get_string_repr().to_owned(),
+        })?;
 
     let relay_record_result = db
         .find_relay_by_id(platform.get_processor().get_key_store(), relay_id)
@@ -1192,18 +1197,20 @@ async fn process_relay_unreferenced_refund(
         })
     })?;
 
-    let db = state.store.as_ref();
     let merchant_id = platform.get_processor().get_account().get_id();
 
-    db.find_business_profile_by_merchant_id_profile_id(
-        platform.get_processor().get_key_store(),
-        merchant_id,
-        profile_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id.get_string_repr().to_owned(),
-    })?;
+    state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                platform.get_processor().get_key_store(),
+                merchant_id,
+                profile_id,
+            )
+        })
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
 
     process_unreferenced_refund(state, platform, profile_id, connector_resource_id, request).await
 }

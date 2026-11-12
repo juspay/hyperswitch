@@ -214,7 +214,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let store = state.store.clone();
+        let profile_state = state.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
         // Each fork below gets its own span rather than the caller's. These are
@@ -225,8 +225,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
-                store
-                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
+                profile_state
+                    .track_accounts_query(|db| {
+                        db.find_business_profile_by_profile_id(&key_store_clone, &profile_id)
+                    })
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::ProfileNotFound {

@@ -141,7 +141,6 @@ pub trait StorageInterface:
     + RedisConnInterface
     + CacheInterface
     + RequestIdStore
-    + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface

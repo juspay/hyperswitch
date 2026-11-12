@@ -185,7 +185,7 @@ pub async fn validate_create_request(
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
@@ -240,7 +240,7 @@ pub async fn validate_create_request(
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state,
     )
     .await?;
     PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))

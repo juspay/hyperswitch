@@ -218,8 +218,10 @@ pub(crate) async fn extract_data_and_perform_action(
         })
         .await?;
 
-    let profile = db
-        .find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
+    let profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
+        })
         .await?;
 
     let billing_mca = db

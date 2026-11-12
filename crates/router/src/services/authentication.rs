@@ -665,8 +665,10 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_profile_id(&key_store, &profile_id)
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(&key_store, &profile_id)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -807,11 +809,13 @@ where
         let profile = match profile_id {
             Some(profile_id) => {
                 let profile = state
-                    .store()
-                    .find_business_profile_by_profile_id(
-                        platform.get_processor().get_key_store(),
-                        &profile_id,
-                    )
+                    .session_state()
+                    .track_accounts_query(|db| {
+                        db.find_business_profile_by_profile_id(
+                            platform.get_processor().get_key_store(),
+                            &profile_id,
+                        )
+                    })
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
                 Some(profile)
@@ -1448,11 +1452,13 @@ where
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_profile_id(
-                auth_data.platform.get_processor().get_key_store(),
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    auth_data.platform.get_processor().get_key_store(),
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -1520,11 +1526,13 @@ where
     let profile = match profile_id {
         Some(profile_id) => {
             let profile = state
-                .store()
-                .find_business_profile_by_profile_id(
-                    platform.get_processor().get_key_store(),
-                    &profile_id,
-                )
+                .session_state()
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_profile_id(
+                        platform.get_processor().get_key_store(),
+                        &profile_id,
+                    )
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
             Some(profile)
@@ -1868,8 +1876,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2410,8 +2424,14 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2627,8 +2647,14 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2723,12 +2749,14 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
             let profile = state
-                .store()
-                .find_business_profile_by_merchant_id_profile_id(
-                    &key_store,
-                    &merchant_id,
-                    &profile_id,
-                )
+                .session_state()
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_merchant_id_profile_id(
+                        &key_store,
+                        &merchant_id,
+                        &profile_id,
+                    )
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -2900,12 +2928,14 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &self.merchant_id,
-                &self.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &self.merchant_id,
+                    &self.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -2977,8 +3007,10 @@ where
             })?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_profile_id(&key_store, &self.profile_id)
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(&key_store, &self.profile_id)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: self.profile_id.get_string_repr().to_owned(),
@@ -3116,12 +3148,14 @@ where
         .await?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().get_id(),
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().get_id(),
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -3248,12 +3282,14 @@ where
         }
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                platform.get_processor().get_account().get_id(),
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    platform.get_processor().get_account().get_id(),
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -3479,12 +3515,14 @@ where
 
         // Find and validate profile after merchant resolution
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().get_id(),
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().get_id(),
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -3658,12 +3696,14 @@ where
         }
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().get_id(),
-                &sdk_auth.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().get_id(),
+                    &sdk_auth.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -3971,12 +4011,14 @@ where
         }
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().get_id(),
-                &sdk_auth.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    platform.get_processor().get_key_store(),
+                    platform.get_processor().get_account().get_id(),
+                    &sdk_auth.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -4272,12 +4314,14 @@ where
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -4402,12 +4446,14 @@ where
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -4599,12 +4645,14 @@ where
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -4679,12 +4727,14 @@ where
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -4847,12 +4897,14 @@ where
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -4952,12 +5004,14 @@ where
         })?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5039,12 +5093,14 @@ where
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
         let merchant = state
@@ -5168,12 +5224,14 @@ where
         })?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5249,12 +5307,14 @@ where
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5374,12 +5434,14 @@ where
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5459,12 +5521,14 @@ where
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5624,12 +5688,14 @@ where
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                &payload.merchant_id,
-                &payload.profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    &payload.merchant_id,
+                    &payload.profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
@@ -5723,12 +5789,14 @@ where
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                payload.get_merchant_id(),
-                payload.get_profile_id(),
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    payload.get_merchant_id(),
+                    payload.get_profile_id(),
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch business profile")?;
@@ -5836,12 +5904,14 @@ where
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
         let profile = state
-            .store()
-            .find_business_profile_by_merchant_id_profile_id(
-                &key_store,
-                payload.get_merchant_id(),
-                &profile_id,
-            )
+            .session_state()
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_merchant_id_profile_id(
+                    &key_store,
+                    payload.get_merchant_id(),
+                    &profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 

@@ -478,8 +478,13 @@ async fn get_tracker_for_sync<
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

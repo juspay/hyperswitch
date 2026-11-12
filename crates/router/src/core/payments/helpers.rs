@@ -3386,8 +3386,9 @@ pub async fn resolve_provider_profile(
                 })?;
 
             state
-                .store
-                .find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -3398,11 +3399,12 @@ pub async fn resolve_provider_profile(
             // v2 MerchantAccount has no `default_profile`; resolve the provider's single business
             // profile (which holds provider-level config, e.g. external vault) by listing its profiles.
             let profiles = state
-                .store
-                .list_profile_by_merchant_id(
-                    provider.get_key_store(),
-                    provider.get_account().get_id(),
-                )
+                .track_accounts_query(|db| {
+                    db.list_profile_by_merchant_id(
+                        provider.get_key_store(),
+                        provider.get_account().get_id(),
+                    )
+                })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to list provider merchant business profiles")?;

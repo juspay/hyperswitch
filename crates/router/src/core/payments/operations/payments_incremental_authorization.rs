@@ -126,11 +126,12 @@ impl<F: Send + Clone + Sync>
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),

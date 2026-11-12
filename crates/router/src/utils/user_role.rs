@@ -307,8 +307,7 @@ pub async fn get_single_profile_id(
                 .change_context(UserErrors::InternalServerError)?;
 
             Ok(state
-                .store
-                .list_profile_by_merchant_id(&key_store, merchant_id)
+                .track_accounts_query(|db| db.list_profile_by_merchant_id(&key_store, merchant_id))
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()
@@ -662,8 +661,9 @@ pub async fn send_role_deletion_email_using_db(
         .change_context(UserErrors::InternalServerError)?;
 
     let profile = state
-        .store
-        .find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
