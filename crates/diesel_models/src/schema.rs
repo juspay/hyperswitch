@@ -1375,11 +1375,11 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
-        sender_details -> Nullable<Bytea>,
-        settlement_conclusion_applied -> Nullable<Bool>,
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
+        settlement_conclusion_applied -> Nullable<Bool>,
         enable_account_name_verification -> Nullable<Bool>,
+        sender_details -> Nullable<Bytea>,
     }
 }
 
