@@ -1570,7 +1570,6 @@ pub struct PaymentsRequest {
     pub request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
 
     /// Your unique identifier for this payment or order. This ID helps you reconcile payments on your system. If provided, it is passed to the connector if supported.
-    #[remove_in(PaymentsConfirmRequest)]
     #[schema(
         value_type = Option<String>,
         max_length = 255,
