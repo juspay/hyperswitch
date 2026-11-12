@@ -874,7 +874,9 @@ pub mod shadow {
     use std::{error::Error, io::ErrorKind};
 
     use common_enums::{ApiClientError, UcsAvailability};
-    use external_services::grpc_client::unified_connector_service::UcsConfigSource;
+    use external_services::{
+        grpc_client::unified_connector_service::UcsConfigSource, superposition::Config,
+    };
     use hyperswitch_domain_models::router_data::ErrorResponse;
     use hyperswitch_interfaces::{api::gateway::GetRouterData, errors::ConnectorError};
     use router_env::logger;
@@ -882,10 +884,12 @@ pub mod shadow {
     use super::{exceeds_threshold, read_hash_counter, write_hash_counter, COUNTER_FIELD};
     use crate::{
         consts::{
-            superposition::UCS_SHADOW_KILL_SWITCH_THRESHOLD,
             UCS_SHADOW_KILL_SWITCH_REDIS_KEY as COUNTER_KEY, UCS_SHADOW_KILL_SWITCH_TTL_IN_SECONDS,
         },
-        core::payments::helpers::get_ucs_config_source,
+        core::{
+            configs::dimension_config::UcsShadowKillSwitchThreshold,
+            payments::helpers::get_ucs_config_source,
+        },
         routes::SessionState,
     };
 
@@ -935,10 +939,12 @@ pub mod shadow {
             return fallback;
         }
 
-        let value = match state
-            .superposition_service
-            .get_config_value::<i64>(UCS_SHADOW_KILL_SWITCH_THRESHOLD, None, None)
-            .await
+        let value = match UcsShadowKillSwitchThreshold::fetch(
+            state.superposition_service.as_ref(),
+            None,
+            None,
+        )
+        .await
         {
             Ok(value) => value,
             Err(error) => {

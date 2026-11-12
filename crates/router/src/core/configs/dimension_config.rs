@@ -152,6 +152,45 @@ macro_rules! config {
     };
 }
 
+/// Global UCS availability, with compatibility for workspaces using underscore keys.
+pub struct UcsEnabled;
+
+impl superposition::Config for UcsEnabled {
+    type Output = String;
+    type TargetingKey = id_type::MerchantId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::UCS_ENABLED;
+
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Some(crate::consts::UCS_ENABLED)
+    }
+}
+
+/// Contextual UCS rollout; pass the same dimensions to both key lookups.
+pub struct UcsRolloutConfig;
+
+impl superposition::Config for UcsRolloutConfig {
+    type Output = serde_json::Value;
+    type TargetingKey = id_type::MerchantId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::UCS_ROLLOUT_CONFIG;
+
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Some(crate::consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX)
+    }
+}
+
+/// Global UCS shadow threshold, with compatibility for underscore keys.
+pub struct UcsShadowKillSwitchThreshold;
+
+impl superposition::Config for UcsShadowKillSwitchThreshold {
+    type Output = i64;
+    type TargetingKey = id_type::MerchantId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::UCS_SHADOW_KILL_SWITCH_THRESHOLD;
+
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Some("ucs_shadow_kill_switch_threshold")
+    }
+}
+
 /// Superposition-only override, scoped by processor merchant and payment method.
 pub struct ShouldOverrideSetupFutureUsageToOffSession;
 
