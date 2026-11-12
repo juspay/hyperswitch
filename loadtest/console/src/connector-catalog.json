@@ -1,0 +1,3677 @@
+[
+  {
+    "id": "absa_sanlam",
+    "label": "Absa Sanlam",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      }
+    ]
+  },
+  {
+    "id": "authipay",
+    "label": "Authipay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "API Secret"
+      }
+    ]
+  },
+  {
+    "id": "adyenplatform",
+    "label": "Adyenplatform",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "stripe_billing_test",
+    "label": "Stripe Billing Test",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "phonypay",
+    "label": "Phonypay",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "fauxpay",
+    "label": "Fauxpay",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "pretendpay",
+    "label": "Pretendpay",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "stripe_test",
+    "label": "Stripe Test",
+    "dummy": true,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Api Key"
+      }
+    ]
+  },
+  {
+    "id": "adyen_test",
+    "label": "Adyen Test",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "checkout_test",
+    "label": "Checkout Test",
+    "dummy": true,
+    "card": true,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Test key"
+      }
+    ]
+  },
+  {
+    "id": "paypal_test",
+    "label": "Paypal Test",
+    "dummy": true,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Api Key"
+      }
+    ]
+  },
+  {
+    "id": "aci",
+    "label": "Aci",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Entity ID"
+      }
+    ]
+  },
+  {
+    "id": "adyen",
+    "label": "Adyen",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Adyen API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Adyen Account Id"
+      }
+    ]
+  },
+  {
+    "id": "affirm",
+    "label": "Affirm",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Public Key"
+      },
+      {
+        "name": "key1",
+        "label": "Private Key"
+      }
+    ]
+  },
+  {
+    "id": "airwallex",
+    "label": "Airwallex",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Client ID"
+      }
+    ]
+  },
+  {
+    "id": "amazonpay",
+    "label": "Amazonpay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Public Key"
+      },
+      {
+        "name": "key1",
+        "label": "Private Key"
+      }
+    ]
+  },
+  {
+    "id": "archipel",
+    "label": "Archipel",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Enter CA Certificate PEM"
+      }
+    ]
+  },
+  {
+    "id": "authorizedotnet",
+    "label": "Authorizedotnet",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Login ID"
+      },
+      {
+        "name": "key1",
+        "label": "Transaction Key"
+      }
+    ]
+  },
+  {
+    "id": "bankofamerica",
+    "label": "Bankofamerica",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Shared Secret"
+      }
+    ]
+  },
+  {
+    "id": "barclaycard",
+    "label": "Barclaycard",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "Maestro",
+      "Interac",
+      "DinersClub",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Shared Secret"
+      }
+    ]
+  },
+  {
+    "id": "betterpayment",
+    "label": "Betterpayment",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "API Password"
+      }
+    ]
+  },
+  {
+    "id": "billwerk",
+    "label": "Billwerk",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Private Api Key"
+      },
+      {
+        "name": "key1",
+        "label": "Public Api Key"
+      }
+    ]
+  },
+  {
+    "id": "bitpay",
+    "label": "Bitpay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "bambora",
+    "label": "Bambora",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Passcode"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      }
+    ]
+  },
+  {
+    "id": "blackhawknetwork",
+    "label": "Blackhawknetwork",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client Id"
+      },
+      {
+        "name": "api_secret",
+        "label": "Client Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Product Line Id"
+      }
+    ]
+  },
+  {
+    "id": "bamboraapac",
+    "label": "Bamboraapac",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "key1",
+        "label": "Account Number"
+      },
+      {
+        "name": "api_secret",
+        "label": "Password"
+      }
+    ]
+  },
+  {
+    "id": "bluesnap",
+    "label": "Bluesnap",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Username"
+      }
+    ]
+  },
+  {
+    "id": "calida",
+    "label": "Calida",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "E-Order Token"
+      }
+    ]
+  },
+  {
+    "id": "boku",
+    "label": "Boku",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API KEY"
+      },
+      {
+        "name": "key1",
+        "label": "MERCHANT ID"
+      }
+    ]
+  },
+  {
+    "id": "braintree",
+    "label": "Braintree",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Public Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      },
+      {
+        "name": "api_secret",
+        "label": "Private Key"
+      }
+    ]
+  },
+  {
+    "id": "breadpay",
+    "label": "Breadpay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "API Secret"
+      }
+    ]
+  },
+  {
+    "id": "cashtocode",
+    "label": "Cashtocode",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "CurrencyAuthKey",
+    "fields": [
+      {
+        "name": "auth_key_map",
+        "label": "Auth Key Map"
+      }
+    ]
+  },
+  {
+    "id": "celero",
+    "label": "Celero",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "AmericanExpress",
+      "Discover",
+      "DinersClub",
+      "JCB",
+      "Mastercard",
+      "Visa"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Celero API Key"
+      }
+    ]
+  },
+  {
+    "id": "chargebee",
+    "label": "Chargebee",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Chargebee API Key"
+      }
+    ]
+  },
+  {
+    "id": "custombilling",
+    "label": "Custombilling",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "checkbook",
+    "label": "Checkbook",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "Checkbook Publishable key"
+      },
+      {
+        "name": "api_key",
+        "label": "Checkbook API Secret key"
+      }
+    ]
+  },
+  {
+    "id": "checkout",
+    "label": "Checkout",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Checkout API Public Key"
+      },
+      {
+        "name": "key1",
+        "label": "Processing Channel ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Checkout API Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "citigate",
+    "label": "Citigate",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "DinersClub",
+      "Maestro"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant Name"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Password"
+      }
+    ]
+  },
+  {
+    "id": "coinbase",
+    "label": "Coinbase",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "coingate",
+    "label": "Coingate",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Token"
+      }
+    ]
+  },
+  {
+    "id": "cryptopay",
+    "label": "Cryptopay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "cybersource",
+    "label": "Cybersource",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Shared Secret"
+      }
+    ]
+  },
+  {
+    "id": "cybersourcedecisionmanager",
+    "label": "Cybersourcedecisionmanager",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "d24",
+    "label": "D24",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Read-only API Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "API Signature"
+      }
+    ]
+  },
+  {
+    "id": "datatrans",
+    "label": "Datatrans",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Passcode"
+      },
+      {
+        "name": "key1",
+        "label": "datatrans MerchantId"
+      }
+    ]
+  },
+  {
+    "id": "deutschebank",
+    "label": "Deutschebank",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Client Key"
+      }
+    ]
+  },
+  {
+    "id": "digitalvirgo",
+    "label": "Digitalvirgo",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Username"
+      }
+    ]
+  },
+  {
+    "id": "dlocal",
+    "label": "Dlocal",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "X Login"
+      },
+      {
+        "name": "key1",
+        "label": "X Trans Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "dwolla",
+    "label": "Dwolla",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "key1",
+        "label": "Client Secret"
+      }
+    ]
+  },
+  {
+    "id": "ebanx",
+    "label": "Ebanx",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "ecommpay",
+    "label": "Ecommpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Secret key"
+      },
+      {
+        "name": "key1",
+        "label": "Project ID"
+      }
+    ]
+  },
+  {
+    "id": "elavon",
+    "label": "Elavon",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Account Id"
+      },
+      {
+        "name": "key1",
+        "label": "User ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Pin"
+      }
+    ]
+  },
+  {
+    "id": "elavon_pg",
+    "label": "Elavon Pg",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant Alias"
+      },
+      {
+        "name": "key1",
+        "label": "Secret API Key"
+      }
+    ]
+  },
+  {
+    "id": "envoy",
+    "label": "Envoy",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "etisalat",
+    "label": "Etisalat",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "EPG Password"
+      },
+      {
+        "name": "key1",
+        "label": "EPG UserName"
+      },
+      {
+        "name": "api_secret",
+        "label": "EPG Customer"
+      }
+    ]
+  },
+  {
+    "id": "facilitapay",
+    "label": "Facilitapay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Username"
+      }
+    ]
+  },
+  {
+    "id": "finix",
+    "label": "Finix",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "Discover",
+      "JCB",
+      "DinersClub",
+      "UnionPay",
+      "Interac",
+      "Maestro"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "api_secret",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      },
+      {
+        "name": "key2",
+        "label": "Merchant Identity Id"
+      }
+    ]
+  },
+  {
+    "id": "fiserv",
+    "label": "Fiserv",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "API Secret"
+      }
+    ]
+  },
+  {
+    "id": "fiservemea",
+    "label": "Fiservemea",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "fiservcommercehub",
+    "label": "Fiservcommercehub",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "API Secret"
+      },
+      {
+        "name": "key2",
+        "label": "Terminal ID"
+      }
+    ]
+  },
+  {
+    "id": "fiuu",
+    "label": "Fiuu",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Verify Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "flexiti",
+    "label": "Flexiti",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client id"
+      },
+      {
+        "name": "key1",
+        "label": "Client secret"
+      }
+    ]
+  },
+  {
+    "id": "forte",
+    "label": "Forte",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Access ID"
+      },
+      {
+        "name": "key1",
+        "label": "Organization ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "API Secure Key"
+      },
+      {
+        "name": "key2",
+        "label": "Location ID"
+      }
+    ]
+  },
+  {
+    "id": "getnet",
+    "label": "Getnet",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay",
+      "RuPay",
+      "Maestro"
+    ],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "gigadat",
+    "label": "Gigadat",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Access Token"
+      },
+      {
+        "name": "api_secret",
+        "label": "Security Token"
+      },
+      {
+        "name": "key1",
+        "label": "Campaign ID"
+      }
+    ]
+  },
+  {
+    "id": "givepayments",
+    "label": "Givepayments",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "globalpay",
+    "label": "Globalpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Global App Key"
+      },
+      {
+        "name": "key1",
+        "label": "Global App ID"
+      }
+    ]
+  },
+  {
+    "id": "globalpayments_heartland",
+    "label": "Globalpayments Heartland",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Secret API Key"
+      }
+    ]
+  },
+  {
+    "id": "globalpayments_realex",
+    "label": "Globalpayments Realex",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Shared Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      },
+      {
+        "name": "key2",
+        "label": "Account"
+      },
+      {
+        "name": "api_secret",
+        "label": "Refund Password"
+      }
+    ]
+  },
+  {
+    "id": "globepay",
+    "label": "Globepay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Partner Code"
+      },
+      {
+        "name": "key1",
+        "label": "Credential Code"
+      }
+    ]
+  },
+  {
+    "id": "gocardless",
+    "label": "Gocardless",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Access Token"
+      }
+    ]
+  },
+  {
+    "id": "gotyme_sanlam",
+    "label": "Gotyme Sanlam",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "hipay",
+    "label": "Hipay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Login ID"
+      },
+      {
+        "name": "key1",
+        "label": "API password"
+      }
+    ]
+  },
+  {
+    "id": "helcim",
+    "label": "Helcim",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Api Key"
+      }
+    ]
+  },
+  {
+    "id": "hyperpg",
+    "label": "Hyperpg",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "key1",
+        "label": "Password"
+      }
+    ]
+  },
+  {
+    "id": "iatapay",
+    "label": "Iatapay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "key1",
+        "label": "Airline ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Client Secret"
+      }
+    ]
+  },
+  {
+    "id": "ilixium",
+    "label": "Ilixium",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Digest Calculation Password"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      },
+      {
+        "name": "api_secret",
+        "label": "Account Id"
+      }
+    ]
+  },
+  {
+    "id": "imerchantsolutions",
+    "label": "Imerchantsolutions",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "inespay",
+    "label": "Inespay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "API Token"
+      }
+    ]
+  },
+  {
+    "id": "interpayments",
+    "label": "Interpayments",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "itaubank",
+    "label": "Itaubank",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "Client Id"
+      },
+      {
+        "name": "api_key",
+        "label": "Client Secret"
+      },
+      {
+        "name": "api_secret",
+        "label": "Certificates"
+      },
+      {
+        "name": "key2",
+        "label": "Certificate Key"
+      }
+    ]
+  },
+  {
+    "id": "jpmorgan",
+    "label": "Jpmorgan",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "AmericanExpress",
+      "DinersClub",
+      "Discover",
+      "JCB",
+      "Mastercard",
+      "Discover",
+      "UnionPay",
+      "Visa"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "key1",
+        "label": "Certificate Thumbprint"
+      },
+      {
+        "name": "api_secret",
+        "label": "Private Key (Base64 encoded)"
+      },
+      {
+        "name": "key2",
+        "label": "Resource ID"
+      }
+    ]
+  },
+  {
+    "id": "jpmorgan_orbital",
+    "label": "Jpmorgan Orbital",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Orbital Connection Username"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Orbital Connection Password"
+      }
+    ]
+  },
+  {
+    "id": "klarna",
+    "label": "Klarna",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "Klarna Merchant Username"
+      },
+      {
+        "name": "api_key",
+        "label": "Klarna Merchant ID Password"
+      }
+    ]
+  },
+  {
+    "id": "loonio",
+    "label": "Loonio",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Token"
+      }
+    ]
+  },
+  {
+    "id": "merchante",
+    "label": "Merchante",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "Discover",
+      "JCB",
+      "DinersClub"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Profile Key"
+      },
+      {
+        "name": "key1",
+        "label": "Profile ID"
+      }
+    ]
+  },
+  {
+    "id": "mifinity",
+    "label": "Mifinity",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "key"
+      }
+    ]
+  },
+  {
+    "id": "mollie",
+    "label": "Mollie",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Profile Token"
+      }
+    ]
+  },
+  {
+    "id": "moneris",
+    "label": "Moneris",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Client Id"
+      },
+      {
+        "name": "api_secret",
+        "label": "Merchant Id"
+      }
+    ]
+  },
+  {
+    "id": "multisafepay",
+    "label": "Multisafepay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Enter API Key"
+      }
+    ]
+  },
+  {
+    "id": "nexinets",
+    "label": "Nexinets",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      }
+    ]
+  },
+  {
+    "id": "nexixpay",
+    "label": "Nexixpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "nmi",
+    "label": "Nmi",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Public Key"
+      }
+    ]
+  },
+  {
+    "id": "nomupay",
+    "label": "Nomupay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "noon",
+    "label": "Noon",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Business Identifier"
+      },
+      {
+        "name": "api_secret",
+        "label": "Application Identifier"
+      }
+    ]
+  },
+  {
+    "id": "nordea",
+    "label": "Nordea",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Client ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "eIDAS Private Key"
+      }
+    ]
+  },
+  {
+    "id": "novalnet",
+    "label": "Novalnet",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Product Activation Key"
+      },
+      {
+        "name": "key1",
+        "label": "Payment Access Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "Tariff ID"
+      }
+    ]
+  },
+  {
+    "id": "nuvei",
+    "label": "Nuvei",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Site ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Merchant Secret"
+      }
+    ]
+  },
+  {
+    "id": "opennode",
+    "label": "Opennode",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "paybox",
+    "label": "Paybox",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "SITE Key"
+      },
+      {
+        "name": "key1",
+        "label": "Rang Identifier"
+      },
+      {
+        "name": "api_secret",
+        "label": "CLE Secret"
+      },
+      {
+        "name": "key2",
+        "label": "Merchant Id"
+      }
+    ]
+  },
+  {
+    "id": "paydotcom",
+    "label": "Paydotcom",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "Discover",
+      "DinersClub",
+      "JCB",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "payme",
+    "label": "Payme",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Seller Payme Id"
+      },
+      {
+        "name": "key1",
+        "label": "Payme Public Key"
+      }
+    ]
+  },
+  {
+    "id": "paynearme",
+    "label": "Paynearme",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "Discover"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "PayNearMe API Secret Key"
+      },
+      {
+        "name": "key1",
+        "label": "PayNearMe Site Identifier"
+      }
+    ]
+  },
+  {
+    "id": "payload",
+    "label": "Payload",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "AmericanExpress",
+      "Discover",
+      "Mastercard",
+      "Visa"
+    ],
+    "authType": "CurrencyAuthKey",
+    "fields": [
+      {
+        "name": "auth_key_map",
+        "label": "Auth Key Map"
+      }
+    ]
+  },
+  {
+    "id": "payone",
+    "label": "Payone",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "paypal",
+    "label": "Paypal",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Client ID"
+      }
+    ]
+  },
+  {
+    "id": "paysafe",
+    "label": "Paysafe",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "key1",
+        "label": "Password"
+      }
+    ]
+  },
+  {
+    "id": "paystack",
+    "label": "Paystack",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "paytm",
+    "label": "Paytm",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Signing key"
+      },
+      {
+        "name": "api_secret",
+        "label": "website name"
+      },
+      {
+        "name": "key1",
+        "label": "merchant_id"
+      }
+    ]
+  },
+  {
+    "id": "payconex",
+    "label": "Payconex",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "Discover"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Account Id"
+      }
+    ]
+  },
+  {
+    "id": "payu",
+    "label": "Payu",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant POS ID"
+      }
+    ]
+  },
+  {
+    "id": "peachpayments",
+    "label": "Peachpayments",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Tenant ID"
+      }
+    ]
+  },
+  {
+    "id": "payjustnow",
+    "label": "Payjustnow",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Signing Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Account Id"
+      }
+    ]
+  },
+  {
+    "id": "payjustnowinstore",
+    "label": "Payjustnowinstore",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Terminal Id"
+      }
+    ]
+  },
+  {
+    "id": "phonepe",
+    "label": "Phonepe",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "merchant_id"
+      },
+      {
+        "name": "api_secret",
+        "label": "key_index"
+      },
+      {
+        "name": "key1",
+        "label": "salt_key"
+      }
+    ]
+  },
+  {
+    "id": "placetopay",
+    "label": "Placetopay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Login"
+      },
+      {
+        "name": "key1",
+        "label": "Trankey"
+      }
+    ]
+  },
+  {
+    "id": "powertranz",
+    "label": "Powertranz",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "PowerTranz Id"
+      },
+      {
+        "name": "api_key",
+        "label": "PowerTranz Password"
+      }
+    ]
+  },
+  {
+    "id": "prophetpay",
+    "label": "Prophetpay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "key1",
+        "label": "Token"
+      },
+      {
+        "name": "api_secret",
+        "label": "Profile"
+      }
+    ]
+  },
+  {
+    "id": "rapyd",
+    "label": "Rapyd",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Access Key"
+      },
+      {
+        "name": "key1",
+        "label": "API Secret"
+      }
+    ]
+  },
+  {
+    "id": "razorpay",
+    "label": "Razorpay",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Razorpay Id"
+      },
+      {
+        "name": "key1",
+        "label": "Razorpay Secret"
+      }
+    ]
+  },
+  {
+    "id": "recurly",
+    "label": "Recurly",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "redsys",
+    "label": "Redsys",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "key1",
+        "label": "Terminal ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "revolv3",
+    "label": "Revolv3",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Static Tokens"
+      }
+    ]
+  },
+  {
+    "id": "riskified",
+    "label": "Riskified",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "saferpay",
+    "label": "Saferpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "Discover",
+      "DinersClub",
+      "UnionPay"
+    ],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Username"
+      },
+      {
+        "name": "key1",
+        "label": "API Password"
+      },
+      {
+        "name": "api_secret",
+        "label": "Customer Id"
+      },
+      {
+        "name": "key2",
+        "label": "Terminal Id"
+      }
+    ]
+  },
+  {
+    "id": "sanlam_payshield",
+    "label": "Sanlam Payshield",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "santander",
+    "label": "Santander",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "CertificateAuth",
+    "fields": [
+      {
+        "name": "certificate",
+        "label": "Base64 encoded PEM formatted certificate chain"
+      },
+      {
+        "name": "private_key",
+        "label": "Base64 encoded PEM formatted private key"
+      }
+    ]
+  },
+  {
+    "id": "shift4",
+    "label": "Shift4",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "signifyd",
+    "label": "Signifyd",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "nsure",
+    "label": "Nsure",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "silverflow",
+    "label": "Silverflow",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "API Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Acceptor Key"
+      }
+    ]
+  },
+  {
+    "id": "square",
+    "label": "Square",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Square API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Square Client Id"
+      }
+    ]
+  },
+  {
+    "id": "stax",
+    "label": "Stax",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Api Key"
+      }
+    ]
+  },
+  {
+    "id": "stripe",
+    "label": "Stripe",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "stripebilling",
+    "label": "Stripebilling",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "tesouro",
+    "label": "Tesouro",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "Discover",
+      "DinersClub",
+      "JCB",
+      "Maestro",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Client Secret"
+      },
+      {
+        "name": "key1",
+        "label": "Acceptor ID"
+      }
+    ]
+  },
+  {
+    "id": "truelayer",
+    "label": "Truelayer",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client ID"
+      },
+      {
+        "name": "key1",
+        "label": "Client Secret"
+      }
+    ]
+  },
+  {
+    "id": "trustly",
+    "label": "Trustly",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "key1",
+        "label": "Password"
+      },
+      {
+        "name": "api_secret",
+        "label": "Private Key(Base64 encoded)"
+      }
+    ]
+  },
+  {
+    "id": "trustpay",
+    "label": "Trustpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "key1",
+        "label": "Project ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Secret Key"
+      }
+    ]
+  },
+  {
+    "id": "trustpayments",
+    "label": "Trustpayments",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "tokenio",
+    "label": "Tokenio",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key Id"
+      },
+      {
+        "name": "api_secret",
+        "label": "Private Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant Id"
+      },
+      {
+        "name": "key2",
+        "label": "Key Algorithm"
+      }
+    ]
+  },
+  {
+    "id": "tsys",
+    "label": "Tsys",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Device Id"
+      },
+      {
+        "name": "key1",
+        "label": "Transaction Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "Developer Id"
+      }
+    ]
+  },
+  {
+    "id": "tsys_transit",
+    "label": "Tsys Transit",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Device Id"
+      },
+      {
+        "name": "key1",
+        "label": "Transaction Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "Developer Id"
+      }
+    ]
+  },
+  {
+    "id": "volt",
+    "label": "Volt",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "MultiAuthKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "api_secret",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Client ID"
+      },
+      {
+        "name": "key2",
+        "label": "Client Secret"
+      }
+    ]
+  },
+  {
+    "id": "wellsfargo",
+    "label": "Wellsfargo",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Shared Secret"
+      }
+    ]
+  },
+  {
+    "id": "wise",
+    "label": "Wise",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": null,
+    "fields": []
+  },
+  {
+    "id": "worldline",
+    "label": "Worldline",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key ID"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      },
+      {
+        "name": "api_secret",
+        "label": "Secret API Key"
+      }
+    ]
+  },
+  {
+    "id": "worldpay",
+    "label": "Worldpay",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "Username"
+      },
+      {
+        "name": "api_key",
+        "label": "Password"
+      },
+      {
+        "name": "api_secret",
+        "label": "Merchant Identifier"
+      }
+    ]
+  },
+  {
+    "id": "worldpaymodular",
+    "label": "Worldpaymodular",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "key1",
+        "label": "Username"
+      },
+      {
+        "name": "api_key",
+        "label": "Password"
+      },
+      {
+        "name": "api_secret",
+        "label": "Merchant Identifier"
+      }
+    ]
+  },
+  {
+    "id": "worldpayraft",
+    "label": "Worldpayraft",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Visa",
+      "Mastercard",
+      "AmericanExpress",
+      "DinersClub"
+    ],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Worldpay License"
+      },
+      {
+        "name": "key1",
+        "label": "Worldpay Merchant ID"
+      }
+    ]
+  },
+  {
+    "id": "worldpayvantiv",
+    "label": "Worldpayvantiv",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "api_secret",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      }
+    ]
+  },
+  {
+    "id": "worldpayxml",
+    "label": "Worldpayxml",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_secret",
+        "label": "Merchant Code"
+      },
+      {
+        "name": "api_key",
+        "label": "API Username"
+      },
+      {
+        "name": "key1",
+        "label": "API Password"
+      }
+    ]
+  },
+  {
+    "id": "xendit",
+    "label": "Xendit",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "zen",
+    "label": "Zen",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "zift",
+    "label": "Zift",
+    "dummy": false,
+    "card": true,
+    "networks": [
+      "Mastercard",
+      "Visa",
+      "Interac",
+      "AmericanExpress",
+      "JCB",
+      "DinersClub",
+      "Discover",
+      "CartesBancaires",
+      "UnionPay"
+    ],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Username"
+      },
+      {
+        "name": "api_secret",
+        "label": "Password"
+      },
+      {
+        "name": "key1",
+        "label": "Account ID"
+      }
+    ]
+  },
+  {
+    "id": "plaid",
+    "label": "Plaid",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "client_id"
+      },
+      {
+        "name": "key1",
+        "label": "secret"
+      }
+    ]
+  },
+  {
+    "id": "zsl",
+    "label": "Zsl",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "BodyKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Key"
+      },
+      {
+        "name": "key1",
+        "label": "Merchant ID"
+      }
+    ]
+  },
+  {
+    "id": "juspaythreedsserver",
+    "label": "Juspaythreedsserver",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "NoKey",
+    "fields": []
+  },
+  {
+    "id": "ctp_mastercard",
+    "label": "Ctp Mastercard",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      }
+    ]
+  },
+  {
+    "id": "ctp_visa",
+    "label": "Ctp Visa",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "NoKey",
+    "fields": []
+  },
+  {
+    "id": "netcetera",
+    "label": "Netcetera",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "CertificateAuth",
+    "fields": [
+      {
+        "name": "certificate",
+        "label": "Base64 encoded PEM formatted certificate chain"
+      },
+      {
+        "name": "private_key",
+        "label": "Base64 encoded PEM formatted private key"
+      }
+    ]
+  },
+  {
+    "id": "vgs",
+    "label": "Vgs",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Client Id"
+      },
+      {
+        "name": "key1",
+        "label": "Client Secret"
+      },
+      {
+        "name": "api_secret",
+        "label": "Vault Id"
+      }
+    ]
+  },
+  {
+    "id": "cardinal",
+    "label": "Cardinal",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "SignatureKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "API Key"
+      },
+      {
+        "name": "api_secret",
+        "label": "API ID"
+      },
+      {
+        "name": "key1",
+        "label": "Organization Unit ID"
+      }
+    ]
+  },
+  {
+    "id": "threedsecureio",
+    "label": "Threedsecureio",
+    "dummy": false,
+    "card": false,
+    "networks": [],
+    "authType": "HeaderKey",
+    "fields": [
+      {
+        "name": "api_key",
+        "label": "Api Key"
+      }
+    ]
+  }
+]

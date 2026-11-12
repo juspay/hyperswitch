@@ -47,6 +47,7 @@
 - [Hosted Sandbox (No Setup Required)](#hosted-sandbox-no-setup-required)
 - [Why Hyperswitch?](#-why-hyperswitch)
 - [Architectural Overview](#architectural-overview)
+- [Load Testing](loadtest/README.md)
 - [Our Vision](#our-vision)
 - [Community & Contributions](#community--contributions)
 - [Feature Requests & Bugs](#feature-requests--bugs)
