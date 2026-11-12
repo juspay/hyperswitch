@@ -529,12 +529,13 @@ pub async fn change_password(
     #[cfg(not(feature = "email"))]
     {
         state
-            .store
-            .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
-                &user_from_token.user_id,
-                &user_from_token.merchant_id,
-                diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
-            )
+            .track_accounts_query(|db| {
+                db.delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
+                    &user_from_token.user_id,
+                    &user_from_token.merchant_id,
+                    diesel_models::enums::DashboardMetadata::IsChangePasswordRequired,
+                )
+            })
             .await
             .map_err(|e| logger::error!("Error while deleting dashboard metadata {e:?}"))
             .ok();

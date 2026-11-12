@@ -109,7 +109,6 @@ pub trait StorageInterface:
     + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + client_secret::ClientSecretInterface
     + events::EventInterface
