@@ -1871,9 +1871,7 @@ fn build_worldpayxml_sender_funding_address(
                 "sender_details.address.line1",
             ))?,
         address2: address.line2.clone(),
-        postal_code: address
-            .zip
-            .clone(),
+        postal_code: address.zip.clone(),
         city: address
             .city
             .clone()
