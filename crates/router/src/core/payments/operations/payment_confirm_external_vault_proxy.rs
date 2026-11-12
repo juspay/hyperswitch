@@ -552,6 +552,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
         let key_store = processor.get_key_store();
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let connector_label = payment_data.payment_attempt.connector_label.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         let payment_method = payment_data.payment_attempt.payment_method;
@@ -637,6 +638,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     capture_method: payment_data.payment_attempt.capture_method,
                     browser_info: payment_data.payment_attempt.browser_info.clone(),
                     connector,
+                    connector_label,
                     payment_token: payment_data.token.clone(),
                     payment_method_data: None,
                     payment_method_type: payment_data.payment_attempt.payment_method_type,

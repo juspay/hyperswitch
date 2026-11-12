@@ -707,6 +707,7 @@ async fn restore_pre_call_state<F, D>(
         payment_method: attempt.payment_method,
         browser_info: attempt.browser_info.clone(),
         connector: attempt.connector.clone(),
+        connector_label: attempt.connector_label.clone(),
         payment_token: attempt.payment_token.clone(),
         payment_method_data: attempt.payment_method_data.clone(),
         payment_method_type: attempt.payment_method_type,
@@ -3617,6 +3618,9 @@ where
         false,
     )
     .await?;
+
+    payment_data
+        .set_connector_label_in_payment_attempt(merchant_connector_account.get_connector_label());
 
     if payment_data
         .get_payment_attempt()
@@ -6701,11 +6705,8 @@ where
     )
     .await?;
 
-    if let Some(connector_label) = merchant_connector_account.get_connector_label() {
-        let mut payment_attempt = payment_data.get_payment_attempt().clone();
-        payment_attempt.connector_label = Some(connector_label);
-        payment_data.set_payment_attempt(payment_attempt);
-    }
+    payment_data
+        .set_connector_label_in_payment_attempt(merchant_connector_account.get_connector_label());
 
     let customer_acceptance = payment_data
         .get_payment_attempt()
@@ -15966,6 +15967,9 @@ pub trait OperationSessionSetters<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 
     #[cfg(feature = "v1")]
+    fn set_connector_label_in_payment_attempt(&mut self, connector_label: Option<String>);
+
+    #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 
     #[cfg(feature = "v2")]
@@ -16351,6 +16355,10 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
+    }
+
+    fn set_connector_label_in_payment_attempt(&mut self, connector_label: Option<String>) {
+        self.payment_attempt.connector_label = connector_label;
     }
 
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {

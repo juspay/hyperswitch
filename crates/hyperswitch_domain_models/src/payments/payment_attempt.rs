@@ -2088,6 +2088,7 @@ pub enum PaymentAttemptUpdate {
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
+        connector_label: Option<String>,
         straight_through_algorithm: Option<Value>,
         amount_capturable: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
@@ -2110,6 +2111,7 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<Value>,
         connector: Option<String>,
+        connector_label: Option<String>,
         payment_token: Option<String>,
         payment_method_data: Option<Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -2386,6 +2388,7 @@ impl PaymentAttemptUpdate {
             Self::UpdateTrackers {
                 payment_token,
                 connector,
+                connector_label,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
@@ -2397,6 +2400,7 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
+                connector_label,
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -2463,6 +2467,7 @@ impl PaymentAttemptUpdate {
                 payment_method,
                 browser_info,
                 connector,
+                connector_label,
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2507,6 +2512,7 @@ impl PaymentAttemptUpdate {
                 payment_method,
                 browser_info,
                 connector,
+                connector_label,
                 payment_token,
                 payment_method_data,
                 payment_method_type,

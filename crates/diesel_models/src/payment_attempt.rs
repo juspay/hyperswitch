@@ -620,6 +620,7 @@ pub enum PaymentAttemptUpdate {
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
+        connector_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
@@ -642,6 +643,7 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
+        connector_label: Option<String>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -1110,6 +1112,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub amount_to_capture: Option<MinorUnit>,
     pub connector: Option<Option<String>>,
+    pub connector_label: Option<Option<String>>,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub error_message: Option<Option<String>>,
@@ -1182,7 +1185,6 @@ pub struct PaymentAttemptUpdateInternal {
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
-    pub connector_label: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -2711,6 +2713,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 browser_info,
                 connector,
+                connector_label,
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2759,6 +2762,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 browser_info,
                 connector: connector.map(Some),
+                connector_label: connector_label.map(Some),
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2828,7 +2832,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details,
                 applied_offer_details,
                 applied_overrides,
-                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id,
             },
@@ -3469,7 +3472,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
-                    connector_label,
+                    connector_label: connector_label.map(Some),
                     payment_account_reference,
                     active_frm_id: None,
                 }
@@ -3579,7 +3582,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     external_surcharge_details: None,
                     applied_offer_details: None,
                     applied_overrides: None,
-                    connector_label,
+                    connector_label: connector_label.map(Some),
                     payment_account_reference: None,
                     active_frm_id: None,
                 }
@@ -3669,6 +3672,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
+                connector_label,
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -3681,6 +3685,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
                 connector: connector.map(Some),
+                connector_label: connector_label.map(Some),
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -3755,7 +3760,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 external_surcharge_details: None,
                 applied_offer_details: None,
                 applied_overrides: None,
-                connector_label: None,
                 payment_account_reference: None,
                 active_frm_id: None,
             },
