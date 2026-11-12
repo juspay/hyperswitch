@@ -302,8 +302,6 @@ impl ApplePayCertificateResource {
         org_key: &Secret<Vec<u8>>,
         req: api_resources::UploadCertificateRequest,
     ) -> RouterResult<api_resources::UploadCertificateResponse> {
-        let db = state.store.as_ref();
-
         let private_key_payload = resource
             .encrypted_data
             .as_ref()
@@ -342,20 +340,17 @@ impl ApplePayCertificateResource {
             payment_processing_certificate: Some(req.certificate),
         };
 
-        let updated = db
-            .update_linked_resource_data(
-                resource.id.clone(),
-                domain::HierarchicalResourceDataUpdate {
-                    data: Secret::new(
-                        serde_json::to_value(&data)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to serialize Apple Pay certificate resource data",
-                            )?,
-                    ),
-                },
-                org_key,
-            )
+        let resource_update = domain::HierarchicalResourceDataUpdate {
+            data: Secret::new(
+                serde_json::to_value(&data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Apple Pay certificate resource data")?,
+            ),
+        };
+        let updated = state
+            .track_accounts_query(|db| {
+                db.update_linked_resource_data(resource.id.clone(), resource_update, org_key)
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to persist uploaded Apple Pay certificate")?;
@@ -595,7 +590,6 @@ pub async fn generate_hierarchical_resource(
     processor: domain::Processor,
     req: api_resources::GenerateHierarchicalResourceRequest,
 ) -> RouterResponse<api_resources::GenerateHierarchicalResourceResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
@@ -608,7 +602,8 @@ pub async fn generate_hierarchical_resource(
         }
     };
 
-    db.insert_linked_resource(resource, &org_key_store.key)
+    state
+        .track_accounts_query(|db| db.insert_linked_resource(resource, &org_key_store.key))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to persist generated resource")?;
@@ -647,12 +642,11 @@ pub async fn upload_hierarchical_resource(
     resource_id: id_type::ResourceId,
     req: api_resources::UploadCertificateRequest,
 ) -> RouterResponse<api_resources::UploadCertificateResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
-    let scope_id = db
-        .find_resource_scope_id(resource_id.clone())
+    let scope_id = state
+        .track_accounts_query(|db| db.find_resource_scope_id(resource_id.clone()))
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -662,8 +656,10 @@ pub async fn upload_hierarchical_resource(
     let org_key_store =
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resource = db
-        .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
+    let resource = state
+        .track_accounts_query(|db| {
+            db.find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -743,19 +739,20 @@ pub async fn list_hierarchical_resources(
     processor: domain::Processor,
     req: api_resources::ListHierarchicalResourcesRequest,
 ) -> RouterResponse<api_resources::ListHierarchicalResourcesResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resources = db
-        .list_linked_resources_by_scope_id_and_resource_type(
-            organization_id.get_string_repr().to_string(),
-            req.resource_type.to_string(),
-            &org_key_store.key,
-        )
+    let resources = state
+        .track_accounts_query(|db| {
+            db.list_linked_resources_by_scope_id_and_resource_type(
+                organization_id.get_string_repr().to_string(),
+                req.resource_type.to_string(),
+                &org_key_store.key,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to list resources")?;
@@ -827,13 +824,12 @@ pub async fn link_hierarchical_resource(
     resource_id: id_type::ResourceId,
     req: api_resources::LinkHierarchicalResourceRequest,
 ) -> RouterResponse<api_resources::LinkHierarchicalResourceResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_account = processor.get_account();
     let organization_id = merchant_account.organization_id.clone();
 
-    let scope_id = db
-        .find_resource_scope_id(resource_id.clone())
+    let scope_id = state
+        .track_accounts_query(|db| db.find_resource_scope_id(resource_id.clone()))
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -846,8 +842,10 @@ pub async fn link_hierarchical_resource(
     let org_key_store =
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resource = db
-        .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
+    let resource = state
+        .track_accounts_query(|db| {
+            db.find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch resource to link")?;
