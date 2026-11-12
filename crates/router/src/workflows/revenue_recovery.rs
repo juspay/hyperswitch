@@ -246,14 +246,14 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: u32,
-) -> Option<time::PrimitiveDateTime> {
+) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
         .await;
 
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count)?;
 
-    scheduler_utils::get_time_from_delta(time_delta)
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
 
 /// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
@@ -265,14 +265,14 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     queried_rung: u32,
-) -> Option<time::PrimitiveDateTime> {
+) -> CustomResult<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung)?;
 
-    scheduler_utils::get_time_from_delta(time_delta)
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
 
 #[derive(Debug, Clone)]
@@ -850,7 +850,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 &dimensions,
                 retry_count,
             )
-            .await;
+            .await?;
 
             // Distinct from `None` below, which means "no token right now, come back later" and
             // keeps the calculate job alive.
@@ -977,7 +977,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                                 &dimensions,
                                 queried_rung,
                             )
-                            .await
+                            .await?
                         } else {
                             logger::info!(
                                 queried_rung,
@@ -1000,7 +1000,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                             &dimensions,
                             retry_count,
                         )
-                        .await
+                        .await?
                     }
                     _ => None,
                 };

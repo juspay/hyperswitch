@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use common_enums::enums::{self, CardNetwork};
-use common_utils::{date_time, ext_traits::ValueExt, id_type};
+use common_utils::{date_time, errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use external_services::grpc_client::{self as external_grpc_client, GrpcHeaders};
 use hyperswitch_domain_models::{
@@ -60,19 +60,19 @@ impl RevenueRecoveryPaymentData {
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
-    ) -> Option<time::PrimitiveDateTime> {
+    ) -> CustomResult<Option<time::PrimitiveDateTime>, scheduler::errors::ProcessTrackerError> {
         if is_hard_decline {
             logger::info!("Hard Decline encountered");
-            return None;
+            return Ok(None);
         }
         match self.retry_algorithm {
             enums::RevenueRecoveryAlgorithmType::Monitoring => {
                 logger::error!("Monitoring type found for Revenue Recovery retry payment");
-                None
+                Ok(None)
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
                 logger::info!("Cascading type found for Revenue Recovery retry payment");
-                let connector = payment_attempt.connector.as_ref().and_then(|c| {
+                let Some(connector) = payment_attempt.connector.as_ref().and_then(|c| {
                     c.parse::<common_enums::connector_enums::Connector>()
                         .map_err(|e| {
                             logger::error!(
@@ -83,7 +83,9 @@ impl RevenueRecoveryPaymentData {
                             )
                         })
                         .ok()
-                })?;
+                }) else {
+                    return Ok(None);
+                };
                 let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                     .with_processor_merchant_id(merchant_id.clone().into())
                     .with_connector(connector);
@@ -95,7 +97,7 @@ impl RevenueRecoveryPaymentData {
                 )
                 .await
             }
-            enums::RevenueRecoveryAlgorithmType::Smart => None,
+            enums::RevenueRecoveryAlgorithmType::Smart => Ok(None),
         }
     }
 }
