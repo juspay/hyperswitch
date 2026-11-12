@@ -164,6 +164,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -1073,6 +1074,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
@@ -1289,6 +1291,7 @@ impl PaymentIntent {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             mit_category: request.mit_category,
             settlement_conclusion_applied: None,
         })
@@ -1341,10 +1344,14 @@ impl PaymentIntent {
             )
         })?;
 
-        let connector_account_reference_id = billing_connector_account
-            .get_account_reference_id_using_payment_merchant_connector_account_id(
-                revenue_recovery_metadata.active_attempt_payment_connector_id,
-            )
+        let connector_account_reference_id = revenue_recovery_metadata
+            .active_attempt_payment_connector_id
+            .and_then(|payment_merchant_connector_account_id| {
+                billing_connector_account
+                    .get_account_reference_id_using_payment_merchant_connector_account_id(
+                        payment_merchant_connector_account_id,
+                    )
+            })
             .ok_or_else(|| {
                 error_stack::report!(
                     errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
@@ -1635,7 +1642,7 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct RevenueRecoveryData {
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
+    pub connector_details: common_types::payments::RecoveryConnectorDetails,
     pub processor_payment_method_token: String,
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
@@ -1656,7 +1663,7 @@ where
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-        let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let connector_details = &self.revenue_recovery_data.connector_details;
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()
@@ -1711,8 +1718,8 @@ where
             ),
         );
 
-        let payment_revenue_recovery_metadata = match payment_attempt_connector {
-            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+        let payment_revenue_recovery_metadata =
+            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 // Update retry count by one.
                 total_retry_count: revenue_recovery.as_ref().map_or(
                     self.revenue_recovery_data.retry_count.unwrap_or(1),
@@ -1721,10 +1728,10 @@ where
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
-                active_attempt_payment_connector_id: self
-                    .payment_attempt
-                    .get_attempt_merchant_connector_account_id()?,
+                billing_connector_id: connector_details.get_billing_connector_id().cloned(),
+                active_attempt_payment_connector_id: connector_details
+                    .get_payment_connector_id()
+                    .cloned(),
                 billing_connector_payment_details:
                     diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
@@ -1745,10 +1752,7 @@ where
                         errors::api_error_response::ApiErrorResponse::InternalServerError,
                     )
                     .attach_printable("Failed to construct revenue recovery metadata")?,
-                connector: connector.parse().map_err(|err| {
-                    router_env::logger::error!(?err, "Failed to parse connector string to enum");
-                    errors::api_error_response::ApiErrorResponse::InternalServerError
-                })?,
+                connector: connector_details.get_connector(),
                 // Both billing times belong to the invoice rather than to an individual attempt,
                 // so the value recorded first is retained and later webhooks only seed it when it
                 // is still unset.
@@ -1767,10 +1771,7 @@ where
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
-            }),
-            None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Connector not found in payment attempt")?,
-        };
+            });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata
                 .as_ref()

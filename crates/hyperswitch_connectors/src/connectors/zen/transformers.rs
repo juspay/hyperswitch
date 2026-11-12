@@ -104,7 +104,7 @@ pub struct CheckoutRequest {
     signature: Option<Secret<String>>,
     specified_payment_channel: ZenPaymentChannels,
     terminal_uuid: Secret<String>,
-    url_redirect: String,
+    url_redirect: Secret<String>,
 }
 
 #[derive(Clone, Debug, Display, Serialize)]
@@ -149,7 +149,7 @@ pub struct ZenPaymentData {
     #[serde(skip_serializing_if = "Option::is_none")]
     card: Option<ZenCardDetails>,
     descriptor: String,
-    return_verify_url: Option<String>,
+    return_verify_url: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -157,7 +157,7 @@ pub struct ZenPaymentData {
 pub struct ZenGeneralPaymentData {
     #[serde(rename = "type")]
     payment_type: ZenPaymentTypes,
-    return_url: String,
+    return_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -613,7 +613,10 @@ fn get_signature_data(
         "terminaluuid={}",
         checkout_request.terminal_uuid.peek()
     ));
-    signature_data.push(format!("urlredirect={}", checkout_request.url_redirect));
+    signature_data.push(format!(
+        "urlredirect={}",
+        checkout_request.url_redirect.peek()
+    ));
     let signature = signature_data.join("&");
     Ok(signature.to_lowercase())
 }

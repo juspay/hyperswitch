@@ -37,10 +37,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
@@ -245,7 +242,7 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
@@ -255,10 +252,6 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
-
-/// The rung asked for when one doesn't fit the `i32` that the scheduler's lookup takes.
-#[cfg(feature = "v2")]
-const MAX_QUERIED_RUNG: i32 = 15;
 
 /// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
 /// Read at the ladder position rather than the invoice's overall retry count, because
@@ -274,11 +267,7 @@ pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
         .get_pt_mapping_adaptive_retries(db, superposition_client, None)
         .await;
 
-    // The scheduler's lookup takes an `i32`.
-    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(
-        mapping,
-        i32::try_from(queried_rung).unwrap_or(MAX_QUERIED_RUNG),
-    );
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -814,7 +803,7 @@ pub(crate) enum RetryTiming {
 pub(crate) struct RetryTimingParams<'a> {
     pub payment_intent: &'a PaymentIntent,
     pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    pub retry_count: i32,
+    pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
@@ -1084,7 +1073,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     payment_intent: &PaymentIntent,
     billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
+    retry_count: u32,
     tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
     static_ladder_progress: &pcr::schedule::StaticLadderProgress,
     // Needed only to resolve the A/B gate

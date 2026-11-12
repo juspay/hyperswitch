@@ -579,8 +579,8 @@ pub struct RedirectRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ContextStruct {
-    return_url: Option<String>,
-    cancel_url: Option<String>,
+    return_url: Option<Secret<String>>,
+    cancel_url: Option<Secret<String>>,
     user_action: Option<UserAction>,
     shipping_preference: ShippingPreference,
 }
@@ -3139,7 +3139,7 @@ impl TryFrom<PaymentsResponseRouterData<PaypalThreeDsResponse>> for PaymentsAuth
 }
 
 fn paypal_threeds_link(
-    (redirect_url, complete_auth_url): (Option<Url>, Option<String>),
+    (redirect_url, complete_auth_url): (Option<Url>, Option<Secret<String>>),
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
     let mut redirect_url =
         redirect_url.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -3150,7 +3150,7 @@ fn paypal_threeds_link(
     let mut form_fields = std::collections::HashMap::from_iter(
         redirect_url
             .query_pairs()
-            .map(|(key, value)| (key.to_string(), value.to_string())),
+            .map(|(key, value)| (key.to_string(), value.to_string().into())),
     );
 
     // paypal requires return url to be passed as a field along with payer_action_url
@@ -3160,7 +3160,7 @@ fn paypal_threeds_link(
     redirect_url.set_query(None);
 
     Ok(RedirectForm::Form {
-        endpoint: redirect_url.to_string(),
+        endpoint: redirect_url.to_string().into(),
         method: Method::Get,
         form_fields,
     })

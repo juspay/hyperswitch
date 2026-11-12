@@ -458,6 +458,8 @@ pub mod superposition {
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Blocklist guard configuration key: when true, payments are screened against the merchant's blocklist
     pub const PAYMENT_BLOCKLIST_GUARD: &str = "payments.payment_blocklist_guard";
+    /// Card testing guard configuration key
+    pub const CARD_TESTING_GUARD_CONFIG: &str = "payments.card_testing_guard_config";
     /// Organization-scoped block implicit customer creation configuration key
     pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Resolve the `customer_id` of a payments request through the `merchant_reference_id` of the
@@ -511,6 +513,9 @@ pub mod superposition {
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
         "payments.should_enable_mit_with_limited_card_data";
+    /// Prefer the request's billing address over the billing stored on a saved payment method
+    pub const SHOULD_PREFER_REQUEST_BILLING_OVER_SAVED_PM_BILLING: &str =
+        "payments.should_prefer_request_billing_over_saved_pm_billing";
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "payments.should_store_eligibility_check_data_for_authentication";
@@ -518,6 +523,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
@@ -598,6 +609,12 @@ pub mod superposition {
         "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// Global request-failure threshold for the UCS shadow kill switch.
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
+    pub const UCS_ENABLED: &str = "ucs_enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode

@@ -189,7 +189,7 @@ impl AdyenTest {
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
-            router_return_url: Some(String::from("http://localhost:8080")),
+            router_return_url: Some(String::from("http://localhost:8080").into()),
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
@@ -471,7 +471,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
+                router_return_url: Some(String::from("http://localhost:8080").into()),
                 payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_number: cards::CardNumber::from_str("4024007134364842").unwrap(),
                     ..utils::CCardType::default().0
@@ -491,7 +491,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
+                router_return_url: Some(String::from("http://localhost:8080").into()),
                 payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_cvc: Secret::new("12345".to_string()),
                     ..utils::CCardType::default().0
@@ -514,7 +514,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
+                router_return_url: Some(String::from("http://localhost:8080").into()),
                 payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_exp_month: Secret::new("20".to_string()),
                     ..utils::CCardType::default().0
@@ -535,7 +535,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
     let response = CONNECTOR
         .make_payment(
             Some(types::PaymentsAuthorizeData {
-                router_return_url: Some(String::from("http://localhost:8080")),
+                router_return_url: Some(String::from("http://localhost:8080").into()),
                 payment_method_data: types::domain::PaymentMethodData::Card(types::domain::Card {
                     card_exp_year: Secret::new("2000".to_string()),
                     ..utils::CCardType::default().0
