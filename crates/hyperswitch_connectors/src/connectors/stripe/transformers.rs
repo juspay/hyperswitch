@@ -18,8 +18,8 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     mandates,
     payment_method_data::{
-        self, BankRedirectData, Card, CardRedirectData, GiftCardData, GooglePayWalletData,
-        PayLaterData, PaymentMethodData, VoucherData, WalletData,
+        self, BankRedirectData, Card, CardRedirectData, CardWithOptionalCVC, GiftCardData,
+        GooglePayWalletData, PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
@@ -721,8 +721,8 @@ pub struct StripeCardToken {
     pub token_card_exp_month: Secret<String>,
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
-    #[serde(rename = "card[cvc]")]
-    pub token_card_cvc: Secret<String>,
+    #[serde(rename = "card[cvc]", skip_serializing_if = "Option::is_none")]
+    pub token_card_cvc: Option<Secret<String>>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
 }
@@ -1592,6 +1592,32 @@ pub struct PaymentRequestDetails {
     pub request_overcapture: Option<StripeRequestOvercaptureBool>,
 }
 
+fn create_stripe_card_payment_method(
+    card_details: StripeCardDetails,
+    payment_request_details: PaymentRequestDetails,
+    authentication: Option<AuthenticationData>,
+) -> Result<
+    (
+        StripePaymentMethodData,
+        Option<StripePaymentMethodType>,
+        StripeBillingAddress,
+    ),
+    error_stack::Report<ConnectorError>,
+> {
+    Ok((
+        StripePaymentMethodData::try_from((
+            card_details,
+            payment_request_details.auth_type,
+            authentication,
+            payment_request_details.request_incremental_authorization,
+            payment_request_details.request_extended_authorization,
+            payment_request_details.request_overcapture,
+        ))?,
+        Some(StripePaymentMethodType::Card),
+        payment_request_details.billing_address,
+    ))
+}
+
 fn create_stripe_payment_method(
     payment_method_data: &PaymentMethodData,
     payment_request_details: PaymentRequestDetails,
@@ -1605,18 +1631,16 @@ fn create_stripe_payment_method(
     error_stack::Report<ConnectorError>,
 > {
     match payment_method_data {
-        PaymentMethodData::Card(card_details) => Ok((
-            StripePaymentMethodData::try_from((
-                card_details,
-                payment_request_details.auth_type,
-                authentication,
-                payment_request_details.request_incremental_authorization,
-                payment_request_details.request_extended_authorization,
-                payment_request_details.request_overcapture,
-            ))?,
-            Some(StripePaymentMethodType::Card),
-            payment_request_details.billing_address,
-        )),
+        PaymentMethodData::Card(card) => create_stripe_card_payment_method(
+            StripeCardDetails::from(card),
+            payment_request_details,
+            authentication,
+        ),
+        PaymentMethodData::CardWithOptionalCVC(card) => create_stripe_card_payment_method(
+            StripeCardDetails::from(card),
+            payment_request_details,
+            authentication,
+        ),
         PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
 
@@ -1810,7 +1834,6 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -1851,9 +1874,55 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
     }
 }
 
+/// Card fields sent to Stripe, built from either `Card` or the CVV-less `CardWithOptionalCVC`.
+pub struct StripeCardDetails {
+    card_number: cards::CardNumber,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+    card_cvc: Option<Secret<String>>,
+    card_network: Option<common_enums::CardNetwork>,
+}
+
+impl From<&Card> for StripeCardDetails {
+    fn from(card: &Card) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_cvc: Some(card.card_cvc.clone()),
+            card_network: card.card_network.clone(),
+        }
+    }
+}
+
+impl From<(StripeCardDetails, StripeBillingAddressCardToken)> for StripeCardToken {
+    fn from((card, billing): (StripeCardDetails, StripeBillingAddressCardToken)) -> Self {
+        Self {
+            payment_method_type: Some(StripePaymentMethodType::Card),
+            token_card_number: card.card_number,
+            token_card_exp_month: card.card_exp_month,
+            token_card_exp_year: card.card_exp_year,
+            token_card_cvc: card.card_cvc,
+            billing,
+        }
+    }
+}
+
+impl From<&CardWithOptionalCVC> for StripeCardDetails {
+    fn from(card: &CardWithOptionalCVC) -> Self {
+        Self {
+            card_number: card.card_number.clone(),
+            card_exp_month: card.card_exp_month.clone(),
+            card_exp_year: card.card_exp_year.clone(),
+            card_cvc: card.card_cvc.clone(),
+            card_network: card.card_network.clone(),
+        }
+    }
+}
+
 impl
     TryFrom<(
-        &Card,
+        StripeCardDetails,
         enums::AuthenticationType,
         Option<AuthenticationData>,
         bool,
@@ -1871,7 +1940,7 @@ impl
             request_extended_authorization,
             request_overcapture,
         ): (
-            &Card,
+            StripeCardDetails,
             enums::AuthenticationType,
             Option<AuthenticationData>,
             bool,
@@ -1901,14 +1970,13 @@ impl
         };
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
-            payment_method_data_card_number: card.card_number.clone(),
-            payment_method_data_card_exp_month: card.card_exp_month.clone(),
-            payment_method_data_card_exp_year: card.card_exp_year.clone(),
-            payment_method_data_card_cvc: Some(card.card_cvc.clone()),
+            payment_method_data_card_number: card.card_number,
+            payment_method_data_card_exp_month: card.card_exp_month,
+            payment_method_data_card_exp_year: card.card_exp_year,
+            payment_method_data_card_cvc: card.card_cvc,
             payment_method_auth_type,
             payment_method_data_card_preferred_network: card
                 .card_network
-                .clone()
                 .and_then(get_stripe_card_network),
             request_incremental_authorization: if request_incremental_authorization {
                 Some(StripeRequestIncrementalAuthorization::IfAvailable)
@@ -2226,6 +2294,23 @@ impl
             }
         }
     }
+}
+
+fn get_stripe_moto_flag(
+    payment_method_data: &PaymentMethodData,
+    payment_channel: Option<&common_enums::PaymentChannel>,
+) -> Option<bool> {
+    let is_card_payment = matches!(
+        payment_method_data,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_)
+    );
+    let is_moto_channel = matches!(
+        payment_channel,
+        Some(
+            common_enums::PaymentChannel::MailOrder | common_enums::PaymentChannel::TelephoneOrder
+        )
+    );
+    (is_card_payment && is_moto_channel).then_some(true)
 }
 
 fn create_stripe_line_items_data(
@@ -2801,17 +2886,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             .and_then(|connector_metadata| connector_metadata.stripe.as_ref())
             .and_then(|stripe_metadata| stripe_metadata.error_on_requires_action);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            item.request.payment_channel.as_ref(),
+        );
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -2945,17 +3023,10 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             .clone()
             .map(StripeBrowserInformation::from);
 
-        let is_moto = if matches!(
-            item.request.payment_method_data,
-            PaymentMethodData::Card { .. }
-        ) && item.request.payment_channel
-            == Some(common_enums::PaymentChannel::MailOrder)
-            || item.request.payment_channel == Some(common_enums::PaymentChannel::TelephoneOrder)
-        {
-            Some(true)
-        } else {
-            None
-        };
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            item.request.payment_channel.as_ref(),
+        );
 
         let setup_future_usage = match (item.request.setup_future_usage, is_moto) {
             (Some(enums::FutureUsage::OnSession), Some(true)) => None,
@@ -3007,15 +3078,14 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
 
         // Card flow for tokenization is handled separately because of API contact difference
         let request_payment_data = match &item.request.payment_method_data {
-            PaymentMethodData::Card(card_details) => {
-                StripePaymentMethodData::CardToken(StripeCardToken {
-                    payment_method_type: Some(StripePaymentMethodType::Card),
-                    token_card_number: card_details.card_number.clone(),
-                    token_card_exp_month: card_details.card_exp_month.clone(),
-                    token_card_exp_year: card_details.card_exp_year.clone(),
-                    token_card_cvc: card_details.card_cvc.clone(),
-                    billing: billing_address,
-                })
+            PaymentMethodData::Card(card_details) => StripePaymentMethodData::CardToken(
+                StripeCardToken::from((StripeCardDetails::from(card_details), billing_address)),
+            ),
+            PaymentMethodData::CardWithOptionalCVC(card_details) => {
+                StripePaymentMethodData::CardToken(StripeCardToken::from((
+                    StripeCardDetails::from(card_details),
+                    billing_address,
+                )))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
                 StripePaymentMethodData::get_stripe_ntid_card_token_data(
@@ -5372,7 +5442,15 @@ impl
         let pm_data = &item.request.payment_method_data;
         match pm_data {
             PaymentMethodData::Card(ref ccard) => Ok(Self::try_from((
-                ccard,
+                StripeCardDetails::from(ccard),
+                auth_type,
+                None,
+                item.request.request_incremental_authorization,
+                None,
+                None,
+            ))?),
+            PaymentMethodData::CardWithOptionalCVC(ref ccard) => Ok(Self::try_from((
+                StripeCardDetails::from(ccard),
                 auth_type,
                 None,
                 item.request.request_incremental_authorization,
@@ -5476,7 +5554,6 @@ impl
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
