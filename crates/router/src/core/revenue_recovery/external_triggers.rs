@@ -188,8 +188,6 @@ async fn handle_merchant_report(
     ))
     .await?;
 
-    // Only a transaction made off session with the customer absent is merchant initiated. A request
-    // that leaves either out gets the defaults the invoice is created with.
     let is_merchant_initiated = request
         .customer_present
         .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
@@ -227,9 +225,7 @@ async fn handle_merchant_report(
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-        // The merchant's own system plays the billing connector, as with a custom billing account.
         .with_connector(common_enums::connector_enums::Connector::Custombilling);
-    // Counts this transaction and the original payment, so it is also the number of the next retry.
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .unwrap_or(1);
@@ -343,7 +339,6 @@ async fn decide_next_retry(
         .unwrap_or(state.conf.revenue_recovery.retry_algorithm_type);
     let now = common_utils::date_time::now();
 
-    // An invoice that cannot be bounded by its grace window is not retried.
     let grace_window_end =
         get_recovery_grace_window_end(payment_intent, retry_config.grace_period_days)
             .inspect_err(|error| {
@@ -408,8 +403,6 @@ async fn decide_next_retry(
             next_static_ladder_progress,
             assigned_ab_algorithm,
         ),
-        // The decider works card by card under a lock on the customer, which is held while
-        // Hyperswitch makes the retry, so the merchant gets the cascading ladder instead.
         Ok(RetryTiming::Decider) => {
             match revenue_recovery_workflow::get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
@@ -519,7 +512,6 @@ async fn save_trigger_state(
     }
 
     let storage_scheme = platform.get_processor().get_storage_scheme();
-    // The status is left out, so that a cancel made since the transaction was recorded stands.
     let intent_update = PaymentIntentUpdate::FeatureMetadataUpdate {
         feature_metadata: Box::new(feature_metadata),
         updated_by: storage_scheme.inner().to_string(),
@@ -548,8 +540,6 @@ fn get_ladder_progress(
     max_hybrid_cascading_retry_count: u16,
 ) -> StaticLadderProgress {
     match previous_trigger_state {
-        // Recovery starts with this report, and the merchant's retries before it use up the ladder
-        // the way the retries of a billing connector do.
         Some(ExternalTriggerState {
             next_retry:
                 RecoveryNextRetry {
@@ -564,7 +554,6 @@ fn get_ladder_progress(
         Some(trigger_state) => StaticLadderProgress {
             consumed_rungs: trigger_state.consumed_ladder_rungs,
         },
-        // The reports so far were only recorded, or the last one could not save its state.
         None if is_existing_invoice => StaticLadderProgress::seed_for_existing_invoice(
             retry_count,
             max_hybrid_cascading_retry_count,
@@ -653,12 +642,9 @@ fn get_next_retry(
     now: PrimitiveDateTime,
 ) -> RecoveryNextRetry {
     let schedule_time = match card_availability {
-        // A hard declined card gets here only while the profile still allows retries after it.
         CardAvailability::Ready { .. }
         | CardAvailability::NoCard
         | CardAvailability::HardDecline => retry_time,
-        // The card is at its network's retry limit until then, and nothing works out the time
-        // again before the merchant retries, so the retry has to wait past the limit here.
         CardAvailability::WaitHours(wait_hours) => retry_time.max(
             now.saturating_add(Duration::hours(*wait_hours))
                 .saturating_add(card_wait_buffer),
