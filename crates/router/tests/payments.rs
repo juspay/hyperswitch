@@ -500,6 +500,7 @@ async fn payments_create_core() {
         sender_payment_instrument_id: None,
         payment_account_reference: None,
         enable_avs_check: None,
+        enable_account_name_verification: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -820,6 +821,7 @@ async fn payments_create_core_adyen_no_redirect() {
             sender_payment_instrument_id: None,
             payment_account_reference: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         },
         vec![],
     ));

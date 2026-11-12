@@ -195,9 +195,6 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::routing::create_success_based_routing,
         routes::routing::create_elimination_routing,
         routes::routing::contract_based_routing_setup_config,
-        routes::routing::call_decide_gateway_open_router,
-        routes::routing::call_update_gateway_score_open_router,
-        routes::routing::evaluate_routing_rule,
 
         // Routes for offers
         routes::offer_engine::offer_engine_browse_offers,
@@ -480,6 +477,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::customers::CustomerResponse,
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
+        common_types::payment_methods::PayViaSingleUseToken,
         api_models::enums::AdyenSplitType,
         api_models::enums::PixKey,
         api_models::enums::PaymentType,
@@ -929,7 +927,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::NetworkTokenWithVaultCardFallback,
         api_models::mandates::VaultCardData,
         api_models::mandates::ProcessorPaymentToken,
-        api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,
@@ -941,6 +938,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::Address,
         api_models::payments::BankCodeResponse,
         common_types::payouts::PayoutsBillingDescriptor,
+        api_models::enums::PayoutFundsTransferType,
+        api_models::sender::SenderDetails,
+        api_models::sender::IndividualSenderDetails,
+        api_models::sender::CorporateSenderDetails,
+        api_models::sender::SourceOfFunds,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
@@ -1214,24 +1216,13 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::authentication::AuthenticationPaymentMethodDataResponse,
         api_models::authentication::AuthenticationDetails,
         api_models::authentication::ExternalThreeDsData,
-        api_models::open_router::OpenRouterDecideGatewayRequest,
-        api_models::open_router::DecideGatewayResponse,
-        api_models::open_router::UpdateScorePayload,
-        api_models::open_router::UpdateScoreResponse,
-        api_models::routing::RoutingEvaluateRequest,
-        api_models::routing::RoutingEvaluateResponse,
         api_models::routing::ValueType,
         api_models::routing::DeRoutableConnectorChoice,
         api_models::routing::RoutableConnectorChoice,
-        api_models::open_router::PaymentInfo,
         common_utils::id_type::PaymentId,
         common_utils::id_type::ProfileId,
         common_utils::id_type::AuthenticationId,
         common_utils::id_type::ProfileAcquirerId,
-        api_models::open_router::RankingAlgorithm,
-        api_models::open_router::TxnStatus,
-        api_models::open_router::PriorityLogicOutput,
-        api_models::open_router::PriorityLogicData,
         api_models::user::PlatformAccountCreateRequest,
         api_models::user::PlatformAccountCreateResponse,
         api_models::platform::Initiator,
@@ -1326,14 +1317,6 @@ impl utoipa::Modify for SecurityAddon {
                         "api-key",
                         "Publishable keys are a type of keys that can be public and have limited \
                         scope of usage."
-                    ))),
-                ),
-                (
-                    "ephemeral_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Ephemeral keys provide temporary access to singular data, such as access \
-                        to a single customer object for a short period of time."
                     ))),
                 ),
                 (

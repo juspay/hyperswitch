@@ -4,7 +4,7 @@ use api_models::routing::{
 };
 use common_utils::{ext_traits::OptionExt, transformers::ForeignTryFrom};
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 pub use success_rate::{
     success_rate_calculator_client::SuccessRateCalculatorClient, CalGlobalSuccessRateConfig,
     CalGlobalSuccessRateRequest, CalGlobalSuccessRateResponse, CalSuccessRateConfig,

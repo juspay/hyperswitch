@@ -94,6 +94,8 @@ pub struct RevenueRecoveryInvoiceData {
     /// Whether the customer was present during the payment. Billing connectors only report
     /// merchant initiated transactions, so they always set this to absent.
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    /// How the payment method is intended to be used in the future.
+    pub setup_future_usage: common_enums::FutureUsage,
     /// Category of the merchant initiated transactions made to recover this invoice.
     pub mit_category: Option<common_enums::MitCategory>,
 }
@@ -169,7 +171,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             customer_present: Some(data.customer_present),
             description: None,
             return_url: None,
-            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
+            setup_future_usage: Some(data.setup_future_usage),
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,
@@ -191,6 +193,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             sender_details: None,
             enable_avs_check: None,
             mit_category: data.mit_category,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -209,6 +212,7 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             metadata: None,
             enable_partial_authorization: None,
             customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            setup_future_usage: common_enums::FutureUsage::OffSession,
             mit_category: None,
         }
     }

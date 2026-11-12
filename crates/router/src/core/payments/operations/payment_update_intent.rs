@@ -199,6 +199,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             recipient_details,
             sender_details,
             enable_avs_check,
+            enable_account_name_verification,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -326,6 +327,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .attach_printable("Unable to decode sender details")?
                 .or(payment_intent.sender_details.clone()),
             enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
+            enable_account_name_verification: enable_account_name_verification
+                .or(payment_intent.enable_account_name_verification),
             ..payment_intent
         };
 
@@ -424,6 +427,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 external_surcharge_applicable: intent.external_surcharge_applicable,
                 enable_avs_check: intent.enable_avs_check,
                 settlement_conclusion_applied: intent.settlement_conclusion_applied,
+                enable_account_name_verification: intent.enable_account_name_verification,
                 sender_details: intent.sender_details,
             }));
 
@@ -449,10 +453,10 @@ impl<F: Send + Clone>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         request: &PaymentsUpdateIntentRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         helpers::validate_sender_details(request.sender_details.as_ref())?;
 

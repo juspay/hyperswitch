@@ -151,7 +151,7 @@ pub trait RefundInterface {
 mod storage {
     use error_stack::report;
     use hyperswitch_domain_models::refunds;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::RefundInterface;
     use crate::{
@@ -548,7 +548,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };
@@ -684,6 +684,8 @@ mod storage {
                         total_amount: new.total_amount,
                         currency: new.currency,
                         refund_amount: new.refund_amount,
+                        refund_surcharge_amount: new.refund_surcharge_amount,
+                        net_refund_amount: new.net_refund_amount,
                         refund_status: new.refund_status,
                         sent_to_gateway: new.sent_to_gateway,
                         refund_error_message: None,
@@ -1453,6 +1455,8 @@ impl RefundInterface for MockDb {
             total_amount: new.total_amount,
             currency: new.currency,
             refund_amount: new.refund_amount,
+            refund_surcharge_amount: new.refund_surcharge_amount,
+            net_refund_amount: new.net_refund_amount,
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,
@@ -1509,6 +1513,8 @@ impl RefundInterface for MockDb {
             total_amount: new.total_amount,
             currency: new.currency,
             refund_amount: new.refund_amount,
+            refund_surcharge_amount: new.refund_surcharge_amount,
+            net_refund_amount: new.net_refund_amount,
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,

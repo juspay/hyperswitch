@@ -92,7 +92,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as adyen;
 
 #[cfg(feature = "payouts")]
@@ -240,6 +240,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::PayBright
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
+                | PaymentMethodType::Wero
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
@@ -266,6 +267,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::PayBright
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
+                | PaymentMethodType::Wero
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Skrill
                 | PaymentMethodType::Neteller
@@ -414,7 +416,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
-                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken

@@ -358,8 +358,8 @@ pub struct CheckoutAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct ReturnUrl {
-    pub success_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
 }
 
 #[skip_serializing_none]
@@ -1221,13 +1221,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=success")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "success"))
+                .transpose()?,
             failure_url: item
                 .router_data
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=failure")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "failure"))
+                .transpose()?,
         };
 
         let connector_auth = &item.router_data.connector_auth_type;
@@ -2818,6 +2820,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::GooglePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),
@@ -2837,6 +2845,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::ApplePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),
