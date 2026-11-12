@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix2
+
+### Bug Fixes
+
+- **connector:** [WorldpayXML] make AFT postcodes optional ([#15224](https://github.com/juspay/hyperswitch/pull/15224)) ([`a85df27`](https://github.com/juspay/hyperswitch/commit/a85df27f4821af1455b566de77de8297979700bf))
+
+**Full Changelog:** [`2026.11.11.1-hotfix1...2026.11.11.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix1...2026.11.11.1-hotfix2)
+
+- - -
+
 ## 2026.11.11.1-hotfix1
 
 ### Features
