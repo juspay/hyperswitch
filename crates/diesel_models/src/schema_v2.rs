@@ -1289,9 +1289,9 @@ diesel::table! {
         enable_avs_check -> Nullable<Bool>,
         value_added_tax_details -> Nullable<Jsonb>,
         order_commodity_code -> Nullable<Varchar>,
-        sender_details -> Nullable<Bytea>,
         settlement_conclusion_applied -> Nullable<Bool>,
         enable_account_name_verification -> Nullable<Bool>,
+        sender_details -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
