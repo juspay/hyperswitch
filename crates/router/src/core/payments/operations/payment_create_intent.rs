@@ -227,7 +227,7 @@ impl<F: Send + Clone>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
+    fn validate_request(
         &self,
         request: &PaymentsCreateIntentRequest,
         platform: &domain::Platform,
