@@ -2918,9 +2918,7 @@ async fn set_payment_confirm_metrics_context(
     ));
 
     state.payment_metrics_context = Some(context);
-    state
-        .store
-        .set_key_manager_state(KeyManagerState::from(&*state));
+    state.set_key_manager_state(KeyManagerState::from(&*state));
 
     context
 }

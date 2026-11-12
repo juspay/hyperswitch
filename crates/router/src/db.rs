@@ -221,6 +221,7 @@ pub trait AccountsStorageInterface:
     + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 #[cfg(not(feature = "deja"))]
@@ -239,6 +240,7 @@ pub trait AccountsStorageInterface:
     + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 pub trait CommonStorageInterface:
@@ -293,7 +295,11 @@ impl GlobalStorageInterface for Store {
     }
 }
 
-impl AccountsStorageInterface for Store {}
+impl AccountsStorageInterface for Store {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
@@ -332,7 +338,11 @@ impl GlobalStorageInterface for MockDb {
     }
 }
 
-impl AccountsStorageInterface for MockDb {}
+impl AccountsStorageInterface for MockDb {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
