@@ -119,8 +119,6 @@ async fn handle_merchant_report(
     ))
     .await?;
 
-    // Read back, as the invoice's status can differ from the attempt's: money an earlier
-    // transaction captured still counts after a later one fails.
     let payment_intent =
         api::get_payment_intent_api(state, req_state, platform, profile, &invoice.payment_id)
             .await?;
