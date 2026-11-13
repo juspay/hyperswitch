@@ -383,6 +383,17 @@ counter_metric!(
 );
 
 counter_metric!(
+    REVENUE_RECOVERY_REQUEST_RECEIVED,
+    GLOBAL_METER,
+    name: "revenue_recovery.recovery_request.received",
+    description: "Recovery requests by how the API answered them (queued; duplicate, refused as \
+                  the transaction is already reported; invoice_closed, refused as the invoice \
+                  takes no more transactions; failed, answered with an error so the merchant \
+                  sends the recovery request again). Every queued request ends in one \
+                  `revenue_recovery.recovery_request.outcome`",
+    unit: "1",
+);
+counter_metric!(
     REVENUE_RECOVERY_REQUEST_OUTCOME,
     GLOBAL_METER,
     name: "revenue_recovery.recovery_request.outcome",

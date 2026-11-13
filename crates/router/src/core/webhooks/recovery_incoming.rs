@@ -341,6 +341,23 @@ impl RevenueRecoveryInvoice {
             })
             .await
     }
+
+    /// The invoice of a transaction the merchant reported, when Hyperswitch already has it.
+    pub async fn find_custom_recovery_intent(
+        data: api_models::payments::RecoveryPaymentsCreate,
+        state: &SessionState,
+        req_state: &ReqState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
+    {
+        Self(revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(
+            data,
+        ))
+        .get_payment_intent(state, req_state, platform, profile)
+        .await
+    }
+
     /// Fills in partial authorization from the billing connector account when the invoice
     /// itself does not carry a value.
     fn with_default_partial_authorization(mut self, default: bool) -> Self {

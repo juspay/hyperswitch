@@ -4,6 +4,7 @@ use common_types::payments::{RecoveryConnectorAccounts, RecoveryConnectorDetails
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
+use hyperswitch_masking::Secret;
 
 use super::{external_triggers, trigger_model::RecoveryTrigger};
 use crate::{
@@ -310,11 +311,12 @@ pub async fn custom_revenue_recovery_core(
     platform: Platform,
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
-) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    request_body: Secret<String>,
+) -> RouterResponse<payments_api::RecoveryPaymentsCreateResponse> {
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
 
-    let (updated_recovery_intent, next_retry) = match RecoveryTrigger::from_profile_settings(
+    let response = match RecoveryTrigger::from_profile_settings(
         profile.revenue_recovery_trigger_model,
         profile.revenue_recovery_config.as_ref(),
         &request,
@@ -333,27 +335,32 @@ pub async fn custom_revenue_recovery_core(
                 &payment_merchant_connector_id,
             ))
             .await?;
-            (updated_recovery_intent, None)
+            payments_api::RecoveryPaymentsCreateResponse::Recorded(
+                payments_api::RecoveryPaymentsResponse {
+                    id: updated_recovery_intent.payment_id,
+                    intent_status: updated_recovery_intent.status,
+                    merchant_reference_id: updated_recovery_intent.merchant_reference_id,
+                },
+            )
         }
-        RecoveryTrigger::External {
-            connector,
-            retry_config,
-        } => {
-            Box::pin(external_triggers::record_transaction_and_get_next_retry(
-                &state,
-                &req_state,
-                &platform,
-                &profile,
-                &request,
-                connector,
-                retry_config,
-            ))
-            .await?
+        RecoveryTrigger::External { connector } => {
+            payments_api::RecoveryPaymentsCreateResponse::Accepted(
+                Box::pin(external_triggers::accept_recovery_request(
+                    &state,
+                    &req_state,
+                    &platform,
+                    &profile,
+                    &request,
+                    &request_body,
+                    connector,
+                ))
+                .await?,
+            )
         }
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        get_recovery_payments_response(&updated_recovery_intent, next_retry),
+        response,
     ))
 }
 
@@ -468,18 +475,6 @@ async fn record_transaction_and_schedule_retries(
     Ok(updated_recovery_intent)
 }
 
-fn get_recovery_payments_response(
-    recovery_intent: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
-    next_retry: Option<common_types::payments::RecoveryNextRetry>,
-) -> payments_api::RecoveryPaymentsResponse {
-    payments_api::RecoveryPaymentsResponse {
-        id: recovery_intent.payment_id.to_owned(),
-        intent_status: recovery_intent.status.to_owned(),
-        merchant_reference_id: recovery_intent.merchant_reference_id.to_owned(),
-        next_retry,
-    }
-}
-
 /// Finds or creates the invoice of the transaction.
 pub(super) async fn get_or_create_invoice(
     state: &SessionState,
@@ -506,7 +501,7 @@ pub(super) async fn get_or_create_invoice(
 }
 
 /// Records the transaction against the invoice.
-pub(super) async fn record_transaction(
+async fn record_transaction(
     state: &SessionState,
     req_state: &ReqState,
     platform: &Platform,
@@ -588,13 +583,14 @@ pub async fn cancel_revenue_recovery_core(
         })
     })?;
 
+    let response = api_payments::RecoveryPaymentsResponse {
+        id: cancelled_intent.id,
+        intent_status: cancelled_intent.status,
+        merchant_reference_id: cancelled_intent.merchant_reference_id,
+    };
+
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        get_recovery_payments_response(
-            &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
-                &cancelled_intent,
-            ),
-            cancelled_intent.get_external_trigger_next_retry(),
-        ),
+        response,
     ))
 }
 
