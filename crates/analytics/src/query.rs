@@ -371,12 +371,12 @@ impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
 pub enum Filter {
     Plain(String, FilterTypes, String),
     In(String, Vec<String>),
-    NestedFilter(FilterCombinator, Vec<Self>),
+    Nested(FilterCombinator, Vec<Self>),
 }
 
 impl Default for Filter {
     fn default() -> Self {
-        Self::NestedFilter(FilterCombinator::default(), Vec::new())
+        Self::Nested(FilterCombinator::default(), Vec::new())
     }
 }
 
@@ -392,7 +392,7 @@ impl<T: AnalyticsDataSource> ToSql<T> for Filter {
                     .collect::<Vec<String>>()
                     .join(", ")
             ),
-            Self::NestedFilter(operator, filters) => {
+            Self::Nested(operator, filters) => {
                 format!(
                     "( {} )",
                     filters
@@ -713,9 +713,9 @@ where
     }
     pub fn add_nested_filter_clause(&mut self, filter: Filter) {
         match &mut self.filters {
-            Filter::NestedFilter(_, ref mut filters) => filters.push(filter),
+            Filter::Nested(_, ref mut filters) => filters.push(filter),
             f @ (Filter::Plain(_, _, _) | Filter::In(_, _)) => {
-                self.filters = Filter::NestedFilter(FilterCombinator::And, vec![f.clone(), filter]);
+                self.filters = Filter::Nested(FilterCombinator::And, vec![f.clone(), filter]);
             }
         }
     }
