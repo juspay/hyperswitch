@@ -1188,10 +1188,6 @@ impl RecoveryNextRetry {
 /// job holds it between the merchant's reports.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct ExternalTriggerState {
-    /// Standardised error code of the last failed transaction. The result of the next retry is
-    /// counted against it in the cluster data.
-    #[schema(value_type = Option<StandardisedCode>)]
-    pub last_failure_code: Option<common_enums::StandardisedCode>,
     /// Positions of the static retry ladder the invoice has used.
     pub consumed_ladder_rungs: u32,
     /// Retries made with the card of the invoice since it was first hard declined. Absent while it
