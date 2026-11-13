@@ -1113,10 +1113,10 @@ async fn apply_reported_transaction(
             }
             let recorded_on_invoice = previous_recovery_metadata
                 .map(|recovery_metadata| usize::from(recovery_metadata.total_retry_count));
-            if recorded_on_invoice != Some(attempts.on_invoice_card) {
+            if recorded_on_invoice != Some(attempts.counted_as_retries) {
                 logger::error!(
                     ?recorded_on_invoice,
-                    attempts_on_invoice_card = ?attempts.on_invoice_card,
+                    attempts_counted_as_retries = ?attempts.counted_as_retries,
                     "The invoice does not show every attempt recorded on it"
                 );
                 return Ok(ReportOutcome::InvoiceOutOfSync);
@@ -1151,7 +1151,10 @@ async fn apply_reported_transaction(
 
     reset_card_history_after_a_charge(state, request).await;
 
-    if !is_merchant_initiated(request) {
+    if !hyperswitch_domain_models::revenue_recovery::is_merchant_initiated(
+        request.customer_present,
+        request.setup_future_usage,
+    ) {
         return Ok(ReportOutcome::CustomerInitiated);
     }
     if !is_on_invoice_card(request, previous_recovery_metadata) {
@@ -1329,7 +1332,8 @@ async fn is_webhook_queued(
 }
 
 /// The first card reported for an invoice is its card. A transaction on any other card, or without
-/// one, is only recorded: it neither counts as a retry nor moves the invoice's next retry.
+/// one, is only recorded: it doesn't move the invoice's next retry, and adds no cluster data, as the
+/// invoice's last error code is for another card. A merchant-initiated one still counts as a retry.
 fn is_on_invoice_card(
     request: &RecoveryPaymentsCreate,
     recovery_metadata: Option<&api_models::payments::PaymentRevenueRecoveryMetadata>,
@@ -1352,19 +1356,6 @@ fn is_on_invoice_card(
             )
         }
     }
-}
-
-/// Only a transaction made off session with the customer absent is merchant initiated. A request
-/// that leaves either out gets the defaults the invoice is created with.
-fn is_merchant_initiated(request: &RecoveryPaymentsCreate) -> bool {
-    request
-        .customer_present
-        .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
-        == common_enums::PresenceOfCustomerDuringPayment::Absent
-        && request
-            .setup_future_usage
-            .unwrap_or(common_enums::FutureUsage::OffSession)
-            .is_off_session()
 }
 
 /// The invoice as it is now, read through the get intent operation.

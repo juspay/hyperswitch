@@ -311,8 +311,9 @@ pub struct ReportedTransactionAttempts {
     pub reported: Option<revenue_recovery::RecoveryPaymentAttempt>,
     /// How many attempts were recorded on the invoice before the transaction's.
     pub earlier: usize,
-    /// How many of the invoice's attempts were made with its card, the first card reported for it.
-    pub on_invoice_card: usize,
+    /// How many of the invoice's attempts count as retries: the merchant-initiated ones, and the
+    /// others made with the invoice's card, the first card reported for it.
+    pub counted_as_retries: usize,
 }
 #[derive(Debug)]
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
@@ -580,11 +581,22 @@ impl RevenueRecoveryAttempt {
                     .billing_connector_payment_details
                     .payment_processor_token
             });
-        let on_invoice_card = attempts
+        let counted_as_retries = attempts
             .payment_attempt_list
             .iter()
             .filter(|attempt| {
-                invoice_card.is_some_and(|card| attempt.payment_token.as_ref() == Some(card))
+                let is_merchant_initiated = attempt
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+                    .is_none_or(|recovery_data| {
+                        revenue_recovery::is_merchant_initiated(
+                            recovery_data.customer_present,
+                            recovery_data.setup_future_usage,
+                        )
+                    });
+                is_merchant_initiated
+                    || invoice_card.is_some_and(|card| attempt.payment_token.as_ref() == Some(card))
             })
             .count();
         let reported = match listed {
@@ -594,7 +606,7 @@ impl RevenueRecoveryAttempt {
         Ok(ReportedTransactionAttempts {
             reported,
             earlier: earlier.len(),
-            on_invoice_card,
+            counted_as_retries,
         })
     }
 

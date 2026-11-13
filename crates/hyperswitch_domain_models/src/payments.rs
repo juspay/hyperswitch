@@ -1751,8 +1751,8 @@ where
             ),
         );
 
-        // A transaction the merchant reported keeps the invoice's card, the first one reported, and
-        // counts as a retry only when it was made with that card.
+        // A transaction the merchant reported keeps the invoice's card, the first one reported. It
+        // counts as a retry when it is merchant initiated, or made with that card.
         let reported_invoice_card = revenue_recovery.as_ref().filter(|_| {
             matches!(
                 connector_details,
@@ -1770,11 +1770,25 @@ where
                 )
         });
 
+        let is_merchant_initiated = self
+            .payment_attempt
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .is_none_or(|recovery_data| {
+                revenue_recovery::is_merchant_initiated(
+                    recovery_data.customer_present,
+                    recovery_data.setup_future_usage,
+                )
+            });
+
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 total_retry_count: match revenue_recovery.as_ref() {
                     None => self.revenue_recovery_data.retry_count.unwrap_or(1),
-                    Some(data) if is_on_invoice_card => data.total_retry_count + 1,
+                    Some(data) if is_on_invoice_card || is_merchant_initiated => {
+                        data.total_retry_count + 1
+                    }
                     Some(data) => data.total_retry_count,
                 },
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.

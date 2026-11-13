@@ -16,6 +16,19 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 
+/// Only a transaction made off session with the customer absent is merchant initiated. One that
+/// leaves either out gets the defaults the invoice is created with.
+pub fn is_merchant_initiated(
+    customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+) -> bool {
+    customer_present.unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
+        == common_enums::PresenceOfCustomerDuringPayment::Absent
+        && setup_future_usage
+            .unwrap_or(common_enums::FutureUsage::OffSession)
+            .is_off_session()
+}
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
