@@ -120,7 +120,7 @@ use crate::{
     configs::{secrets_transformers, Settings},
     core::configs::payment_callback::PaymentCallbackConfig,
     db::kafka_store::{KafkaStore, TenantID},
-    errors::RouterResult,
+    errors::{self, RouterResult},
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
@@ -200,6 +200,23 @@ impl SessionState {
             operation(self.accounts_store.as_ref()).await
         })
     }
+
+    pub(crate) fn get_webhook_registration_base_url(
+        &self,
+        connector_requires_mtls: bool,
+    ) -> RouterResult<&str> {
+        if connector_requires_mtls {
+            self.tenant.mtls_base_url.as_deref().ok_or_else(|| {
+                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                    "mtls_base_url must be configured for connectors that require mTLS webhooks",
+                )
+            })
+        } else {
+            Ok(&self.base_url)
+        }
+    }
+
     /// Resolve the runtime callback policy once for this request and its clones.
     pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
         self.payment_callback_config

@@ -2044,6 +2044,8 @@ impl<'de> Deserialize<'de> for TenantConfig {
         #[derive(Deserialize)]
         struct Inner {
             base_url: String,
+            #[serde(default)]
+            mtls_base_url: Option<String>,
             schema: String,
             accounts_schema: String,
             redis_key_prefix: String,
@@ -2062,6 +2064,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                         Tenant {
                             tenant_id: key,
                             base_url: value.base_url,
+                            mtls_base_url: value.mtls_base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,
