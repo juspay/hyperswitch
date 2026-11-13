@@ -14,6 +14,7 @@ pub mod primitive_wrappers;
 pub mod refunds;
 /// types for three ds decision rule engine
 pub mod three_ds_decision_rule_engine;
+pub mod user;
 
 ///types for callback mapper
 pub mod callback_mapper;
