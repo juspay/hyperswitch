@@ -737,7 +737,8 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 
@@ -765,7 +766,8 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 
@@ -793,7 +795,8 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 

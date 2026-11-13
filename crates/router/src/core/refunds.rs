@@ -250,7 +250,7 @@ pub async fn refund_reverse_core(
         &router_data,
         None,
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
     access_token::update_router_data_with_access_token_result(
@@ -627,7 +627,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1324,7 +1324,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 

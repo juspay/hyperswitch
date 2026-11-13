@@ -3370,6 +3370,14 @@ pub fn decide_access_token_key_suffix(
                     }
                 }
                 (_, Some(enums::PaymentMethodType::Boleto)) => Some(AccessTokenUrlPath::Boleto),
+                (
+                    Some(CurrentFlowInfo::Execute),
+                    Some(
+                        enums::PaymentMethodType::PixAutomaticoPush
+                        | enums::PaymentMethodType::PixAutomaticoQr
+                        | enums::PaymentMethodType::PixQr,
+                    ),
+                ) => Some(AccessTokenUrlPath::Leg1),
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }

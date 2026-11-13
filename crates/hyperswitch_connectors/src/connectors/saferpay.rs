@@ -368,7 +368,8 @@ impl ConnectorSpecifications for Saferpay {
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 

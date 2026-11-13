@@ -2698,7 +2698,8 @@ impl ConnectorSpecifications for Santander {
             | Some(CurrentFlowInfo::UpdatePostConfirm { .. })
             | None => false,
             Some(CurrentFlowInfo::PreAuthorizeVoid { .. })
-            | Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
+            | Some(CurrentFlowInfo::ConnectorWebhookRegister { .. })
+            | Some(CurrentFlowInfo::Execute) => false,
         }
     }
     fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2714,7 +2715,8 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
             | CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | CurrentFlowInfo::Execute => false,
         }
     }
     fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2730,7 +2732,8 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
             | CurrentFlowInfo::PreAuthorizeVoid { .. }
-            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | CurrentFlowInfo::Execute => false,
         }
     }
 }
