@@ -694,13 +694,13 @@ impl webhooks::IncomingWebhook for Envoy {
         let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
 
         let connector_payout_id = match body {
-            envoy::EnvoyNotification::PaymentOut(payload) => {
+            envoy::EnvoyNotification::PaymentOutNotification(payload) => {
                 payload
                     .payment_details
                     .original_payment_info
                     .merchant_reference
             }
-            envoy::EnvoyNotification::PaymentOutReversal(payload) => {
+            envoy::EnvoyNotification::PaymentOutReversalNotification(payload) => {
                 payload
                     .reversal_info
                     .original_payment_info
@@ -721,10 +721,10 @@ impl webhooks::IncomingWebhook for Envoy {
         let body: envoy::EnvoyNotification = utils::deserialize_xml_to_struct(request.body)?;
 
         match body {
-            envoy::EnvoyNotification::PaymentOut(_) => {
+            envoy::EnvoyNotification::PaymentOutNotification(_) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
             }
-            envoy::EnvoyNotification::PaymentOutReversal(_) => {
+            envoy::EnvoyNotification::PaymentOutReversalNotification(_) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
             }
         }
@@ -756,7 +756,7 @@ impl webhooks::IncomingWebhook for Envoy {
         };
 
         let response = match body {
-            envoy::EnvoyNotification::PaymentOut(_) => {
+            envoy::EnvoyNotification::PaymentOutNotification(_) => {
                 let notification_response = envoy::EnvoyNotificationResponse::new(
                     envoy::PaymentOutNotificationResponse::new(result),
                 );
@@ -768,7 +768,7 @@ impl webhooks::IncomingWebhook for Envoy {
                     None,
                 )?
             }
-            envoy::EnvoyNotification::PaymentOutReversal(_) => {
+            envoy::EnvoyNotification::PaymentOutReversalNotification(_) => {
                 let notification_response = envoy::EnvoyNotificationResponse::new(
                     envoy::PaymentOutReversalNotificationResponse::new(result),
                 );

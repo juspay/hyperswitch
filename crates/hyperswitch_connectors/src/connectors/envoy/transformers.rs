@@ -689,9 +689,22 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename = "Envelope")]
+pub struct EnvoyNotificationEnvelope {
+    #[serde(rename = "Body")]
+    pub body: EnvoyNotificationBody,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EnvoyNotificationBody {
+    #[serde(rename = "$value")]
+    pub notification: EnvoyNotification,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum EnvoyNotification {
-    PaymentOut(PaymentOutNotification),
-    PaymentOutReversal(PaymentOutReversalNotification),
+    PaymentOutNotification(PaymentOutNotification),
+    PaymentOutReversalNotification(PaymentOutReversalNotification),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
