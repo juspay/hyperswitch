@@ -5091,6 +5091,36 @@ Cypress.Commands.add(
   }
 );
 
+// Retrieves the payment in globalState (paymentID) and asserts the customer it
+// is linked to. retrievePaymentCallTest does not check customer_id.
+Cypress.Commands.add(
+  "retrievePaymentCustomerIdTest",
+  (globalState, expectedCustomerId) => {
+    const payment_id = globalState.get("paymentID");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "retrieve status").to.equal(200);
+        expect(response.body.payment_id, "payment_id").to.equal(payment_id);
+        expect(response.body.customer_id, "customer_id").to.equal(
+          expectedCustomerId
+        );
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "retrievePaymentCallTest",
   ({

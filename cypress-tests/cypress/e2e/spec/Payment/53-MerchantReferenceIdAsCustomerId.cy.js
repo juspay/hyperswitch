@@ -114,10 +114,12 @@ describe("merchant_reference_id as customer_id", () => {
       globalState
     );
 
-    // Retrieve the stored payment against the same expected body: it must
-    // still be linked to the customer's global id, not to the reference id
-    // that was sent.
-    cy.retrievePaymentCallTest({ globalState, data });
+    // Retrieve the stored payment: it must be linked to the customer's global
+    // id, not to the reference id that was sent.
+    cy.retrievePaymentCustomerIdTest(
+      globalState,
+      globalState.get("globalCustomerId")
+    );
   });
 
   it("unknown customer_id is not created implicitly", () => {
