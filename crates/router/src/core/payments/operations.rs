@@ -79,9 +79,9 @@ use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
+use router_env::instrument;
 #[cfg(feature = "v1")]
 use router_env::logger;
-use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 pub use self::payment_attempt_list::PaymentGetListAttempts;
@@ -431,6 +431,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         _request: &R,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
+        _dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         Ok(())
     }

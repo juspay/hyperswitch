@@ -74,6 +74,7 @@ where
         None => Ok(None),
     }
 }
+pub use common_types::payments::PhoneDetails;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret, WithType};
@@ -396,6 +397,9 @@ pub struct PaymentsCreateIntentRequest {
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name verification for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_account_name_verification: Option<bool>,
 
     /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
@@ -593,6 +597,9 @@ pub struct PaymentsUpdateIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name verification for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -629,6 +636,7 @@ impl PaymentsUpdateIntentRequest {
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -789,6 +797,9 @@ pub struct PaymentsIntentResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -802,6 +813,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     /// The recovery status of the payment
     #[schema(value_type = RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
+
+    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries and has reported a transaction made off session with the customer absent.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
@@ -1716,6 +1732,11 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
 
+    /// Request account name verification for supported payments.
+    #[schema(default = false, example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_account_name_verification: Option<bool>,
+
     /// Indicates that the merchant has concluded settlement and supplied final amounts.
     /// When true, Hyperswitch skips tax and surcharge calculations that would change
     /// those amounts. Omit this field on updates or confirmation to preserve the setting.
@@ -1965,81 +1986,6 @@ impl PaymentsRequest {
             confirm: Some(false),
             ..Default::default()
         }
-    }
-}
-
-#[cfg(feature = "v1")]
-#[cfg(test)]
-mod payments_request_test {
-    use common_utils::generate_customer_id_of_default_length;
-
-    use super::*;
-
-    #[test]
-    fn test_valid_case_where_customer_details_are_passed_only_once() {
-        let customer_id = generate_customer_id_of_default_length();
-        let payments_request = PaymentsRequest {
-            customer_id: Some(customer_id),
-            ..Default::default()
-        };
-
-        assert!(payments_request
-            .validate_customer_details_in_request()
-            .is_none());
-    }
-
-    #[test]
-    fn test_valid_case_where_customer_id_is_passed_in_both_places() {
-        let customer_id = generate_customer_id_of_default_length();
-
-        let customer_object = CustomerDetails {
-            id: Some(customer_id.clone()),
-            name: None,
-            email: None,
-            phone: None,
-            phone_country_code: None,
-            tax_registration_id: None,
-            document_details: None,
-            date_of_birth: None,
-        };
-
-        let payments_request = PaymentsRequest {
-            customer_id: Some(customer_id),
-            customer: Some(customer_object),
-            ..Default::default()
-        };
-
-        assert!(payments_request
-            .validate_customer_details_in_request()
-            .is_none());
-    }
-
-    #[test]
-    fn test_invalid_case_where_customer_id_is_passed_in_both_places() {
-        let customer_id = generate_customer_id_of_default_length();
-        let another_customer_id = generate_customer_id_of_default_length();
-
-        let customer_object = CustomerDetails {
-            id: Some(customer_id.clone()),
-            name: None,
-            email: None,
-            phone: None,
-            phone_country_code: None,
-            tax_registration_id: None,
-            document_details: None,
-            date_of_birth: None,
-        };
-
-        let payments_request = PaymentsRequest {
-            customer_id: Some(another_customer_id),
-            customer: Some(customer_object),
-            ..Default::default()
-        };
-
-        assert_eq!(
-            payments_request.validate_customer_details_in_request(),
-            Some(vec!["customer_id and customer.id"])
-        );
     }
 }
 
@@ -2469,6 +2415,11 @@ pub struct RecoveryPaymentsResponse {
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers` and the transaction was made off session with the customer absent. Any other transaction is only recorded.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 }
 
 #[cfg(feature = "v2")]
@@ -2487,6 +2438,14 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Whether the customer was present for the transaction of this attempt, as reported. Absent
+    /// when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<PresenceOfCustomerDuringPayment>, example = "absent")]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    /// Absent when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
 #[derive(
@@ -5459,6 +5418,7 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
 )]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[allow(clippy::large_enum_variant)]
 pub enum WalletData {
     /// The wallet data for Ali Pay HK redirect
     #[schema(title = "AliPayHkRedirect")]
@@ -6203,6 +6163,8 @@ pub struct ApplepayPaymentMethod {
     /// The country of the card issuer, as returned by the connector
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub issuer_country: Option<api_enums::CountryAlpha2>,
+    /// Additional payment checks done by the processor.
+    pub payment_checks: Option<serde_json::Value>,
 }
 
 #[derive(
@@ -6922,29 +6884,6 @@ pub struct EncryptableAddressDetails {
     pub email: crypto::OptionalEncryptableEmail,
 }
 
-#[derive(
-    Debug,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    ToSchema,
-    serde::Deserialize,
-    serde::Serialize,
-    SmithyModel,
-)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct PhoneDetails {
-    /// The contact number
-    #[schema(value_type = Option<String>, example = "9123456789")]
-    #[smithy(value_type = "Option<String>")]
-    pub number: Option<Secret<String>>,
-    /// The country code attached to the number
-    #[schema(example = "+1")]
-    #[smithy(value_type = "Option<String>")]
-    pub country_code: Option<String>,
-}
-
 #[cfg(feature = "v1")]
 #[derive(
     Debug,
@@ -7108,14 +7047,17 @@ pub enum NextActionData {
     #[cfg(feature = "v1")]
     RedirectToUrl {
         #[smithy(value_type = "String")]
-        redirect_to_url: String,
+        #[schema(value_type = String)]
+        redirect_to_url: Secret<String>,
     },
     #[cfg(feature = "v1")]
     RedirectInsidePopup {
         #[smithy(value_type = "String")]
-        popup_url: String,
+        #[schema(value_type = String)]
+        popup_url: Secret<String>,
         #[smithy(value_type = "String")]
-        redirect_response_url: String,
+        #[schema(value_type = String)]
+        redirect_response_url: Secret<String>,
     },
     /// Contains the url for redirection flow
     #[cfg(feature = "v2")]
@@ -7264,10 +7206,12 @@ pub struct DDCData {
 pub struct ThreeDsData {
     /// ThreeDS authentication url - to initiate authentication
     #[smithy(value_type = "String")]
-    pub three_ds_authentication_url: String,
+    #[schema(value_type = String)]
+    pub three_ds_authentication_url: Secret<String>,
     /// ThreeDS authorize url - to complete the payment authorization after authentication
     #[smithy(value_type = "String")]
-    pub three_ds_authorize_url: String,
+    #[schema(value_type = String)]
+    pub three_ds_authorize_url: Secret<String>,
     /// ThreeDS method details
     #[smithy(value_type = "ThreeDsMethodData")]
     pub three_ds_method_details: ThreeDsMethodData,
@@ -8315,6 +8259,10 @@ pub struct PaymentsResponse {
     #[schema(example = true)]
     #[smithy(value_type = "Option<bool>")]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name verification was requested for this payment.
+    #[schema(example = true)]
+    #[smithy(value_type = "Option<bool>")]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v1")]
@@ -8621,6 +8569,9 @@ pub struct PaymentsConfirmIntentRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name verification for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8871,6 +8822,9 @@ pub struct PaymentsRequest {
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Request account name verification for supported payments.
+    #[schema(default = false, example = true)]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -8910,6 +8864,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             mit_category: None,
         }
     }
@@ -8933,6 +8888,7 @@ impl From<&PaymentsRequest> for PaymentsConfirmIntentRequest {
             split_payment_method_data: None,
             webhook_url: request.webhook_url.clone(),
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
         }
     }
 }
@@ -9246,6 +9202,9 @@ pub struct PaymentsResponse {
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
+    /// Whether account name verification was requested for this payment.
+    #[schema(example = true)]
+    pub enable_account_name_verification: Option<bool>,
 }
 
 #[cfg(feature = "v2")]
@@ -10244,6 +10203,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                             card_type: apple_pay_pm.card_type,
                             issuer_name: apple_pay_pm.issuer_name,
                             issuer_country: apple_pay_pm.issuer_country,
+                            payment_checks: apple_pay_pm.payment_checks,
                         },
                     ))),
                 })),
@@ -10320,8 +10280,8 @@ pub struct PgRedirectResponse {
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
     pub return_url: String,
-    pub params: Vec<(String, String)>,
-    pub return_url_with_query_params: String,
+    pub params: Vec<(String, Secret<String>)>,
+    pub return_url_with_query_params: Secret<String>,
     pub http_method: String,
     pub headers: Vec<(String, String)>,
 }
@@ -10329,7 +10289,7 @@ pub struct RedirectionResponse {
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]
 pub struct RedirectionResponse {
-    pub return_url_with_query_params: String,
+    pub return_url_with_query_params: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -13767,18 +13727,7 @@ pub mod amount {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mandate_type() {
-        let mandate_type = MandateType::default();
-        assert_eq!(
-            serde_json::to_string(&mandate_type).unwrap(),
-            r#"{"multi_use":null}"#
-        )
-    }
-}
+mod tests;
 
 #[derive(Default, Debug, serde::Deserialize, Clone, ToSchema, serde::Serialize)]
 pub struct RetrievePaymentLinkRequest {
@@ -14454,328 +14403,6 @@ pub struct AppliedOffer {
     pub currency: common_enums::Currency,
 }
 
-#[cfg(feature = "v1")]
-#[cfg(test)]
-mod payments_request_api_contract {
-    use std::str::FromStr;
-
-    use super::*;
-
-    #[test]
-    fn test_successful_card_deser() {
-        let payments_request = r#"
-        {
-            "amount": 6540,
-            "currency": "USD",
-            "payment_method": "card",
-            "payment_method_data": {
-                "card": {
-                    "card_number": "4242424242424242",
-                    "card_exp_month": "10",
-                    "card_exp_year": "25",
-                    "card_holder_name": "joseph Doe",
-                    "card_cvc": "123"
-                }
-            }
-        }
-        "#;
-
-        let expected_card_number_string = "4242424242424242";
-        let expected_card_number = CardNumber::from_str(expected_card_number_string).unwrap();
-
-        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
-        assert!(payments_request.is_ok());
-
-        if let Some(PaymentMethodData::Card(card_data)) = payments_request
-            .unwrap()
-            .payment_method_data
-            .unwrap()
-            .payment_method_data
-        {
-            assert_eq!(card_data.card_number, expected_card_number);
-        } else {
-            panic!("Received unexpected response")
-        }
-    }
-
-    #[test]
-    fn test_successful_payment_method_reward() {
-        let payments_request = r#"
-        {
-            "amount": 6540,
-            "currency": "USD",
-            "payment_method": "reward",
-            "payment_method_data": "reward",
-            "payment_method_type": "evoucher"
-        }
-        "#;
-
-        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
-        assert!(payments_request.is_ok());
-        assert_eq!(
-            payments_request
-                .unwrap()
-                .payment_method_data
-                .unwrap()
-                .payment_method_data,
-            Some(PaymentMethodData::Reward)
-        );
-    }
-
-    #[test]
-    fn test_payment_method_data_with_payment_method_billing() {
-        let payments_request = r#"
-        {
-            "amount": 6540,
-            "currency": "USD",
-            "payment_method_data": {
-                "billing": {
-                    "address": {
-                        "line1": "1467",
-                        "line2": "Harrison Street",
-                        "city": "San Fransico",
-                        "state": "California",
-                        "zip": "94122",
-                        "country": "US",
-                        "first_name": "Narayan",
-                        "last_name": "Bhat"
-                    }
-                }
-            }
-        }
-        "#;
-
-        let payments_request = serde_json::from_str::<PaymentsRequest>(payments_request);
-        assert!(payments_request.is_ok());
-        assert!(payments_request
-            .unwrap()
-            .payment_method_data
-            .unwrap()
-            .billing
-            .is_some());
-    }
-}
-
-#[cfg(test)]
-mod payments_response_api_contract {
-    use super::*;
-
-    #[derive(Debug, serde::Serialize)]
-    struct TestPaymentsResponse {
-        #[serde(serialize_with = "serialize_payment_method_data_response")]
-        payment_method_data: Option<PaymentMethodDataResponseWithBilling>,
-    }
-
-    #[test]
-    fn test_reward_payment_response() {
-        let payment_method_response_with_billing = PaymentMethodDataResponseWithBilling {
-            payment_method_data: Some(PaymentMethodDataResponse::Reward {}),
-            billing: None,
-        };
-
-        let payments_response = TestPaymentsResponse {
-            payment_method_data: Some(payment_method_response_with_billing),
-        };
-
-        let expected_response = r#"{"payment_method_data":"reward"}"#;
-
-        let stringified_payments_response = payments_response.encode_to_string_of_json();
-        assert_eq!(stringified_payments_response.unwrap(), expected_response);
-    }
-
-    #[cfg(feature = "v1")]
-    #[test]
-    fn test_fingerprint_type_serialization() {
-        assert_eq!(
-            serde_json::to_value(FingerprintType::Dpan).unwrap(),
-            serde_json::json!("dpan")
-        );
-        assert_eq!(
-            serde_json::to_value(FingerprintType::Fpan).unwrap(),
-            serde_json::json!("fpan")
-        );
-    }
-}
-
-/// Set of tests to extract billing details from payment method data
-/// These are required for backwards compatibility
-#[cfg(test)]
-mod billing_from_payment_method_data {
-    use common_enums::CountryAlpha2;
-    use hyperswitch_masking::ExposeOptionInterface;
-
-    use super::*;
-
-    const TEST_COUNTRY: CountryAlpha2 = CountryAlpha2::US;
-    const TEST_FIRST_NAME: &str = "John";
-    const TEST_LAST_NAME: &str = "Wheat Dough";
-    const TEST_FULL_NAME: &str = "John Wheat Dough";
-    const TEST_FIRST_NAME_SINGLE: &str = "John";
-
-    #[test]
-    fn test_wallet_payment_method_data_paypal() {
-        let test_email: Email = Email::try_from("example@example.com".to_string()).unwrap();
-
-        let paypal_wallet_payment_method_data =
-            PaymentMethodData::Wallet(WalletData::PaypalRedirect(PaypalRedirection {
-                email: Some(test_email.clone()),
-                payer_id: None,
-            }));
-
-        let billing_address = paypal_wallet_payment_method_data
-            .get_billing_address()
-            .unwrap();
-
-        assert_eq!(billing_address.email.unwrap(), test_email);
-
-        assert!(billing_address.address.is_none());
-        assert!(billing_address.phone.is_none());
-    }
-
-    #[test]
-    fn test_bank_redirect_payment_method_data_eps() {
-        let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = Secret::new(String::from("Chaser"));
-
-        let bank_redirect_billing = BankRedirectBilling {
-            billing_name: Some(test_first_name.clone()),
-            email: Some(test_email.clone()),
-        };
-
-        let eps_bank_redirect_payment_method_data =
-            PaymentMethodData::BankRedirect(BankRedirectData::Eps {
-                billing_details: Some(bank_redirect_billing),
-                bank_name: None,
-                country: Some(TEST_COUNTRY),
-            });
-
-        let billing_address = eps_bank_redirect_payment_method_data
-            .get_billing_address()
-            .unwrap();
-
-        let address_details = billing_address.address.unwrap();
-
-        assert_eq!(billing_address.email.unwrap(), test_email);
-        assert_eq!(address_details.country.unwrap(), TEST_COUNTRY);
-        assert_eq!(address_details.first_name.unwrap(), test_first_name);
-        assert!(billing_address.phone.is_none());
-    }
-
-    #[test]
-    fn test_paylater_payment_method_data_klarna() {
-        let test_email: Email = Email::try_from("example@example.com".to_string()).unwrap();
-
-        let klarna_paylater_payment_method_data =
-            PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {
-                billing_email: Some(test_email.clone()),
-                billing_country: Some(TEST_COUNTRY),
-            });
-
-        let billing_address = klarna_paylater_payment_method_data
-            .get_billing_address()
-            .unwrap();
-
-        assert_eq!(billing_address.email.unwrap(), test_email);
-        assert_eq!(
-            billing_address.address.unwrap().country.unwrap(),
-            TEST_COUNTRY
-        );
-        assert!(billing_address.phone.is_none());
-    }
-
-    #[test]
-    fn test_bank_debit_payment_method_data_ach() {
-        let test_email = Email::try_from("example@example.com".to_string()).unwrap();
-        let test_first_name = Secret::new(String::from("Chaser"));
-
-        let bank_redirect_billing = BankDebitBilling {
-            name: Some(test_first_name.clone()),
-            address: None,
-            email: Some(test_email.clone()),
-        };
-
-        let ach_bank_debit_payment_method_data =
-            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                billing_details: Some(bank_redirect_billing),
-                account_number: Secret::new("1234".to_string()),
-                routing_number: Secret::new("1235".to_string()),
-                bank_account_holder_name: None,
-                bank_name: None,
-                bank_type: None,
-                bank_holder_type: None,
-            });
-
-        let billing_address = ach_bank_debit_payment_method_data
-            .get_billing_address()
-            .unwrap();
-
-        let address_details = billing_address.address.unwrap();
-
-        assert_eq!(billing_address.email.unwrap(), test_email);
-        assert_eq!(address_details.first_name.unwrap(), test_first_name);
-        assert!(billing_address.phone.is_none());
-    }
-
-    #[test]
-    fn test_card_payment_method_data() {
-        let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(Secret::new(TEST_FIRST_NAME_SINGLE.into())),
-            ..Default::default()
-        });
-
-        let billing_address = card_payment_method_data.get_billing_address();
-
-        let billing_address = billing_address.unwrap();
-
-        assert_eq!(
-            billing_address.address.unwrap().first_name.expose_option(),
-            Some(TEST_FIRST_NAME_SINGLE.into())
-        );
-    }
-
-    #[test]
-    fn test_card_payment_method_data_empty() {
-        let card_payment_method_data = PaymentMethodData::Card(Card::default());
-
-        let billing_address = card_payment_method_data.get_billing_address();
-
-        assert!(billing_address.is_none());
-    }
-
-    #[test]
-    fn test_card_payment_method_data_full_name() {
-        let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(Secret::new(TEST_FULL_NAME.into())),
-            ..Default::default()
-        });
-
-        let billing_details = card_payment_method_data.get_billing_address().unwrap();
-        let billing_address = billing_details.address.unwrap();
-
-        assert_eq!(
-            billing_address.first_name.expose_option(),
-            Some(TEST_FIRST_NAME.into())
-        );
-
-        assert_eq!(
-            billing_address.last_name.expose_option(),
-            Some(TEST_LAST_NAME.into())
-        );
-    }
-
-    #[test]
-    fn test_card_payment_method_data_empty_string() {
-        let card_payment_method_data = PaymentMethodData::Card(Card {
-            card_holder_name: Some(Secret::new("".to_string())),
-            ..Default::default()
-        });
-
-        let billing_details = card_payment_method_data.get_billing_address();
-
-        assert!(billing_details.is_none());
-    }
-}
-
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PaymentRevenueRecoveryMetadata {
@@ -14784,12 +14411,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
     pub payment_connector_transmission: Option<PaymentConnectorTransmission>,
-    /// Billing Connector Id to update the invoices
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    /// Payment Connector Id to retry the payments
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Payment Connector Id to retry the payments. Absent when the transaction is recorded without merchant connector accounts.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Billing Connector Payment Details
     #[schema(value_type = BillingConnectorPaymentDetails)]
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
@@ -14824,6 +14451,14 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers.
+    #[schema(value_type = Option<ExternalTriggerState>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_payments_types::ExternalTriggerState>,
+    /// Standardised error code of the last failed transaction of the invoice. The result of the next transaction is counted against it in the cluster data.
+    #[schema(value_type = Option<StandardisedCode>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -14871,17 +14506,17 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
-    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
-        mandates::ProcessorPaymentToken {
-            processor_payment_token: self
-                .billing_connector_payment_details
-                .payment_processor_token
-                .clone(),
-            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
-        }
-    }
-    pub fn get_merchant_connector_id_for_api_request(&self) -> id_type::MerchantConnectorAccountId {
-        self.active_attempt_payment_connector_id.clone()
+
+    /// The connector accounts the invoice is recorded against. An invoice on external triggers has
+    /// none.
+    pub fn get_connector_accounts(
+        &self,
+    ) -> Option<common_payments_types::RecoveryConnectorAccounts> {
+        Some(common_payments_types::RecoveryConnectorAccounts {
+            billing_connector_id: self.billing_connector_id.clone()?,
+            payment_connector_id: self.active_attempt_payment_connector_id.clone()?,
+            connector: self.connector,
+        })
     }
 
     pub fn get_connector_customer_id(&self) -> String {
@@ -14940,17 +14575,9 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(value_type = PaymentMethod, example = "bank_transfer")]
     pub payment_method_type: api_enums::PaymentMethod,
 
-    /// The name of the payment connector through which the payment attempt was made.
-    #[schema(value_type = Option<Connector>, example = "stripe")]
-    pub connector: Option<common_enums::connector_enums::Connector>,
-
-    /// Billing connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-
-    /// Billing connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// What is known about the connector of the transaction, which decides how it is recorded.
+    #[schema(value_type = Object)]
+    pub connector_details: common_payments_types::RecoveryConnectorDetails,
 
     /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
     #[schema(value_type = PaymentMethodType, example = "apple_pay")]
@@ -15004,6 +14631,10 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+
+    /// Standardised error code of the attempt, when it failed.
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
@@ -15026,13 +14657,17 @@ pub struct RecoveryPaymentsCreate {
     /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub billing_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.
-    #[schema(value_type = String, example = "mca_1234567890")]
-    pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    #[schema(value_type = Option<String>, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+
+    /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
+    #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
+    pub connector: Option<common_payments_types::RecoveryConnector>,
 
     /// Status of the transaction reported.
     #[schema(value_type = RecoveryTransactionStatus, example = "failure")]
@@ -15098,6 +14733,18 @@ pub struct RecoveryPaymentsCreate {
     pub metadata: Option<pii::SecretSerdeValue>,
 }
 
+#[cfg(feature = "v2")]
+impl RecoveryPaymentsCreate {
+    /// Who started the reported transaction, when the request says both whether the customer was
+    /// present and how the payment method is set up for future use.
+    pub fn get_transaction_initiator(&self) -> Option<common_enums::TransactionInitiator> {
+        Some(common_enums::TransactionInitiator::new(
+            self.customer_present?,
+            self.setup_future_usage?,
+        ))
+    }
+}
+
 /// Error details for the payment
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -15125,20 +14772,6 @@ impl Serialize for NullObject {
         S: Serializer,
     {
         serializer.serialize_none()
-    }
-}
-
-#[cfg(test)]
-mod null_object_test {
-    use serde_json;
-
-    use super::*;
-
-    #[test]
-    fn test_null_object_serialization() {
-        let null_object = NullObject;
-        let serialized = serde_json::to_string(&null_object).unwrap();
-        assert_eq!(serialized, "null");
     }
 }
 

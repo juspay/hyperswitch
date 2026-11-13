@@ -192,6 +192,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             recipient_details: None,
             enable_avs_check: None,
             mit_category: data.mit_category,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -344,6 +345,8 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                             api_payments::PaymentAttemptRevenueRecoveryData {
                                 attempt_triggered_by: recovery.attempt_triggered_by,
                                 charge_id: recovery.charge_id,
+                                customer_present: recovery.customer_present,
+                                setup_future_usage: recovery.setup_future_usage,
                             }
                         }),
                     },

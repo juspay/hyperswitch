@@ -123,8 +123,7 @@ pub async fn create_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     let db_organization = ForeignFrom::foreign_from(req);
     state
-        .accounts_store
-        .insert_organization(db_organization)
+        .track_accounts_query(|db| db.insert_organization(db_organization))
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "Organization with the given organization_name already exists".to_string(),
@@ -146,8 +145,9 @@ pub async fn update_organization(
         metadata: req.metadata,
     };
     state
-        .accounts_store
-        .update_organization_by_org_id(&org_id.organization_id, organization_update)
+        .track_accounts_query(|db| {
+            db.update_organization_by_org_id(&org_id.organization_id, organization_update)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "organization with the given id does not exist".to_string(),
@@ -167,16 +167,24 @@ pub async fn get_organization(
 ) -> RouterResponse<api::OrganizationResponse> {
     #[cfg(all(feature = "v1", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
-            .create_or_validate(state.accounts_store.as_ref())
+        state
+            .track_accounts_query(|db| async move {
+                CreateOrValidateOrganization::new(Some(org_id.organization_id), None)
+                    .create_or_validate(db)
+                    .await
+            })
             .await
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
     }
     #[cfg(all(feature = "v2", feature = "olap"))]
     {
-        CreateOrValidateOrganization::new(org_id.organization_id)
-            .create_or_validate(state.accounts_store.as_ref())
+        state
+            .track_accounts_query(|db| async move {
+                CreateOrValidateOrganization::new(org_id.organization_id)
+                    .create_or_validate(db)
+                    .await
+            })
             .await
             .map(ForeignFrom::foreign_from)
             .map(service_api::ApplicationResponse::Json)
@@ -230,8 +238,7 @@ pub async fn convert_organization_to_platform_organization(
     })?;
 
     let organization = state
-        .accounts_store
-        .find_organization_by_org_id(&org_id.organization_id)
+        .track_accounts_query(|db| db.find_organization_by_org_id(&org_id.organization_id))
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "Organization with the given id does not exist".to_string(),
@@ -256,11 +263,12 @@ pub async fn convert_organization_to_platform_organization(
     })?;
 
     state
-        .accounts_store
-        .update_organization_by_org_id(
-            &org_id.organization_id,
-            diesel_models::organization::OrganizationUpdate::ConvertToPlatform,
-        )
+        .track_accounts_query(|db| {
+            db.update_organization_by_org_id(
+                &org_id.organization_id,
+                diesel_models::organization::OrganizationUpdate::ConvertToPlatform,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update organization type to Platform")?;
@@ -297,13 +305,14 @@ pub async fn convert_organization_to_platform_organization(
     .await?;
 
     let updated_organization = state
-        .accounts_store
-        .update_organization_by_org_id(
-            &org_id.organization_id,
-            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
-                platform_merchant_id: platform_merchant_id.clone(),
-            },
-        )
+        .track_accounts_query(|db| {
+            db.update_organization_by_org_id(
+                &org_id.organization_id,
+                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                    platform_merchant_id: platform_merchant_id.clone(),
+                },
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update organization type to Platform")?;
@@ -388,13 +397,14 @@ pub async fn create_merchant_account(
 
     if merchant_account.is_platform_account() {
         state
-            .accounts_store
-            .update_organization_by_org_id(
-                &merchant_account.organization_id,
-                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
-                    platform_merchant_id: merchant_id.clone(),
-                },
-            )
+            .track_accounts_query(|db| {
+                db.update_organization_by_org_id(
+                    &merchant_account.organization_id,
+                    diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                        platform_merchant_id: merchant_id.clone(),
+                    },
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update organization with platform_merchant_id")?;
@@ -439,7 +449,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         identifier: &id_type::MerchantId,
         org_data_from_auth: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
-        let db = &*state.accounts_store;
         let publishable_key = create_merchant_publishable_key();
 
         let primary_business_details = self.get_primary_details_as_value().change_context(
@@ -518,8 +527,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             (req_org_id, _) => req_org_id.clone(),
         };
 
-        let organization = CreateOrValidateOrganization::new(org_id, self.merchant_account_type)
-            .create_or_validate(db)
+        let requested_account_type = self.merchant_account_type;
+        let organization = state
+            .track_accounts_query(|db| async move {
+                CreateOrValidateOrganization::new(org_id, requested_account_type)
+                    .create_or_validate(db)
+                    .await
+            })
             .await?;
 
         let merchant_account_type = match organization.get_organization_type() {
@@ -544,17 +558,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
 
             OrganizationType::Platform => {
-                let accounts = state
-                    .store
-                    .list_merchant_accounts_by_organization_id(&organization.get_organization_id())
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-                let platform_account_exists = accounts
-                    .iter()
-                    .any(|account| account.merchant_account_type == MerchantAccountType::Platform);
-
-                if accounts.is_empty() || !platform_account_exists {
+                if organization.platform_merchant_id.is_none() {
                     // First merchant in a Platform org must be Platform
                     MerchantAccountType::Platform
                 } else {
@@ -906,7 +910,6 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         _org_data: Option<authentication::AuthenticationDataWithOrg>,
     ) -> RouterResult<domain::MerchantAccount> {
         let publishable_key = create_merchant_publishable_key();
-        let db = &*state.accounts_store;
 
         let metadata = self.get_metadata_as_secret().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
@@ -920,8 +923,13 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
             },
         )?;
 
-        let organization = CreateOrValidateOrganization::new(self.organization_id.clone())
-            .create_or_validate(db)
+        let organization_id = self.organization_id.clone();
+        let organization = state
+            .track_accounts_query(|db| async move {
+                CreateOrValidateOrganization::new(organization_id)
+                    .create_or_validate(db)
+                    .await
+            })
             .await?;
 
         // V2 currently supports creation of Standard merchant accounts only, irrespective of organization type
@@ -1451,6 +1459,12 @@ pub async fn merchant_account_delete(
         .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    fp_utils::when(merchant_account.is_platform_account(), || {
+        Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Platform merchant account cannot be deleted".to_string(),
+        }))
+    })?;
 
     let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
@@ -3807,6 +3821,11 @@ impl ProfileCreateBridge for api::ProfileCreate {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
 
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model.unwrap_or_default(),
+            self.revenue_recovery_config.is_some(),
+        )?;
+
         // Generate a unique profile id
         // TODO: the profile_id should be generated from the profile_name
         let profile_id = common_utils::generate_profile_id_of_default_length();
@@ -3965,6 +3984,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
+            revenue_recovery_trigger_model: self.revenue_recovery_trigger_model.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self
                 .surcharge_connector_details
@@ -4430,6 +4450,24 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
     }
 }
 
+/// A profile that follows external triggers has no billing connector account to hold its retry
+/// limits, so they have to be on the profile.
+#[cfg(feature = "v2")]
+fn validate_retry_config_of_trigger_model(
+    trigger_model: common_enums::RevenueRecoveryTriggerModel,
+    has_retry_config: bool,
+) -> RouterResult<()> {
+    utils::when(
+        trigger_model == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+            && !has_retry_config,
+        || {
+            Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "revenue_recovery_config".into(),
+            }))
+        },
+    )
+}
+
 #[cfg(all(feature = "olap", feature = "v2"))]
 #[async_trait::async_trait]
 impl ProfileUpdateBridge for api::ProfileUpdate {
@@ -4442,6 +4480,13 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         if let Some(session_expiry) = &self.session_expiry {
             helpers::validate_session_expiry(session_expiry.to_owned())?;
         }
+
+        validate_retry_config_of_trigger_model(
+            self.revenue_recovery_trigger_model
+                .unwrap_or(business_profile.revenue_recovery_trigger_model),
+            self.revenue_recovery_config.is_some()
+                || business_profile.revenue_recovery_config.is_some(),
+        )?;
 
         if let Some(url) = self
             .webhook_details
@@ -4591,6 +4636,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
+                revenue_recovery_trigger_model: self.revenue_recovery_trigger_model,
                 billing_processor_id: self.billing_processor_id,
                 surcharge_connector_details: self
                     .surcharge_connector_details

@@ -42,8 +42,8 @@ pub struct BreadpayCartRequest {
 #[serde(rename_all = "camelCase")]
 pub struct BreadpayCartOptions {
     order_ref: Option<String>,
-    complete_url: String,
-    callback_url: String,
+    complete_url: Secret<String>,
+    callback_url: Secret<String>,
     // billing_contact: Option<BillingContact>,
 }
 

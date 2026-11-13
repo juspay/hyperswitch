@@ -494,6 +494,8 @@ pub struct WalletAdditionalDataForCard {
     /// The country of the card issuer, as returned by the connector
     #[schema(value_type = Option<CountryAlpha2>, example = "US")]
     pub issuer_country: Option<api_enums::CountryAlpha2>,
+    /// Additional payment checks done by the processor.
+    pub payment_checks: Option<serde_json::Value>,
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,

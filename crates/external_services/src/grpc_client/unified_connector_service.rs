@@ -102,6 +102,27 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+    /// Set to "database" to use the configs table, or "superposition" to use
+    /// the Superposition service. Allows runtime switching without redeployment.
+    #[serde(default = "default_config_source")]
+    pub config_source: UcsConfigSource,
+}
+
+/// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UcsConfigSource {
+    /// Read UCS config from the `configs` database table (legacy behavior).
+    #[default]
+    Database,
+    /// Read UCS config from Superposition service.
+    Superposition,
+}
+
+fn default_config_source() -> UcsConfigSource {
+    UcsConfigSource::Database
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
@@ -877,9 +898,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .capture(request)
+        Box::pin(self.payment_service_client.clone().capture(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1310,9 +1329,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payout_service_client
-            .clone()
-            .transfer(request)
+        // Box the transfer future: the merged UCS proto request types are large enough
+        // to trip clippy::large_futures when this is awaited inline.
+        Box::pin(self.payout_service_client.clone().transfer(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1597,6 +1616,60 @@ impl UnifiedConnectorServiceClient {
                     connector_name=?connector_name,
                     "UCS surcharge_calculate gRPC call failed"
                 )
+            })
+    }
+
+    /// Initiate a surcharge refund using the original surcharge transaction ID.
+    pub async fn surcharge_refund_init(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundInitRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundInitResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_init(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+    }
+
+    /// Complete a surcharge refund using the ID returned by Init.
+    pub async fn surcharge_refund_complete(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundCompleteRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_complete(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
             })
     }
 

@@ -292,7 +292,7 @@ impl FeatureMetadata {
     ) -> Option<id_type::MerchantConnectorAccountId> {
         self.payment_revenue_recovery_metadata
             .as_ref()
-            .map(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
+            .and_then(|recovery_metadata| recovery_metadata.billing_connector_id.clone())
     }
 
     // TODO: Check search_tags for relevant payment method type
@@ -498,10 +498,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub total_retry_count: u16,
     /// Flag for the payment connector's call
     pub payment_connector_transmission: PaymentConnectorTransmission,
-    /// Billing Connector Id to update the invoices
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    /// Payment Connector Id to retry the payments
-    pub active_attempt_payment_connector_id: id_type::MerchantConnectorAccountId,
+    /// Billing Connector Id to update the invoices. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub billing_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// Payment Connector Id to retry the payments. Absent when the transaction is recorded
+    /// without merchant connector accounts.
+    pub active_attempt_payment_connector_id: Option<id_type::MerchantConnectorAccountId>,
     /// Billing Connector Payment Details
     pub billing_connector_payment_details: BillingConnectorPaymentDetails,
     ///Payment Method Type
@@ -525,6 +527,14 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Revenue Recovery A/B routing: the algorithm this invoice was assigned to.
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers. Left out of the stored
+    /// data for every other invoice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_types::payments::ExternalTriggerState>,
+    /// Standardised error code of the last failed transaction of the invoice. The result of the
+    /// next transaction is counted against it in the cluster data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

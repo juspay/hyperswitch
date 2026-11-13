@@ -1271,6 +1271,18 @@ impl PaymentAttempt {
                     // Populated later, when the payment is recorded back to the
                     // billing connector.
                     billing_connector_transaction_id: None,
+                    customer_present: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.customer_present)
+                    }),
+                    setup_future_usage: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.setup_future_usage)
+                    }),
                 }
             }),
         };
@@ -1301,7 +1313,7 @@ impl PaymentAttempt {
             .connector_transaction_id
             .as_ref()
             .map(|txn_id| txn_id.get_id().clone());
-        let connector = request.connector.map(|connector| connector.to_string());
+        let connector = Some(request.connector_details.get_connector().to_string());
         let connector_request_reference_id = payment_intent
             .merchant_reference_id
             .as_ref()
@@ -1330,7 +1342,10 @@ impl PaymentAttempt {
             updated_by: storage_scheme.to_string(),
             redirection_data: None,
             encoded_data: None,
-            merchant_connector_id: request.payment_merchant_connector_id.clone(),
+            merchant_connector_id: request
+                .connector_details
+                .get_payment_connector_id()
+                .cloned(),
             external_three_ds_authentication_attempted: None,
             external_threeds_authentication_type: None,
             authentication_connector: None,
@@ -3108,6 +3123,10 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub charge_id: Option<String>,
     /// Transaction id returned by the billing connector at record-back time.
     pub billing_connector_transaction_id: Option<String>,
+    /// Whether the customer was present for the transaction of this attempt, as reported.
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
 #[cfg(feature = "v2")]
@@ -3122,6 +3141,8 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id
                         .clone(),
+                    customer_present: recovery_data.customer_present,
+                    setup_future_usage: recovery_data.setup_future_usage,
                 });
         Self { revenue_recovery }
     }
@@ -3137,6 +3158,8 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                     billing_connector_transaction_id: recovery_data
                         .billing_connector_transaction_id,
+                    customer_present: recovery_data.customer_present,
+                    setup_future_usage: recovery_data.setup_future_usage,
                 });
         Self { revenue_recovery }
     }

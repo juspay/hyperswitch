@@ -1,9 +1,11 @@
 use actix_web::{web, Responder};
 use api_models::{payments as payments_api, payments as api_payments};
+use common_types::payments::{RecoveryConnectorAccounts, RecoveryConnectorDetails};
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
 
+use super::{external_triggers, trigger_model::RecoveryTrigger};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -83,6 +85,17 @@ pub async fn call_psync_api(
     Ok(payment_data)
 }
 
+/// The connector accounts that the retries of an invoice run through. Retries run only under
+/// internal triggers, where every transaction is recorded against them.
+fn get_connector_accounts_for_retry(
+    revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
+) -> RouterResult<RecoveryConnectorAccounts> {
+    revenue_recovery_metadata
+        .get_connector_accounts()
+        .ok_or_else(|| report!(errors::ApiErrorResponse::InternalServerError))
+        .attach_printable("Connector accounts not found in revenue recovery metadata")
+}
+
 pub async fn call_proxy_api(
     state: &SessionState,
     payment_intent: &payments_domain::PaymentIntent,
@@ -91,9 +104,10 @@ pub async fn call_proxy_api(
     payment_processor_token: &str,
 ) -> RouterResult<payments_domain::PaymentConfirmData<api_types::Authorize>> {
     let operation = payments::operations::proxy_payments_intent::PaymentProxyIntent;
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery)?;
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
         processor_payment_token: payment_processor_token.to_string(),
-        merchant_connector_id: Some(revenue_recovery.get_merchant_connector_id_for_api_request()),
+        merchant_connector_id: Some(connector_accounts.payment_connector_id.clone()),
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
@@ -101,8 +115,8 @@ pub async fn call_proxy_api(
         recurring_details,
         shipping: None,
         browser_info: None,
-        connector: revenue_recovery.connector.to_string(),
-        merchant_connector_id: revenue_recovery.get_merchant_connector_id_for_api_request(),
+        connector: connector_accounts.connector.to_string(),
+        merchant_connector_id: connector_accounts.payment_connector_id,
     };
     logger::info!(
         "Call made to payments proxy api , with the request body {:?}",
@@ -155,16 +169,16 @@ pub async fn call_proxy_api(
 pub async fn update_payment_intent_api(
     state: &SessionState,
     global_payment_id: id_type::GlobalPaymentId,
-    revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+    merchant_context: storage::revenue_recovery::RecoveryMerchantContext<'_>,
     update_req: payments_api::PaymentsUpdateIntentRequest,
 ) -> RouterResult<payments_domain::PaymentIntentData<api_types::PaymentUpdateIntent>> {
     // TODO : Use api handler instead of calling payments_intent_operation_core
     let operation = payments::operations::PaymentUpdateIntent;
-    let platform_from_revenue_recovery_payment_data = Platform::new(
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
-        revenue_recovery_payment_data.merchant_account.clone(),
-        revenue_recovery_payment_data.key_store.clone(),
+    let platform_from_merchant_context = Platform::new(
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
+        merchant_context.merchant_account.clone(),
+        merchant_context.key_store.clone(),
         None,
     );
     let (payment_data, _req, _) = Box::pin(payments::payments_intent_operation_core::<
@@ -175,8 +189,8 @@ pub async fn update_payment_intent_api(
     >(
         state,
         state.get_req_state(),
-        platform_from_revenue_recovery_payment_data,
-        revenue_recovery_payment_data.profile.clone(),
+        platform_from_merchant_context,
+        merchant_context.profile.clone(),
         operation,
         update_req,
         global_payment_id,
@@ -206,17 +220,15 @@ pub async fn record_internal_attempt_api(
             message: "get_revenue_recovery_attempt was not constructed".to_string(),
         })?;
 
+    let connector_accounts = get_connector_accounts_for_retry(revenue_recovery_metadata)?;
+
     let request_payload = revenue_recovery_attempt_data
         .create_payment_record_request(
             state,
-            &revenue_recovery_payment_data.billing_mca.id,
-            Some(
-                revenue_recovery_metadata
-                    .active_attempt_payment_connector_id
-                    .clone(),
-            ),
-            Some(revenue_recovery_metadata.connector),
+            &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
             common_enums::TriggeredBy::Internal,
+            None,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -299,108 +311,112 @@ pub async fn custom_revenue_recovery_core(
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     validate_recovery_amounts(&request)?;
-    let store = state.store.as_ref();
-    let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
-    let profile_id = profile.get_id();
-    // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
-    let payment_merchant_connector_account = store
-        .find_merchant_connector_account_by_id(
-            &payment_merchant_connector_account_id,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: payment_merchant_connector_account_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })?;
-
-    utils::when(
-        &payment_merchant_connector_account.profile_id != profile_id,
-        || {
-            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: payment_merchant_connector_account_id
-                    .clone()
-                    .get_string_repr()
-                    .to_string(),
-            })
-        },
-    )?;
-    let billing_connector_account = store
-        .find_merchant_connector_account_by_id(
-            &request.billing_merchant_connector_id.clone(),
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .billing_merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })?;
-    utils::when(&billing_connector_account.profile_id != profile_id, || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .billing_merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })
-    })?;
-
     validate_customer_information(&request)?;
 
-    let recovery_intent =
-        recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
-            request.clone(),
-            &state,
-            &req_state,
-            &platform,
-            &profile,
+    let (updated_recovery_intent, next_retry) = match RecoveryTrigger::from_profile_settings(
+        profile.revenue_recovery_trigger_model,
+        profile.revenue_recovery_config.as_ref(),
+        &request,
+    )? {
+        RecoveryTrigger::Internal {
+            billing_merchant_connector_id,
+            payment_merchant_connector_id,
+        } => {
+            let updated_recovery_intent = Box::pin(record_transaction_and_schedule_retries(
+                &state,
+                &req_state,
+                &platform,
+                &profile,
+                &request,
+                &billing_merchant_connector_id,
+                &payment_merchant_connector_id,
+            ))
+            .await?;
+            (updated_recovery_intent, None)
+        }
+        RecoveryTrigger::External {
+            connector,
+            retry_config,
+        } => {
+            Box::pin(external_triggers::record_transaction_and_get_next_retry(
+                &state,
+                &req_state,
+                &platform,
+                &profile,
+                &request,
+                connector,
+                retry_config,
+            ))
+            .await?
+        }
+    };
+
+    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+        get_recovery_payments_response(&updated_recovery_intent, next_retry),
+    ))
+}
+
+/// Finds a connector account of the profile.
+async fn find_connector_account_of_profile(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<domain::MerchantConnectorAccount> {
+    let not_found = || errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        id: merchant_connector_id.get_string_repr().to_string(),
+    };
+
+    let connector_account = state
+        .store
+        .find_merchant_connector_account_by_id(
+            merchant_connector_id,
+            platform.get_processor().get_key_store(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!(
-                "Failed to load recovery intent for merchant reference id : {:?}",
-                request.merchant_reference_id.to_owned()
-            )
-            .to_string(),
-        })?;
+        .to_not_found_response(not_found())?;
 
-    let (revenue_recovery_attempt_data, updated_recovery_intent) = Box::pin(
-        recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
-            request.clone(),
-            &state,
-            &req_state,
-            &platform,
-            &profile,
-            recovery_intent.clone(),
-            payment_merchant_connector_account,
-        ),
-    )
-    .await
-    .map_err(|error| {
-        let api_error = match error.current_context() {
-            errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded => {
-                errors::ApiErrorResponse::GenericDuplicateError {
-                    message: format!(
-                        "The transaction {} is already recorded against the invoice {}",
-                        request.connector_transaction_id,
-                        request.merchant_reference_id.get_string_repr()
-                    ),
-                }
-            }
-            _ => errors::ApiErrorResponse::GenericNotFoundError {
-                message: format!(
-                    "Failed to load recovery attempt for merchant reference id : {:?}",
-                    request.merchant_reference_id.to_owned()
-                ),
-            },
-        };
-        error.change_context(api_error)
+    utils::when(&connector_account.profile_id != profile.get_id(), || {
+        Err(not_found())
     })?;
+
+    Ok(connector_account)
+}
+
+/// Records the transaction against the connector accounts and schedules its retries.
+async fn record_transaction_and_schedule_retries(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+    billing_merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    payment_merchant_connector_id: &id_type::MerchantConnectorAccountId,
+) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    let payment_connector_account =
+        find_connector_account_of_profile(state, platform, profile, payment_merchant_connector_id)
+            .await?;
+    let billing_connector_account =
+        find_connector_account_of_profile(state, platform, profile, billing_merchant_connector_id)
+            .await?;
+
+    let recovery_intent =
+        get_or_create_invoice(state, req_state, platform, profile, request).await?;
+
+    let (revenue_recovery_attempt_data, updated_recovery_intent) = Box::pin(record_transaction(
+        state,
+        req_state,
+        platform,
+        profile,
+        request,
+        &recovery_intent,
+        &RecoveryConnectorDetails::ConnectorAccounts(RecoveryConnectorAccounts {
+            billing_connector_id: billing_connector_account.get_id(),
+            payment_connector_id: payment_connector_account.get_id(),
+            connector: payment_connector_account.get_connector_name(),
+        }),
+    ))
+    .await?;
 
     let intent_retry_count = updated_recovery_intent
         .feature_metadata
@@ -432,9 +448,9 @@ pub async fn custom_revenue_recovery_core(
 
     recovery_action
         .handle_action(
-            &state,
-            &profile,
-            &platform,
+            state,
+            profile,
+            platform,
             &billing_connector_account,
             mca_retry_threshold,
             intent_retry_count,
@@ -448,15 +464,91 @@ pub async fn custom_revenue_recovery_core(
             message: "Unexpected response from recovery core".to_string(),
         })?;
 
-    let response = api_models::payments::RecoveryPaymentsResponse {
-        id: updated_recovery_intent.payment_id.to_owned(),
-        intent_status: updated_recovery_intent.status.to_owned(),
-        merchant_reference_id: updated_recovery_intent.merchant_reference_id.to_owned(),
-    };
+    Ok(updated_recovery_intent)
+}
 
-    Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
-    ))
+fn get_recovery_payments_response(
+    recovery_intent: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
+    next_retry: Option<common_types::payments::RecoveryNextRetry>,
+) -> payments_api::RecoveryPaymentsResponse {
+    payments_api::RecoveryPaymentsResponse {
+        id: recovery_intent.payment_id.to_owned(),
+        intent_status: recovery_intent.status.to_owned(),
+        merchant_reference_id: recovery_intent.merchant_reference_id.to_owned(),
+        next_retry,
+    }
+}
+
+/// Finds or creates the invoice of the transaction.
+pub(super) async fn get_or_create_invoice(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
+        request.clone(),
+        state,
+        req_state,
+        platform,
+        profile,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: format!(
+            "Failed to load recovery intent for merchant reference id : {:?}",
+            request.merchant_reference_id.to_owned()
+        )
+        .to_string(),
+    })
+}
+
+/// Records the transaction against the invoice.
+pub(super) async fn record_transaction(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+    recovery_intent: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
+    connector_details: &RecoveryConnectorDetails,
+) -> RouterResult<(
+    hyperswitch_domain_models::revenue_recovery::RecoveryPaymentAttempt,
+    hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
+)> {
+    Box::pin(
+        recovery_incoming::RevenueRecoveryAttempt::load_recovery_attempt_from_api(
+            request,
+            state,
+            req_state,
+            platform,
+            profile,
+            recovery_intent,
+            connector_details,
+        ),
+    )
+    .await
+    .map_err(|error| {
+        let api_error = match error.current_context() {
+            errors::RevenueRecoveryError::PaymentAttemptAlreadyRecorded => {
+                errors::ApiErrorResponse::GenericDuplicateError {
+                    message: format!(
+                        "The transaction {} is already recorded against the invoice {}",
+                        request.connector_transaction_id,
+                        request.merchant_reference_id.get_string_repr()
+                    ),
+                }
+            }
+            _ => errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!(
+                    "Failed to load recovery attempt for merchant reference id : {:?}",
+                    request.merchant_reference_id.to_owned()
+                ),
+            },
+        };
+        error.change_context(api_error)
+    })
 }
 
 /// Cancel the revenue recovery workflow of the invoice identified by `merchant_reference_id`
@@ -495,14 +587,13 @@ pub async fn cancel_revenue_recovery_core(
         })
     })?;
 
-    let response = api_payments::RecoveryPaymentsResponse {
-        id: cancelled_intent.id,
-        intent_status: cancelled_intent.status,
-        merchant_reference_id: cancelled_intent.merchant_reference_id,
-    };
-
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        response,
+        get_recovery_payments_response(
+            &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
+                &cancelled_intent,
+            ),
+            cancelled_intent.get_external_trigger_next_retry(),
+        ),
     ))
 }
 

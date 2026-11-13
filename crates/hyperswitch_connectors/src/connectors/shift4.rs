@@ -1015,6 +1015,7 @@ impl ConnectorSpecifications for Shift4 {
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

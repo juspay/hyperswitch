@@ -105,7 +105,7 @@ pub struct Settings<S: SecretState> {
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
-    pub eph_key: EphemeralConfig,
+    pub eph_key: ClientSecretConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -1167,7 +1167,7 @@ pub struct Refund {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct EphemeralConfig {
+pub struct ClientSecretConfig {
     pub validity: i64,
 }
 

@@ -3,7 +3,7 @@ use api_models::hierarchical_resources as api_resources;
 use base64::Engine;
 use common_utils::id_type;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::{AppState, SessionState};
 use crate::{
