@@ -1,7 +1,7 @@
 //! Issuer-country enrichment before the confirm flow evaluates routing rules.
 //!
 //! Wallet identity remains `wallet` / `apple_pay` or `google_pay`. Only the issuer country
-//! is enriched from the decrypted payment number's BIN. Unknown country is left absent.
+//! is enriched from the decrypted payment number's eight-digit BIN. Unknown country is left absent.
 
 use std::{future::Future, str::FromStr};
 
@@ -114,11 +114,17 @@ fn wallet_bin(wallet: &WalletData) -> Option<String> {
         WalletData::ApplePay(data) => data
             .payment_data
             .get_decrypted_apple_pay_payment_data_optional()
-            .map(|data| data.application_primary_account_number.get_card_isin()),
+            .map(|data| {
+                data.application_primary_account_number
+                    .get_extended_card_bin()
+            }),
         WalletData::GooglePay(data) => data
             .tokenization_data
             .get_decrypted_google_pay_payment_data_optional()
-            .map(|data| data.application_primary_account_number.get_card_isin()),
+            .map(|data| {
+                data.application_primary_account_number
+                    .get_extended_card_bin()
+            }),
         _ => None,
     }
 }

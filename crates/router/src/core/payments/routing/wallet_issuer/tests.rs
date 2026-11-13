@@ -74,7 +74,7 @@ async fn apple_pay_country_reaches_de_while_payment_method_remains_wallet() {
     let wallet = apple_pay(true);
     let mut input = input("apple_pay");
     enrich_input_from_wallet(&mut input, &wallet, |bin| async move {
-        assert_eq!(bin, "424242");
+        assert_eq!(bin, "42424242");
         Ok::<_, ()>(Some("US".into()))
     })
     .await;
@@ -104,7 +104,7 @@ async fn google_pay_pan_only_and_cryptogram_wallets_use_the_decrypted_number() {
         let wallet = google_pay(auth_method, true);
         let mut input = input("google_pay");
         enrich_input_from_wallet(&mut input, &wallet, |bin| async move {
-            assert_eq!(bin, "555555");
+            assert_eq!(bin, "55555555");
             Ok::<_, ()>(Some(" de ".into()))
         })
         .await;
@@ -117,6 +117,32 @@ async fn google_pay_pan_only_and_cryptogram_wallets_use_the_decrypted_number() {
             params.get("payment_method_type"),
             Some(&Some(ValueType::EnumVariant("google_pay".into())))
         );
+    }
+}
+
+#[tokio::test]
+async fn six_digit_records_are_not_used_when_the_eight_digit_record_is_missing() {
+    let six_digit_records = std::collections::HashMap::from([("424242", "US"), ("555555", "DE")]);
+    for (wallet, method_type) in [
+        (apple_pay(true), "apple_pay"),
+        (google_pay(GooglePayAuthMethod::PanOnly, true), "google_pay"),
+        (
+            google_pay(GooglePayAuthMethod::Cryptogram, true),
+            "google_pay",
+        ),
+    ] {
+        let lookup_count = Cell::new(0);
+        let mut input = input(method_type);
+        enrich_input_from_wallet(&mut input, &wallet, |bin| {
+            lookup_count.set(lookup_count.get() + 1);
+            let country = six_digit_records
+                .get(bin.as_str())
+                .map(|code| (*code).into());
+            async move { Ok::<_, ()>(country) }
+        })
+        .await;
+        assert_eq!(lookup_count.get(), 1);
+        assert!(!de_parameters(input).contains_key("issuer_country"));
     }
 }
 

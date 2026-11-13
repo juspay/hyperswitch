@@ -14,12 +14,13 @@ For example, a rule can combine these conditions with AND:
 
 ## Country source
 
-Issuer country is read from the `country_code` of the `cards_info` record for the six-digit
+Issuer country is read from the `country_code` of the `cards_info` record for the eight-digit
 BIN of the decrypted wallet payment number. This supports Google Pay `PAN_ONLY` and
 `CRYPTOGRAM_3DS`, and Apple Pay's decrypted device PAN. For tokenized payments, the BIN
 belongs to the device/network token; the BIN database must contain appropriate issuer
 metadata for that token range. This does not recover the original funding PAN or infer
-its country from a token range without a matching record.
+its country from a token range without a matching record. The lookup uses eight digits only,
+matching wallet eligibility; it does not fall back to a six-digit BIN record.
 
 Already-decrypted wallet data can be looked up directly. For an encrypted token, the
 flow uses the same wallet-specific MCA recorded in the attempt's `pre_routing_results`
