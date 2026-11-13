@@ -1,5 +1,5 @@
 use cards::CardNumber;
-use common_utils::types::MinorUnit;
+use common_utils::{fp_utils, types::MinorUnit};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -32,6 +32,31 @@ pub struct UnreferencedRefundRequest {
 
     /// Recipient payment method data
     pub recipient_payment_method_data: RecipientPaymentMethodData,
+}
+
+impl UnreferencedRefundRequest {
+    pub fn validate_amount(
+        &self,
+        min_amount: MinorUnit,
+        max_amount: MinorUnit,
+    ) -> Result<(), String> {
+        fp_utils::when(min_amount > max_amount, || {
+            Err(
+                "unreferenced refund amount configuration has a minimum greater than its maximum"
+                    .to_string(),
+            )
+        })?;
+
+        fp_utils::when(self.amount < min_amount || self.amount > max_amount, || {
+            Err(format!(
+                "unreferenced refund amount must be between {} and {} in the currency's lowest denomination",
+                min_amount.get_amount_as_i64(),
+                max_amount.get_amount_as_i64(),
+            ))
+        })?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

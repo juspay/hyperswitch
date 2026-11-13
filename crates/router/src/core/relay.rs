@@ -7,7 +7,6 @@ use common_enums::RelayStatus;
 use common_utils::{
     self, fp_utils,
     id_type::{self, GenerateId},
-    types::MinorUnit,
 };
 use error_stack::ResultExt;
 use hyperswitch_connectors::connector_relay::RelayConnectors;
@@ -1183,32 +1182,6 @@ async fn process_unreferenced_refund(
     Ok((updated_relay, connector_name, raw_connector_response))
 }
 
-fn validate_unreferenced_refund_amount(
-    amount: MinorUnit,
-    min_amount: MinorUnit,
-    max_amount: MinorUnit,
-) -> RouterResult<()> {
-    fp_utils::when(min_amount > max_amount, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message:
-                "unreferenced refund amount configuration has a minimum greater than its maximum"
-                    .to_string(),
-        })
-    })?;
-
-    fp_utils::when(amount < min_amount || amount > max_amount, || {
-        Err(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "unreferenced refund amount must be between {} and {} in the currency's lowest denomination",
-                min_amount.get_amount_as_i64(),
-                max_amount.get_amount_as_i64(),
-            ),
-        })
-    })?;
-
-    Ok(())
-}
-
 async fn process_relay_unreferenced_refund(
     state: &SessionState,
     platform: &domain::Platform,
@@ -1253,7 +1226,9 @@ async fn process_relay_unreferenced_refund(
     let max_amount = dimensions
         .get_payout_max_amount(db, state.superposition_service.as_ref(), Some(profile_id))
         .await;
-    validate_unreferenced_refund_amount(request.amount, min_amount, max_amount)?;
+    request
+        .validate_amount(min_amount, max_amount)
+        .map_err(|message| errors::ApiErrorResponse::PreconditionFailed { message })?;
 
     process_unreferenced_refund(state, platform, profile_id, connector_resource_id, request).await
 }
