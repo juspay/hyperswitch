@@ -166,27 +166,41 @@ impl ConnectorCommon for Gigadat {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatErrorResponse = res
-            .response
-            .parse_struct("GigadatErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            gigadat::GigadatErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("GigadatErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.err.clone(),
-            message: response.err.clone(),
-            reason: Some(response.err).clone(),
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.err.clone(),
+                    message: response.err.clone(),
+                    reason: Some(response.err).clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_message) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_message);
+                utils::handle_json_response_deserialization_failure(res, "gigadat")
+            }
+        }
     }
 }
 
@@ -1100,5 +1114,53 @@ impl ConnectorSpecifications for Gigadat {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&*GIGADAT_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hyperswitch_interfaces::{api::ConnectorCommon, types::Response};
+
+    use super::Gigadat;
+
+    #[test]
+    fn non_json_error_response_preserves_connector_status() {
+        let error = Gigadat::new()
+            .build_error_response(
+                Response {
+                    headers: None,
+                    response: bytes::Bytes::from_static(b"<html><body>Forbidden</body></html>"),
+                    status_code: 403,
+                },
+                None,
+            )
+            .expect("non-JSON error response should use the fallback error response");
+
+        assert_eq!(error.status_code, 403);
+        assert_eq!(error.code, common_utils::consts::NO_ERROR_CODE);
+        assert_eq!(error.message, crate::constants::UNSUPPORTED_ERROR_MESSAGE);
+        assert_eq!(
+            error.reason.as_deref(),
+            Some("<html><body>Forbidden</body></html>")
+        );
+    }
+
+    #[test]
+    fn json_error_response_uses_connector_error() {
+        let error = Gigadat::new()
+            .build_error_response(
+                Response {
+                    headers: None,
+                    response: bytes::Bytes::from_static(br#"{"err":"Invalid request"}"#),
+                    status_code: 400,
+                },
+                None,
+            )
+            .expect("valid Gigadat error response should be parsed");
+
+        assert_eq!(error.status_code, 400);
+        assert_eq!(error.code, "Invalid request");
+        assert_eq!(error.message, "Invalid request");
+        assert_eq!(error.reason.as_deref(), Some("Invalid request"));
     }
 }
