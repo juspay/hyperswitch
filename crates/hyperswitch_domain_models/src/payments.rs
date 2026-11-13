@@ -1764,7 +1764,8 @@ where
                 )
             });
         // A merchant-initiated transaction the merchant reported makes its card the invoice's. A
-        // customer-initiated one keeps the invoice's card, and counts as a retry only on that card.
+        // customer-initiated one keeps the invoice's card and its last error code, and counts as a
+        // retry only on that card.
         let kept_invoice_card = revenue_recovery.as_ref().filter(|_| {
             !is_merchant_initiated
                 && matches!(
@@ -1852,7 +1853,13 @@ where
                 external_trigger_state: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.external_trigger_state.clone()),
-                last_failure_code: self.revenue_recovery_data.standardised_error_code,
+                last_failure_code: if counts_as_retry {
+                    self.revenue_recovery_data.standardised_error_code
+                } else {
+                    revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.last_failure_code)
+                },
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata

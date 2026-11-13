@@ -980,7 +980,23 @@ impl RevenueRecoveryAttempt {
             }
         }?;
 
-        if recovery_attempt.attempt_status.is_terminal_status() {
+        // The invoice's last error code is for its card, so a transaction the merchant reported on
+        // another card is not counted against it.
+        let invoice_card = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .map(|recovery_metadata| {
+                &recovery_metadata
+                    .billing_connector_payment_details
+                    .payment_processor_token
+            });
+        let is_on_invoice_card = !matches!(
+            connector_details,
+            common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+        ) || invoice_card
+            .is_none_or(|card| self.0.processor_payment_method_token.as_ref() == Some(card));
+        if recovery_attempt.attempt_status.is_terminal_status() && is_on_invoice_card {
             retry_stats::RetryOutcomeEvent::from_retry_outcome(
                 recovery_attempt.created_at,
                 payment_intent
