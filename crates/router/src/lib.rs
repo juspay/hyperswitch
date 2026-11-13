@@ -585,8 +585,9 @@ pub fn get_application_builder(
         ))
         .wrap(middleware::default_response_headers())
         .wrap(cors::cors(cors))
-        // this middleware works only for Http1.1 requests
-        .wrap(middleware::Http400RequestDetailsLogger)
+        .wrap(middleware::Http400RequestDetailsLogger::new(
+            request_body_limit,
+        ))
         .wrap(middleware::AddAcceptLanguageHeader)
         .wrap(middleware::RequestResponseMetrics)
         .wrap(middleware::LogSpanInitializer)
