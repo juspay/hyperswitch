@@ -45,10 +45,10 @@ impl ProcessTrackerWorkflow<SessionState> for RecoveryRequestWorkflow {
                     process_id = %process.id,
                     "The recovery request's tracking data cannot be read"
                 );
-                return external_triggers::finish_failed_report(state, &process).await;
+                return external_triggers::finish_failed_recovery_request(state, &process).await;
             }
         };
-        Box::pin(external_triggers::process_reported_transaction(
+        Box::pin(external_triggers::process_recovery_request(
             state,
             &process,
             tracking_data,
@@ -66,7 +66,7 @@ impl ProcessTrackerWorkflow<SessionState> for RecoveryRequestWorkflow {
         consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 
-    /// The workflow returns an error only for a temporary one, so the report runs again.
+    /// The workflow returns an error only for a temporary one, so the recovery request runs again.
     #[cfg(feature = "v2")]
     async fn error_handler<'a>(
         &'a self,
@@ -74,6 +74,6 @@ impl ProcessTrackerWorkflow<SessionState> for RecoveryRequestWorkflow {
         process: storage::ProcessTracker,
         error: errors::ProcessTrackerError,
     ) -> CustomResult<(), errors::ProcessTrackerError> {
-        external_triggers::retry_report(state, process, error).await
+        external_triggers::retry_recovery_request(state, process, error).await
     }
 }
