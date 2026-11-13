@@ -370,12 +370,13 @@ impl<T: AnalyticsDataSource> ToSql<T> for FilterCombinator {
 #[derive(Debug, Clone)]
 pub enum Filter {
     Plain(String, FilterTypes, String),
-    NestedFilter(FilterCombinator, Vec<Self>),
+    In(String, Vec<String>),
+    Nested(FilterCombinator, Vec<Self>),
 }
 
 impl Default for Filter {
     fn default() -> Self {
-        Self::NestedFilter(FilterCombinator::default(), Vec::new())
+        Self::Nested(FilterCombinator::default(), Vec::new())
     }
 }
 
@@ -383,7 +384,15 @@ impl<T: AnalyticsDataSource> ToSql<T> for Filter {
     fn to_sql(&self, table_engine: &TableEngine) -> error_stack::Result<String, ParsingError> {
         Ok(match self {
             Self::Plain(l, op, r) => filter_type_to_sql(l, *op, r),
-            Self::NestedFilter(operator, filters) => {
+            Self::In(l, values) => format!(
+                "{l} IN ({})",
+                values
+                    .iter()
+                    .map(|value| sanitize_sql_string_literal(value))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            ),
+            Self::Nested(operator, filters) => {
                 format!(
                     "( {} )",
                     filters
@@ -544,7 +553,6 @@ pub enum FilterTypes {
     Equal,
     NotEqual,
     EqualBool,
-    In,
     Gte,
     Lte,
     Gt,
@@ -562,13 +570,19 @@ pub fn sanitize_sql_string_literal(raw: &str) -> String {
 
 pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
     let str = || r.replace('\\', "\\\\").replace('\'', "''");
+    let num = || {
+        if r.parse::<i64>().is_ok() {
+            r.to_owned()
+        } else {
+            sanitize_sql_string_literal(r)
+        }
+    };
     match op {
-        FilterTypes::EqualBool => format!("{l} = {r}"),
+        FilterTypes::EqualBool => format!("{l} = {}", num()),
         FilterTypes::Equal => format!("{l} = '{}'", str()),
         FilterTypes::NotEqual => format!("{l} != '{}'", str()),
-        FilterTypes::In => format!("{l} IN ({r})"),
         FilterTypes::Gte => format!("{l} >= '{}'", str()),
-        FilterTypes::Gt => format!("{l} > {r}"),
+        FilterTypes::Gt => format!("{l} > {}", num()),
         FilterTypes::Lte => format!("{l} <= '{}'", str()),
         FilterTypes::Like => format!("{l} LIKE '%{}%'", str()),
         FilterTypes::NotLike => format!("{l} NOT LIKE '%{}%'", str()),
@@ -699,9 +713,9 @@ where
     }
     pub fn add_nested_filter_clause(&mut self, filter: Filter) {
         match &mut self.filters {
-            Filter::NestedFilter(_, ref mut filters) => filters.push(filter),
-            f @ Filter::Plain(_, _, _) => {
-                self.filters = Filter::NestedFilter(FilterCombinator::And, vec![f.clone(), filter]);
+            Filter::Nested(_, ref mut filters) => filters.push(filter),
+            f @ (Filter::Plain(_, _, _) | Filter::In(_, _)) => {
+                self.filters = Filter::Nested(FilterCombinator::And, vec![f.clone(), filter]);
             }
         }
     }
@@ -711,17 +725,18 @@ where
         key: impl ToSql<T>,
         values: &[impl ToSql<T>],
     ) -> QueryResult<()> {
-        let list = values
+        let key = key
+            .to_sql(&self.table_engine)
+            .change_context(QueryBuildingError::SqlSerializeError)
+            .attach_printable("Error serializing filter key")?;
+        let values = values
             .iter()
-            .map(|i| {
-                i.to_sql(&self.table_engine)
-                    .map(|s| sanitize_sql_string_literal(&s))
-            })
+            .map(|i| i.to_sql(&self.table_engine))
             .collect::<error_stack::Result<Vec<String>, ParsingError>>()
             .change_context(QueryBuildingError::SqlSerializeError)
-            .attach_printable("Error serializing range filter value")?
-            .join(", ");
-        self.add_custom_filter_clause(key, list, FilterTypes::In)
+            .attach_printable("Error serializing range filter value")?;
+        self.add_nested_filter_clause(Filter::In(key, values));
+        Ok(())
     }
 
     pub fn add_group_by_clause(&mut self, column: impl ToSql<T>) -> QueryResult<()> {

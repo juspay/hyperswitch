@@ -8,7 +8,7 @@ use strum::IntoEnumIterator;
 use time::PrimitiveDateTime;
 
 use crate::{
-    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 pub trait SdkEventsFilterAnalytics: LoadRow<SdkEventsResult> {}
@@ -26,10 +26,7 @@ where
     Aggregate<&'static str>: ToSql<T>,
     Window<&'static str>: ToSql<T>,
 {
-    let static_event_list = SdkEventNames::iter()
-        .map(|i| format!("'{}'", i.as_ref()))
-        .collect::<Vec<String>>()
-        .join(",");
+    let static_event_list = SdkEventNames::iter().collect::<Vec<_>>();
     let mut query_builder: QueryBuilder<T> = QueryBuilder::new(AnalyticsCollection::SdkEvents);
     query_builder.add_select_column("*").switch()?;
 
@@ -40,7 +37,7 @@ where
         .add_filter_clause("payment_id", &request.payment_id)
         .switch()?;
     query_builder
-        .add_custom_filter_clause("event_name", static_event_list, FilterTypes::In)
+        .add_filter_in_range_clause("event_name", &static_event_list)
         .switch()?;
     let _ = &request
         .time_range
