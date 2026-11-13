@@ -1283,11 +1283,11 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.setup_future_usage)
                     }),
-                    report_id: request.feature_metadata.as_ref().and_then(|metadata| {
+                    recovery_request_id: request.feature_metadata.as_ref().and_then(|metadata| {
                         metadata
                             .revenue_recovery
                             .as_ref()
-                            .and_then(|data| data.report_id.clone())
+                            .and_then(|data| data.recovery_request_id.clone())
                     }),
                 }
             }),
@@ -3133,8 +3133,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
     /// How the payment method of this attempt's transaction is set up for future use, as reported.
     pub setup_future_usage: Option<common_enums::FutureUsage>,
-    /// Id of the recovery report that recorded this transaction.
-    pub report_id: Option<String>,
+    /// Id of the recovery request that recorded this transaction.
+    pub recovery_request_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3151,7 +3151,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                         .clone(),
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
-                    report_id: recovery_data.report_id.clone(),
+                    recovery_request_id: recovery_data.recovery_request_id.clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3169,7 +3169,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                         .billing_connector_transaction_id,
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
-                    report_id: recovery_data.report_id,
+                    recovery_request_id: recovery_data.recovery_request_id,
                 });
         Self { revenue_recovery }
     }
