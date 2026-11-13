@@ -1751,13 +1751,32 @@ where
             ),
         );
 
+        // A transaction the merchant reported keeps the invoice's card, the first one reported, and
+        // counts as a retry only when it was made with that card.
+        let reported_invoice_card = revenue_recovery.as_ref().filter(|_| {
+            matches!(
+                connector_details,
+                common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+            )
+        });
+        let is_on_invoice_card = reported_invoice_card.is_none_or(|data| {
+            self.revenue_recovery_data
+                .processor_payment_method_token
+                .as_ref()
+                == Some(
+                    &data
+                        .billing_connector_payment_details
+                        .payment_processor_token,
+                )
+        });
+
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
-                // Update retry count by one.
-                total_retry_count: revenue_recovery.as_ref().map_or(
-                    self.revenue_recovery_data.retry_count.unwrap_or(1),
-                    |data| (data.total_retry_count + 1),
-                ),
+                total_retry_count: match revenue_recovery.as_ref() {
+                    None => self.revenue_recovery_data.retry_count.unwrap_or(1),
+                    Some(data) if is_on_invoice_card => data.total_retry_count + 1,
+                    Some(data) => data.total_retry_count,
+                },
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
@@ -1765,8 +1784,8 @@ where
                 active_attempt_payment_connector_id: connector_details
                     .get_payment_connector_id()
                     .cloned(),
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
+                billing_connector_payment_details: reported_invoice_card.map_or_else(
+                    || diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token
@@ -1784,6 +1803,8 @@ where
                             .connector_customer_id
                             .clone(),
                     },
+                    |data| data.billing_connector_payment_details.clone(),
+                ),
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self
                     .payment_attempt
@@ -1805,7 +1826,10 @@ where
                     .as_ref()
                     .and_then(|data| data.invoice_billing_started_at_time)
                     .or(self.revenue_recovery_data.invoice_billing_started_at_time),
-                billing_connector_payment_method_details,
+                billing_connector_payment_method_details: reported_invoice_card
+                    .map_or(billing_connector_payment_method_details, |data| {
+                        data.billing_connector_payment_method_details.clone()
+                    }),
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,

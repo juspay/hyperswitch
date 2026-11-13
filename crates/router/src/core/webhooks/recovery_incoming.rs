@@ -311,10 +311,8 @@ pub struct ReportedTransactionAttempts {
     pub reported: Option<revenue_recovery::RecoveryPaymentAttempt>,
     /// How many attempts were recorded on the invoice before the transaction's.
     pub earlier: usize,
-    /// The processor token of the card of the last attempt recorded before the transaction's.
-    pub previous_card: Option<String>,
-    /// How many attempts the invoice has.
-    pub total: usize,
+    /// How many of the invoice's attempts were made with its card, the first card reported for it.
+    pub on_invoice_card: usize,
 }
 #[derive(Debug)]
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
@@ -573,10 +571,22 @@ impl RevenueRecoveryAttempt {
                 recorded_at.is_none_or(|recorded_at| attempt.created_at < recorded_at)
             })
             .collect();
-        let previous_card = earlier
+        let invoice_card = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .map(|recovery_metadata| {
+                &recovery_metadata
+                    .billing_connector_payment_details
+                    .payment_processor_token
+            });
+        let on_invoice_card = attempts
+            .payment_attempt_list
             .iter()
-            .max_by_key(|attempt| attempt.created_at)
-            .and_then(|attempt| attempt.payment_token.clone());
+            .filter(|attempt| {
+                invoice_card.is_some_and(|card| attempt.payment_token.as_ref() == Some(card))
+            })
+            .count();
         let reported = match listed {
             Some(attempt) => Some(recovery_attempt.to_recovery_attempt(state, attempt).await),
             None => None,
@@ -584,8 +594,7 @@ impl RevenueRecoveryAttempt {
         Ok(ReportedTransactionAttempts {
             reported,
             earlier: earlier.len(),
-            previous_card,
-            total: attempts.payment_attempt_list.len(),
+            on_invoice_card,
         })
     }
 

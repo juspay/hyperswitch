@@ -327,6 +327,10 @@ pub mod business_status {
     /// A reported transaction was recorded after a newer transaction of its invoice was applied
     pub const RECOVERY_REQUEST_STALE: &str = "RECOVERY_REQUEST_STALE";
 
+    /// A reported transaction made with another card than its invoice's was recorded; it is not a
+    /// retry
+    pub const RECOVERY_REQUEST_OTHER_CARD: &str = "RECOVERY_REQUEST_OTHER_CARD";
+
     /// A reported transaction is recorded on its invoice, but not by this report
     pub const RECOVERY_REQUEST_DUPLICATE: &str = "RECOVERY_REQUEST_DUPLICATE";
 

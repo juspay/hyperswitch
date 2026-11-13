@@ -111,7 +111,6 @@ async fn decide_reported_retry(
     payment_intent: &PaymentIntent,
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
-    is_same_card: bool,
 ) -> (
     ExternalTriggerState,
     Option<common_enums::RevenueRecoveryABAlgorithm>,
@@ -143,7 +142,6 @@ async fn decide_reported_retry(
         get_card_availability(state, request.connector_customer_id.peek(), payment_intent).await;
     let retries_after_hard_decline = get_retries_after_hard_decline(
         previous_trigger_state.and_then(|trigger_state| trigger_state.retries_after_hard_decline),
-        is_same_card,
         matches!(card_availability, CardAvailability::HardDecline),
     );
 
@@ -477,14 +475,12 @@ fn get_ladder_progress(
     }
 }
 
-/// Retries made with the card of the invoice since it was first hard declined. A hard decline is
-/// about the card, so a report on another card starts over.
+/// Retries made with the card of the invoice since it was first hard declined.
 fn get_retries_after_hard_decline(
     previous_retries: Option<u16>,
-    is_same_card: bool,
     is_hard_declined: bool,
 ) -> Option<u16> {
-    match previous_retries.filter(|_| is_same_card) {
+    match previous_retries {
         Some(retries) => Some(retries.saturating_add(1)),
         None => is_hard_declined.then_some(0),
     }
@@ -603,6 +599,8 @@ enum ReportOutcome {
     CustomerInitiated,
     /// A newer report of the invoice was applied first, so only recorded.
     Stale,
+    /// Made with another card than the invoice's, so only recorded.
+    OtherCard,
     /// The transaction is recorded on the invoice, but not by this report.
     Duplicate,
     /// The invoice is closed, so nothing is recorded.
@@ -638,6 +636,7 @@ impl ReportOutcome {
             | Self::WebhookDisabled(_)
             | Self::CustomerInitiated
             | Self::Stale
+            | Self::OtherCard
             | Self::Duplicate
             | Self::InvoiceClosed
             | Self::InvoiceOutOfSync => None,
@@ -652,6 +651,7 @@ impl ReportOutcome {
             Self::WebhookDisabled(_) => "webhook_disabled",
             Self::CustomerInitiated => "customer_initiated",
             Self::Stale => "stale",
+            Self::OtherCard => "other_card",
             Self::Duplicate => "duplicate",
             Self::InvoiceClosed => "invoice_closed",
             Self::InvoiceOutOfSync => "invoice_out_of_sync",
@@ -665,6 +665,7 @@ impl ReportOutcome {
             Self::RetryScheduled
             | Self::CustomerInitiated
             | Self::Stale
+            | Self::OtherCard
             | Self::Duplicate
             | Self::InvoiceClosed
             | Self::InvoiceOutOfSync => None,
@@ -679,6 +680,7 @@ impl ReportOutcome {
             Self::WebhookDisabled(_) => business_status::RECOVERY_REQUEST_WEBHOOK_DISABLED,
             Self::CustomerInitiated => business_status::RECOVERY_REQUEST_CUSTOMER_INITIATED,
             Self::Stale => business_status::RECOVERY_REQUEST_STALE,
+            Self::OtherCard => business_status::RECOVERY_REQUEST_OTHER_CARD,
             Self::Duplicate => business_status::RECOVERY_REQUEST_DUPLICATE,
             Self::InvoiceClosed => business_status::RECOVERY_REQUEST_INVOICE_CLOSED,
             Self::InvoiceOutOfSync => business_status::RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC,
@@ -1111,10 +1113,10 @@ async fn apply_reported_transaction(
             }
             let recorded_on_invoice = previous_recovery_metadata
                 .map(|recovery_metadata| usize::from(recovery_metadata.total_retry_count));
-            if recorded_on_invoice != Some(attempts.total) {
+            if recorded_on_invoice != Some(attempts.on_invoice_card) {
                 logger::error!(
                     ?recorded_on_invoice,
-                    attempts = ?attempts.total,
+                    attempts_on_invoice_card = ?attempts.on_invoice_card,
                     "The invoice does not show every attempt recorded on it"
                 );
                 return Ok(ReportOutcome::InvoiceOutOfSync);
@@ -1152,6 +1154,9 @@ async fn apply_reported_transaction(
     if !is_merchant_initiated(request) {
         return Ok(ReportOutcome::CustomerInitiated);
     }
+    if !is_on_invoice_card(request, previous_recovery_metadata) {
+        return Ok(ReportOutcome::OtherCard);
+    }
     if let Some(last_transaction_created_at) = previous_trigger_state
         .as_ref()
         .and_then(|trigger_state| trigger_state.last_transaction_created_at)
@@ -1168,17 +1173,6 @@ async fn apply_reported_transaction(
     }
 
     let is_existing_invoice = attempts.earlier > 0;
-    let is_same_card = request
-        .payment_method_data
-        .as_ref()
-        .is_some_and(|payment_method_data| {
-            attempts.previous_card.as_ref()
-                == Some(
-                    payment_method_data
-                        .primary_processor_payment_method_token
-                        .peek(),
-                )
-        });
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
         .map_err(|error| report_step_failed("invoice", error))?;
@@ -1192,7 +1186,6 @@ async fn apply_reported_transaction(
         &payment_intent,
         previous_trigger_state.as_ref(),
         is_existing_invoice,
-        is_same_card,
     ))
     .await;
     let next_retry = trigger_state.next_retry;
@@ -1335,6 +1328,32 @@ async fn is_webhook_queued(
     }
 }
 
+/// The first card reported for an invoice is its card. A transaction on any other card, or without
+/// one, is only recorded: it neither counts as a retry nor moves the invoice's next retry.
+fn is_on_invoice_card(
+    request: &RecoveryPaymentsCreate,
+    recovery_metadata: Option<&api_models::payments::PaymentRevenueRecoveryMetadata>,
+) -> bool {
+    let card = request
+        .payment_method_data
+        .as_ref()
+        .map(|payment_method_data| {
+            payment_method_data
+                .primary_processor_payment_method_token
+                .peek()
+        });
+    match recovery_metadata {
+        None => card.is_some(),
+        Some(recovery_metadata) => {
+            card == Some(
+                &recovery_metadata
+                    .billing_connector_payment_details
+                    .payment_processor_token,
+            )
+        }
+    }
+}
+
 /// Only a transaction made off session with the customer absent is merchant initiated. A request
 /// that leaves either out gets the defaults the invoice is created with.
 fn is_merchant_initiated(request: &RecoveryPaymentsCreate) -> bool {
@@ -1447,7 +1466,8 @@ async fn finish_report(
         ReportOutcome::RetryScheduled
         | ReportOutcome::LimitsExhausted(_)
         | ReportOutcome::NoWebhook(_)
-        | ReportOutcome::CustomerInitiated => logger::info!(
+        | ReportOutcome::CustomerInitiated
+        | ReportOutcome::OtherCard => logger::info!(
             outcome = outcome.name(),
             reason = ?outcome.reason(),
             "Recovery report processed"
