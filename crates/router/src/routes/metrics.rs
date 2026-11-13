@@ -398,8 +398,9 @@ counter_metric!(
     GLOBAL_METER,
     name: "revenue_recovery.recovery_request.outcome",
     description: "Recovery requests by how their workflow ended (retry_scheduled, \
-                  limits_exhausted, no_webhook, customer_initiated, stale, duplicate, \
-                  invoice_closed, retries_exceeded, failed), with the next retry `reason`",
+                  limits_exhausted, no_webhook, webhook_disabled, customer_initiated, stale, \
+                  duplicate, invoice_closed, retries_exceeded, failed), with the next retry \
+                  `reason`",
     unit: "1",
 );
 counter_metric!(
@@ -416,6 +417,17 @@ histogram_metric_f64!(
     name: "revenue_recovery.recovery_request.queue_delay",
     description: "Seconds from the API accepting a recovery request to the run of its workflow \
                   that takes the invoice's lock, so any wait for the lock is included",
+    unit: "s",
+    boundaries: vec![
+        1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
+    ],
+);
+histogram_metric_f64!(
+    REVENUE_RECOVERY_REQUEST_TIME_TO_WEBHOOK,
+    GLOBAL_METER,
+    name: "revenue_recovery.recovery_request.time_to_webhook",
+    description: "Seconds from the API accepting a recovery request to the webhook with its next \
+                  retry being queued, once per request, by `outcome`",
     unit: "s",
     boundaries: vec![
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0

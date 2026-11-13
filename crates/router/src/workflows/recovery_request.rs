@@ -1,5 +1,6 @@
 //! The recovery request workflow, which records a transaction the merchant reported on a profile
-//! whose retries it triggers, and decides the next retry of its invoice.
+//! whose retries it triggers, decides the next retry of its invoice, and tells the merchant by
+//! webhook.
 
 use common_utils::errors::CustomResult;
 #[cfg(feature = "v2")]
