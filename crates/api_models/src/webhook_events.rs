@@ -227,10 +227,20 @@ impl common_utils::events::ApiEventMetric for WebhookDeliveryAttemptListRequestI
     }
 }
 
+/// Options for manually retrying a webhook delivery.
+#[derive(Debug, Default, Deserialize, Serialize, ToSchema)]
+pub struct WebhookDeliveryRetryRequest {
+    /// Replace saved custom headers with the current business profile's custom headers.
+    /// The original body and signature are preserved. Defaults to false.
+    #[serde(default)]
+    pub refresh_headers: bool,
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct WebhookDeliveryRetryRequestInternal {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub event_id: String,
+    pub refresh_headers: bool,
 }
 
 impl common_utils::events::ApiEventMetric for WebhookDeliveryRetryRequestInternal {

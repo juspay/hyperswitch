@@ -11,7 +11,7 @@ use crate::{
     },
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
-        WebhookDeliveryRetryRequestInternal,
+        WebhookDeliveryRetryRequest, WebhookDeliveryRetryRequestInternal,
     },
 };
 
@@ -145,6 +145,7 @@ pub async fn retry_webhook_delivery_attempt(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    query: web::Query<WebhookDeliveryRetryRequest>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventDeliveryRetry;
     let (merchant_id, event_id) = path.into_inner();
@@ -152,6 +153,7 @@ pub async fn retry_webhook_delivery_attempt(
     let request_internal = WebhookDeliveryRetryRequestInternal {
         merchant_id: merchant_id.clone(),
         event_id,
+        refresh_headers: query.into_inner().refresh_headers,
     };
 
     Box::pin(api::server_wrap(
@@ -164,6 +166,7 @@ pub async fn retry_webhook_delivery_attempt(
                 state,
                 request_internal.merchant_id,
                 request_internal.event_id,
+                request_internal.refresh_headers,
             )
         },
         &auth::JWTAuthMerchantFromRoute {
@@ -175,4 +178,33 @@ pub async fn retry_webhook_delivery_attempt(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manual_retry_refresh_headers_is_opt_in() {
+        for (query, expected) in [
+            ("", false),
+            ("refresh_headers=false", false),
+            ("refresh_headers=true", true),
+        ] {
+            let options = web::Query::<WebhookDeliveryRetryRequest>::from_query(query)
+                .expect("valid manual retry query");
+            assert_eq!(options.refresh_headers, expected);
+        }
+    }
+
+    #[test]
+    fn manual_retry_rejects_invalid_refresh_headers() {
+        for query in [
+            "refresh_headers=",
+            "refresh_headers=yes",
+            "refresh_headers=1",
+        ] {
+            assert!(web::Query::<WebhookDeliveryRetryRequest>::from_query(query).is_err());
+        }
+    }
 }

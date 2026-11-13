@@ -336,7 +336,12 @@ pub async fn retry_delivery_attempt(
     state: SessionState,
     merchant_id: common_utils::id_type::MerchantId,
     event_id: String,
+    refresh_headers: bool,
 ) -> RouterResponse<api::webhook_events::EventRetrieveResponse> {
+    use common_utils::{ext_traits::Encode, types::keymanager::Identifier};
+    use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+    use hyperswitch_masking::Secret;
+
     let store = state.store.as_ref();
     let master_key = &store.get_master_key().to_vec().into();
 
@@ -388,6 +393,51 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find business profile")?;
 
+    // Validate the saved request before inserting an attempt. Even a refreshed retry must
+    // preserve the original payload and signature rather than rebuild the webhook body.
+    let mut request_content: api::webhook_events::OutgoingWebhookRequestContent = event_to_retry
+        .request
+        .as_ref()
+        .get_required_value("request")
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .peek()
+        .parse_struct("OutgoingWebhookRequestContent")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse webhook event request information")?;
+
+    let request = if refresh_headers {
+        let custom_headers = business_profile
+            .get_outgoing_webhook_headers()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")?;
+        super::outgoing::refresh_outgoing_webhook_request_headers(
+            &mut request_content,
+            custom_headers,
+        );
+
+        // Persist the effective request on this attempt only. Automatic retries continue
+        // reading the unchanged initial event's request.
+        let encoded_request = request_content
+            .encode_to_string_of_json()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode refreshed outgoing webhook request")?;
+        Some(
+            crypto_operation(
+                &(&state).into(),
+                common_utils::type_name!(domain::Event),
+                CryptoOperation::Encrypt(Secret::new(encoded_request)),
+                Identifier::Merchant(key_store.merchant_id.clone()),
+                key_store.key.get_inner().peek(),
+            )
+            .await
+            .and_then(|value| value.try_into_operation())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encrypt refreshed outgoing webhook request")?,
+        )
+    } else {
+        event_to_retry.request
+    };
+
     let delivery_attempt = storage::enums::WebhookDeliveryAttempt::ManualRetry;
     let new_event_id = super::utils::generate_event_id();
     let idempotent_event_id = super::utils::get_idempotent_event_id(
@@ -412,7 +462,7 @@ pub async fn retry_delivery_attempt(
         primary_object_created_at: event_to_retry.primary_object_created_at,
         idempotent_event_id: Some(idempotent_event_id),
         initial_attempt_id: event_to_retry.initial_attempt_id,
-        request: event_to_retry.request,
+        request,
         response: None,
         delivery_attempt: Some(delivery_attempt),
         metadata: event_to_retry.metadata,
@@ -428,17 +478,6 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert event")?;
 
-    // We only allow retrying deliveries for events with `request` populated.
-    let request_content = event
-        .request
-        .as_ref()
-        .get_required_value("request")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-        .peek()
-        .parse_struct("OutgoingWebhookRequestContent")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to parse webhook event request information")?;
-
     let sensitive_header_names = business_profile.get_sensitive_webhook_header_names();
 
     Box::pin(super::outgoing::trigger_webhook_and_raise_event(
@@ -448,7 +487,7 @@ pub async fn retry_delivery_attempt(
         provider_merchant_id,
         processor_merchant_id,
         event,
-        request_content,
+        Some(request_content),
         delivery_attempt,
         None,
         None,

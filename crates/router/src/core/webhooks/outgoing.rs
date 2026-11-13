@@ -36,7 +36,7 @@ use crate::{
     events::outgoing_webhook_logs::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
     },
-    logger,
+    headers, logger,
     routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
@@ -1123,6 +1123,53 @@ fn get_webhook_url_from_business_profile(
         .map(ExposeInterface::expose)
 }
 
+fn get_outgoing_webhook_headers(
+    custom_headers: Option<HashMap<String, Secret<String>>>,
+) -> Vec<(String, services::request::Maskable<String>)> {
+    let mut headers = vec![
+        (
+            reqwest::header::CONTENT_TYPE.to_string(),
+            mime::APPLICATION_JSON.essence_str().into(),
+        ),
+        (
+            reqwest::header::USER_AGENT.to_string(),
+            consts::USER_AGENT.to_string().into(),
+        ),
+    ];
+    headers.extend(
+        custom_headers
+            .into_iter()
+            .flatten()
+            .map(|(name, value)| (name, value.expose().into_masked())),
+    );
+    headers
+}
+
+fn is_webhook_signature_header(name: &str) -> bool {
+    name.eq_ignore_ascii_case(headers::X_WEBHOOK_SIGNATURE)
+        || name.eq_ignore_ascii_case(headers::STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE)
+}
+
+/// Refresh only custom headers. The saved payload and its original signature must stay together.
+/// Other saved headers are custom: request construction adds only content-type, user-agent,
+/// custom headers and the signature. Rebuilding removes custom headers deleted from the profile.
+pub(super) fn refresh_outgoing_webhook_request_headers(
+    request: &mut OutgoingWebhookRequestContent,
+    custom_headers: Option<HashMap<String, Secret<String>>>,
+) {
+    request
+        .headers
+        .retain(|(name, _)| is_webhook_signature_header(name));
+    let mut refreshed_headers: Vec<_> = get_outgoing_webhook_headers(custom_headers)
+        .into_iter()
+        // Signature headers are reserved: profile edits must not change the saved signature.
+        .filter(|(name, _)| !is_webhook_signature_header(name))
+        .map(|(name, value)| (name, Secret::new(value.into_inner())))
+        .collect();
+    refreshed_headers.append(&mut request.headers);
+    request.headers = refreshed_headers;
+}
+
 pub(crate) fn get_outgoing_webhook_request(
     webhook_recipient_account: &domain::MerchantAccount,
     outgoing_webhook: api::OutgoingWebhook,
@@ -1133,37 +1180,13 @@ pub(crate) fn get_outgoing_webhook_request(
         outgoing_webhook: api::OutgoingWebhook,
         business_profile: &domain::Profile,
     ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
-        let mut headers = vec![
-            (
-                reqwest::header::CONTENT_TYPE.to_string(),
-                mime::APPLICATION_JSON.essence_str().into(),
-            ),
-            (
-                reqwest::header::USER_AGENT.to_string(),
-                consts::USER_AGENT.to_string().into(),
-            ),
-        ];
-
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
         let custom_headers = business_profile
-            .outgoing_webhook_custom_http_headers
-            .clone()
-            .map(|headers| {
-                headers
-                    .into_inner()
-                    .expose()
-                    .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-                    .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-                    .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")
-            })
-            .transpose()?;
-        if let Some(ref map) = custom_headers {
-            headers.extend(
-                map.iter()
-                    .map(|(key, value)| (key.clone(), value.clone().into_masked())),
-            );
-        };
+            .get_outgoing_webhook_headers()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")?;
+        let mut headers = get_outgoing_webhook_headers(custom_headers);
         let outgoing_webhooks_signature = transformed_outgoing_webhook
             .get_outgoing_webhooks_signature(payment_response_hash_key)?;
 
@@ -1853,5 +1876,116 @@ fn get_action_handler(
         enums::WebhookDeliveryAttempt::InitialAttempt => Box::new(types::InitialAttempt),
         enums::WebhookDeliveryAttempt::AutomaticRetry => Box::new(types::AutomaticRetry),
         enums::WebhookDeliveryAttempt::ManualRetry => Box::new(types::ManualRetry),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn saved_request(headers: &[(&str, &str)]) -> OutgoingWebhookRequestContent {
+        OutgoingWebhookRequestContent {
+            body: Secret::new("{\n  \"event_id\": \"original-event\"\n}".to_owned()),
+            headers: headers
+                .iter()
+                .map(|(name, value)| (name.to_string(), Secret::new(value.to_string())))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn refresh_headers_replaces_custom_headers_and_preserves_body_and_signature() {
+        for signature_header in ["x-webhook-signature-512", "sTrIpE-sIgNaTuRe"] {
+            let mut request = saved_request(&[
+                ("content-type", "application/json"),
+                ("user-agent", "old-user-agent"),
+                ("Authorization", "old-credential"),
+                ("AUTHORIZATION", "duplicate-old-credential"),
+                ("X-Old-Auth", "obsolete-credential"),
+                (signature_header, "original-signature"),
+            ]);
+            let original_body = request.body.peek().clone();
+            let custom_headers = HashMap::from([
+                (
+                    "authorization".to_owned(),
+                    Secret::new("new-credential".to_owned()),
+                ),
+                (
+                    "X-New-Header".to_owned(),
+                    Secret::new("new-value".to_owned()),
+                ),
+            ]);
+
+            refresh_outgoing_webhook_request_headers(&mut request, Some(custom_headers));
+
+            assert_eq!(request.body.peek(), &original_body);
+            assert_eq!(
+                request
+                    .headers
+                    .iter()
+                    .filter(|(name, _)| name.eq_ignore_ascii_case("authorization"))
+                    .map(|(_, value)| value.peek().as_str())
+                    .collect::<Vec<_>>(),
+                vec!["new-credential"]
+            );
+            assert!(!request
+                .headers
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case("X-Old-Auth")));
+            assert!(request
+                .headers
+                .iter()
+                .any(|(name, value)| { name == "X-New-Header" && value.peek() == "new-value" }));
+            assert!(request.headers.iter().any(|(name, value)| {
+                name == signature_header && value.peek() == "original-signature"
+            }));
+            assert_eq!(request.headers.len(), 5);
+        }
+    }
+
+    #[test]
+    fn refresh_headers_clears_removed_custom_headers_and_restores_defaults() {
+        for custom_headers in [None, Some(HashMap::new())] {
+            let mut request = saved_request(&[
+                ("Content-Type", "old-custom-content-type"),
+                ("User-Agent", "old-custom-user-agent"),
+                ("Authorization", "removed-credential"),
+            ]);
+
+            refresh_outgoing_webhook_request_headers(&mut request, custom_headers);
+
+            assert_eq!(request.headers.len(), 2);
+            assert!(request.headers.iter().any(|(name, value)| {
+                name == "content-type" && value.peek() == "application/json"
+            }));
+            assert!(request.headers.iter().any(|(name, value)| {
+                name == "user-agent" && value.peek() == consts::USER_AGENT
+            }));
+        }
+    }
+
+    #[test]
+    fn refresh_headers_does_not_replace_saved_signatures_from_profile() {
+        let mut request = saved_request(&[(headers::X_WEBHOOK_SIGNATURE, "original-signature")]);
+        let custom_headers = HashMap::from([
+            (
+                "x-webhook-signature-512".to_owned(),
+                Secret::new("replacement-signature".to_owned()),
+            ),
+            (
+                "STRIPE-SIGNATURE".to_owned(),
+                Secret::new("another-signature".to_owned()),
+            ),
+        ]);
+
+        refresh_outgoing_webhook_request_headers(&mut request, Some(custom_headers));
+
+        let signatures: Vec<_> = request
+            .headers
+            .iter()
+            .filter(|(name, _)| is_webhook_signature_header(name))
+            .map(|(_, value)| value.peek().as_str())
+            .collect();
+        assert_eq!(signatures, vec!["original-signature"]);
     }
 }
