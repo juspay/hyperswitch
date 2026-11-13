@@ -365,7 +365,7 @@ async fn decide_next_retry(
     let Some(grace_window_end) = grace_window_end else {
         return NextRetryDecision::not_scheduled(
             retry_count,
-            RecoveryNoRetryReason::GracePeriodExceeded,
+            RecoveryNoRetryReason::GracePeriodExpired,
         );
     };
 
@@ -602,9 +602,9 @@ fn get_no_retry_reason(
     } else if limit_checks.is_retry_budget_spent {
         Some(RecoveryNoRetryReason::RetriesExhausted)
     } else if limit_checks.is_grace_window_over {
-        Some(RecoveryNoRetryReason::GracePeriodExceeded)
+        Some(RecoveryNoRetryReason::GracePeriodExpired)
     } else if limit_checks.is_hard_decline_limit_reached {
-        Some(RecoveryNoRetryReason::HardDecline)
+        Some(RecoveryNoRetryReason::HardDeclined)
     } else if limit_checks.is_below_retry_threshold {
         Some(RecoveryNoRetryReason::BelowRetryThreshold)
     } else {
@@ -633,7 +633,7 @@ fn get_next_retry(
     };
 
     if schedule_time >= grace_window_end {
-        RecoveryNextRetry::not_scheduled(retry_count, RecoveryNoRetryReason::GracePeriodExceeded)
+        RecoveryNextRetry::not_scheduled(retry_count, RecoveryNoRetryReason::GracePeriodExpired)
     } else {
         RecoveryNextRetry::scheduled(retry_count, schedule_time)
     }

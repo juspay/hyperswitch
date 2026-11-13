@@ -2003,7 +2003,11 @@ pub enum EventRecipient {
     strum::EnumString,
 )]
 #[cfg_attr(
-    feature = "diesel",
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
     router_derive::diesel_enum(storage_type = "db_enum")
 )]
 #[serde(rename_all = "snake_case")]
@@ -2015,6 +2019,8 @@ pub enum EventObjectType {
     MandateDetails,
     PayoutDetails,
     SubscriptionDetails,
+    #[cfg(feature = "v2")]
+    RecoveryRetryDetails,
 }
 
 #[derive(
@@ -2032,7 +2038,11 @@ pub enum EventObjectType {
     ToSchema,
 )]
 #[cfg_attr(
-    feature = "diesel",
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
     router_derive::diesel_enum(storage_type = "db_enum")
 )]
 #[serde(rename_all = "snake_case")]
@@ -2045,6 +2055,9 @@ pub enum EventClass {
     #[cfg(feature = "payouts")]
     Payouts,
     Subscriptions,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers.
+    #[cfg(feature = "v2")]
+    RevenueRecovery,
 }
 
 impl EventClass {
@@ -2091,6 +2104,11 @@ impl EventClass {
                 EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
+            #[cfg(feature = "v2")]
+            Self::RevenueRecovery => HashSet::from([
+                EventType::RecoveryRetryScheduled,
+                EventType::RecoveryLimitsExhausted,
+            ]),
         }
     }
 }
@@ -2109,7 +2127,11 @@ impl EventClass {
     ToSchema,
 )]
 #[cfg_attr(
-    feature = "diesel",
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
     router_derive::diesel_enum(storage_type = "db_enum")
 )]
 #[serde(rename_all = "snake_case")]
@@ -2159,6 +2181,14 @@ pub enum EventType {
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled.
+    #[cfg(feature = "v2")]
+    RecoveryRetryScheduled,
+    /// No further retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled, because a limit of the profile is reached.
+    #[cfg(feature = "v2")]
+    RecoveryLimitsExhausted,
 }
 
 /// Maps primary payment/refund events to their corresponding surcharge events

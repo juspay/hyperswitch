@@ -11,7 +11,7 @@ license.workspace = true
 default = ["kv_store"]
 kv_store = []
 v1 = ["common_utils/v1", "common_types/v1"]
-v2 = ["common_utils/v2", "common_types/v2"]
+v2 = ["common_utils/v2", "common_types/v2", "common_enums/v2"]
 tokenization_v2 = []
 deja = ["dep:deja", "deja/diesel-pg"]
 

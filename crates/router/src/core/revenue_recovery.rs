@@ -2138,8 +2138,8 @@ fn map_external_trigger_recovery_status(
                 RecoveryStatus::Monitoring
             }
             RecoveryNoRetryReason::RetriesExhausted
-            | RecoveryNoRetryReason::GracePeriodExceeded
-            | RecoveryNoRetryReason::HardDecline
+            | RecoveryNoRetryReason::GracePeriodExpired
+            | RecoveryNoRetryReason::HardDeclined
             | RecoveryNoRetryReason::Cancelled => RecoveryStatus::Terminated,
         },
     }

@@ -1135,9 +1135,11 @@ pub enum RecoveryNoRetryReason {
     /// The invoice has used every retry it is allowed.
     RetriesExhausted,
     /// The grace period of the invoice is over, or would be over by the time of the next retry.
-    GracePeriodExceeded,
+    #[serde(alias = "grace_period_exceeded")]
+    GracePeriodExpired,
     /// The card was hard declined, and the retries the profile allows after that are used up.
-    HardDecline,
+    #[serde(alias = "hard_decline")]
+    HardDeclined,
     /// The retry algorithm of the profile is `monitoring`, so transactions are only recorded.
     Monitoring,
     /// The invoice is cancelled.

@@ -638,5 +638,11 @@ fn webhook_status_config(event_class: EventClass) -> types::WebhookEventClassCon
             api_field: "invoice_statuses_enabled",
             statuses: webhook_status_metadata::<InvoiceStatus>(Into::<Option<EventType>>::into),
         },
+        #[cfg(feature = "v2")]
+        EventClass::RevenueRecovery => types::WebhookEventClassConfig {
+            event_class,
+            api_field: "",
+            statuses: Vec::new(),
+        },
     }
 }

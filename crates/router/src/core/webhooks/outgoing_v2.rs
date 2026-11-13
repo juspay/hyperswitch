@@ -738,6 +738,11 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
             webhooks::OutgoingWebhookContent::PayoutDetails(payout_response) => Self::Payout {
                 payout_id: payout_response.payout_id.clone(),
             },
+            webhooks::OutgoingWebhookContent::RecoveryRetryDetails(retry_details) => {
+                Self::RevenueRecovery {
+                    payment_id: retry_details.id.clone(),
+                }
+            }
         }
     }
 }
@@ -786,6 +791,10 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
             } => Self::Subscription {
                 subscription_id,
                 invoice_id,
+                payment_id,
+                content: serde_json::Value::Null,
+            },
+            diesel_models::EventMetadata::RevenueRecovery { payment_id } => Self::RevenueRecovery {
                 payment_id,
                 content: serde_json::Value::Null,
             },

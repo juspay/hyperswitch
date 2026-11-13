@@ -516,6 +516,8 @@ pub enum OutgoingWebhookContent {
     #[cfg(feature = "payouts")]
     #[schema(value_type = PayoutCreateResponse, title = "PayoutCreateResponse")]
     PayoutDetails(Box<payouts::PayoutCreateResponse>),
+    #[schema(value_type = RecoveryRetryWebhookDetails, title = "RecoveryRetryWebhookDetails")]
+    RecoveryRetryDetails(Box<payments::RecoveryRetryWebhookDetails>),
 }
 
 #[derive(Debug, Clone, Serialize)]
