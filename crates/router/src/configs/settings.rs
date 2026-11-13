@@ -8,8 +8,8 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_types::user::theme::EmailThemeConfig;
-use common_utils::{ext_traits::ConfigExt, id_type};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::Url};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -1847,10 +1847,29 @@ impl Default for CellInformation {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ThemeSettings {
     pub storage: FileStorageConfig,
     pub email_config: EmailThemeConfig,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            storage: FileStorageConfig::default(),
+            email_config: EmailThemeConfig {
+                entity_name: SafeString::default(),
+                #[allow(clippy::expect_used)]
+                entity_logo_url: Url::wrap(
+                    url::Url::parse("https://app.hyperswitch.io/email-assets/HyperswitchLogo.png")
+                        .expect("Failed to parse default email entity logo URL"),
+                ),
+                primary_color: SafeString::default(),
+                foreground_color: SafeString::default(),
+                background_color: SafeString::default(),
+            },
+        }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(
