@@ -1705,7 +1705,7 @@ fn build_rollout_keys_and_context(
     // Build base context (common for all flows)
     let mut context = superposition::ConfigContext::new()
         .with("organization_id", org_id)
-        .with("provider_merchant_id", merchant_id)
+        .with("processor_merchant_id", merchant_id)
         .with("connector", connector_name)
         .with("flow_name", flow_name);
 
@@ -1782,7 +1782,7 @@ fn build_rollout_keys_and_context_for_payouts(
         .unwrap_or_else(|| "unknown".to_string());
 
     let context = superposition::ConfigContext::new()
-        .with("provider_merchant_id", merchant_id)
+        .with("processor_merchant_id", merchant_id)
         .with("connector", connector_name)
         .with("flow_name", flow_name)
         .with("payment_method_type", &pmt);
