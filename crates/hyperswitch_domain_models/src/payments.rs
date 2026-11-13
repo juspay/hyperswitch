@@ -1663,6 +1663,7 @@ pub struct RevenueRecoveryData {
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 /// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
@@ -1851,6 +1852,7 @@ where
                 external_trigger_state: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.external_trigger_state.clone()),
+                last_failure_code: self.revenue_recovery_data.standardised_error_code,
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata
