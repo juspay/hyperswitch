@@ -1380,7 +1380,10 @@ async fn wait_for_invoice_lock(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::RETRIES_EXCEEDED)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_report_outcome("retries_exceeded", None);
     Ok(())
@@ -1445,7 +1448,10 @@ pub(crate) async fn finish_failed_report(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::FAILURE)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_report_outcome("failed", None);
     Ok(())
@@ -1487,7 +1493,10 @@ pub(crate) async fn retry_report(
             state
                 .store
                 .as_scheduler()
-                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
+                .finish_process_with_business_status(
+                    process,
+                    business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+                )
                 .await
                 .change_context(sch_errors::ProcessTrackerError::ProcessUpdateFailed)?;
             record_report_outcome("retries_exceeded", None);
