@@ -30,7 +30,6 @@ use super::{
     api,
     card_selection::{self, CardAvailability, CardSelection},
     get_recovery_grace_window_end, is_retry_budget_exhausted,
-    retry_stats::RetryOutcomeEvent,
     schedule::StaticLadderProgress,
 };
 use crate::{
@@ -163,7 +162,6 @@ async fn decide_reported_retry(
 
     (
         ExternalTriggerState {
-            last_failure_code,
             consumed_ladder_rungs: decision
                 .next_ladder_progress
                 .unwrap_or(ladder_progress)
@@ -485,8 +483,8 @@ fn get_retries_after_hard_decline(
     }
 }
 
-/// The standardised error code the next retry is counted against: that of this transaction when it
-/// failed. A partial charge leaves none, as it does for the retries Hyperswitch makes.
+/// The standardised error code the next retry time is worked out from: that of this transaction,
+/// if it failed.
 fn get_last_failure_code(
     transaction_status: RecoveryTransactionStatus,
     recovery_attempt: &RecoveryPaymentAttempt,
@@ -494,24 +492,6 @@ fn get_last_failure_code(
     match transaction_status {
         RecoveryTransactionStatus::Failure => recovery_attempt.standardised_error_code,
         RecoveryTransactionStatus::Charged | RecoveryTransactionStatus::PartialCharged => None,
-    }
-}
-
-/// The result to count in the cluster data, as the error code the retry was made after and whether
-/// it succeeded. Only a retry that was scheduled is counted, which leaves out the first transaction
-/// of an invoice and the merchant's own retries before recovery starts, and partial charges are not
-/// counted, as they are not for the retries Hyperswitch makes.
-fn get_retry_outcome(
-    previous_trigger_state: Option<&ExternalTriggerState>,
-    transaction_status: RecoveryTransactionStatus,
-) -> Option<(Option<common_enums::StandardisedCode>, bool)> {
-    let trigger_state = previous_trigger_state
-        .filter(|trigger_state| trigger_state.next_retry.schedule_time.is_some())?;
-
-    match transaction_status {
-        RecoveryTransactionStatus::Failure => Some((trigger_state.last_failure_code, false)),
-        RecoveryTransactionStatus::Charged => Some((trigger_state.last_failure_code, true)),
-        RecoveryTransactionStatus::PartialCharged => None,
     }
 }
 
@@ -1172,13 +1152,6 @@ async fn apply_reported_transaction(
     .await
     .map_err(|error| report_step_failed("save_state", error))?;
 
-    if let Some((failure_code, success)) =
-        get_retry_outcome(previous_trigger_state.as_ref(), request.transaction_status)
-    {
-        RetryOutcomeEvent::from_retry_outcome(recovery_attempt.created_at, failure_code, success)
-            .record(state)
-            .await;
-    }
     logger::info!(
         retry_count = next_retry.retry_count,
         schedule_time = ?next_retry.schedule_time,
