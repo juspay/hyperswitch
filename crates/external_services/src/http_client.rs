@@ -1,4 +1,9 @@
-use common_utils::{consts, errors::CustomResult, request::Request};
+use common_utils::{
+    consts,
+    errors::CustomResult,
+    outbound_url::HostMatcher,
+    request::{EgressScope, Request},
+};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
@@ -24,7 +29,7 @@ pub mod request;
 #[cfg(feature = "deja")]
 pub mod boundary;
 
-use std::{error::Error, time::Duration};
+use std::{error::Error, sync::OnceLock, time::Duration};
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
 use common_utils::request::{RequestContent, XmlConfig};
@@ -116,8 +121,12 @@ pub async fn send_request(
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
 
-    let client = client::create_client(
+    let egress_scope = effective_egress_scope(request.egress_scope, &url, client_proxy);
+    ensure_destination_allowed(egress_scope, &url)?;
+
+    let client = client::create_scoped_client(
         client_proxy,
+        egress_scope,
         request.certificate,
         request.certificate_key,
         request.ca_certificate,
@@ -189,20 +198,22 @@ pub async fn send_request(
 
     // Retain the typed cause so callers can distinguish transport errors from
     // request-construction errors within RequestNotSent, including on retries.
-    let map_request_error = |error: reqwest::Error| {
-        let context = match &error {
-            error if error.is_timeout() => {
-                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                HttpClientError::RequestTimeoutReceived
-            }
-            error if is_connection_closed_before_message_could_complete(error) => {
-                metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
-                HttpClientError::ConnectionClosedIncompleteMessage
-            }
-            _ => HttpClientError::RequestNotSent(error.to_string()),
+    let map_request_error =
+        |error: reqwest::Error| {
+            let context = outbound_destination::find_destination_not_allowed(&error)
+                .unwrap_or_else(|| match &error {
+                    error if error.is_timeout() => {
+                        metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                        HttpClientError::RequestTimeoutReceived
+                    }
+                    error if is_connection_closed_before_message_could_complete(error) => {
+                        metrics::REQUEST_BUILD_FAILURE.add(1, metrics_tag);
+                        HttpClientError::ConnectionClosedIncompleteMessage
+                    }
+                    _ => HttpClientError::RequestNotSent(error.to_string()),
+                });
+            error_stack::Report::new(error).change_context(context)
         };
-        error_stack::Report::new(error).change_context(context)
-    };
 
     // We cannot clone the request type, because it has Form trait which is not cloneable. So we are cloning the request builder here.
     let cloned_send_request = request.try_clone().map(|cloned_request| async {
@@ -263,6 +274,35 @@ pub async fn send_request(
     };
 
     response
+}
+
+static BYPASS_PROXY_HOSTS: OnceLock<HostMatcher> = OnceLock::new();
+
+fn effective_egress_scope(
+    declared_scope: EgressScope,
+    url: &url::Url,
+    client_proxy: &Proxy,
+) -> EgressScope {
+    let targets_bypass_proxy_host = BYPASS_PROXY_HOSTS
+        .get_or_init(|| HostMatcher::parse(client_proxy.bypass_proxy_hosts.as_deref()))
+        .matches(url.host().as_ref());
+    match declared_scope {
+        EgressScope::Intranet => EgressScope::Intranet,
+        EgressScope::Internet if targets_bypass_proxy_host => EgressScope::Intranet,
+        EgressScope::Internet => EgressScope::Internet,
+    }
+}
+
+fn ensure_destination_allowed(
+    egress_scope: EgressScope,
+    url: &url::Url,
+) -> CustomResult<(), HttpClientError> {
+    match egress_scope {
+        EgressScope::Intranet => Ok(()),
+        EgressScope::Internet => outbound_destination::ensure_public_url_host(url)
+            .map_err(error_stack::Report::new)
+            .attach_printable("Destination is an IP address that is not publicly routable"),
+    }
 }
 
 fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) -> bool {

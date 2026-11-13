@@ -196,6 +196,9 @@ merchant_cert = "MERCHANT CERTIFICATE"
 common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
 applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
+[proxy]
+bypass_proxy_hosts = "localhost, 127.0.0.1"
+
 [locker]
 host = "http://127.0.0.1:3000"
 mock_locker = true

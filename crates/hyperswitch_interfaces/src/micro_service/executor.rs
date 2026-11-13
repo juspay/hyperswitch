@@ -83,7 +83,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
         }
 
         // Step 2: Build headers and inject trace/request/tenant context.
-        let mut http_request = Request::new(O::METHOD, url.as_str());
+        let mut http_request = Request::new_intranet(O::METHOD, url.as_str());
         http_request.headers = parent_headers;
         {
             let header_name = trace_header.header_name();
