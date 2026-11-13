@@ -1356,7 +1356,7 @@ impl super::RedisConnectionWithContext {
         let options = StreamReadOptions::default()
             .count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
 
-        let reply: redis::streams::StreamReadReply = track_redis_call(
+        let reply: Option<redis::streams::StreamReadReply> = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamReadEntries,
@@ -1372,6 +1372,7 @@ impl super::RedisConnectionWithContext {
                 _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
             }
         })?;
+        let reply = reply.ok_or_else(|| report!(errors::RedisError::StreamEmptyOrNotAvailable))?;
 
         Ok(reply
             .keys
@@ -1434,7 +1435,7 @@ impl super::RedisConnectionWithContext {
             options = options.group(group_name, consumer_name);
         }
 
-        let reply: redis::streams::StreamReadReply = track_redis_call(
+        let reply: Option<redis::streams::StreamReadReply> = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamReadWithOptions,
@@ -1450,6 +1451,7 @@ impl super::RedisConnectionWithContext {
                 _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
             }
         })?;
+        let reply = reply.ok_or_else(|| report!(errors::RedisError::StreamEmptyOrNotAvailable))?;
 
         Ok(reply
             .keys
