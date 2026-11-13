@@ -2135,7 +2135,7 @@ dependencies = [
  "smithy",
  "smithy-core",
  "time",
- "url 2.5.4",
+ "url",
  "utoipa",
 ]
 
