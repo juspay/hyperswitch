@@ -1206,15 +1206,15 @@ pub struct ExternalTriggerState {
     /// recognised.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_report_id: Option<String>,
-    /// When the recovery report this state was last saved for was received. A report received
-    /// before it is out of date.
+    /// When the transaction this state was last saved for was made. A transaction made before it is
+    /// out of date and only recorded.
     #[schema(value_type = Option<String>, example = "2022-09-10T10:11:12.000Z")]
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
         with = "common_utils::custom_serde::iso8601::option"
     )]
-    pub last_report_at: Option<PrimitiveDateTime>,
+    pub last_transaction_created_at: Option<PrimitiveDateTime>,
 }
 
 /// Billing Descriptor information to be sent to the payment gateway
