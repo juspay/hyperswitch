@@ -304,11 +304,11 @@ async fn handle_schedule_failed_payment(
 #[derive(Debug)]
 pub struct RevenueRecoveryInvoice(revenue_recovery::RevenueRecoveryInvoiceData);
 
-/// The attempts of an invoice, as a transaction reported against it sees them.
+/// The attempts of an invoice, as the transaction of a recovery request sees them.
 #[cfg(feature = "v2")]
-pub struct ReportedTransactionAttempts {
+pub struct RecoveryRequestAttempts {
     /// The attempt that recorded the transaction, once it is recorded.
-    pub reported: Option<revenue_recovery::RecoveryPaymentAttempt>,
+    pub recorded: Option<revenue_recovery::RecoveryPaymentAttempt>,
     /// How many attempts were recorded on the invoice before the transaction's.
     pub earlier: usize,
     /// The card of the last merchant-initiated attempt recorded before the transaction's: the card
@@ -586,17 +586,17 @@ impl RevenueRecoveryAttempt {
             .await
     }
 
-    /// What the attempts of the invoice say about a transaction reported for a recovery report: the
-    /// attempt that recorded it, if any, so the caller can tell whether this report recorded it on
-    /// an earlier run or another report did, and the attempts recorded before it.
-    pub async fn find_reported_attempt(
+    /// What the attempts of the invoice say about the transaction of a recovery request: the
+    /// attempt that recorded it, if any, so the caller can tell whether this request recorded it on
+    /// an earlier run or another request did, and the attempts recorded before it.
+    pub async fn find_recovery_request_attempt(
         data: &api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
         req_state: &ReqState,
         platform: &domain::Platform,
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
-    ) -> CustomResult<ReportedTransactionAttempts, errors::RevenueRecoveryError> {
+    ) -> CustomResult<RecoveryRequestAttempts, errors::RevenueRecoveryError> {
         let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
             data,
         ));
@@ -617,22 +617,22 @@ impl RevenueRecoveryAttempt {
             .max_by_key(|attempt| attempt.created_at)
             .and_then(|attempt| attempt.payment_token.clone());
         let counted_as_retries = count_retries(&attempts.payment_attempt_list);
-        let reported = match listed {
+        let recorded = match listed {
             Some(attempt) => Some(recovery_attempt.to_recovery_attempt(state, attempt).await),
             None => None,
         };
-        Ok(ReportedTransactionAttempts {
-            reported,
+        Ok(RecoveryRequestAttempts {
+            recorded,
             earlier: earlier.len(),
             previous_retry_card,
             counted_as_retries,
         })
     }
 
-    /// Records a transaction reported for a recovery report, with the report's id on the attempt.
+    /// Records the transaction of a recovery request, with the request's id on the attempt.
     /// The caller has checked under the invoice's lock that it is not recorded yet.
     #[allow(clippy::too_many_arguments)]
-    pub async fn record_reported_attempt(
+    pub async fn record_recovery_request_attempt(
         data: &api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
         req_state: &ReqState,
@@ -640,7 +640,7 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
-        report_id: String,
+        recovery_request_id: String,
     ) -> CustomResult<revenue_recovery::RecoveryPaymentAttempt, errors::RevenueRecoveryError> {
         let (recorded_attempt, _) = Self(
             revenue_recovery::RevenueRecoveryAttemptData::foreign_from(data),
@@ -654,7 +654,7 @@ impl RevenueRecoveryAttempt {
             connector_details,
             data.customer_present,
             data.setup_future_usage,
-            Some(report_id),
+            Some(recovery_request_id),
         )
         .await?;
         Ok(recorded_attempt)
@@ -879,7 +879,7 @@ impl RevenueRecoveryAttempt {
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
         setup_future_usage: Option<common_enums::FutureUsage>,
-        report_id: Option<String>,
+        recovery_request_id: Option<String>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -894,7 +894,7 @@ impl RevenueRecoveryAttempt {
                 common_enums::TriggeredBy::External,
                 customer_present,
                 setup_future_usage,
-                report_id,
+                recovery_request_id,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -1045,7 +1045,7 @@ impl RevenueRecoveryAttempt {
         triggered_by: common_enums::TriggeredBy,
         customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
         setup_future_usage: Option<common_enums::FutureUsage>,
-        report_id: Option<String>,
+        recovery_request_id: Option<String>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -1058,7 +1058,7 @@ impl RevenueRecoveryAttempt {
                 charge_id: self.0.charge_id.clone(),
                 customer_present,
                 setup_future_usage,
-                report_id,
+                recovery_request_id,
             }),
         };
 

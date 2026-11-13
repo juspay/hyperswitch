@@ -1198,10 +1198,10 @@ pub struct ExternalTriggerState {
     pub retries_after_hard_decline: Option<u16>,
     /// What the merchant was last told to do.
     pub next_retry: RecoveryNextRetry,
-    /// Id of the recovery report this state was last saved for, so a re-run of that report is
+    /// Id of the recovery request this state was last saved for, so a re-run of that request is
     /// recognised.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_report_id: Option<String>,
+    pub last_recovery_request_id: Option<String>,
     /// When the transaction this state was last saved for was made. A transaction made before it is
     /// out of date and only recorded.
     #[schema(value_type = Option<String>, example = "2022-09-10T10:11:12.000Z")]

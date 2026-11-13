@@ -16266,9 +16266,9 @@
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
           },
-          "last_report_id": {
+          "last_recovery_request_id": {
             "type": "string",
-            "description": "Id of the recovery report this state was last saved for, so a re-run of that report is\nrecognised.",
+            "description": "Id of the recovery request this state was last saved for, so a re-run of that request is\nrecognised.",
             "nullable": true
           },
           "last_transaction_created_at": {
@@ -23551,9 +23551,9 @@
             ],
             "nullable": true
           },
-          "report_id": {
+          "recovery_request_id": {
             "type": "string",
-            "description": "Id of the recovery report that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
             "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
@@ -32367,7 +32367,7 @@
             "$ref": "#/components/schemas/RecoveryPaymentsResponse"
           },
           {
-            "$ref": "#/components/schemas/RecoveryReportAccepted"
+            "$ref": "#/components/schemas/RecoveryRequestAccepted"
           }
         ],
         "description": "The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of\nthe profile."
@@ -32404,7 +32404,7 @@
           }
         }
       },
-      "RecoveryReportAccepted": {
+      "RecoveryRequestAccepted": {
         "type": "object",
         "description": "A transaction reported on a profile whose `revenue_recovery_trigger_model` is\n`external_triggers`, accepted to be recorded right after the answer.",
         "required": [
