@@ -57,6 +57,7 @@ use crate::{
             SantanderMetadataPatch, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
+            SantanderPixAutomaticoCobrCancelRequest, SantanderPixAutomaticoCobrCancelStatus,
             SantanderPixAutomaticoCobrRequest, SantanderPixAutomaticoCobrValor,
             SantanderPixAutomaticoRecebedor, SantanderPixCancelRequest,
             SantanderPixDueDateCalendarRequest, SantanderPixImmediateCalendarRequest,
@@ -78,8 +79,9 @@ use crate::{
             SantanderPixAutomaticoRecWebhookBody, SantanderPixAutomaticoRecWebhookEntry,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
             SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
-            SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
-            SantanderUpdateResponse, SantanderVoidResponse, SantanderVoidStatus, WaitScreenData,
+            SantanderPreAuthorizeVoidResponse, SantanderRefundResponse, SantanderRefundStatus,
+            SantanderSetupMandateResponse, SantanderUpdateResponse, SantanderVoidStatus,
+            WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -1341,6 +1343,43 @@ impl From<RecurrenceStatus> for AttemptStatus {
     }
 }
 
+fn get_pix_automatico_push_sync_status(
+    recurrence_status: &RecurrenceStatus,
+    solicitation_status: Option<&RecurrenceStatus>,
+) -> AttemptStatus {
+    match (recurrence_status, solicitation_status) {
+        (RecurrenceStatus::Aprovada, _) => AttemptStatus::Charged,
+        (RecurrenceStatus::Rejeitada, _) | (RecurrenceStatus::Expirada, _) => {
+            AttemptStatus::Failure
+        }
+        (RecurrenceStatus::Cancelada, _) => AttemptStatus::Failure,
+        (RecurrenceStatus::Recebida, _)
+        | (RecurrenceStatus::Enviada, _)
+        | (RecurrenceStatus::Aceita, _)
+        | (RecurrenceStatus::Unknown, _) => AttemptStatus::Pending,
+        (RecurrenceStatus::Criada, None) => AttemptStatus::AuthenticationPending,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Criada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Enviada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Recebida)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Aceita))
+        | (RecurrenceStatus::Criada, Some(RecurrenceStatus::Aprovada)) => {
+            AttemptStatus::AuthenticationPending
+        }
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Rejeitada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Expirada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Cancelada)) => AttemptStatus::Failure,
+        (RecurrenceStatus::Criada, Some(RecurrenceStatus::Unknown)) => {
+            AttemptStatus::AuthenticationPending
+        }
+    }
+}
+
 impl From<common_types::customers::DocumentKind> for SantanderDocumentKind {
     fn from(item: common_types::customers::DocumentKind) -> Self {
         match item {
@@ -1614,7 +1653,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 })
             }
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
-                let status = AttemptStatus::from(res.status.clone());
+                let status = if matches!(
+                    item.data.payment_method_type,
+                    Some(enums::PaymentMethodType::PixAutomaticoPush)
+                ) {
+                    let solicitation_status = res
+                        .solicitacao
+                        .as_ref()
+                        .and_then(|solicitations| solicitations.last())
+                        .and_then(|solicitation| solicitation.status.as_ref());
+                    get_pix_automatico_push_sync_status(&res.status, solicitation_status)
+                } else {
+                    AttemptStatus::from(res.status.clone())
+                };
                 let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
                     res.atualizacao
                         .iter()
@@ -1909,16 +1960,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsResponseData>>
+impl<F, T>
+    TryFrom<ResponseRouterData<F, SantanderPreAuthorizeVoidResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<F, SantanderVoidResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, SantanderPreAuthorizeVoidResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
-            SantanderVoidResponse::Pix(res) => Ok(Self {
+            SantanderPreAuthorizeVoidResponse::Pix(res) => Ok(Self {
                 status: AttemptStatus::from(res.status),
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(res.txid.clone()),
@@ -1935,7 +1987,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderVoidResponse, T, PaymentsRespo
                 }),
                 ..item.data
             }),
-            SantanderVoidResponse::Boleto(_) => Ok(Self {
+            SantanderPreAuthorizeVoidResponse::PixAutomaticoCobr(res) => Ok(Self {
+                status: cobr_status_to_attempt_status(res.status.clone(), true),
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(res.txid.clone()),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    charges: None,
+                    authentication_data: None,
+                    payment_account_reference: None,
+                }),
+                ..item.data
+            }),
+            SantanderPreAuthorizeVoidResponse::Boleto(_) => Ok(Self {
                 status: AttemptStatus::Voided,
                 response: item.data.response,
                 ..item.data
@@ -1979,10 +2048,26 @@ impl TryFrom<&PaymentsPreAuthorizeCancelRouterData> for SantanderPaymentsCancelR
         let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
 
         match item.payment_method {
-            enums::PaymentMethod::BankTransfer => {
-                let pix_req = SantanderPixCancelRequest::try_from(item)?;
-                Ok(Self::PixQR(pix_req))
-            }
+            enums::PaymentMethod::BankTransfer => match item.payment_method_type {
+                Some(enums::PaymentMethodType::PixQr) => {
+                    let pix_req = SantanderPixCancelRequest::try_from(item)?;
+                    Ok(Self::PixQR(pix_req))
+                }
+                Some(enums::PaymentMethodType::PixAutomaticoPush)
+                | Some(enums::PaymentMethodType::PixAutomaticoQr) => Ok(Self::PixAutomaticoCobr(
+                    SantanderPixAutomaticoCobrCancelRequest {
+                        status: SantanderPixAutomaticoCobrCancelStatus::Cancelada,
+                    },
+                )),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: format!(
+                        "Pre-authorization Cancel for Payment method {}",
+                        item.payment_method
+                    ),
+                    connector: "Santander".into(),
+                }
+                .into()),
+            },
             enums::PaymentMethod::Voucher => {
                 let boleto_req =
                     SantanderBoletoCancelRequest::try_from((item, santander_mca_metadata))?;

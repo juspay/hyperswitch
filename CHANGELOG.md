@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix5
+
+### Bug Fixes
+
+- **analytics:** Sanitise IN, Gt and EqualBool filter values in queries ([#15252](https://github.com/juspay/hyperswitch/pull/15252)) ([`b415470`](https://github.com/juspay/hyperswitch/commit/b415470bf1a7cacd9cb50a81e2385eb0db9ba1e5))
+- **core:** Allow request billing to override saved payment method billing ([#15225](https://github.com/juspay/hyperswitch/pull/15225)) ([`983ef47`](https://github.com/juspay/hyperswitch/commit/983ef47a133900139f57c58b096a008be25b9ae2))
+- **refunds:** Include surcharge in explicit full refunds ([#15256](https://github.com/juspay/hyperswitch/pull/15256)) ([`be6c1ba`](https://github.com/juspay/hyperswitch/commit/be6c1ba31f8ff8d5221428dcf5532cdded0289a5))
+- **themes:** Use safeString for themedata and email types ([#15255](https://github.com/juspay/hyperswitch/pull/15255)) ([`f2ab844`](https://github.com/juspay/hyperswitch/commit/f2ab844f495ac2bee8ecd2c47fddb6c947f7910c))
+
+**Full Changelog:** [`2026.11.11.1-hotfix4...2026.11.11.1-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix4...2026.11.11.1-hotfix5)
+
+- - -
+
 ## 2026.11.11.1-hotfix4
 
 ### Features
