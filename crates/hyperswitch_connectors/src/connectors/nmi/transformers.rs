@@ -604,13 +604,10 @@ pub struct NmiBillingDescriptor {
 impl From<&common_types::payments::BillingDescriptor> for NmiBillingDescriptor {
     fn from(billing_descriptor: &common_types::payments::BillingDescriptor) -> Self {
         Self {
-            // NMI has a single descriptor text field, so the full statement descriptor
-            // takes priority and the descriptor name is used when it is absent.
             descriptor: billing_descriptor
                 .statement_descriptor
                 .clone()
-                .map(Secret::new)
-                .or_else(|| billing_descriptor.name.clone()),
+                .map(Secret::new),
             descriptor_phone: billing_descriptor.phone.clone(),
             descriptor_city: billing_descriptor.city.clone(),
         }
