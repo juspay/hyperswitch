@@ -14660,8 +14660,8 @@ pub struct PaymentsAttemptRecordRequest {
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
     /// payment method token at payment processor end.
-    #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: String,
+    #[schema(value_type = Option<String>, example = "1234567890")]
+    pub processor_payment_method_token: Option<String>,
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
@@ -14782,8 +14782,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// Payment method token and card details at the payment processor's end.
-    pub payment_method_data: CustomRecoveryPaymentMethodData,
+    /// Payment method token and card details at the payment processor's end. Required unless the
+    /// customer is present and the payment is on session.
+    pub payment_method_data: Option<CustomRecoveryPaymentMethodData>,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]

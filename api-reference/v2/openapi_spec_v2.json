@@ -32218,8 +32218,7 @@
           "transaction_created_at",
           "connector_customer_id",
           "billing_started_at",
-          "connector_transaction_id",
-          "payment_method_data"
+          "connector_transaction_id"
         ],
         "properties": {
           "amount_details": {
@@ -32341,7 +32340,12 @@
             "example": "993672945374576J"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           "enable_partial_authorization": {
             "type": "boolean",

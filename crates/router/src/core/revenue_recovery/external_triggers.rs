@@ -181,6 +181,9 @@ async fn decide_recovery_request_retry(
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
 /// Hyperswitch makes.
 async fn reset_card_history_after_a_charge(state: &SessionState, request: &RecoveryPaymentsCreate) {
+    let Some(payment_method_data) = request.payment_method_data.as_ref() else {
+        return;
+    };
     match request.transaction_status {
         RecoveryTransactionStatus::Failure => {}
         RecoveryTransactionStatus::Charged | RecoveryTransactionStatus::PartialCharged => {
@@ -191,8 +194,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
                     &None,
                     &None,
                     Some(
-                        request
-                            .payment_method_data
+                        payment_method_data
                             .primary_processor_payment_method_token
                             .peek()
                             .as_str(),
@@ -701,6 +703,10 @@ pub(super) async fn accept_recovery_request(
     .attach_printable("Failed to read the invoice of the recovery request")
     .inspect_err(|_| record_received_recovery_request("failed"))?;
 
+    if invoice.is_none() && request.payment_method_data.is_none() {
+        record_received_recovery_request("card_missing");
+        return Err(report!(api::card_needed_for_a_new_invoice()));
+    }
     if let Some(invoice) = invoice.filter(|invoice| {
         PaymentAttemptRecord
             .validate_status_for_operation(invoice.status)
@@ -1087,10 +1093,10 @@ async fn apply_recovery_request(
             }
             let recorded_on_invoice = previous_recovery_metadata
                 .map(|recovery_metadata| usize::from(recovery_metadata.total_retry_count));
-            if recorded_on_invoice != Some(attempts.total) {
+            if recorded_on_invoice != Some(attempts.counted_as_retries) {
                 logger::error!(
                     ?recorded_on_invoice,
-                    attempts = ?attempts.total,
+                    attempts_counted_as_retries = ?attempts.counted_as_retries,
                     "The invoice does not show every attempt recorded on it"
                 );
                 return Ok(RecoveryRequestOutcome::InvoiceOutOfSync);
@@ -1125,7 +1131,10 @@ async fn apply_recovery_request(
 
     reset_card_history_after_a_charge(state, request).await;
 
-    if !is_merchant_initiated(request) {
+    if !hyperswitch_domain_models::revenue_recovery::is_merchant_initiated(
+        request.customer_present,
+        request.setup_future_usage,
+    ) {
         return Ok(RecoveryRequestOutcome::CustomerInitiated);
     }
     if let Some(last_transaction_created_at) = previous_trigger_state
@@ -1144,13 +1153,17 @@ async fn apply_recovery_request(
     }
 
     let is_existing_invoice = attempts.earlier > 0;
-    let is_same_card = attempts.previous_card.as_ref()
-        == Some(
-            request
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek(),
-        );
+    let is_same_card = request
+        .payment_method_data
+        .as_ref()
+        .is_some_and(|payment_method_data| {
+            attempts.previous_retry_card.as_ref()
+                == Some(
+                    payment_method_data
+                        .primary_processor_payment_method_token
+                        .peek(),
+                )
+        });
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
         .map_err(|error| recovery_request_step_failed("invoice", error))?;
@@ -1302,19 +1315,6 @@ async fn is_webhook_queued(
     }
 }
 
-/// Only a transaction made off session with the customer absent is merchant initiated. A request
-/// that leaves either out gets the defaults the invoice is created with.
-fn is_merchant_initiated(request: &RecoveryPaymentsCreate) -> bool {
-    request
-        .customer_present
-        .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
-        == common_enums::PresenceOfCustomerDuringPayment::Absent
-        && request
-            .setup_future_usage
-            .unwrap_or(common_enums::FutureUsage::OffSession)
-            .is_off_session()
-}
-
 /// The invoice as it is now, read through the get intent operation.
 async fn read_invoice(
     state: &SessionState,
@@ -1373,7 +1373,10 @@ async fn wait_for_invoice_lock(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::RETRIES_EXCEEDED)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_recovery_request_outcome("retries_exceeded", None);
     Ok(())
@@ -1440,7 +1443,10 @@ pub(crate) async fn finish_failed_recovery_request(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::FAILURE)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_recovery_request_outcome("failed", None);
     Ok(())
@@ -1486,7 +1492,10 @@ pub(crate) async fn retry_recovery_request(
             state
                 .store
                 .as_scheduler()
-                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
+                .finish_process_with_business_status(
+                    process,
+                    business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+                )
                 .await
                 .change_context(sch_errors::ProcessTrackerError::ProcessUpdateFailed)?;
             record_recovery_request_outcome("retries_exceeded", None);

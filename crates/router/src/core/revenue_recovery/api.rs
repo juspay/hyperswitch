@@ -315,6 +315,7 @@ pub async fn custom_revenue_recovery_core(
 ) -> RouterResponse<payments_api::RecoveryPaymentsCreateResponse> {
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
+    validate_payment_method_data(&request)?;
 
     let response = match RecoveryTrigger::from_profile_settings(
         profile.revenue_recovery_trigger_model,
@@ -483,6 +484,19 @@ pub(super) async fn get_or_create_invoice(
     profile: &domain::Profile,
     request: &api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    if request.payment_method_data.is_none() {
+        return recovery_incoming::RevenueRecoveryInvoice::find_custom_recovery_intent(
+            request.clone(),
+            state,
+            req_state,
+            platform,
+            profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read the invoice of the recovery request")?
+        .ok_or_else(|| report!(card_needed_for_a_new_invoice()));
+    }
     recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
         request.clone(),
         state,
@@ -592,6 +606,30 @@ pub async fn cancel_revenue_recovery_core(
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
     ))
+}
+
+/// The card can be left out only when the customer is present and pays on session, as the merchant
+/// may then have none to send.
+fn validate_payment_method_data(
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<()> {
+    let is_customer_present_on_session = request.customer_present
+        == Some(common_enums::PresenceOfCustomerDuringPayment::Present)
+        && request.setup_future_usage == Some(common_enums::FutureUsage::OnSession);
+    if request.payment_method_data.is_none() && !is_customer_present_on_session {
+        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "payment_method_data".into(),
+        }));
+    }
+    Ok(())
+}
+
+/// A transaction reported without its card cannot start an invoice, which keeps the card to retry.
+pub(super) fn card_needed_for_a_new_invoice() -> errors::ApiErrorResponse {
+    errors::ApiErrorResponse::InvalidRequestData {
+        message: "payment_method_data is required for the first transaction of an invoice"
+            .to_string(),
+    }
 }
 
 fn validate_customer_information(
