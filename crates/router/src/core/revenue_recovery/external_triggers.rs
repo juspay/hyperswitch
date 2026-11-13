@@ -176,7 +176,7 @@ async fn decide_reported_retry(
             retries_after_hard_decline,
             next_retry: decision.next_retry,
             last_report_id: None,
-            last_report_at: None,
+            last_transaction_created_at: None,
         },
         decision.assigned_ab_algorithm,
     )
@@ -656,15 +656,15 @@ impl ReportOutcome {
 
     fn business_status(self) -> &'static str {
         match self {
-            Self::RetryScheduled => business_status::RECOVERY_REPORT_RETRY_SCHEDULED,
-            Self::LimitsExhausted(_) => business_status::RECOVERY_REPORT_LIMITS_EXHAUSTED,
-            Self::NoWebhook(_) => business_status::RECOVERY_REPORT_NO_WEBHOOK,
-            Self::WebhookDisabled(_) => business_status::RECOVERY_REPORT_WEBHOOK_DISABLED,
-            Self::CustomerInitiated => business_status::RECOVERY_REPORT_CUSTOMER_INITIATED,
-            Self::Stale => business_status::RECOVERY_REPORT_STALE,
-            Self::Duplicate => business_status::RECOVERY_REPORT_DUPLICATE,
-            Self::InvoiceClosed => business_status::RECOVERY_REPORT_INVOICE_CLOSED,
-            Self::InvoiceOutOfSync => business_status::RECOVERY_REPORT_INVOICE_OUT_OF_SYNC,
+            Self::RetryScheduled => business_status::RECOVERY_REQUEST_RETRY_SCHEDULED,
+            Self::LimitsExhausted(_) => business_status::RECOVERY_REQUEST_LIMITS_EXHAUSTED,
+            Self::NoWebhook(_) => business_status::RECOVERY_REQUEST_NO_WEBHOOK,
+            Self::WebhookDisabled(_) => business_status::RECOVERY_REQUEST_WEBHOOK_DISABLED,
+            Self::CustomerInitiated => business_status::RECOVERY_REQUEST_CUSTOMER_INITIATED,
+            Self::Stale => business_status::RECOVERY_REQUEST_STALE,
+            Self::Duplicate => business_status::RECOVERY_REQUEST_DUPLICATE,
+            Self::InvoiceClosed => business_status::RECOVERY_REQUEST_INVOICE_CLOSED,
+            Self::InvoiceOutOfSync => business_status::RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC,
         }
     }
 }
@@ -682,7 +682,7 @@ fn reason_name(reason: RecoveryNoRetryReason) -> &'static str {
 }
 
 /// Accepts a transaction the merchant reported, unless its invoice takes no more transactions, and
-/// queues it for the recovery report workflow, which records it. The workflow checks the invoice
+/// queues it for the recovery request workflow, which records it. The workflow checks the invoice
 /// again, as it can close while the report waits.
 pub(super) async fn accept_report(
     state: &SessionState,
@@ -744,8 +744,8 @@ fn record_received_report(outcome: &'static str) {
         .add(1, router_env::metric_attributes!(("outcome", outcome)));
 }
 
-/// Queues a transaction the merchant reported, to be recorded and answered by the recovery report
-/// workflow, under the report's id, which is also the id of its job. A transaction already reported
+/// Queues a transaction the merchant reported, to be recorded and answered by the recovery request
+/// workflow, under the report's id, which its job id is built from. A transaction already reported
 /// in the profile is refused, as its job id is taken, whatever became of that job. The job keeps
 /// `request_body`, the request exactly as the merchant sent it, and reads `request` back from it.
 async fn queue_report(
@@ -768,7 +768,7 @@ async fn queue_report(
         request_body,
     )
     .await?;
-    let tracking_data = pcr::RecoveryReportTrackingData {
+    let tracking_data = pcr::RecoveryRequestTrackingData {
         report_id: report_id.clone(),
         merchant_id: platform.get_processor().get_account().get_id().clone(),
         profile_id: profile.get_id().clone(),
@@ -779,10 +779,12 @@ async fn queue_report(
         request_version: REPORT_REQUEST_VERSION,
         encrypted_request,
     };
+    let runner = storage::ProcessTrackerRunner::RecoveryRequestWorkflow;
+    let task = super::EXTERNAL_TRIGGER_HANDLER;
     let process = storage::ProcessTrackerNew::new(
-        report_id.clone(),
-        super::PROCESS_REPORT_WORKFLOW,
-        storage::ProcessTrackerRunner::RevenueRecoveryReportWorkflow,
+        format!("{runner}_{task}_{report_id}"),
+        task,
+        runner,
         ["REVENUE_RECOVERY"],
         tracking_data,
         None,
@@ -809,7 +811,7 @@ async fn queue_report(
     })?;
     metrics::TASKS_ADDED_COUNT.add(
         1,
-        router_env::metric_attributes!(("flow", "RevenueRecoveryReport")),
+        router_env::metric_attributes!(("flow", "RecoveryRequest")),
     );
     logger::info!(
         report_id = %report_id,
@@ -820,10 +822,10 @@ async fn queue_report(
     Ok(())
 }
 
-/// The id of a report and of its job, the same for every report of a transaction: the profile, the
-/// invoice and the transaction, in that order, hashed with SHA-256 so that it always fits the job id
-/// column. The format must not change, or a transaction reported before the change could be
-/// reported again.
+/// The id of a report, the same for every report of a transaction: the profile, the invoice and the
+/// transaction, in that order, hashed with SHA-256 so that its job id always fits the job id column.
+/// The format must not change, nor the runner and task names its job id starts with, or a
+/// transaction reported before the change could be reported again.
 fn get_report_id(
     profile_id: &id_type::ProfileId,
     merchant_reference_id: &id_type::PaymentReferenceId,
@@ -839,10 +841,7 @@ fn get_report_id(
         .generate_digest(key.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to hash the recovery report's id")?;
-    Ok(format!(
-        "revenue_recovery_{}",
-        BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest)
-    ))
+    Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest))
 }
 
 /// The request body encrypted with the merchant's key and base64 encoded.
@@ -853,7 +852,7 @@ async fn encrypt_report_request(
 ) -> RouterResult<String> {
     let encrypted: Encryptable<Secret<String>> = crypto_operation(
         &state.into(),
-        type_name!(pcr::RecoveryReportTrackingData),
+        type_name!(pcr::RecoveryRequestTrackingData),
         CryptoOperation::Encrypt(request_body.clone()),
         keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
         key_store.key.get_inner().peek(),
@@ -873,7 +872,7 @@ async fn decrypt_report_request(
 ) -> RouterResult<String> {
     let decrypted: Encryptable<Secret<String>> = crypto_operation(
         &state.into(),
-        type_name!(pcr::RecoveryReportTrackingData),
+        type_name!(pcr::RecoveryRequestTrackingData),
         CryptoOperation::Decrypt(Encryption::new(Secret::new(encrypted_request))),
         keymanager::Identifier::Merchant(key_store.merchant_id.clone()),
         key_store.key.get_inner().peek(),
@@ -886,12 +885,13 @@ async fn decrypt_report_request(
 }
 
 /// Records a transaction the merchant reported, decides the next retry of its invoice and tells the
-/// merchant by webhook. Called by the recovery report workflow: every outcome finishes the job here,
+/// merchant by webhook. Called by the recovery request workflow: every outcome finishes the job here,
 /// apart from a wait for the invoice's lock, which puts the job back in the queue, and only a
 /// temporary error is returned, for the workflow to run the report again.
 #[instrument(
     skip_all,
     fields(
+        process_id = %process.id,
         report_id = %tracking_data.report_id,
         merchant_id = %tracking_data.merchant_id.get_string_repr(),
         profile_id = %tracking_data.profile_id.get_string_repr(),
@@ -904,7 +904,7 @@ async fn decrypt_report_request(
 pub(crate) async fn process_reported_transaction(
     state: &SessionState,
     process: &storage::ProcessTracker,
-    tracking_data: pcr::RecoveryReportTrackingData,
+    tracking_data: pcr::RecoveryRequestTrackingData,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let now = common_utils::date_time::now();
     if tracking_data.request_version != REPORT_REQUEST_VERSION {
@@ -1003,7 +1003,7 @@ pub(crate) async fn process_reported_transaction(
 /// as the initiator, as when the API acted on the request itself.
 async fn load_report_context(
     state: &SessionState,
-    tracking_data: &pcr::RecoveryReportTrackingData,
+    tracking_data: &pcr::RecoveryRequestTrackingData,
 ) -> error_stack::Result<(Platform, domain::Profile), errors::StorageError> {
     let db = &*state.store;
     let key_store = db
@@ -1037,7 +1037,7 @@ async fn load_report_context(
 /// invoice's lock. An error is temporary, and the report runs again.
 async fn apply_reported_transaction(
     state: &SessionState,
-    tracking_data: &pcr::RecoveryReportTrackingData,
+    tracking_data: &pcr::RecoveryRequestTrackingData,
     platform: &Platform,
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
@@ -1211,7 +1211,7 @@ async fn send_next_retry(
     state: &SessionState,
     platform: &Platform,
     profile: &domain::Profile,
-    tracking_data: &pcr::RecoveryReportTrackingData,
+    tracking_data: &pcr::RecoveryRequestTrackingData,
     payment_id: &id_type::GlobalPaymentId,
     next_retry: RecoveryNextRetry,
     is_saved_decision: bool,
@@ -1348,7 +1348,7 @@ async fn read_invoice(
 async fn wait_for_invoice_lock(
     state: &SessionState,
     process: &storage::ProcessTracker,
-    tracking_data: &pcr::RecoveryReportTrackingData,
+    tracking_data: &pcr::RecoveryRequestTrackingData,
     now: PrimitiveDateTime,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     if now < tracking_data.received_at + Duration::minutes(REPORT_LOCK_WAIT_IN_MINUTES) {

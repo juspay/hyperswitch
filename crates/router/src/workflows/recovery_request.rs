@@ -1,4 +1,4 @@
-//! The recovery report workflow, which records a transaction the merchant reported on a profile
+//! The recovery request workflow, which records a transaction the merchant reported on a profile
 //! whose retries it triggers, decides the next retry of its invoice, and tells the merchant by
 //! webhook.
 
@@ -15,10 +15,10 @@ use scheduler::{consumer::workflows::ProcessTrackerWorkflow, errors};
 use crate::{core::revenue_recovery::external_triggers, types::storage::revenue_recovery as pcr};
 use crate::{routes::SessionState, types::storage};
 
-pub struct RevenueRecoveryReportWorkflow;
+pub struct RecoveryRequestWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<SessionState> for RevenueRecoveryReportWorkflow {
+impl ProcessTrackerWorkflow<SessionState> for RecoveryRequestWorkflow {
     #[cfg(feature = "v1")]
     async fn execute_workflow<'a>(
         &'a self,
@@ -37,14 +37,14 @@ impl ProcessTrackerWorkflow<SessionState> for RevenueRecoveryReportWorkflow {
         let tracking_data = match process
             .tracking_data
             .clone()
-            .parse_value::<pcr::RecoveryReportTrackingData>("RecoveryReportTrackingData")
+            .parse_value::<pcr::RecoveryRequestTrackingData>("RecoveryRequestTrackingData")
         {
             Ok(tracking_data) => tracking_data,
             Err(error) => {
                 logger::error!(
                     ?error,
                     process_id = %process.id,
-                    "The recovery report's tracking data cannot be read"
+                    "The recovery request's tracking data cannot be read"
                 );
                 return external_triggers::finish_failed_report(state, &process).await;
             }

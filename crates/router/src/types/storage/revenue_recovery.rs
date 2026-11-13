@@ -17,13 +17,13 @@ use crate::{
     core::revenue_recovery::schedule::StaticLadderProgress, db::StorageInterface,
     routes::SessionState, types, workflows::revenue_recovery,
 };
-/// What the recovery report workflow needs to process one transaction the merchant reported. Process
-/// tracker data is stored and logged in clear, so the request is kept encrypted with the merchant's
-/// key, and only identifiers are kept in clear, for debugging.
+/// What the recovery request workflow needs to process one transaction the merchant reported.
+/// Process tracker data is stored and logged in clear, so the request is kept encrypted with the
+/// merchant's key, and only identifiers are kept in clear, for debugging.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-pub struct RecoveryReportTrackingData {
-    /// Id of the report, which is also the id of its process tracker job: one for each transaction
-    /// of an invoice in a profile.
+pub struct RecoveryRequestTrackingData {
+    /// Id of the report, which the id of its process tracker job is built from: one for each
+    /// transaction of an invoice in a profile.
     pub report_id: String,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,

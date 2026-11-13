@@ -84,6 +84,11 @@ pub enum OutgoingWebhookEventContent {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
     },
+    #[cfg(feature = "v2")]
+    RevenueRecovery {
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        content: Value,
+    },
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;
@@ -168,7 +173,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::RecoveryRetryDetails(retry_payload) => {
-                Some(OutgoingWebhookEventContent::Payment {
+                Some(OutgoingWebhookEventContent::RevenueRecovery {
                     payment_id: retry_payload.id.clone(),
                     content: hyperswitch_masking::masked_serialize(&retry_payload)
                         .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
