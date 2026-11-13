@@ -41,6 +41,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   calida: ["wallet"],
   cashtocode: ["reward"],
   checkbook: ["bank_transfer"],
+  citigate: ["card"],
   coingate: ["crypto"],
   cryptopay: ["crypto"],
   datatrans: ["card"],

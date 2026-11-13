@@ -216,6 +216,8 @@ describe("Payment Methods Tests", () => {
     });
 
     context("Create 3DS off session save card payment with token", () => {
+      utils.useThreeDSConnectorProfile(() => globalState);
+
       it("create-payment-call-test -> confirm-save-card-payment-call-test -> Handle redirection -> List PM for customer", () => {
         const saveCardBody = Cypress._.cloneDeep(fixtures.saveCardConfirmBody);
 
