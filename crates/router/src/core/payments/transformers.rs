@@ -8381,6 +8381,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                     external_trigger_state: payment_revenue_recovery_metadata
                         .external_trigger_state
                         .clone(),
+                    last_failure_code: payment_revenue_recovery_metadata.last_failure_code,
                 }
             });
         let apple_pay_details = feature_metadata
