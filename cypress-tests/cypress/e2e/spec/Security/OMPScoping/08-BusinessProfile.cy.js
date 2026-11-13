@@ -87,6 +87,13 @@ describe("OMP Scoping - Business Profile", () => {
     // PA-vs-PB case within the SAME merchant - JWTAuthMerchantAndProfileFromRoute
     // requires the JWT's own profile to equal the path profile_id, so PA's
     // JWT must be denied here even though the account_id (M1) matches.
+    // Confirmed live: this comes back as 401 IR_17 "Access forbidden,
+    // invalid JWT token was used" - the SAME auth-layer rejection used for
+    // a merchant_id mismatch (OMP_ERRORS.JWT_MERCHANT_MISMATCH), not the
+    // separate 400 IR_16 validate_profile_id_from_auth_layer check used
+    // elsewhere (Payments/MCA) - JWTAuthMerchantAndProfileFromRoute
+    // apparently funnels both its merchant_id and profile_id comparisons
+    // through one shared rejection path.
     cy.ompAssertDeniedAndUnchanged({
       fetch: fetchProfilePB(),
       negativeRequest: () =>
@@ -99,7 +106,7 @@ describe("OMP Scoping - Business Profile", () => {
         ),
       // Confirmed live - same generic JWT profile-mismatch path as the
       // Payments retrieve test, not specific to Business Profile.
-      expectedError: OMP_ERRORS.JWT_PROFILE_MISMATCH,
+      expectedError: OMP_ERRORS.JWT_MERCHANT_MISMATCH,
     });
   });
 

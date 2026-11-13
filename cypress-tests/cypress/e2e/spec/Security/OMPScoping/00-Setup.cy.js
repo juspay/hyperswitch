@@ -25,6 +25,60 @@ import { PaymentIntent, CardPayout } from "../../../configs/Security/Commons";
 // merchant, this can be simplified to create M1 up front instead.
 let globalState;
 
+// Completes the invited-user login chain for a temp-password invite
+// response: signin -> terminate 2FA (lands on force_set_password, since a
+// temp password always has last_password_modified_at=None, user.rs:
+// 1227-1247) -> rotate_password (no token returned) -> signin again with
+// the new password -> terminate 2FA again (lands on user_info this time).
+// Stores the final usable session JWT as globalState "jwtMerchantAdminM1".
+// Only ever called when invite_multiple actually returned a password - see
+// the GAP comment at its call site in 00-Setup.cy.js.
+function completeInvitedUserLogin(email, tempPassword, globalState) {
+  // Generated per-run, not a static literal - a hardcoded password-shaped
+  // string here trips generic secret scanners (confirmed: GitGuardian
+  // flagged a prior literal version of this on push) even though it's a
+  // throwaway value this test sets itself via rotate_password for a
+  // randomly-emailed test user, never a real credential.
+  const newPassword = `OmpScoping_${Date.now()}_Aa1!`;
+  const tokens = {};
+
+  cy.ompUserSignin(email, tempPassword, globalState).then((res) => {
+    expect(res.status, "signin with temp password").to.eq(200);
+    expect(res.body?.token_type).to.eq("totp");
+    tokens.totp1 = res.body.token;
+  });
+
+  cy.then(() => cy.ompTerminate2FaRaw(tokens.totp1, globalState)).then(
+    (res) => {
+      expect(res.status, "terminate 2FA (first pass)").to.eq(200);
+      expect(res.body?.token_type).to.eq("force_set_password");
+      tokens.forceSetPw = res.body.token;
+    }
+  );
+
+  cy.then(() =>
+    cy.ompRotatePassword(tokens.forceSetPw, newPassword, globalState)
+  ).then((res) => {
+    expect(res.status, "rotate password").to.eq(200);
+  });
+
+  cy.then(() => cy.ompUserSignin(email, newPassword, globalState)).then(
+    (res) => {
+      expect(res.status, "signin with rotated password").to.eq(200);
+      expect(res.body?.token_type).to.eq("totp");
+      tokens.totp2 = res.body.token;
+    }
+  );
+
+  return cy
+    .then(() => cy.ompTerminate2FaRaw(tokens.totp2, globalState))
+    .then((res) => {
+      expect(res.status, "terminate 2FA (second pass)").to.eq(200);
+      expect(res.body?.token_type).to.eq("user_info");
+      globalState.set("jwtMerchantAdminM1", res.body.token);
+    });
+}
+
 describe("OMP Scoping - shared fixtures", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -400,6 +454,265 @@ describe("OMP Scoping - shared fixtures", () => {
           "will list disputes per profile at runtime and skip cases if none exist."
       );
     });
+
+    it("creates CUSTOMER_M1 under M1", () => {
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+      });
+
+      // createCustomerCallTest sets globalState "customerId" - independent
+      // of the payout block's own customer (that one is gated on
+      // payoutsExecution and may not run), so this gets its own customer
+      // regardless of payout connector availability.
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+
+      cy.then(() => {
+        globalState.set("customerIdM1", globalState.get("customerId"));
+      });
+    });
+
+    it("creates PAYMENT_METHOD_M1 attached to CUSTOMER_M1", () => {
+      cy.then(() => {
+        globalState.set("customerId", globalState.get("customerIdM1"));
+      });
+
+      // Reuses the shared card_pm "PaymentMethod" fixture
+      // (configs/Payment/Commons.js, same one 24-PaymentMethods.cy.js
+      // uses) rather than hand-rolling card details, per review feedback.
+      cy.createPaymentMethodTest(
+        globalState,
+        getConnectorDetails("commons")["card_pm"]["PaymentMethod"]
+      );
+
+      cy.then(() => {
+        globalState.set(
+          "paymentMethodIdM1",
+          globalState.get("paymentMethodId")
+        );
+      });
+    });
+
+    it("creates a captured CIT payment under PA (also yields MANDATE_PA)", () => {
+      // Reuses the existing citForMandatesCallTest infrastructure
+      // (cypress/support/commands.js, same command the Mandate spec uses)
+      // rather than hand-building confirm/capture logic - this is the only
+      // way to get an actually-captured payment (for Refund) and a real
+      // mandate_id (for Mandate) without re-deriving per-connector card
+      // behavior from scratch. Needs globalState "merchantConnectorId"
+      // (the default key citForMandatesCallTest's profile/connector
+      // resolution reads), distinct from our own "mcaPaId" naming.
+      // Depends on the configured connector having a
+      // MandateSingleUseNo3DSAutoCapture fixture in configs/Payment/ - if
+      // it doesn't, this step (and anything downstream that needs
+      // capturedPaymentIdPA/mandateIdPA) needs live verification.
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("profileId", globalState.get("profileIdPA"));
+        globalState.set("merchantConnectorId", globalState.get("mcaPaId"));
+      });
+
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MandateSingleUseNo3DSAutoCapture"];
+
+      cy.citForMandatesCallTest(
+        fixtures.citConfirmBody,
+        data,
+        true,
+        "automatic",
+        "new_mandate",
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("capturedPaymentIdPA", globalState.get("paymentID"));
+        globalState.set("mandateIdPA", globalState.get("mandateId"));
+      });
+    });
+
+    it("creates REFUND_PA against the captured CIT payment", () => {
+      // refundCallTest reads payment_id from globalState "paymentID", still
+      // set to capturedPaymentIdPA from the step above.
+      const refundData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
+
+      cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+
+      cy.then(() => {
+        globalState.set("refundIdPA", globalState.get("refundId"));
+      });
+    });
+
+    it("creates ROUTING_CONFIG_PA under PA and activates it", () => {
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("profileIdPA"));
+      });
+
+      const routing_data = [
+        {
+          connector: globalState.get("connectorId"),
+          merchant_connector_id: globalState.get("mcaPaId"),
+        },
+      ];
+
+      cy.addRoutingConfig(
+        fixtures.routingConfigBody,
+        { Request: {}, Response: { status: 200, body: {} } },
+        "priority",
+        routing_data,
+        globalState
+      );
+
+      cy.activateRoutingConfig(
+        { Request: {}, Response: { status: 200, body: {} } },
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set(
+          "routingConfigIdPA",
+          globalState.get("routingConfigId")
+        );
+      });
+    });
+
+    it("upserts SURCHARGE_CONFIG_M1 for M1", () => {
+      // Reuses the existing createSurchargeDSLConfig command (Routing/00005-
+      // SurchargeDSLConfiguration.cy.js) rather than a bespoke request -
+      // it already knows this route needs JWT auth (reads
+      // globalState.get("userInfoToken") directly, falling back to api-key
+      // only if that's unset) and needs a full algorithm, not just
+      // merchant_surcharge_configs (confirmed live: omitting it returns
+      // IR_04 "Missing required param: algorithm").
+      const surchargeBody = {
+        name: "omp_scoping_surcharge_config",
+        merchant_surcharge_configs: {},
+        algorithm: {
+          defaultSelection: {
+            surcharge_details: {
+              surcharge: { type: "rate", value: { percentage: 2.5 } },
+            },
+          },
+          rules: [],
+          metadata: {},
+        },
+      };
+
+      cy.createSurchargeDSLConfig(
+        surchargeBody,
+        { Response: { body: {} } },
+        globalState
+      );
+    });
+
+    // DROPPED: a NULL profile_id can't actually be produced through the
+    // public API - connector creation always resolves a profile at
+    // creation time, either explicitly via profile_id or via a legacy
+    // business_country/business_label fallback (confirmed: omitting
+    // profile_id returns IR_04 "Missing required param: profile_id or
+    // business_country, business_label"). The nullable-profile_id
+    // fail-closed behavior (validate_profile_id_from_auth_layer) was
+    // already confirmed by reading its source; there's no reachable
+    // precondition to test it against here.
+
+    it("creates PAYMENT_LINK_PA (a payment with payment_link enabled)", () => {
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+        globalState.set("profileId", globalState.get("profileIdPA"));
+        globalState.set("customerId", globalState.get("customerIdM1"));
+      });
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        { Request: { currency: "USD" }, Response: { status: 200 } },
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("paymentLinkPaymentId", globalState.get("paymentID"));
+      });
+    });
+
+    it("creates PAYOUT_LINK_PA", () => {
+      // This repo's Cypress config restricts Payout Link to "wise"
+      // (CONNECTOR_LISTS.INCLUDE.PAYOUT_LINK, configs/Payout/Utils.js), but
+      // that's not an actual backend restriction - core/payout_link.rs
+      // builds its connector list dynamically from whichever
+      // payout_processor MCAs are enabled and support the requested payout
+      // method, not a fixed allowlist. config/development.toml's
+      // [payout_method_filters.adyenplatform] explicitly supports
+      // credit/debit card payouts for EUR/USD/GBP/CAD/JPY across many
+      // countries - exactly the card/EUR combination this suite's own
+      // CardPayout() fixture already uses for PO_PA/PO_PB. adyenplatform is
+      // hardcoded as this suite's payout connector regardless of
+      // CYPRESS_CONNECTOR (see the payout_processor MCA step above), so
+      // just attempt it directly rather than gating on a wise-only check
+      // that - by the time this step runs - was comparing against the
+      // restored Payments connectorId anyway, not the payout one, making
+      // the old gate unconditionally true (PAYOUT_LINK_PA never created,
+      // regardless of CYPRESS_CONNECTOR). If adyenplatform genuinely
+      // doesn't support it, let this fail honestly rather than silently
+      // skip - that's real, actionable information.
+      //
+      // Must use fixtures.createPayoutLinkBody, not the generic
+      // fixtures.createPayoutBody - the dedicated fixture sets
+      // payout_link: true and confirm: false (the payout method is
+      // deferred to the customer filling in the hosted link, not supplied
+      // upfront). Using the generic body (confirmed live) omits
+      // payout_link entirely, so the server tries normal eligible-connector
+      // routing with no payout_type/payout_method_data at all and fails
+      // with IR_39 "No eligible connector was found" - a test-fixture bug,
+      // not a real adyenplatform capability gap.
+      //
+      // Also needs payout_link_config set on PA's business profile first -
+      // confirmed live in two steps: (1) 400 IR_40 "Payout links cannot be
+      // used without setting allowed_domains in profile... set test_mode
+      // to true..." without it, then (2) a plain deserialize error for a
+      // field named "test_mode" - the actual request struct
+      // (BusinessPayoutLinkConfig, api_models/src/admin.rs:3584-3595, via
+      // its flattened BusinessGenericLinkConfig at :3635-3645) names the
+      // boolean field payout_test_mode, not test_mode (the error message's
+      // prose doesn't match the real field name), and allowed_domains
+      // (HashSet<String>, no default) is required regardless of
+      // payout_test_mode - both together, matching this repo's own
+      // Payout/00008-PayoutLinkCreate.cy.js bpWithPayoutLink fixture.
+      globalState.set("payoutLinkExecution", true);
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("profileIdPA"));
+      });
+
+      cy.UpdateBusinessProfileTest(
+        {
+          payout_link_config: {
+            payout_test_mode: true,
+            allowed_domains: ["*.hyperswitch.io"],
+          },
+        },
+        false,
+        false,
+        false,
+        false,
+        false,
+        globalState,
+        "pa"
+      );
+
+      cy.createPayoutWithLinkTest(
+        structuredClone(fixtures.createPayoutLinkBody),
+        { Request: { currency: "EUR" }, Response: { status: 200 } },
+        globalState
+      );
+
+      cy.then(() => {
+        globalState.set("payoutLinkPayoutId", globalState.get("payoutID"));
+      });
+    });
   });
 
   context("PC - dedicated profile for incremental/extend authorization", () => {
@@ -519,4 +832,90 @@ describe("OMP Scoping - shared fixtures", () => {
       });
     });
   });
+
+  context(
+    "M3 and a merchant_admin user, for Analytics role-scope tests",
+    () => {
+      // M1's own dashboard user is org_admin (signup_with_merchant_id grants
+      // ROLE_ID_ORGANIZATION_ADMIN, core/user.rs:96-103) and M1 sits in its
+      // own, freshly-created organization - M2 (above) is a SEPARATE org
+      // entirely, so M1-vs-M2 never actually exercised "two merchants under
+      // one org." M3 here is a genuine sibling of M1: created with
+      // organization_id explicitly set to M1's own org, so
+      // CreateOrValidateOrganization validates/reuses that org instead of
+      // minting a new one (core/admin.rs:505-523, 708-719).
+      it("creates M3, a second merchant in M1's own organization", () => {
+        const m1OrganizationId = globalState.get("organizationId");
+        const m3Body = {
+          ...structuredClone(fixtures.merchantCreateBody),
+          organization_id: m1OrganizationId,
+        };
+
+        cy.merchantCreateCallTest(m3Body, globalState, {
+          merchantIdStateKey: "merchantIdM3",
+          profileIdStateKey: "profileIdM3Default",
+          publishableKeyStateKey: "publishableKeyM3",
+        });
+
+        cy.then(() => {
+          // merchantCreateCallTest unconditionally overwrites globalState
+          // "organizationId" with whatever the server echoes back - confirm
+          // it's still M1's org (validated/reused), not a freshly minted one.
+          expect(
+            globalState.get("organizationId"),
+            "M3 must land in M1's existing org, not a fresh one"
+          ).to.eq(m1OrganizationId);
+        });
+      });
+
+      // GAP: bootstrapping a second, merchant_admin-scoped user under M1
+      // would need the real invite flow (POST /user/user/invite_multiple),
+      // but confirmed live: this environment never returns a temp password
+      // in the invite response (is_email_sent-style flow instead - a real
+      // inbox is required to accept the invite), so the no-email-feature
+      // shortcut this was built against (core/user.rs:1080-1249, returns
+      // a password directly when the "email" cargo feature is off) doesn't
+      // apply here. There is no black-box way to complete this invite
+      // without real email access, so this is skipped gracefully rather
+      // than chased further - same convention as the Disputes/Relay
+      // "no fabrication command exists" gaps elsewhere in this file. The
+      // merchant_admin-specific tests in 17-Analytics.cy.js already gate
+      // on jwtMerchantAdminM1 being present and skip themselves when it's
+      // not; the org_admin-vs-sibling tests there don't depend on this
+      // user at all and still run for real.
+      it("invites a merchant_admin user scoped to M1 (best effort - see GAP above)", () => {
+        const inviteEmail = `omp_scoping_merchant_admin_${Date.now()}@example.com`;
+
+        cy.ompInviteUser(
+          { type: "jwt", token: globalState.get("userInfoTokenPA") },
+          [
+            {
+              email: inviteEmail,
+              name: "OMP Scoping Merchant Admin",
+              role_id: "merchant_admin",
+            },
+          ],
+          globalState
+        ).then((res) => {
+          expect(res.status, "invite_multiple call").to.eq(200);
+          const invitee = Array.isArray(res.body) ? res.body[0] : res.body;
+
+          if (!invitee?.password) {
+            cy.task(
+              "cli_log",
+              "Skipping merchant_admin bootstrap: invite_multiple did not " +
+                "return a temp password (this environment requires a real " +
+                "email invite accept, which this suite can't automate). " +
+                "17-Analytics.cy.js's merchant_admin tests will skip."
+            );
+            return;
+          }
+
+          cy.then(() =>
+            completeInvitedUserLogin(inviteEmail, invitee.password, globalState)
+          );
+        });
+      });
+    }
+  );
 });
