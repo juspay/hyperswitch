@@ -223,7 +223,7 @@ async fn handle_merchant_report(
         return Ok((updated_invoice, None));
     }
 
-    let (trigger_state, assigned_ab_algorithm) = Box::pin(decide_reported_retry(
+    let (trigger_state, assigned_ab_algorithm) = Box::pin(decide_recovery_request_retry(
         state,
         platform,
         profile,
@@ -253,11 +253,11 @@ async fn handle_merchant_report(
     Ok((updated_invoice, Some(next_retry)))
 }
 
-/// The recovery state of an invoice after a merchant-initiated report: its next retry and what the
-/// report after it needs, with the A/B arm the decision assigned. The report markers are left for
-/// the caller.
+/// The recovery state of an invoice after a merchant-initiated recovery request: its next retry
+/// and what the request after it needs, with the A/B arm the decision assigned. The request
+/// markers are left for the caller.
 #[allow(clippy::too_many_arguments)]
-async fn decide_reported_retry(
+async fn decide_recovery_request_retry(
     state: &SessionState,
     platform: &Platform,
     profile: &domain::Profile,
@@ -328,7 +328,7 @@ async fn decide_reported_retry(
                 .consumed_rungs,
             retries_after_hard_decline,
             next_retry: decision.next_retry,
-            last_report_id: None,
+            last_recovery_request_id: None,
             last_transaction_created_at: None,
         },
         decision.assigned_ab_algorithm,
@@ -543,7 +543,7 @@ async fn get_card_availability(
     }
 }
 
-/// Keeps what the next report of the merchant needs on the invoice, through the update-intent
+/// Keeps what the merchant's next recovery request needs on the invoice, through the update-intent
 /// operation. A paid or cancelled invoice has ended, so it has no next retry to keep.
 async fn save_trigger_state(
     state: &SessionState,
@@ -710,22 +710,23 @@ fn get_next_retry(
     }
 }
 
-/// Version of the request stored in a recovery report's tracking data.
-const REPORT_REQUEST_VERSION: u8 = 1;
+/// Version of the request stored in a recovery request's tracking data.
+const RECOVERY_REQUEST_VERSION: u8 = 1;
 
-/// Seconds before a report runs again after a temporary error, by how many runs have failed. They
-/// end well inside the 15 minutes after which the merchant falls back to its own retry timing.
-const REPORT_RETRY_DELAYS_IN_SECONDS: [i64; 5] = [15, 30, 60, 120, 240];
+/// Seconds before a recovery request runs again after a temporary error, by how many runs have
+/// failed. They end well inside the 15 minutes after which the merchant falls back to its own
+/// retry timing.
+const RECOVERY_REQUEST_RETRY_DELAYS_IN_SECONDS: [i64; 5] = [15, 30, 60, 120, 240];
 
-/// How long after it was received a report keeps waiting for its invoice's lock.
-const REPORT_LOCK_WAIT_IN_MINUTES: i64 = 10;
+/// How long after it was received a recovery request keeps waiting for its invoice's lock.
+const RECOVERY_REQUEST_LOCK_WAIT_IN_MINUTES: i64 = 10;
 
-/// Seconds between tries for an invoice lock held by another report.
-const REPORT_LOCK_RETRY_IN_SECONDS: i64 = 5;
+/// Seconds between tries for an invoice lock held by another recovery request.
+const RECOVERY_REQUEST_LOCK_RETRY_IN_SECONDS: i64 = 5;
 
-/// How a recovery report ended.
+/// How a recovery request ended.
 #[derive(Clone, Copy, Debug)]
-enum ReportOutcome {
+enum RecoveryRequestOutcome {
     /// Recorded, and the next retry is scheduled.
     RetryScheduled,
     /// Recorded, and a limit of the profile stops the retries.
@@ -734,9 +735,9 @@ enum ReportOutcome {
     NoWebhook(RecoveryNoRetryReason),
     /// Made with the customer, so only recorded.
     CustomerInitiated,
-    /// A newer report of the invoice was applied first, so only recorded.
+    /// A newer recovery request of the invoice was applied first, so only recorded.
     Stale,
-    /// The transaction is recorded on the invoice, but not by this report.
+    /// The transaction is recorded on the invoice, but not by this recovery request.
     Duplicate,
     /// The invoice is closed, so nothing is recorded.
     InvoiceClosed,
@@ -744,7 +745,7 @@ enum ReportOutcome {
     InvoiceOutOfSync,
 }
 
-impl ReportOutcome {
+impl RecoveryRequestOutcome {
     fn from_next_retry(next_retry: &RecoveryNextRetry) -> Self {
         match next_retry.reason {
             None => Self::RetryScheduled,
@@ -814,11 +815,11 @@ fn reason_name(reason: RecoveryNoRetryReason) -> &'static str {
 }
 
 /// Queues a transaction the merchant reported, to be recorded and answered by the recovery request
-/// workflow, and returns the report's id, which its job id is built from. A transaction already
-/// reported in the profile is refused, as its job id is taken, whatever became of that job. The job
-/// keeps `request_body`, the request exactly as the merchant sent it, and reads `request` back from
-/// it.
-pub(crate) async fn queue_report(
+/// workflow, and returns the recovery request's id, which its job id is built from. A transaction
+/// already reported in the profile is refused, as its job id is taken, whatever became of that
+/// job. The job keeps `request_body`, the request exactly as the merchant sent it, and reads
+/// `request` back from it.
+pub(crate) async fn queue_recovery_request(
     state: &SessionState,
     platform: &Platform,
     profile: &domain::Profile,
@@ -826,33 +827,33 @@ pub(crate) async fn queue_report(
     request_body: &Secret<String>,
     connector: RecoveryConnector,
 ) -> RouterResult<String> {
-    let report_id = get_report_id(
+    let recovery_request_id = get_recovery_request_id(
         profile.get_id(),
         &request.merchant_reference_id,
         &request.connector_transaction_id,
     )?;
     let received_at = common_utils::date_time::now();
-    let encrypted_request = encrypt_report_request(
+    let encrypted_request = encrypt_recovery_request(
         state,
         platform.get_processor().get_key_store(),
         request_body,
     )
     .await?;
     let tracking_data = pcr::RecoveryRequestTrackingData {
-        report_id: report_id.clone(),
+        recovery_request_id: recovery_request_id.clone(),
         merchant_id: platform.get_processor().get_account().get_id().clone(),
         profile_id: profile.get_id().clone(),
         merchant_reference_id: request.merchant_reference_id.clone(),
         connector_transaction_id: request.connector_transaction_id.clone(),
         connector,
         received_at,
-        request_version: REPORT_REQUEST_VERSION,
+        request_version: RECOVERY_REQUEST_VERSION,
         encrypted_request,
     };
     let runner = storage::ProcessTrackerRunner::RecoveryRequestWorkflow;
     let task = super::EXTERNAL_TRIGGER_HANDLER;
     let process = storage::ProcessTrackerNew::new(
-        format!("{runner}_{task}_{report_id}"),
+        format!("{runner}_{task}_{recovery_request_id}"),
         task,
         runner,
         ["REVENUE_RECOVERY"],
@@ -863,7 +864,7 @@ pub(crate) async fn queue_report(
         state.conf.application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to construct the recovery report task")?;
+    .attach_printable("Failed to construct the recovery request task")?;
     state.store.insert_process(process).await.map_err(|error| {
         if error.current_context().is_db_unique_violation() {
             error.change_context(errors::ApiErrorResponse::GenericDuplicateError {
@@ -876,7 +877,7 @@ pub(crate) async fn queue_report(
         } else {
             error
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to queue the recovery report")
+                .attach_printable("Failed to queue the recovery request")
         }
     })?;
     metrics::TASKS_ADDED_COUNT.add(
@@ -884,19 +885,20 @@ pub(crate) async fn queue_report(
         router_env::metric_attributes!(("flow", "RecoveryRequest")),
     );
     logger::info!(
-        report_id = %report_id,
+        recovery_request_id = %recovery_request_id,
         merchant_reference_id = %request.merchant_reference_id.get_string_repr(),
         connector_transaction_id = %request.connector_transaction_id,
-        "Recovery report queued"
+        "Recovery request queued"
     );
-    Ok(report_id)
+    Ok(recovery_request_id)
 }
 
-/// The id of a report, the same for every report of a transaction: the profile, the invoice and the
-/// transaction, in that order, hashed with SHA-256 so that its job id always fits the job id column.
+/// The id of a recovery request, the same for every request for a transaction: the profile, the
+/// invoice and the transaction, in that order, hashed with SHA-256 so that its job id always fits
+/// the job id column.
 /// The format must not change, nor the runner and task names its job id starts with, or a
 /// transaction reported before the change could be reported again.
-fn get_report_id(
+fn get_recovery_request_id(
     profile_id: &id_type::ProfileId,
     merchant_reference_id: &id_type::PaymentReferenceId,
     connector_transaction_id: &str,
@@ -910,12 +912,12 @@ fn get_report_id(
     let digest = crypto::Sha256
         .generate_digest(key.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to hash the recovery report's id")?;
+        .attach_printable("Failed to hash the recovery request's id")?;
     Ok(BASE64_ENGINE_URL_SAFE_NO_PAD.encode(digest))
 }
 
 /// The request body encrypted with the merchant's key and base64 encoded.
-async fn encrypt_report_request(
+async fn encrypt_recovery_request(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     request_body: &Secret<String>,
@@ -930,12 +932,12 @@ async fn encrypt_report_request(
     .await
     .and_then(|operation| operation.try_into_operation())
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to encrypt the recovery report")?;
+    .attach_printable("Failed to encrypt the recovery request")?;
     Ok(BASE64_ENGINE.encode(encrypted.into_encrypted().peek()))
 }
 
 /// The stored request decrypted, as JSON.
-async fn decrypt_report_request(
+async fn decrypt_recovery_request(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     encrypted_request: Vec<u8>,
@@ -950,19 +952,19 @@ async fn decrypt_report_request(
     .await
     .and_then(|operation| operation.try_into_operation())
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to decrypt the recovery report")?;
+    .attach_printable("Failed to decrypt the recovery request")?;
     Ok(decrypted.into_inner().expose())
 }
 
 /// Records a transaction the merchant reported and decides the next retry of its invoice. Called by
 /// the recovery request workflow: every outcome finishes the job here, apart from a wait for the
 /// invoice's lock, which puts the job back in the queue, and only a temporary error is returned, for
-/// the workflow to run the report again.
+/// the workflow to run the recovery request again.
 #[instrument(
     skip_all,
     fields(
         process_id = %process.id,
-        report_id = %tracking_data.report_id,
+        recovery_request_id = %tracking_data.recovery_request_id,
         merchant_id = %tracking_data.merchant_id.get_string_repr(),
         profile_id = %tracking_data.profile_id.get_string_repr(),
         merchant_reference_id = %tracking_data.merchant_reference_id.get_string_repr(),
@@ -971,34 +973,34 @@ async fn decrypt_report_request(
         attempt_id = tracing::field::Empty,
     )
 )]
-pub(crate) async fn process_reported_transaction(
+pub(crate) async fn process_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
     tracking_data: pcr::RecoveryRequestTrackingData,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let now = common_utils::date_time::now();
-    if tracking_data.request_version != REPORT_REQUEST_VERSION {
+    if tracking_data.request_version != RECOVERY_REQUEST_VERSION {
         logger::error!(
             request_version = tracking_data.request_version,
-            "The stored recovery report has a version this release does not read"
+            "The stored recovery request has a version this release does not read"
         );
-        return finish_unreadable_report(state, process).await;
+        return finish_unreadable_recovery_request(state, process).await;
     }
     let Ok(encrypted_request) = BASE64_ENGINE.decode(&tracking_data.encrypted_request) else {
-        logger::error!("The stored recovery report is not base64");
-        return finish_unreadable_report(state, process).await;
+        logger::error!("The stored recovery request is not base64");
+        return finish_unreadable_recovery_request(state, process).await;
     };
 
-    let (platform, profile) = load_report_context(state, &tracking_data)
+    let (platform, profile) = load_recovery_request_context(state, &tracking_data)
         .await
-        .map_err(|error| report_step_failed("load", error))?;
-    let body = decrypt_report_request(
+        .map_err(|error| recovery_request_step_failed("load", error))?;
+    let body = decrypt_recovery_request(
         state,
         platform.get_processor().get_key_store(),
         encrypted_request,
     )
     .await
-    .map_err(|error| report_step_failed("decrypt", error))?;
+    .map_err(|error| recovery_request_step_failed("decrypt", error))?;
     let request = match serde_json::from_str::<RecoveryPaymentsCreate>(&body) {
         Ok(request) => request,
         // Logged without its message, which can quote a value from the body.
@@ -1007,16 +1009,16 @@ pub(crate) async fn process_reported_transaction(
                 category = ?error.classify(),
                 line = error.line(),
                 column = error.column(),
-                "The stored recovery report cannot be read"
+                "The stored recovery request cannot be read"
             );
-            return finish_unreadable_report(state, process).await;
+            return finish_unreadable_recovery_request(state, process).await;
         }
     };
     let Some(retry_config) = profile.revenue_recovery_config.clone() else {
         logger::error!(
-            "The profile has no revenue recovery config, so the report cannot be applied"
+            "The profile has no revenue recovery config, so the recovery request cannot be applied"
         );
-        return finish_failed_report(state, process).await;
+        return finish_failed_recovery_request(state, process).await;
     };
     // A value sent in the request takes priority over the one on the profile.
     let request = RecoveryPaymentsCreate {
@@ -1046,15 +1048,15 @@ pub(crate) async fn process_reported_transaction(
             errors::ApiErrorResponse::ResourceBusy => {
                 wait_for_invoice_lock(state, process, &tracking_data, now).await
             }
-            _ => Err(report_step_failed("lock", error)),
+            _ => Err(recovery_request_step_failed("lock", error)),
         };
     }
     if process.retry_count == 0 {
-        metrics::REVENUE_RECOVERY_REPORT_QUEUE_DELAY
+        metrics::REVENUE_RECOVERY_REQUEST_QUEUE_DELAY
             .record((now - tracking_data.received_at).as_seconds_f64(), &[]);
     }
 
-    let outcome = Box::pin(apply_reported_transaction(
+    let outcome = Box::pin(apply_recovery_request(
         state,
         &tracking_data,
         &platform,
@@ -1066,12 +1068,12 @@ pub(crate) async fn process_reported_transaction(
     if let Err(error) = invoice_lock.free_lock_action(state, merchant_id).await {
         logger::error!(?error, "Failed to release the lock of the invoice");
     }
-    finish_report(state, process, outcome?).await
+    finish_recovery_request(state, process, outcome?).await
 }
 
-/// The merchant and profile of a report, and the platform to act as, with the merchant's API key
-/// as the initiator, as when the API acted on the request itself.
-async fn load_report_context(
+/// The merchant and profile of a recovery request, and the platform to act as, with the merchant's
+/// API key as the initiator, as when the API acted on the request itself.
+async fn load_recovery_request_context(
     state: &SessionState,
     tracking_data: &pcr::RecoveryRequestTrackingData,
 ) -> error_stack::Result<(Platform, domain::Profile), errors::StorageError> {
@@ -1104,19 +1106,19 @@ async fn load_report_context(
 }
 
 /// Records the reported transaction and decides the next retry, under the invoice's lock. An error
-/// is temporary, and the report runs again.
-async fn apply_reported_transaction(
+/// is temporary, and the recovery request runs again.
+async fn apply_recovery_request(
     state: &SessionState,
     tracking_data: &pcr::RecoveryRequestTrackingData,
     platform: &Platform,
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
     retry_config: &RevenueRecoveryConfig,
-) -> Result<ReportOutcome, sch_errors::ProcessTrackerError> {
+) -> Result<RecoveryRequestOutcome, sch_errors::ProcessTrackerError> {
     let req_state = state.get_req_state();
     let invoice = api::get_or_create_invoice(state, &req_state, platform, profile, request)
         .await
-        .map_err(|error| report_step_failed("invoice", error))?;
+        .map_err(|error| recovery_request_step_failed("invoice", error))?;
     tracing::Span::current().record("payment_id", invoice.payment_id.get_string_repr());
 
     let previous_recovery_metadata = invoice
@@ -1125,29 +1127,28 @@ async fn apply_reported_transaction(
         .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref());
     let previous_trigger_state = previous_recovery_metadata
         .and_then(|recovery_metadata| recovery_metadata.external_trigger_state.clone());
-    let report_id = tracking_data.report_id.as_str();
+    let recovery_request_id = tracking_data.recovery_request_id.as_str();
 
-    let attempts = RevenueRecoveryAttempt::find_reported_attempt(
+    let attempts = RevenueRecoveryAttempt::find_recovery_request_attempt(
         request, state, &req_state, platform, profile, &invoice,
     )
     .await
-    .map_err(|error| report_step_failed("record", error))?;
-    let recovery_attempt = match attempts.reported {
+    .map_err(|error| recovery_request_step_failed("record", error))?;
+    let recovery_attempt = match attempts.recorded {
         Some(attempt) => {
             tracing::Span::current().record("attempt_id", attempt.attempt_id.get_string_repr());
             let recorded_by = attempt
                 .feature_metadata
                 .as_ref()
                 .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
-                .and_then(|recovery_data| recovery_data.report_id.as_deref());
-            if recorded_by != Some(report_id) {
-                return Ok(ReportOutcome::Duplicate);
+                .and_then(|recovery_data| recovery_data.recovery_request_id.as_deref());
+            if recorded_by != Some(recovery_request_id) {
+                return Ok(RecoveryRequestOutcome::Duplicate);
             }
-            if let Some(saved_state) = previous_trigger_state
-                .as_ref()
-                .filter(|trigger_state| trigger_state.last_report_id.as_deref() == Some(report_id))
-            {
-                return Ok(ReportOutcome::from_next_retry(
+            if let Some(saved_state) = previous_trigger_state.as_ref().filter(|trigger_state| {
+                trigger_state.last_recovery_request_id.as_deref() == Some(recovery_request_id)
+            }) {
+                return Ok(RecoveryRequestOutcome::from_next_retry(
                     &get_next_retry_for_intent_status(invoice.status, saved_state.next_retry),
                 ));
             }
@@ -1159,7 +1160,7 @@ async fn apply_reported_transaction(
                     attempts = ?attempts.total,
                     "The invoice does not show every attempt recorded on it"
                 );
-                return Ok(ReportOutcome::InvoiceOutOfSync);
+                return Ok(RecoveryRequestOutcome::InvoiceOutOfSync);
             }
             attempt
         }
@@ -1168,9 +1169,9 @@ async fn apply_reported_transaction(
                 .validate_status_for_operation(invoice.status)
                 .is_err()
             {
-                return Ok(ReportOutcome::InvoiceClosed);
+                return Ok(RecoveryRequestOutcome::InvoiceClosed);
             }
-            let attempt = RevenueRecoveryAttempt::record_reported_attempt(
+            let attempt = RevenueRecoveryAttempt::record_recovery_request_attempt(
                 request,
                 state,
                 &req_state,
@@ -1180,10 +1181,10 @@ async fn apply_reported_transaction(
                 &RecoveryConnectorDetails::ReportedByMerchant {
                     connector: tracking_data.connector.into(),
                 },
-                tracking_data.report_id.clone(),
+                tracking_data.recovery_request_id.clone(),
             )
             .await
-            .map_err(|error| report_step_failed("record", error))?;
+            .map_err(|error| recovery_request_step_failed("record", error))?;
             tracing::Span::current().record("attempt_id", attempt.attempt_id.get_string_repr());
             attempt
         }
@@ -1192,7 +1193,7 @@ async fn apply_reported_transaction(
     reset_card_history_after_a_charge(state, request).await;
 
     if !is_merchant_initiated(request) {
-        return Ok(ReportOutcome::CustomerInitiated);
+        return Ok(RecoveryRequestOutcome::CustomerInitiated);
     }
     if let Some(last_transaction_created_at) = previous_trigger_state
         .as_ref()
@@ -1206,7 +1207,7 @@ async fn apply_reported_transaction(
             transaction_created_at = ?request.transaction_created_at,
             "The invoice was last decided on a newer transaction, so this one is only recorded"
         );
-        return Ok(ReportOutcome::Stale);
+        return Ok(RecoveryRequestOutcome::Stale);
     }
 
     let is_existing_invoice = attempts.earlier > 0;
@@ -1219,8 +1220,8 @@ async fn apply_reported_transaction(
         );
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
-        .map_err(|error| report_step_failed("invoice", error))?;
-    let (trigger_state, assigned_ab_algorithm) = Box::pin(decide_reported_retry(
+        .map_err(|error| recovery_request_step_failed("invoice", error))?;
+    let (trigger_state, assigned_ab_algorithm) = Box::pin(decide_recovery_request_retry(
         state,
         platform,
         profile,
@@ -1235,7 +1236,7 @@ async fn apply_reported_transaction(
     .await;
     let next_retry = trigger_state.next_retry;
     let trigger_state = ExternalTriggerState {
-        last_report_id: Some(tracking_data.report_id.clone()),
+        last_recovery_request_id: Some(tracking_data.recovery_request_id.clone()),
         last_transaction_created_at: Some(request.transaction_created_at),
         ..trigger_state
     };
@@ -1248,7 +1249,7 @@ async fn apply_reported_transaction(
         assigned_ab_algorithm,
     )
     .await
-    .map_err(|error| report_step_failed("save_state", error))?;
+    .map_err(|error| recovery_request_step_failed("save_state", error))?;
 
     logger::info!(
         retry_count = next_retry.retry_count,
@@ -1256,7 +1257,7 @@ async fn apply_reported_transaction(
         reason = ?next_retry.reason,
         "Next retry of the invoice decided"
     );
-    Ok(ReportOutcome::from_next_retry(&next_retry))
+    Ok(RecoveryRequestOutcome::from_next_retry(&next_retry))
 }
 
 /// Only a transaction made off session with the customer absent is merchant initiated. A request
@@ -1300,16 +1301,16 @@ async fn read_invoice(
     Ok(payment_data.payment_intent)
 }
 
-/// Puts a report back in the queue while another report of its invoice holds the lock, without
-/// spending its retries, until the wait runs out.
+/// Puts a recovery request back in the queue while another request of its invoice holds the lock,
+/// without spending its retries, until the wait runs out.
 async fn wait_for_invoice_lock(
     state: &SessionState,
     process: &storage::ProcessTracker,
     tracking_data: &pcr::RecoveryRequestTrackingData,
     now: PrimitiveDateTime,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
-    if now < tracking_data.received_at + Duration::minutes(REPORT_LOCK_WAIT_IN_MINUTES) {
-        logger::info!("The invoice is held by another report; trying again shortly");
+    if now < tracking_data.received_at + Duration::minutes(RECOVERY_REQUEST_LOCK_WAIT_IN_MINUTES) {
+        logger::info!("The invoice is held by another recovery request; trying again shortly");
         state
             .store
             .as_scheduler()
@@ -1318,72 +1319,74 @@ async fn wait_for_invoice_lock(
                 storage::ProcessTrackerUpdate::StatusRetryUpdate {
                     status: common_enums::ProcessTrackerStatus::Pending,
                     retry_count: process.retry_count,
-                    schedule_time: now + Duration::seconds(REPORT_LOCK_RETRY_IN_SECONDS),
+                    schedule_time: now + Duration::seconds(RECOVERY_REQUEST_LOCK_RETRY_IN_SECONDS),
                 },
             )
             .await?;
         return Ok(());
     }
-    metrics::REVENUE_RECOVERY_REPORT_STEP_FAILED
+    metrics::REVENUE_RECOVERY_REQUEST_STEP_FAILED
         .add(1, router_env::metric_attributes!(("step", "lock")));
-    logger::error!("The invoice stayed held by another report for too long");
+    logger::error!("The invoice stayed held by another recovery request for too long");
     state
         .store
         .as_scheduler()
         .finish_process_with_business_status(process.clone(), business_status::RETRIES_EXCEEDED)
         .await?;
-    record_report_outcome("retries_exceeded", None);
+    record_recovery_request_outcome("retries_exceeded", None);
     Ok(())
 }
 
-/// Finishes a report's job with its outcome, counting and logging it.
-async fn finish_report(
+/// Finishes a recovery request's job with its outcome, counting and logging it.
+async fn finish_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
-    outcome: ReportOutcome,
+    outcome: RecoveryRequestOutcome,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     state
         .store
         .as_scheduler()
         .finish_process_with_business_status(process.clone(), outcome.business_status())
         .await?;
-    record_report_outcome(outcome.name(), outcome.reason());
+    record_recovery_request_outcome(outcome.name(), outcome.reason());
     match outcome {
-        ReportOutcome::Stale | ReportOutcome::Duplicate | ReportOutcome::InvoiceClosed => {
+        RecoveryRequestOutcome::Stale
+        | RecoveryRequestOutcome::Duplicate
+        | RecoveryRequestOutcome::InvoiceClosed => {
             logger::warn!(
                 outcome = outcome.name(),
-                "Recovery report ended without a decision"
+                "Recovery request ended without a decision"
             )
         }
-        ReportOutcome::InvoiceOutOfSync => logger::error!(
+        RecoveryRequestOutcome::InvoiceOutOfSync => logger::error!(
             outcome = outcome.name(),
-            "Recovery report not decided, as its invoice does not show every attempt recorded on \
+            "Recovery request not decided, as its invoice does not show every attempt recorded on \
              it; the invoice needs a manual check"
         ),
-        ReportOutcome::RetryScheduled
-        | ReportOutcome::LimitsExhausted(_)
-        | ReportOutcome::NoWebhook(_)
-        | ReportOutcome::CustomerInitiated => logger::info!(
+        RecoveryRequestOutcome::RetryScheduled
+        | RecoveryRequestOutcome::LimitsExhausted(_)
+        | RecoveryRequestOutcome::NoWebhook(_)
+        | RecoveryRequestOutcome::CustomerInitiated => logger::info!(
             outcome = outcome.name(),
             reason = ?outcome.reason(),
-            "Recovery report processed"
+            "Recovery request processed"
         ),
     }
     Ok(())
 }
 
-/// Ends a report whose stored request cannot be read, which no later run can read either.
-async fn finish_unreadable_report(
+/// Ends a recovery request whose stored body cannot be read, which no later run can read either.
+async fn finish_unreadable_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
-    metrics::REVENUE_RECOVERY_REPORT_STEP_FAILED
+    metrics::REVENUE_RECOVERY_REQUEST_STEP_FAILED
         .add(1, router_env::metric_attributes!(("step", "decode")));
-    finish_failed_report(state, process).await
+    finish_failed_recovery_request(state, process).await
 }
 
-/// Ends a report's job for good, for an error a later run would hit again.
-pub(crate) async fn finish_failed_report(
+/// Ends a recovery request's job for good, for an error a later run would hit again.
+pub(crate) async fn finish_failed_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
@@ -1392,26 +1395,30 @@ pub(crate) async fn finish_failed_report(
         .as_scheduler()
         .finish_process_with_business_status(process.clone(), business_status::FAILURE)
         .await?;
-    record_report_outcome("failed", None);
+    record_recovery_request_outcome("failed", None);
     Ok(())
 }
 
-/// Runs a report again after a temporary error, sooner first, until its retries run out.
-pub(crate) async fn retry_report(
+/// Runs a recovery request again after a temporary error, sooner first, until its retries run out.
+pub(crate) async fn retry_recovery_request(
     state: &SessionState,
     process: storage::ProcessTracker,
     error: sch_errors::ProcessTrackerError,
 ) -> CustomResult<(), sch_errors::ProcessTrackerError> {
     let delay_in_seconds = usize::try_from(process.retry_count)
         .ok()
-        .and_then(|failed_runs| REPORT_RETRY_DELAYS_IN_SECONDS.get(failed_runs).copied());
+        .and_then(|failed_runs| {
+            RECOVERY_REQUEST_RETRY_DELAYS_IN_SECONDS
+                .get(failed_runs)
+                .copied()
+        });
     match delay_in_seconds {
         Some(delay_in_seconds) => {
             logger::warn!(
                 ?error,
                 retry_count = process.retry_count,
                 delay_in_seconds,
-                "Recovery report failed; running it again"
+                "Recovery request failed; running it again"
             );
             state
                 .store
@@ -1427,7 +1434,7 @@ pub(crate) async fn retry_report(
             logger::error!(
                 ?error,
                 retry_count = process.retry_count,
-                "Recovery report failed and has no retries left"
+                "Recovery request failed and has no retries left"
             );
             state
                 .store
@@ -1435,14 +1442,14 @@ pub(crate) async fn retry_report(
                 .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
                 .await
                 .change_context(sch_errors::ProcessTrackerError::ProcessUpdateFailed)?;
-            record_report_outcome("retries_exceeded", None);
+            record_recovery_request_outcome("retries_exceeded", None);
             Ok(())
         }
     }
 }
 
-fn record_report_outcome(outcome: &'static str, reason: Option<RecoveryNoRetryReason>) {
-    metrics::REVENUE_RECOVERY_REPORT_OUTCOME.add(
+fn record_recovery_request_outcome(outcome: &'static str, reason: Option<RecoveryNoRetryReason>) {
+    metrics::REVENUE_RECOVERY_REQUEST_OUTCOME.add(
         1,
         router_env::metric_attributes!(
             ("outcome", outcome),
@@ -1451,13 +1458,13 @@ fn record_report_outcome(outcome: &'static str, reason: Option<RecoveryNoRetryRe
     );
 }
 
-/// Counts and logs a temporary error in a step of a report, for the report to run again.
-fn report_step_failed<E: std::fmt::Debug>(
+/// Counts and logs a temporary error in a step of a recovery request, for it to run again.
+fn recovery_request_step_failed<E: std::fmt::Debug>(
     step: &'static str,
     error: error_stack::Report<E>,
 ) -> sch_errors::ProcessTrackerError {
-    metrics::REVENUE_RECOVERY_REPORT_STEP_FAILED
+    metrics::REVENUE_RECOVERY_REQUEST_STEP_FAILED
         .add(1, router_env::metric_attributes!(("step", step)));
-    logger::error!(?error, step, "A step of the recovery report failed");
+    logger::error!(?error, step, "A step of the recovery request failed");
     sch_errors::ProcessTrackerError::FlowExecutionError { flow: step }
 }

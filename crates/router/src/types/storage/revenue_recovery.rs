@@ -22,15 +22,15 @@ use crate::{
 /// merchant's key, and only identifiers are kept in clear, for debugging.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct RecoveryRequestTrackingData {
-    /// Id of the report, which the id of its process tracker job is built from: one for each
-    /// transaction of an invoice in a profile.
-    pub report_id: String,
+    /// Id of the recovery request, which the id of its process tracker job is built from: one for
+    /// each transaction of an invoice in a profile.
+    pub recovery_request_id: String,
     pub merchant_id: id_type::MerchantId,
     pub profile_id: id_type::ProfileId,
     pub merchant_reference_id: id_type::PaymentReferenceId,
     pub connector_transaction_id: String,
     pub connector: common_types::payments::RecoveryConnector,
-    /// When the API accepted the report.
+    /// When the API accepted the recovery request.
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub received_at: time::PrimitiveDateTime,
     /// Version of the stored request's format, which a run checks before reading the request.
