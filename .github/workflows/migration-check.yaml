@@ -55,7 +55,7 @@ jobs:
 
       - uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - uses: taiki-e/install-action@v2
         with:
