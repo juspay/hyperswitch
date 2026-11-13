@@ -383,51 +383,51 @@ counter_metric!(
 );
 
 counter_metric!(
-    REVENUE_RECOVERY_REPORT_RECEIVED,
+    REVENUE_RECOVERY_REQUEST_RECEIVED,
     GLOBAL_METER,
-    name: "revenue_recovery.report.received",
-    description: "Recovery reports by how the API answered them (queued; duplicate, refused as \
+    name: "revenue_recovery.recovery_request.received",
+    description: "Recovery requests by how the API answered them (queued; duplicate, refused as \
                   the transaction is already reported; invoice_closed, refused as the invoice \
                   takes no more transactions; failed, answered with an error so the merchant \
-                  sends the report again). Every queued report ends in one \
-                  `revenue_recovery.report.outcome`",
+                  sends the recovery request again). Every queued request ends in one \
+                  `revenue_recovery.recovery_request.outcome`",
     unit: "1",
 );
 counter_metric!(
-    REVENUE_RECOVERY_REPORT_OUTCOME,
+    REVENUE_RECOVERY_REQUEST_OUTCOME,
     GLOBAL_METER,
-    name: "revenue_recovery.report.outcome",
-    description: "Recovery reports by how their workflow ended (retry_scheduled, \
+    name: "revenue_recovery.recovery_request.outcome",
+    description: "Recovery requests by how their workflow ended (retry_scheduled, \
                   limits_exhausted, no_webhook, webhook_disabled, customer_initiated, stale, \
                   duplicate, invoice_closed, retries_exceeded, failed), with the next retry \
                   `reason`",
     unit: "1",
 );
 counter_metric!(
-    REVENUE_RECOVERY_REPORT_STEP_FAILED,
+    REVENUE_RECOVERY_REQUEST_STEP_FAILED,
     GLOBAL_METER,
-    name: "revenue_recovery.report.step_failed",
+    name: "revenue_recovery.recovery_request.step_failed",
     description: "Errors in a step of the recovery request workflow, by `step`, before the job is \
                   retried or ended",
     unit: "1",
 );
 histogram_metric_f64!(
-    REVENUE_RECOVERY_REPORT_QUEUE_DELAY,
+    REVENUE_RECOVERY_REQUEST_QUEUE_DELAY,
     GLOBAL_METER,
-    name: "revenue_recovery.report.queue_delay",
-    description: "Seconds from the API accepting a recovery report to the run of its workflow that \
-                  takes the invoice's lock, so any wait for the lock is included",
+    name: "revenue_recovery.recovery_request.queue_delay",
+    description: "Seconds from the API accepting a recovery request to the run of its workflow \
+                  that takes the invoice's lock, so any wait for the lock is included",
     unit: "s",
     boundaries: vec![
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0
     ],
 );
 histogram_metric_f64!(
-    REVENUE_RECOVERY_REPORT_TIME_TO_WEBHOOK,
+    REVENUE_RECOVERY_REQUEST_TIME_TO_WEBHOOK,
     GLOBAL_METER,
-    name: "revenue_recovery.report.time_to_webhook",
-    description: "Seconds from the API accepting a recovery report to the webhook with its next \
-                  retry being queued, once per report, by `outcome`",
+    name: "revenue_recovery.recovery_request.time_to_webhook",
+    description: "Seconds from the API accepting a recovery request to the webhook with its next \
+                  retry being queued, once per request, by `outcome`",
     unit: "s",
     boundaries: vec![
         1.0, 5.0, 15.0, 30.0, 60.0, 120.0, 300.0, 600.0, 900.0, 1800.0, 3600.0

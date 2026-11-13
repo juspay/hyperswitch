@@ -327,14 +327,14 @@ pub mod business_status {
     /// A reported transaction was recorded after a newer transaction of its invoice was applied
     pub const RECOVERY_REQUEST_STALE: &str = "RECOVERY_REQUEST_STALE";
 
-    /// A reported transaction is recorded on its invoice, but not by this report
+    /// A reported transaction is recorded on its invoice, but not by this recovery request
     pub const RECOVERY_REQUEST_DUPLICATE: &str = "RECOVERY_REQUEST_DUPLICATE";
 
     /// A reported transaction was not recorded because its invoice is closed
     pub const RECOVERY_REQUEST_INVOICE_CLOSED: &str = "RECOVERY_REQUEST_INVOICE_CLOSED";
 
     /// A reported transaction's attempt is recorded, but its invoice does not show every attempt
-    /// recorded on it, so the report is not decided and the invoice needs a manual check
+    /// recorded on it, so the recovery request is not decided and the invoice needs a manual check
     pub const RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC: &str = "RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC";
 
     /// A reported transaction was recorded and decided, but the merchant was not told: outgoing
