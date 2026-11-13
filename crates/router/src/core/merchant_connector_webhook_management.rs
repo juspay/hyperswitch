@@ -56,6 +56,22 @@ fn to_error_response<E: std::fmt::Display>(err: E) -> Box<types::ErrorResponse> 
     })
 }
 
+fn get_webhook_registration_base_url<'a>(
+    tenant_base_url: &'a str,
+    mtls_webhook_base_url: Option<&'a str>,
+    connector_requires_mtls: bool,
+) -> errors::RouterResult<&'a str> {
+    if connector_requires_mtls {
+        mtls_webhook_base_url.ok_or_else(|| {
+            Report::new(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                "mtls_webhook_base_url must be configured for connectors that require mTLS webhooks",
+            )
+        })
+    } else {
+        Ok(tenant_base_url)
+    }
+}
+
 async fn fetch_access_token_for_webhook(
     state: &SessionState,
     connector_data: &api::ConnectorData,
@@ -225,6 +241,12 @@ pub async fn register_connector_webhook(
         .get_webhook_registration_plan(scope, &state.conf.connectors)
         .to_webhook_configuration_failed_response()?;
 
+    let webhook_base_url = get_webhook_registration_base_url(
+        &state.base_url,
+        state.tenant.mtls_webhook_base_url.as_deref(),
+        connector_data.connector.is_webhook_mtls_required(),
+    )?;
+
     let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
@@ -258,7 +280,7 @@ pub async fn register_connector_webhook(
 
             let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
             let webhook_url = helpers::create_webhook_url(
-                &state.base_url,
+                webhook_base_url,
                 &mca.merchant_id,
                 merchant_connector_id,
             );
