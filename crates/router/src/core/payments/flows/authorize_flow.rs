@@ -603,6 +603,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Paypal => true,
+                // Moneris returns a redirect only when the issuer requires a challenge.
+                // Continue to Authorize for frictionless and attempted results, while
+                // leaving challenge redirects and failed authentication to their own paths.
+                api_models::enums::Connector::Moneris => match (
+                    &authorize_router_data.response,
+                    authorize_router_data.status,
+                ) {
+                    (
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            redirection_data,
+                            ..
+                        }),
+                        common_enums::AttemptStatus::AuthenticationSuccessful,
+                    ) => redirection_data.is_none(),
+                    _ => false,
+                },
                 // Nuvei: never run the next leg after a failed initPayment
                 api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS

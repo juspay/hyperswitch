@@ -496,6 +496,10 @@ pub mod superposition {
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
     pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
+    /// Positions on the static ladder available to an invoice under the hybrid static + adaptive
+    /// scheme. Controlled internally rather than by merchants, for both trigger models
+    pub const RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT: &str =
+        "revenue_recovery.max_hybrid_cascading_retry_count";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key

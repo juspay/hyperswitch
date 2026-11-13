@@ -814,6 +814,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     #[schema(value_type = RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
 
+    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries and has reported a transaction made off session with the customer absent.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
+
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
 
@@ -2410,6 +2415,11 @@ pub struct RecoveryPaymentsResponse {
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+
+    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers` and the transaction was made off session with the customer absent. Any other transaction is only recorded.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 }
 
 #[cfg(feature = "v2")]
@@ -2428,6 +2438,14 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Whether the customer was present for the transaction of this attempt, as reported. Absent
+    /// when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<PresenceOfCustomerDuringPayment>, example = "absent")]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    /// Absent when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
 #[derive(
@@ -14433,6 +14451,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers.
+    #[schema(value_type = Option<ExternalTriggerState>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_payments_types::ExternalTriggerState>,
 }
 
 #[cfg(feature = "v2")]
@@ -14701,6 +14723,18 @@ pub struct RecoveryPaymentsCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v2")]
+impl RecoveryPaymentsCreate {
+    /// Who started the reported transaction, when the request says both whether the customer was
+    /// present and how the payment method is set up for future use.
+    pub fn get_transaction_initiator(&self) -> Option<common_enums::TransactionInitiator> {
+        Some(common_enums::TransactionInitiator::new(
+            self.customer_present?,
+            self.setup_future_usage?,
+        ))
+    }
 }
 
 /// Error details for the payment
