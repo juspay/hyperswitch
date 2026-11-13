@@ -571,7 +571,7 @@ pub fn sanitize_sql_string_literal(raw: &str) -> String {
 pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
     let str = || r.replace('\\', "\\\\").replace('\'', "''");
     let num = || {
-        if r.parse::<i64>().is_ok() || matches!(r, "true" | "false") {
+        if r.parse::<i64>().is_ok() {
             r.to_owned()
         } else {
             sanitize_sql_string_literal(r)
