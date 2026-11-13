@@ -221,8 +221,6 @@ pub async fn get_batches(
         }
     };
 
-    metrics::BATCHES_CONSUMED.add(1, &[]);
-
     // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, RedisValue>)>
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
         .into_values()
@@ -248,20 +246,27 @@ pub async fn get_batches(
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
     let entry_ids = entry_ids.into_iter().flatten().collect::<Vec<_>>();
 
-    conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Error acknowledging batch in stream");
-            error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
-        })?;
-    conn.stream_delete_entries(&stream_name.into(), entry_ids)
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Error deleting batch from stream");
-            error.change_context(errors::ProcessTrackerError::BatchDeleteFailed)
-        })?;
+    if entry_ids.is_empty() {
+        logger::debug!("No batches processed as stream is empty");
+        Ok(Vec::new())
+    } else {
+        metrics::BATCHES_CONSUMED.add(1, &[]);
 
-    Ok(batches)
+        conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
+            .await
+            .map_err(|error| {
+                logger::error!(?error, "Error acknowledging batch in stream");
+                error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
+            })?;
+        conn.stream_delete_entries(&stream_name.into(), entry_ids)
+            .await
+            .map_err(|error| {
+                logger::error!(?error, "Error deleting batch from stream");
+                error.change_context(errors::ProcessTrackerError::BatchDeleteFailed)
+            })?;
+
+        Ok(batches)
+    }
 }
 
 pub fn get_process_tracker_id<'a>(
