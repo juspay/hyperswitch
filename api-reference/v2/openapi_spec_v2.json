@@ -16279,9 +16279,9 @@
             "description": "Id of the recovery report this state was last saved for, so a re-run of that report is\nrecognised.",
             "nullable": true
           },
-          "last_report_at": {
+          "last_transaction_created_at": {
             "type": "string",
-            "description": "When the recovery report this state was last saved for was received. A report received\nbefore it is out of date.",
+            "description": "When the transaction this state was last saved for was made. A transaction made before it is\nout of date and only recorded.",
             "example": "2022-09-10T10:11:12.000Z",
             "nullable": true
           }
