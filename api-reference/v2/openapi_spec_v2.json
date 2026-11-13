@@ -16265,6 +16265,17 @@
           },
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          "last_recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request this state was last saved for, so a re-run of that request is\nrecognised.",
+            "nullable": true
+          },
+          "last_transaction_created_at": {
+            "type": "string",
+            "description": "When the transaction this state was last saved for was made. A transaction made before it is\nout of date and only recorded.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
           }
         }
       },
@@ -23538,6 +23549,12 @@
                 "$ref": "#/components/schemas/FutureUsage"
               }
             ],
+            "nullable": true
+          },
+          "recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
         }

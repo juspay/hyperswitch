@@ -17,6 +17,8 @@ pub mod tokenized_data;
 
 pub mod revenue_recovery;
 
+pub mod recovery_request;
+
 pub mod process_dispute;
 
 pub mod dispute_list;
