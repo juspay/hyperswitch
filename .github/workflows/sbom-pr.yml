@@ -1,0 +1,98 @@
+name: PR SBOM
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sbom-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate CycloneDX SBOM
+    # Fork PRs must not run on internal runners or receive upload credentials.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: hyperswitch-runners
+    timeout-minutes: 15
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Generate source SBOM with Syft
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Scan manifests and lockfiles without executing PR code or building it.
+          # Keep output outside the scanned directory.
+          docker run --rm --network none \
+            --mount "type=bind,source=${GITHUB_WORKSPACE},target=/src,readonly" \
+            anchore/syft:v1.55.0 dir:/src -o cyclonedx-json \
+            > "${RUNNER_TEMP}/sbom.cdx.json"
+          jq -e '.bomFormat == "CycloneDX" and (.components | length > 0)' \
+            "${RUNNER_TEMP}/sbom.cdx.json" > /dev/null
+          jq -e 'any(.components[]; (.purl // "") | startswith("pkg:cargo/"))' \
+            "${RUNNER_TEMP}/sbom.cdx.json" > /dev/null
+
+      - name: Retain SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/sbom.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
+  upload:
+    name: Upload SBOM to Dependency-Track
+    needs: generate
+    runs-on: hyperswitch-runners
+    timeout-minutes: 10
+    # This job deliberately does not check out or execute PR code.
+    steps:
+      - name: Download SBOM
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: sbom-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/pr-sbom
+
+      - name: Upload and wait for BOM processing
+        shell: bash
+        env:
+          DTRACK_URL: ${{ vars.DTRACK_URL }}
+          DTRACK_API_KEY: ${{ secrets.DTRACK_API_KEY }}
+          PROJECT_NAME: ${{ github.repository }}
+          PROJECT_VERSION: pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          : "${DTRACK_URL:?Set the DTRACK_URL repository variable to the API server base URL}"
+          : "${DTRACK_API_KEY:?Set the DTRACK_API_KEY repository secret}"
+          api_url="${DTRACK_URL%/}/api/v1"
+          response=$(curl --fail --silent --show-error \
+            --connect-timeout 10 --max-time 120 \
+            -H "X-Api-Key: ${DTRACK_API_KEY}" \
+            --form-string "projectName=${PROJECT_NAME}" \
+            --form-string "projectVersion=${PROJECT_VERSION}" \
+            --form-string 'autoCreate=true' \
+            -F "bom=@${RUNNER_TEMP}/pr-sbom/sbom.cdx.json;type=application/json" \
+            "${api_url}/bom")
+          token=$(jq -er '.token | select(type == "string" and length > 0)' <<< "$response")
+          [[ "$token" =~ ^[a-zA-Z0-9-]+$ ]] || { echo 'Invalid processing token'; exit 1; }
+          for attempt in {1..30}; do
+            result=$(curl --fail --silent --show-error \
+              --retry 3 --retry-delay 2 --connect-timeout 10 --max-time 20 \
+              -H "X-Api-Key: ${DTRACK_API_KEY}" "${api_url}/bom/token/${token}")
+            processing=$(jq -er '.processing | type == "boolean"' <<< "$result")
+            if jq -e '.processing == false' <<< "$result" > /dev/null; then
+              echo "BOM processing completed for ${PROJECT_NAME} ${PROJECT_VERSION}"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo '::error::Timed out waiting for Dependency-Track BOM processing'
+          exit 1
