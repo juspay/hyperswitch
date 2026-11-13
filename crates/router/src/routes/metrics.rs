@@ -395,7 +395,7 @@ counter_metric!(
     REVENUE_RECOVERY_REPORT_STEP_FAILED,
     GLOBAL_METER,
     name: "revenue_recovery.report.step_failed",
-    description: "Errors in a step of the recovery report workflow, by `step`, before the job is \
+    description: "Errors in a step of the recovery request workflow, by `step`, before the job is \
                   retried or ended",
     unit: "1",
 );
