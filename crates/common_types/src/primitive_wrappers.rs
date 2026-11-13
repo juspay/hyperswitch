@@ -581,6 +581,11 @@ mod safe_string {
 
     /// String wrapper that prevents XSS and SQLi attacks
     #[derive(Clone, Debug, Eq, PartialEq, Default)]
+    #[cfg_attr(
+        feature = "diesel",
+        derive(diesel::expression::AsExpression, diesel::deserialize::FromSqlRow)
+    )]
+    #[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Text))]
     pub struct SafeString(String);
 
     impl SafeString {
