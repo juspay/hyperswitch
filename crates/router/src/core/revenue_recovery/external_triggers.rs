@@ -176,7 +176,7 @@ async fn decide_reported_retry(
             retries_after_hard_decline,
             next_retry: decision.next_retry,
             last_report_id: None,
-            last_transaction_created_at: None,
+            last_report_at: None,
         },
         decision.assigned_ab_algorithm,
     )
