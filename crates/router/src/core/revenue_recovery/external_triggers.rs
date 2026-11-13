@@ -15,13 +15,11 @@ use common_utils::{
 use diesel_models::{business_profile::RevenueRecoveryConfig, process_tracker::business_status};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payments::{
-        get_next_retry_for_intent_status, payment_intent::PaymentIntentUpdate, PaymentIntent,
-        PaymentIntentData,
-    },
+    payments::{get_next_retry_for_intent_status, PaymentIntent, PaymentIntentData},
     platform::Platform,
     revenue_recovery::{RecoveryPaymentAttempt, RecoveryPaymentIntent},
     type_encryption::{crypto_operation, CryptoOperation},
+    ApiModelToDieselModelConvertor,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
@@ -228,15 +226,7 @@ async fn handle_merchant_report(
 
     reset_card_history_after_a_charge(state, request).await;
 
-    let payment_intent = state
-        .store
-        .find_payment_intent_by_id(
-            &invoice.payment_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id).await?;
     let updated_invoice = RecoveryPaymentIntent::from(&payment_intent);
 
     if !is_merchant_initiated {
@@ -260,6 +250,7 @@ async fn handle_merchant_report(
     if let Err(error) = save_trigger_state(
         state,
         platform,
+        profile,
         payment_intent,
         trigger_state,
         assigned_ab_algorithm,
@@ -563,40 +554,57 @@ async fn get_card_availability(
     }
 }
 
-/// Keeps what the next report of the merchant needs on the invoice.
+/// Keeps what the next report of the merchant needs on the invoice, through the update-intent
+/// operation. A paid or cancelled invoice has ended, so it has no next retry to keep.
 async fn save_trigger_state(
     state: &SessionState,
     platform: &Platform,
+    profile: &domain::Profile,
     payment_intent: PaymentIntent,
     trigger_state: ExternalTriggerState,
     assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
-) -> error_stack::Result<(), errors::StorageError> {
-    let mut feature_metadata = payment_intent.feature_metadata.clone();
-    if let Some(recovery_metadata) = feature_metadata
-        .as_mut()
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_mut())
-    {
-        recovery_metadata.external_trigger_state = Some(trigger_state);
-        recovery_metadata.revenue_recovery_ab_routing =
-            assigned_ab_algorithm.or(recovery_metadata.revenue_recovery_ab_routing);
+) -> RouterResult<()> {
+    if matches!(
+        payment_intent.status,
+        common_enums::IntentStatus::Succeeded
+            | common_enums::IntentStatus::Cancelled
+            | common_enums::IntentStatus::CancelledPostCapture
+    ) {
+        return Ok(());
     }
-
-    let storage_scheme = platform.get_processor().get_storage_scheme();
-    let intent_update = PaymentIntentUpdate::FeatureMetadataUpdate {
-        feature_metadata: Box::new(feature_metadata),
-        updated_by: storage_scheme.inner().to_string(),
+    let Some(mut feature_metadata) = payment_intent
+        .feature_metadata
+        .map(ApiModelToDieselModelConvertor::convert_back)
+    else {
+        return Ok(());
     };
+    let Some(recovery_metadata) = feature_metadata.revenue_recovery.as_mut() else {
+        return Ok(());
+    };
+    recovery_metadata.external_trigger_state = Some(trigger_state);
+    recovery_metadata.revenue_recovery_ab_routing =
+        assigned_ab_algorithm.or(recovery_metadata.revenue_recovery_ab_routing);
 
-    state
-        .store
-        .update_payment_intent(
-            payment_intent,
-            intent_update,
-            platform.get_processor().get_key_store(),
-            storage_scheme,
-        )
-        .await
-        .map(|_| ())
+    Box::pin(payments::payments_intent_operation_core::<
+        api_types::PaymentUpdateIntent,
+        _,
+        _,
+        PaymentIntentData<api_types::PaymentUpdateIntent>,
+    >(
+        state,
+        state.get_req_state(),
+        platform.clone(),
+        profile.clone(),
+        payments::operations::PaymentUpdateIntent,
+        api_models::payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+            feature_metadata,
+            api_models::enums::UpdateActiveAttempt::NoAction,
+        ),
+        payment_intent.id,
+        hyperswitch_domain_models::payments::HeaderPayload::default(),
+    ))
+    .await
+    .map(|_| ())
 }
 
 /// Where the invoice stands on the static ladder: what the last report saved, or else a position
@@ -1263,6 +1271,7 @@ async fn apply_reported_transaction(
     save_trigger_state(
         state,
         platform,
+        profile,
         payment_intent,
         trigger_state,
         assigned_ab_algorithm,
