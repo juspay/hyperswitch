@@ -499,7 +499,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         &self,
         merchant_account: domain::MerchantAccountUpdate,
     ) -> CustomResult<usize, StorageError> {
-        let conn = self.pg_accounts_connection_read().await?;
+        let conn = self.pg_accounts_connection_write().await?;
 
         let db_func = || async {
             storage::MerchantAccount::update_all_merchant_accounts(
