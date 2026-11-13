@@ -2003,7 +2003,11 @@ pub enum EventRecipient {
     strum::EnumString,
 )]
 #[cfg_attr(
-    feature = "diesel",
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
     router_derive::diesel_enum(storage_type = "db_enum")
 )]
 #[serde(rename_all = "snake_case")]
@@ -2033,7 +2037,14 @@ pub enum EventObjectType {
     strum::EnumString,
     ToSchema,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[cfg_attr(
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventClass {
@@ -2115,7 +2126,14 @@ impl EventClass {
     strum::EnumString,
     ToSchema,
 )]
-#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[cfg_attr(
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 // Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
