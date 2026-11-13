@@ -56,6 +56,65 @@ use crate::{
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     type Error = errors::StorageError;
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn repair_payment_method_id_in_postgres(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
+        payment_method_id: Option<&str>,
+        updated_by: &str,
+    ) -> CustomResult<Option<bool>, errors::StorageError> {
+        let conn = pg_connection_write(self).await?;
+        let read_attempt = || async {
+            DieselPaymentAttempt::find_by_payment_id_processor_merchant_id_attempt_id(
+                &conn,
+                payment_id,
+                processor_merchant_id,
+                attempt_id,
+            )
+            .await
+            .map_err(|err| {
+                let context = diesel_error_to_data_error(*err.current_context());
+                err.change_context(context)
+            })
+        };
+        let persisted = read_attempt().await?;
+
+        if persisted.payment_method_id.is_some() {
+            return Ok(Some(false));
+        }
+        let Some(payment_method_id) = payment_method_id else {
+            return Ok(None);
+        };
+
+        let updated = persisted
+            .update_with_attempt_id(
+                &conn,
+                PaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset {
+                    payment_method_id: Some(payment_method_id.to_owned()),
+                    updated_by: updated_by.to_owned(),
+                }
+                .to_storage_model(),
+            )
+            .await;
+
+        match updated {
+            Ok(_) => Ok(Some(true)),
+            Err(err) => {
+                let context = diesel_error_to_data_error(*err.current_context());
+                // A concurrent update may have won the conditional write. Check the writer
+                // again so a successful competing write does not consume a retry.
+                if context.is_db_not_found() && read_attempt().await?.payment_method_id.is_some() {
+                    return Ok(Some(false));
+                }
+                Err(err.change_context(context))
+            }
+        }
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -660,6 +719,27 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     type Error = errors::StorageError;
+
+    #[cfg(feature = "v1")]
+    async fn repair_payment_method_id_in_postgres(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
+        payment_method_id: Option<&str>,
+        updated_by: &str,
+    ) -> CustomResult<Option<bool>, errors::StorageError> {
+        self.router_store
+            .repair_payment_method_id_in_postgres(
+                payment_id,
+                processor_merchant_id,
+                attempt_id,
+                payment_method_id,
+                updated_by,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn insert_payment_attempt(
@@ -987,6 +1067,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
+                let payment_method_id_must_be_null = matches!(
+                    &payment_attempt,
+                    PaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset { .. }
+                );
                 let key_str = key.to_string();
                 let old_connector_transaction_id = &this.get_connector_payment_id();
                 let old_preprocessing_id = &this.preprocessing_step_id;
@@ -1084,15 +1168,41 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .change_context(errors::StorageError::KVError)
                     .attach_printable("Failed to generate payment attempt update query")?;
 
-                Box::pin(kv_wrapper::<(), _, _>(
-                    self,
-                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), drainer_query),
-                    key,
-                ))
-                .await
-                .change_context(errors::StorageError::KVError)?
-                .try_into_hset()
-                .change_context(errors::StorageError::KVError)?;
+                if payment_method_id_must_be_null {
+                    let was_updated = Box::pin(kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::HsetIfJsonFieldNull::<DieselPaymentAttempt>(
+                            (&field, redis_value, "payment_method_id"),
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hsetifjsonfieldnull()
+                    .change_context(errors::StorageError::KVError)?;
+
+                    if !was_updated {
+                        return Err(errors::StorageError::DuplicateValue {
+                            entity: "payment_attempt.payment_method_id",
+                            key: Some(this.attempt_id.clone()),
+                        }
+                        .into());
+                    }
+                } else {
+                    Box::pin(kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<DieselPaymentAttempt>(
+                            (&field, redis_value),
+                            drainer_query,
+                        ),
+                        key,
+                    ))
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
+                    .change_context(errors::StorageError::KVError)?;
+                }
 
                 Ok(updated_attempt)
             }

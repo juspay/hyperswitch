@@ -1719,6 +1719,28 @@ impl QueueInterface for KafkaStore {
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for KafkaStore {
     type Error = errors::StorageError;
+
+    #[cfg(feature = "v1")]
+    async fn repair_payment_method_id_in_postgres(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        attempt_id: &str,
+        payment_method_id: Option<&str>,
+        updated_by: &str,
+    ) -> CustomResult<Option<bool>, errors::StorageError> {
+        // Repair the database copy without replaying the original payment update's events.
+        self.diesel_store
+            .repair_payment_method_id_in_postgres(
+                payment_id,
+                processor_merchant_id,
+                attempt_id,
+                payment_method_id,
+                updated_by,
+            )
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn insert_payment_attempt(
         &self,
