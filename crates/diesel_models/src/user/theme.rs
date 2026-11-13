@@ -1,6 +1,9 @@
 use common_enums::EntityType;
 use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
-use common_utils::{date_time, id_type, types::user::ThemeLineage};
+use common_utils::{
+    date_time, id_type,
+    types::{user::ThemeLineage, Url},
+};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use router_derive::DebugAsDisplay;
 use time::PrimitiveDateTime;
@@ -24,7 +27,7 @@ pub struct Theme {
     pub email_foreground_color: SafeString,
     pub email_background_color: SafeString,
     pub email_entity_name: SafeString,
-    pub email_entity_logo_url: SafeString,
+    pub email_entity_logo_url: Url,
     pub theme_config_version: String,
 }
 
@@ -44,7 +47,7 @@ pub struct ThemeNew {
     pub email_foreground_color: SafeString,
     pub email_background_color: SafeString,
     pub email_entity_name: SafeString,
-    pub email_entity_logo_url: SafeString,
+    pub email_entity_logo_url: Url,
     pub theme_config_version: String,
 }
 
@@ -96,7 +99,7 @@ pub struct ThemeUpdateInternal {
     pub email_foreground_color: Option<SafeString>,
     pub email_background_color: Option<SafeString>,
     pub email_entity_name: Option<SafeString>,
-    pub email_entity_logo_url: Option<SafeString>,
+    pub email_entity_logo_url: Option<Url>,
     pub last_modified_at: PrimitiveDateTime,
     pub theme_config_version: Option<String>,
 }

@@ -413,7 +413,11 @@ impl EmailData for VerifyEmail {
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
             entity_name: self.theme_config.entity_name.clone().into_inner(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
             primary_color: self.theme_config.primary_color.clone().into_inner(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
@@ -463,7 +467,11 @@ impl EmailData for ResetPassword {
             link: reset_password_link,
             user_name: self.user_name.clone().get_secret().expose(),
             entity_name: self.theme_config.entity_name.clone().into_inner(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
             primary_color: self.theme_config.primary_color.clone().into_inner(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
@@ -513,7 +521,11 @@ impl EmailData for MagicLink {
             link: magic_link_login,
             user_name: self.user_name.clone().get_secret().expose(),
             entity_name: self.theme_config.entity_name.clone().into_inner(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
             primary_color: self.theme_config.primary_color.clone().into_inner(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
@@ -563,7 +575,11 @@ impl EmailData for InviteUser {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
             entity_name: self.theme_config.entity_name.clone().into_inner(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
             primary_color: self.theme_config.primary_color.clone().into_inner(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
@@ -801,7 +817,11 @@ impl EmailData for RoleDeleted {
             entity_type: format!("{:?}", self.entity_type),
             lineage_info,
             entity_name: self.theme_config.entity_name.clone().into_inner(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
