@@ -48,8 +48,8 @@ pub struct RapydPaymentsRequest {
     pub merchant_reference_id: Option<String>,
     pub capture: Option<bool>,
     pub description: Option<String>,
-    pub complete_payment_url: Option<String>,
-    pub error_payment_url: Option<String>,
+    pub complete_payment_url: Option<Secret<String>>,
+    pub error_payment_url: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize)]

@@ -14,24 +14,28 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
+        payments::{
+            Authorize, Capture, PSync, PaymentMethodToken, PostCaptureVoid, Session, SetupMandate,
+            Void,
+        },
         refunds::{Execute, RSync},
         CompleteAuthorize, CreateConnectorCustomer,
     },
     router_request_types::{
         AccessTokenRequestData, CompleteAuthorizeData, ConnectorCustomerData,
         PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
-        SetupMandateRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
+        RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData,
-        RefundsRouterData, SetupMandateRouterData,
+        ConnectorCustomerRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCancelPostCaptureRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsCompleteAuthorizeRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -44,8 +48,8 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         ConnectorCustomerType, PaymentsAuthorizeType, PaymentsCaptureType,
-        PaymentsCompleteAuthorizeType, PaymentsSyncType, PaymentsVoidType, RefundExecuteType,
-        RefundSyncType, Response, SetupMandateType,
+        PaymentsCompleteAuthorizeType, PaymentsPostCaptureVoidType, PaymentsSyncType,
+        PaymentsVoidType, RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
     webhooks,
 };
@@ -115,6 +119,7 @@ impl api::Payment for Authorizedotnet {}
 impl api::PaymentAuthorize for Authorizedotnet {}
 impl api::PaymentSync for Authorizedotnet {}
 impl api::PaymentVoid for Authorizedotnet {}
+impl api::PaymentPostCaptureVoid for Authorizedotnet {}
 impl api::PaymentCapture for Authorizedotnet {}
 impl api::PaymentSession for Authorizedotnet {}
 impl api::ConnectorAccessToken for Authorizedotnet {}
@@ -714,6 +719,95 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Au
 
         let response: authorizedotnet::AuthorizedotnetVoidResponse = intermediate_response
             .parse_struct("AuthorizedotnetPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        get_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+    for Authorizedotnet
+{
+    fn get_headers(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(self.base_url(connectors).to_string())
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+    fn build_request(
+        &self,
+        req: &PaymentsCancelPostCaptureRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&PaymentsPostCaptureVoidType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(PaymentsPostCaptureVoidType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(PaymentsPostCaptureVoidType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsCancelPostCaptureRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsCancelPostCaptureRouterData, errors::ConnectorError> {
+        use bytes::Buf;
+
+        // Handle the case where response bytes contains U+FEFF (BOM) character sent by connector
+        let encoding = encoding_rs::UTF_8;
+        let intermediate_response = encoding.decode_with_bom_removal(res.response.chunk());
+        let intermediate_response =
+            bytes::Bytes::copy_from_slice(intermediate_response.0.as_bytes());
+
+        let response: authorizedotnet::AuthorizedotnetVoidResponse = intermediate_response
+            .parse_struct("AuthorizedotnetVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);

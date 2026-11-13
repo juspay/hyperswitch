@@ -6,7 +6,7 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::MandateTransactionType;
 use hyperswitch_masking::PeekInterface;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -49,6 +49,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -134,6 +135,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
         .await?;
 
         let payment_data = PaymentData {
+            capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
             payment_intent,

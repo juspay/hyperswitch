@@ -92,7 +92,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as adyen;
 
 #[cfg(feature = "payouts")]
@@ -240,6 +240,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::PayBright
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
+                | PaymentMethodType::Wero
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Paypal => match capture_method {
                     enums::CaptureMethod::Automatic
@@ -266,6 +267,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::PayBright
                 | PaymentMethodType::Sepa
                 | PaymentMethodType::Vipps
+                | PaymentMethodType::Wero
                 | PaymentMethodType::Venmo
                 | PaymentMethodType::Skrill
                 | PaymentMethodType::Neteller
@@ -414,7 +416,6 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Flexiti
                 | PaymentMethodType::RevolutPay
                 | PaymentMethodType::Bluecode
-                | PaymentMethodType::Wero
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
                 | PaymentMethodType::NetworkToken
@@ -2144,6 +2145,7 @@ impl IncomingWebhook for Adyen {
         let year_str = expiry.year();
 
         Ok(Some(api_models::payment_methods::PaymentMethodUpdate {
+            update_last_used_at: Some(true),
             card: Some(api_models::payment_methods::CardDetailUpdate {
                 card_exp_month: Some(month_str),
                 card_exp_year: Some(year_str),
@@ -3453,7 +3455,8 @@ impl ConnectorSpecifications for Adyen {
             }
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
-            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

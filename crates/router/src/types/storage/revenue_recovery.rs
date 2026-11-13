@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     payments::{payment_attempt::PaymentAttempt, PaymentIntent, PaymentStatusData},
 };
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +36,10 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// survives for the whole recovery lifecycle of an invoice.
     #[serde(default)]
     pub static_ladder_progress: Option<StaticLadderProgress>,
+    /// The card calculate picked for the retry, which execute pays with. Only set on the EXECUTE
+    /// row, and missing on rows queued before calculate recorded its pick.
+    #[serde(default)]
+    pub payment_processor_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -47,12 +51,29 @@ pub struct RevenueRecoveryPaymentData {
     pub retry_algorithm: enums::RevenueRecoveryAlgorithmType,
     pub psync_data: Option<PaymentStatusData<types::api::PSync>>,
 }
+
+/// The merchant and profile an invoice belongs to.
+#[derive(Clone, Copy)]
+pub struct RecoveryMerchantContext<'a> {
+    pub merchant_account: &'a merchant_account::MerchantAccount,
+    pub key_store: &'a merchant_key_store::MerchantKeyStore,
+    pub profile: &'a business_profile::Profile,
+}
+
 impl RevenueRecoveryPaymentData {
+    pub fn get_merchant_context(&self) -> RecoveryMerchantContext<'_> {
+        RecoveryMerchantContext {
+            merchant_account: &self.merchant_account,
+            key_store: &self.key_store,
+            profile: &self.profile,
+        }
+    }
+
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        retry_count: i32,
+        retry_count: u32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,
@@ -98,7 +119,6 @@ impl RevenueRecoveryPaymentData {
 
 #[derive(Debug, serde::Deserialize, Clone, Default)]
 pub struct RevenueRecoverySettings {
-    pub monitoring_threshold_in_seconds: i64,
     pub retry_algorithm_type: enums::RevenueRecoveryAlgorithmType,
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,

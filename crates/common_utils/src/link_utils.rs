@@ -14,7 +14,7 @@ use diesel::{
 };
 #[cfg(feature = "diesel")]
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
@@ -23,7 +23,7 @@ use utoipa::ToSchema;
 
 #[cfg(feature = "diesel")]
 use crate::errors::ParsingError;
-use crate::{consts, id_type, types::MinorUnit};
+use crate::{consts, crypto, id_type, types::MinorUnit};
 
 #[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
 #[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
@@ -199,6 +199,16 @@ pub struct GenericLinkUiConfig {
     pub theme: Option<String>,
 }
 
+impl crate::validation::ValidateXSSOrSQLi for GenericLinkUiConfig {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.merchant_name
+            .as_ref()
+            .map(|merchant_name| merchant_name.peek().clone())
+            .validate_xss_or_sqli()?;
+        self.theme.validate_xss_or_sqli()
+    }
+}
+
 /// Object for GenericLinkUiConfigFormData
 #[derive(Clone, Debug, serde::Deserialize, Serialize, ToSchema)]
 pub struct GenericLinkUiConfigFormData {
@@ -251,6 +261,29 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
             err_msg
         })
         .unwrap_or(false)
+}
+
+/// Domain type for the Content-Security-Policy nonce that link pages generate per response
+#[derive(Debug)]
+pub struct CspNonce(Secret<String>);
+
+impl CspNonce {
+    /// Generate a new nonce from a cryptographically secure source
+    pub fn generate() -> Self {
+        Self(Secret::new(
+            crypto::generate_cryptographically_secure_random_string(32),
+        ))
+    }
+
+    /// Get the nonce value to place in the CSP header
+    pub fn peek(&self) -> &str {
+        self.0.peek()
+    }
+
+    /// Get the `nonce` attribute to place on the page's script and preload tags
+    pub fn get_html_attribute(&self) -> String {
+        format!(r#"nonce="{}""#, self.peek())
+    }
 }
 
 #[cfg(test)]

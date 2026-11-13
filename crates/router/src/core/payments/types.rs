@@ -12,7 +12,7 @@ pub use hyperswitch_domain_models::router_request_types::{
     self, AuthenticationData, SplitRefundsRequest, StripeSplitRefund, SurchargeDetails,
 };
 use redis_interface::errors::RedisError;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use crate::{
     consts as router_consts,
@@ -226,6 +226,7 @@ impl ForeignTryFrom<(&SurchargeDetails, &PaymentAttempt)> for SurchargeDetailsRe
             display_tax_on_surcharge_amount,
             display_total_surcharge_amount,
             surcharge_percentage: None,
+            error_details: None,
         })
     }
 }

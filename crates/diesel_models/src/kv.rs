@@ -2,7 +2,6 @@ mod bind_params;
 mod entity_type;
 mod pg_type_metadata;
 
-use async_bb8_diesel::AsyncConnection;
 use common_utils::pii;
 use diesel::{
     associations::HasTable,
@@ -14,7 +13,7 @@ use diesel::{
         InsertStatement, IntoUpdateTarget, MoveableBindCollector, QueryBuilder, QueryFragment,
         UpdateStatement,
     },
-    query_dsl::methods::{ExecuteDsl, FilterDsl, FindDsl},
+    query_dsl::methods::{FilterDsl, FindDsl},
     query_source::Table,
     Insertable,
 };
@@ -94,12 +93,7 @@ impl SerializableQuery {
             )?;
 
         let bind_collector = conn
-            .raw_connection()
-            .run(move |c| {
-                let mut bc = RawBytesBindCollector::<Pg>::new();
-                query.collect_binds(&mut bc, c, &Pg)?;
-                Ok::<RawBytesBindCollector<Pg>, diesel::result::Error>(bc)
-            })
+            .collect_query_binds(query)
             .await
             .change_context(errors::DatabaseError::QueryGenerationFailed)
             .attach_printable("Failed to construct bind parameters")?;
@@ -149,8 +143,7 @@ impl SerializableQuery {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        conn.raw_connection()
-            .run(move |c| ExecuteDsl::execute(query, c))
+        conn.execute_collected(query)
             .await
             .attach_printable("Failed to execute drainer query")
             .switch()

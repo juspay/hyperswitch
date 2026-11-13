@@ -1,5 +1,5 @@
 use actix_web::{web, Responder};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::{api_locking, payment_link::*},
@@ -46,7 +46,17 @@ pub async fn payment_link_retrieve(
         state,
         &req,
         payload.clone(),
-        |state, _auth, _, _| retrieve_payment_link(state, path.clone()),
+        |state, auth, _, _| {
+            let payment_link_id = path.clone();
+            async move {
+                retrieve_payment_link(
+                    state,
+                    auth.platform.get_processor().get_account().get_id(),
+                    payment_link_id,
+                )
+                .await
+            }
+        },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
     )

@@ -10,6 +10,9 @@ global_meter!(GLOBAL_METER, "ROUTER_API");
 counter_metric!(HEALTH_METRIC, GLOBAL_METER); // No. of health API hits
 counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 counter_metric!(PREFERRED_CONNECTORS_UPDATE_FAILURES, GLOBAL_METER);
+// Client-authenticated requests supplying merchant-only fields.
+counter_metric!(CLIENT_MCP_UPDATE_REJECTED, GLOBAL_METER);
+counter_metric!(CLIENT_SETTLEMENT_CONCLUSION_UPDATE_REJECTED, GLOBAL_METER);
 
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
@@ -376,17 +379,6 @@ counter_metric!(
     description: "Invoices whose grace window — how long they have left to be recovered — could \
                   not be established, ending recovery for that invoice; `reason` says which of \
                   the three steps could not be completed",
-    unit: "1",
-);
-// Not to be read as "the invoice ran out of retries", which is the ordinary end of its life and
-// finishes the job cleanly. This counts a stored retry count that is not a count at all — the only
-// way `i32 -> u32` fails is a negative — so the remaining budget cannot be derived from it.
-counter_metric!(
-    REVENUE_RECOVERY_RETRY_COUNT_INVALID,
-    GLOBAL_METER,
-    name: "revenue_recovery.retry_count_invalid",
-    description: "Invoices whose stored retry count was negative and so not a usable count, \
-                  leaving the remaining retry budget underivable and ending recovery",
     unit: "1",
 );
 

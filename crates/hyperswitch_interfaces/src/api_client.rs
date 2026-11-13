@@ -12,6 +12,7 @@ use common_utils::{
     },
     errors::CustomResult,
     request::{Headers, Request, RequestContent},
+    transformers::ForeignTryFrom,
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
@@ -136,8 +137,6 @@ pub trait ApiClientWrapper: Send + Sync {
 /// In other cases, It will be created if required, even if it is not passed
 #[instrument(skip_all, fields(connector_name, payment_method))]
 pub async fn execute_connector_processing_step<
-    'b,
-    'a,
     T,
     ResourceCommonData: Clone + RouterDataConversion<T, Req, Resp> + 'static,
     Req: Debug + Clone + 'static,
@@ -145,14 +144,13 @@ pub async fn execute_connector_processing_step<
 >(
     state: &dyn ApiClientWrapper,
     connector_integration: BoxedConnectorIntegrationInterface<T, ResourceCommonData, Req, Resp>,
-    req: &'b RouterData<T, Req, Resp>,
+    req: &RouterData<T, Req, Resp>,
     call_connector_action: common_enums::CallConnectorAction,
     connector_request: Option<Request>,
     return_raw_connector_response: Option<bool>,
 ) -> CustomResult<RouterData<T, Req, Resp>, ConnectorError>
 where
     T: Clone + Debug + 'static,
-    // BoxedConnectorIntegration<T, Req, Resp>: 'b,
 {
     // If needed add an error stack as follows
     // connector_integration.build_request(req).attach_printable("Failed to build request");
@@ -571,7 +569,7 @@ pub async fn handle_response(
         .map(|response| async {
             logger::info!(?response);
             let status_code = response.status().as_u16();
-            let headers = Some(response.headers().to_owned());
+            let headers = Some(http::HeaderMap::foreign_try_from(response.headers())?);
             match status_code {
                 200..=202 | 302 | 204 => {
                     // If needed add log line

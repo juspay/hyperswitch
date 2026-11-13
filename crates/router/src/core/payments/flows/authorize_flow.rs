@@ -22,7 +22,8 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use payment_methods::single_use_token;
 use unified_connector_service_client::payments as payments_grpc;
 
 // use router_env::tracing::Instrument;
@@ -39,9 +40,9 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         mandate,
         payments::{
-            self, access_token, customers, flows::gateway_context, gateway,
-            gateway as payments_gateway, helpers, session_token, tokenization, transformers,
-            PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, customers,
+            flows::gateway_context, gateway, gateway as payments_gateway, helpers, session_token,
+            tokenization, transformers, PaymentData,
         },
         unified_connector_service,
     },
@@ -70,6 +71,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -86,6 +88,7 @@ impl
             merchant_connector_account,
             merchant_recipient_data,
             header_payload,
+            connector_callback_urls,
         ))
         .await
     }
@@ -152,6 +155,7 @@ impl
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -177,6 +181,7 @@ impl
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -215,6 +220,10 @@ impl
 
 #[async_trait]
 impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAuthorizeRouterData {
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow> {
+        Some(single_use_token::SingleUseTokenFlow::Authorize)
+    }
+
     fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
         Some(api_interface::CurrentFlowInfo::Authorize {
             auth_type: self.auth_type,
@@ -594,6 +603,22 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Paypal => true,
+                // Moneris returns a redirect only when the issuer requires a challenge.
+                // Continue to Authorize for frictionless and attempted results, while
+                // leaving challenge redirects and failed authentication to their own paths.
+                api_models::enums::Connector::Moneris => match (
+                    &authorize_router_data.response,
+                    authorize_router_data.status,
+                ) {
+                    (
+                        Ok(types::PaymentsResponseData::TransactionResponse {
+                            redirection_data,
+                            ..
+                        }),
+                        common_enums::AttemptStatus::AuthenticationSuccessful,
+                    ) => redirection_data.is_none(),
+                    _ => false,
+                },
                 // Nuvei: never run the next leg after a failed initPayment
                 api_models::enums::Connector::Nuvei => authorize_router_data.response.is_ok(),
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
@@ -1367,6 +1392,10 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
+            payment_feature_metadata: item.request.feature_metadata,
+            // Full automatic capture uses the original payment settlement values.
+            feature_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,
@@ -1380,6 +1409,8 @@ impl<F>
             is_overcapture_enabled: item.request.enable_overcapture.map(|enable_overcapture| {
                 common_types::primitive_wrappers::OvercaptureEnabledBool::new(*enable_overcapture)
             }),
+            payment_method_data: None,
+            mandate_id: item.request.mandate_id,
         })
     }
 }
@@ -1409,7 +1440,7 @@ async fn process_capture_flow(
     );
 
     // Call capture request
-    let post_capture_router_data = super::call_capture_request(
+    let post_capture_router_data = Box::pin(super::call_capture_request(
         capture_router_data,
         state,
         connector,
@@ -1417,7 +1448,7 @@ async fn process_capture_flow(
         business_profile,
         header_payload,
         context,
-    )
+    ))
     .await;
 
     // Process capture response
@@ -1460,16 +1491,16 @@ fn transform_redirection_response_for_pre_authenticate_flow(
             match connector {
                 enums::connector_enums::Connector::Barclaycard => {
                     Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
-                        access_token,
-                        ddc_url,
-                        reference_id,
+                        access_token: access_token.expose(),
+                        ddc_url: ddc_url.expose(),
+                        reference_id: reference_id.expose(),
                     })
                 }
                 enums::connector_enums::Connector::Cybersource => {
                     Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                        access_token,
-                        ddc_url,
-                        reference_id,
+                        access_token: access_token.expose(),
+                        ddc_url: ddc_url.expose(),
+                        reference_id: reference_id.expose(),
                     })
                 }
                 _ => Ok(response_data),
@@ -1580,19 +1611,25 @@ fn transform_response_for_pre_authenticate_flow(
                                     directory_server_id: form_fields
                                         .get("threeDSServerTransID")
                                         .cloned()
-                                        .unwrap_or_default(),
+                                        .unwrap_or_default()
+                                        .expose(),
                                     three_ds_method_url: form_fields
                                         .get("threeDsMethodUrl")
                                         .cloned()
-                                        .unwrap_or_else(|| endpoint.clone()),
+                                        .unwrap_or_else(|| endpoint.clone())
+                                        .expose(),
                                     three_ds_method_data: form_fields
                                         .get("threeDsMethodData")
                                         .cloned()
-                                        .unwrap_or_default(),
-                                    message_version: form_fields.get("messageVersion").cloned(),
+                                        .unwrap_or_default()
+                                        .expose(),
+                                    message_version: form_fields
+                                        .get("messageVersion")
+                                        .cloned()
+                                        .map(ExposeInterface::expose),
                                     three_ds_method_data_submission: form_fields
                                         .get("threeDsMethodDataSubmission")
-                                        .map(|v| v == "true")
+                                        .map(|v| v.peek() == "true")
                                         .unwrap_or(true),
                                 };
                             // Set connector_metadata with invoke data, clear redirection_data
@@ -1706,12 +1743,12 @@ pub async fn call_unified_connector_service_pre_authenticate(
         headers_builder,
         rollout_settings,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
-            let response = client
+            let response = Box::pin(client
                 .payment_pre_authenticate(
                     payment_pre_authenticate_request,
                     connector_auth_metadata,
                     grpc_headers,
-                )
+                ))
                 .await
                 .attach_printable("Failed to pre authenticate payment")?;
 
