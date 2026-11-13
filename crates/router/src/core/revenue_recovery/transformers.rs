@@ -59,11 +59,18 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
-            customer_present: if data.customer_present {
-                common_enums::PresenceOfCustomerDuringPayment::Present
-            } else {
-                common_enums::PresenceOfCustomerDuringPayment::Absent
-            },
+            // Defaults to absent since recovery retries are merchant initiated
+            customer_present: data
+                .customer_present
+                .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent),
+            setup_future_usage: data
+                .setup_future_usage
+                .unwrap_or(common_enums::FutureUsage::OffSession),
+            // Defaults to recurring since recovery retries are merchant initiated transactions on a saved card for a recurring invoice
+            mit_category: Some(
+                data.mit_category
+                    .unwrap_or(common_enums::MitCategory::Recurring),
+            ),
         }
     }
 }

@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{api_locking, verification},
+    core::{api_locking, errors, verification},
     services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
@@ -24,12 +24,21 @@ pub async fn apple_pay_merchant_registration(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            verification::verify_merchant_creds_for_applepay(
-                state.clone(),
-                body,
-                merchant_id.clone(),
-                auth.profile.map(|profile| profile.get_id().clone()),
-            )
+            let merchant_id = merchant_id.clone();
+            async move {
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        verification::verify_merchant_creds_for_applepay(
+                            state.clone(),
+                            body,
+                            merchant_id,
+                            auth.profile.map(|profile| profile.get_id().clone()),
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
+                }
+            }
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -64,12 +73,21 @@ pub async fn apple_pay_merchant_registration(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            verification::verify_merchant_creds_for_applepay(
-                state.clone(),
-                body,
-                merchant_id.clone(),
-                Some(auth.profile.get_id().clone()),
-            )
+            let merchant_id = merchant_id.clone();
+            async move {
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        verification::verify_merchant_creds_for_applepay(
+                            state.clone(),
+                            body,
+                            merchant_id,
+                            Some(auth.profile.get_id().clone()),
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
+                }
+            }
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -98,23 +116,47 @@ pub async fn retrieve_apple_pay_verified_domains(
     let merchant_id = &params.merchant_id;
     let mca_id = &params.merchant_connector_account_id;
 
+    #[cfg(feature = "v1")]
+    let api_key_auth = auth::HeaderAuth(auth::ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    });
+    #[cfg(feature = "v2")]
+    let api_key_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         merchant_id.clone(),
-        |state, _: auth::AuthenticationData, _, _| {
-            verification::get_verified_apple_domains_with_mid_mca_id(
-                state,
-                merchant_id.to_owned(),
-                mca_id.clone(),
-            )
+        |state, auth: auth::AuthenticationData, _, _| {
+            let merchant_id = merchant_id.clone();
+            let mca_id = mca_id.clone();
+            async move {
+                match auth.platform.get_processor().get_account().get_id() {
+                    authenticated_merchant_id if authenticated_merchant_id == &merchant_id => {
+                        #[cfg(feature = "v1")]
+                        let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                        #[cfg(feature = "v2")]
+                        let profile_id = Some(auth.profile.get_id().clone());
+
+                        verification::get_verified_apple_domains_with_mid_mca_id(
+                            state,
+                            merchant_id,
+                            profile_id,
+                            mca_id,
+                        )
+                        .await
+                    }
+                    _ => Err(errors::ApiErrorResponse::Unauthorized.into()),
+                }
+            }
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
-            }),
+            &api_key_auth,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
                 allow_connected: true,

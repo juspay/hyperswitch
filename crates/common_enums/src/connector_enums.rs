@@ -76,6 +76,7 @@ pub enum Connector {
     Bamboraapac,
     Bankofamerica,
     Barclaycard,
+    Betterpayment,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -107,6 +108,7 @@ pub enum Connector {
     Dlocal,
     Dwolla,
     Ebanx,
+    Ecommpay,
     Envoy,
     Elavon,
     Etisalat,
@@ -380,6 +382,7 @@ impl Connector {
             | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Barclaycard
+            | Self::Betterpayment
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
@@ -453,7 +456,6 @@ impl Connector {
             | Self::Paysafe
             | Self::Paystack
             | Self::Payu
-            | Self::Peachpayments
             | Self::Placetopay
             | Self::Powertranz
             | Self::Prophetpay
@@ -517,10 +519,12 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::Ecommpay
             | Self::JpmorganOrbital
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml
+            | Self::Peachpayments
             // Portico cannot authenticate: its Secure3D block only carries results computed
             // by a separate authentication connector, so external 3DS is its only 3DS mode.
             | Self::GlobalpaymentsHeartland => true,

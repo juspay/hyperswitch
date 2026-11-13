@@ -1994,7 +1994,8 @@ pub async fn payments_cancel(
                             &header_payload,
                             crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
                             &preliminary_dimensions,
-                            None
+                            None,
+                            auth.profile.as_ref().map(|profile| profile.get_id()),
                         )
                         .await?;
 
@@ -2372,8 +2373,15 @@ pub async fn revenue_recovery_invoices_list(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            payments::list::revenue_recovery_list_payments(state, auth.platform, req)
+        |state, auth: auth::AuthenticationData, mut req, _| async move {
+            if let Some(profile_id) = req.profile_id.take() {
+                crate::core::utils::validate_profile_id_from_auth_layer(
+                    Some(profile_id),
+                    &auth.profile,
+                )?;
+            }
+            req.profile_id = Some(auth.profile.get_id().clone());
+            payments::list::revenue_recovery_list_payments(state, auth.platform, req).await
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -2405,8 +2413,15 @@ pub async fn payments_list(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            payments::list::list_payments(state, auth.platform, req)
+        |state, auth: auth::AuthenticationData, mut req, _| async move {
+            if let Some(profile_id) = req.profile_id.take() {
+                crate::core::utils::validate_profile_id_from_auth_layer(
+                    Some(profile_id),
+                    &auth.profile,
+                )?;
+            }
+            req.profile_id = Some(auth.profile.get_id().clone());
+            payments::list::list_payments(state, auth.platform, req).await
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {

@@ -1661,6 +1661,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     ..item.data
                 })
             }
+            // Santander's Billing API sends this notification only after the
+            // boleto is paid; unlike a boleto sync response, it has no status.
+            SantanderPaymentsSyncResponse::BoletoWebhook(_) => Ok(Self {
+                status: AttemptStatus::Charged,
+                ..item.data
+            }),
             // MIT recurring charge sync (cobr endpoint consultation)
             SantanderPaymentsSyncResponse::PixAutomaticoCobrSync(cobr_data) => {
                 let attempt_status = cobr_sync_status_to_attempt_status(&cobr_data);

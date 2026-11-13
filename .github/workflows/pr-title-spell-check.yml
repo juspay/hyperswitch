@@ -13,7 +13,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Store PR title in a file
         shell: bash
