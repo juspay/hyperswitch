@@ -14506,6 +14506,16 @@ impl PaymentRevenueRecoveryMetadata {
     ) {
         self.payment_connector_transmission = Some(payment_connector_transmission);
     }
+    pub fn get_payment_token_for_api_request(&self) -> mandates::ProcessorPaymentToken {
+        mandates::ProcessorPaymentToken {
+            processor_payment_token: self
+                .billing_connector_payment_details
+                .payment_processor_token
+                .clone(),
+            merchant_connector_id: Some(self.active_attempt_payment_connector_id.clone()),
+            processor_payment_token_details: None,
+        }
+    }
 
     /// The connector accounts the invoice is recorded against. An invoice on external triggers has
     /// none.

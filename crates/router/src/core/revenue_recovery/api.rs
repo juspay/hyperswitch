@@ -108,6 +108,7 @@ pub async fn call_proxy_api(
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
         processor_payment_token: payment_processor_token.to_string(),
         merchant_connector_id: Some(connector_accounts.payment_connector_id.clone()),
+        processor_payment_token_details: None,
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
