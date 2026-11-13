@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.10.26.0-hotfix12
+
+### Bug Fixes
+
+- **payment-methods:** Customer's pml failures during card info lookup failures ([#15111](https://github.com/juspay/hyperswitch/pull/15111)) ([`4e50a48`](https://github.com/juspay/hyperswitch/commit/4e50a48eabf880ebf2f9be3db4481790dea9741d))
+
+**Full Changelog:** [`2026.10.26.0-hotfix11...2026.10.26.0-hotfix12`](https://github.com/juspay/hyperswitch/compare/2026.10.26.0-hotfix11...2026.10.26.0-hotfix12)
+
+- - -
+
 ## 2026.10.26.0-hotfix11
 
 ### Bug Fixes
