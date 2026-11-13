@@ -43,7 +43,7 @@ use crate::{
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
-    db::{AccountsStorageInterface, StorageInterface},
+    db::AccountsStorageInterface,
     logger,
     routes::{app::SessionStateInfo, metrics, SessionState},
     services::{
@@ -386,12 +386,16 @@ pub async fn create_merchant_account(
         )
         .await?;
 
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    state
+        .track_accounts_query(|db| {
+            db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
+        })
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
-    let merchant_account = db
-        .insert_merchant(domain_merchant_account, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| db.insert_merchant(domain_merchant_account, &key_store))
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
 
@@ -1001,8 +1005,9 @@ pub async fn list_merchant_account(
     organization_id: api_models::organization::OrganizationId,
 ) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
     let merchant_accounts = state
-        .store
-        .list_merchant_accounts_by_organization_id(&organization_id.organization_id)
+        .track_accounts_query(|db| {
+            db.list_merchant_accounts_by_organization_id(&organization_id.organization_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1035,8 +1040,9 @@ pub async fn list_merchant_account(
         }
     }
     let merchant_accounts = state
-        .store
-        .list_merchant_accounts_by_organization_id(&req.organization_id)
+        .track_accounts_query(|db| {
+            db.list_merchant_accounts_by_organization_id(&req.organization_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1060,16 +1066,18 @@ pub async fn get_merchant_account(
     _profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &req.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&req.merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1085,13 +1093,12 @@ pub async fn get_merchant_account(
 /// primary_business_details, create a profile
 pub async fn create_profile_from_business_labels(
     state: &SessionState,
-    db: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
     merchant_id: &id_type::MerchantId,
     new_business_details: Vec<admin_types::PrimaryBusinessDetails>,
 ) -> RouterResult<()> {
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, key_store))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1133,7 +1140,10 @@ pub async fn create_profile_from_business_labels(
         // If a profile is created, then unset the default profile
         if profile_create_result.is_ok() && merchant_account.default_profile.is_some() {
             let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-            db.update_merchant(merchant_account.clone(), unset_default_profile, key_store)
+            state
+                .track_accounts_query(|db| {
+                    db.update_merchant(merchant_account.clone(), unset_default_profile, key_store)
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         }
@@ -1165,7 +1175,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         let key_manager_state = &state.into();
         let key = key_store.key.get_inner().peek();
 
-        let db = state.store.as_ref();
         let primary_business_details = self.get_primary_details_as_value().change_context(
             errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "primary_business_details".into(),
@@ -1218,8 +1227,10 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         // This supports changing the business profile by passing in the profile_id
         let business_profile_id_update = if let Some(ref profile_id) = self.default_profile {
-            let merchant_account = db
-                .find_merchant_account_by_merchant_id(merchant_id, key_store)
+            let merchant_account = state
+                .track_accounts_query(|db| {
+                    db.find_merchant_account_by_merchant_id(merchant_id, key_store)
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1233,7 +1244,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
             // Validate whether profile_id passed in request is valid and is linked to the merchant
             core_utils::validate_and_get_business_profile(
-                state.store.as_ref(),
+                state,
                 platform.get_processor(),
                 Some(profile_id),
             )
@@ -1251,7 +1262,6 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             .async_map(|primary_business_details| async {
                 let _ = Box::pin(create_profile_from_business_labels(
                     state,
-                    db,
                     key_store,
                     merchant_id,
                     primary_business_details,
@@ -1415,8 +1425,11 @@ pub async fn merchant_account_update(
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1425,12 +1438,14 @@ pub async fn merchant_account_update(
         .await
         .attach_printable("Failed to create merchant account update object")?;
 
-    let response = db
-        .update_specific_fields_in_merchant(
-            merchant_id,
-            merchant_account_storage_object,
-            &key_store,
-        )
+    let response = state
+        .track_accounts_query(|db| {
+            db.update_specific_fields_in_merchant(
+                merchant_id,
+                merchant_account_storage_object,
+                &key_store,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1447,16 +1462,18 @@ pub async fn merchant_account_delete(
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let mut is_deleted = false;
     let db = state.store.as_ref();
-    let merchant_key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
+    let merchant_key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &merchant_key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1466,13 +1483,13 @@ pub async fn merchant_account_delete(
         }))
     })?;
 
-    let is_merchant_account_deleted = db
-        .delete_merchant_account_by_merchant_id(&merchant_id)
+    let is_merchant_account_deleted = state
+        .track_accounts_query(|db| db.delete_merchant_account_by_merchant_id(&merchant_id))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     if is_merchant_account_deleted {
-        let is_merchant_key_store_deleted = db
-            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+        let is_merchant_key_store_deleted = state
+            .track_accounts_query(|db| db.delete_merchant_key_store_by_merchant_id(&merchant_id))
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
@@ -1550,8 +1567,8 @@ async fn validate_merchant_id(
     merchant_id: &id_type::MerchantId,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<domain::MerchantAccount> {
-    let db = &*state.store;
-    db.find_merchant_account_by_merchant_id(merchant_id, key_store)
+    state
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, key_store))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
@@ -1632,7 +1649,7 @@ impl ConnectorMetadata<'_> {
 struct PMAuthConfigValidation<'a> {
     connector_type: &'a api_enums::ConnectorType,
     pm_auth_config: &'a Option<pii::SecretSerdeValue>,
-    db: &'a dyn StorageInterface,
+    state: &'a SessionState,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
 }
@@ -1649,12 +1666,13 @@ impl PMAuthConfigValidation<'_> {
 
         // Fetching disabled MCAs too: PM auth config may reference MCAs that are
         // temporarily disabled — validation checks existence, not activity.
-        let all_mcas = self
-            .db
-            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-                self.merchant_id,
-                self.profile_id,
-            )
+        let all_mcas = self.state
+            .track_accounts_query(|db| {
+                db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+                    self.merchant_id,
+                    self.profile_id,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
@@ -1765,7 +1783,7 @@ impl ConnectorTypeAndConnectorName<'_> {
 struct MerchantDefaultConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
-    store: &'a dyn StorageInterface,
+    state: &'a SessionState,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
@@ -1778,14 +1796,14 @@ impl MerchantDefaultConfigUpdate<'_> {
         &self,
     ) -> RouterResult<()> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.state.store.as_ref(),
             self.merchant_id.get_string_repr(),
             self.transaction_type,
         )
         .await?;
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.state.store.as_ref(),
             self.profile_id.get_string_repr(),
             self.transaction_type,
         )
@@ -1800,7 +1818,7 @@ impl MerchantDefaultConfigUpdate<'_> {
             if !default_routing_config.contains(&choice) {
                 default_routing_config.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.state.store.as_ref(),
                     self.merchant_id.get_string_repr(),
                     default_routing_config.clone(),
                     self.transaction_type,
@@ -1810,7 +1828,7 @@ impl MerchantDefaultConfigUpdate<'_> {
             if !default_routing_config_for_profile.contains(&choice.clone()) {
                 default_routing_config_for_profile.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.state.store.as_ref(),
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,
@@ -1843,12 +1861,14 @@ impl MerchantDefaultConfigUpdate<'_> {
                 let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                     default_fallback_routing: Some(default_fallback_routing),
                 };
-                self.store
-                    .update_profile_by_profile_id(
-                        self.key_store,
-                        self.business_profile.clone(),
-                        profile_update,
-                    )
+                self.state
+                    .track_accounts_query(|db| {
+                        db.update_profile_by_profile_id(
+                            self.key_store,
+                            self.business_profile.clone(),
+                            profile_update,
+                        )
+                    })
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
@@ -1863,14 +1883,14 @@ impl MerchantDefaultConfigUpdate<'_> {
         &self,
     ) -> RouterResult<()> {
         let mut default_routing_config = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.state.store.as_ref(),
             self.merchant_id.get_string_repr(),
             self.transaction_type,
         )
         .await?;
 
         let mut default_routing_config_for_profile = routing::helpers::get_merchant_default_config(
-            self.store,
+            self.state.store.as_ref(),
             self.profile_id.get_string_repr(),
             self.transaction_type,
         )
@@ -1887,7 +1907,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.state.store.as_ref(),
                     self.merchant_id.get_string_repr(),
                     default_routing_config.clone(),
                     self.transaction_type,
@@ -1899,7 +1919,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                     mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
                 });
                 routing::helpers::update_merchant_default_config(
-                    self.store,
+                    self.state.store.as_ref(),
                     self.profile_id.get_string_repr(),
                     default_routing_config_for_profile.clone(),
                     self.transaction_type,
@@ -1934,12 +1954,14 @@ impl MerchantDefaultConfigUpdate<'_> {
                 let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                     default_fallback_routing: Some(default_fallback_routing),
                 };
-                self.store
-                    .update_profile_by_profile_id(
-                        self.key_store,
-                        self.business_profile.clone(),
-                        profile_update,
-                    )
+                self.state
+                    .track_accounts_query(|db| {
+                        db.update_profile_by_profile_id(
+                            self.key_store,
+                            self.business_profile.clone(),
+                            profile_update,
+                        )
+                    })
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
@@ -1954,7 +1976,7 @@ impl MerchantDefaultConfigUpdate<'_> {
 struct DefaultFallbackRoutingConfigUpdate<'a> {
     routable_connector: &'a Option<api_enums::RoutableConnectors>,
     merchant_connector_id: &'a id_type::MerchantConnectorAccountId,
-    store: &'a dyn StorageInterface,
+    state: &'a SessionState,
     business_profile: domain::Profile,
     key_store: hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
     key_manager_state: &'a KeyManagerState,
@@ -1978,7 +2000,7 @@ impl DefaultFallbackRoutingConfigUpdate<'_> {
 
                 profile_wrapper
                     .update_default_fallback_routing_of_connectors_under_profile(
-                        self.store,
+                        self.state,
                         default_routing_config_for_profile,
                         self.key_manager_state,
                         &self.key_store,
@@ -2008,7 +2030,7 @@ impl DefaultFallbackRoutingConfigUpdate<'_> {
 
                 profile_wrapper
                     .update_default_fallback_routing_of_connectors_under_profile(
-                        self.store,
+                        self.state,
                         default_routing_config_for_profile,
                         self.key_manager_state,
                         &self.key_store,
@@ -2024,7 +2046,7 @@ impl DefaultFallbackRoutingConfigUpdate<'_> {
 trait MerchantConnectorAccountUpdateBridge {
     async fn get_merchant_connector_account_from_id(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
@@ -2044,12 +2066,15 @@ trait MerchantConnectorAccountUpdateBridge {
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         _merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
-        db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+        state
+            .track_accounts_query(|db| {
+                db.find_merchant_connector_account_by_id(merchant_connector_id, key_store)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
     }
@@ -2097,7 +2122,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
         let pm_auth_config_validation = PMAuthConfigValidation {
             connector_type: &self.connector_type,
             pm_auth_config: &self.pm_auth_config,
-            db: state.store.as_ref(),
+            state,
             merchant_id: platform.get_processor().get_account().get_id(),
             profile_id: &mca.profile_id.clone(),
         };
@@ -2200,22 +2225,23 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         merchant_id: &id_type::MerchantId,
         merchant_connector_id: &id_type::MerchantConnectorAccountId,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<domain::MerchantConnectorAccount> {
-        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            merchant_connector_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        state
+            .track_accounts_query(|db| {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    merchant_id,
+                    merchant_connector_id,
+                    key_store,
+                )
+            })
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),
-            },
-        )
+            })
     }
 
     async fn create_domain_model_from_request(
@@ -2384,7 +2410,7 @@ trait MerchantConnectorAccountCreateBridge {
     async fn validate_and_get_business_profile(
         self,
         processor: &domain::Processor,
-        db: &dyn StorageInterface,
+        state: &SessionState,
     ) -> RouterResult<domain::Profile>;
 }
 
@@ -2529,13 +2555,13 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn validate_and_get_business_profile(
         self,
         processor: &domain::Processor,
-        db: &dyn StorageInterface,
+        state: &SessionState,
     ) -> RouterResult<domain::Profile> {
         let profile_id = self.profile_id;
         // Check whether this profile belongs to the merchant
 
         let business_profile =
-            core_utils::validate_and_get_business_profile(db, processor, Some(&profile_id))
+            core_utils::validate_and_get_business_profile(state, processor, Some(&profile_id))
                 .await?
                 .get_required_value("Profile")
                 .change_context(errors::ApiErrorResponse::ProfileNotFound {
@@ -2734,7 +2760,7 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn validate_and_get_business_profile(
         self,
         processor: &domain::Processor,
-        db: &dyn StorageInterface,
+        state: &SessionState,
     ) -> RouterResult<domain::Profile> {
         match self
             .profile_id
@@ -2743,25 +2769,30 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
             Some(profile_id) => {
                 // Check whether this business profile belongs to the merchant
 
-                let business_profile =
-                    core_utils::validate_and_get_business_profile(db, processor, Some(&profile_id))
-                        .await?
-                        .get_required_value("Profile")
-                        .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                            id: profile_id.get_string_repr().to_owned(),
-                        })?;
+                let business_profile = core_utils::validate_and_get_business_profile(
+                    state,
+                    processor,
+                    Some(&profile_id),
+                )
+                .await?
+                .get_required_value("Profile")
+                .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                    id: profile_id.get_string_repr().to_owned(),
+                })?;
 
                 Ok(business_profile)
             }
             None => match self.business_country.zip(self.business_label) {
                 Some((business_country, business_label)) => {
                     let profile_name = format!("{business_country}_{business_label}");
-                    let business_profile = db
-                        .find_business_profile_by_profile_name_merchant_id(
-                            processor.get_key_store(),
-                            &profile_name,
-                            processor.get_account().get_id(),
-                        )
+                    let business_profile = state
+                        .track_accounts_query(|db| {
+                            db.find_business_profile_by_profile_name_merchant_id(
+                                processor.get_key_store(),
+                                &profile_name,
+                                processor.get_account().get_id(),
+                            )
+                        })
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                             id: profile_name,
@@ -2783,7 +2814,6 @@ pub async fn create_connector(
     processor: domain::Processor,
     auth_profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store = state.store.as_ref();
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     fp_utils::when(
@@ -2835,7 +2865,7 @@ pub async fn create_connector(
 
     let business_profile = req
         .clone()
-        .validate_and_get_business_profile(&processor, store)
+        .validate_and_get_business_profile(&processor, &state)
         .await?;
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &business_profile)?;
 
@@ -2844,7 +2874,7 @@ pub async fn create_connector(
         let profile_wrapper = ProfileWrapper::new(business_profile.clone());
         profile_wrapper
             .update_revenue_recovery_algorithm_under_profile(
-                store,
+                &state,
                 key_manager_state,
                 processor.get_key_store(),
                 common_enums::RevenueRecoveryAlgorithmType::Monitoring,
@@ -2855,7 +2885,7 @@ pub async fn create_connector(
     let pm_auth_config_validation = PMAuthConfigValidation {
         connector_type: &req.connector_type,
         pm_auth_config: &req.pm_auth_config,
-        db: store,
+        state: &state,
         merchant_id,
         profile_id: business_profile.get_id(),
     };
@@ -2870,12 +2900,13 @@ pub async fn create_connector(
     // The purpose of this merchant account update is just to update the
     // merchant account `modified_at` field for KGraph cache invalidation
     state
-        .store
-        .update_specific_fields_in_merchant(
-            merchant_id,
-            storage::MerchantAccountUpdate::ModifiedAtUpdate,
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.update_specific_fields_in_merchant(
+                merchant_id,
+                storage::MerchantAccountUpdate::ModifiedAtUpdate,
+                processor.get_key_store(),
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error updating the merchant account when creating payment connector")?;
@@ -2891,11 +2922,12 @@ pub async fn create_connector(
         .await?;
 
     let mca = state
-        .store
-        .insert_merchant_connector_account(
-            merchant_connector_account.clone(),
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.insert_merchant_connector_account(
+                merchant_connector_account.clone(),
+                processor.get_key_store(),
+            )
+        })
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -2917,7 +2949,7 @@ pub async fn create_connector(
     let merchant_default_config_update = MerchantDefaultConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
-        store,
+        state: &state,
         merchant_id,
         profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
@@ -2930,7 +2962,7 @@ pub async fn create_connector(
     let merchant_default_config_update = DefaultFallbackRoutingConfigUpdate {
         routable_connector: &routable_connector,
         merchant_connector_id: &mca.get_id(),
-        store,
+        state: &state,
         business_profile,
         key_store: processor.get_key_store().inner().to_owned(),
         key_manager_state,
@@ -2970,8 +3002,9 @@ async fn validate_pm_auth(
     // Fetching disabled MCAs too: PM auth config may reference MCAs that are
     // temporarily disabled — validation checks existence, not activity.
     let all_mcas = state
-        .store
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+        .track_accounts_query(|db| {
+            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+        })
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -3001,14 +3034,14 @@ pub async fn retrieve_connector(
     profile_id: Option<id_type::ProfileId>,
     merchant_connector_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store = state.store.as_ref();
-
-    let mca = store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            &merchant_connector_id,
-            processor.get_key_store(),
-        )
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor.get_account().get_id(),
+                &merchant_connector_id,
+                processor.get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
@@ -3026,12 +3059,12 @@ pub async fn retrieve_connector(
     processor: domain::Processor,
     id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store = state.store.as_ref();
-
     let merchant_id = processor.get_account().get_id();
 
-    let mca = store
-        .find_merchant_connector_account_by_id(&id, processor.get_key_store())
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(&id, processor.get_key_store())
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -3060,9 +3093,10 @@ pub async fn list_connectors_for_a_profile(
     processor: domain::Processor,
     profile_id: id_type::ProfileId,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
-    let store = state.store.as_ref();
-    let merchant_connector_accounts = store
-        .list_connector_account_by_profile_id(&profile_id, processor.get_key_store())
+    let merchant_connector_accounts = state
+        .track_accounts_query(|db| {
+            db.list_connector_account_by_profile_id(&profile_id, processor.get_key_store())
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let mut response = vec![];
@@ -3079,13 +3113,13 @@ pub async fn list_payment_connectors(
     processor: domain::Processor,
     profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorListResponse>> {
-    let store = state.store.as_ref();
-
-    let merchant_connector_accounts = store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-            processor.get_account().get_id(),
-            true,
-        )
+    let merchant_connector_accounts = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+                processor.get_account().get_id(),
+                true,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
     let merchant_connector_accounts = core_utils::filter_objects_based_on_profile_id_list(
@@ -3111,19 +3145,29 @@ pub async fn update_connector(
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let mca = req
         .clone()
-        .get_merchant_connector_account_from_id(db, &merchant_id, merchant_connector_id, &key_store)
+        .get_merchant_connector_account_from_id(
+            &state,
+            &merchant_id,
+            merchant_connector_id,
+            &key_store,
+        )
         .await?;
     core_utils::validate_profile_id_from_auth_layer(profile_id, &mca)?;
 
@@ -3144,19 +3188,22 @@ pub async fn update_connector(
 
     let request_connector_label = req.connector_label;
 
-    let updated_mca = db
-        .update_merchant_connector_account(
-            mca.clone(),
-            behaviour::ForeignInto::foreign_into(payment_connector),
-            &key_store,
-        )
-        .await
-        .change_context(
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                profile_id: profile_id.get_string_repr().to_owned(),
-                connector_label: request_connector_label.unwrap_or_default(),
-            },
-        )
+    let updated_mca =
+        state
+            .track_accounts_query(|db| {
+                db.update_merchant_connector_account(
+                    mca.clone(),
+                    behaviour::ForeignInto::foreign_into(payment_connector),
+                    &key_store,
+                )
+            })
+            .await
+            .change_context(
+                errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                    profile_id: profile_id.get_string_repr().to_owned(),
+                    connector_label: request_connector_label.unwrap_or_default(),
+                },
+            )
             .attach_printable_lazy(|| {
                 format!(
                     "Failed while updating MerchantConnectorAccount: id: {merchant_connector_id:?}",
@@ -3168,8 +3215,10 @@ pub async fn update_connector(
 
     // Fetch business profile for routing update
     #[cfg(feature = "v1")]
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: mca.profile_id.get_string_repr().to_owned(),
@@ -3186,7 +3235,7 @@ pub async fn update_connector(
             })?,
         ),
         merchant_connector_id: &mca.get_id(),
-        store: db,
+        state: &state,
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
@@ -3217,40 +3266,51 @@ pub async fn delete_connector(
     merchant_connector_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let _merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let _merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            &merchant_connector_id,
-            &key_store,
-        )
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_id,
+                &merchant_connector_id,
+                &key_store,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
-    let is_deleted = db
-        .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-            &merchant_id,
-            &merchant_connector_id,
-        )
+    let is_deleted = state
+        .track_accounts_query(|db| {
+            db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
+                &merchant_id,
+                &merchant_connector_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
     // Fetch business profile for routing update
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: mca.profile_id.get_string_repr().to_owned(),
@@ -3266,7 +3326,7 @@ pub async fn delete_connector(
             })?,
         ),
         merchant_connector_id: &mca.get_id(),
-        store: db,
+        state: &state,
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
@@ -3294,13 +3354,14 @@ pub async fn delete_connector(
     platform: domain::Platform,
     id: id_type::MerchantConnectorAccountId,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
-    let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
     let merchant_id = platform.get_processor().get_account().get_id();
 
-    let mca = db
-        .find_merchant_connector_account_by_id(&id, platform.get_processor().get_key_store())
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(&id, platform.get_processor().get_key_store())
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
@@ -3318,18 +3379,20 @@ pub async fn delete_connector(
         .into());
     }
 
-    let is_deleted = db
-        .delete_merchant_connector_account_by_id(&id)
+    let is_deleted = state
+        .track_accounts_query(|db| db.delete_merchant_connector_account_by_id(&id))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: id.clone().get_string_repr().to_string(),
         })?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(
-            platform.get_processor().get_key_store(),
-            &mca.profile_id,
-        )
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &mca.profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: mca.profile_id.get_string_repr().to_owned(),
@@ -3344,7 +3407,7 @@ pub async fn delete_connector(
             )?,
         ),
         merchant_connector_id: &mca.get_id(),
-        store: db,
+        state: &state,
         business_profile,
         key_store: platform.get_processor().get_key_store().inner().to_owned(),
         key_manager_state,
@@ -3368,14 +3431,19 @@ pub async fn kv_for_merchant(
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // check if the merchant account exists
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -3391,24 +3459,30 @@ pub async fn kv_for_merchant(
                 })?
             }
 
-            db.update_merchant(
-                merchant_account,
-                storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: MerchantStorageScheme::RedisKv,
-                },
-                &key_store,
-            )
-            .await
+            state
+                .track_accounts_query(|db| {
+                    db.update_merchant(
+                        merchant_account,
+                        storage::MerchantAccountUpdate::StorageSchemeUpdate {
+                            storage_scheme: MerchantStorageScheme::RedisKv,
+                        },
+                        &key_store,
+                    )
+                })
+                .await
         }
         (false, MerchantStorageScheme::RedisKv) => {
-            db.update_merchant(
-                merchant_account,
-                storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: MerchantStorageScheme::PostgresOnly,
-                },
-                &key_store,
-            )
-            .await
+            state
+                .track_accounts_query(|db| {
+                    db.update_merchant(
+                        merchant_account,
+                        storage::MerchantAccountUpdate::StorageSchemeUpdate {
+                            storage_scheme: MerchantStorageScheme::PostgresOnly,
+                        },
+                        &key_store,
+                    )
+                })
+                .await
         }
     }
     .map_err(|error| {
@@ -3433,16 +3507,17 @@ pub async fn toggle_kv_for_all_merchants(
     state: SessionState,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleAllKVResponse> {
-    let db = state.store.as_ref();
     let storage_scheme = if enable {
         MerchantStorageScheme::RedisKv
     } else {
         MerchantStorageScheme::PostgresOnly
     };
 
-    let total_update = db
-        .update_all_merchant_account(storage::MerchantAccountUpdate::StorageSchemeUpdate {
-            storage_scheme,
+    let total_update = state
+        .track_accounts_query(|db| {
+            db.update_all_merchant_account(storage::MerchantAccountUpdate::StorageSchemeUpdate {
+                storage_scheme,
+            })
         })
         .await
         .map_err(|error| {
@@ -3464,14 +3539,19 @@ pub async fn check_merchant_account_kv_status(
     merchant_id: id_type::MerchantId,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // check if the merchant account exists
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -3523,8 +3603,7 @@ pub async fn create_and_insert_business_profile(
     let profile_name = business_profile_new.profile_name.clone();
 
     state
-        .store
-        .insert_business_profile(key_store, business_profile_new)
+        .track_accounts_query(|db| db.insert_business_profile(key_store, business_profile_new))
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -4047,8 +4126,6 @@ pub async fn create_profile(
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
-    let db = state.store.as_ref();
-
     validate_external_vault_config_for_merchant_account_type(
         processor.get_account().merchant_account_type,
         request.is_external_vault_enabled,
@@ -4071,8 +4148,10 @@ pub async fn create_profile(
 
     let profile_id = business_profile.get_id().to_owned();
 
-    let business_profile = db
-        .insert_business_profile(processor.get_key_store(), business_profile)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.insert_business_profile(processor.get_key_store(), business_profile)
+        })
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -4085,13 +4164,16 @@ pub async fn create_profile(
     #[cfg(feature = "v1")]
     if processor.get_account().default_profile.is_some() {
         let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-        db.update_merchant(
-            processor.get_account().clone(),
-            unset_default_profile,
-            processor.get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        state
+            .track_accounts_query(|db| {
+                db.update_merchant(
+                    processor.get_account().clone(),
+                    unset_default_profile,
+                    processor.get_key_store(),
+                )
+            })
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     }
 
     Ok(service_api::ApplicationResponse::Json(
@@ -4108,12 +4190,15 @@ pub async fn list_profile(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
 ) -> RouterResponse<Vec<api_models::admin::ProfileResponse>> {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let profiles = db
-        .list_profile_by_merchant_id(&key_store, &merchant_id)
+    let profiles = state
+        .track_accounts_query(|db| db.list_profile_by_merchant_id(&key_store, &merchant_id))
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
         .clone();
@@ -4135,9 +4220,14 @@ pub async fn retrieve_profile(
     merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
-    let db = state.store.as_ref();
-    let business_profile = db
-        .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                &key_store,
+                &merchant_id,
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4164,9 +4254,10 @@ pub async fn delete_profile(
     profile_id: id_type::ProfileId,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResponse<bool> {
-    let db = state.store.as_ref();
-    let delete_result = db
-        .delete_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
+    let delete_result = state
+        .track_accounts_query(|db| {
+            db.delete_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4658,10 +4749,10 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
     provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
-    let db = state.store.as_ref();
-
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+    let merchant_account = state
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     validate_external_vault_config_for_merchant_account_type(
@@ -4670,8 +4761,10 @@ pub async fn update_profile(
         request.external_vault_connector_details.is_some(),
     )?;
 
-    let business_profile = db
-        .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4708,8 +4801,10 @@ pub async fn update_profile(
         .get_update_profile_object(&state, &key_store, &business_profile)
         .await?;
 
-    let updated_business_profile = db
-        .update_profile_by_profile_id(&key_store, business_profile, profile_update)
+    let updated_business_profile = state
+        .track_accounts_query(|db| {
+            db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4750,12 +4845,13 @@ impl ProfileWrapper {
 
     pub async fn update_profile_and_invalidate_routing_config_for_active_algorithm_id_update(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         algorithm_id: id_type::RoutingId,
         transaction_type: &storage::enums::TransactionType,
     ) -> RouterResult<()> {
+        let db = state.store.as_ref();
         let routing_cache_key = self.clone().get_routing_config_cache_key();
 
         let (routing_algorithm_id, payout_routing_algorithm_id) = match transaction_type {
@@ -4773,7 +4869,10 @@ impl ProfileWrapper {
 
         let profile = self.profile;
 
-        db.update_profile_by_profile_id(merchant_key_store, profile, profile_update)
+        state
+            .track_accounts_query(|db| {
+                db.update_profile_by_profile_id(merchant_key_store, profile, profile_update)
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
@@ -4826,7 +4925,7 @@ impl ProfileWrapper {
 
     pub async fn update_default_fallback_routing_of_connectors_under_profile(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         updated_config: &Vec<routing_types::RoutableConnectorChoice>,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
@@ -4841,7 +4940,10 @@ impl ProfileWrapper {
             default_fallback_routing: Some(default_fallback_routing),
         };
 
-        db.update_profile_by_profile_id(merchant_key_store, self.profile, profile_update)
+        state
+            .track_accounts_query(|db| {
+                db.update_profile_by_profile_id(merchant_key_store, self.profile, profile_update)
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
@@ -4849,7 +4951,7 @@ impl ProfileWrapper {
     }
     pub async fn update_revenue_recovery_algorithm_under_profile(
         self,
-        db: &dyn StorageInterface,
+        state: &SessionState,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
@@ -4863,7 +4965,10 @@ impl ProfileWrapper {
             revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),
         };
 
-        db.update_profile_by_profile_id(merchant_key_store, self.profile, profile_update)
+        state
+            .track_accounts_query(|db| {
+                db.update_profile_by_profile_id(merchant_key_store, self.profile, profile_update)
+            })
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(
@@ -4879,18 +4984,17 @@ pub async fn extended_card_info_toggle(
     profile_id: &id_type::ProfileId,
     ext_card_info_choice: admin_types::ExtendedCardInfoChoice,
 ) -> RouterResponse<admin_types::ExtendedCardInfoChoice> {
-    let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
-    let business_profile = db
-        .find_business_profile_by_profile_id(&key_store, profile_id)
+    let business_profile = state
+        .track_accounts_query(|db| db.find_business_profile_by_profile_id(&key_store, profile_id))
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -4905,7 +5009,10 @@ pub async fn extended_card_info_toggle(
             is_extended_card_info_enabled: ext_card_info_choice.enabled,
         };
 
-        db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
+        state
+            .track_accounts_query(|db| {
+                db.update_profile_by_profile_id(&key_store, business_profile, profile_update)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -4922,14 +5029,18 @@ pub async fn connector_agnostic_mit_toggle(
     profile_id: &id_type::ProfileId,
     connector_agnostic_mit_choice: admin_types::ConnectorAgnosticMitChoice,
 ) -> RouterResponse<admin_types::ConnectorAgnosticMitChoice> {
-    let db = state.store.as_ref();
-
     match processor.get_account().get_id() {
         processor_merchant_id if processor_merchant_id == merchant_id => {
             let key_store = processor.get_key_store();
 
-            let business_profile = db
-                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
+            let business_profile = state
+                .track_accounts_query(|db| {
+                    db.find_business_profile_by_merchant_id_profile_id(
+                        key_store,
+                        merchant_id,
+                        profile_id,
+                    )
+                })
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -4948,7 +5059,10 @@ pub async fn connector_agnostic_mit_toggle(
                     is_connector_agnostic_mit_enabled: connector_agnostic_mit_choice.enabled,
                 };
 
-                db.update_profile_by_profile_id(key_store, business_profile, profile_update)
+                state
+                    .track_accounts_query(|db| {
+                        db.update_profile_by_profile_id(key_store, business_profile, profile_update)
+                    })
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_id.get_string_repr().to_owned(),

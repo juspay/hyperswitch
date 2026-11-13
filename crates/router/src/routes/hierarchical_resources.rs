@@ -32,12 +32,13 @@ async fn resolve_profile_from_header(
 ) -> Result<crate::types::domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     let processor = auth_data.platform.get_processor();
     state
-        .store
-        .find_business_profile_by_merchant_id_profile_id(
-            processor.get_key_store(),
-            processor.get_account().get_id(),
-            profile_id,
-        )
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_merchant_id_profile_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable(

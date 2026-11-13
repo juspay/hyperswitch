@@ -48,24 +48,24 @@ pub async fn check_if_connector_exists(
     merchant_id: &common_utils::id_type::MerchantId,
     profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> RouterResult<()> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
     {
         let connector = state
-            .store
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                merchant_id,
-                connector_id,
-                &key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    merchant_id,
+                    connector_id,
+                    &key_store,
+                )
+            })
             .await
             .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: connector_id.get_string_repr().to_string(),

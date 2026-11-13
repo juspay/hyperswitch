@@ -24,30 +24,31 @@ pub async fn get_apple_pay_merchant_connector_account(
     (domain::MerchantKeyStore, domain::MerchantConnectorAccount),
     errors::ApiErrorResponse,
 > {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            merchant_connector_id,
-            &key_store,
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                merchant_id,
+                merchant_connector_id,
+                &key_store,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     #[cfg(feature = "v2")]
     let merchant_connector_account = state
-        .store
-        .find_merchant_connector_account_by_id(merchant_connector_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_connector_account_by_id(merchant_connector_id, &key_store)
+        })
         .await
         .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
@@ -119,12 +120,13 @@ pub async fn add_domain_to_apple_pay_merchant_connector_account(
     };
     let merchant_connector_id = merchant_connector_account.get_id();
     state
-        .store
-        .update_merchant_connector_account(
-            merchant_connector_account,
-            updated_mca.foreign_into(),
-            key_store,
-        )
+        .track_accounts_query(|db| {
+            db.update_merchant_connector_account(
+                merchant_connector_account,
+                updated_mca.foreign_into(),
+                key_store,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {

@@ -44,12 +44,14 @@ pub async fn list_payment_methods(
 
     validate_payment_status_for_payment_method_list(payment_intent.status)?;
 
-    let payment_connector_accounts = db
-        .list_enabled_connector_accounts_by_profile_id(
-            profile.get_id(),
-            platform.get_processor().get_key_store(),
-            common_enums::ConnectorType::PaymentProcessor,
-        )
+    let payment_connector_accounts = state
+        .track_accounts_query(|db| {
+            db.list_enabled_connector_accounts_by_profile_id(
+                profile.get_id(),
+                platform.get_processor().get_key_store(),
+                common_enums::ConnectorType::PaymentProcessor,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;

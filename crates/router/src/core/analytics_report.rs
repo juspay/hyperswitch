@@ -386,16 +386,14 @@ async fn payment_response_hash_key(
     let Some(merchant_id) = request.merchant_id.as_ref() else {
         return Ok(None);
     };
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .change_context(AnalyticsError::UnknownError)?;
-    crate::utils::get_payment_response_hash_key(state.store.as_ref(), &key_store, &request.auth)
-        .await
+    crate::utils::get_payment_response_hash_key(state, &key_store, &request.auth).await
 }
 
 async fn send_emails(

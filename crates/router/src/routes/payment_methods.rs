@@ -471,18 +471,16 @@ async fn get_merchant_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     Ok((key_store, merchant_account))
@@ -540,12 +538,13 @@ pub async fn migrate_payment_methods(
                         for connector_customer in connector_customer_details {
                             if !mca_cache.contains_key(&connector_customer.merchant_connector_id) {
                                 let mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            &merchant_id,
-                            &connector_customer.merchant_connector_id,
-                            platform.get_processor().get_key_store(),
-                        )
+                                    .track_accounts_query(|db| {
+                                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                &merchant_id,
+                                &connector_customer.merchant_connector_id,
+                                platform.get_processor().get_key_store(),
+                            )
+                                    })
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

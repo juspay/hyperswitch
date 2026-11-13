@@ -1929,24 +1929,24 @@ mod tests {
 
         let aes_key = services::generate_aes256_key()?;
 
-        let merchant_key_store = state
-            .store
-            .insert_merchant_key_store(
-                domain::MerchantKeyStore {
-                    merchant_id: merchant_id.clone(),
-                    key: domain::types::crypto_operation(
-                        key_manager_state,
-                        type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
-                        Identifier::Merchant(merchant_id.to_owned()),
-                        master_key,
-                    )
-                    .await?
-                    .try_into_operation()?,
-                    created_at: datetime!(2023-02-01 0:00),
-                },
-                &master_key.to_vec().into(),
+        let merchant_key_store_to_insert = domain::MerchantKeyStore {
+            merchant_id: merchant_id.clone(),
+            key: domain::types::crypto_operation(
+                key_manager_state,
+                type_name!(domain::MerchantKeyStore),
+                domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
+                Identifier::Merchant(merchant_id.to_owned()),
+                master_key,
             )
+            .await?
+            .try_into_operation()?,
+            created_at: datetime!(2023-02-01 0:00),
+        };
+        let key_store_master_key = master_key.to_vec().into();
+        let merchant_key_store = state
+            .track_accounts_query(|db| {
+                db.insert_merchant_key_store(merchant_key_store_to_insert, &key_store_master_key)
+            })
             .await?;
 
         let merchant_account_to_insert = MerchantAccount::from(MerchantAccountSetter {
@@ -2005,8 +2005,9 @@ mod tests {
             apple_pay_certificates_encrypted: None,
         });
         let merchant_account = state
-            .store
-            .insert_merchant(merchant_account_to_insert, &merchant_key_store)
+            .track_accounts_query(|db| {
+                db.insert_merchant(merchant_account_to_insert, &merchant_key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(
@@ -2099,8 +2100,9 @@ mod tests {
         });
 
         let business_profile = state
-            .store
-            .insert_business_profile(&merchant_key_store.clone(), business_profile_to_insert)
+            .track_accounts_query(|db| {
+                db.insert_business_profile(&merchant_key_store, business_profile_to_insert)
+            })
             .await?;
 
         // Same inputs for all threads

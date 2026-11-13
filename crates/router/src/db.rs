@@ -109,7 +109,6 @@ pub trait StorageInterface:
     + configs::ConfigInterface<Error = StorageError>
     + capture::CaptureInterface
     + customers::CustomerInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
     + client_secret::ClientSecretInterface
     + events::EventInterface
@@ -117,9 +116,7 @@ pub trait StorageInterface:
     + FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + PaymentAttemptInterface<Error = StorageError>
     + PaymentIntentInterface<Error = StorageError>
     + PaymentMethodInterface<Error = StorageError>
@@ -135,14 +132,11 @@ pub trait StorageInterface:
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
     + MasterKeyInterface
     + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + CacheInterface
     + RequestIdStore
-    + business_profile::ProfileInterface<Error = StorageError>
     + routing_algorithm::RoutingAlgorithmInterface
     + gsm::GsmInterface
     + unified_translations::UnifiedTranslationsInterface
@@ -227,6 +221,7 @@ pub trait AccountsStorageInterface:
     + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 #[cfg(not(feature = "deja"))]
@@ -245,6 +240,7 @@ pub trait AccountsStorageInterface:
     + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 pub trait CommonStorageInterface:
@@ -299,7 +295,11 @@ impl GlobalStorageInterface for Store {
     }
 }
 
-impl AccountsStorageInterface for Store {}
+impl AccountsStorageInterface for Store {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
@@ -338,7 +338,11 @@ impl GlobalStorageInterface for MockDb {
     }
 }
 
-impl AccountsStorageInterface for MockDb {}
+impl AccountsStorageInterface for MockDb {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {

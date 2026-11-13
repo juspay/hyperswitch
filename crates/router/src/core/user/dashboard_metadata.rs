@@ -758,12 +758,11 @@ pub async fn backfill_metadata(
     user: &UserFromToken,
     key: &DBEnum,
 ) -> UserResult<Option<DashboardMetadata>> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&user.merchant_id, &key_store_master_key)
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -872,12 +871,13 @@ pub async fn get_merchant_connector_account_by_name(
     #[cfg(feature = "v1")]
     {
         state
-            .store
-            .find_merchant_connector_account_by_merchant_id_connector_name(
-                merchant_id,
-                connector_name,
-                key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_merchant_connector_account_by_merchant_id_connector_name(
+                    merchant_id,
+                    connector_name,
+                    key_store,
+                )
+            })
             .await
             .map_err(|e| {
                 e.change_context(UserErrors::InternalServerError)

@@ -2062,10 +2062,12 @@ pub async fn get_platform_refund_filters(
 
     let db = state.store.as_ref();
 
-    let merchant_accounts = db
-        .list_merchant_accounts_by_organization_id(
-            platform.get_provider().get_account().get_org_id(),
-        )
+    let merchant_accounts = state
+        .track_accounts_query(|db| {
+            db.list_merchant_accounts_by_organization_id(
+                platform.get_provider().get_account().get_org_id(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -2075,11 +2077,11 @@ pub async fn get_platform_refund_filters(
         account.merchant_account_type == common_enums::MerchantAccountType::Connected
     }) {
         let merchant_id = connected_account.get_id().clone();
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -2224,18 +2226,18 @@ pub async fn refund_manual_update(
     state: SessionState,
     req: api_models::refunds::RefundManualUpdateRequest,
 ) -> RouterResponse<serde_json::Value> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &req.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&req.merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;

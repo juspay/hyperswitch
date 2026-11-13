@@ -243,8 +243,7 @@ pub async fn get_single_org_id(
         .ok_or(UserErrors::InternalServerError)?;
     match entity_type {
         EntityType::Tenant => Ok(state
-            .store
-            .list_merchant_and_org_ids(1, None)
+            .track_accounts_query(|db| db.list_merchant_and_org_ids(1, None))
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to get merchants list for org")?
@@ -270,8 +269,7 @@ pub async fn get_single_merchant_id(
         .ok_or(UserErrors::InternalServerError)?;
     match entity_type {
         EntityType::Tenant | EntityType::Organization => Ok(state
-            .store
-            .list_merchant_accounts_by_organization_id(org_id)
+            .track_accounts_query(|db| db.list_merchant_accounts_by_organization_id(org_id))
             .await
             .to_not_found_response(UserErrors::InvalidRoleOperationWithMessage(
                 "Invalid Org Id".to_string(),
@@ -299,18 +297,16 @@ pub async fn get_single_profile_id(
         .ok_or(UserErrors::InternalServerError)?;
     match entity_type {
         EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
+            let key_store_master_key = state.store.get_master_key().to_vec().into();
             let key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(
-                    merchant_id,
-                    &state.store.get_master_key().to_vec().into(),
-                )
+                .track_accounts_query(|db| {
+                    db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+                })
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
             Ok(state
-                .store
-                .list_profile_by_merchant_id(&key_store, merchant_id)
+                .track_accounts_query(|db| db.list_profile_by_merchant_id(&key_store, merchant_id))
                 .await
                 .change_context(UserErrors::InternalServerError)?
                 .pop()
@@ -644,24 +640,31 @@ pub async fn send_role_deletion_email_using_db(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let merchant_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(
+                &user_from_token.merchant_id,
+                &key_store_master_key,
+            )
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     let merchant = state
-        .store
-        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(
+                &user_from_token.merchant_id,
+                &merchant_key_store,
+            )
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     let profile = state
-        .store
-        .find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        })
         .await
         .change_context(UserErrors::InternalServerError)?;
 

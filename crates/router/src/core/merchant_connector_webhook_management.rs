@@ -182,17 +182,22 @@ pub async fn register_connector_webhook(
     api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
 > {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = db
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            merchant_connector_id,
-            &key_store,
-        )
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                merchant_id,
+                merchant_connector_id,
+                &key_store,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
@@ -499,7 +504,14 @@ pub async fn register_connector_webhook(
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), mca_update.foreign_into(), &key_store)
+        state
+            .track_accounts_query(|db| {
+                db.update_merchant_connector_account(
+                    mca.clone(),
+                    mca_update.foreign_into(),
+                    &key_store,
+                )
+            })
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -583,20 +595,22 @@ pub async fn fetch_connector_webhook(
 ) -> RouterResponse<api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse>
 {
     let store = state.store.as_ref();
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = store.get_master_key().to_vec().into();
+    let key_store = state
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            &merchant_id,
-            &merchant_connector_id,
-            &key_store,
-        )
+    let mca = state
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_id,
+                &merchant_connector_id,
+                &key_store,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),

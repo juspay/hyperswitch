@@ -42,28 +42,41 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .clone()
             .parse_value("ProcessDisputePTData")?;
 
-        let provider_key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &tracking_data.merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let provider_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    &tracking_data.merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await?;
-        let provider_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
+        let provider_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(
+                    &tracking_data.merchant_id,
+                    &provider_key_store,
+                )
+            })
             .await?;
 
         let processor_merchant_id = tracking_data
             .processor_merchant_id
             .as_ref()
             .unwrap_or(&tracking_data.merchant_id);
-        let processor_key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                processor_merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let processor_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(
+                    processor_merchant_id,
+                    &key_store_master_key,
+                )
+            })
             .await?;
-        let processor_account = db
-            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+        let processor_account = state
+            .track_accounts_query(|db| {
+                db.find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+            })
             .await?;
 
         let platform = domain::Platform::new(
@@ -82,11 +95,12 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         .await?;
 
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &payment_attempt.profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    &payment_attempt.profile_id,
+                )
+            })
             .await?;
 
         // Check if the dispute already exists

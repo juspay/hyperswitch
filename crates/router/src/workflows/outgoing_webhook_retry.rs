@@ -76,14 +76,18 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             }
         });
 
-        let webhook_key_store = db
-            .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
+        let webhook_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
+            })
             .await?;
-        let business_profile = db
-            .find_business_profile_by_profile_id(
-                &webhook_key_store,
-                &tracking_data.business_profile_id,
-            )
+        let business_profile = state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    &webhook_key_store,
+                    &tracking_data.business_profile_id,
+                )
+            })
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();
@@ -169,33 +173,43 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             // Event inserted by an older version of the application, or event created when sending webhooks to a connector
             None => {
                 // Fetch provider merchant account and keystore
-                let provider_key_store = db
-                    .get_merchant_key_store_by_merchant_id(&provider_merchant_id, master_key)
+                let provider_key_store = state
+                    .track_accounts_query(|db| {
+                        db.get_merchant_key_store_by_merchant_id(&provider_merchant_id, master_key)
+                    })
                     .await?;
-                let provider_account = db
-                    .find_merchant_account_by_merchant_id(
-                        &provider_merchant_id,
-                        &provider_key_store,
-                    )
+                let provider_account = state
+                    .track_accounts_query(|db| {
+                        db.find_merchant_account_by_merchant_id(
+                            &provider_merchant_id,
+                            &provider_key_store,
+                        )
+                    })
                     .await?;
 
                 // Fetch processor merchant account and keystore (may be same as provider)
-                let (processor_account, processor_key_store) = if provider_merchant_id
-                    == processor_merchant_id
-                {
-                    (provider_account.clone(), provider_key_store.clone())
-                } else {
-                    let processor_key_store = db
-                        .get_merchant_key_store_by_merchant_id(&processor_merchant_id, master_key)
-                        .await?;
-                    let processor_account = db
-                        .find_merchant_account_by_merchant_id(
-                            &processor_merchant_id,
-                            &processor_key_store,
-                        )
-                        .await?;
-                    (processor_account, processor_key_store)
-                };
+                let (processor_account, processor_key_store) =
+                    if provider_merchant_id == processor_merchant_id {
+                        (provider_account.clone(), provider_key_store.clone())
+                    } else {
+                        let processor_key_store = state
+                            .track_accounts_query(|db| {
+                                db.get_merchant_key_store_by_merchant_id(
+                                    &processor_merchant_id,
+                                    master_key,
+                                )
+                            })
+                            .await?;
+                        let processor_account = state
+                            .track_accounts_query(|db| {
+                                db.find_merchant_account_by_merchant_id(
+                                    &processor_merchant_id,
+                                    &processor_key_store,
+                                )
+                            })
+                            .await?;
+                        (processor_account, processor_key_store)
+                    };
 
                 let platform = domain::Platform::new(
                     provider_account,
@@ -326,14 +340,18 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .clone()
             .unwrap_or_else(|| tracking_data.merchant_id.clone());
 
-        let webhook_key_store = db
-            .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
+        let webhook_key_store = state
+            .track_accounts_query(|db| {
+                db.get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
+            })
             .await?;
-        let business_profile = db
-            .find_business_profile_by_profile_id(
-                &webhook_key_store,
-                &tracking_data.business_profile_id,
-            )
+        let business_profile = state
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    &webhook_key_store,
+                    &tracking_data.business_profile_id,
+                )
+            })
             .await?;
 
         let event_id = webhooks_core::utils::generate_event_id();

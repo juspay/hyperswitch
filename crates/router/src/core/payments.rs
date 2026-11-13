@@ -3764,12 +3764,13 @@ where
     let external_vault_merchant_connector_account =
         helpers::MerchantConnectorAccountType::DbVal(Box::new(
             state
-                .store
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_provider().get_account().get_id(),
-                    &external_vault_mca_id,
-                    platform.get_provider().get_key_store(),
-                )
+                .track_accounts_query(|db| {
+                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_provider().get_account().get_id(),
+                        &external_vault_mca_id,
+                        platform.get_provider().get_key_store(),
+                    )
+                })
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -4053,11 +4054,12 @@ async fn is_clear_pan_retry_enabled_for_profile(
 ) -> bool {
     match network_token_response.profile_id.as_ref() {
         Some(profile_id) => state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .map(|business_profile| business_profile.is_clear_pan_retries_enabled)
             .inspect_err(|error| {
@@ -4734,11 +4736,12 @@ pub async fn revenue_recovery_get_intent_core(
     let billing_mca_id = payment_intent.get_billing_merchant_connector_account_id();
     let max_retry_threshold = if let Some(billing_mca_id) = billing_mca_id {
         state
-            .store
-            .find_merchant_connector_account_by_id(
-                &billing_mca_id,
-                platform.get_processor().get_key_store(),
-            )
+            .track_accounts_query(|db| {
+                db.find_merchant_connector_account_by_id(
+                    &billing_mca_id,
+                    platform.get_processor().get_key_store(),
+                )
+            })
             .await
             .ok()
             .and_then(|mca| mca.get_retry_threshold())
@@ -5402,11 +5405,12 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -5600,11 +5604,12 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -5892,16 +5897,18 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing profile_id in payment_intent")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                payment_intent
-                    .profile_id
-                    .as_ref()
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("missing profile_id in payment_intent")?,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: payment_intent
@@ -6181,11 +6188,12 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .as_ref()
             .get_required_value("profile_id")?;
         let business_profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
+            .track_accounts_query(|db| {
+                db.find_business_profile_by_profile_id(
+                    platform.get_processor().get_key_store(),
+                    profile_id,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -9216,12 +9224,13 @@ pub async fn get_session_token_for_click_to_pay(
             field_name: "authentication_product_ids".into(),
         })?;
     let merchant_connector_account = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            &click_to_pay_mca_id,
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor.get_account().get_id(),
+                &click_to_pay_mca_id,
+                processor.get_key_store(),
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: click_to_pay_mca_id.get_string_repr().to_string(),
@@ -9292,12 +9301,13 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
     processor: &domain::Processor,
 ) -> RouterResult<HashSet<enums::CardNetwork>> {
     let merchant_configured_payment_connectors = state
-        .store
-        .list_enabled_connector_accounts_by_profile_id(
-            profile_id,
-            processor.get_key_store(),
-            common_enums::ConnectorType::PaymentProcessor,
-        )
+        .track_accounts_query(|db| {
+            db.list_enabled_connector_accounts_by_profile_id(
+                profile_id,
+                processor.get_key_store(),
+                common_enums::ConnectorType::PaymentProcessor,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
@@ -9629,12 +9639,13 @@ where
         let merchant_id = processor.get_processor_merchant_id();
 
         let connector_mca = state
-            .store
-            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &merchant_id,
-                &authentication_connector_id,
-                key_store,
-            )
+            .track_accounts_query(|db| {
+                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    &merchant_id,
+                    &authentication_connector_id,
+                    key_store,
+                )
+            })
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: authentication_connector_id.get_string_repr().to_string(),
@@ -10916,12 +10927,13 @@ async fn decrypt_apple_pay_wallet_for_eligibility(
     apple_pay_wallet_data: &domain::ApplePayWalletData,
 ) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
     let payment_processing_details = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            merchant_connector_id,
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor.get_account().get_id(),
+                merchant_connector_id,
+                processor.get_key_store(),
+            )
+        })
         .await
         .inspect_err(|error| {
             logger::warn!(
@@ -10991,12 +11003,13 @@ async fn decrypt_google_pay_wallet_for_eligibility(
     google_pay_wallet_data: &domain::GooglePayWalletData,
 ) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
     let payment_processing_details = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            processor.get_account().get_id(),
-            merchant_connector_id,
-            processor.get_key_store(),
-        )
+        .track_accounts_query(|db| {
+            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                processor.get_account().get_id(),
+                merchant_connector_id,
+                processor.get_key_store(),
+            )
+        })
         .await
         .inspect_err(|error| {
             logger::warn!(
@@ -14155,8 +14168,12 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     .await?;
 
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+        })
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -14549,18 +14566,18 @@ pub async fn payments_manual_update(
         update_amount_captured,
         amount_captured,
     } = req;
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -14826,19 +14843,19 @@ pub async fn payments_manual_status_update_eligible_statuses(
 ) -> RouterResponse<api_models::payments::PaymentsManualStatusUpdateEligibleStatusesResponse> {
     let merchant_id = platform.get_processor().get_processor_merchant_id();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -14909,19 +14926,19 @@ pub async fn payments_manual_status_update(
 
     let merchant_id = platform.get_processor().get_processor_merchant_id();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .track_accounts_query(|db| {
+            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
 
     let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .track_accounts_query(|db| {
+            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
@@ -15369,8 +15386,12 @@ pub async fn payments_submit_eligibility_check(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -15907,8 +15928,12 @@ pub async fn payments_submit_eligibility(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
     let business_profile = state
-        .store
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
+        .track_accounts_query(|db| {
+            db.find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

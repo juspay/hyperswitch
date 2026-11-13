@@ -340,13 +340,14 @@ pub async fn filter_payout_methods(
 )> {
     use hyperswitch_masking::ExposeInterface;
 
-    let db = &*state.store;
     //Fetch all merchant connector accounts
-    let all_mcas = db
-        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-            platform.get_processor().get_account().get_id(),
-            &payout.profile_id,
-        )
+    let all_mcas = state
+        .track_accounts_query(|db| {
+            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                platform.get_processor().get_account().get_id(),
+                &payout.profile_id,
+            )
+        })
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let filtered_mcas =
