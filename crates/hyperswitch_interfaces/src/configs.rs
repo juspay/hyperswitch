@@ -13,7 +13,6 @@ use crate::secrets_interface::SecretsManagementError;
 pub struct Tenant {
     pub tenant_id: id_type::TenantId,
     pub base_url: String,
-    /// Public base URL served through the mTLS endpoint.
     pub mtls_base_url: Option<String>,
     pub schema: String,
     pub accounts_schema: String,
