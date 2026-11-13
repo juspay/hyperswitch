@@ -11911,10 +11911,20 @@ where
             "euclid: make_dsl_input failed, falling back"
         );
     }) {
-        Ok(backend_input) => {
+        Ok(mut backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
             if should_call_connector(operation, payment_data, call_connector_action) {
+                if matches!(&connector_choice, api::ConnectorChoice::Decide) {
+                    routing::wallet_issuer::enrich_wallet_issuer_country(
+                        state,
+                        processor,
+                        business_profile,
+                        &transaction_data,
+                        &mut backend_input,
+                    )
+                    .await;
+                }
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(
