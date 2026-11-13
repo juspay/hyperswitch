@@ -429,6 +429,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SuperpositionGetDimension
             | Flow::SuperpositionGetDefaultConfig
             | Flow::SuperpositionCreateContext
+            | Flow::SuperpositionUpdateContextOverride
+            | Flow::SuperpositionDeleteContext
+            | Flow::SuperpositionBulkOperations
             | Flow::SuperpositionResolveDetailedConfig
             | Flow::SuperpositionResolveConfigExplanation
             | Flow::SuperpositionListAuditLogs => Self::Superposition,

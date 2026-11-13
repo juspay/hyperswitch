@@ -35,6 +35,44 @@ impl ApiEventMetric for ContextResponse {
     }
 }
 
+/// Context removed by the Superposition delete-context endpoint.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DeleteContextResponse {
+    /// Identifier of the deleted context.
+    pub id: String,
+}
+
+impl ApiEventMetric for DeleteContextResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
+/// Result of one operation in a bulk-operations request, in the order the operations were sent.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum BulkOperationResult {
+    /// Context created or merged into by a PUT.
+    Put(ContextResponse),
+    /// Context whose override was replaced.
+    Replace(ContextResponse),
+    /// Identifier of the deleted context.
+    Delete(String),
+}
+
+/// Results of a Superposition bulk-operations request, applied in one transaction.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct BulkOperationResponse {
+    /// One result per requested operation.
+    pub output: Vec<BulkOperationResult>,
+}
+
+impl ApiEventMetric for BulkOperationResponse {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Miscellaneous)
+    }
+}
+
 /// Default configuration entry returned by Superposition.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct DefaultConfigResponse {
@@ -157,6 +195,12 @@ pub struct ResolvedConfigEntry {
     pub schema: serde_json::Value,
     /// The resolved value for this key.
     pub value: serde_json::Value,
+    /// Dimension conditions of the context that supplied the value; absent for defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<serde_json::Value>,
+    /// Identifier of the context that supplied the value; absent for defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<String>,
 }
 
 /// Detailed resolved configuration returned by the Superposition resolve endpoint.

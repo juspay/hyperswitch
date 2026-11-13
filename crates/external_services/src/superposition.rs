@@ -22,7 +22,10 @@ use superposition_sdk::operation::{
 };
 pub use superposition_sdk::{
     operation::{
+        bulk_operation::builders::BulkOperationInputBuilder,
         create_context::builders::CreateContextInputBuilder,
+        delete_context::builders::DeleteContextInputBuilder,
+        get_context::builders::GetContextInputBuilder,
         get_default_config::builders::GetDefaultConfigInputBuilder,
         get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
         get_dimension::builders::GetDimensionInputBuilder,
@@ -31,8 +34,12 @@ pub use superposition_sdk::{
         list_contexts::builders::ListContextsInputBuilder,
         list_default_configs::builders::ListDefaultConfigsInputBuilder,
         list_dimensions::builders::ListDimensionsInputBuilder,
+        update_override::builders::UpdateOverrideInputBuilder,
     },
-    types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy},
+    types::{
+        AuditAction, ContextAction, ContextActionOut, ContextFilterSortOn, ContextIdentifier,
+        DimensionMatchStrategy, SortBy, UpdateContextOverrideRequest,
+    },
 };
 pub use superposition_types::api::{
     config::ContextPayload as ResolveConfigBody, context::PutRequest as ContextPutRequest,
@@ -581,6 +588,25 @@ pub fn context_put_from_request(
 /// Convert a Superposition SDK `CreateContextOutput` into the shared `ContextResponse` struct.
 pub fn create_context_output_to_struct(
     out: &superposition_sdk::operation::create_context::CreateContextOutput,
+) -> ContextResponse {
+    ContextResponse {
+        id: out.id().to_owned(),
+        value: doc_map_to_json(out.value()),
+        r#override: doc_map_to_json(out.r#override()),
+        override_id: out.override_id().to_owned(),
+        weight: out.weight().to_owned(),
+        description: out.description().to_owned(),
+        change_reason: out.change_reason().to_owned(),
+        created_at: datetime_to_string(out.created_at()),
+        created_by: out.created_by().to_owned(),
+        last_modified_at: datetime_to_string(out.last_modified_at()),
+        last_modified_by: out.last_modified_by().to_owned(),
+    }
+}
+
+/// Convert a Superposition SDK `UpdateOverrideOutput` into the shared `ContextResponse` struct.
+pub fn update_override_output_to_struct(
+    out: &superposition_sdk::operation::update_override::UpdateOverrideOutput,
 ) -> ContextResponse {
     ContextResponse {
         id: out.id().to_owned(),
