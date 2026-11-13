@@ -4828,6 +4828,10 @@ pub struct PaymentAttemptRecoveryData {
     /// How the payment method of this attempt's transaction is set up for future use, as reported.
     /// Absent on attempts recorded before this was kept.
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Id of the recovery report that recorded this transaction, written with the attempt so a
+    /// re-run of that report recognises it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

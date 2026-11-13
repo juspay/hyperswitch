@@ -8329,6 +8329,7 @@ impl
                 charge_id: recovery.charge_id.clone(),
                 customer_present: recovery.customer_present,
                 setup_future_usage: recovery.setup_future_usage,
+                report_id: recovery.report_id.clone(),
             }
         });
         Self { revenue_recovery }

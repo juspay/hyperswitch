@@ -17,6 +17,29 @@ use crate::{
     core::revenue_recovery::schedule::StaticLadderProgress, db::StorageInterface,
     routes::SessionState, types, workflows::revenue_recovery,
 };
+/// What the recovery request workflow needs to process one transaction the merchant reported.
+/// Process tracker data is stored and logged in clear, so the request is kept encrypted with the
+/// merchant's key, and only identifiers are kept in clear, for debugging.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RecoveryRequestTrackingData {
+    /// Id of the report, which the id of its process tracker job is built from: one for each
+    /// transaction of an invoice in a profile.
+    pub report_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+    pub connector_transaction_id: String,
+    pub connector: common_types::payments::RecoveryConnector,
+    /// When the API accepted the report.
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub received_at: time::PrimitiveDateTime,
+    /// Version of the stored request's format, which a run checks before reading the request.
+    pub request_version: u8,
+    /// The request exactly as the merchant sent it, encrypted with the merchant's key and base64
+    /// encoded.
+    pub encrypted_request: String,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,

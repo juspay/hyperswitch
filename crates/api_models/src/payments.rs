@@ -2475,6 +2475,11 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Absent when it was not reported, and on attempts recorded before this was kept.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Id of the recovery report that recorded this transaction, for a transaction the merchant
+    /// reported on a profile whose retries it triggers.
+    #[schema(value_type = Option<String>, example = "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub report_id: Option<String>,
 }
 
 #[derive(
