@@ -1751,25 +1751,6 @@ where
             ),
         );
 
-        // A transaction the merchant reported keeps the invoice's card, the first one reported. It
-        // counts as a retry when it is merchant initiated, or made with that card.
-        let reported_invoice_card = revenue_recovery.as_ref().filter(|_| {
-            matches!(
-                connector_details,
-                common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
-            )
-        });
-        let is_on_invoice_card = reported_invoice_card.is_none_or(|data| {
-            self.revenue_recovery_data
-                .processor_payment_method_token
-                .as_ref()
-                == Some(
-                    &data
-                        .billing_connector_payment_details
-                        .payment_processor_token,
-                )
-        });
-
         let is_merchant_initiated = self
             .payment_attempt
             .feature_metadata
@@ -1781,14 +1762,31 @@ where
                     recovery_data.setup_future_usage,
                 )
             });
+        // A merchant-initiated transaction the merchant reported makes its card the invoice's. A
+        // customer-initiated one keeps the invoice's card, and counts as a retry only on that card.
+        let kept_invoice_card = revenue_recovery.as_ref().filter(|_| {
+            !is_merchant_initiated
+                && matches!(
+                    connector_details,
+                    common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+                )
+        });
+        let counts_as_retry = kept_invoice_card.is_none_or(|data| {
+            self.revenue_recovery_data
+                .processor_payment_method_token
+                .as_ref()
+                == Some(
+                    &data
+                        .billing_connector_payment_details
+                        .payment_processor_token,
+                )
+        });
 
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
                 total_retry_count: match revenue_recovery.as_ref() {
                     None => self.revenue_recovery_data.retry_count.unwrap_or(1),
-                    Some(data) if is_on_invoice_card || is_merchant_initiated => {
-                        data.total_retry_count + 1
-                    }
+                    Some(data) if counts_as_retry => data.total_retry_count + 1,
                     Some(data) => data.total_retry_count,
                 },
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
@@ -1798,7 +1796,7 @@ where
                 active_attempt_payment_connector_id: connector_details
                     .get_payment_connector_id()
                     .cloned(),
-                billing_connector_payment_details: reported_invoice_card.map_or_else(
+                billing_connector_payment_details: kept_invoice_card.map_or_else(
                     || diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
@@ -1840,7 +1838,7 @@ where
                     .as_ref()
                     .and_then(|data| data.invoice_billing_started_at_time)
                     .or(self.revenue_recovery_data.invoice_billing_started_at_time),
-                billing_connector_payment_method_details: reported_invoice_card
+                billing_connector_payment_method_details: kept_invoice_card
                     .map_or(billing_connector_payment_method_details, |data| {
                         data.billing_connector_payment_method_details.clone()
                     }),

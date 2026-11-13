@@ -311,12 +311,51 @@ pub struct ReportedTransactionAttempts {
     pub reported: Option<revenue_recovery::RecoveryPaymentAttempt>,
     /// How many attempts were recorded on the invoice before the transaction's.
     pub earlier: usize,
-    /// How many of the invoice's attempts count as retries: the merchant-initiated ones, and the
-    /// others made with the invoice's card, the first card reported for it.
+    /// The card of the last merchant-initiated attempt recorded before the transaction's: the card
+    /// the invoice's last decision, and its error code, were for.
+    pub previous_retry_card: Option<String>,
+    /// How many of the invoice's attempts count as retries.
     pub counted_as_retries: usize,
 }
 #[derive(Debug)]
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
+
+/// Whether the merchant initiated an attempt, by what it was recorded with.
+#[cfg(feature = "v2")]
+fn is_merchant_initiated_attempt(attempt: &api_payments::PaymentAttemptResponse) -> bool {
+    attempt
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+        .is_none_or(|recovery_data| {
+            revenue_recovery::is_merchant_initiated(
+                recovery_data.customer_present,
+                recovery_data.setup_future_usage,
+            )
+        })
+}
+
+/// How many of an invoice's attempts count as retries, replayed in the order they were made: every
+/// merchant-initiated one, and a customer-initiated one on the invoice's card at the time. The first
+/// attempt's card is the invoice's until a merchant-initiated attempt brings its own.
+#[cfg(feature = "v2")]
+fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
+    let mut attempts: Vec<&api_payments::PaymentAttemptResponse> = attempts.iter().collect();
+    attempts.sort_by_key(|attempt| attempt.created_at);
+    let mut invoice_card: Option<&String> = None;
+    let mut retries = 0;
+    for attempt in attempts {
+        let card = attempt.payment_token.as_ref();
+        let is_merchant_initiated = is_merchant_initiated_attempt(attempt);
+        if is_merchant_initiated || invoice_card.is_none() || card == invoice_card {
+            retries += 1;
+        }
+        if card.is_some() && (is_merchant_initiated || invoice_card.is_none()) {
+            invoice_card = card;
+        }
+    }
+    retries
+}
 
 impl RevenueRecoveryInvoice {
     pub async fn get_or_create_custom_recovery_intent(
@@ -572,33 +611,12 @@ impl RevenueRecoveryAttempt {
                 recorded_at.is_none_or(|recorded_at| attempt.created_at < recorded_at)
             })
             .collect();
-        let invoice_card = payment_intent
-            .feature_metadata
-            .as_ref()
-            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
-            .map(|recovery_metadata| {
-                &recovery_metadata
-                    .billing_connector_payment_details
-                    .payment_processor_token
-            });
-        let counted_as_retries = attempts
-            .payment_attempt_list
+        let previous_retry_card = earlier
             .iter()
-            .filter(|attempt| {
-                let is_merchant_initiated = attempt
-                    .feature_metadata
-                    .as_ref()
-                    .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
-                    .is_none_or(|recovery_data| {
-                        revenue_recovery::is_merchant_initiated(
-                            recovery_data.customer_present,
-                            recovery_data.setup_future_usage,
-                        )
-                    });
-                is_merchant_initiated
-                    || invoice_card.is_some_and(|card| attempt.payment_token.as_ref() == Some(card))
-            })
-            .count();
+            .filter(|attempt| is_merchant_initiated_attempt(attempt))
+            .max_by_key(|attempt| attempt.created_at)
+            .and_then(|attempt| attempt.payment_token.clone());
+        let counted_as_retries = count_retries(&attempts.payment_attempt_list);
         let reported = match listed {
             Some(attempt) => Some(recovery_attempt.to_recovery_attempt(state, attempt).await),
             None => None,
@@ -606,6 +624,7 @@ impl RevenueRecoveryAttempt {
         Ok(ReportedTransactionAttempts {
             reported,
             earlier: earlier.len(),
+            previous_retry_card,
             counted_as_retries,
         })
     }
