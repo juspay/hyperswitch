@@ -470,8 +470,6 @@ pub enum RevenueRecoveryError {
     BillingConnectorInvoiceSyncFailed,
     #[error("Failed to fetch connector customer ID")]
     CustomerIdNotFound,
-    #[error("Failed to get the retry count for payment intent")]
-    RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
     #[error("Failed to get the retry algorithm type")]
@@ -528,7 +526,6 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             | Self::ProcessTrackerResponseError
             | Self::BillingConnectorPaymentsSyncFailed
             | Self::BillingConnectorInvoiceSyncFailed
-            | Self::RetryCountFetchFailed
             | Self::RetryAlgorithmUpdationFailed
             | Self::RevenueRecoveryRedisInsertFailed => ApiErrorResponse::WebhookProcessingFailure,
         }

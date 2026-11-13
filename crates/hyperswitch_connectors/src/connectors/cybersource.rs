@@ -2417,6 +2417,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => None,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -2441,6 +2442,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => None,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -2456,6 +2458,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -2480,6 +2483,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -2504,6 +2508,7 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

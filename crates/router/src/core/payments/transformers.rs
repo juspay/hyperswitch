@@ -2778,6 +2778,7 @@ where
         id: payment_intent.id.clone(),
         profile_id: payment_intent.profile_id.clone(),
         status: recovery_status, // Note: field is named 'status' not 'recovery_status'
+        next_retry: payment_intent.get_external_trigger_next_retry(),
         amount_details: api_models::payments::AmountDetailsResponse::foreign_from(
             payment_intent.amount_details.clone(),
         ),
@@ -8326,6 +8327,8 @@ impl
             api_models::payments::PaymentAttemptRevenueRecoveryData {
                 attempt_triggered_by: recovery.attempt_triggered_by,
                 charge_id: recovery.charge_id.clone(),
+                customer_present: recovery.customer_present,
+                setup_future_usage: recovery.setup_future_usage,
             }
         });
         Self { revenue_recovery }
@@ -8375,6 +8378,10 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         .invoice_billing_started_at_time,
                     revenue_recovery_ab_routing: payment_revenue_recovery_metadata
                         .revenue_recovery_ab_routing,
+                    external_trigger_state: payment_revenue_recovery_metadata
+                        .external_trigger_state
+                        .clone(),
+                    last_failure_code: payment_revenue_recovery_metadata.last_failure_code,
                 }
             });
         let apple_pay_details = feature_metadata

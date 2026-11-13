@@ -640,8 +640,7 @@ pub async fn send_role_deletion_email_using_db(
         .unwrap_or(state.conf.theme.email_config.clone());
 
     let org = state
-        .accounts_store
-        .find_organization_by_org_id(&user_from_token.org_id)
+        .track_accounts_query(|db| db.find_organization_by_org_id(&user_from_token.org_id))
         .await
         .change_context(UserErrors::InternalServerError)?;
 

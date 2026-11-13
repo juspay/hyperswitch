@@ -33,6 +33,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconExceptionsView
             | Self::ReconRulesView
             | Self::ReconApiKeyView
+            | Self::ReconAccountsView
+            | Self::ReconAuditView
             | Self::OffersView
             | Self::AlertsView
             | Self::MonitoringView => PermissionScope::Read,
@@ -52,6 +54,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconTransactionsManage
             | Self::ReconRulesManage
             | Self::ReconApiKeyManage
+            | Self::ReconAccountsManage
             | Self::OffersManage
             | Self::AlertsManage
             | Self::MonitoringManage => PermissionScope::Write,
@@ -79,6 +82,8 @@ impl PermissionGroupExt for PermissionGroup {
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
             Self::ReconApiKeyView | Self::ReconApiKeyManage => ParentGroup::ReconApiKey,
+            Self::ReconAccountsView | Self::ReconAccountsManage => ParentGroup::ReconAccounts,
+            Self::ReconAuditView => ParentGroup::ReconAudit,
             Self::OffersView | Self::OffersManage => ParentGroup::Offers,
             Self::AlertsView | Self::AlertsManage => ParentGroup::Alerts,
             Self::MonitoringView | Self::MonitoringManage => ParentGroup::Monitoring,
@@ -178,6 +183,10 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconApiKeyView => vec![Self::ReconApiKeyView],
             Self::ReconApiKeyManage => vec![Self::ReconApiKeyView, Self::ReconApiKeyManage],
 
+            Self::ReconAccountsView => vec![Self::ReconAccountsView],
+            Self::ReconAccountsManage => vec![Self::ReconAccountsView, Self::ReconAccountsManage],
+            Self::ReconAuditView => vec![Self::ReconAuditView],
+
             Self::OffersView => vec![Self::OffersView],
             Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
             Self::AlertsView => vec![Self::AlertsView],
@@ -228,7 +237,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconRulesView
             | Self::ReconRulesManage
             | Self::ReconApiKeyView
-            | Self::ReconApiKeyManage => RoleProductCategory::Recon,
+            | Self::ReconApiKeyManage
+            | Self::ReconAccountsView
+            | Self::ReconAccountsManage
+            | Self::ReconAuditView => RoleProductCategory::Recon,
         }
     }
 
@@ -268,6 +280,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconRulesManage
             | Self::ReconApiKeyView
             | Self::ReconApiKeyManage
+            | Self::ReconAccountsView
+            | Self::ReconAccountsManage
+            | Self::ReconAuditView
             | Self::OffersView
             | Self::OffersManage => false,
         }
@@ -302,6 +317,8 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
             Self::ReconApiKey => RECON_API_KEY.to_vec(),
+            Self::ReconAccounts => RECON_ACCOUNTS.to_vec(),
+            Self::ReconAudit => RECON_AUDIT.to_vec(),
             Self::Offers => OFFERS.to_vec(),
             Self::Alerts => ALERTS.to_vec(),
             Self::Monitoring => MONITORING.to_vec(),
@@ -399,6 +416,10 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
 
 pub static RECON_API_KEY: [Resource; 1] = [Resource::ReconApiKey];
+
+pub static RECON_ACCOUNTS: [Resource; 1] = [Resource::ReconAccount];
+
+pub static RECON_AUDIT: [Resource; 1] = [Resource::ReconAudit];
 
 pub static OFFERS: [Resource; 1] = [Resource::Offers];
 

@@ -75,6 +75,16 @@ pub async fn recovery_incoming_webhook_flow(
         ))
     })?;
 
+    if business_profile.revenue_recovery_trigger_model
+        == common_enums::RevenueRecoveryTriggerModel::ExternalTriggers
+    {
+        logger::info!(
+            profile_id = ?business_profile.get_id(),
+            "Ignoring the billing connector webhook of a profile whose retries the merchant triggers"
+        );
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let connector = api_enums::Connector::from_str(connector_name)
         .change_context(errors::RevenueRecoveryError::InvoiceWebhookProcessingFailed)
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
@@ -501,6 +511,8 @@ impl RevenueRecoveryAttempt {
                 profile,
                 payment_intent,
                 connector_details,
+                data.customer_present,
+                data.setup_future_usage,
             )
             .await
     }
@@ -707,6 +719,8 @@ impl RevenueRecoveryAttempt {
         profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<
         (
             revenue_recovery::RecoveryPaymentAttempt,
@@ -719,6 +733,8 @@ impl RevenueRecoveryAttempt {
                 state,
                 connector_details,
                 common_enums::TriggeredBy::External,
+                customer_present,
+                setup_future_usage,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_core(
@@ -804,6 +820,24 @@ impl RevenueRecoveryAttempt {
             }
         }?;
 
+        if recovery_attempt.attempt_status.is_terminal_status() {
+            retry_stats::RetryOutcomeEvent::from_retry_outcome(
+                recovery_attempt.created_at,
+                payment_intent
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+                    .and_then(|recovery_metadata| recovery_metadata.last_failure_code),
+                matches!(
+                    recovery_attempt.attempt_status,
+                    common_enums::AttemptStatus::Charged
+                        | common_enums::AttemptStatus::PartialCharged
+                ),
+            )
+            .record(state)
+            .await;
+        }
+
         let response = (recovery_attempt, updated_recovery_intent);
 
         if let Err(error) = self
@@ -833,6 +867,8 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         connector_details: &common_types::payments::RecoveryConnectorDetails,
         triggered_by: common_enums::TriggeredBy,
+        customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+        setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -843,6 +879,8 @@ impl RevenueRecoveryAttempt {
                 // Since we are recording the external paymenmt attempt, this is hardcoded to External
                 attempt_triggered_by: triggered_by,
                 charge_id: self.0.charge_id.clone(),
+                customer_present,
+                setup_future_usage,
             }),
         };
 
@@ -872,6 +910,24 @@ impl RevenueRecoveryAttempt {
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
+
+        let standardised_error_code = match revenue_recovery_attempt_data.status {
+            common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
+                None
+            }
+            _ => {
+                retry_stats::events::resolve_standardised_error_code(
+                    state,
+                    Some(connector_details.get_connector().to_string()),
+                    revenue_recovery_attempt_data.error_code.clone(),
+                    revenue_recovery_attempt_data.error_message.clone(),
+                    revenue_recovery_attempt_data.network_decline_code.clone(),
+                    revenue_recovery_attempt_data.card_info.card_network.clone(),
+                )
+                .await
+            }
+        };
+
         Ok(api_payments::PaymentsAttemptRecordRequest {
             amount_details,
             status: revenue_recovery_attempt_data.status,
@@ -900,6 +956,7 @@ impl RevenueRecoveryAttempt {
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
             card_issuer,
+            standardised_error_code,
         })
     }
 
@@ -996,6 +1053,8 @@ impl RevenueRecoveryAttempt {
                                             .get_connector_name(),
                                     },
                                 ),
+                                None,
+                                None,
                             )
                             .await
                     })
