@@ -1,6 +1,12 @@
 #[doc(hidden)]
 pub mod diesel_exports {
-    // Event types, classes and object types are stored as text in v2.
+    // Event types, classes and object types are stored as text in v2, where the v1 schema, which
+    // every build compiles and the events model reads, takes those columns as text too.
+    #[cfg(feature = "v2")]
+    pub use diesel::sql_types::{
+        Varchar as EventClass, Varchar as EventObjectType, Varchar as EventType,
+    };
+
     pub use super::{
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
