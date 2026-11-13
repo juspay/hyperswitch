@@ -498,6 +498,12 @@ pub async fn change_password(
     }
     let new_password = domain::UserPassword::new(request.new_password)?;
 
+    // The current password is not in `password_history`; the `old_password == new_password`
+    // check above already rejects it.
+    if user.is_password_reused(&new_password.get_secret())? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
 
@@ -507,6 +513,7 @@ pub async fn change_password(
             user.get_user_id(),
             diesel_models::user::UserUpdate::PasswordUpdate {
                 password: new_password_hash,
+                password_history: user.get_updated_password_history(),
             },
         )
         .await
@@ -603,11 +610,19 @@ pub async fn rotate_password(
         .into();
 
     let password = domain::UserPassword::new(request.password.to_owned())?;
-    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     if user.compare_password(&request.password).is_ok() {
         return Err(UserErrors::ChangePasswordError.into());
     }
+
+    // The current password is not in `password_history`; the `compare_password` check above
+    // already rejects it.
+    if user.is_password_reused(&password.get_secret())? {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
+    let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
+    let password_history = user.get_updated_password_history();
 
     let user = state
         .global_store
@@ -615,6 +630,7 @@ pub async fn rotate_password(
             &user_token.user_id,
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history,
             },
         )
         .await
@@ -652,6 +668,17 @@ pub async fn reset_password_token_only_flow(
     }
 
     let password = domain::UserPassword::new(request.password)?;
+
+    // Unlike the other two password flows, this one has no old-vs-new check of its own, so the
+    // current password is rejected here rather than being carried in `password_history`.
+    if user_from_db
+        .compare_password(&password.get_secret())
+        .is_ok()
+        || user_from_db.is_password_reused(&password.get_secret())?
+    {
+        return Err(UserErrors::PasswordReuseError.into());
+    }
+
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
     let user = state
@@ -660,6 +687,7 @@ pub async fn reset_password_token_only_flow(
             user_from_db.get_user_id(),
             storage_user::UserUpdate::PasswordUpdate {
                 password: hash_password,
+                password_history: user_from_db.get_updated_password_history(),
             },
         )
         .await
