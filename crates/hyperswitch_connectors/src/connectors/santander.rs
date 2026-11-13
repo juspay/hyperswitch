@@ -89,7 +89,7 @@ use crate::{
             SantanderPaymentsSyncResponse, SantanderPixAutomaticRecResponse,
             SantanderPixAutomaticSolicitationResponse, SantanderPixAutomaticoRecWebhookBody,
             SantanderPixQrWebhookBody, SantanderPixWebhookRegisterResponse,
-            SantanderRefundResponse, SantanderUpdateResponse, SantanderVoidResponse,
+            SantanderPreAuthorizeVoidResponse, SantanderRefundResponse, SantanderUpdateResponse,
             SantanderWebhookBody,
         },
     },
@@ -1735,6 +1735,17 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
                         )),
                     }
                 }
+                Some(enums::PaymentMethodType::PixAutomaticoPush)
+                | Some(enums::PaymentMethodType::PixAutomaticoQr)
+                    if req.recurring_mandate_payment_data.is_some() =>
+                {
+                    Ok(format!(
+                        "{}api/v1/cobr/{}",
+                        self.base_url(connectors),
+                        req.request.connector_transaction_id
+                    ))
+                }
+                // TODO: else handler, recurrence revoke api to be called
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: req.payment_method.to_string(),
                     connector: "Santander".into(),
@@ -1821,10 +1832,10 @@ impl ConnectorIntegration<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, Paym
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsPreAuthorizeCancelRouterData, errors::ConnectorError> {
-        let response: SantanderVoidResponse =
-            res.response
-                .parse_struct("Santander VoidResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: SantanderPreAuthorizeVoidResponse = res
+            .response
+            .parse_struct("Santander VoidResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -2511,15 +2522,35 @@ impl ConnectorSpecifications for Santander {
         Some(&SANTANDER_CONNECTOR_INFO)
     }
 
-    fn is_pre_authorize_cancel_supported(
-        &self,
-        payment_method_type: Option<enums::PaymentMethodType>,
-    ) -> bool {
-        // TODO: Add support for pre-authorize cancel for PixAutomaticoQr and PixAutomaticoPush PMT
-        matches!(
-            payment_method_type,
-            Some(enums::PaymentMethodType::PixQr) | Some(enums::PaymentMethodType::Boleto)
-        )
+    fn is_pre_authorize_cancel_supported(&self, current_flow: CurrentFlowInfo) -> bool {
+        match current_flow {
+            CurrentFlowInfo::PreAuthorizeVoid {
+                payment_method_type,
+                attempt_status,
+                is_mit_payment,
+            } => {
+                let supports_non_recurring_cancel = matches!(
+                    payment_method_type,
+                    Some(enums::PaymentMethodType::PixQr) | Some(enums::PaymentMethodType::Boleto)
+                );
+                let supports_recurring_mit_cancel = is_mit_payment
+                    && matches!(
+                        payment_method_type,
+                        Some(enums::PaymentMethodType::PixAutomaticoQr)
+                            | Some(enums::PaymentMethodType::PixAutomaticoPush)
+                    );
+
+                match attempt_status {
+                    enums::AttemptStatus::AuthenticationPending => {
+                        supports_non_recurring_cancel || supports_recurring_mit_cancel
+                    }
+                    // A created recurring charge is tracked as Processing until Santander executes it.
+                    enums::AttemptStatus::Pending => supports_recurring_mit_cancel,
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
     }
 
     fn should_call_connector_for_update_post_confirm(
@@ -2665,7 +2696,8 @@ impl ConnectorSpecifications for Santander {
             | Some(CurrentFlowInfo::Psync { .. })
             | Some(CurrentFlowInfo::UpdatePostConfirm { .. })
             | None => false,
-            Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
+            Some(CurrentFlowInfo::PreAuthorizeVoid { .. })
+            | Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
         }
     }
     fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2680,6 +2712,7 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
+            | CurrentFlowInfo::PreAuthorizeVoid { .. }
             | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -2695,6 +2728,7 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
+            | CurrentFlowInfo::PreAuthorizeVoid { .. }
             | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

@@ -965,6 +965,8 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_pg_error_code: from.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
             revenue_recovery_ab_routing: from.revenue_recovery_ab_routing,
+            external_trigger_state: from.external_trigger_state,
+            last_failure_code: from.last_failure_code,
         }
     }
 
@@ -991,6 +993,8 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             first_payment_attempt_pg_error_code: self.first_payment_attempt_pg_error_code,
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
             revenue_recovery_ab_routing: self.revenue_recovery_ab_routing,
+            external_trigger_state: self.external_trigger_state,
+            last_failure_code: self.last_failure_code,
         }
     }
 }

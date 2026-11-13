@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, panic::Location, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -134,7 +134,7 @@ pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
-    pub accounts_store: Box<dyn AccountsStorageInterface>,
+    accounts_store: Box<dyn AccountsStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -184,6 +184,23 @@ impl scheduler::SchedulerSessionState for SessionState {
     }
 }
 impl SessionState {
+    /// Run an accounts operation with this call site's location in scope.
+    /// Use one call per query to retain each query's location.
+    #[track_caller]
+    pub fn track_accounts_query<'s, F, Fut>(
+        &'s self,
+        operation: F,
+    ) -> impl Future<Output = Fut::Output> + 's
+    where
+        F: FnOnce(&'s dyn AccountsStorageInterface) -> Fut + 's,
+        Fut: Future + 's,
+    {
+        let origin = Location::caller();
+        router_env::call_origin::with_origin(origin, async move {
+            operation(self.accounts_store.as_ref()).await
+        })
+    }
+
     pub(crate) fn get_webhook_registration_base_url(
         &self,
         connector_requires_mtls: bool,
@@ -267,6 +284,7 @@ pub trait SessionStateInfo {
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn start_read_ledger(&mut self, flow: String);
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>>;
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -288,6 +306,10 @@ impl SessionStateInfo for SessionState {
         self.global_store
             .attach_read_ledger(Arc::new(read_ledger.for_store(ReadStore::Global)));
         self.store.attach_read_ledger(read_ledger);
+    }
+
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>> {
+        self.store.get_read_ledger()
     }
 
     fn store(&self) -> Box<dyn StorageInterface> {

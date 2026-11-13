@@ -198,7 +198,7 @@ impl DatabaseConnectionWithContext<'_> {
         .await
     }
 
-    /// Log statements and track duplicate reads when called; measure execution when polled.
+    /// Track duplicate reads when called; measure execution when polled.
     /// Emit a database-call event only when a request ID is present.
     ///
     /// The returned future does not borrow the statement or ledger. Its `Send`
@@ -223,7 +223,8 @@ impl DatabaseConnectionWithContext<'_> {
         logger::debug!(query = %statement);
 
         if let (Some(ledger), true) = (self.read_ledger(), operation.is_read()) {
-            if ledger.record_read(statement) {
+            let location = router_env::call_origin::current_origin().copied();
+            if ledger.record_read(statement, location) {
                 crate::metrics::DUPLICATE_DB_READ_COUNT.add(
                     1,
                     router_env::metric_attributes!(
