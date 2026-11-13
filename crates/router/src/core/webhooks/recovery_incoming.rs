@@ -923,6 +923,24 @@ impl RevenueRecoveryAttempt {
             }
         }?;
 
+        if recovery_attempt.attempt_status.is_terminal_status() {
+            retry_stats::RetryOutcomeEvent::from_retry_outcome(
+                recovery_attempt.created_at,
+                payment_intent
+                    .feature_metadata
+                    .as_ref()
+                    .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+                    .and_then(|recovery_metadata| recovery_metadata.last_failure_code),
+                matches!(
+                    recovery_attempt.attempt_status,
+                    common_enums::AttemptStatus::Charged
+                        | common_enums::AttemptStatus::PartialCharged
+                ),
+            )
+            .record(state)
+            .await;
+        }
+
         let response = (recovery_attempt, updated_recovery_intent);
 
         if let Err(error) = self
@@ -997,6 +1015,24 @@ impl RevenueRecoveryAttempt {
 
         let error =
             Option::<api_payments::RecordAttemptErrorDetails>::from(revenue_recovery_attempt_data);
+
+        let standardised_error_code = match revenue_recovery_attempt_data.status {
+            common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
+                None
+            }
+            _ => {
+                retry_stats::events::resolve_standardised_error_code(
+                    state,
+                    Some(connector_details.get_connector().to_string()),
+                    revenue_recovery_attempt_data.error_code.clone(),
+                    revenue_recovery_attempt_data.error_message.clone(),
+                    revenue_recovery_attempt_data.network_decline_code.clone(),
+                    revenue_recovery_attempt_data.card_info.card_network.clone(),
+                )
+                .await
+            }
+        };
+
         Ok(api_payments::PaymentsAttemptRecordRequest {
             amount_details,
             status: revenue_recovery_attempt_data.status,
@@ -1025,6 +1061,7 @@ impl RevenueRecoveryAttempt {
             triggered_by,
             card_network: revenue_recovery_attempt_data.card_info.card_network.clone(),
             card_issuer,
+            standardised_error_code,
         })
     }
 

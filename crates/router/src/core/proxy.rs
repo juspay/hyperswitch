@@ -1,15 +1,11 @@
 use super::errors::{self, RouterResponse, RouterResult};
 use crate::{logger, routes::SessionState, services, types::domain};
+mod body;
 pub mod utils;
 use api_models::proxy as proxy_api_models;
-use common_utils::{
-    ext_traits::BytesExt,
-    request::{self, RequestBuilder},
-};
 use error_stack::ResultExt;
 use external_services::http_client::outbound_destination;
 use hyperswitch_interfaces::types::Response;
-use serde_json::Value;
 
 pub async fn proxy_core(
     state: SessionState,
@@ -25,83 +21,76 @@ pub async fn proxy_core(
         message: "destination_url is not valid".to_string(),
     })?;
 
-    let req_wrapper = utils::ProxyRequestWrapper(req.clone());
-    let proxy_record = req_wrapper
-        .get_proxy_record(&state, platform.get_provider())
-        .await?;
+    let req_wrapper = utils::ProxyRequestWrapper(req);
 
-    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
+    let request = match req_wrapper.get_method() {
+        // GET and DELETE send no body: the token is checked, but there is nothing to validate
+        // or fill with vault data, so the request is forwarded as it is.
+        method @ (services::Method::Get | services::Method::Delete) => {
+            req_wrapper
+                .get_proxy_record(&state, platform.get_provider())
+                .await?;
+            services::RequestBuilder::new()
+                .method(method)
+                .url(req_wrapper.get_destination_url())
+                .attach_default_headers()
+                .headers(req_wrapper.get_headers())
+                .build()
+        }
+        _ => body_request(&state, platform, &req_wrapper).await?,
+    };
 
-    let processed_body =
-        interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
-
-    let res = execute_proxy_request(&state, &req_wrapper, processed_body).await?;
+    let res = execute_proxy_request(&state, request).await?;
 
     let proxy_response = proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(res))?;
 
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-fn interpolate_token_references_with_vault_data(
-    value: Value,
-    vault_data: &Value,
-) -> RouterResult<Value> {
-    match value {
-        Value::Object(obj) => {
-            let new_obj = obj
-                .into_iter()
-                .map(|(key, val)| interpolate_token_references_with_vault_data(val, vault_data).map(|processed| (key, processed)))
-                .collect::<Result<serde_json::Map<_, _>, error_stack::Report<errors::ApiErrorResponse>>>()?;
+/// The connector request for a method with a body. The body is validated before the vault is
+/// read: reading the vault consumes the single-use CVC, so an invalid request must not reach it.
+async fn body_request(
+    state: &SessionState,
+    platform: domain::Platform,
+    req_wrapper: &utils::ProxyRequestWrapper,
+) -> RouterResult<services::Request> {
+    let content_type = req_wrapper.get_content_type()?;
+    let body = body::ProxyBody::new(req_wrapper.0.request_body.clone(), content_type.as_ref())
+        .map_err(invalid_body)?;
+    let validated_body = body
+        .builder()
+        .validate(content_type.as_ref())
+        .map_err(invalid_body)?;
 
-            Ok(Value::Object(new_obj))
-        }
-        Value::String(s) => utils::parse_token(&s)
-            .map(|(_, token_ref)| extract_field_from_vault_data(vault_data, &token_ref.field))
-            .unwrap_or(Ok(Value::String(s.clone()))),
-        _ => Ok(value),
-    }
+    let proxy_record = req_wrapper
+        .get_proxy_record(state, platform.get_provider())
+        .await?;
+
+    let vault_data = proxy_record.get_vault_data(state, platform).await?;
+
+    let request = validated_body
+        .build(
+            &vault_data,
+            req_wrapper.get_destination_url(),
+            req_wrapper.get_method(),
+            req_wrapper.get_headers(),
+        )
+        .map_err(invalid_body)?
+        .into_inner();
+    Ok(request)
 }
 
-fn find_field_recursively_in_vault_data(
-    obj: &serde_json::Map<String, Value>,
-    field_name: &str,
-) -> Option<Value> {
-    obj.get(field_name).cloned().or_else(|| {
-        obj.values()
-            .filter_map(|val| {
-                if let Value::Object(inner_obj) = val {
-                    find_field_recursively_in_vault_data(inner_obj, field_name)
-                } else {
-                    None
-                }
-            })
-            .next()
-    })
-}
-
-fn extract_field_from_vault_data(vault_data: &Value, field_name: &str) -> RouterResult<Value> {
-    match vault_data {
-        Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
-            .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(format!("Field '{field_name}' not found")),
-        _ => Err(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Vault data is not a valid JSON object"),
+/// A connector body that cannot be sent is a client error.
+fn invalid_body(error: body::ProxyBodyError) -> errors::ApiErrorResponse {
+    errors::ApiErrorResponse::InvalidRequestData {
+        message: error.to_string(),
     }
 }
 
 async fn execute_proxy_request(
     state: &SessionState,
-    req_wrapper: &utils::ProxyRequestWrapper,
-    processed_body: Value,
+    request: services::Request,
 ) -> RouterResult<Response> {
-    let request = RequestBuilder::new()
-        .method(req_wrapper.get_method())
-        .attach_default_headers()
-        .headers(req_wrapper.get_headers())
-        .url(req_wrapper.get_destination_url())
-        .set_body(request::RequestContent::Json(Box::new(processed_body)))
-        .build();
-
     let response = services::call_connector_api(state, request, "proxy", None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -126,19 +115,23 @@ impl TryFrom<ProxyResponseWrapper> for proxy_api_models::ProxyResponse {
 
     fn try_from(wrapper: ProxyResponseWrapper) -> Result<Self, Self::Error> {
         let res = wrapper.0;
-        let response_body: Value = res
-            .response
-            .parse_struct("ProxyResponse")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse the response")?;
-
-        let status_code = res.status_code;
-        let response_headers = proxy_api_models::Headers::from_header_map(res.headers.as_ref());
-
         Ok(Self {
-            response: response_body,
-            status_code,
-            response_headers,
+            response: response_body(&res.response)?,
+            status_code: res.status_code,
+            response_headers: proxy_api_models::Headers::from_header_map(res.headers.as_ref()),
         })
     }
+}
+
+/// The connector body as JSON, else as text. Only UTF-8 text is supported; other encodings
+/// are rejected rather than converted lossily.
+fn response_body(body: &[u8]) -> RouterResult<proxy_api_models::ProxyResponseBody> {
+    serde_json::from_slice(body)
+        .map(proxy_api_models::ProxyResponseBody::Json)
+        .or_else(|_| {
+            std::str::from_utf8(body)
+                .map(|text| proxy_api_models::ProxyResponseBody::Text(text.to_owned()))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Connector response is neither JSON nor UTF-8 text")
+        })
 }

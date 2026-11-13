@@ -14489,6 +14489,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<ExternalTriggerState>)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_trigger_state: Option<common_payments_types::ExternalTriggerState>,
+    /// Standardised error code of the last failed transaction of the invoice. The result of the next transaction is counted against it in the cluster data.
+    #[schema(value_type = Option<StandardisedCode>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -14661,6 +14665,10 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+
+    /// Standardised error code of the attempt, when it failed.
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
