@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -37,15 +37,6 @@ describe("merchant_reference_id as customer_id", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       previousCustomerId = globalState.get("customerId");
-
-      if (
-        utils.shouldIncludeConnector(
-          globalState.get("connectorId"),
-          utils.CONNECTOR_LISTS.INCLUDE.MERCHANT_REFERENCE_ID_AS_CUSTOMER_ID
-        )
-      ) {
-        specShouldSkip = true;
-      }
 
       // Without credentials, setSuperpositionConfig silently no-ops and every
       // case below would run with the config off.
