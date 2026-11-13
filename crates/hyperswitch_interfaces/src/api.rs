@@ -737,6 +737,17 @@ pub trait ConnectorSpecifications {
     ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
         Ok(Vec::new())
     }
+
+    /// Returns non-sensitive metadata for a planned webhook registration call.
+    /// This is available before the connector call is made, so it can be
+    /// returned for both successful and failed registrations.
+    fn get_webhook_registration_metadata(
+        &self,
+        _identifier: &ScopeIdentifier,
+        _base_url: &str,
+    ) -> Option<serde_json::Value> {
+        None
+    }
 }
 
 /// Extended trait for connector common to allow functions with generic type
