@@ -30,7 +30,7 @@ env:
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "cybersource braintree nmi calida adyen peachpayments"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode nexixpay"
   MOCK_PAYMENTS_CONNECTORS_BATCH_4: "finix"
-  MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
+  MOCK_PAYOUTS_CONNECTORS: "adyenplatform"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -279,10 +279,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -380,7 +376,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -580,10 +576,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-extended-matrix.outputs['extended-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -661,7 +653,7 @@ jobs:
       - name: Install Diesel CLI
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -849,9 +841,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
-    env:
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -948,7 +937,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1292,10 +1281,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1380,7 +1365,7 @@ jobs:
       - name: Install Diesel CLI
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1486,9 +1471,6 @@ jobs:
     needs: build-hyperswitch
     if: false
     runs-on: hyperswitch-runners
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1568,7 +1550,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1834,7 +1816,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}

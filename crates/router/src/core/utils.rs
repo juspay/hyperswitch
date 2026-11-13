@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
     payment_address::PaymentAddress,
+    refunds::RefundAmountDetails,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_request_types,
@@ -290,7 +291,13 @@ pub(super) async fn construct_payout_router_data_common<F>(
         })
         .and_then(|id| serde_json::from_value::<String>(id).ok());
 
-    let vendor_details: Option<PayoutVendorAccountDetails> =
+    let vendor_details: Option<PayoutVendorAccountDetails> = if let Some(sender_details) =
+        payout_data.payouts.get_optional_sender_details()
+    {
+        // Persisted sender input is normalized to the vendor type only at this
+        // domain boundary; the raw sender identity stays on the payout row.
+        Some(sender_details.clone().into())
+    } else {
         match api_models::enums::PayoutConnectors::try_from(connector_name.to_owned()).map_err(
             |err| report!(errors::ApiErrorResponse::InternalServerError).attach_printable(err),
         )? {
@@ -316,7 +323,8 @@ pub(super) async fn construct_payout_router_data_common<F>(
                 })
                 .transpose()?,
             _ => None,
-        };
+        }
+    };
 
     let webhook_url = helpers::create_webhook_url(
         &state.base_url,
@@ -401,6 +409,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             connector_transfer_method_id,
             webhook_url: Some(webhook_url),
             browser_info,
+            funds_transfer_type: payouts.funds_transfer_type,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
@@ -568,8 +577,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .map(api_models::payments::FeatureMetadata::foreign_from),
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,
@@ -804,8 +815,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .attach_printable("Failed to parse payment feature metadata")?,
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,

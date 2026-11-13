@@ -10,6 +10,20 @@ pub struct Address {
 impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
+    /// Whether the address has location details, and not only a name, phone or email
+    pub fn has_location_details(&self) -> bool {
+        self.address.as_ref().is_some_and(|details| {
+            details
+                .city
+                .as_deref()
+                .is_some_and(|city| !city.trim().is_empty())
+                || [&details.line1, &details.state, &details.zip]
+                    .into_iter()
+                    .flatten()
+                    .any(|field| !field.peek().trim().is_empty())
+        })
+    }
+
     /// Unify the address, giving priority to `self` when details are present in both
     pub fn unify_address(&self, other: Option<&Self>) -> Self {
         let other_address_details = other.and_then(|address| address.address.as_ref());
@@ -168,5 +182,40 @@ impl From<PhoneDetails> for api_models::payments::PhoneDetails {
             number: phone.number,
             country_code: phone.country_code,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn address_with(details: AddressDetails) -> Address {
+        Address {
+            address: Some(details),
+            phone: None,
+            email: None,
+        }
+    }
+
+    #[test]
+    fn has_location_details_is_true_only_for_location_fields() {
+        let state_only = AddressDetails {
+            state: Some(Secret::new("MB".to_string())),
+            ..Default::default()
+        };
+        let name_only = AddressDetails {
+            first_name: Some(Secret::new("Jo".to_string())),
+            last_name: Some(Secret::new("Doe".to_string())),
+            ..Default::default()
+        };
+        let blank_state = AddressDetails {
+            state: Some(Secret::new("  ".to_string())),
+            ..Default::default()
+        };
+
+        assert!(address_with(state_only).has_location_details());
+        assert!(!address_with(name_only).has_location_details());
+        assert!(!address_with(blank_state).has_location_details());
+        assert!(!Address::default().has_location_details());
     }
 }

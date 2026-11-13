@@ -1678,7 +1678,6 @@ default_imp_for_cancel_post_capture!(
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
-    connectors::Authorizedotnet,
     connectors::Bambora,
     connectors::Bamboraapac,
     connectors::Bankofamerica,
@@ -5296,7 +5295,6 @@ default_imp_for_payouts!(
     connectors::Celero,
     connectors::Chargebee,
     connectors::Checkbook,
-    connectors::Checkout,
     connectors::Cryptopay,
     connectors::Cybersourcedecisionmanager,
     connectors::D24,
@@ -5643,7 +5641,6 @@ default_imp_for_payouts_retrieve!(
     connectors::Celero,
     connectors::Chargebee,
     connectors::Checkbook,
-    connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -6005,7 +6002,6 @@ default_imp_for_payouts_fulfill!(
     connectors::Celero,
     connectors::Chargebee,
     connectors::Checkbook,
-    connectors::Checkout,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,
@@ -12825,6 +12821,30 @@ impl<const T: u8>
         CompleteSurcharge,
         PaymentsCompleteSurchargeData,
         CompleteSurchargeResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::SurchargeRefundInit for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::payments::SurchargeRefundInit,
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundInitData,
+        hyperswitch_domain_models::router_response_types::SurchargeRefundInitResponseData,
+    > for connectors::DummyConnector<T>
+{
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::SurchargeRefundComplete for connectors::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    ConnectorIntegration<
+        hyperswitch_domain_models::router_flow_types::payments::SurchargeRefundComplete,
+        hyperswitch_domain_models::router_request_types::PaymentsSurchargeRefundCompleteData,
+        hyperswitch_domain_models::router_response_types::SurchargeRefundCompleteResponseData,
     > for connectors::DummyConnector<T>
 {
 }

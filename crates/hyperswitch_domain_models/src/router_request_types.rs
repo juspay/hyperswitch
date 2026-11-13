@@ -74,6 +74,15 @@ pub enum CurrentFlowInfo {
         /// The payment update post confirm request data
         request_data: Box<PaymentsUpdatePostConfirmData>,
     },
+    /// Pre-authorize void flow information
+    PreAuthorizeVoid {
+        /// The payment method type used for the payment
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        /// The current payment attempt status
+        attempt_status: storage_enums::AttemptStatus,
+        /// Whether this is a merchant-initiated transaction
+        is_mit_payment: bool,
+    },
     ConnectorWebhookRegister {
         /// The payment setup mandate request data
         request_data: Box<ConnectorWebhookRegisterRequest>,
@@ -88,6 +97,7 @@ impl CurrentFlowInfo {
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -1748,6 +1758,8 @@ pub struct PayoutsData {
     pub payout_type: Option<storage_enums::PayoutType>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub customer_details: Option<CustomerDetails>,
+    /// Payout party details converted from explicit sender input or parsed from legacy
+    /// vendor metadata. Never persisted; only `sender_details` is stored on the payout row.
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 
     // New minor amount for amount framework
@@ -1756,6 +1768,9 @@ pub struct PayoutsData {
     pub connector_transfer_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Connector-generated state persisted on the payout attempt for later payout steps.
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
@@ -1875,6 +1890,20 @@ pub struct PaymentsCompleteSurchargeData {
     pub merchant_transaction_id: Option<String>,
     /// Original order amount in minor units
     pub amount: Option<MinorUnit>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundInitData {
+    pub refund_id: String,
+    pub original_surcharge_id: String,
+    pub order_amount: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundCompleteData {
+    pub refund_id: String,
+    pub connector_surcharge_refund_id: String,
 }
 
 #[derive(Debug, Clone)]
@@ -2039,6 +2068,7 @@ impl PushNotificationRequestData {
 pub struct GenerateQrRequestData {
     pub amount: Option<i64>,
     pub mandate_id: Option<mandates::MandateIds>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 impl MandateIdSettable for GenerateQrRequestData {
@@ -2070,6 +2100,7 @@ impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2081,6 +2112,7 @@ impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2092,6 +2124,7 @@ impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }
@@ -2103,6 +2136,7 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }

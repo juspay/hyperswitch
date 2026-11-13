@@ -1613,8 +1613,10 @@ impl ConnectorSpecifications for Worldpayxml {
                 auth_type,
                 connector_meta_data: _,
             } => {
+                // Skip WorldpayXML's own 3DS when an external authentication already produced the result
                 // Googlepay would require 3ds if cryptogram is not present which indicates it is Fpan
                 auth_type == common_enums::AuthenticationType::ThreeDs
+                    && request_data.authentication_data.is_none()
                     && match request_data.payment_method_data {
                         PaymentMethodData::Card(_) => true,
                         PaymentMethodData::Wallet(
@@ -1638,7 +1640,8 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
-            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 

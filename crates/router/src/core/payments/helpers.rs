@@ -17,7 +17,7 @@ use api_models::{
     },
 };
 use base64::Engine;
-use common_enums::{enums::ExecutionMode, ConnectorType, WalletDecryptedToken};
+use common_enums::{enums::ExecutionMode, ConnectorType, UcsAvailability, WalletDecryptedToken};
 use common_types::payments::InstallmentOption;
 #[cfg(feature = "v2")]
 use common_utils::id_type::GenerateId;
@@ -133,6 +133,26 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
+
+/// Whether the billing stored on a saved payment method should be used for this payment.
+/// When the merchant is configured to prefer the request's billing, a top-level billing with
+/// location details overrides the saved payment method's billing.
+#[cfg(feature = "v1")]
+pub async fn should_use_saved_payment_method_billing(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    merchant_id: &id_type::MerchantId,
+    has_request_billing: bool,
+) -> bool {
+    !has_request_billing
+        || !dimensions
+            .get_should_prefer_request_billing_over_saved_pm_billing(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(merchant_id),
+            )
+            .await
+}
 
 /// Use a profile-scoped lookup when authentication supplies a profile, otherwise retain merchant scope.
 #[cfg(feature = "v1")]
@@ -2631,6 +2651,44 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
         .unwrap_or(false)
 }
 
+/// Reads UCS enabled mode purely from Superposition service (no DB fallback).
+pub async fn get_ucs_enabled_mode_from_superposition(state: &SessionState) -> UcsAvailability {
+    match state
+        .superposition_service
+        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
+        .await
+    {
+        Ok(value) => value.parse::<UcsAvailability>().unwrap_or_else(|err| {
+            logger::warn!(
+                error = ?err,
+                ucs_enabled_value = %value,
+                "Failed to parse ucs_enabled value from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }),
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch UCS enabled from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }
+    }
+}
+
+/// Reads the UCS config source setting from the application config.
+pub fn get_ucs_config_source(
+    state: &SessionState,
+) -> external_services::grpc_client::unified_connector_service::UcsConfigSource {
+    state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .map(|c| c.config_source)
+        .unwrap_or_default()
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
@@ -2990,6 +3048,45 @@ pub async fn should_execute_based_on_rollout_with_precedence(
     // No key found at any level — caller will apply default execution mode
     logger::debug!("No rollout config found at any precedence level, using default execution mode");
     Ok(RolloutExecutionResult::default())
+}
+
+/// Reads rollout config purely from Superposition — dimensions handle precedence via context.
+/// No DB fallback.
+pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
+    state: &SessionState,
+    superposition_key: &str,
+    context: Option<external_services::superposition::ConfigContext>,
+) -> RouterResult<RolloutExecutionResult> {
+    match state
+        .superposition_service
+        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
+        .await
+    {
+        Ok(json_value) => {
+            let mut execution_result = json_value
+                .parse_value::<RolloutConfig>("RolloutConfig")
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to parse superposition rollout config. Defaulting to not execute."
+                    );
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default();
+            if execution_result.should_execute {
+                execution_result.proxy_override = build_rollout_proxy_override(state);
+            }
+            Ok(execution_result)
+        }
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from superposition. Defaulting to not execute."
+            );
+            Ok(RolloutExecutionResult::default())
+        }
+    }
 }
 
 pub fn determine_standard_vault_action(
