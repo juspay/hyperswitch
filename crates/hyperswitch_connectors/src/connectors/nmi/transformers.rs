@@ -335,6 +335,8 @@ pub struct NmiCompleteRequest {
     cvv: Secret<String>,
     three_ds_version: Option<String>,
     directory_server_id: Option<Secret<String>>,
+    #[serde(flatten)]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -402,6 +404,12 @@ impl TryFrom<&NmiRouterData<&PaymentsCompleteAuthorizeRouterData>> for NmiComple
             eci: three_ds_data.eci,
             three_ds_version: three_ds_data.three_ds_version,
             directory_server_id: three_ds_data.directory_server_id,
+            billing_descriptor: item
+                .router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }
@@ -522,6 +530,8 @@ pub struct NmiValidateRequest {
     billing_details: NmiBillingDetails,
     #[serde(flatten)]
     shipping_details: NmiShippingDetails,
+    #[serde(flatten)]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 #[derive(Debug, Serialize)]
@@ -550,6 +560,8 @@ pub struct NmiPaymentsRequest {
     billing_details: NmiBillingDetails,
     #[serde(flatten)]
     shipping_details: NmiShippingDetails,
+    #[serde(flatten)]
+    billing_descriptor: Option<NmiBillingDescriptor>,
 }
 
 #[skip_serializing_none]
@@ -579,6 +591,27 @@ pub struct NmiShippingDetails {
     shipping_zip: Option<Secret<String>>,
     shipping_country: Option<CountryAlpha2>,
     shipping_email: Option<Email>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NmiBillingDescriptor {
+    descriptor: Option<Secret<String>>,
+    descriptor_phone: Option<Secret<String>>,
+    descriptor_city: Option<Secret<String>>,
+}
+
+impl From<&common_types::payments::BillingDescriptor> for NmiBillingDescriptor {
+    fn from(billing_descriptor: &common_types::payments::BillingDescriptor) -> Self {
+        Self {
+            descriptor: billing_descriptor
+                .statement_descriptor
+                .clone()
+                .map(Secret::new),
+            descriptor_phone: billing_descriptor.phone.clone(),
+            descriptor_city: billing_descriptor.city.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -735,6 +768,12 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                     customer_vault: None,
                     billing_details: item.get_billing_details(),
                     shipping_details: item.get_shipping_details(),
+                    billing_descriptor: item
+                        .router_data
+                        .request
+                        .billing_descriptor
+                        .as_ref()
+                        .map(NmiBillingDescriptor::from),
                 })
             }
             Some(mandates::MandateReferenceId::NetworkMandateId(_))
@@ -770,6 +809,12 @@ impl TryFrom<&NmiRouterData<&PaymentsAuthorizeRouterData>> for NmiPaymentsReques
                         .then_some(CustomerAction::AddCustomer),
                     billing_details: item.get_billing_details(),
                     shipping_details: item.get_shipping_details(),
+                    billing_descriptor: item
+                        .router_data
+                        .request
+                        .billing_descriptor
+                        .as_ref()
+                        .map(NmiBillingDescriptor::from),
                 })
             }
         }
@@ -1109,6 +1154,12 @@ impl TryFrom<&NmiRouterData<&SetupMandateRouterData>> for NmiValidateRequest {
             customer_vault: CustomerAction::AddCustomer,
             billing_details: item.get_billing_details(),
             shipping_details: item.get_shipping_details(),
+            billing_descriptor: item
+                .router_data
+                .request
+                .billing_descriptor
+                .as_ref()
+                .map(NmiBillingDescriptor::from),
         })
     }
 }
