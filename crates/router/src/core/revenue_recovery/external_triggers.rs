@@ -173,7 +173,7 @@ async fn decide_reported_retry(
             retries_after_hard_decline,
             next_retry: decision.next_retry,
             last_report_id: None,
-            last_transaction_created_at: None,
+            last_report_at: None,
         },
         decision.assigned_ab_algorithm,
     )
@@ -862,7 +862,7 @@ async fn decrypt_report_request(
 }
 
 /// Records a transaction the merchant reported and decides the next retry of its invoice. Called by
-/// the recovery report workflow: every outcome finishes the job here, apart from a wait for the
+/// the recovery request workflow: every outcome finishes the job here, apart from a wait for the
 /// invoice's lock, which puts the job back in the queue, and only a temporary error is returned, for
 /// the workflow to run the report again.
 #[instrument(
