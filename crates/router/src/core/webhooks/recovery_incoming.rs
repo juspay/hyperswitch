@@ -548,9 +548,9 @@ impl RevenueRecoveryAttempt {
             .await
     }
 
-    /// What the attempts of the invoice say about the transaction of a recovery request: the attempt
-    /// that recorded it, if any, so the caller can tell whether this request recorded it on an
-    /// earlier run or another request did, and the attempts recorded before it.
+    /// What the attempts of the invoice say about the transaction of a recovery request: the
+    /// attempt that recorded it, if any, so the caller can tell whether this request recorded it on
+    /// an earlier run or another request did, and the attempts recorded before it.
     pub async fn find_recovery_request_attempt(
         data: &api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
