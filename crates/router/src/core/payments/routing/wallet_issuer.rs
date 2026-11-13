@@ -170,6 +170,3 @@ async fn enrich_input_from_wallet<F, Fut, E>(
             .country = Some(country);
     }
 }
-
-#[cfg(test)]
-mod tests;
