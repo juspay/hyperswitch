@@ -1438,6 +1438,50 @@ async fn test_stream_read_with_options_xreadgroup() {
 }
 
 #[tokio::test]
+async fn test_stream_read_with_options_empty_xreadgroup() {
+    let is_success = tokio::task::spawn_blocking(move || {
+        futures::executor::block_on(async {
+            let pool = test_connection(&RedisSettings::default())
+                .await
+                .expect("failed to create redis connection pool");
+            let uid = unique_test_id();
+            let stream: RedisKey = format!("test_empty_xreadgroup_{uid}").into();
+            let group = format!("test_empty_grp_{uid}");
+            let consumer = format!("test_empty_consumer_{uid}");
+
+            pool.consumer_group_create(
+                &stream,
+                &group,
+                &RedisEntryId::UserSpecifiedID {
+                    milliseconds: "0".to_string(),
+                    sequence_number: "0".to_string(),
+                },
+            )
+            .await
+            .expect("failed to create group");
+
+            let result = pool
+                .stream_read_with_options(
+                    &[stream],
+                    vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
+                    Some(1),
+                    None,
+                    Some((&group, &consumer)),
+                )
+                .await;
+
+            result.is_err_and(|error| {
+                error.current_context() == &crate::errors::RedisError::StreamEmptyOrNotAvailable
+            })
+        })
+    })
+    .await
+    .expect("Spawn block failure");
+
+    assert!(is_success);
+}
+
+#[tokio::test]
 async fn test_stream_acknowledge_entries() {
     let is_success = tokio::task::spawn_blocking(move || {
         futures::executor::block_on(async {

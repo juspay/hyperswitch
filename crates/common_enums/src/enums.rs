@@ -417,6 +417,37 @@ pub enum RevenueRecoveryTriggerModel {
     ExternalTriggers,
 }
 
+/// Who started a transaction of a revenue recovery invoice, worked out from whether the customer
+/// was present and how the payment method is set up for future use. It is never stored: an attempt
+/// keeps those two as reported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransactionInitiator {
+    /// The customer was present, paying on session, or also saving the payment method for
+    /// off-session use.
+    CustomerInitiated(FutureUsage),
+    /// The merchant charged a payment method saved for off-session use, with the customer absent.
+    MerchantInitiated,
+}
+
+impl TransactionInitiator {
+    pub fn new(
+        customer_present: PresenceOfCustomerDuringPayment,
+        setup_future_usage: FutureUsage,
+    ) -> Self {
+        match (customer_present, setup_future_usage) {
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OffSession) => {
+                Self::MerchantInitiated
+            }
+            (PresenceOfCustomerDuringPayment::Present, setup_future_usage) => {
+                Self::CustomerInitiated(setup_future_usage)
+            }
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OnSession) => {
+                Self::CustomerInitiated(FutureUsage::OnSession)
+            }
+        }
+    }
+}
+
 /// The retry implementations available within the `Smart` arm of revenue recovery.
 #[derive(
     Clone,
@@ -2367,12 +2398,13 @@ pub enum RecoveryStatus {
     /// The payment has been successfully recovered through retry mechanisms.
     /// This indicates that a previously failed payment has been completed.
     Recovered,
+    /// The payment has been fully paid.
+    Succeeded,
+    /// The payment has been cancelled.
+    Cancelled,
     /// The payment is scheduled for retry and will be processed automatically.
     /// This status is shown when a retry is queued but not yet picked up for processing.
     Scheduled,
-    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
-    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
-    NoPicked,
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
@@ -2383,7 +2415,8 @@ pub enum RecoveryStatus {
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
     /// The payment is being monitored for potential recovery.
-    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up,
+    /// or the payment is waiting on customer or merchant action.
     #[default]
     Monitoring,
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
@@ -2392,9 +2425,6 @@ pub enum RecoveryStatus {
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,
-    /// The payment is pending action from the customer, merchant, or requires additional information.
-    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
-    Pending,
 }
 
 /// Specifies how the payment method can be used for future payments.
@@ -3422,6 +3452,10 @@ pub enum RefundStatus {
 impl RefundStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Success)
+    }
+
+    pub fn is_failure(self) -> bool {
+        matches!(self, Self::Failure | Self::TransactionFailure)
     }
 }
 
@@ -10020,6 +10054,9 @@ pub enum PermissionGroup {
     ReconRulesManage,
     ReconApiKeyView,
     ReconApiKeyManage,
+    ReconAccountsView,
+    ReconAccountsManage,
+    ReconAuditView,
     OffersView,
     OffersManage,
     AlertsView,
@@ -10048,6 +10085,8 @@ pub enum ParentGroup {
     ReconTransactions,
     ReconRules,
     ReconApiKey,
+    ReconAccounts,
+    ReconAudit,
     Offers,
     Alerts,
     Monitoring,
@@ -10084,6 +10123,8 @@ pub enum Resource {
     ReconTransaction,
     ReconRule,
     ReconApiKey,
+    ReconAccount,
+    ReconAudit,
     SuperpositionConfig,
     Offers,
     Alert,
@@ -11272,7 +11313,7 @@ pub enum MitExemptionRequest {
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(
-    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {

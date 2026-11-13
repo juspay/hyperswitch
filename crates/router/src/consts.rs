@@ -496,6 +496,10 @@ pub mod superposition {
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
     pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
+    /// Positions on the static ladder available to an invoice under the hybrid static + adaptive
+    /// scheme. Controlled internally rather than by merchants, for both trigger models
+    pub const RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT: &str =
+        "revenue_recovery.max_hybrid_cascading_retry_count";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key
@@ -509,6 +513,9 @@ pub mod superposition {
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
         "payments.should_enable_mit_with_limited_card_data";
+    /// Prefer the request's billing address over the billing stored on a saved payment method
+    pub const SHOULD_PREFER_REQUEST_BILLING_OVER_SAVED_PM_BILLING: &str =
+        "payments.should_prefer_request_billing_over_saved_pm_billing";
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "payments.should_store_eligibility_check_data_for_authentication";
@@ -603,11 +610,11 @@ pub mod superposition {
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
-    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs.rollout_config";
     /// Global request-failure threshold for the UCS shadow kill switch.
-    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs.shadow_kill_switch_threshold";
     /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
-    pub const UCS_ENABLED: &str = "ucs_enabled";
+    pub const UCS_ENABLED: &str = "ucs.enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode

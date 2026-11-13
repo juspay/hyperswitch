@@ -221,8 +221,6 @@ pub async fn get_batches(
         }
     };
 
-    metrics::BATCHES_CONSUMED.add(1, &[]);
-
     // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, RedisValue>)>
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
         .into_values()
@@ -248,20 +246,27 @@ pub async fn get_batches(
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
     let entry_ids = entry_ids.into_iter().flatten().collect::<Vec<_>>();
 
-    conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Error acknowledging batch in stream");
-            error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
-        })?;
-    conn.stream_delete_entries(&stream_name.into(), entry_ids)
-        .await
-        .map_err(|error| {
-            logger::error!(?error, "Error deleting batch from stream");
-            error.change_context(errors::ProcessTrackerError::BatchDeleteFailed)
-        })?;
+    if entry_ids.is_empty() {
+        logger::debug!("No batches processed as stream is empty");
+        Ok(Vec::new())
+    } else {
+        metrics::BATCHES_CONSUMED.add(1, &[]);
 
-    Ok(batches)
+        conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
+            .await
+            .map_err(|error| {
+                logger::error!(?error, "Error acknowledging batch in stream");
+                error.change_context(errors::ProcessTrackerError::BatchUpdateFailed)
+            })?;
+        conn.stream_delete_entries(&stream_name.into(), entry_ids)
+            .await
+            .map_err(|error| {
+                logger::error!(?error, "Error deleting batch from stream");
+                error.change_context(errors::ProcessTrackerError::BatchDeleteFailed)
+            })?;
+
+        Ok(batches)
+    }
 }
 
 pub fn get_process_tracker_id<'a>(
@@ -379,8 +384,9 @@ pub fn get_outgoing_webhook_retry_schedule_time(
 
 pub fn get_pcr_payments_retry_schedule_time(
     mapping: process_data::RevenueRecoveryPaymentProcessTrackerMapping,
-    retry_count: i32,
+    retry_count: u32,
 ) -> Option<i32> {
+    let retry_count = i32::try_from(retry_count).ok()?;
     let mapping = mapping.default_mapping;
     // TODO: check if the current scheduled time is not more than the configured timerange
 
@@ -500,7 +506,7 @@ mod tests {
     /// slot is the delay before one retry, so `N` slots describe the charge plus `N` retries.
     fn walk_pcr_ladder(
         mapping: &process_data::RetryMapping,
-        attempts_already_made: i32,
+        attempts_already_made: u32,
     ) -> (usize, i32) {
         let mut retry_count = attempts_already_made;
         let mut elapsed = 0;
@@ -525,7 +531,7 @@ mod tests {
     #[test]
     fn test_pcr_retry_ladder_leaves_thirteen_retries_to_us_ending_on_day_twenty_eight() {
         const DAY: i32 = 24 * 60 * 60;
-        const BILLING_CONNECTOR_RETRY_THRESHOLD: i32 = 2;
+        const BILLING_CONNECTOR_RETRY_THRESHOLD: u32 = 2;
 
         let mapping = process_data::RetryMapping {
             start_after: DAY,

@@ -748,7 +748,7 @@ impl StringMajorUnit {
 #[derive(
     Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, ToSchema, PartialOrd,
 )]
-#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 /// This domain type can be used for any url
 pub struct Url(url::Url);

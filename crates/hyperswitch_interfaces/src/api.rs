@@ -489,10 +489,7 @@ pub trait ConnectorSpecifications {
         false
     }
     /// Check if pre-authenticate cancel flow is supported
-    fn is_pre_authorize_cancel_supported(
-        &self,
-        _payment_method_type: Option<PaymentMethodType>,
-    ) -> bool {
+    fn is_pre_authorize_cancel_supported(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if connector should be called for UpdatePostConfirm

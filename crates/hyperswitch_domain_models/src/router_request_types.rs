@@ -74,6 +74,15 @@ pub enum CurrentFlowInfo {
         /// The payment update post confirm request data
         request_data: Box<PaymentsUpdatePostConfirmData>,
     },
+    /// Pre-authorize void flow information
+    PreAuthorizeVoid {
+        /// The payment method type used for the payment
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        /// The current payment attempt status
+        attempt_status: storage_enums::AttemptStatus,
+        /// Whether this is a merchant-initiated transaction
+        is_mit_payment: bool,
+    },
     ConnectorWebhookRegister {
         /// The payment setup mandate request data
         request_data: Box<ConnectorWebhookRegisterRequest>,
@@ -88,6 +97,7 @@ impl CurrentFlowInfo {
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -1882,6 +1892,20 @@ pub struct PaymentsCompleteSurchargeData {
     pub amount: Option<MinorUnit>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundInitData {
+    pub refund_id: String,
+    pub original_surcharge_id: String,
+    pub order_amount: MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PaymentsSurchargeRefundCompleteData {
+    pub refund_id: String,
+    pub connector_surcharge_refund_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsCompleteRefundSurchrgeData {
     /// transaction ID from surcharge connectors
@@ -2044,6 +2068,7 @@ impl PushNotificationRequestData {
 pub struct GenerateQrRequestData {
     pub amount: Option<i64>,
     pub mandate_id: Option<mandates::MandateIds>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
 }
 
 impl MandateIdSettable for GenerateQrRequestData {
@@ -2075,6 +2100,7 @@ impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2086,6 +2112,7 @@ impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: Some(data.amount),
             mandate_id: data.mandate_id,
+            feature_metadata: data.feature_metadata,
         })
     }
 }
@@ -2097,6 +2124,7 @@ impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }
@@ -2108,6 +2136,7 @@ impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
         Ok(Self {
             amount: None,
             mandate_id: None,
+            feature_metadata: None,
         })
     }
 }

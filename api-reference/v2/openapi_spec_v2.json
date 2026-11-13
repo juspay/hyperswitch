@@ -16242,6 +16242,32 @@
           }
         }
       },
+      "ExternalTriggerState": {
+        "type": "object",
+        "description": "The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled\njob holds it between the merchant's reports.",
+        "required": [
+          "consumed_ladder_rungs",
+          "next_retry"
+        ],
+        "properties": {
+          "consumed_ladder_rungs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Positions of the static retry ladder the invoice has used.",
+            "minimum": 0
+          },
+          "retries_after_hard_decline": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries made with the card of the invoice since it was first hard declined. Absent while it\nhas not been.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "next_retry": {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -19036,6 +19062,30 @@
           "payment_id": {
             "type": "string",
             "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The original authorized amount for the connector mandate, when known.",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile associated with this mandate event, when known.",
+            "nullable": true
+          },
+          "mandate_metadata": {
+            "type": "object",
+            "description": "Connector-specific mandate metadata associated with the original setup payment.",
             "nullable": true
           },
           "status": {
@@ -23454,6 +23504,22 @@
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
             "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -26198,6 +26264,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RevenueRecoveryABAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "external_trigger_state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
+          },
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
               }
             ],
             "nullable": true
@@ -31409,7 +31491,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded"
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body."
           },
           "destination_url": {
             "type": "string",
@@ -31442,7 +31524,7 @@
         ],
         "properties": {
           "response": {
-            "description": "The response received from the destination"
+            "$ref": "#/components/schemas/ProxyResponseBody"
           },
           "status_code": {
             "type": "integer",
@@ -31455,6 +31537,18 @@
             "description": "The headers of the response"
           }
         }
+      },
+      "ProxyResponseBody": {
+        "oneOf": [
+          {
+            "description": "A JSON body"
+          },
+          {
+            "type": "string",
+            "description": "Any other body, as UTF-8 text"
+          }
+        ],
+        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document. Only UTF-8 text is supported. Both variants serialize to the bare\nvalue, so a JSON string and text look the same on the wire; this type is serialize-only."
       },
       "PspTokenization": {
         "type": "object",
@@ -32035,6 +32129,48 @@
           "paypal"
         ]
       },
+      "RecoveryNextRetry": {
+        "type": "object",
+        "description": "When the merchant should trigger the next retry of an invoice: at `schedule_time`, or not at all\nwhen that is `null`, for the given `reason`.",
+        "required": [
+          "retry_count"
+        ],
+        "properties": {
+          "retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of the next retry, counted the way the `max_retry_count` of the profile counts them:\nthe first retry after the original payment is 1.",
+            "minimum": 0
+          },
+          "schedule_time": {
+            "type": "string",
+            "description": "The time to trigger the retry at, then report its result through the recovery API. `null`\nwhen no retry is scheduled.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNoRetryReason"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RecoveryNoRetryReason": {
+        "type": "string",
+        "description": "Why no retry is scheduled for an invoice whose retries the merchant triggers.",
+        "enum": [
+          "recovered",
+          "retries_exhausted",
+          "grace_period_exceeded",
+          "hard_decline",
+          "monitoring",
+          "cancelled",
+          "below_retry_threshold"
+        ]
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
@@ -32214,6 +32350,14 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
+          },
+          "next_retry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNextRetry"
+              }
+            ],
+            "nullable": true
           }
         }
       },
