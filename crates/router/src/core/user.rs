@@ -294,7 +294,31 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(&request.password)?;
+    let user_id = user_from_db.get_user_id();
+
+    if utils::user::password::is_password_sign_in_locked(&state, user_id).await? {
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    // The attempt is recorded before the password is checked, so that concurrent attempts cannot
+    // get more password checks than the limit
+    let attempts = utils::user::password::record_password_attempt(&state, user_id).await?;
+    if attempts > consts::user::PASSWORD_MAX_ATTEMPTS {
+        utils::user::password::lock_password_sign_in(&state, user_id).await;
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    if let Err(error) = user_from_db.compare_password(&request.password) {
+        if attempts == consts::user::PASSWORD_MAX_ATTEMPTS {
+            utils::user::password::lock_password_sign_in(&state, user_id).await;
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
+        }
+        return Err(error);
+    }
+
+    let _ = utils::user::password::clear_password_attempts(&state, user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
