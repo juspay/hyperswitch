@@ -1,7 +1,7 @@
 use common_utils::{
     consts,
     errors::CustomResult,
-    outbound_url::host_matches_list,
+    outbound_url::HostMatcher,
     request::{EgressScope, Request},
 };
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
@@ -29,7 +29,7 @@ pub mod request;
 #[cfg(feature = "deja")]
 pub mod boundary;
 
-use std::{error::Error, time::Duration};
+use std::{error::Error, sync::OnceLock, time::Duration};
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
 use common_utils::request::{RequestContent, XmlConfig};
@@ -276,15 +276,16 @@ pub async fn send_request(
     response
 }
 
+static BYPASS_PROXY_HOSTS: OnceLock<HostMatcher> = OnceLock::new();
+
 fn effective_egress_scope(
     declared_scope: EgressScope,
     url: &url::Url,
     client_proxy: &Proxy,
 ) -> EgressScope {
-    let targets_bypass_proxy_host = host_matches_list(
-        url.host().as_ref(),
-        client_proxy.bypass_proxy_hosts.as_deref(),
-    );
+    let targets_bypass_proxy_host = BYPASS_PROXY_HOSTS
+        .get_or_init(|| HostMatcher::parse(client_proxy.bypass_proxy_hosts.as_deref()))
+        .matches(url.host().as_ref());
     match declared_scope {
         EgressScope::Intranet => EgressScope::Intranet,
         EgressScope::Internet if targets_bypass_proxy_host => EgressScope::Intranet,

@@ -12,7 +12,7 @@ static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
-static INTERNET_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
+static INTERNET_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 use router_env::logger;
 
@@ -20,7 +20,6 @@ use super::{metrics, outbound_destination::GlobalOnlyResolver};
 
 trait ProxyClientCacheKey {
     fn cache_key(&self) -> Option<Proxy>;
-    fn normalized_cache_key(&self) -> Proxy;
 }
 
 // We may need to use outbound proxy to connect to external world.
@@ -209,22 +208,21 @@ fn apply_mitm_certificate(
 
 impl ProxyClientCacheKey for Proxy {
     fn cache_key(&self) -> Option<Proxy> {
-        self.has_proxy_config().then(|| {
+        if self.has_proxy_config() {
             logger::debug!("Using proxy config as cache key: {:?}", self);
-            self.normalized_cache_key()
-        })
-    }
 
-    fn normalized_cache_key(&self) -> Proxy {
-        // Return a clone of the proxy config for caching
-        // Exclude timeout from cache key by creating a normalized version
-        Self {
-            http_url: self.http_url.clone(),
-            https_url: self.https_url.clone(),
-            bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
-            mitm_ca_certificate: self.mitm_ca_certificate.clone(),
-            idle_pool_connection_timeout: None, // Exclude timeout from cache key
-            mitm_enabled: self.mitm_enabled,
+            // Return a clone of the proxy config for caching
+            // Exclude timeout from cache key by creating a normalized version
+            Some(Self {
+                http_url: self.http_url.clone(),
+                https_url: self.https_url.clone(),
+                bypass_proxy_hosts: self.bypass_proxy_hosts.clone(),
+                mitm_ca_certificate: self.mitm_ca_certificate.clone(),
+                idle_pool_connection_timeout: None, // Exclude timeout from cache key
+                mitm_enabled: self.mitm_enabled,
+            })
+        } else {
+            None
         }
     }
 }
@@ -237,22 +235,8 @@ fn scoped_client_builder(
 
     Ok(match egress_scope {
         EgressScope::Intranet => client_builder,
-        EgressScope::Internet => client_builder.dns_resolver(GlobalOnlyResolver),
+        EgressScope::Internet => client_builder.dns_resolver(GlobalOnlyResolver::new(proxy_config)),
     })
-}
-
-fn build_proxy_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-    scoped_client_builder(proxy_config, EgressScope::Intranet)?
-        .build()
-        .change_context(HttpClientError::ClientConstructionFailed)
-        .attach_printable("Failed to construct proxy client")
-}
-
-fn build_internet_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-    scoped_client_builder(proxy_config, EgressScope::Internet)?
-        .build()
-        .change_context(HttpClientError::ClientConstructionFailed)
-        .attach_printable("Failed to construct internet client")
 }
 
 fn get_base_client_for_scope(
@@ -266,16 +250,21 @@ fn get_base_client_for_scope(
 }
 
 fn get_internet_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
-    let cache = INTERNET_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
     let metrics_tag = router_env::metric_attributes!(("client_type", "internet"));
 
-    get_or_create_proxy_client(
-        cache,
-        proxy_config.normalized_cache_key(),
-        proxy_config,
-        metrics_tag,
-        build_internet_client,
-    )
+    let client = INTERNET_CLIENT
+        .get_or_try_init(|| {
+            logger::info!("Initializing INTERNET_CLIENT");
+            metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+            scoped_client_builder(proxy_config, EgressScope::Internet)?
+                .build()
+                .change_context(HttpClientError::ClientConstructionFailed)
+                .attach_printable("Failed to construct internet client")
+        })?
+        .clone();
+
+    metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+    Ok(client)
 }
 
 fn get_or_create_proxy_client(
@@ -283,7 +272,6 @@ fn get_or_create_proxy_client(
     cache_key: Proxy,
     proxy_config: &Proxy,
     metrics_tag: &[router_env::opentelemetry::KeyValue],
-    build_client: fn(&Proxy) -> CustomResult<reqwest::Client, HttpClientError>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
     let read_result = cache
         .read()
@@ -315,7 +303,11 @@ fn get_or_create_proxy_client(
                     logger::info!("Creating new proxy client for config: {:?}", cache_key);
                     metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
 
-                    let new_client = build_client(proxy_config)?;
+                    let new_client =
+                        apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
+                            .build()
+                            .change_context(HttpClientError::ClientConstructionFailed)
+                            .attach_printable("Failed to construct proxy client")?;
 
                     metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
                     write_lock.insert(cache_key.clone(), new_client.clone());
@@ -341,13 +333,7 @@ fn get_base_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpCl
 
         let cache = PROXY_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
 
-        let client = get_or_create_proxy_client(
-            cache,
-            cache_key,
-            proxy_config,
-            metrics_tag,
-            build_proxy_client,
-        )?;
+        let client = get_or_create_proxy_client(cache, cache_key, proxy_config, metrics_tag)?;
 
         Ok(client)
     } else {

@@ -2,8 +2,10 @@
 //! public-internet requests), preventing SSRF via domain names that resolve to non-public addresses.
 
 use std::{
+    collections::HashSet,
     io,
     net::{IpAddr, SocketAddr},
+    sync::Arc,
     time::Duration,
 };
 
@@ -13,7 +15,7 @@ use common_utils::{
     outbound_url::{is_global_ip, SafeOutboundUrl},
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_interfaces::errors::HttpClientError;
+use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use router_env::logger;
 use url::Host;
@@ -30,15 +32,37 @@ fn invalid_dns_destination() -> ValidationError {
 
 /// DNS resolver that rejects hostnames resolving to non-public addresses at connection time, so
 /// the validated address is the connected address.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct GlobalOnlyResolver;
+#[derive(Debug, Clone, Default)]
+pub struct GlobalOnlyResolver {
+    proxy_hosts: Arc<HashSet<String>>,
+}
+
+impl GlobalOnlyResolver {
+    /// A resolver that lets the hostnames of the configured proxies through unchecked.
+    pub fn new(proxy_config: &Proxy) -> Self {
+        let proxy_hosts = [&proxy_config.http_url, &proxy_config.https_url]
+            .into_iter()
+            .flatten()
+            .filter_map(|proxy_url| url::Url::parse(proxy_url).ok())
+            .filter_map(|proxy_url| proxy_url.host_str().map(str::to_ascii_lowercase))
+            .collect();
+        Self {
+            proxy_hosts: Arc::new(proxy_hosts),
+        }
+    }
+}
 
 impl Resolve for GlobalOnlyResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_owned();
+        let is_proxy_host = self.proxy_hosts.contains(&host.to_ascii_lowercase());
         Box::pin(async move {
             let addresses = lookup_addresses(&host).await?;
-            ensure_public(&host, &addresses)?;
+            // The proxy's own address is not filtered: reaching the destinations behind it is
+            // controlled by the proxy's security groups, so the is_global check is skipped here.
+            if !is_proxy_host {
+                ensure_public(&host, &addresses)?;
+            }
             let resolved: Addrs = Box::new(addresses.into_iter());
             Ok(resolved)
         })

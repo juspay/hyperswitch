@@ -200,7 +200,7 @@ impl HealthCheckInterface for app::SessionState {
     ) -> CustomResult<HealthState, errors::HealthCheckDecisionEngineError> {
         if self.conf.open_router.dynamic_routing_enabled {
             let url = format!("{}/{}", self.conf.open_router.url, "health");
-            let request = services::Request::new(services::Method::Get, &url);
+            let request = services::Request::new_intranet(services::Method::Get, &url);
             let _ = services::call_connector_api(
                 self,
                 request,

@@ -196,7 +196,8 @@ where
 
     let mut request_builder = services::RequestBuilder::new()
         .method(http_method)
-        .url(&url);
+        .url(&url)
+        .egress_scope(common_utils::request::EgressScope::Intranet);
 
     // The Decision Engine authenticates Hyperswitch via a shared admin secret: its admin
     // endpoints (merchant provisioning, SSO code mint) verify the header in the handler, and
