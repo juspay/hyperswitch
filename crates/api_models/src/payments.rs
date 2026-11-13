@@ -14726,6 +14726,14 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "billing_account_main")]
+    pub merchant_reference_billing_connector_id: Option<String>,
+
+    /// The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "payment_account_us")]
+    pub merchant_reference_payment_connector_id: Option<String>,
+
     /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
     #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
     pub connector: Option<common_payments_types::RecoveryConnector>,
