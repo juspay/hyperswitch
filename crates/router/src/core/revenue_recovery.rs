@@ -66,8 +66,8 @@ use crate::{
 pub const CALCULATE_WORKFLOW: &str = "CALCULATE_WORKFLOW";
 pub const PSYNC_WORKFLOW: &str = "PSYNC_WORKFLOW";
 pub const EXECUTE_WORKFLOW: &str = "EXECUTE_WORKFLOW";
-/// Task of the recovery report workflow, which processes one transaction the merchant reported.
-pub const PROCESS_REPORT_WORKFLOW: &str = "PROCESS_REPORT_WORKFLOW";
+/// Task of the recovery request workflow, which processes one transaction the merchant reported.
+pub const EXTERNAL_TRIGGER_HANDLER: &str = "EXTERNAL_TRIGGER_HANDLER";
 use common_enums::enums::ProcessTrackerStatus;
 
 #[cfg(feature = "v1")]

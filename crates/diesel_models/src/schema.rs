@@ -638,8 +638,10 @@ diesel::table! {
     events (event_id) {
         #[max_length = 64]
         event_id -> Varchar,
-        event_type -> EventType,
-        event_class -> EventClass,
+        #[max_length = 64]
+        event_type -> Varchar,
+        #[max_length = 64]
+        event_class -> Varchar,
         is_webhook_notified -> Bool,
         #[max_length = 64]
         primary_object_id -> Varchar,
