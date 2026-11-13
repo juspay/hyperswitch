@@ -1027,7 +1027,10 @@ impl RevenueRecoveryAttempt {
                 .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: Some(payment_method_data),
+            payment_method_data: revenue_recovery_attempt_data
+                .processor_payment_method_token
+                .is_some()
+                .then_some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
@@ -1162,6 +1165,12 @@ impl RevenueRecoveryAttempt {
         payment_connector: common_enums::connector_enums::Connector,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
+        let Some(payment_processor_token) = revenue_recovery_attempt_data
+            .processor_payment_method_token
+            .clone()
+        else {
+            return Ok(());
+        };
 
         let error_code = revenue_recovery_attempt_data.error_code.clone();
         let error_message = revenue_recovery_attempt_data.error_message.clone();
@@ -1208,9 +1217,7 @@ impl RevenueRecoveryAttempt {
             is_hard_decline: Some(is_hard_decline),
             modified_at: Some(recovery_attempt.created_at),
             payment_processor_token_details: PaymentProcessorTokenDetails {
-                payment_processor_token: revenue_recovery_attempt_data
-                    .processor_payment_method_token
-                    .clone(),
+                payment_processor_token,
                 expiry_month: revenue_recovery_attempt_data
                     .card_info
                     .card_exp_month

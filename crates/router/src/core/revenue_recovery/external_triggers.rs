@@ -185,6 +185,9 @@ async fn decide_reported_retry(
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
 /// Hyperswitch makes.
 async fn reset_card_history_after_a_charge(state: &SessionState, request: &RecoveryPaymentsCreate) {
+    let Some(payment_method_data) = request.payment_method_data.as_ref() else {
+        return;
+    };
     match request.transaction_status {
         RecoveryTransactionStatus::Failure => {}
         RecoveryTransactionStatus::Charged | RecoveryTransactionStatus::PartialCharged => {
@@ -195,8 +198,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
                     &None,
                     &None,
                     Some(
-                        request
-                            .payment_method_data
+                        payment_method_data
                             .primary_processor_payment_method_token
                             .peek()
                             .as_str(),
@@ -705,6 +707,10 @@ pub(super) async fn accept_report(
     .attach_printable("Failed to read the invoice of the recovery report")
     .inspect_err(|_| record_received_report("failed"))?;
 
+    if invoice.is_none() && request.payment_method_data.is_none() {
+        record_received_report("card_missing");
+        return Err(report!(api::card_needed_for_a_new_invoice()));
+    }
     if let Some(invoice) = invoice.filter(|invoice| {
         PaymentAttemptRecord
             .validate_status_for_operation(invoice.status)
@@ -1147,13 +1153,17 @@ async fn apply_reported_transaction(
     }
 
     let is_existing_invoice = attempts.earlier > 0;
-    let is_same_card = attempts.previous_card.as_ref()
-        == Some(
-            request
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek(),
-        );
+    let is_same_card = request
+        .payment_method_data
+        .as_ref()
+        .is_some_and(|payment_method_data| {
+            attempts.previous_card.as_ref()
+                == Some(
+                    payment_method_data
+                        .primary_processor_payment_method_token
+                        .peek(),
+                )
+        });
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
         .map_err(|error| report_step_failed("invoice", error))?;

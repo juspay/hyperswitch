@@ -1381,7 +1381,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: payment_processor_token.to_string(),
+            processor_payment_method_token: Some(payment_processor_token.to_string()),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -1655,7 +1655,7 @@ where
 #[derive(Clone)]
 pub struct RevenueRecoveryData {
     pub connector_details: common_types::payments::RecoveryConnectorDetails,
-    pub processor_payment_method_token: String,
+    pub processor_payment_method_token: Option<String>,
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
@@ -1770,7 +1770,15 @@ where
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token
-                            .clone(),
+                            .clone()
+                            .or_else(|| {
+                                revenue_recovery.as_ref().map(|data| {
+                                    data.billing_connector_payment_details
+                                        .payment_processor_token
+                                        .clone()
+                                })
+                            })
+                            .unwrap_or_default(),
                         connector_customer_id: self
                             .revenue_recovery_data
                             .connector_customer_id
