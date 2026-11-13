@@ -349,7 +349,7 @@ async fn decide_reported_retry(
             retries_after_hard_decline,
             next_retry: decision.next_retry,
             last_report_id: None,
-            last_report_at: None,
+            last_transaction_created_at: None,
         },
         decision.assigned_ab_algorithm,
     )
@@ -1215,11 +1215,18 @@ async fn apply_reported_transaction(
     if !is_merchant_initiated(request) {
         return Ok(ReportOutcome::CustomerInitiated);
     }
-    if previous_trigger_state
+    if let Some(last_transaction_created_at) = previous_trigger_state
         .as_ref()
-        .and_then(|trigger_state| trigger_state.last_report_at)
-        .is_some_and(|applied_at| applied_at > tracking_data.received_at)
+        .and_then(|trigger_state| trigger_state.last_transaction_created_at)
+        .filter(|last_transaction_created_at| {
+            *last_transaction_created_at > request.transaction_created_at
+        })
     {
+        logger::error!(
+            ?last_transaction_created_at,
+            transaction_created_at = ?request.transaction_created_at,
+            "The invoice was last decided on a newer transaction, so this one is only recorded"
+        );
         return Ok(ReportOutcome::Stale);
     }
 
@@ -1250,7 +1257,7 @@ async fn apply_reported_transaction(
     let next_retry = trigger_state.next_retry;
     let trigger_state = ExternalTriggerState {
         last_report_id: Some(tracking_data.report_id.clone()),
-        last_report_at: Some(tracking_data.received_at),
+        last_transaction_created_at: Some(request.transaction_created_at),
         ..trigger_state
     };
     save_trigger_state(

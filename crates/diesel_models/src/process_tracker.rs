@@ -324,7 +324,7 @@ pub mod business_status {
     /// A reported transaction made with the customer was recorded; it is not a retry
     pub const RECOVERY_REQUEST_CUSTOMER_INITIATED: &str = "RECOVERY_REQUEST_CUSTOMER_INITIATED";
 
-    /// A reported transaction was recorded after a newer report of its invoice was applied
+    /// A reported transaction was recorded after a newer transaction of its invoice was applied
     pub const RECOVERY_REQUEST_STALE: &str = "RECOVERY_REQUEST_STALE";
 
     /// A reported transaction is recorded on its invoice, but not by this report
