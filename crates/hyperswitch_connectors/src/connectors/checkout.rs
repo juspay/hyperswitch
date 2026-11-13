@@ -77,6 +77,46 @@ use crate::{
     utils::{self, ConnectorErrorType, RefundsRequestData},
 };
 
+const OPTIONAL_CLIENT_ID: &str = "{{optional_client_id}}";
+
+/// Resolves the shared Checkout API host or the account-specific host derived from client ID.
+/// A plain custom base URL without the optional placeholder keeps its configured host. An absent
+/// client ID preserves the shared-host setup; a malformed client ID fails rather than using the wrong host.
+/// Placeholder-free URLs use the same resolution flow without an early return. Trim the trailing
+/// `/` from the resolved host; request builders add path separators when appending their paths.
+fn get_checkout_payments_payouts_base_url(
+    base_url: &str,
+    connector_metadata: &Option<common_utils::pii::SecretSerdeValue>,
+) -> CustomResult<String, errors::ConnectorError> {
+    let resolved_base_url = if base_url.contains(OPTIONAL_CLIENT_ID) {
+        let metadata = checkout::CheckoutConnectorMetadataObject::try_from(connector_metadata)?;
+        let optional_client_id = metadata
+            .connector_client_id
+            .as_ref()
+            .map(|client_id| {
+                client_id
+                    .peek()
+                    .strip_prefix("cli_")
+                    .and_then(|value| value.get(..8))
+                    .filter(|value| value.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+                    .map(|prefix| format!("{prefix}."))
+                    .ok_or_else(|| {
+                        error_stack::report!(errors::ConnectorError::InvalidConnectorConfig {
+                            config: "metadata.connector_client_id",
+                        })
+                    })
+            })
+            .transpose()?
+            .unwrap_or_default();
+
+        base_url.replace(OPTIONAL_CLIENT_ID, &optional_client_id)
+    } else {
+        base_url.to_string()
+    };
+
+    Ok(resolved_base_url.trim_end_matches('/').to_string())
+}
+
 #[derive(Clone)]
 pub struct Checkout {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -331,10 +371,16 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 
     fn get_url(
         &self,
-        _req: &TokenizationRouterData,
+        req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}tokens", self.base_url(connectors)))
+        Ok(format!(
+            "{}/tokens",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?
+        ))
     }
 
     fn get_request_body(
@@ -417,10 +463,16 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
     fn get_url(
         &self,
-        _req: &SetupMandateRouterData,
+        req: &SetupMandateRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "payments"))
+        Ok(format!(
+            "{}/payments",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?
+        ))
     }
 
     fn get_request_body(
@@ -508,8 +560,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.as_str();
         Ok(format!(
-            "{}payments/{id}/captures",
-            self.base_url(connectors)
+            "{}/payments/{id}/captures",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?
         ))
     }
     fn get_request_body(
@@ -594,9 +649,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Che
             SyncRequestType::SinglePaymentSync => "",
         };
         Ok(format!(
-            "{}{}{}{}",
-            self.base_url(connectors),
-            "payments/",
+            "{}/payments/{}{}",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             req.request
                 .connector_transaction_id
                 .get_connector_transaction_id()
@@ -689,10 +746,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
     fn get_url(
         &self,
-        _req: &PaymentsAuthorizeRouterData,
+        req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "payments"))
+        Ok(format!(
+            "{}/payments",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?
+        ))
     }
 
     fn get_request_body(
@@ -772,8 +835,11 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ch
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}payments/{}/voids",
-            self.base_url(connectors),
+            "{}/payments/{}/voids",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             req.request.connector_transaction_id
         ))
     }
@@ -858,8 +924,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Checkou
     ) -> CustomResult<String, errors::ConnectorError> {
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
-            "{}payments/{}/refunds",
-            self.base_url(connectors),
+            "{}/payments/{}/refunds",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             id
         ))
     }
@@ -945,7 +1014,10 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Checkout 
         let id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}/payments/{}/actions",
-            self.base_url(connectors),
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             id
         ))
     }
@@ -1023,11 +1095,12 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}{}{}",
-            self.base_url(connectors),
-            "disputes/",
-            req.request.connector_dispute_id,
-            "/accept"
+            "{}/disputes/{}/accept",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
+            req.request.connector_dispute_id
         ))
     }
 
@@ -1118,10 +1191,16 @@ impl ConnectorIntegration<Upload, UploadFileRequestData, UploadFileResponse> for
 
     fn get_url(
         &self,
-        _req: &UploadFileRouterData,
+        req: &UploadFileRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "files"))
+        Ok(format!(
+            "{}/files",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?
+        ))
     }
 
     fn get_request_body(
@@ -1207,8 +1286,11 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}disputes/{}/evidence",
-            self.base_url(connectors),
+            "{}/disputes/{}/evidence",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             req.request.connector_dispute_id,
         ))
     }
@@ -1282,8 +1364,11 @@ impl ConnectorIntegration<Defend, DefendDisputeRequestData, DefendDisputeRespons
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}disputes/{}/evidence",
-            self.base_url(connectors),
+            "{}/disputes/{}/evidence",
+            get_checkout_payments_payouts_base_url(
+                self.base_url(connectors),
+                &req.connector_meta_data
+            )?,
             req.request.connector_dispute_id,
         ))
     }

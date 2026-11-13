@@ -2036,6 +2036,12 @@ label="Acquirer Country Code"
 placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
+[checkout.metadata.connector_client_id]
+name="connector_client_id"
+label="Checkout Client ID (API Domain Prefix)"
+placeholder="Enter Checkout Client ID (cli_...)"
+required=false
+type="Text"
 
 [checkout_payout]
 [[checkout_payout.wallet]]
