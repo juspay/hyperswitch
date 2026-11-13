@@ -64,6 +64,52 @@ pub enum ContentType {
     Xml,
 }
 
+/// A connector Content-Type header, parsed once and passed to every step that needs it.
+#[derive(Debug)]
+pub struct ConnectorContentType<'a> {
+    header: &'a str,
+    mime: mime::Mime,
+}
+
+impl<'a> ConnectorContentType<'a> {
+    /// Parse a Content-Type header value; `None` when it is not a valid MIME type.
+    pub fn parse(header: &'a str) -> Option<Self> {
+        header
+            .parse::<mime::Mime>()
+            .ok()
+            .map(|mime| Self { header, mime })
+    }
+
+    /// The body format this header declares, for the formats the proxy handles.
+    pub fn kind(&self) -> Option<ContentType> {
+        match self.mime.essence_str() {
+            "application/json" => Some(ContentType::Json),
+            "application/xml" | "text/xml" => Some(ContentType::Xml),
+            kind if kind.ends_with("+json") => Some(ContentType::Json),
+            kind if kind.ends_with("+xml") => Some(ContentType::Xml),
+            _ => None,
+        }
+    }
+
+    /// The header value as received.
+    pub fn header(&self) -> &'a str {
+        self.header
+    }
+
+    /// Whether the charset, if declared, is UTF-8. Templates are UTF-8, so a conflicting
+    /// declaration would make the connector decode the bytes incorrectly.
+    pub fn is_utf8(&self) -> bool {
+        self.mime
+            .params()
+            .all(|(name, value)| name != mime::CHARSET || is_utf8_label(value.as_str().as_bytes()))
+    }
+}
+
+/// Whether a charset or XML encoding label names UTF-8.
+pub fn is_utf8_label(label: &[u8]) -> bool {
+    label.eq_ignore_ascii_case(b"utf-8") || label.eq_ignore_ascii_case(b"utf8")
+}
+
 fn default_request_headers() -> [(String, Maskable<String>); 1] {
     use http::header;
 
