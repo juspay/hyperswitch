@@ -1861,7 +1861,7 @@ impl Default for ThemeSettings {
                 entity_name: SafeString::default(),
                 #[allow(clippy::expect_used)]
                 entity_logo_url: Url::wrap(
-                    url::Url::parse("https://app.hyperswitch.io/email-assets/HyperswitchLogo.png")
+                    url::Url::parse("https://example.com/Logo.png")
                         .expect("Failed to parse default email entity logo URL"),
                 ),
                 primary_color: SafeString::default(),
