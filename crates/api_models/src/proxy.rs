@@ -29,7 +29,8 @@ impl Headers {
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyRequest {
-    /// The request body that needs to be forwarded
+    /// The request body that needs to be forwarded: JSON, or an XML document as a string with
+    /// an XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body.
     pub request_body: Value,
     /// The non-empty HTTP or HTTPS destination URL. Configured proxy bypass hosts are rejected.
     /// IP literals must be publicly routable.
@@ -57,15 +58,27 @@ pub enum TokenType {
     PaymentMethodToken,
 }
 
-#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[derive(Debug, ToSchema, Clone, Serialize)]
 pub struct ProxyResponse {
     /// The response received from the destination
-    pub response: Value,
+    pub response: ProxyResponseBody,
     /// The status code of the response
     pub status_code: u16,
     /// The headers of the response
     #[schema(value_type = Object, example = r#"{ "key1": "value-1", "key2": "value-2" }"#)]
     pub response_headers: Headers,
+}
+
+/// The destination's response body: JSON when it parses as JSON, otherwise its text, such
+/// as an XML document. Only UTF-8 text is supported. Both variants serialize to the bare
+/// value, so a JSON string and text look the same on the wire; this type is serialize-only.
+#[derive(Debug, ToSchema, Clone, Serialize)]
+#[serde(untagged)]
+pub enum ProxyResponseBody {
+    /// A JSON body
+    Json(Value),
+    /// Any other body, as UTF-8 text
+    Text(String),
 }
 
 impl common_utils::events::ApiEventMetric for ProxyRequest {}
