@@ -1,5 +1,6 @@
 <script>
-import {environments,environmentLabel} from './environments.mjs';
+import InfoTooltip from './InfoTooltip.svelte';
+import {environmentAccessNote,environments,environmentLabel} from './environments.mjs';
 import {onMount} from 'svelte';
 import Icon from './Icon.svelte';
 import Brand from './Brand.svelte';
@@ -75,9 +76,10 @@ onMount(()=>{const open=e=>openSettings(e),unload=e=>{if(settingsDialog.open&&di
     <div class="settings-grid" bind:this={settingsPanel}>
     {#if loading}<p role="status">Loading settings…</p>{:else}
       <div hidden={section!=='environment'}>
-        <h2>Environment</h2>
+        <h2>Environment <InfoTooltip id="environment-access-info" label="Environment access information" text={environmentAccessNote(settings.environment)}/></h2>
         <p>Select where connections, load tests and faults run.</p>
         <label>Provider<select value={settings.environment} disabled={!!pending} onchange={e=>selectEnvironment(e.currentTarget.value)}><option value="unassigned" disabled>Choose an environment</option>{#each environments as environment}<option value={environment.id}>{environment.label}</option>{/each}</select></label>
+        {#if settings.environment==='gcp'}<p class="environment-note" role="note"><Icon name="info" size={16}/><span>GCP fault tests require authenticated <code>gcloud</code> access on the console host and permissions for the configured resources. Kubernetes faults also require the correct context and workload permissions.</span></p>{/if}
       </div>
       <div hidden={section!=='connections'}>
         <h2>Services</h2>
@@ -138,6 +140,8 @@ onMount(()=>{const open=e=>openSettings(e),unload=e=>{if(settingsDialog.open&&di
 </dialog>
 
 <style>
+.environment-note{display:flex;align-items:flex-start;gap:10px;margin:16px 0 0;padding:12px 14px;border:1px solid var(--border);border-radius:6px;background:var(--accent-soft);color:var(--ink);font-size:12px;line-height:1.6}.environment-note :global(svg){flex-shrink:0;margin-top:2px;color:var(--accent)}
+
 .section-nav a.opening{color:var(--accent);background:var(--accent-soft)}.section-loader{min-height:calc(100dvh - var(--header-height) - var(--nav-height));display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:32px;color:var(--muted)}.section-loader p{margin:0;font-size:14px}.loading-spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:section-spin .8s linear infinite}@keyframes section-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.loading-spinner{animation:none}}
 .brand-group{display:flex;align-items:center;gap:14px;flex-shrink:0}.environment-label{--button-hover-bg:var(--accent-soft);--button-hover-fg:var(--accent);--button-hover-border:var(--accent);min-height:0;font-size:11px;font-weight:400;line-height:1.2;color:var(--accent);background:var(--accent-soft);border:1px solid transparent;border-radius:5px;padding:4px 8px;white-space:nowrap}.brand{gap:14px}.company-logo{display:block;width:175px;height:auto}.product-brand{display:flex;align-items:center;padding-left:14px;border-left:1px solid var(--border)}
 @media(max-width:900px){.company-logo{width:150px}.product-brand{padding-left:12px}}

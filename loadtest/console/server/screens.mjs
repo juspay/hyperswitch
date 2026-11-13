@@ -4,8 +4,9 @@ import {workerCommand} from './supervisor.mjs';
 import {queryWorker} from './workers.mjs';
 export async function screenData(url,screen){
   const settings=publicSettings(),profiles=listProfiles({includeArchived:screen==='scenarios'}),fixtures=listFixtureSets();
-  const profileId=url.searchParams.get('profile') || profiles[0]?.id;
+  let profileId=url.searchParams.get('profile') || profiles[0]?.id;
   const job=await workerCommand('active',{kind:['performance','fixtures'].includes(screen)?'generator':null});
+  if(screen==='fixtures'&&job?.progress?.verification?.profileId)profileId=job.progress.verification.profileId;
   if(screen==='scenarios'||screen==='fixtures')return {settings,profiles,fixtures,profileId,job,profileTemplate:profileDraft(settings)};
   const runs=await queryWorker('list');
   const requested=url.searchParams.get('run');

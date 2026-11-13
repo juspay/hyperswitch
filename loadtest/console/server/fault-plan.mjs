@@ -1,3 +1,4 @@
+import {validateCommandTarget} from './command-faults.mjs';
 import {validateTargetProvider} from '../src/environments.mjs';
 import {faultType} from '../src/fault-types.mjs';
 // Resolved once before launch; target edits cannot redirect a running scenario.
@@ -9,6 +10,7 @@ export function snapshotFaultPlan(load,targets){
    const action=target.actions.includes(stage.fault.action)?stage.fault.action:target.actions.length===1&&stage.fault.action==='restart'?target.actions[0]:null;
    if(!action)throw Error(`Timeline stage ${index+1}: ${target.label} does not support “${stage.fault.action}”; choose ${target.actions.join(' or ')}`);
    validateTargetProvider(target,faultType(target));
+   if(target.adapter==='command')validateCommandTarget(target);
    plan.push({index,at,end:at+stage.duration_seconds,target:structuredClone(target),action,durationSeconds:stage.duration_seconds});
   }at+=stage.duration_seconds;
  }return plan;

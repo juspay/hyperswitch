@@ -23,9 +23,16 @@ export const faultCapabilities={
 export function validateTargetProvider(target,type){
  const environment=targetEnvironment(target);
  if(target.adapter==='simulated')return environment;
+ if(target.adapter==='command'){requireSupportedEnvironment(environment);if(!['card-vault','postgres','redis'].includes(type))throw new Error('Choose a custom fault service type');return environment;}
  if(!environment)throw new Error('Assign a provider to this legacy fault target before using it');
  requireSupportedEnvironment(environment);
  const capability=faultCapabilities[environment][type];
  if(!capability||capability.adapter!==target.adapter)throw new Error(`${environmentLabel(environment)} does not support this fault adapter for ${type}`);
  return environment;
+}
+
+export function environmentAccessNote(environment){
+ if(environment==='gcp')return 'GCP actions run on the console supervisor. Authenticate gcloud there and grant access to inspect and fail over the selected resources. Kubernetes actions also need the correct context and workload permissions. A successful read-only check does not prove permission to trigger a failover.';
+ if(environment==='local')return 'Local commands run on the console supervisor, not in your browser. Service paths and process controllers must be accessible from that machine.';
+ return 'Execution is not supported for this environment yet.';
 }

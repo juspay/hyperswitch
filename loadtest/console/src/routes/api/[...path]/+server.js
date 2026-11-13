@@ -78,6 +78,7 @@ async function dispatch(event) {
         ? await testSuperpositionEndpoint(superpositionConnection(body.superposition,body.environment))
         : await testServiceEndpoint(body.kind,body.endpoint));
     }
+    if(segments.join('/')==='fixtures/import'&&method==='POST')return json(await workerCommand('import-fixtures',await input()),{status:202});
     if(segments[0]==='fixtures'&&segments.length===1&&method==='GET')return json(listFixtureSets());
     if(segments[0]==='fixtures'&&segments.length===2&&method==='DELETE')return json(deleteFixtureSet(segments[1]));
     if(segments[0]==='fixtures' && segments.length===1 && method==='POST')return json(await workerCommand('start',{...await input(),kind:'fixtures'}),{status:202});

@@ -10,7 +10,7 @@ import path from 'node:path';
 import {dataRoot,consoleRoot,redact} from './state.mjs';
 import {HttpError} from './errors.mjs';
 const descriptor=path.join(dataRoot,'worker-service.json'),lock=path.join(dataRoot,'worker-service.lock');
-const protocolVersion=4;
+const protocolVersion=6;
 const alive=pid=>{try{process.kill(pid,0);return true;}catch{return false;}};
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let starting;
@@ -94,6 +94,7 @@ async function serve(){
         case 'active':result=jobs.activeJob(a.kind);break;
         case 'job':result=jobs.getJob(a.id);break;
         case 'latest-reconciliation':result=jobs.latestReconciliation(a.path);break;
+        case 'import-fixtures':result=await jobs.startFixtureImport(a);break;
         case 'start':result=await jobs.startGenerator(a.kind,a.mode,a);break;
         case 'cancel':result=jobs.cancelJob(a.id);break;
         case 'control':result=await jobs.controlLoad(a.id,a.action);break;

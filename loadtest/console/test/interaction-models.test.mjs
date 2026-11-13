@@ -122,3 +122,21 @@ test('saving an edited default creates an independent scenario and keeps the bui
  assert.equal(renamed.name,'My steady load');assert.notEqual(renamed.id,saved.id);
  assert.equal(profiles.getProfile(original.id).name,'Steady load');
 });
+
+test('fixture list exposes created/imported sources and excludes unverified imports',async()=>{
+ const db=state.controlDb();
+ for(const status of ['creating','failed','interrupted','ready']){
+  const directory=path.join(temporary,'import-list-'+status);await mkdir(directory);
+  await writeFile(path.join(directory,'manifest.json'),JSON.stringify({source:'imported',state:status,verification:{ok:status==='ready',checks:[]}}));
+  await writeFile(path.join(directory,'merchants.json'),'[]');
+  db.prepare('INSERT INTO fixture_sets VALUES(?,?,?,?,?,?,?,?)').run('import-list-'+status,'single',1,'imported',directory,status,null,1);
+ }
+ const directory=path.join(temporary,'created-list');await mkdir(directory);
+ db.prepare('INSERT INTO fixture_sets VALUES(?,?,?,?,?,?,?,?)').run('created-list','single',1,'signature',directory,'failed',null,1);
+ const list=profiles.listFixtureSets();
+ assert.deepEqual(list.filter(row=>row.id.startsWith('import-list-')).map(row=>row.id),['import-list-ready']);
+ assert.equal(list.find(row=>row.id==='import-list-ready').source,'imported');
+ assert.equal(list.find(row=>row.id==='created-list').source,'created');
+ // Failed import evidence remains available to its inline attempt, not the fixture catalogue.
+ assert.equal(profiles.getFixtureSet('import-list-failed').status,'failed');
+});

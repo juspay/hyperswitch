@@ -48,7 +48,6 @@ also manages faults, pause/resume, distributed workers and PostgreSQL reconcilia
 Grafana embeds use a separate listener on port 4176; see the deployment guide for HTTPS setup.
 
 See the [setup guide](console/README.md) for configuration and native development
-(Node 24.19+, Go 1.24.4 and a C compiler), the
-[screenshots](console/README.md#ui-screenshots) and
+(Node 24.19+, Go 1.24.4 and a C compiler) and the
 [deployment guide](console/DEPLOYMENT.md). Keep credentials, generated fixtures,
 recordings and binaries out of version control.

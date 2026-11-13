@@ -131,6 +131,7 @@ export function publicSettings(environment=null) {
   initializeConfig();
   const source=settingsSource(environment),c=source.config,l=source.local,sp=c.fixtures?.superposition||{};
   return {
+    customFaultCommands:process.env.LOADTEST_ALLOW_CUSTOM_COMMANDS==='true',
     environment:source.environment,mode: l.mode, router: c.services.router, modularPm: c.services.modular_pm,
     adminApiKey: '', hasAdminApiKey: Boolean(c.fixtures.admin_api_key), connector: c.fixtures.connector?.connector_name || 'stripe_test',
     totalRps: loadShape(c.load).peak, durationSeconds: loadShape(c.load).duration,

@@ -18,7 +18,24 @@ export function configureFaultTarget(target,environment){
 }
 export const faultTargetLabel=target=>`${target.label} · ${environmentLabel(faultEnvironment(target))}`;
 
+// Describe the actual execution adapter rather than assuming every provider uses a CLI.
+export function faultAccessNote(target){
+ const location='on the console supervisor host';
+ switch(target.adapter){
+  case 'gcp-alloydb':
+  case 'gcp-redis':return `Requires gcloud installed and authenticated ${location}, with access to the configured project and permissions to inspect the target and trigger failover. Check target is read-only; it does not prove failover permission.`;
+  case 'kubernetes':return `Requires kubectl and any cluster credential plugin ${location}, the correct kubeconfig context, and permissions to inspect, scale and delete pods for the configured workload.`;
+  case 'docker':return `Requires the Docker CLI ${location}, access to the Docker daemon, and permissions to inspect, stop and start the configured container.`;
+  case 'process-compose':return `Requires access to the configured process-compose controller and process ${location}. The process-compose CLI must also be available for target checks. Stop/start permissions are required.`;
+  case 'local-vault':return `Requires lsof and ps ${location}, access to the vault repository, and permission to stop and restart its process. Nix/Cargo must be available for a Nix-based repository, or provide a prebuilt locker binary.`;
+  case 'command':return `Custom commands run through /bin/sh as the console supervisor's OS user. Install and authenticate any CLI they invoke (such as gcloud, aws or az) on that host, with permissions for the intended resources. Verification commands must be read-only.`;
+  case 'placeholder':return `${environmentLabel(faultEnvironment(target))} fault execution is not supported yet.`;
+  default:return '';
+ }
+}
+
 export function faultCommandPreview(target){
+ if(target.adapter==='command')return `Scheduled trigger: ${target.triggerCommand||'Not configured'}\nRecovery: ${target.recoveryMode==='self-recovering'?'Self-recovering':target.restoreCommand||'Not configured'}`;
  if(target.adapter==='gcp-alloydb')return `gcloud alloydb instances failover ${target.instance} --cluster=${target.cluster} --region=${target.region} --project=${target.project} --quiet`;
  if(target.adapter==='kubernetes'){
   const prefix=`kubectl${target.context?` --context=${target.context}`:''} -n ${target.namespace}`;

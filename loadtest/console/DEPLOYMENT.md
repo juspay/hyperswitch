@@ -186,3 +186,29 @@ by the Cloud fault presets. Authenticate it with workload identity and narrowly
 scoped AlloyDB IAM and Kubernetes RBAC; do not mount either credential into load
 workers. The ordinary console image remains suitable when infrastructure faults
 are disabled.
+
+### Existing fixtures and custom fault execution
+
+Imported credential files use the same private server-side fixture format as
+provisioned fixtures (directories 0700, files 0600). Fixture APIs return verification
+results and identifiers, never keys. Do not commit `.data`, fixture artifacts, or
+credential JSON. Verification performs read-only Hyperswitch inspections; actual
+connector authorization is a separate smoke test. Keep the admin inspection key
+bound to the intended Router endpoint.
+
+Custom fault commands are disabled by default. Setting
+`LOADTEST_ALLOW_CUSTOM_COMMANDS=true` grants authenticated console administrators
+shell execution as the supervisor's OS user. Enable it only on a trusted console;
+use a dedicated OS identity with access limited to the intended test resources.
+The working directory and any scripts must exist on that machine or inside its
+container. Remote hosts require explicit remote commands and credentials managed
+outside command text. Existing GCP/Kubernetes adapters remain the default.
+
+The supervisor snapshots commands into each run and journals recovery before
+triggering. A nonzero exit, timeout, or interrupted trigger still attempts configured
+restoration. Self-recovering faults omit restoration but must pass the healthy check.
+Keep scripts idempotent, checks read-only, and timeouts short enough for stop-time
+recovery. Process groups are killed when a command exceeds its timeout. Command
+stdout/stderr are not recorded; activity and failures identify lifecycle stages.
+Changing the deployment opt-in requires restarting the idle supervisor as well as
+the web process. Never reload it during an active fault.

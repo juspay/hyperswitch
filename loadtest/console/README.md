@@ -357,40 +357,35 @@ The generated catalog comes from `crates/euclid/src/enums.rs` (`RoutableConnecto
 
 Real-sandbox validation requires provider sandbox keys, required metadata, compatible test cards/currency in payment settings, and reachable router/PM services. The automated integration test uses a local mock router and two connector accounts per merchant; it does not contact Stripe or Adyen.
 
-## UI screenshots
+### Import existing fixtures
 
-Captured from the running local console on 11 November 2026. The verification
-used the three-flow 50/30/20 mix at 2 TPS for one minute: 120 successful payments,
-zero HTTP errors or dropped flows, and 120 database status matches. Results retain
-the configured performance limits and their measured verdicts. Credential fields
-are empty or masked. Select an image to open it at full resolution.
+On **Fixtures**, choose **Import existing**, select a scenario, and enter one merchant
+or upload/paste a JSON array. Each entry contains `merchant_id`, `profile_id`,
+`api_key`, flow-dependent `publishable_key`, and a `connector_accounts` map from
+connector name to merchant connector-account ID. An example entry is:
 
-### Main sections
+```json
+[{"merchant_id":"merchant_123","profile_id":"pro_123","api_key":"…","publishable_key":"…","connector_accounts":{"stripe":"mca_123"}}]
+```
 
-| Scenarios | Fixtures |
-| --- | --- |
-| [![Scenario library](../screenshots/01-scenarios.jpg)](../screenshots/01-scenarios.jpg) | [![Fixture provisioning and ready sets](../screenshots/03-fixtures.jpg)](../screenshots/03-fixtures.jpg) |
+**Import and verify** checks merchant credentials and profile ownership, then checks
+that every selected connector account exists, is enabled, belongs to that profile,
+and supports the required card configuration. Publishable-key inspection requires
+the Router admin key in Connection settings. Failure details distinguish credential
+verification from setup verification. Import never provisions or repairs remote
+resources. Use a separate smoke test to check actual connector payment execution.
+Changes to required setup or credentials invalidate readiness; use **Verify** again.
+After changing destinations, explicitly reimport credentials for the new destination.
 
-| Performance | Results and reconciliation |
-| --- | --- |
-| [![Native performance metrics and load timeline](../screenshots/04-performance.jpg)](../screenshots/04-performance.jpg) | [![Recorded results and database reconciliation](../screenshots/05-results.jpg)](../screenshots/05-results.jpg) |
+### Scheduled custom fault commands
 
-### Scenario configuration
-
-| Flow and connector mix | Hold, ramp and fault timeline |
-| --- | --- |
-| [![Scenario editor with flow mix and connectors](../screenshots/02-scenario-editor.jpg)](../screenshots/02-scenario-editor.jpg) | [![Timeline editor](../screenshots/12-timeline-editor.jpg)](../screenshots/12-timeline-editor.jpg) |
-
-### Settings
-
-| Environment | Connections |
-| --- | --- |
-| [![Environment settings](../screenshots/06-settings-environment.jpg)](../screenshots/06-settings-environment.jpg) | [![Service and Superposition connections](../screenshots/07-settings-connections.jpg)](../screenshots/07-settings-connections.jpg) |
-
-| Database and TLS | Load generation |
-| --- | --- |
-| [![Database and TLS settings](../screenshots/08-settings-database.jpg)](../screenshots/08-settings-database.jpg) | [![Load generation settings](../screenshots/09-settings-load-generation.jpg)](../screenshots/09-settings-load-generation.jpg) |
-
-| Results limits | Workers |
-| --- | --- |
-| [![Results acceptance limits](../screenshots/10-settings-results-limits.jpg)](../screenshots/10-settings-results-limits.jpg) | [![Local and distributed workers](../screenshots/11-settings-workers.jpg)](../screenshots/11-settings-workers.jpg) |
+Fault targets support **Built-in adapter** or **Custom commands · scheduled only**.
+Custom commands require `LOADTEST_ALLOW_CUSTOM_COMMANDS=true` on the supervisor;
+restart the console and its idle worker after enabling it. Configure the trigger,
+optional restore (omit for self-recovering failovers), absolute working directory,
+timeout, and read-only checks for healthy and fault-active states. Checks must exit
+0 only when their expected state is observed. Schedule the target in scenario stages.
+Commands execute through `/bin/sh` as the supervisor OS user, not in the browser or
+on load workers. Stop/cancellation still performs required recovery. Command output
+is discarded to avoid retaining secrets; failures identify the command stage and
+exit status. Do not embed credentials in commands. See [deployment guidance](DEPLOYMENT.md).

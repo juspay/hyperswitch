@@ -10,6 +10,7 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  importFixtures:input=>request('/fixtures/import',{method:'POST',body:JSON.stringify(input)}),
   profiles:()=>request('/profiles'),
   archiveProfile:(id,archived)=>request(`/profiles/${encodeURIComponent(id)}/archive`,{method:'PUT',body:JSON.stringify({archived})}),
   deleteProfile:id=>request(`/profiles/${encodeURIComponent(id)}`,{method:'DELETE'}),

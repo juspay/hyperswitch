@@ -1,3 +1,4 @@
+import {importedCompatibility} from './fixture-import.mjs';
 import {connectorSet,normalizeConnectorPlan} from '../src/connector-config.mjs';
 import {defaultScenarios,isDefaultScenario} from './default-scenarios.mjs';
 import {normalizePaymentFlows} from '../src/payment-flows.mjs';
@@ -116,6 +117,12 @@ export function listFixtureSets() {
   }
   return db.prepare("SELECT * FROM fixture_sets WHERE status<>'deleted' ORDER BY created_at DESC").all().map(({path:directory,signature,...row})=>{
 
+    const manifest=readJsonSync(path.join(directory,'manifest.json'),{});
+    if(manifest.source==='imported'){
+      let profile;try{profile=getProfile(manifest.profileId);}catch{}
+      const imported=importedCompatibility({...row,path:directory},{...config,environment:activeEnvironment(),connectors:profile?.connectors,scenarios:profile?.scenarios||[]});
+      return {...row,...imported,compatible:Boolean(profile)&&imported.compatible,destination:manifest.destination||config.services.router,label:`Imported · ${row.merchant_count} merchants`,repairable:false};
+    }
     const job=row.job_id?db.prepare('SELECT config_path FROM jobs WHERE id=?').get(row.job_id):null;
     const original=job?.config_path?readJsonSync(job.config_path):null;
     const provision=readJsonSync(path.join(directory,'provision.json'),original?.fixtures);
@@ -125,13 +132,15 @@ export function listFixtureSets() {
     const checks=[['Router',before.router,after.router||config.services?.router],['Connector',before.connector,after.connector],['Superposition organization',before.superposition?.organization_id,after.superposition?.organization_id],['Superposition workspace',before.superposition?.workspace_id,after.superposition?.workspace_id],['Superposition defaults',before.superposition?.defaults,after.superposition?.defaults],['Superposition context',before.superposition?.context,after.superposition?.context]];
     if(!compatible)for(const [label,a,b] of checks)if(JSON.stringify(canonical(a))!==JSON.stringify(canonical(b)))changes.push(label);
     if(!compatible&&!changes.length)changes.push('Saved provisioning configuration');
-    return {...row,compatible,connectors,changes,destination:before.router||original?.services?.router||'Earlier configuration',label:`${row.mode==='single'?'Single':'Tenancy'} · ${row.merchant_count} merchants`,repairable:compatible&&['failed','interrupted'].includes(row.status)};
-  });
+    return {...row,source:'created',compatible,connectors,changes,destination:before.router||original?.services?.router||'Earlier configuration',label:`${row.mode==='single'?'Single':'Tenancy'} · ${row.merchant_count} merchants`,repairable:compatible&&['failed','interrupted'].includes(row.status)};
+  }).filter(row=>row.source!=='imported'||row.status==='ready');
 }
 export function validateFixtureSet(id,profile,config) {
   const set=getFixtureSet(id),manifest=readJsonSync(path.join(set.path,'manifest.json'));
   if(set.status!=='ready'||manifest?.state!=='ready')throw new HttpError(409,'Select a ready fixture set');
   if(set.mode!==profile.mode||set.merchant_count!==profile.merchantCount)throw new HttpError(409,'Fixture merchant mode/count does not match the scenario');
+  const imported=importedCompatibility(set,config);
+  if(imported){if(!imported.compatible)throw new HttpError(409,'Imported fixture verification is stale or failed; verify it for this scenario again');return set;}
   if(set.signature!==fixtureSignature(config,profile.mode,profile.merchantCount))throw new HttpError(409,'Service or fixture settings changed; create compatible fixtures first');
   return set;
 }

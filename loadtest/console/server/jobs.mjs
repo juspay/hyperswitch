@@ -1,9 +1,10 @@
+import {prepareImport,finishImport,verifyImportedMerchants} from './fixture-import.mjs';
 import {normalizeConnectorPlan} from '../src/connector-config.mjs';
 import {provisionConnectorAccounts} from './connector-fixtures.mjs';
 import {requireSupportedEnvironment,environmentLabel} from '../src/environments.mjs';
 import {normalizePaymentFlows,assertSupportedPaymentFlows} from '../src/payment-flows.mjs';
 import {activeEnvironment} from './state.mjs';
-import {getProfile,fixtureSignature,validateFixtureSet,listFixtureSets} from './profiles.mjs';
+import {getProfile,fixtureSignature,validateFixtureSet,listFixtureSets,getFixtureSet} from './profiles.mjs';
 import {DatabaseSync} from 'node:sqlite';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -73,7 +74,7 @@ export function getJob(id) {
   const terminal=['complete','failed','cancelled','interrupted'].includes(row.status);
   return {id:row.id,command:row.kind,mode:row.mode,status:row.status,startedAt:row.started_at,endedAt:row.ended_at,
     exitCode:row.exit_code,runId:row.run_path?`${row.mode}:${path.basename(row.run_path)}`:undefined,
-    fixtureSetId:config.fixtureSet?.id,
+    fixtureSetId:config.fixtureSet?.id||progress.verification?.fixtureSetId,
     profile:displayLoad?{id:config.profile?.id,version:config.profile?.version,name:config.profile?.name,totalRps:loadShape(displayLoad).peak,durationSeconds:loadShape(displayLoad).duration,timeline:loadTimeline(displayLoad,row.kind==='smoke'?[]:config.faultPlan),scenarios:config.scenarios}:null,
     loadState: row.kind==='load' ? (terminal?(row.status==='complete'?'completed':row.status):restoring?'recovering':row.status==='cancelling'?'pausing':progress.control?.state==='draining'?'pausing':progress.control?.state || (['starting','running'].includes(row.status)?'idle':row.status)) : null,
     events:events.slice(-200),
@@ -131,6 +132,40 @@ export async function controlLoad(id,action) {
   const control=await controlWorker(id,action);update(id,{status:worker.distributed?(action==='pause'?'pausing':'running'):control.state,progress:JSON.stringify({...job.progress,...(!worker.distributed?{control}:{})})});
   recordActivity(id,action,action==='pause'?'Pause requested · no new flows':'Load resumed');
   if(action==='pause'&&control?.state==='paused')recordActivity(id,'paused','Load paused · active flows drained');
+  return getJob(id);
+}
+export async function startFixtureImport(input){
+  initializeJobs();assertCanReserve('fixtures');
+  const profile=getProfile(input.profileId),existing=input.fixtureSetId?getFixtureSet(input.fixtureSetId):null;
+  if(existing&&readJsonSync(path.join(existing.path,'manifest.json'))?.source!=='imported')throw new Error('Only imported fixture sets can be reverified');
+  const id=reserve('fixtures',profile.mode),abort=new AbortController();
+  let prepared;
+  try{prepared=await prepareImport(profile,input,existing);}catch(e){update(id,{status:'failed',error:redact(e.message),ended_at:Date.now()});throw e;}
+  controlDb().prepare('UPDATE fixture_sets SET job_id=? WHERE id=?').run(id,prepared.id);
+  const context={profileId:profile.id,profileVersion:profile.version,fixtureSetId:prepared.id,merchantCount:prepared.merchants.length};
+  let latest={...context,phase:'credentials',checks:[],checked:0,stages:{}};
+  update(id,{status:'running',progress:JSON.stringify({verification:latest})});
+  const task={cancel:()=>abort.abort(),done:null};running.set(id,task);
+  task.done=(async()=>{
+    let lastProgress=0,lastPhase='';
+    try{
+      const result=await verifyImportedMerchants(prepared.config,prepared.merchants,{signal:abort.signal,onProgress:(checks,state)=>{
+        latest={...context,...state,checks:[...checks]};
+        const now=Date.now();if(state.phase===lastPhase&&now-lastProgress<500)return;
+        lastProgress=now;lastPhase=state.phase;
+        update(id,{progress:JSON.stringify({verification:{...latest,checks:checks.slice(-100)}})});
+      }});
+      if(abort.signal.aborted)throw new Error('Verification cancelled');
+      await finishImport(prepared,result);
+      const failed=result.checks.find(c=>!c.ok);
+      update(id,{status:result.ok?'complete':'failed',ended_at:Date.now(),progress:JSON.stringify({verification:{...context,...result,phase:result.ok?'ready':'failed'}}),error:failed?`${failed.stage==='credentials'?'Credential':'Setup'} verification failed: ${failed.label} — ${failed.message}`:null});
+    }catch(e){
+      const phase=abort.signal.aborted?'cancelled':'failed';
+      const result={...latest,ok:false,phase,stages:Object.fromEntries(Object.entries(latest.stages||{}).map(([key,stage])=>[key,{...stage,status:stage.status==='running'?phase:stage.status}]))};
+      await finishImport(prepared,result).catch(()=>{});
+      update(id,{status:phase,ended_at:Date.now(),progress:JSON.stringify({verification:result}),error:abort.signal.aborted?'Verification cancelled':'Fixture verification could not complete'});
+    }finally{running.delete(id);}
+  })();
   return getJob(id);
 }
 export async function startGenerator(kind,mode,selection={}) {
@@ -284,6 +319,7 @@ export async function startGenerator(kind,mode,selection={}) {
 }
 
 export async function startFaultTest(input) {
+  if(faultTargets().find(t=>t.id===input.targetId)?.adapter==='command')throw new HttpError(409,'Custom commands execute only through the scenario schedule');
   const environment=activeEnvironment();requireSupportedEnvironment(environment);
   if(input.environment&&input.environment!==environment)throw new Error('Environment changed; reopen the fault dialog before executing');
   const id=reserve('fault-test',environment);
