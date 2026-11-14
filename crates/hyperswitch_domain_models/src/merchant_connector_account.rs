@@ -295,14 +295,6 @@ impl MerchantConnectorAccount {
             .is_some_and(|recovery| recovery.enable_partial_authorization)
     }
 
-    /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
-    pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
-        self.feature_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.revenue_recovery.as_ref())
-            .map(|recovery| recovery.max_hybrid_cascading_retry_count)
-    }
-
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
