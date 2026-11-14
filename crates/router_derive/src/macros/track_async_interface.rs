@@ -126,18 +126,19 @@ pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream>
 
     // Keep the original trait available to existing store implementations. The generated
     // interface deliberately does not inherit it, so trait objects expose only tracked calls.
-    if !has_error_type {
-        return Err(syn::Error::new_spanned(
-            &item.ident,
-            "tracked async interfaces must have an Error associated type",
-        ));
-    }
+    let tracked_error_type = has_error_type.then(|| {
+        quote!(
+            type Error;
+        )
+    });
+    let implemented_error_type =
+        has_error_type.then(|| quote!(type Error = <T as #raw_name>::Error;));
 
     Ok(quote! {
         #item
 
         #visibility trait #tracked_name: Send + Sync {
-            type Error;
+            #tracked_error_type
             #(#tracked_methods)*
         }
 
@@ -145,7 +146,7 @@ pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream>
         where
             T: #raw_name + Send + Sync + ?Sized,
         {
-            type Error = <T as #raw_name>::Error;
+            #implemented_error_type
             #(#implementations)*
         }
     })

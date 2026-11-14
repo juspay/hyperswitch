@@ -8,6 +8,7 @@ use storage_impl::DatabaseStore;
 
 use crate::{core::errors, services::Store};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait OrganizationInterface {
     async fn insert_organization(

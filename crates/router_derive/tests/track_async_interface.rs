@@ -14,7 +14,16 @@ trait MerchantAccountInterface {
 
 struct Store;
 
-trait AccountsStorageInterface: TrackedMerchantAccountInterface<Error = ()> {}
+#[router_derive::track_async_interface]
+#[async_trait::async_trait]
+trait OrganizationInterface {
+    async fn find_organization(&self) -> Result<Option<u32>, ()>;
+}
+
+trait AccountsStorageInterface:
+    TrackedMerchantAccountInterface<Error = ()> + TrackedOrganizationInterface
+{
+}
 
 impl AccountsStorageInterface for Store {}
 
@@ -27,6 +36,13 @@ impl MerchantAccountInterface for Store {
             *id,
             router_env::call_origin::current_origin().map(Location::line),
         ))
+    }
+}
+
+#[async_trait::async_trait]
+impl OrganizationInterface for Store {
+    async fn find_organization(&self) -> Result<Option<u32>, ()> {
+        Ok(router_env::call_origin::current_origin().map(Location::line))
     }
 }
 
@@ -47,5 +63,15 @@ fn tracked_trait_object_passes_the_call_site_to_the_raw_method() {
     let output = poll_now(store.find(&id));
 
     assert_eq!(output, Ok((id, Some(expected_line))));
+    assert!(router_env::call_origin::current_origin().is_none());
+}
+
+#[test]
+fn tracked_trait_without_error_type_passes_the_call_site() {
+    let store: Box<dyn AccountsStorageInterface> = Box::new(Store);
+    let expected_line = line!() + 1;
+    let output = poll_now(store.find_organization());
+
+    assert_eq!(output, Ok(Some(expected_line)));
     assert!(router_env::call_origin::current_origin().is_none());
 }

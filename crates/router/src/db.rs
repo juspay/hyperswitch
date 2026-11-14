@@ -76,7 +76,10 @@ use storage_impl::{
 };
 
 pub use self::kafka_store::KafkaStore;
-use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
+use self::{
+    fraud_check::FraudCheckInterface,
+    organization::{OrganizationInterface, TrackedOrganizationInterface},
+};
 pub use crate::{
     core::errors::{self, ProcessTrackerError},
     errors::CustomResult,
@@ -211,13 +214,13 @@ pub trait AccountsStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + OrganizationInterface
+    + TrackedOrganizationInterface
     + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
-    + business_profile::ProfileInterface<Error = StorageError>
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
+    + business_profile::TrackedProfileInterface<Error = StorageError>
+    + merchant_connector_account::TrackedMerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::TrackedMerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::TrackedHierarchicalResourceInterface<Error = StorageError>
+    + dashboard_metadata::TrackedDashboardMetadataInterface
     + RequestIdStore
     + 'static
 {
@@ -230,13 +233,13 @@ pub trait AccountsStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + OrganizationInterface
+    + TrackedOrganizationInterface
     + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
-    + business_profile::ProfileInterface<Error = StorageError>
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
+    + business_profile::TrackedProfileInterface<Error = StorageError>
+    + merchant_connector_account::TrackedMerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::TrackedMerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::TrackedHierarchicalResourceInterface<Error = StorageError>
+    + dashboard_metadata::TrackedDashboardMetadataInterface
     + RequestIdStore
     + 'static
 {
@@ -531,13 +534,13 @@ impl OrganizationInterface for KafkaStore {
         &self,
         organization: OrganizationNew,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.insert_organization(organization).await
+        OrganizationInterface::insert_organization(&self.diesel_store, organization).await
     }
     async fn find_organization_by_org_id(
         &self,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.find_organization_by_org_id(org_id).await
+        OrganizationInterface::find_organization_by_org_id(&self.diesel_store, org_id).await
     }
 
     async fn update_organization_by_org_id(
@@ -545,8 +548,7 @@ impl OrganizationInterface for KafkaStore {
         org_id: &id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store
-            .update_organization_by_org_id(org_id, update)
+        OrganizationInterface::update_organization_by_org_id(&self.diesel_store, org_id, update)
             .await
     }
 }
