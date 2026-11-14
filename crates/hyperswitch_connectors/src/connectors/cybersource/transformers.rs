@@ -1460,9 +1460,14 @@ impl
             capture_options: None,
             commerce_indicator: Some(
                 three_ds_data
-                    .indicator
-                    .to_owned()
-                    .unwrap_or(String::from("internet")),
+                    .ecommerce_indicator
+                    .as_ref()
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| three_ds_data.eci.as_ref().filter(|s| !s.is_empty()))
+                    .or_else(|| three_ds_data.eci_raw.as_ref().filter(|s| !s.is_empty()))
+                    .or_else(|| three_ds_data.indicator.as_ref().filter(|s| !s.is_empty()))
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| String::from("internet")),
             ),
         })
     }
@@ -2250,6 +2255,18 @@ impl
                 .directory_server_transaction_id,
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -4178,6 +4195,18 @@ impl
                 .clone(),
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -4209,18 +4238,45 @@ pub enum CybersourceAuthEnrollmentStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthValidateResponse {
-    ucaf_collection_indicator: Option<String>,
-    cavv: Option<Secret<String>>,
-    ucaf_authentication_data: Option<Secret<String>>,
-    xid: Option<String>,
-    specification_version: Option<SemanticVersion>,
-    directory_server_transaction_id: Option<Secret<String>>,
-    indicator: Option<String>,
+    pub ucaf_collection_indicator: Option<String>,
+    pub cavv: Option<Secret<String>>,
+    pub ucaf_authentication_data: Option<Secret<String>>,
+    pub xid: Option<String>,
+    pub specification_version: Option<SemanticVersion>,
+    pub directory_server_transaction_id: Option<Secret<String>>,
+    #[serde(alias = "ECI")]
+    pub eci: Option<String>,
+    #[serde(alias = "eci_raw")]
+    pub eci_raw: Option<String>,
+    #[serde(alias = "ecommerce_indicator")]
+    pub ecommerce_indicator: Option<String>,
+    pub indicator: Option<String>,
+}
+
+impl CybersourceConsumerAuthValidateResponse {
+    pub fn get_commerce_indicator(&self) -> String {
+        self.ecommerce_indicator
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .or_else(|| self.eci.as_ref().filter(|s| !s.is_empty()))
+            .or_else(|| self.eci_raw.as_ref().filter(|s| !s.is_empty()))
+            .or_else(|| self.indicator.as_ref().filter(|s| !s.is_empty()))
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| String::from("internet"))
+    }
+
+    pub fn get_eci(&self) -> Option<String> {
+        self.eci_raw
+            .clone()
+            .filter(|s| !s.is_empty())
+            .or_else(|| self.eci.clone().filter(|s| !s.is_empty()))
+            .or_else(|| self.indicator.clone().filter(|s| !s.is_empty()))
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceThreeDSMetadata {
-    three_ds_data: CybersourceConsumerAuthValidateResponse,
+    pub three_ds_data: CybersourceConsumerAuthValidateResponse,
 }
 
 impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticationData {
@@ -4230,7 +4286,12 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
         value: &CybersourceConsumerAuthValidateResponse,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            eci: value.indicator.clone(),
+            eci: value
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| value.eci.clone().filter(|s| !s.is_empty()))
+                .or_else(|| value.indicator.clone().filter(|s| !s.is_empty())),
             cavv: value.cavv.clone(),
             threeds_server_transaction_id: None,
             message_version: value.specification_version.clone(),
@@ -5657,3 +5718,6 @@ impl RemoveNewLine for Option<String> {
         self.clone().map(|value| value.replace("\n", " "))
     }
 }
+
+#[cfg(test)]
+mod tests;
