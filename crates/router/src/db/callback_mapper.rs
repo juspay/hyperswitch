@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CallbackMapperInterface {
     async fn insert_call_back_mapper(

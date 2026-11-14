@@ -18,6 +18,11 @@ struct Store;
 #[async_trait::async_trait]
 trait OrganizationInterface {
     async fn find_organization(&self) -> Result<Option<u32>, ()>;
+
+    async fn find_with_optional_id(
+        &self,
+        id: Option<&u32>,
+    ) -> Result<(Option<u32>, Option<u32>), ()>;
 }
 
 trait AccountsStorageInterface:
@@ -43,6 +48,16 @@ impl MerchantAccountInterface for Store {
 impl OrganizationInterface for Store {
     async fn find_organization(&self) -> Result<Option<u32>, ()> {
         Ok(router_env::call_origin::current_origin().map(Location::line))
+    }
+
+    async fn find_with_optional_id(
+        &self,
+        id: Option<&u32>,
+    ) -> Result<(Option<u32>, Option<u32>), ()> {
+        Ok((
+            id.copied(),
+            router_env::call_origin::current_origin().map(Location::line),
+        ))
     }
 }
 
@@ -74,4 +89,14 @@ fn tracked_trait_without_error_type_passes_the_call_site() {
 
     assert_eq!(output, Ok(Some(expected_line)));
     assert!(router_env::call_origin::current_origin().is_none());
+}
+
+#[test]
+fn tracked_nested_reference_passes_the_call_site() {
+    let store: Box<dyn AccountsStorageInterface> = Box::new(Store);
+    let id = 42;
+    let expected_line = line!() + 1;
+    let output = poll_now(store.find_with_optional_id(Some(&id)));
+
+    assert_eq!(output, Ok((Some(id), Some(expected_line))));
 }

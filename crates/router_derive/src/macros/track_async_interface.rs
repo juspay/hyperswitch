@@ -1,6 +1,21 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{FnArg, ItemTrait, Pat, ReturnType, TraitItem, Type};
+use syn::{visit_mut::VisitMut, FnArg, ItemTrait, Pat, ReturnType, TraitItem};
+
+struct BindReferenceLifetimes(syn::Lifetime);
+
+impl VisitMut for BindReferenceLifetimes {
+    fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
+        if reference
+            .lifetime
+            .as_ref()
+            .is_none_or(|lifetime| lifetime.ident == "_")
+        {
+            reference.lifetime = Some(self.0.clone());
+        }
+        syn::visit_mut::visit_type_reference_mut(self, reference);
+    }
+}
 
 /// Generate a caller-tracked interface from an async trait without changing its implementations.
 pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream> {
@@ -8,6 +23,11 @@ pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream>
     let tracked_name = format_ident!("Tracked{raw_name}");
     let visibility = item.vis.clone();
     let tracked_lifetime = syn::Lifetime::new("'__tracked", proc_macro2::Span::call_site());
+    let cfg_attrs: Vec<_> = item
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("cfg") || attr.path().is_ident("cfg_attr"))
+        .collect();
 
     let mut tracked_methods = Vec::new();
     let mut implementations = Vec::new();
@@ -69,15 +89,8 @@ pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream>
                     arguments.push(quote!(self));
                 }
                 FnArg::Typed(argument) => {
-                    if let Type::Reference(reference) = argument.ty.as_mut() {
-                        if reference.lifetime.is_some() {
-                            return Err(syn::Error::new_spanned(
-                                reference,
-                                "explicit argument lifetimes are not supported",
-                            ));
-                        }
-                        reference.lifetime = Some(tracked_lifetime.clone());
-                    }
+                    BindReferenceLifetimes(tracked_lifetime.clone())
+                        .visit_type_mut(&mut argument.ty);
                     let Pat::Ident(identifier) = argument.pat.as_ref() else {
                         return Err(syn::Error::new_spanned(
                             &argument.pat,
@@ -137,11 +150,13 @@ pub(crate) fn track_async_interface(item: ItemTrait) -> syn::Result<TokenStream>
     Ok(quote! {
         #item
 
+        #(#cfg_attrs)*
         #visibility trait #tracked_name: Send + Sync {
             #tracked_error_type
             #(#tracked_methods)*
         }
 
+        #(#cfg_attrs)*
         impl<T> #tracked_name for T
         where
             T: #raw_name + Send + Sync + ?Sized,

@@ -8584,6 +8584,7 @@ dependencies = [
  "num_cpus",
  "rand 0.8.6",
  "redis_interface",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",

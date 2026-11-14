@@ -53,15 +53,18 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
-    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+    payout_attempt::TrackedPayoutAttemptInterface, payouts::TrackedPayoutsInterface,
 };
 use hyperswitch_domain_models::{
-    authentication::AuthenticationInterface,
-    card_issuer::CardIssuersInterface,
-    cards_info::CardsInfoInterface,
+    authentication::TrackedAuthenticationInterface,
+    card_issuer::TrackedCardIssuersInterface,
+    cards_info::TrackedCardsInfoInterface,
     master_key::MasterKeyInterface,
-    payment_methods::PaymentMethodInterface,
-    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    payment_methods::TrackedPaymentMethodInterface,
+    payments::{
+        payment_attempt::TrackedPaymentAttemptInterface,
+        payment_intent::TrackedPaymentIntentInterface,
+    },
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -106,56 +109,56 @@ pub trait StorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + address::AddressInterface
-    + api_keys::ApiKeyInterface
-    + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface<Error = StorageError>
-    + capture::CaptureInterface
-    + customers::CustomerInterface<Error = StorageError>
-    + dispute::DisputeInterface
-    + client_secret::ClientSecretInterface
-    + events::EventInterface
-    + file::FileMetadataInterface
-    + FraudCheckInterface
-    + locker_mock_up::LockerMockUpInterface
-    + mandate::MandateInterface
+    + address::TrackedAddressInterface
+    + api_keys::TrackedApiKeyInterface
+    + blocklist_lookup::TrackedBlocklistLookupInterface
+    + hyperswitch_domain_models::configs::TrackedConfigInterface<Error = StorageError>
+    + capture::TrackedCaptureInterface
+    + hyperswitch_domain_models::customer::TrackedCustomerInterface<Error = StorageError>
+    + dispute::TrackedDisputeInterface
+    + client_secret::TrackedClientSecretInterface
+    + events::TrackedEventInterface
+    + file::TrackedFileMetadataInterface
+    + fraud_check::TrackedFraudCheckInterface
+    + locker_mock_up::TrackedLockerMockUpInterface
+    + mandate::TrackedMandateInterface
     + merchant_connector_account::ConnectorAccessToken
-    + PaymentAttemptInterface<Error = StorageError>
-    + PaymentIntentInterface<Error = StorageError>
-    + PaymentMethodInterface<Error = StorageError>
-    + analytics_report::AnalyticsReportInterface
-    + blocklist::BlocklistInterface
-    + blocklist_fingerprint::BlocklistFingerprintInterface
-    + batch_blocklist_job::BatchBlocklistJobInterface
-    + CardIssuersInterface<Error = StorageError>
-    + dynamic_routing_stats::DynamicRoutingStatsInterface
+    + TrackedPaymentAttemptInterface<Error = StorageError>
+    + TrackedPaymentIntentInterface<Error = StorageError>
+    + TrackedPaymentMethodInterface<Error = StorageError>
+    + analytics_report::TrackedAnalyticsReportInterface
+    + blocklist::TrackedBlocklistInterface
+    + blocklist_fingerprint::TrackedBlocklistFingerprintInterface
+    + batch_blocklist_job::TrackedBatchBlocklistJobInterface
+    + TrackedCardIssuersInterface<Error = StorageError>
+    + dynamic_routing_stats::TrackedDynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
-    + PayoutAttemptInterface<Error = StorageError>
-    + PayoutsInterface<Error = StorageError>
-    + refund::RefundInterface
-    + reverse_lookup::ReverseLookupInterface
-    + CardsInfoInterface<Error = StorageError>
+    + TrackedPayoutAttemptInterface<Error = StorageError>
+    + TrackedPayoutsInterface<Error = StorageError>
+    + refund::TrackedRefundInterface
+    + reverse_lookup::TrackedReverseLookupInterface
+    + TrackedCardsInfoInterface<Error = StorageError>
     + MasterKeyInterface
-    + payment_link::PaymentLinkInterface
+    + payment_link::TrackedPaymentLinkInterface
     + RedisConnInterface
     + CacheInterface
     + RequestIdStore
-    + routing_algorithm::RoutingAlgorithmInterface
-    + gsm::GsmInterface
-    + unified_translations::UnifiedTranslationsInterface
-    + authorization::AuthorizationInterface
-    + user::sample_data::BatchSampleDataInterface
-    + health_check::HealthCheckDbInterface
-    + user_authentication_method::UserAuthenticationMethodInterface
-    + AuthenticationInterface<Error = StorageError>
-    + generic_link::GenericLinkInterface
-    + relay::RelayInterface
-    + user::theme::ThemeInterface
-    + payment_method_session::PaymentMethodsSessionInterface
-    + tokenization::TokenizationInterface
-    + callback_mapper::CallbackMapperInterface
-    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
-    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
+    + routing_algorithm::TrackedRoutingAlgorithmInterface
+    + gsm::TrackedGsmInterface
+    + unified_translations::TrackedUnifiedTranslationsInterface
+    + authorization::TrackedAuthorizationInterface
+    + user::sample_data::TrackedBatchSampleDataInterface
+    + health_check::TrackedHealthCheckDbInterface
+    + user_authentication_method::TrackedUserAuthenticationMethodInterface
+    + TrackedAuthenticationInterface<Error = StorageError>
+    + generic_link::TrackedGenericLinkInterface
+    + relay::TrackedRelayInterface
+    + user::theme::TrackedThemeInterface
+    + payment_method_session::TrackedPaymentMethodsSessionInterface
+    + tokenization::TrackedTokenizationInterface
+    + callback_mapper::TrackedCallbackMapperInterface
+    + hyperswitch_domain_models::subscription::TrackedSubscriptionInterface<Error = StorageError>
+    + hyperswitch_domain_models::invoice::TrackedInvoiceInterface<Error = StorageError>
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;

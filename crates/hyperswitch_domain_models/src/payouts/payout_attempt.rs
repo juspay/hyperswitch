@@ -10,6 +10,7 @@ use time::PrimitiveDateTime;
 
 use super::payouts::Payouts;
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PayoutAttemptInterface {
     type Error;
