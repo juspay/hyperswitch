@@ -924,7 +924,12 @@ impl ConnectorSpecifications for Moneris {
                 auth_type,
                 request_data,
                 connector_meta_data: _,
-            } => auth_type.is_three_ds() && request_data.is_card(),
+            } => {
+                auth_type.is_three_ds()
+                    && request_data.is_card()
+                    // External 3DS data is forwarded on Authorize; PreAuthenticate does not carry it.
+                    && request_data.authentication_data.is_none()
+            }
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }

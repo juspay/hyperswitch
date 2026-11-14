@@ -206,6 +206,7 @@ impl<F: Send + Clone + Sync>
             triggered_by: request.triggered_by,
             card_network: request.card_network.clone(),
             card_issuer: request.card_issuer.clone(),
+            standardised_error_code: request.standardised_error_code,
         };
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
