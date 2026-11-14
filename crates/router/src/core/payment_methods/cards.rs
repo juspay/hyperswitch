@@ -4685,12 +4685,11 @@ pub async fn build_merchant_enabled_pms_context(
     let profile_id = business_profile.get_id().clone();
 
     let all_mcas = state
-        .track_accounts_query(|db| {
-            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                platform.get_processor().get_account().get_id(),
-                &profile_id,
-            )
-        })
+        .accounts_store
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            platform.get_processor().get_account().get_id(),
+            &profile_id,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -5519,12 +5518,11 @@ pub async fn list_payment_methods(
         match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
             Some(profile_id) => {
                 let business_profile = state
-                    .track_accounts_query(|db| {
-                        db.find_business_profile_by_profile_id(
-                            platform.get_processor().get_key_store(),
-                            &profile_id,
-                        )
-                    })
+                    .accounts_store
+                    .find_business_profile_by_profile_id(
+                        platform.get_processor().get_key_store(),
+                        &profile_id,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_id.get_string_repr().to_owned(),
@@ -6617,13 +6615,10 @@ pub async fn list_customer_payment_method(
     // The MCA list is used to evaluate if the payment method has connector_mandate_details for any active MCA
     let merchant_connector_accounts = match business_profile.as_ref() {
         Some(business_profile) => Some(
-            state
-                .track_accounts_query(|db| {
-                    db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            state.accounts_store.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                         platform.get_processor().get_account().get_id(),
                         business_profile.get_id(),
                     )
-                })
                 .await
                 .change_context(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

@@ -45,14 +45,14 @@ pub async fn generate_sample_data(
 
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .change_context(SampleDataError::InternalServerError)?;
 
     let merchant_from_db = state
-        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
+        .accounts_store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
 
@@ -105,12 +105,8 @@ pub async fn generate_sample_data(
             );
 
             state
-                .track_accounts_query(|db| {
-                    db.list_profile_by_merchant_id(
-                        platform.get_processor().get_key_store(),
-                        merchant_id,
-                    )
-                })
+                .accounts_store
+                .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
                 .attach_printable("Failed to get business profile")?

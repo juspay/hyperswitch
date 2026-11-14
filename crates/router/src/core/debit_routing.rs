@@ -305,12 +305,8 @@ where
 
         let key_store_master_key = db.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(
-                    &processor_merchant_id,
-                    &key_store_master_key,
-                )
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&processor_merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
             .map_err(|error| {
@@ -573,12 +569,8 @@ where
             get_debit_routing_output::<F, D>(state, payment_data, acquirer_country).await?;
         let key_store_master_key = db.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(
-                    &processor_merchant_id,
-                    &key_store_master_key,
-                )
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&processor_merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)
             .map_err(|error| {
@@ -658,13 +650,12 @@ async fn fetch_merchant_connector_accounts(
     key_store: &domain::MerchantKeyStore,
 ) -> CustomResult<Vec<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
     state
-        .track_accounts_query(|db| {
-            db.list_enabled_connector_accounts_by_profile_id(
-                profile_id,
-                key_store,
-                common_enums::ConnectorType::PaymentProcessor,
-            )
-        })
+        .accounts_store
+        .list_enabled_connector_accounts_by_profile_id(
+            profile_id,
+            key_store,
+            common_enums::ConnectorType::PaymentProcessor,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector accounts")

@@ -173,12 +173,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = state
-            .track_accounts_query(|db| {
-                db.find_business_profile_by_profile_id(
-                    platform.get_processor().get_key_store(),
-                    profile_id,
-                )
-            })
+            .accounts_store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -420,12 +419,11 @@ where
             .attach_printable("profile_id is not set in payment_intent")?;
 
         let all_connector_accounts = state
-            .track_accounts_query(|db| {
-                db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    processor.get_account().get_id(),
-                    &profile_id,
-                )
-            })
+            .accounts_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                processor.get_account().get_id(),
+                &profile_id,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;

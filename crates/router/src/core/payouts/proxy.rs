@@ -449,13 +449,12 @@ impl ExternalVaultPayout<'_> {
         )?;
         let provider = platform.get_provider();
         let external_vault_mca = state
-            .track_accounts_query(|db| {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    provider.get_account().get_id(),
-                    &vault_connector_id,
-                    provider.get_key_store(),
-                )
-            })
+            .accounts_store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                provider.get_account().get_id(),
+                &vault_connector_id,
+                provider.get_key_store(),
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: vault_connector_id.get_string_repr().to_owned(),

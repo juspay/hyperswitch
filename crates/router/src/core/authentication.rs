@@ -429,19 +429,14 @@ where
         let provider_merchant_id = payment_data.payment_intent.merchant_id.clone();
         let key_store_master_key = state.store.get_master_key().to_vec().into();
         let provider_key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(
-                    &provider_merchant_id,
-                    &key_store_master_key,
-                )
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&provider_merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store for provider merchant")?;
         let provider_account = state
-            .track_accounts_query(|db| {
-                db.find_merchant_account_by_merchant_id(&provider_merchant_id, &provider_key_store)
-            })
+            .accounts_store
+            .find_merchant_account_by_merchant_id(&provider_merchant_id, &provider_key_store)
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the merchant account for provider")?;
@@ -463,13 +458,12 @@ where
         let external_vault_merchant_connector_account =
             payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
                 state
-                    .track_accounts_query(|db| {
-                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            platform.get_provider().get_account().get_id(),
-                            &external_vault_mca_id,
-                            platform.get_provider().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_provider().get_account().get_id(),
+                        &external_vault_mca_id,
+                        platform.get_provider().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                         id: external_vault_mca_id.get_string_repr().to_string(),
@@ -1269,13 +1263,12 @@ async fn call_ucs_authenticate_proxy(
     let external_vault_merchant_connector_account =
         payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
             state
-                .track_accounts_query(|db| {
-                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        platform.get_provider().get_account().get_id(),
-                        &external_vault_mca_id,
-                        platform.get_provider().get_key_store(),
-                    )
-                })
+                .accounts_store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
                 .await
                 .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
                     id: external_vault_mca_id.get_string_repr().to_string(),

@@ -4299,9 +4299,8 @@ async fn validate_and_get_business_profile(
         Ok(business_profile)
     } else {
         state
-            .track_accounts_query(|db| {
-                db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
-            })
+            .accounts_store
+            .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -4541,17 +4540,15 @@ pub async fn payouts_manual_update_core(
 
         let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store by merchant_id")?;
 
         let merchant_account = state
-            .track_accounts_query(|db| {
-                db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-            })
+            .accounts_store
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
             .attach_printable("Error while fetching the merchant_account by merchant_id")?;

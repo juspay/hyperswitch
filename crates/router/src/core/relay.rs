@@ -738,13 +738,12 @@ pub async fn relay<T: RelayInterface>(
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     let profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                processor_merchant_id,
-                &profile_id_from_auth_layer,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            processor_merchant_id,
+            &profile_id_from_auth_layer,
+        )
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id_from_auth_layer.get_string_repr().to_owned(),
@@ -752,13 +751,12 @@ pub async fn relay<T: RelayInterface>(
 
     #[cfg(feature = "v1")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                processor_merchant_id,
-                connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor_merchant_id,
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -766,12 +764,11 @@ pub async fn relay<T: RelayInterface>(
 
     #[cfg(feature = "v2")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(
-                connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -832,13 +829,12 @@ pub async fn relay_retrieve(
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                merchant_id,
-                &profile_id_from_auth_layer,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            merchant_id,
+            &profile_id_from_auth_layer,
+        )
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id_from_auth_layer.get_string_repr().to_owned(),
@@ -865,13 +861,12 @@ pub async fn relay_retrieve(
 
     #[cfg(feature = "v1")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                merchant_id,
-                &relay_record.connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            &relay_record.connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: relay_record.connector_id.get_string_repr().to_string(),
@@ -879,12 +874,11 @@ pub async fn relay_retrieve(
 
     #[cfg(feature = "v2")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(
-                &relay_record.connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(
+            &relay_record.connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: relay_record.connector_id.get_string_repr().to_string(),
@@ -1023,13 +1017,12 @@ async fn process_unreferenced_refund(
 
     #[cfg(feature = "v1")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                processor_merchant_id,
-                connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor_merchant_id,
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -1037,12 +1030,11 @@ async fn process_unreferenced_refund(
 
     #[cfg(feature = "v2")]
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(
-                connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_string(),
@@ -1212,13 +1204,12 @@ async fn process_relay_unreferenced_refund(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_merchant_id_profile_id(
-                platform.get_processor().get_key_store(),
-                merchant_id,
-                profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            merchant_id,
+            profile_id,
+        )
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

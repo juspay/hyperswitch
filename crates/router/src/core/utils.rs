@@ -929,20 +929,15 @@ pub async fn build_platform_from_refund_core(
 ) -> RouterResult<domain::Platform> {
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let provider_key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(
-                &refund_core.merchant_id,
-                &key_store_master_key,
-            )
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&refund_core.merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for provider merchant")?;
 
     let provider_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant account for provider")?;
@@ -954,17 +949,15 @@ pub async fn build_platform_from_refund_core(
 
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let processor_key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(processor_merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(processor_merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for processor merchant")?;
 
     let processor_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the merchant account for processor")?;
@@ -2353,13 +2346,12 @@ pub async fn validate_and_get_business_profile(
     profile_id
         .async_map(|profile_id| async {
             state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_merchant_id_profile_id(
-                        processor.get_key_store(),
-                        processor.get_account().get_id(),
-                        profile_id,
-                    )
-                })
+                .accounts_store
+                .find_business_profile_by_merchant_id_profile_id(
+                    processor.get_key_store(),
+                    processor.get_account().get_id(),
+                    profile_id,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -2422,13 +2414,12 @@ pub async fn get_profile_from_business_details(
 ) -> RouterResult<domain::Profile> {
     match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
         Some(profile_id) => state
-            .track_accounts_query(|db| {
-                db.find_business_profile_by_merchant_id_profile_id(
-                    processor.get_key_store(),
-                    processor.get_account().get_id(),
-                    profile_id,
-                )
-            })
+            .accounts_store
+            .find_business_profile_by_merchant_id_profile_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+                profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -2437,13 +2428,12 @@ pub async fn get_profile_from_business_details(
             Some((business_country, business_label)) => {
                 let profile_name = format!("{business_country}_{business_label}");
                 state
-                    .track_accounts_query(|db| {
-                        db.find_business_profile_by_profile_name_merchant_id(
-                            processor.get_key_store(),
-                            &profile_name,
-                            processor.get_account().get_id(),
-                        )
-                    })
+                    .accounts_store
+                    .find_business_profile_by_profile_name_merchant_id(
+                        processor.get_key_store(),
+                        &profile_name,
+                        processor.get_account().get_id(),
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                         id: profile_name,

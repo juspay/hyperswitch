@@ -358,13 +358,12 @@ pub async fn find_mca_from_authentication_id_type(
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
         state
-            .track_accounts_query(|db| {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &mca_id,
-                    platform.get_processor().get_key_store(),
-                )
-            })
+            .accounts_store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_processor().get_account().get_id(),
+                &mca_id,
+                platform.get_processor().get_key_store(),
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: mca_id.get_string_repr().to_string(),
@@ -417,13 +416,12 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 state
-                    .track_accounts_query(|db| {
-                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            platform.get_processor().get_account().get_id(),
-                            &merchant_connector_id,
-                            platform.get_processor().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &merchant_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -453,13 +451,12 @@ pub async fn get_mca_from_payment_intent(
             #[cfg(feature = "v1")]
             {
                 state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_connector_account_by_profile_id_connector_name(
-                            &profile_id,
-                            connector_name,
-                            platform.get_processor().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        &profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -510,13 +507,12 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 state
-                    .track_accounts_query(|db| {
-                        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            platform.get_processor().get_account().get_id(),
-                            &merchant_connector_id,
-                            platform.get_processor().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &merchant_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -537,13 +533,12 @@ pub async fn get_mca_from_payout_attempt(
             #[cfg(feature = "v1")]
             {
                 state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_connector_account_by_profile_id_connector_name(
-                            &payout.profile_id,
-                            connector_name,
-                            platform.get_processor().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        &payout.profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -585,13 +580,12 @@ pub async fn get_mca_from_object_reference_id(
             #[cfg(feature = "v1")]
             {
                 state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_connector_account_by_profile_id_connector_name(
-                            profile_id,
-                            connector_name,
-                            platform.get_processor().get_key_store(),
-                        )
-                    })
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
                     .await
                     .to_not_found_response(
                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -1381,12 +1375,8 @@ pub async fn trigger_refund_outgoing_webhook(
     let refund_status = refund.refund_status;
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1485,12 +1475,8 @@ pub async fn trigger_payouts_webhook(
 ) -> RouterResult<()> {
     let profile_id = &payout_response.profile_id;
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -1629,13 +1615,8 @@ pub async fn get_payment_response_hash_key(
         } => {
             let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
             let profile = state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_merchant_id_profile_id(
-                        key_store,
-                        merchant_id,
-                        profile_id,
-                    )
-                })
+                .accounts_store
+                .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
             Ok(profile.payment_response_hash_key)
@@ -1645,9 +1626,8 @@ pub async fn get_payment_response_hash_key(
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
                 let merchant = state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_account_by_merchant_id(merchant_id, key_store)
-                    })
+                    .accounts_store
+                    .find_merchant_account_by_merchant_id(merchant_id, key_store)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
                 Ok(merchant.payment_response_hash_key)
@@ -1656,9 +1636,8 @@ pub async fn get_payment_response_hash_key(
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
                 let profiles = state
-                    .track_accounts_query(|db| {
-                        db.list_profile_by_merchant_id(key_store, merchant_id)
-                    })
+                    .accounts_store
+                    .list_profile_by_merchant_id(key_store, merchant_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
                 Ok(profiles

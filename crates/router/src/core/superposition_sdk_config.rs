@@ -150,24 +150,22 @@ pub async fn get_profile_superposition_sdk_config(
             })?;
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id_typed,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(
+            platform.get_processor().get_key_store(),
+            &profile_id_typed,
+        )
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.to_owned(),
         })?;
 
     let mcas = state
-        .track_accounts_query(|db| {
-            db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                platform.get_processor().get_account().get_id(),
-                &profile_id_typed,
-            )
-        })
+        .accounts_store
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            platform.get_processor().get_account().get_id(),
+            &profile_id_typed,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -378,12 +376,8 @@ pub async fn get_superposition_sdk_config(
     )?;
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),

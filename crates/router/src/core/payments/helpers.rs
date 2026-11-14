@@ -576,14 +576,11 @@ pub async fn get_token_pm_type_mandate_details(
                     RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
                         if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
                             #[cfg(feature = "v1")]
-                            let connector_name = state
-                                .track_accounts_query(|db| {
-                                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            let connector_name = state.accounts_store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                         platform.get_processor().get_account().get_id(),
                                         mca_id,
                                         platform.get_processor().get_key_store(),
                                     )
-                                })
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                     id: mca_id.clone().get_string_repr().to_string(),
@@ -591,12 +588,8 @@ pub async fn get_token_pm_type_mandate_details(
 
                             #[cfg(feature = "v2")]
                             let connector_name = state
-                                .track_accounts_query(|db| {
-                                    db.find_merchant_connector_account_by_id(
-                                        mca_id,
-                                        merchant_key_store,
-                                    )
-                                })
+                                .accounts_store
+                                .find_merchant_connector_account_by_id(mca_id, merchant_key_store)
                                 .await
                                 .to_not_found_response(
                                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -3411,9 +3404,8 @@ pub async fn resolve_provider_profile(
                 })?;
 
             state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
-                })
+                .accounts_store
+                .find_business_profile_by_profile_id(provider.get_key_store(), &profile_id)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -3424,12 +3416,11 @@ pub async fn resolve_provider_profile(
             // v2 MerchantAccount has no `default_profile`; resolve the provider's single business
             // profile (which holds provider-level config, e.g. external vault) by listing its profiles.
             let profiles = state
-                .track_accounts_query(|db| {
-                    db.list_profile_by_merchant_id(
-                        provider.get_key_store(),
-                        provider.get_account().get_id(),
-                    )
-                })
+                .accounts_store
+                .list_profile_by_merchant_id(
+                    provider.get_key_store(),
+                    provider.get_account().get_id(),
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to list provider merchant business profiles")?;
@@ -3451,12 +3442,8 @@ pub async fn get_provider_mca_v2(
         .get_required_value("merchant_connector_id")
         .attach_printable("merchant_connector_id not provided")?;
     state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(
-                merchant_connector_id,
-                provider.get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(merchant_connector_id, provider.get_key_store())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),
@@ -3541,13 +3528,12 @@ pub async fn fetch_card_details_from_external_vault(
     external_vault_mca_id: &id_type::MerchantConnectorAccountId,
 ) -> RouterResult<domain::Card> {
     let merchant_connector_account_details = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                merchant_id,
-                external_vault_mca_id,
-                merchant_key_store,
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            external_vault_mca_id,
+            merchant_key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: external_vault_mca_id.get_string_repr().to_string(),
@@ -5316,29 +5302,27 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         state
-                        .track_accounts_query(|db| {
-                            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                            .accounts_store
+                            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                 processor.get_account().get_id(),
                                 merchant_connector_id,
                                 processor.get_key_store(),
                             )
-                        })
-                        .await
-                        .to_not_found_response(
-                            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                id: merchant_connector_id.get_string_repr().to_string(),
-                            },
-                        )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                    id: merchant_connector_id.get_string_repr().to_string(),
+                                },
+                            )
                     }
                     #[cfg(feature = "v2")]
                     {
                         state
-                            .track_accounts_query(|db| {
-                                db.find_merchant_connector_account_by_id(
-                                    merchant_connector_id,
-                                    processor.get_key_store(),
-                                )
-                            })
+                            .accounts_store
+                            .find_merchant_connector_account_by_id(
+                                merchant_connector_id,
+                                processor.get_key_store(),
+                            )
                             .await
                             .to_not_found_response(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -5350,13 +5334,12 @@ pub async fn get_merchant_connector_account(
                     #[cfg(feature = "v1")]
                     {
                         state
-                            .track_accounts_query(|db| {
-                                db.find_merchant_connector_account_by_profile_id_connector_name(
-                                    profile_id,
-                                    connector_name,
-                                    processor.get_key_store(),
-                                )
-                            })
+                            .accounts_store
+                            .find_merchant_connector_account_by_profile_id_connector_name(
+                                profile_id,
+                                connector_name,
+                                processor.get_key_store(),
+                            )
                             .await
                             .to_not_found_response(
                                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -7179,12 +7162,11 @@ pub async fn get_apple_pay_retryable_connectors(
             .as_ref(),
     )? {
         let merchant_connector_account_list = state
-            .track_accounts_query(|db| {
-                db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    processor.get_account().get_id(),
-                    profile_id,
-                )
-            })
+            .accounts_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                processor.get_account().get_id(),
+                profile_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -9328,13 +9310,12 @@ pub async fn fetch_active_surcharge_mca(
     surcharge_connector_id: &id_type::MerchantConnectorAccountId,
 ) -> RouterResult<Option<domain::MerchantConnectorAccount>> {
     let surcharge_mca = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                merchant_id,
-                surcharge_connector_id,
-                key_store,
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id,
+            surcharge_connector_id,
+            key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: surcharge_connector_id.get_string_repr().to_string(),
@@ -9544,12 +9525,11 @@ pub async fn validate_merchant_connector_ids_in_connector_mandate_details(
     card_network: Option<api_enums::CardNetwork>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let merchant_connector_account_list = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-                merchant_id,
-                true,
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -9863,12 +9843,11 @@ pub async fn validate_allowed_payment_method_types_request(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     if let Some(allowed_payment_method_types) = allowed_payment_method_types {
         let all_connector_accounts = state
-            .track_accounts_query(|db| {
-                db.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    processor.get_account().get_id(),
-                    profile_id,
-                )
-            })
+            .accounts_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                processor.get_account().get_id(),
+                profile_id,
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch merchant connector account for given merchant id")?;
@@ -9991,12 +9970,8 @@ pub async fn get_merchant_connector_account_v2(
 ) -> RouterResult<domain::MerchantConnectorAccount> {
     match merchant_connector_id {
         Some(merchant_connector_id) => state
-            .track_accounts_query(|db| {
-                db.find_merchant_connector_account_by_id(
-                    merchant_connector_id,
-                    processor.get_key_store(),
-                )
-            })
+            .accounts_store
+            .find_merchant_connector_account_by_id(merchant_connector_id, processor.get_key_store())
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_connector_id.get_string_repr().to_string(),

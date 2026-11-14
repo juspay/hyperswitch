@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, panic::Location, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -134,7 +134,7 @@ pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
-    accounts_store: Box<dyn AccountsStorageInterface>,
+    pub accounts_store: Box<dyn AccountsStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -187,22 +187,6 @@ impl SessionState {
         self.accounts_store.set_key_manager_state(key_manager_state);
     }
 
-    /// Run an accounts operation with this call site's location in scope.
-    /// Use one call per query to retain each query's location.
-    #[track_caller]
-    pub fn track_accounts_query<'s, F, Fut>(
-        &'s self,
-        operation: F,
-    ) -> impl Future<Output = Fut::Output> + 's
-    where
-        F: FnOnce(&'s dyn AccountsStorageInterface) -> Fut + 's,
-        Fut: Future + 's,
-    {
-        let origin = Location::caller();
-        router_env::call_origin::with_origin(origin, async move {
-            operation(self.accounts_store.as_ref()).await
-        })
-    }
     /// Resolve the runtime callback policy once for this request and its clones.
     pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
         self.payment_callback_config

@@ -280,9 +280,8 @@ mod tests {
         let store = state.store.as_ref();
         let key_store_master_key = store.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
@@ -406,9 +405,8 @@ mod tests {
         let store = state.store.as_ref();
         let key_store_master_key = store.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
@@ -547,9 +545,8 @@ mod tests {
         let store = state.store.as_ref();
         let key_store_master_key = store.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);

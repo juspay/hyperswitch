@@ -930,12 +930,11 @@ impl RevenueRecoveryAttempt {
             })?;
 
         state
-            .track_accounts_query(|db| {
-                db.find_merchant_connector_account_by_id(
-                    &payment_merchant_connector_account_id,
-                    key_store,
-                )
-            })
+            .accounts_store
+            .find_merchant_connector_account_by_id(
+                &payment_merchant_connector_account_id,
+                key_store,
+            )
             .await
             .change_context(
                 errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound {

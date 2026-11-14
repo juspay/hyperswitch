@@ -130,13 +130,12 @@ pub async fn create_link_token(
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                platform.get_processor().get_account().get_id(),
-                &selected_config.mca_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            platform.get_processor().get_account().get_id(),
+            &selected_config.mca_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -253,13 +252,12 @@ pub async fn exchange_token_core(
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                platform.get_processor().get_account().get_id(),
-                &config.mca_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            platform.get_processor().get_account().get_id(),
+            &config.mca_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .change_context(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -798,13 +796,12 @@ pub async fn retrieve_payment_method_from_auth_service(
 
     #[cfg(feature = "v1")]
     let mca = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                &payment_intent.processor_merchant_id,
-                &auth_token.connector_details.mca_id,
-                processor.get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &payment_intent.processor_merchant_id,
+            &auth_token.connector_details.mca_id,
+            processor.get_key_store(),
+        )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: auth_token

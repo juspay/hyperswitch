@@ -393,12 +393,11 @@ async fn find_de_record_for_algorithm(
                 .unwrap_or_default()
         }
         None => state
-            .track_accounts_query(|db| {
-                db.list_profile_by_merchant_id(
-                    processor.get_key_store(),
-                    processor.get_account().get_id(),
-                )
-            })
+            .accounts_store
+            .list_profile_by_merchant_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+            )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to list profiles while resolving a DE-only rule id")?,
@@ -771,13 +770,10 @@ pub async fn create_routing_algorithm_under_profile(
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
     // temporarily disabled — validation checks connector existence, not activity.
-    let all_mcas = state
-        .track_accounts_query(|db| {
-            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+    let all_mcas = state.accounts_store.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
                 processor_merchant_id,
                 business_profile.get_id(),
             )
-        })
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: processor_merchant_id.get_string_repr().to_owned(),
@@ -2171,9 +2167,8 @@ pub async fn retrieve_linked_routing_config(
         })?
     } else {
         let business_profile = state
-            .track_accounts_query(|db| {
-                db.list_profile_by_merchant_id(merchant_key_store, merchant_id)
-            })
+            .accounts_store
+            .list_profile_by_merchant_id(merchant_key_store, merchant_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
         core_utils::filter_objects_based_on_profile_id_list(
@@ -2393,12 +2388,8 @@ pub async fn retrieve_default_routing_config_for_profiles(
     let db = state.store.as_ref();
 
     let all_profiles = state
-        .track_accounts_query(|db| {
-            db.list_profile_by_merchant_id(
-                processor.get_key_store(),
-                processor.get_account().get_id(),
-            )
-        })
+        .accounts_store
+        .list_profile_by_merchant_id(processor.get_key_store(), processor.get_account().get_id())
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)
         .attach_printable("error retrieving all business profiles for merchant")?;
@@ -2513,13 +2504,12 @@ pub async fn update_default_routing_config_for_profile(
         default_fallback_routing: Some(default_fallback_routing),
     };
     state
-        .track_accounts_query(|db| {
-            db.update_profile_by_profile_id(
-                processor.get_key_store(),
-                business_profile.clone(),
-                profile_update,
-            )
-        })
+        .accounts_store
+        .update_profile_by_profile_id(
+            processor.get_key_store(),
+            business_profile.clone(),
+            profile_update,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update default_fallback_routing in business profile")?;
@@ -3022,14 +3012,14 @@ async fn get_merchant_account(
 )> {
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = state
-        .track_accounts_query(|db| db.find_merchant_account_by_merchant_id(merchant_id, &key_store))
+        .accounts_store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 

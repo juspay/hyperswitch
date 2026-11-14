@@ -945,9 +945,8 @@ async fn get_merchant_contexts_for_batch(
 ) -> MerchantContextBatch {
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     match state
-        .track_accounts_query(|db| {
-            db.list_multiple_key_stores(merchant_ids.clone(), &key_store_master_key)
-        })
+        .accounts_store
+        .list_multiple_key_stores(merchant_ids.clone(), &key_store_master_key)
         .await
     {
         Err(error) => {
@@ -958,7 +957,8 @@ async fn get_merchant_contexts_for_batch(
             )
         }
         Ok(key_stores) => match state
-            .track_accounts_query(|db| db.list_multiple_merchant_accounts(merchant_ids.clone()))
+            .accounts_store
+            .list_multiple_merchant_accounts(merchant_ids.clone())
             .await
         {
             Err(error) => {

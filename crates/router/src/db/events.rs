@@ -1944,9 +1944,8 @@ mod tests {
         };
         let key_store_master_key = master_key.to_vec().into();
         let merchant_key_store = state
-            .track_accounts_query(|db| {
-                db.insert_merchant_key_store(merchant_key_store_to_insert, &key_store_master_key)
-            })
+            .accounts_store
+            .insert_merchant_key_store(merchant_key_store_to_insert, &key_store_master_key)
             .await?;
 
         let merchant_account_to_insert = MerchantAccount::from(MerchantAccountSetter {
@@ -2005,9 +2004,8 @@ mod tests {
             apple_pay_certificates_encrypted: None,
         });
         let merchant_account = state
-            .track_accounts_query(|db| {
-                db.insert_merchant(merchant_account_to_insert, &merchant_key_store)
-            })
+            .accounts_store
+            .insert_merchant(merchant_account_to_insert, &merchant_key_store)
             .await?;
 
         let platform = domain::Platform::new(
@@ -2100,9 +2098,8 @@ mod tests {
         });
 
         let business_profile = state
-            .track_accounts_query(|db| {
-                db.insert_business_profile(&merchant_key_store, business_profile_to_insert)
-            })
+            .accounts_store
+            .insert_business_profile(&merchant_key_store, business_profile_to_insert)
             .await?;
 
         // Same inputs for all threads

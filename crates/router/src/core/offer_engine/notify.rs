@@ -174,20 +174,15 @@ pub async fn execute_notification(
     let db = &*state.store;
     let key_store_master_key = db.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(
-                &tracking_data.processor_merchant_id,
-                &key_store_master_key,
-            )
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(
+            &tracking_data.processor_merchant_id,
+            &key_store_master_key,
+        )
         .await?;
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(
-                &tracking_data.processor_merchant_id,
-                &key_store,
-            )
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&tracking_data.processor_merchant_id, &key_store)
         .await?;
     let processor_account = ProcessorMerchantAccount::from_untagged(merchant_account.clone());
     let processor_key_store = ProcessorKeyStore::from_untagged(key_store.clone());

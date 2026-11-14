@@ -764,9 +764,8 @@ pub async fn delete_user_role(
     // If user has no more role associated with him then deleting user
     if remaining_roles.is_empty() {
         let _ = state
-            .track_accounts_query(|db| {
-                db.delete_all_metadata_by_user_id(user_from_db.get_user_id())
-            })
+            .accounts_store
+            .delete_all_metadata_by_user_id(user_from_db.get_user_id())
             .await
             .inspect_err(|e| {
                 logger::error!("Error while deleting user metadata: {}", e);
@@ -1068,7 +1067,8 @@ pub async fn list_invitations_for_user(
 
     let org_name_map = futures::future::try_join_all(org_ids.into_iter().map(|org_id| async {
         let org_name = state
-            .track_accounts_query(|db| db.find_organization_by_org_id(&org_id))
+            .accounts_store
+            .find_organization_by_org_id(&org_id)
             .await
             .change_context(UserErrors::InternalServerError)?
             .get_organization_name()
@@ -1081,7 +1081,8 @@ pub async fn list_invitations_for_user(
     .collect::<HashMap<_, _>>();
 
     let merchant_name_map = state
-        .track_accounts_query(|db| db.list_multiple_merchant_accounts(merchant_ids))
+        .accounts_store
+        .list_multiple_merchant_accounts(merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
@@ -1100,16 +1101,14 @@ pub async fn list_invitations_for_user(
     let profile_name_map = futures::future::try_join_all(profile_ids_with_merchant_ids.iter().map(
         |(profile_id, merchant_id)| async {
             let merchant_key_store = state
-                .track_accounts_query(|db| {
-                    db.get_merchant_key_store_by_merchant_id(merchant_id, master_key)
-                })
+                .accounts_store
+                .get_merchant_key_store_by_merchant_id(merchant_id, master_key)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
             let business_profile = state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_profile_id(&merchant_key_store, profile_id)
-                })
+                .accounts_store
+                .find_business_profile_by_profile_id(&merchant_key_store, profile_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 

@@ -819,15 +819,13 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     let merchant_id = workflow.merchant_id()?.clone();
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await?;
 
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await?;
     let workflow = workflow.load_context(key_store, merchant_account);
 

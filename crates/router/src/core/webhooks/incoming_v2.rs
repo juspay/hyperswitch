@@ -824,9 +824,8 @@ async fn fetch_mca_and_connector(
     errors::ApiErrorResponse,
 > {
     let mca = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(connector_id, key_store)
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(connector_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: connector_id.get_string_repr().to_owned(),

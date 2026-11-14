@@ -36,22 +36,16 @@ pub async fn list_initial_delivery_attempts(
     // (with a fallback on `merchant_id` column for rows created before the
     // initiator column existed).
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // Validate the profile_id if provided.
     if let Some(ref profile_id) = profile_id {
         state
-            .track_accounts_query(|db| {
-                db.find_business_profile_by_merchant_id_profile_id(
-                    &key_store,
-                    &merchant_id,
-                    profile_id,
-                )
-            })
+            .accounts_store
+            .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -279,9 +273,8 @@ pub async fn list_delivery_attempts(
     // required in the query — but we verify ownership below to prevent a
     // merchant from reading another merchant's event chain.
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -309,9 +302,8 @@ pub async fn list_delivery_attempts(
             .and_then(|event| event.business_profile_id.clone())
         {
             Some(business_profile_id) => state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_profile_id(&key_store, &business_profile_id)
-                })
+                .accounts_store
+                .find_business_profile_by_profile_id(&key_store, &business_profile_id)
                 .await
                 .inspect_err(|error| {
                     router_env::logger::error!(
@@ -355,9 +347,8 @@ pub async fn retry_delivery_attempt(
     // The calling merchant is the webhook recipient, so their keystore was used
     // to encrypt the original event. Use it for decryption.
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -397,9 +388,8 @@ pub async fn retry_delivery_attempt(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to read business profile ID from event to retry")?;
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(&key_store, &business_profile_id)
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(&key_store, &business_profile_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to find business profile")?;

@@ -48,19 +48,18 @@ pub async fn insert_merchant_scoped_metadata_to_db(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
-        .track_accounts_query(|db| {
-            db.insert_metadata(DashboardMetadataNew {
-                user_id: None,
-                merchant_id,
-                org_id,
-                data_key: metadata_key,
-                data_value: Secret::from(data_value),
-                created_by: user_id.clone(),
-                created_at: now,
-                last_modified_by: user_id,
-                last_modified_at: now,
-                profile_id: None,
-            })
+        .accounts_store
+        .insert_metadata(DashboardMetadataNew {
+            user_id: None,
+            merchant_id,
+            org_id,
+            data_key: metadata_key,
+            data_value: Secret::from(data_value),
+            created_by: user_id.clone(),
+            created_at: now,
+            last_modified_by: user_id,
+            last_modified_at: now,
+            profile_id: None,
         })
         .await
         .map_err(|e| {
@@ -83,19 +82,18 @@ pub async fn insert_user_scoped_metadata_to_db(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
-        .track_accounts_query(|db| {
-            db.insert_metadata(DashboardMetadataNew {
-                user_id: Some(user_id.clone()),
-                merchant_id,
-                org_id,
-                data_key: metadata_key,
-                data_value: Secret::from(data_value),
-                created_by: user_id.clone(),
-                created_at: now,
-                last_modified_by: user_id,
-                last_modified_at: now,
-                profile_id: None,
-            })
+        .accounts_store
+        .insert_metadata(DashboardMetadataNew {
+            user_id: Some(user_id.clone()),
+            merchant_id,
+            org_id,
+            data_key: metadata_key,
+            data_value: Secret::from(data_value),
+            created_by: user_id.clone(),
+            created_at: now,
+            last_modified_by: user_id,
+            last_modified_at: now,
+            profile_id: None,
         })
         .await
         .map_err(|e| {
@@ -113,9 +111,8 @@ pub async fn get_merchant_scoped_metadata_from_db(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     state
-        .track_accounts_query(|db| {
-            db.find_merchant_scoped_dashboard_metadata(&merchant_id, &org_id, metadata_keys)
-        })
+        .accounts_store
+        .find_merchant_scoped_dashboard_metadata(&merchant_id, &org_id, metadata_keys)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("DB Error Fetching DashboardMetaData")
@@ -128,9 +125,8 @@ pub async fn get_user_scoped_metadata_from_db(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     match state
-        .track_accounts_query(|db| {
-            db.find_user_scoped_dashboard_metadata(&user_id, &merchant_id, &org_id, metadata_keys)
-        })
+        .accounts_store
+        .find_user_scoped_dashboard_metadata(&user_id, &merchant_id, &org_id, metadata_keys)
         .await
     {
         Ok(data) => Ok(data),
@@ -156,15 +152,14 @@ pub async fn get_profile_user_scoped_metadata_from_db(
     let mut results = Vec::with_capacity(metadata_keys.len());
     for key in metadata_keys {
         if let Some(metadata) = state
-            .track_accounts_query(|db| {
-                db.find_profile_scoped_dashboard_metadata(
-                    &user_id,
-                    &merchant_id,
-                    &org_id,
-                    profile_id.clone(),
-                    key,
-                )
-            })
+            .accounts_store
+            .find_profile_scoped_dashboard_metadata(
+                &user_id,
+                &merchant_id,
+                &org_id,
+                profile_id.clone(),
+                key,
+            )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("DB Error Fetching DashboardMetaData")?
@@ -188,20 +183,19 @@ pub async fn update_merchant_scoped_metadata(
         .attach_printable("Error Converting Struct To Serde Value")?;
 
     state
-        .track_accounts_query(|db| {
-            db.update_metadata(
-                None,
-                merchant_id,
-                org_id,
-                None,
-                metadata_key,
-                DashboardMetadataUpdate::UpdateData {
-                    data_key: metadata_key,
-                    data_value: Secret::from(data_value),
-                    last_modified_by: user_id,
-                },
-            )
-        })
+        .accounts_store
+        .update_metadata(
+            None,
+            merchant_id,
+            org_id,
+            None,
+            metadata_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key: metadata_key,
+                data_value: Secret::from(data_value),
+                last_modified_by: user_id,
+            },
+        )
         .await
         .change_context(UserErrors::InternalServerError)
 }
@@ -218,20 +212,19 @@ pub async fn update_user_scoped_metadata(
         .attach_printable("Error Converting Struct To Serde Value")?;
 
     state
-        .track_accounts_query(|db| {
-            db.update_metadata(
-                Some(user_id.clone()),
-                merchant_id,
-                org_id,
-                None,
-                metadata_key,
-                DashboardMetadataUpdate::UpdateData {
-                    data_key: metadata_key,
-                    data_value: Secret::from(data_value),
-                    last_modified_by: user_id,
-                },
-            )
-        })
+        .accounts_store
+        .update_metadata(
+            Some(user_id.clone()),
+            merchant_id,
+            org_id,
+            None,
+            metadata_key,
+            DashboardMetadataUpdate::UpdateData {
+                data_key: metadata_key,
+                data_value: Secret::from(data_value),
+                last_modified_by: user_id,
+            },
+        )
         .await
         .change_context(UserErrors::InternalServerError)
 }
@@ -406,15 +399,14 @@ where
 {
     let existing = {
         state
-            .track_accounts_query(|db| {
-                db.find_profile_scoped_dashboard_metadata(
-                    &user.user_id,
-                    &user.merchant_id,
-                    &user.org_id,
-                    profile_id.clone(),
-                    metadata_key,
-                )
-            })
+            .accounts_store
+            .find_profile_scoped_dashboard_metadata(
+                &user.user_id,
+                &user.merchant_id,
+                &user.org_id,
+                profile_id.clone(),
+                metadata_key,
+            )
             .await
     }
     .change_context(UserErrors::InternalServerError)
@@ -434,39 +426,37 @@ where
 
     match existing {
         Some(metadata) => state
-            .track_accounts_query(|db| {
-                db.update_metadata(
-                    metadata.user_id,
-                    metadata.merchant_id,
-                    metadata.org_id,
-                    metadata.profile_id,
-                    metadata_key,
-                    DashboardMetadataUpdate::UpdateData {
-                        data_key: metadata_key,
-                        data_value: Secret::new(data_value),
-                        last_modified_by: user.user_id.clone(),
-                    },
-                )
-            })
+            .accounts_store
+            .update_metadata(
+                metadata.user_id,
+                metadata.merchant_id,
+                metadata.org_id,
+                metadata.profile_id,
+                metadata_key,
+                DashboardMetadataUpdate::UpdateData {
+                    data_key: metadata_key,
+                    data_value: Secret::new(data_value),
+                    last_modified_by: user.user_id.clone(),
+                },
+            )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Error updating dashboard metadata"),
         None => {
             let now = common_utils::date_time::now();
             state
-                .track_accounts_query(|db| {
-                    db.insert_metadata(DashboardMetadataNew {
-                        user_id: Some(user.user_id.clone()),
-                        merchant_id: user.merchant_id,
-                        org_id: user.org_id,
-                        data_key: metadata_key,
-                        data_value: Secret::new(data_value),
-                        created_by: user.user_id.clone(),
-                        created_at: now,
-                        last_modified_by: user.user_id.clone(),
-                        last_modified_at: now,
-                        profile_id,
-                    })
+                .accounts_store
+                .insert_metadata(DashboardMetadataNew {
+                    user_id: Some(user.user_id.clone()),
+                    merchant_id: user.merchant_id,
+                    org_id: user.org_id,
+                    data_key: metadata_key,
+                    data_value: Secret::new(data_value),
+                    created_by: user.user_id.clone(),
+                    created_at: now,
+                    last_modified_by: user.user_id.clone(),
+                    last_modified_at: now,
+                    profile_id,
                 })
                 .await
                 .change_context(UserErrors::InternalServerError)

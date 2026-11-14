@@ -118,23 +118,15 @@ pub async fn create_role(
 
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let merchant_key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(
-                &user_from_token.merchant_id,
-                &key_store_master_key,
-            )
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(
-                &user_from_token.merchant_id,
-                &merchant_key_store,
-            )
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -257,23 +249,15 @@ pub async fn create_role_v2(
 
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let merchant_key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(
-                &user_from_token.merchant_id,
-                &key_store_master_key,
-            )
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(
-                &user_from_token.merchant_id,
-                &merchant_key_store,
-            )
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -518,23 +502,21 @@ pub async fn update_role(
             EntityType::Merchant | EntityType::Profile => {
                 let key_store_master_key = state.store.get_master_key().to_vec().into();
                 let merchant_key_store = state
-                    .track_accounts_query(|db| {
-                        db.get_merchant_key_store_by_merchant_id(
-                            &user_from_token.merchant_id,
-                            &key_store_master_key,
-                        )
-                    })
+                    .accounts_store
+                    .get_merchant_key_store_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &key_store_master_key,
+                    )
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 let merchant_account = state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_account_by_merchant_id(
-                            &user_from_token.merchant_id,
-                            &merchant_key_store,
-                        )
-                    })
+                    .accounts_store
+                    .find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -653,23 +635,21 @@ pub async fn list_roles_with_info(
             EntityType::Merchant | EntityType::Profile => {
                 let key_store_master_key = state.store.get_master_key().to_vec().into();
                 let merchant_key_store = state
-                    .track_accounts_query(|db| {
-                        db.get_merchant_key_store_by_merchant_id(
-                            &user_from_token.merchant_id,
-                            &key_store_master_key,
-                        )
-                    })
+                    .accounts_store
+                    .get_merchant_key_store_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &key_store_master_key,
+                    )
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 let merchant_account = state
-                    .track_accounts_query(|db| {
-                        db.find_merchant_account_by_merchant_id(
-                            &user_from_token.merchant_id,
-                            &merchant_key_store,
-                        )
-                    })
+                    .accounts_store
+                    .find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
@@ -833,23 +813,21 @@ pub async fn list_roles_at_entity_level(
         EntityType::Merchant | EntityType::Profile => {
             let key_store_master_key = state.store.get_master_key().to_vec().into();
             let merchant_key_store = state
-                .track_accounts_query(|db| {
-                    db.get_merchant_key_store_by_merchant_id(
-                        &user_from_token.merchant_id,
-                        &key_store_master_key,
-                    )
-                })
+                .accounts_store
+                .get_merchant_key_store_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &key_store_master_key,
+                )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
             let product_type = state
-                .track_accounts_query(|db| {
-                    db.find_merchant_account_by_merchant_id(
-                        &user_from_token.merchant_id,
-                        &merchant_key_store,
-                    )
-                })
+                .accounts_store
+                .find_merchant_account_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &merchant_key_store,
+                )
                 .await
                 .map(|merchant_account| {
                     merchant_account

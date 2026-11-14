@@ -17,9 +17,8 @@ pub async fn transfer_encryption_key(
     let db = &*state.store;
     let key_store_master_key = db.get_master_key().to_vec().into();
     let key_stores = state
-        .track_accounts_query(|db| {
-            db.get_all_key_stores(&key_store_master_key, req.from, req.limit)
-        })
+        .accounts_store
+        .get_all_key_stores(&key_store_master_key, req.from, req.limit)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     send_request_to_key_service_for_merchant(state, key_stores).await

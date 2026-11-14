@@ -151,9 +151,8 @@ pub async fn trigger_refund_to_gateway(
     let storage_scheme = processor.get_account().storage_scheme;
 
     let mca = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;
@@ -871,9 +870,8 @@ pub async fn sync_refund_with_gateway(
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let mca = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch merchant connector account")?;

@@ -279,12 +279,11 @@ pub async fn revenue_recovery_list_payments(
                     async move {
                         if let Some(billing_mca_id) = billing_mca_id {
                             state
-                                .track_accounts_query(|db| {
-                                    db.find_merchant_connector_account_by_id(
-                                        &billing_mca_id,
-                                        platform_clone.get_processor().get_key_store(),
-                                    )
-                                })
+                                .accounts_store
+                                .find_merchant_connector_account_by_id(
+                                    &billing_mca_id,
+                                    platform_clone.get_processor().get_key_store(),
+                                )
                                 .await
                                 .ok()
                         } else {

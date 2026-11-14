@@ -371,12 +371,11 @@ async fn find_connector_account_of_profile(
     };
 
     let connector_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_connector_account_by_id(
-                merchant_connector_id,
-                platform.get_processor().get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_merchant_connector_account_by_id(
+            merchant_connector_id,
+            platform.get_processor().get_key_store(),
+        )
         .await
         .to_not_found_response(not_found())?;
 

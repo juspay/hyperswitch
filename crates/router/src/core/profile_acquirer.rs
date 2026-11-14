@@ -18,9 +18,8 @@ pub async fn create_profile_acquirer(
     let merchant_key_store = processor.get_key_store();
 
     let mut business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(merchant_key_store, &request.profile_id)
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(merchant_key_store, &request.profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: request.profile_id.get_string_repr().to_owned(),
@@ -73,9 +72,8 @@ pub async fn create_profile_acquirer(
         acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
     let updated_business_profile = state
-        .track_accounts_query(|db| {
-            db.update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
-        })
+        .accounts_store
+        .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with new acquirer config")?;
@@ -114,9 +112,8 @@ pub async fn update_profile_acquirer_config(
     let merchant_key_store = processor.get_key_store();
 
     let mut business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(merchant_key_store, &profile_id)
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(merchant_key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -189,9 +186,8 @@ pub async fn update_profile_acquirer_config(
     };
 
     let updated_business_profile = state
-        .track_accounts_query(|db| {
-            db.update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
-        })
+        .accounts_store
+        .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with updated acquirer config")?;

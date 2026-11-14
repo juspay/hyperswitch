@@ -348,9 +348,8 @@ impl ApplePayCertificateResource {
             ),
         };
         let updated = state
-            .track_accounts_query(|db| {
-                db.update_linked_resource_data(resource.id.clone(), resource_update, org_key)
-            })
+            .accounts_store
+            .update_linked_resource_data(resource.id.clone(), resource_update, org_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to persist uploaded Apple Pay certificate")?;
@@ -438,13 +437,12 @@ async fn fetch_requestor_account(
         common_enums::ResourceRequestorType::MerchantConnectorAccount => {
             let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(requestor_id)?;
             let mca = state
-                .track_accounts_query(|db| {
-                    db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        processor.get_account().get_id(),
-                        &mca_id,
-                        processor.get_key_store(),
-                    )
-                })
+                .accounts_store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    processor.get_account().get_id(),
+                    &mca_id,
+                    processor.get_key_store(),
+                )
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -456,13 +454,12 @@ async fn fetch_requestor_account(
         common_enums::ResourceRequestorType::Profile => {
             let profile_id = parse_requestor_id::<id_type::ProfileId>(requestor_id)?;
             let profile = state
-                .track_accounts_query(|db| {
-                    db.find_business_profile_by_merchant_id_profile_id(
-                        processor.get_key_store(),
-                        processor.get_account().get_id(),
-                        &profile_id,
-                    )
-                })
+                .accounts_store
+                .find_business_profile_by_merchant_id_profile_id(
+                    processor.get_key_store(),
+                    processor.get_account().get_id(),
+                    &profile_id,
+                )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                     id: profile_id.get_string_repr().to_owned(),
@@ -509,13 +506,12 @@ async fn resolve_apple_pay_certificate_data(
             Some(data) => Some(data),
             None => {
                 let profile = state
-                    .track_accounts_query(|db| {
-                        db.find_business_profile_by_merchant_id_profile_id(
-                            processor.get_key_store(),
-                            processor.get_account().get_id(),
-                            &mca.profile_id,
-                        )
-                    })
+                    .accounts_store
+                    .find_business_profile_by_merchant_id_profile_id(
+                        processor.get_key_store(),
+                        processor.get_account().get_id(),
+                        &mca.profile_id,
+                    )
                     .await
                     .ok()?;
                 profile
@@ -551,31 +547,28 @@ async fn link_hierarchical_resource_data_to_scope(
     match account {
         RequestorAccount::MerchantConnectorAccount(mca) => {
             state
-                .track_accounts_query(|db| {
-                    db.update_merchant_connector_account(
-                        *mca,
-                        update.for_merchant_connector_account().foreign_into(),
-                        key_store,
-                    )
-                })
+                .accounts_store
+                .update_merchant_connector_account(
+                    *mca,
+                    update.for_merchant_connector_account().foreign_into(),
+                    key_store,
+                )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to merchant connector account")?;
         }
         RequestorAccount::Profile(profile) => {
             state
-                .track_accounts_query(|db| {
-                    db.update_profile_by_profile_id(key_store, *profile, update.for_profile())
-                })
+                .accounts_store
+                .update_profile_by_profile_id(key_store, *profile, update.for_profile())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to profile")?;
         }
         RequestorAccount::MerchantAccount(merchant_account) => {
             state
-                .track_accounts_query(|db| {
-                    db.update_merchant(*merchant_account, update.for_merchant_account(), key_store)
-                })
+                .accounts_store
+                .update_merchant(*merchant_account, update.for_merchant_account(), key_store)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to merchant account")?;
@@ -603,7 +596,8 @@ pub async fn generate_hierarchical_resource(
     };
 
     state
-        .track_accounts_query(|db| db.insert_linked_resource(resource, &org_key_store.key))
+        .accounts_store
+        .insert_linked_resource(resource, &org_key_store.key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to persist generated resource")?;
@@ -646,7 +640,8 @@ pub async fn upload_hierarchical_resource(
     let organization_id = processor.get_account().organization_id.clone();
 
     let scope_id = state
-        .track_accounts_query(|db| db.find_resource_scope_id(resource_id.clone()))
+        .accounts_store
+        .find_resource_scope_id(resource_id.clone())
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -657,9 +652,8 @@ pub async fn upload_hierarchical_resource(
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resource = state
-        .track_accounts_query(|db| {
-            db.find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
-        })
+        .accounts_store
+        .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -746,13 +740,12 @@ pub async fn list_hierarchical_resources(
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resources = state
-        .track_accounts_query(|db| {
-            db.list_linked_resources_by_scope_id_and_resource_type(
-                organization_id.get_string_repr().to_string(),
-                req.resource_type.to_string(),
-                &org_key_store.key,
-            )
-        })
+        .accounts_store
+        .list_linked_resources_by_scope_id_and_resource_type(
+            organization_id.get_string_repr().to_string(),
+            req.resource_type.to_string(),
+            &org_key_store.key,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to list resources")?;
@@ -829,7 +822,8 @@ pub async fn link_hierarchical_resource(
     let organization_id = merchant_account.organization_id.clone();
 
     let scope_id = state
-        .track_accounts_query(|db| db.find_resource_scope_id(resource_id.clone()))
+        .accounts_store
+        .find_resource_scope_id(resource_id.clone())
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "resource not found".to_string(),
@@ -843,9 +837,8 @@ pub async fn link_hierarchical_resource(
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let resource = state
-        .track_accounts_query(|db| {
-            db.find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
-        })
+        .accounts_store
+        .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to fetch resource to link")?;
@@ -897,9 +890,8 @@ pub(crate) async fn ensure_organization_key_store(
 
     let key_store_master_key = master_key.to_vec().into();
     match state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&org_key_identifier, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&org_key_identifier, &key_store_master_key)
         .await
     {
         Ok(key_store) => Ok(key_store),
@@ -952,9 +944,8 @@ async fn create_organization_key_store(
 
     let key_store_master_key = master_key.to_vec().into();
     state
-        .track_accounts_query(|db| {
-            db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
-        })
+        .accounts_store
+        .insert_merchant_key_store(key_store.clone(), &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert organization key store")?;

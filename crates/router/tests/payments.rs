@@ -298,16 +298,14 @@ async fn payments_create_core() {
         .unwrap();
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 
@@ -621,16 +619,14 @@ async fn payments_create_core_adyen_no_redirect() {
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .track_accounts_query(|db| {
-            db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        })
+        .accounts_store
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
 

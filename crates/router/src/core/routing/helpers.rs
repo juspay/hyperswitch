@@ -211,13 +211,12 @@ pub async fn update_merchant_active_algorithm_ref(
 
     let db = &*state.store;
     state
-        .track_accounts_query(|db| {
-            db.update_specific_fields_in_merchant(
-                &key_store.merchant_id,
-                merchant_account_update,
-                key_store,
-            )
-        })
+        .accounts_store
+        .update_specific_fields_in_merchant(
+            &key_store.merchant_id,
+            merchant_account_update,
+            key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in merchant account")?;
@@ -263,13 +262,12 @@ pub async fn update_profile_active_algorithm_ref(
     };
 
     state
-        .track_accounts_query(|db| {
-            db.update_profile_by_profile_id(
-                merchant_key_store,
-                current_business_profile,
-                business_profile_update,
-            )
-        })
+        .accounts_store
+        .update_profile_by_profile_id(
+            merchant_key_store,
+            current_business_profile,
+            business_profile_update,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update routing algorithm ref in business profile")?;
@@ -308,13 +306,12 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
         dynamic_routing_algorithm: Some(ref_val),
     };
     state
-        .track_accounts_query(|db| {
-            db.update_profile_by_profile_id(
-                merchant_key_store,
-                current_business_profile,
-                business_profile_update,
-            )
-        })
+        .accounts_store
+        .update_profile_by_profile_id(
+            merchant_key_store,
+            current_business_profile,
+            business_profile_update,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update dynamic routing algorithm ref in business profile")?;
@@ -489,13 +486,10 @@ pub async fn validate_contract_based_label_info(
 ) -> RouterResult<()> {
     // Fetching disabled MCAs too: a contract config may reference a temporarily disabled
     // MCA — validation checks connector existence and label, not activity.
-    let all_mcas = state
-        .track_accounts_query(|db| {
-            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+    let all_mcas = state.accounts_store.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
                 merchant_id,
                 profile_id,
             )
-        })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -547,10 +541,7 @@ pub async fn validate_connectors_in_routing_config(
 ) -> RouterResult<()> {
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
     // temporarily disabled — validation checks connector existence, not activity.
-    let all_mcas = state
-        .track_accounts_query(|db| {
-            db.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
-        })
+    let all_mcas = state.accounts_store.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),

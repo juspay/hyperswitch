@@ -1392,12 +1392,8 @@ pub async fn authentication_authenticate_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -2110,12 +2106,8 @@ pub async fn authentication_sync_core(
     let profile_id = authentication.profile_id.clone();
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
@@ -2421,12 +2413,11 @@ pub async fn authentication_post_sync_core(
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &authentication.profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(
+            platform.get_processor().get_key_store(),
+            &authentication.profile_id,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: authentication.profile_id.get_string_repr().to_owned(),
@@ -2558,12 +2549,11 @@ pub async fn authentication_session_core(
     let mut session_tokens = Vec::new();
 
     let business_profile = state
-        .track_accounts_query(|db| {
-            db.find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &authentication.profile_id,
-            )
-        })
+        .accounts_store
+        .find_business_profile_by_profile_id(
+            platform.get_processor().get_key_store(),
+            &authentication.profile_id,
+        )
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: authentication.profile_id.get_string_repr().to_owned(),
@@ -2607,13 +2597,12 @@ pub async fn get_session_token_for_click_to_pay(
     let key_manager_state = &state.into();
 
     let merchant_connector_account = state
-        .track_accounts_query(|db| {
-            db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                processor.get_account().get_id(),
-                &click_to_pay_mca_id,
-                processor.get_key_store(),
-            )
-        })
+        .accounts_store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor.get_account().get_id(),
+            &click_to_pay_mca_id,
+            processor.get_key_store(),
+        )
         .await
         .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: click_to_pay_mca_id.get_string_repr().to_string(),

@@ -388,9 +388,8 @@ async fn payment_response_hash_key(
     };
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .track_accounts_query(|db| {
-            db.get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
-        })
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .change_context(AnalyticsError::UnknownError)?;
     crate::utils::get_payment_response_hash_key(state, &key_store, &request.auth).await

@@ -55,15 +55,13 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
             .get_required_value("merchant_id")?;
         let key_store_master_key = db.get_master_key().to_vec().into();
         let key_store = state
-            .track_accounts_query(|db| {
-                db.get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
-            })
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await?;
 
         let merchant_account = state
-            .track_accounts_query(|db| {
-                db.find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-            })
+            .accounts_store
+            .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 
         let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
@@ -273,9 +271,8 @@ impl PayoutSyncWorkFlow {
         let event_type: Option<enums::EventType> = payout_data.payout_attempt.status.into();
 
         let business_profile = state
-            .track_accounts_query(|db| {
-                db.find_business_profile_by_profile_id(key_store, &payout_data.profile_id)
-            })
+            .accounts_store
+            .find_business_profile_by_profile_id(key_store, &payout_data.profile_id)
             .await
             .map_err(errors::ProcessTrackerError::EStorageError)?;
 
