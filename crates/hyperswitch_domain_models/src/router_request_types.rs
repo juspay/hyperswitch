@@ -87,6 +87,8 @@ pub enum CurrentFlowInfo {
         /// The payment setup mandate request data
         request_data: Box<ConnectorWebhookRegisterRequest>,
     },
+    /// Connector execute flow.
+    Execute,
 }
 
 impl CurrentFlowInfo {
@@ -99,6 +101,7 @@ impl CurrentFlowInfo {
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
             Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
+            Self::Execute => None,
         }
     }
 }

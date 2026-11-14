@@ -1095,6 +1095,7 @@ impl ConnectorSpecifications for Xendit {
             | api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. } => false,
         }
