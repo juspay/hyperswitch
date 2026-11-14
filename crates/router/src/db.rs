@@ -212,7 +212,7 @@ pub trait AccountsStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + OrganizationInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
@@ -231,7 +231,7 @@ pub trait AccountsStorageInterface:
     + Sync
     + dyn_clone::DynClone
     + OrganizationInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
     + business_profile::ProfileInterface<Error = StorageError>
     + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
     + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
