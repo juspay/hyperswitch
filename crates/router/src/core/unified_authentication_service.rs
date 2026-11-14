@@ -725,7 +725,7 @@ pub async fn authentication_create_core(
         req.profile_id
             .as_ref()
             .or(profile_id_from_auth_layer.as_ref()),
-        &state,
+        state.accounts_store.as_ref(),
     )
     .await?;
     core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &business_profile)?;
@@ -1088,7 +1088,7 @@ pub async fn authentication_eligibility_core(
         None,
         platform.get_processor(),
         Some(&authentication.profile_id),
-        &state,
+        state.accounts_store.as_ref(),
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();

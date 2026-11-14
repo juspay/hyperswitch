@@ -189,7 +189,7 @@ pub async fn routing_entry(
                     // that exists without ancestry still beats failing the dashboard entry.
                     let processor = platform.get_processor();
                     match core_utils::validate_and_get_business_profile(
-                        &state,
+                        state.accounts_store.as_ref(),
                         processor,
                         Some(&profile_id),
                     )
@@ -386,12 +386,14 @@ async fn find_de_record_for_algorithm(
     let processor = platform.get_processor();
 
     let candidate_profiles = match authentication_profile_id {
-        Some(profile_id) => {
-            core_utils::validate_and_get_business_profile(state, processor, Some(&profile_id))
-                .await?
-                .map(|profile| vec![profile])
-                .unwrap_or_default()
-        }
+        Some(profile_id) => core_utils::validate_and_get_business_profile(
+            state.accounts_store.as_ref(),
+            processor,
+            Some(&profile_id),
+        )
+        .await?
+        .map(|profile| vec![profile])
+        .unwrap_or_default(),
         None => state
             .accounts_store
             .list_profile_by_merchant_id(
@@ -714,7 +716,7 @@ async fn build_list_routing_result(
         let mut hs_result_for_profile: Vec<routing_types::RoutingDictionaryRecord> =
             hs_results.iter().filter(by_profile).cloned().collect();
         let business_profile = match core_utils::validate_and_get_business_profile(
-            state,
+            state.accounts_store.as_ref(),
             platform.get_processor(),
             Some(profile_id),
         )
@@ -762,10 +764,13 @@ pub async fn create_routing_algorithm_under_profile(
     metrics::ROUTING_CREATE_REQUEST_RECEIVED.add(1, &[]);
     let processor = platform.get_processor();
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, processor, Some(&request.profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(&request.profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
     let processor_merchant_id = processor.get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
@@ -867,10 +872,13 @@ pub async fn create_routing_algorithm_under_profile(
         })
         .attach_printable("Profile_id not provided")?;
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
 
@@ -1062,10 +1070,13 @@ pub async fn link_routing_config_under_profile(
         })
     })?;
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
 
     utils::when(
         routing_algorithm.0.algorithm_for != *transaction_type,
@@ -1177,7 +1188,7 @@ pub async fn link_routing_config(
     };
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        &state,
+        state.accounts_store.as_ref(),
         &processor,
         Some(&routing_algorithm.profile_id),
     )
@@ -1390,7 +1401,7 @@ pub async fn link_routing_config(
             }
 
             helpers::update_business_profile_active_dynamic_algorithm_ref(
-                &state,
+                state.accounts_store.as_ref(),
                 processor.get_key_store(),
                 business_profile.clone(),
                 dynamic_routing_ref,
@@ -1607,7 +1618,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     )
     .await?;
     let business_profile = core_utils::validate_and_get_business_profile(
-        &state,
+        state.accounts_store.as_ref(),
         &processor,
         Some(&routing_algorithm.0.profile_id),
     )
@@ -1663,7 +1674,7 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     };
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        &state,
+        state.accounts_store.as_ref(),
         &processor,
         Some(&routing_algorithm.profile_id),
     )
@@ -1710,10 +1721,13 @@ pub async fn unlink_routing_config_under_profile(
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
 
     let routing_algo_id = match transaction_type {
         enums::TransactionType::Payment => business_profile.routing_algorithm_id.clone(),
@@ -1770,9 +1784,12 @@ pub async fn unlink_routing_config(
         })
         .attach_printable("Profile_id not provided")?;
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?;
 
     match business_profile {
         Some(business_profile) => {
@@ -1942,10 +1959,13 @@ pub async fn update_default_fallback_routing(
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_UPDATE_CONFIG.add(1, &[]);
     let key_manager_state = &(&state).into();
-    let profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
     let profile_wrapper = admin::ProfileWrapper::new(profile);
     let default_list_of_connectors =
         profile_wrapper.get_default_fallback_list_of_connector_under_profile()?;
@@ -1989,7 +2009,7 @@ pub async fn update_default_fallback_routing(
     )?;
     profile_wrapper
         .update_default_fallback_routing_of_connectors_under_profile(
-            &state,
+            state.accounts_store.as_ref(),
             &updated_list_of_connectors,
             key_manager_state,
             processor.get_key_store(),
@@ -2062,10 +2082,13 @@ pub async fn retrieve_default_fallback_algorithm_for_profile(
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<Vec<routing_types::RoutableConnectorChoice>> {
     metrics::ROUTING_RETRIEVE_DEFAULT_CONFIG.add(1, &[]);
-    let profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
 
     let connectors_choice = admin::ProfileWrapper::new(profile)
         .get_default_fallback_list_of_connector_under_profile()?;
@@ -2112,10 +2135,13 @@ pub async fn retrieve_routing_config_under_profile(
     metrics::ROUTING_RETRIEVE_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")?;
 
     let record = db
         .list_routing_algorithm_metadata_by_profile_id(
@@ -2155,7 +2181,7 @@ pub async fn retrieve_linked_routing_config(
     // Get business profiles
     let business_profiles = if let Some(profile_id) = query_params.profile_id {
         core_utils::validate_and_get_business_profile(
-            &state,
+            state.accounts_store.as_ref(),
             platform.get_processor(),
             Some(&profile_id),
         )
@@ -2436,13 +2462,16 @@ pub async fn update_default_routing_config_for_profile(
 
     let db = state.store.as_ref();
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
     let default_config = helpers::get_merchant_default_config(
         db,
         business_profile.get_id().get_string_repr(),
@@ -2541,13 +2570,16 @@ pub async fn create_specific_dynamic_routing(
     );
     let processor = platform.get_processor();
 
-    let business_profile: domain::Profile =
-        core_utils::validate_and_get_business_profile(&state, processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
@@ -2609,13 +2641,16 @@ pub async fn configure_dynamic_routing_volume_split(
         },
     )?;
 
-    let business_profile: domain::Profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     let mut dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
@@ -2631,7 +2666,7 @@ pub async fn configure_dynamic_routing_volume_split(
     dynamic_routing_algo_ref.update_volume_split(Some(routing_info.split));
 
     helpers::update_business_profile_active_dynamic_algorithm_ref(
-        &state,
+        state.accounts_store.as_ref(),
         processor.get_key_store(),
         business_profile.clone(),
         dynamic_routing_algo_ref.clone(),
@@ -2647,13 +2682,16 @@ pub async fn retrieve_dynamic_routing_volume_split(
     processor: domain::Processor,
     profile_id: common_utils::id_type::ProfileId,
 ) -> RouterResponse<routing_types::RoutingVolumeSplitResponse> {
-    let business_profile: domain::Profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     let dynamic_routing_algo_ref: routing_types::DynamicRoutingAlgorithmRef = business_profile
         .dynamic_routing_algorithm
@@ -2686,13 +2724,16 @@ pub async fn contract_based_dynamic_routing_setup(
     let db = state.store.as_ref();
     let processor = platform.get_processor();
 
-    let business_profile: domain::Profile =
-        core_utils::validate_and_get_business_profile(&state, processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile: domain::Profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     let mut dynamic_routing_algo_ref: Option<routing_types::DynamicRoutingAlgorithmRef> =
         business_profile
@@ -2818,7 +2859,7 @@ pub async fn contract_based_dynamic_routing_setup(
         .attach_printable("Unable to insert record in routing algorithm table")?;
 
     helpers::update_business_profile_active_dynamic_algorithm_ref(
-        &state,
+        state.accounts_store.as_ref(),
         processor.get_key_store(),
         business_profile,
         final_algorithm,
@@ -3161,13 +3202,16 @@ async fn migrate_rules_for_profile(
     let state = state.clone();
     let db = state.store.as_ref();
 
-    let business_profile =
-        core_utils::validate_and_get_business_profile(&state, &processor, Some(&profile_id))
-            .await?
-            .get_required_value("Profile")
-            .change_context(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        &processor,
+        Some(&profile_id),
+    )
+    .await?
+    .get_required_value("Profile")
+    .change_context(errors::ApiErrorResponse::ProfileNotFound {
+        id: profile_id.get_string_repr().to_owned(),
+    })?;
 
     // Provision the scope, with its ancestry, before migrating any rule into it — otherwise the
     // rules route but the dashboard handoff returns "merchant not found".

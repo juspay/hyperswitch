@@ -359,7 +359,7 @@ pub async fn initiate_batch_blocklist_upload(
         None,
         platform.get_processor(),
         profile_id.as_ref(),
-        state,
+        state.accounts_store.as_ref(),
     )
     .await?
     .get_id()

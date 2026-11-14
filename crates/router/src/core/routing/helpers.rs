@@ -47,7 +47,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
     },
-    db::StorageInterface,
+    db::{AccountsStorageInterface, StorageInterface},
     routes::SessionState,
     services,
     types::{domain, storage},
@@ -293,7 +293,7 @@ pub async fn update_profile_active_algorithm_ref(
 
 #[cfg(feature = "v1")]
 pub async fn update_business_profile_active_dynamic_algorithm_ref(
-    state: &SessionState,
+    db: &dyn AccountsStorageInterface,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     dynamic_routing_algorithm_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -305,16 +305,14 @@ pub async fn update_business_profile_active_dynamic_algorithm_ref(
     let business_profile_update = domain::ProfileUpdate::DynamicRoutingAlgorithmUpdate {
         dynamic_routing_algorithm: Some(ref_val),
     };
-    state
-        .accounts_store
-        .update_profile_by_profile_id(
-            merchant_key_store,
-            current_business_profile,
-            business_profile_update,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update dynamic routing algorithm ref in business profile")?;
+    db.update_profile_by_profile_id(
+        merchant_key_store,
+        current_business_profile,
+        business_profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update dynamic routing algorithm ref in business profile")?;
     Ok(())
 }
 
@@ -2013,7 +2011,7 @@ pub async fn disable_dynamic_routing_algorithm(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let response = record.foreign_into();
     update_business_profile_active_dynamic_algorithm_ref(
-        state,
+        state.accounts_store.as_ref(),
         &key_store,
         business_profile,
         dynamic_routing_algorithm,
@@ -2151,7 +2149,7 @@ where
     *algo_type_enabled_features = feature_to_enable;
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
-        state,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref.clone(),
@@ -2278,7 +2276,7 @@ pub async fn default_specific_dynamic_routing_setup(
         dynamic_routing_type,
     );
     update_business_profile_active_dynamic_algorithm_ref(
-        state,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,
@@ -2406,7 +2404,7 @@ pub async fn create_specific_dynamic_routing_setup(
 
     dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
-        state,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,

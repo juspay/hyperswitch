@@ -6601,7 +6601,7 @@ pub async fn list_customer_payment_method(
         .transpose()?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        state,
+        state.accounts_store.as_ref(),
         platform.get_processor(),
         profile_id.as_ref(),
     )

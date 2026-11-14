@@ -79,7 +79,7 @@ pub async fn generate_sample_data(
             business_label_default.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
-            state,
+            state.accounts_store.as_ref(),
         )
         .await
         .map(|business_profile| business_profile.get_id().to_owned());

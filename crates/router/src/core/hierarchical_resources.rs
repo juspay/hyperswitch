@@ -17,6 +17,7 @@ use storage_impl::behaviour::ForeignInto;
 
 use crate::{
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
+    db::AccountsStorageInterface,
     routes::SessionState,
     services::api::ApplicationResponse,
     types::domain,
@@ -287,8 +288,13 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
                     apple_pay_certificates: Some(Secret::new(plain_data)),
                     apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
                 };
-                link_hierarchical_resource_data_to_scope(state, account_key_store, account, &update)
-                    .await
+                link_hierarchical_resource_data_to_scope(
+                    state.accounts_store.as_ref(),
+                    account_key_store,
+                    account,
+                    &update,
+                )
+                .await
             }
             None => Ok(()),
         }
@@ -428,7 +434,7 @@ where
 /// check is needed since the fetch can never return an entity belonging to a different merchant.
 #[cfg(feature = "v1")]
 async fn fetch_requestor_account(
-    state: &SessionState,
+    db: &dyn AccountsStorageInterface,
     processor: &domain::Processor,
     requestor_type: common_enums::ResourceRequestorType,
     requestor_id: &str,
@@ -436,8 +442,7 @@ async fn fetch_requestor_account(
     match requestor_type {
         common_enums::ResourceRequestorType::MerchantConnectorAccount => {
             let mca_id = parse_requestor_id::<id_type::MerchantConnectorAccountId>(requestor_id)?;
-            let mca = state
-                .accounts_store
+            let mca = db
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     processor.get_account().get_id(),
                     &mca_id,
@@ -453,8 +458,7 @@ async fn fetch_requestor_account(
         }
         common_enums::ResourceRequestorType::Profile => {
             let profile_id = parse_requestor_id::<id_type::ProfileId>(requestor_id)?;
-            let profile = state
-                .accounts_store
+            let profile = db
                 .find_business_profile_by_merchant_id_profile_id(
                     processor.get_key_store(),
                     processor.get_account().get_id(),
@@ -480,7 +484,7 @@ async fn fetch_requestor_account(
 
 #[cfg(feature = "v2")]
 async fn fetch_requestor_account(
-    _state: &SessionState,
+    _db: &dyn AccountsStorageInterface,
     _processor: &domain::Processor,
     _requestor_type: common_enums::ResourceRequestorType,
     _requestor_id: &str,
@@ -496,7 +500,7 @@ async fn fetch_requestor_account(
 /// already scoped to `processor`'s merchant, not caller-supplied ids.
 #[cfg(feature = "v1")]
 async fn resolve_apple_pay_certificate_data(
-    state: &SessionState,
+    db: &dyn AccountsStorageInterface,
     processor: &domain::Processor,
     account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -505,8 +509,7 @@ async fn resolve_apple_pay_certificate_data(
         {
             Some(data) => Some(data),
             None => {
-                let profile = state
-                    .accounts_store
+                let profile = db
                     .find_business_profile_by_merchant_id_profile_id(
                         processor.get_key_store(),
                         processor.get_account().get_id(),
@@ -531,7 +534,7 @@ async fn resolve_apple_pay_certificate_data(
 
 #[cfg(feature = "v2")]
 async fn resolve_apple_pay_certificate_data(
-    _state: &SessionState,
+    _db: &dyn AccountsStorageInterface,
     _processor: &domain::Processor,
     _account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -539,36 +542,30 @@ async fn resolve_apple_pay_certificate_data(
 }
 
 async fn link_hierarchical_resource_data_to_scope(
-    state: &SessionState,
+    db: &dyn AccountsStorageInterface,
     key_store: &domain::MerchantKeyStore,
     account: RequestorAccount,
     update: &impl RequestorHierarchicalResourceUpdate,
 ) -> RouterResult<()> {
     match account {
         RequestorAccount::MerchantConnectorAccount(mca) => {
-            state
-                .accounts_store
-                .update_merchant_connector_account(
-                    *mca,
-                    update.for_merchant_connector_account().foreign_into(),
-                    key_store,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to link resource data to merchant connector account")?;
+            db.update_merchant_connector_account(
+                *mca,
+                update.for_merchant_connector_account().foreign_into(),
+                key_store,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to link resource data to merchant connector account")?;
         }
         RequestorAccount::Profile(profile) => {
-            state
-                .accounts_store
-                .update_profile_by_profile_id(key_store, *profile, update.for_profile())
+            db.update_profile_by_profile_id(key_store, *profile, update.for_profile())
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to profile")?;
         }
         RequestorAccount::MerchantAccount(merchant_account) => {
-            state
-                .accounts_store
-                .update_merchant(*merchant_account, update.for_merchant_account(), key_store)
+            db.update_merchant(*merchant_account, update.for_merchant_account(), key_store)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to link resource data to merchant account")?;
@@ -752,9 +749,20 @@ pub async fn list_hierarchical_resources(
 
     let effective_resource_id = match (req.scope_type, req.scope_id) {
         (Some(scope_type), Some(scope_id)) => {
-            let account =
-                fetch_requestor_account(&state, &processor, scope_type, &scope_id).await?;
-            match resolve_apple_pay_certificate_data(&state, &processor, &account).await {
+            let account = fetch_requestor_account(
+                state.accounts_store.as_ref(),
+                &processor,
+                scope_type,
+                &scope_id,
+            )
+            .await?;
+            match resolve_apple_pay_certificate_data(
+                state.accounts_store.as_ref(),
+                &processor,
+                &account,
+            )
+            .await
+            {
                 Some(data) => data
                     .get("resource_id")
                     .and_then(|value| value.as_str())
@@ -830,8 +838,13 @@ pub async fn link_hierarchical_resource(
         })?;
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
-    let account =
-        fetch_requestor_account(&state, &processor, req.requestor_type, &req.requestor_id).await?;
+    let account = fetch_requestor_account(
+        state.accounts_store.as_ref(),
+        &processor,
+        req.requestor_type,
+        &req.requestor_id,
+    )
+    .await?;
 
     let org_key_store =
         ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
@@ -896,15 +909,20 @@ pub(crate) async fn ensure_organization_key_store(
     {
         Ok(key_store) => Ok(key_store),
         Err(error) if error.current_context().is_db_not_found() => {
-            create_organization_key_store(state, key_manager_state, &org_key_identifier, master_key)
-                .await
+            create_organization_key_store(
+                state.accounts_store.as_ref(),
+                key_manager_state,
+                &org_key_identifier,
+                master_key,
+            )
+            .await
         }
         Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
     }
 }
 
 async fn create_organization_key_store(
-    state: &SessionState,
+    db: &dyn AccountsStorageInterface,
     key_manager_state: &KeyManagerState,
     org_key_identifier: &id_type::MerchantId,
     master_key: &[u8],
@@ -943,9 +961,7 @@ async fn create_organization_key_store(
     };
 
     let key_store_master_key = master_key.to_vec().into();
-    state
-        .accounts_store
-        .insert_merchant_key_store(key_store.clone(), &key_store_master_key)
+    db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert organization key store")?;
