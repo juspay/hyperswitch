@@ -1,5 +1,53 @@
 use super::*;
 
+#[test]
+fn payment_context_encodes_the_current_attempt_status() {
+    let cases = [
+        (
+            AttemptStatus::CaptureInitiated,
+            payments_grpc::PaymentStatus::CaptureInitiated,
+        ),
+        (
+            AttemptStatus::VoidInitiated,
+            payments_grpc::PaymentStatus::VoidInitiated,
+        ),
+        (
+            AttemptStatus::Authorizing,
+            payments_grpc::PaymentStatus::Authorizing,
+        ),
+        (
+            AttemptStatus::Authorized,
+            payments_grpc::PaymentStatus::Authorized,
+        ),
+        (
+            AttemptStatus::IntegrityFailure,
+            payments_grpc::PaymentStatus::Conflicted,
+        ),
+    ];
+
+    for (status, expected) in cases {
+        assert_eq!(
+            Option::<payments_grpc::PaymentStatus>::foreign_from(status),
+            Some(expected)
+        );
+    }
+}
+
+#[test]
+fn payment_context_omits_status_without_a_wire_equivalent() {
+    assert_eq!(
+        Option::<payments_grpc::PaymentStatus>::foreign_from(AttemptStatus::CaptureReview),
+        None,
+    );
+}
+
+#[test]
+fn payment_context_preserves_the_legacy_post_capture_void_value() {
+    let status =
+        Option::<payments_grpc::PaymentStatus>::foreign_from(AttemptStatus::VoidedPostCharge);
+    assert_eq!(status.map(i32::from), Some(57));
+}
+
 fn tonic_status(code: tonic::Code) -> UnifiedConnectorServiceError {
     UnifiedConnectorServiceError::TonicStatus {
         code,

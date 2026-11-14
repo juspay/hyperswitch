@@ -665,6 +665,54 @@ impl ForeignTryFrom<payments_grpc::MandateReferenceDetails>
     }
 }
 
+impl ForeignFrom<AttemptStatus> for Option<payments_grpc::PaymentStatus> {
+    fn foreign_from(status: AttemptStatus) -> Self {
+        use payments_grpc::PaymentStatus;
+
+        match status {
+            AttemptStatus::Started => Some(PaymentStatus::Started),
+            AttemptStatus::AuthenticationFailed => Some(PaymentStatus::AuthenticationFailed),
+            AttemptStatus::RouterDeclined => Some(PaymentStatus::RouterDeclined),
+            AttemptStatus::AuthenticationPending => Some(PaymentStatus::AuthenticationPending),
+            AttemptStatus::AuthenticationSuccessful => {
+                Some(PaymentStatus::AuthenticationSuccessful)
+            }
+            AttemptStatus::Authorized => Some(PaymentStatus::Authorized),
+            AttemptStatus::AuthorizationFailed => Some(PaymentStatus::AuthorizationFailed),
+            AttemptStatus::Charged => Some(PaymentStatus::Charged),
+            AttemptStatus::Authorizing => Some(PaymentStatus::Authorizing),
+            AttemptStatus::CodInitiated => Some(PaymentStatus::CodInitiated),
+            AttemptStatus::Voided => Some(PaymentStatus::Voided),
+            #[expect(
+                deprecated,
+                reason = "Request context retains the legacy post-capture void status"
+            )]
+            AttemptStatus::VoidedPostCharge => Some(PaymentStatus::VoidedPostCapture),
+            AttemptStatus::VoidInitiated => Some(PaymentStatus::VoidInitiated),
+            AttemptStatus::CaptureInitiated => Some(PaymentStatus::CaptureInitiated),
+            AttemptStatus::CaptureFailed => Some(PaymentStatus::CaptureFailed),
+            AttemptStatus::VoidFailed => Some(PaymentStatus::VoidFailed),
+            AttemptStatus::AutoRefunded => Some(PaymentStatus::AutoRefunded),
+            AttemptStatus::PartialCharged => Some(PaymentStatus::PartialCharged),
+            AttemptStatus::PartiallyAuthorized => Some(PaymentStatus::PartiallyAuthorized),
+            AttemptStatus::PartialChargedAndChargeable => {
+                Some(PaymentStatus::PartialChargedAndChargeable)
+            }
+            AttemptStatus::Unresolved => Some(PaymentStatus::Unresolved),
+            AttemptStatus::Pending => Some(PaymentStatus::Pending),
+            AttemptStatus::Failure => Some(PaymentStatus::Failure),
+            AttemptStatus::PaymentMethodAwaited => Some(PaymentStatus::PaymentMethodAwaited),
+            AttemptStatus::ConfirmationAwaited => Some(PaymentStatus::ConfirmationAwaited),
+            AttemptStatus::DeviceDataCollectionPending => {
+                Some(PaymentStatus::DeviceDataCollectionPending)
+            }
+            AttemptStatus::IntegrityFailure => Some(PaymentStatus::Conflicted),
+            AttemptStatus::Expired => Some(PaymentStatus::Expired),
+            AttemptStatus::CaptureReview => None,
+        }
+    }
+}
+
 impl ForeignTryFrom<(payments_grpc::PaymentStatus, Self)> for AttemptStatus {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
