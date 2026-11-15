@@ -31,6 +31,16 @@ use crate::{
 
 pub struct PaymentsSyncWorkflow;
 
+#[cfg(feature = "v1")]
+fn retryable_psync_connector(
+    error: &error_stack::Report<errors::ApiErrorResponse>,
+) -> Option<String> {
+    error.frames().find_map(|frame| {
+        frame.downcast_ref::<external_services::grpc_client::unified_connector_service::RetryablePsyncTransportFailure>()
+            .map(|failure| failure.connector_name.clone())
+    })
+}
+
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
     #[cfg(feature = "v2")]
@@ -84,7 +94,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         // TODO: Add support for ReqState in PT flows
-        let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
+        let payment_result = Box::pin(payment_flows::payments_operation_core::<
             api::PSync,
             _,
             _,
@@ -105,7 +115,34 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             &dimensions,
             None,
         ))
-        .await?;
+        .await;
+
+        let (mut payment_data, _, _, _) = match payment_result {
+            Ok(payment_data) => payment_data,
+            Err(error) => {
+                if let Some(connector) = retryable_psync_connector(&error) {
+                    logger::warn!(
+                        ?error,
+                        process_id = %process.id,
+                        connector = %connector,
+                        "Rescheduling Psync after a retryable UCS transport failure"
+                    );
+                    retry_sync_task(
+                        db,
+                        state.superposition_service.as_ref(),
+                        connector,
+                        tracking_data
+                            .merchant_id
+                            .clone()
+                            .get_required_value("merchant_id")?,
+                        process,
+                    )
+                    .await?;
+                    return Ok(());
+                }
+                return Err(error.into());
+            }
+        };
 
         let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
@@ -378,6 +415,28 @@ mod tests {
     use scheduler::consumer::types::process_data;
 
     use super::*;
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn typed_ucs_transport_failure_remains_retryable_after_context_changes() {
+        let error = error_stack::Report::new(std::io::Error::other("transport failure"))
+            .attach(external_services::grpc_client::unified_connector_service::RetryablePsyncTransportFailure {
+                connector_name: "cybersource".to_owned(),
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError);
+        assert_eq!(
+            retryable_psync_connector(&error),
+            Some("cybersource".to_owned())
+        );
+    }
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn unrelated_internal_errors_keep_the_existing_terminal_error_handling() {
+        let error = error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to send request to connector request error");
+        assert_eq!(retryable_psync_connector(&error), None);
+    }
 
     #[test]
     fn test_get_default_schedule_time() {
