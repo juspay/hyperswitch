@@ -61,6 +61,7 @@ impl OrganizationInterface for Store {
     }
 }
 
+#[allow(clippy::panic)]
 fn poll_now<F: Future>(future: F) -> F::Output {
     let mut future = std::pin::pin!(future);
     let mut context = Context::from_waker(Waker::noop());

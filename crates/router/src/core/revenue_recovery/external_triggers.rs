@@ -1077,11 +1077,11 @@ async fn load_recovery_request_context(
     state: &SessionState,
     tracking_data: &pcr::RecoveryRequestTrackingData,
 ) -> error_stack::Result<(Platform, domain::Profile), errors::StorageError> {
-    let db = &*state.store;
+    let db = state.accounts_store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &tracking_data.merchant_id,
-            &db.get_master_key().to_vec().into(),
+            &state.store.get_master_key().to_vec().into(),
         )
         .await?;
     let merchant_account = db
