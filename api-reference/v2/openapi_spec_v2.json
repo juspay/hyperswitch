@@ -12622,42 +12622,6 @@
           }
         }
       },
-      "ClientSecretResponse": {
-        "type": "object",
-        "description": "client_secret for the resource_id mentioned",
-        "required": [
-          "id",
-          "resource_id",
-          "created_at",
-          "expires",
-          "secret"
-        ],
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Client Secret id",
-            "maxLength": 32,
-            "minLength": 1
-          },
-          "resource_id": {
-            "$ref": "#/components/schemas/ResourceId"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "time at which this client secret was created"
-          },
-          "expires": {
-            "type": "string",
-            "format": "date-time",
-            "description": "time at which this client secret would expire"
-          },
-          "secret": {
-            "type": "string",
-            "description": "client secret"
-          }
-        }
-      },
       "CollectionActions": {
         "type": "object",
         "description": "Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.",
