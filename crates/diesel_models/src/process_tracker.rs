@@ -311,4 +311,29 @@ pub mod business_status {
 
     /// This status indicates the workflow has completed successfully when the invoice is paid
     pub const CALCULATE_WORKFLOW_COMPLETE: &str = "CALCULATE_WORKFLOW_COMPLETE";
+
+    /// A reported transaction was recorded and the next retry of its invoice is scheduled
+    pub const RECOVERY_REQUEST_RETRY_SCHEDULED: &str = "RECOVERY_REQUEST_RETRY_SCHEDULED";
+
+    /// A reported transaction was recorded and a limit of the profile stops the retries
+    pub const RECOVERY_REQUEST_LIMITS_EXHAUSTED: &str = "RECOVERY_REQUEST_LIMITS_EXHAUSTED";
+
+    /// A reported transaction was recorded and no retry follows, for a reason needing no webhook
+    pub const RECOVERY_REQUEST_NO_WEBHOOK: &str = "RECOVERY_REQUEST_NO_WEBHOOK";
+
+    /// A reported transaction made with the customer was recorded; it is not a retry
+    pub const RECOVERY_REQUEST_CUSTOMER_INITIATED: &str = "RECOVERY_REQUEST_CUSTOMER_INITIATED";
+
+    /// A reported transaction was recorded after a newer transaction of its invoice was applied
+    pub const RECOVERY_REQUEST_STALE: &str = "RECOVERY_REQUEST_STALE";
+
+    /// A reported transaction is recorded on its invoice, but not by this recovery request
+    pub const RECOVERY_REQUEST_DUPLICATE: &str = "RECOVERY_REQUEST_DUPLICATE";
+
+    /// A reported transaction was not recorded because its invoice is closed
+    pub const RECOVERY_REQUEST_INVOICE_CLOSED: &str = "RECOVERY_REQUEST_INVOICE_CLOSED";
+
+    /// A reported transaction's attempt is recorded, but its invoice does not show every attempt
+    /// recorded on it, so the recovery request is not decided and the invoice needs a manual check
+    pub const RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC: &str = "RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC";
 }

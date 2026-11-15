@@ -225,6 +225,9 @@ pub async fn register_connector_webhook(
         .get_webhook_registration_plan(scope, &state.conf.connectors)
         .to_webhook_configuration_failed_response()?;
 
+    let webhook_base_url = state
+        .get_webhook_registration_base_url(connector_data.connector.is_webhook_mtls_required())?;
+
     let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
@@ -258,7 +261,7 @@ pub async fn register_connector_webhook(
 
             let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
             let webhook_url = helpers::create_webhook_url(
-                &state.base_url,
+                webhook_base_url,
                 &mca.merchant_id,
                 merchant_connector_id,
             );

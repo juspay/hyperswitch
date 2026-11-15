@@ -4,6 +4,59 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.13.1
+
+### Features
+
+- **Proxy:** Including support for extended content/types - xml in vault-proxy flows ([#15164](https://github.com/juspay/hyperswitch/pull/15164)) ([`cf5408d`](https://github.com/juspay/hyperswitch/commit/cf5408d83e89d79a1a9ecf967d312bfb9877a285))
+- **connector:** Skip 3ds in worldpayXML if authentication data is provided via external 3ds ([#15229](https://github.com/juspay/hyperswitch/pull/15229)) ([`010b239`](https://github.com/juspay/hyperswitch/commit/010b239a2d7c524323df08e8c3cb93454bb38e7f))
+- **revenue_recovery:**
+  - Count every recorded transaction in the cluster data ([#15163](https://github.com/juspay/hyperswitch/pull/15163)) ([`f2e123a`](https://github.com/juspay/hyperswitch/commit/f2e123ad6fb04b57040838a5b5d156b2f9e95cdf))
+  - Add the recovery webhook event types and payload ([#15207](https://github.com/juspay/hyperswitch/pull/15207)) ([`7013b0a`](https://github.com/juspay/hyperswitch/commit/7013b0aea70e02e107916c79cc6c20d6254bae61))
+
+### Bug Fixes
+
+- **analytics:** Sanitise IN, Gt and EqualBool filter values in queries ([#15243](https://github.com/juspay/hyperswitch/pull/15243)) ([`3e84ba6`](https://github.com/juspay/hyperswitch/commit/3e84ba67738f799e24ced34d8939e4000b5a3d57))
+- **ci:** Pin Diesel CLI ARM64 binary in Cypress and migration checks ([#15247](https://github.com/juspay/hyperswitch/pull/15247)) ([`481e860`](https://github.com/juspay/hyperswitch/commit/481e860600111f9808a10883955316aecd6f7fe0))
+- **connector:** [Gigadat] handle non-JSON error responses ([#15238](https://github.com/juspay/hyperswitch/pull/15238)) ([`96bbe60`](https://github.com/juspay/hyperswitch/commit/96bbe605757c7967ca355d19ebf129270cd3d947))
+- **refunds:** Include surcharge in explicit full refunds ([#15249](https://github.com/juspay/hyperswitch/pull/15249)) ([`bfc7d43`](https://github.com/juspay/hyperswitch/commit/bfc7d43fd2ad603cb67ebf23504f9d93199f2829))
+- **relay:** Enforce payout amount limits for unreferenced refunds ([#15242](https://github.com/juspay/hyperswitch/pull/15242)) ([`dd1b965`](https://github.com/juspay/hyperswitch/commit/dd1b96503e05e580100506faa38dd821433f17db))
+- **scheduler:** Handle empty Redis stream reads without ack errors ([#15240](https://github.com/juspay/hyperswitch/pull/15240)) ([`704ab52`](https://github.com/juspay/hyperswitch/commit/704ab52cff7034c12d0f3bcc36c8b76728e203eb))
+- **themes:** Use safeString for themedata and email types ([#14994](https://github.com/juspay/hyperswitch/pull/14994)) ([`f5a7e33`](https://github.com/juspay/hyperswitch/commit/f5a7e339ec9202a6b3acbe47fb6d9a1e0d783518))
+- **ucs:** Align Superposition keys and merchant dimension ([#15233](https://github.com/juspay/hyperswitch/pull/15233)) ([`70c1fb2`](https://github.com/juspay/hyperswitch/commit/70c1fb2c47c18116a4426566b7d5672e96d21aab))
+
+**Full Changelog:** [`2026.11.13.0...2026.11.13.1`](https://github.com/juspay/hyperswitch/compare/2026.11.13.0...2026.11.13.1)
+
+- - -
+
+## 2026.11.13.0
+
+### Features
+
+- **connector:** Add moneris 3ds flow & pm filter ([#15206](https://github.com/juspay/hyperswitch/pull/15206)) ([`618ff1f`](https://github.com/juspay/hyperswitch/commit/618ff1ffc05e259ba78ecce032c902a9e13e0815))
+- **core/connector:** [SANTANDER] Implement PreAuthorizeVoid Flow for PixAutomatico MITs ([#15107](https://github.com/juspay/hyperswitch/pull/15107)) ([`995562f`](https://github.com/juspay/hyperswitch/commit/995562f725851f4eda9dafc8eab088d856793e72))
+- **permissions:** Add recon account and audit permissions ([#15008](https://github.com/juspay/hyperswitch/pull/15008)) ([`1e20081`](https://github.com/juspay/hyperswitch/commit/1e20081efc37a1a4a6f64a4391afd482b56335c2))
+- **revenue_recovery:**
+  - Add external trigger model with next retry schedule ([#15113](https://github.com/juspay/hyperswitch/pull/15113)) ([`e92bbaf`](https://github.com/juspay/hyperswitch/commit/e92bbafd4001b04ec982aefdc9e208732a10613f))
+  - Keep customer_present and setup_future_usage on each recovery attempt ([#15173](https://github.com/juspay/hyperswitch/pull/15173)) ([`bfaa640`](https://github.com/juspay/hyperswitch/commit/bfaa6408aedde980cbd6979c8984c5b2e29f3047))
+- **router:** Report session duplicate reads with accounts query origins ([#15128](https://github.com/juspay/hyperswitch/pull/15128)) ([`3560148`](https://github.com/juspay/hyperswitch/commit/3560148f990e8a35c937337e09090e55bbb2cccd))
+
+### Bug Fixes
+
+- **ucs:** Preserve L2/L3 customer and address data in UCS requests ([#15228](https://github.com/juspay/hyperswitch/pull/15228)) ([`d15fb41`](https://github.com/juspay/hyperswitch/commit/d15fb416da1cbd4884e287c01706ad64d9ed605d))
+
+### Refactors
+
+- **revenue_recovery:** Read max hybrid cascading retry count from config ([#15151](https://github.com/juspay/hyperswitch/pull/15151)) ([`9b2417b`](https://github.com/juspay/hyperswitch/commit/9b2417b07bd91955320bb9d81feacd4fdf8e0861))
+
+### Documentation
+
+- **changelog:** Add payment callback deployment prerequisite ([#15226](https://github.com/juspay/hyperswitch/pull/15226)) ([`151fb4b`](https://github.com/juspay/hyperswitch/commit/151fb4b79f662e47916a5dc5c501a982b87818f9))
+
+**Full Changelog:** [`2026.11.12.0...2026.11.13.0`](https://github.com/juspay/hyperswitch/compare/2026.11.12.0...2026.11.13.0)
+
+- - -
+
 ## 2026.11.12.0
 
 ### Features
@@ -67,6 +120,12 @@ All notable changes to HyperSwitch will be documented here.
 - - -
 
 ## 2026.11.09.0
+
+### Deployment prerequisites
+
+- **router:** Before deploying the router application with [#15144](https://github.com/juspay/hyperswitch/pull/15144), insert a valid `payment_callback` configuration into the database for every configured tenant. The updated router will fail to start if this configuration is missing or invalid.
+- **Fresh installations:** If there are no existing payment flows or older router replicas, initialize `payment_callback` with `{"mode":"enforced"}` to require tokens for all protected payment callbacks. Use the [SQL seed query in the PR description](https://github.com/juspay/hyperswitch/pull/15144#user-content-sql-seed-for-fresh-installations) in each configured tenant's database/schema before the first router startup; the Config API is unavailable until the router starts.
+- **Existing installations:** Initialize `payment_callback` with `{"mode":"legacy"}` using the currently running application's Config API before deploying the updated router. After all router replicas are updated, switch to `migration`, then to `enforced` once payment flows using legacy callback URLs have drained. See the PR's [deployment prerequisite](https://github.com/juspay/hyperswitch/pull/15144#user-content-deployment-prerequisite) for the curl command.
 
 ### Features
 
