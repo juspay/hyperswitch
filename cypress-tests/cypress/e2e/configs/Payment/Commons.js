@@ -4449,8 +4449,8 @@ export const connectorDetails = {
                 error: {
                   code: "IR_06",
                   message: integrationTypeMismatchMessage(
-                    header,
-                    merchantConfig
+
+
                   ),
                 },
               },

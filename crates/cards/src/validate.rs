@@ -134,16 +134,16 @@ impl CardNumber {
             LazyLock::new(|| {
                 let mut map = HashMap::new();
                 map.insert(
-                    "Mastercard",
-                    Regex::new(r"^(222[1-9]|22[3-9][0-9]|2[3-6][0-9]{2}|27[0-1][0-9]|2720|5[1-5])"),
+
+
                 );
                 map.insert("American Express", Regex::new(r"^3[47]"));
                 map.insert("Visa", Regex::new(r"^4"));
                 map.insert(
-                    "Discover",
-                    Regex::new(
-                        r"^(6011|64[4-9]|65|622126|622[1-9][0-9][0-9]|6229[0-1][0-9]|622925)",
-                    ),
+
+
+
+
                 );
                 map.insert(
         "Maestro",
@@ -168,14 +168,14 @@ impl CardNumber {
             let card_regex = match regex.as_ref() {
                 Ok(regex) => Ok(regex),
                 Err(_) => Err(report!(ValidationError::InvalidValue {
-                    message: "Invalid regex expression".into(),
+
                 })),
             }?;
 
             if card_regex.is_match(&card_number_str) {
                 no_of_supported_card_networks += 1;
                 if no_of_supported_card_networks > 1 {
-                    break;
+
                 }
             }
         }
@@ -288,12 +288,12 @@ pub fn validate_card_number_chars(number: &str) -> Result<Vec<u8>, CardNumberVal
             data.push(
                 #[allow(clippy::expect_used)]
                 character
-                    .to_digit(10)
-                    .ok_or(CardNumberValidationErr(
-                        "invalid character found in card number",
-                    ))?
-                    .try_into()
-                    .expect("error while converting a single decimal digit to u8"), // safety, a single decimal digit will never be greater `u8`
+
+
+
+
+
+
             );
             Ok::<Vec<u8>, CardNumberValidationErr>(data)
         },

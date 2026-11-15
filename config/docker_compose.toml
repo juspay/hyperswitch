@@ -20,11 +20,11 @@ enabled = true  # Whether you want to see log in your terminal.
 level = "DEBUG" # What you see in your terminal.
 
 [log.telemetry]
-traces_enabled = false                                      # Whether traces are enabled.
-metrics_enabled = true                                      # Whether metrics are enabled.
-ignore_errors = false                                       # Whether to ignore errors during traces or metrics pipeline setup.
+traces_enabled = false
+metrics_enabled = true
+ignore_errors = false
 otel_exporter_otlp_endpoint = "https://otel-collector:4317" # Endpoint to send metrics and traces to.
-use_xray_generator = false                                  # Set this to true for AWS X-ray compatible traces
+use_xray_generator = false
 bg_metrics_collection_interval_in_secs = 15                 # Interval for collecting the metrics in background thread
 
 [deja]
@@ -191,29 +191,29 @@ max_feed_count = 200
 #   ttl_in_secs        # Seconds an entry is retained after it was inserted (default: 1800)
 #   tti_in_secs        # Seconds an entry is retained after it was last read or written (default: 600)
 #   max_entries        # Maximum number of entries the cache may hold. `0` makes it unbounded.
-#                      #
-#                      # Default for every cache except `config`: 31457280. That is the ceiling these
-#                      # caches have always had — a `30` that was documented as megabytes but reached moka
-#                      # as an entry count, because no weigher was ever configured — kept so that enabling
-#                      # this section changes no eviction behaviour. It binds nothing in practice; pick a
-#                      # real ceiling per cache once you know the numbers involved. `config` defaults to
-#                      # unbounded, as before.
-#                      #
-#                      # As an environment variable:
-#                      #   ROUTER__CACHE__ACCOUNTS__MAX_ENTRIES=500000
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 #
 # Note that `time_to_idle` is what bounds the resident set in normal operation — these caches are
 # keyed per merchant and profile, so an entry unread for its window is dropped. `max_entries` is a
 # backstop against runaway growth, and an eviction attributable to it shows up on
 # IN_MEMORY_CACHE_EVICTION_COUNT with removal_cause=Size.
 #
-# [cache.config]                              # CONFIG_CACHE, unbounded by default
-# [cache.accounts]                            # ACCOUNTS_CACHE
-# [cache.mca_list]                            # MCA_LIST_CACHE
-# [cache.routing]                             # ROUTING_CACHE
-# [cache.decision_manager]                    # DECISION_MANAGER_CACHE
-# [cache.surcharge]                           # SURCHARGE_CACHE
-# [cache.cgraph]                              # CGRAPH_CACHE
+# [cache.config]
+# [cache.accounts]
+# [cache.mca_list]
+# [cache.routing]
+# [cache.decision_manager]
+# [cache.surcharge]
+# [cache.cgraph]
 # [cache.pm_filters_cgraph]                   # PM_FILTERS_CGRAPH_CACHE
 # [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
@@ -1507,8 +1507,8 @@ connector_list = "adyen,cybersource,peachpayments,trustpay"
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com"                 # Sender email
-aws_region = ""                                      # AWS region used by AWS SES
-allowed_unverified_days = 1                          # Number of days the api calls ( with jwt token ) can be made without verifying the email
+aws_region = ""
+allowed_unverified_days = 1
 active_email_client = "SMTP"              # The currently active email client
 recon_recipient_email = "recon@example.com"          # Recipient email for recon request email
 prod_intent_recipient_email = "business@example.com" # Recipient email for prod intent email
@@ -1529,11 +1529,11 @@ timeout = 10 # Timeout for SMTP connection in seconds
 connection = "plaintext" #currently plaintext and starttls are supported
 
 [theme.email_config]
-entity_name = "Hyperswitch"                                                      # Display name in emails
+entity_name = "Hyperswitch"
 entity_logo_url = "https://app.hyperswitch.io/email-assets/HyperswitchLogo.png"  # Logo URL for emails
-foreground_color = "#111326"                                                     # Text color
-primary_color = "#006DF9"                                                        # Primary color
-background_color = "#FFFFFF"                                                     # Email background color
+foreground_color = "#111326"
+primary_color = "#006DF9"
+background_color = "#FFFFFF"
 
 [platform]
 enabled = true
@@ -1591,7 +1591,7 @@ delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a
 connector_names = "stripe, adyen, peachpayments, cybersource, braintree, nuvei, worldpay, loonio, gigadat, zift"    # Comma-separated list of cloneable connector names
 
 [clone_connector_allowlist.payment_method_types]
-card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
+card = "credit, debit"
 network_token = "network_token"
 bank_transfer = "ach, bacs, sepa, multibanco"
 bank_redirect = "ideal, giropay, sofort, eps, bancontact_card, przelewy24, interac"

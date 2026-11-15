@@ -122,7 +122,6 @@ fabric.properties
 .envrc
 
 ### dotenv ###
-.env
 .oneclick-setup.env
 
 ### Linux ###
@@ -189,8 +188,6 @@ target/
 *.pdb
 
 ### VisualStudioCode ###
-.vscode/*
-.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
@@ -208,7 +205,6 @@ target/
 .ionide
 
 # Support for Project snippet scope
-.vscode/*.code-snippets
 
 # Ignore code-workspaces
 *.code-workspace
@@ -274,3 +270,4 @@ creds.json
 # Nix services data
 /data
 .pre-commit-config.yaml
+config.bat
