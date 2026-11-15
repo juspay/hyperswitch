@@ -18,7 +18,10 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::Secret;
 use router_env::tracing::instrument;
 
-use super::errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt};
+use super::{
+    configs::dimension_state,
+    errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
+};
 use crate::{
     connector::utils::RouterData,
     core::payments::{self, access_token as access_token_core},
@@ -1204,6 +1207,28 @@ async fn process_relay_unreferenced_refund(
     .change_context(errors::ApiErrorResponse::ProfileNotFound {
         id: profile_id.get_string_repr().to_owned(),
     })?;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .get_org_id()
+                .to_owned(),
+        )
+        .with_profile_id(profile_id.clone())
+        .with_currency(request.currency);
+    let min_amount = dimensions
+        .get_payout_min_amount(db, state.superposition_service.as_ref(), Some(profile_id))
+        .await;
+    let max_amount = dimensions
+        .get_payout_max_amount(db, state.superposition_service.as_ref(), Some(profile_id))
+        .await;
+    request
+        .validate_amount(min_amount, max_amount)
+        .map_err(|message| errors::ApiErrorResponse::PreconditionFailed { message })?;
 
     process_unreferenced_refund(state, platform, profile_id, connector_resource_id, request).await
 }

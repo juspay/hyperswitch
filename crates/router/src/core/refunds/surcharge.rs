@@ -110,8 +110,7 @@ impl SurchargeRefundBalances {
         previous_refunds
             .iter()
             .all(|refund| refund.refund_status.is_failure())
-            && requested
-                .is_none_or(|amount| amount.get_amount_as_i64() == self.original_order_amount)
+            && requested.is_none()
     }
 
     /// Create-flow check of the requested order amount against the remaining order balance. The
