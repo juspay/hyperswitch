@@ -16,6 +16,19 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 
+/// Only a transaction made off session with the customer absent is merchant initiated. One that
+/// leaves either out gets the defaults the invoice is created with.
+pub fn is_merchant_initiated(
+    customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+) -> bool {
+    customer_present.unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
+        == common_enums::PresenceOfCustomerDuringPayment::Absent
+        && setup_future_usage
+            .unwrap_or(common_enums::FutureUsage::OffSession)
+            .is_off_session()
+}
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
@@ -34,8 +47,8 @@ pub struct RevenueRecoveryAttemptData {
     pub error_code: Option<String>,
     /// error message sent by billing connector.
     pub error_message: Option<String>,
-    /// mandate token at payment processor end.
-    pub processor_payment_method_token: String,
+    /// mandate token at payment processor end, absent for a transaction reported without its card.
+    pub processor_payment_method_token: Option<String>,
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
@@ -243,9 +256,11 @@ impl
                 .clone(),
             error_code: billing_connector_payment_details.error_code.clone(),
             error_message: billing_connector_payment_details.error_message.clone(),
-            processor_payment_method_token: billing_connector_payment_details
-                .processor_payment_method_token
-                .clone(),
+            processor_payment_method_token: Some(
+                billing_connector_payment_details
+                    .processor_payment_method_token
+                    .clone(),
+            ),
             connector_customer_id: billing_connector_payment_details
                 .connector_customer_id
                 .clone(),

@@ -14660,8 +14660,8 @@ pub struct PaymentsAttemptRecordRequest {
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
     /// payment method token at payment processor end.
-    #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: String,
+    #[schema(value_type = Option<String>, example = "1234567890")]
+    pub processor_payment_method_token: Option<String>,
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
@@ -14726,6 +14726,14 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "billing_account_main")]
+    pub merchant_reference_billing_connector_id: Option<String>,
+
+    /// The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "payment_account_us")]
+    pub merchant_reference_payment_connector_id: Option<String>,
+
     /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
     #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
     pub connector: Option<common_payments_types::RecoveryConnector>,
@@ -14782,8 +14790,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// Payment method token and card details at the payment processor's end.
-    pub payment_method_data: CustomRecoveryPaymentMethodData,
+    /// Payment method token and card details at the payment processor's end. Required unless the
+    /// customer is present and the payment is on session.
+    pub payment_method_data: Option<CustomRecoveryPaymentMethodData>,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]

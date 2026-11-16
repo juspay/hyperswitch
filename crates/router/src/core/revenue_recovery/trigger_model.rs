@@ -49,11 +49,24 @@ impl RecoveryTrigger {
                 let connector = request.connector.get_required_value("connector")?;
 
                 // Profiles are refused without it, this holds for one saved before that check.
-                retry_config.ok_or_else(|| {
+                let retry_config = retry_config.ok_or_else(|| {
                     report!(errors::ApiErrorResponse::PreconditionFailed {
                         message: "The `revenue_recovery_config` of the profile is required when its `revenue_recovery_trigger_model` is `external_triggers`".to_owned(),
                     })
                 })?;
+
+                // The invoice's grace window ends its grace period after billing started, so a
+                // billing start too late for that end to be a date is wrong.
+                request
+                    .billing_started_at
+                    .checked_add(time::Duration::days(i64::from(
+                        retry_config.grace_period_days,
+                    )))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "`billing_started_at` is wrong: the invoice's grace period would end after the latest date supported".to_owned(),
+                        })
+                    })?;
 
                 Ok(Self::External { connector })
             }

@@ -398,8 +398,8 @@ counter_metric!(
     name: "revenue_recovery.recovery_request.outcome",
     description: "Recovery requests by how their workflow ended (retry_scheduled, \
                   limits_exhausted, no_webhook, webhook_disabled, customer_initiated, stale, \
-                  duplicate, invoice_closed, retries_exceeded, failed), with the next retry \
-                  `reason`",
+                  duplicate, invoice_closed, card_missing, retries_exceeded, failed), with \
+                  the next retry `reason`",
     unit: "1",
 );
 counter_metric!(
