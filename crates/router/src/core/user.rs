@@ -235,6 +235,10 @@ pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    if utils::user::is_signup_disabled(env::which(), &state.conf.user) {
+        return Err(report!(UserErrors::InvalidCredentials));
+    }
+
     let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     utils::user::validate_email_domain_auth_type_using_db(
         &state,
@@ -387,7 +391,7 @@ pub async fn connect_account(
         .err()
         .unwrap_or(false)
     {
-        if matches!(env::which(), env::Env::Production | env::Env::Sandbox) {
+        if utils::user::is_signup_disabled(env::which(), &state.conf.user) {
             return Err(report!(UserErrors::InvalidCredentials));
         }
 
