@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Run from the repository root, so that the relative paths below also resolve
+# when the script is started from another directory (e.g. `cd scripts && ./setup.sh`)
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+
 # Set up error logging - redirect stderr to both log file and console
 ERROR_LOG="error.log"
 exec 2> >(tee -a "${ERROR_LOG}" >&2)
