@@ -740,7 +740,8 @@ pub async fn relay<T: RelayInterface>(
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
-    let profile = db
+    let profile = state
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             platform.get_processor().get_key_store(),
             processor_merchant_id,
@@ -752,7 +753,8 @@ pub async fn relay<T: RelayInterface>(
         })?;
 
     #[cfg(feature = "v1")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             processor_merchant_id,
             connector_id,
@@ -764,7 +766,8 @@ pub async fn relay<T: RelayInterface>(
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_merchant_connector_account_by_id(
             connector_id,
             platform.get_processor().get_key_store(),
@@ -828,15 +831,17 @@ pub async fn relay_retrieve(
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
-    db.find_business_profile_by_merchant_id_profile_id(
-        platform.get_processor().get_key_store(),
-        merchant_id,
-        &profile_id_from_auth_layer,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id_from_auth_layer.get_string_repr().to_owned(),
-    })?;
+    state
+        .accounts_store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            merchant_id,
+            &profile_id_from_auth_layer,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id_from_auth_layer.get_string_repr().to_owned(),
+        })?;
 
     let relay_record_result = db
         .find_relay_by_id(platform.get_processor().get_key_store(), relay_id)
@@ -858,7 +863,8 @@ pub async fn relay_retrieve(
     };
 
     #[cfg(feature = "v1")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
             &relay_record.connector_id,
@@ -870,7 +876,8 @@ pub async fn relay_retrieve(
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_merchant_connector_account_by_id(
             &relay_record.connector_id,
             platform.get_processor().get_key_store(),
@@ -1012,7 +1019,8 @@ async fn process_unreferenced_refund(
     let connector_id: &id_type::MerchantConnectorAccountId = &request.connector_id;
 
     #[cfg(feature = "v1")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             processor_merchant_id,
             connector_id,
@@ -1024,7 +1032,8 @@ async fn process_unreferenced_refund(
         })?;
 
     #[cfg(feature = "v2")]
-    let connector_account = db
+    let connector_account = state
+        .accounts_store
         .find_merchant_connector_account_by_id(
             connector_id,
             platform.get_processor().get_key_store(),
@@ -1195,18 +1204,19 @@ async fn process_relay_unreferenced_refund(
         })
     })?;
 
-    let db = state.store.as_ref();
     let merchant_id = platform.get_processor().get_account().get_id();
 
-    db.find_business_profile_by_merchant_id_profile_id(
-        platform.get_processor().get_key_store(),
-        merchant_id,
-        profile_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::ProfileNotFound {
-        id: profile_id.get_string_repr().to_owned(),
-    })?;
+    state
+        .accounts_store
+        .find_business_profile_by_merchant_id_profile_id(
+            platform.get_processor().get_key_store(),
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::ProfileNotFound {
+            id: profile_id.get_string_repr().to_owned(),
+        })?;
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -1221,10 +1231,18 @@ async fn process_relay_unreferenced_refund(
         .with_profile_id(profile_id.clone())
         .with_currency(request.currency);
     let min_amount = dimensions
-        .get_payout_min_amount(db, state.superposition_service.as_ref(), Some(profile_id))
+        .get_payout_min_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
         .await;
     let max_amount = dimensions
-        .get_payout_max_amount(db, state.superposition_service.as_ref(), Some(profile_id))
+        .get_payout_max_amount(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(profile_id),
+        )
         .await;
     request
         .validate_amount(min_amount, max_amount)

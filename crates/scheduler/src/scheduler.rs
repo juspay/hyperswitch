@@ -12,7 +12,7 @@ use super::env::logger::error;
 pub use crate::{
     configs::settings::SchedulerSettings,
     consumer::{self, workflows},
-    db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
+    db::{process_tracker::TrackedProcessTrackerInterface, queue::QueueInterface},
     errors,
     flow::SchedulerFlow,
     producer,
@@ -40,7 +40,7 @@ impl<T: SchedulerInterface> AsSchedulerInterface for T {
 
 #[async_trait::async_trait]
 pub trait SchedulerInterface:
-    ProcessTrackerInterface + QueueInterface + AsSchedulerInterface
+    TrackedProcessTrackerInterface + QueueInterface + AsSchedulerInterface + 'static
 {
 }
 

@@ -766,6 +766,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait]
 pub trait AuthenticationInterface {
     type Error;

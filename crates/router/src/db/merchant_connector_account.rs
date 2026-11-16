@@ -1,6 +1,8 @@
 use common_utils::ext_traits::{ByteSliceExt, Encode};
 use error_stack::ResultExt;
-pub use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountInterface;
+pub use hyperswitch_domain_models::merchant_connector_account::{
+    MerchantConnectorAccountInterface, TrackedMerchantConnectorAccountInterface,
+};
 use router_env::instrument;
 use storage_impl::redis::kv_store::RedisConnInterface;
 

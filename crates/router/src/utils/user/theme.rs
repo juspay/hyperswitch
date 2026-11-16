@@ -170,7 +170,8 @@ fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserR
 
 async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) -> UserResult<()> {
     state
-        .track_accounts_query(|db| db.find_organization_by_org_id(org_id))
+        .accounts_store
+        .find_organization_by_org_id(org_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))
         .map(|_| ())
@@ -181,17 +182,15 @@ async fn validate_merchant_and_get_key_store(
     org_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
 ) -> UserResult<MerchantKeyStore> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
@@ -220,7 +219,7 @@ async fn validate_profile(
     key_store: &MerchantKeyStore,
 ) -> UserResult<()> {
     state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))

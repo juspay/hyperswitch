@@ -14,11 +14,11 @@ pub async fn create_profile_acquirer(
     request: profile_acquirer::ProfileAcquirerCreate,
     processor: domain::Processor,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
-    let db = state.store.as_ref();
     let profile_acquirer_id = common_utils::generate_profile_acquirer_id_of_default_length();
     let merchant_key_store = processor.get_key_store();
 
-    let mut business_profile = db
+    let mut business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(merchant_key_store, &request.profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -71,7 +71,8 @@ pub async fn create_profile_acquirer(
     let profile_update = domain::ProfileUpdate::AcquirerConfigBucketUpdate {
         acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
-    let updated_business_profile = db
+    let updated_business_profile = state
+        .accounts_store
         .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -108,10 +109,10 @@ pub async fn update_profile_acquirer_config(
     request: profile_acquirer::ProfileAcquirerUpdate,
     processor: domain::Processor,
 ) -> RouterResponse<profile_acquirer::ProfileAcquirerResponse> {
-    let db = state.store.as_ref();
     let merchant_key_store = processor.get_key_store();
 
-    let mut business_profile = db
+    let mut business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(merchant_key_store, &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -184,7 +185,8 @@ pub async fn update_profile_acquirer_config(
         acquirer_config_map: updated_map_for_db_update,
     };
 
-    let updated_business_profile = db
+    let updated_business_profile = state
+        .accounts_store
         .update_profile_by_profile_id(merchant_key_store, business_profile, profile_update)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

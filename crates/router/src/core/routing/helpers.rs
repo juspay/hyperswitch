@@ -47,7 +47,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
     },
-    db::StorageInterface,
+    db::{AccountsStorageInterface, StorageInterface},
     routes::SessionState,
     services,
     types::{domain, storage},
@@ -210,14 +210,16 @@ pub async fn update_merchant_active_algorithm_ref(
     };
 
     let db = &*state.store;
-    db.update_specific_fields_in_merchant(
-        &key_store.merchant_id,
-        merchant_account_update,
-        key_store,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update routing algorithm ref in merchant account")?;
+    state
+        .accounts_store
+        .update_specific_fields_in_merchant(
+            &key_store.merchant_id,
+            merchant_account_update,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in merchant account")?;
 
     cache::redact_from_redis_and_publish(db, [config_key])
         .await
@@ -229,12 +231,13 @@ pub async fn update_merchant_active_algorithm_ref(
 
 #[cfg(feature = "v1")]
 pub async fn update_profile_active_algorithm_ref(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     algorithm_id: routing_types::RoutingAlgorithmRef,
     transaction_type: &storage::enums::TransactionType,
 ) -> RouterResult<()> {
+    let db = state.store.as_ref();
     let ref_val = algorithm_id
         .encode_to_value()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -258,14 +261,16 @@ pub async fn update_profile_active_algorithm_ref(
         three_ds_decision_rule_algorithm,
     };
 
-    db.update_profile_by_profile_id(
-        merchant_key_store,
-        current_business_profile,
-        business_profile_update,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update routing algorithm ref in business profile")?;
+    state
+        .accounts_store
+        .update_profile_by_profile_id(
+            merchant_key_store,
+            current_business_profile,
+            business_profile_update,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update routing algorithm ref in business profile")?;
 
     // Invalidate the routing cache for Payments and Payouts transaction types
     if !transaction_type.is_three_ds_authentication() {
@@ -288,7 +293,7 @@ pub async fn update_profile_active_algorithm_ref(
 
 #[cfg(feature = "v1")]
 pub async fn update_business_profile_active_dynamic_algorithm_ref(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     merchant_key_store: &domain::MerchantKeyStore,
     current_business_profile: domain::Profile,
     dynamic_routing_algorithm_ref: routing_types::DynamicRoutingAlgorithmRef,
@@ -472,18 +477,17 @@ impl RoutingAlgorithmHelpers<'_> {
 /// not an error), so it maps to `InternalServerError` rather than a 404.
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 pub async fn validate_contract_based_label_info(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     label_info: &[routing_types::LabelInformation],
 ) -> RouterResult<()> {
     // Fetching disabled MCAs too: a contract config may reference a temporarily disabled
     // MCA — validation checks connector existence and label, not activity.
-    let all_mcas = db
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-            merchant_id,
-            profile_id,
-        )
+    let all_mcas = state.accounts_store.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+                merchant_id,
+                profile_id,
+            )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
@@ -535,9 +539,7 @@ pub async fn validate_connectors_in_routing_config(
 ) -> RouterResult<()> {
     // Fetching disabled MCAs too: routing configs may reference MCAs that are
     // temporarily disabled — validation checks connector existence, not activity.
-    let all_mcas = state
-        .store
-        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+    let all_mcas = state.accounts_store.list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),
@@ -2009,7 +2011,7 @@ pub async fn disable_dynamic_routing_algorithm(
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
     let response = record.foreign_into();
     update_business_profile_active_dynamic_algorithm_ref(
-        db,
+        state.accounts_store.as_ref(),
         &key_store,
         business_profile,
         dynamic_routing_algorithm,
@@ -2091,7 +2093,7 @@ where
 {
     //Check for payload
     if let Some(payload) = payload {
-        return create_specific_dynamic_routing_setup(
+        return Box::pin(create_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
@@ -2099,19 +2101,19 @@ where
             dynamic_routing_algo_ref,
             dynamic_routing_type,
             payload,
-        )
+        ))
         .await;
     }
     // Algorithm wasn't created yet
     let Some(mut algo_type) = algo_type else {
-        return default_specific_dynamic_routing_setup(
+        return Box::pin(default_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-        )
+        ))
         .await;
     };
 
@@ -2121,14 +2123,14 @@ where
         .get_algorithm_id_with_timestamp()
         .algorithm_id
     else {
-        return default_specific_dynamic_routing_setup(
+        return Box::pin(default_specific_dynamic_routing_setup(
             state,
             platform,
             business_profile,
             feature_to_enable,
             dynamic_routing_algo_ref,
             dynamic_routing_type,
-        )
+        ))
         .await;
     };
     let db = state.store.as_ref();
@@ -2147,7 +2149,7 @@ where
     *algo_type_enabled_features = feature_to_enable;
     dynamic_routing_algo_ref.update_enabled_features(dynamic_routing_type, feature_to_enable);
     update_business_profile_active_dynamic_algorithm_ref(
-        db,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref.clone(),
@@ -2274,7 +2276,7 @@ pub async fn default_specific_dynamic_routing_setup(
         dynamic_routing_type,
     );
     update_business_profile_active_dynamic_algorithm_ref(
-        db,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,
@@ -2402,7 +2404,7 @@ pub async fn create_specific_dynamic_routing_setup(
 
     dynamic_routing_algo_ref.update_feature(feature_to_enable, dynamic_routing_type);
     update_business_profile_active_dynamic_algorithm_ref(
-        db,
+        state.accounts_store.as_ref(),
         platform.get_processor().get_key_store(),
         business_profile,
         dynamic_routing_algo_ref,

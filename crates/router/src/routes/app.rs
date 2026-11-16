@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, panic::Location, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -134,7 +134,7 @@ pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
-    accounts_store: Box<dyn AccountsStorageInterface>,
+    pub accounts_store: Box<dyn AccountsStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,
@@ -176,29 +176,15 @@ impl scheduler::SchedulerSessionState for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 }
 impl SessionState {
-    /// Run an accounts operation with this call site's location in scope.
-    /// Use one call per query to retain each query's location.
-    #[track_caller]
-    pub fn track_accounts_query<'s, F, Fut>(
-        &'s self,
-        operation: F,
-    ) -> impl Future<Output = Fut::Output> + 's
-    where
-        F: FnOnce(&'s dyn AccountsStorageInterface) -> Fut + 's,
-        Fut: Future + 's,
-    {
-        let origin = Location::caller();
-        router_env::call_origin::with_origin(origin, async move {
-            operation(self.accounts_store.as_ref()).await
-        })
+    /// Keep key-manager context in sync across the main and accounts stores.
+    pub fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.store.set_key_manager_state(key_manager_state.clone());
+        self.accounts_store.set_key_manager_state(key_manager_state);
     }
 
     pub(crate) fn get_webhook_registration_base_url(
@@ -328,10 +314,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -770,11 +753,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
-        let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
         let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
-        store.set_key_manager_state(key_manager_state);
-        Ok(SessionState {
-            store,
+        let mut state = SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -799,7 +780,9 @@ impl AppState {
             superposition_service: self.superposition_service.clone(),
             payment_metrics_context: None,
             payment_callback_config: Arc::default(),
-        })
+        };
+        state.set_key_manager_state(key_manager_state);
+        Ok(state)
     }
 
     pub fn process_env_mappings(
