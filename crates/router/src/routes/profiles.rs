@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
@@ -508,8 +508,14 @@ pub async fn toggle_connector_agnostic_mit(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _: auth::AuthenticationData, req, _| {
-            connector_agnostic_mit_toggle(state, &merchant_id, &profile_id, req)
+        |state, auth_data: auth::AuthenticationData, req, _| {
+            connector_agnostic_mit_toggle(
+                state,
+                auth_data.platform.get_processor().clone(),
+                &merchant_id,
+                &profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

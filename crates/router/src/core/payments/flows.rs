@@ -30,7 +30,9 @@ use hyperswitch_domain_models::{
     payments as domain_payments,
     router_request_types::{CurrentFlowInfo, PaymentsCaptureData},
 };
+use payment_methods::single_use_token;
 
+use super::callback_urls::ConnectorCallbackUrls;
 use crate::{
     core::{
         errors::{ApiErrorResponse, RouterResult},
@@ -46,6 +48,72 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub trait ConstructFlowSpecificData<F, Req, Res> {
     #[cfg(feature = "v1")]
+    async fn construct_router_data_with_callbacks<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        business_profile: &domain::Profile,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<domain_payments::HeaderPayload>,
+        payment_method: Option<common_enums::PaymentMethod>,
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+    ) -> RouterResult<types::RouterData<F, Req, Res>>
+    where
+        types::RouterData<F, Req, Res>: Send,
+    {
+        let mut connector_callback_urls = ConnectorCallbackUrls::default();
+        let router_data = self
+            .construct_router_data(
+                state,
+                connector_id,
+                processor,
+                business_profile,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+                payment_method,
+                payment_method_type,
+                &mut connector_callback_urls,
+            )
+            .await?;
+        connector_callback_urls.persist(state).await?;
+        Ok(router_data)
+    }
+
+    #[cfg(feature = "v2")]
+    async fn construct_router_data_with_callbacks<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        customer: &Option<domain::Customer>,
+        merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<domain_payments::HeaderPayload>,
+    ) -> RouterResult<types::RouterData<F, Req, Res>>
+    where
+        types::RouterData<F, Req, Res>: Send,
+    {
+        let mut connector_callback_urls = ConnectorCallbackUrls::default();
+        let router_data = self
+            .construct_router_data(
+                state,
+                connector_id,
+                processor,
+                customer,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+                &mut connector_callback_urls,
+            )
+            .await?;
+        connector_callback_urls.persist(state).await?;
+        Ok(router_data)
+    }
+
+    #[cfg(feature = "v1")]
     async fn construct_router_data<'a>(
         &self,
         state: &SessionState,
@@ -57,6 +125,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         header_payload: Option<domain_payments::HeaderPayload>,
         payment_method: Option<common_enums::PaymentMethod>,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     #[cfg(feature = "v2")]
@@ -69,6 +138,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         _merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 
     async fn get_merchant_recipient_data<'a>(
@@ -95,6 +165,14 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[async_trait]
 pub trait Feature<F, T> {
     fn current_flow_info(&self) -> Option<CurrentFlowInfo> {
+        None
+    }
+
+    /// Flow used to decide whether the payment should be made via a single-use token, `None` if not applicable
+    fn single_use_token_flow() -> Option<single_use_token::SingleUseTokenFlow>
+    where
+        Self: Sized,
+    {
         None
     }
 

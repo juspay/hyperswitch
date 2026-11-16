@@ -139,9 +139,9 @@ pub async fn remove_entry_from_blocklist() {}
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
         ("transaction_type" = Option<BlocklistTransactionType>, Query, description = "Blocklist flow: payment (default) or payout."),
         ("X-Profile-Id" = Option<String>, Header, description = "Restricts the listing to entries \
-         belonging to this business profile, plus entries with no profile. When no profile can be \
-         resolved - as with publishable-key authentication - all of the merchant's entries are \
-         returned, as before."),
+         belonging to this business profile, plus entries with no profile. Ignored when \
+         authenticating with a JWT, which carries its own profile. If no profile is resolved \
+         for an API key, all of the merchant's entries are returned."),
          (
              "X-Connected-Merchant-Id" = Option<String>, Header,
              description = "Merchant ID of the connected merchant on whose behalf the operation is performed. \
@@ -156,7 +156,7 @@ pub async fn remove_entry_from_blocklist() {}
     ),
     tag = "Blocklist",
     operation_id = "List Blocked fingerprints of a particular kind",
-    security(("api_key" = []), ("jwt_key" = []), ("publishable_key" = []))
+    security(("api_key" = []), ("jwt_key" = []))
 )]
 pub async fn list_blocked_payment_methods() {}
 

@@ -448,12 +448,11 @@ impl NewUserMerchant {
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
+        let merchant_id = self.get_merchant_id();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         if state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &self.get_merchant_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .is_ok()
         {
@@ -544,18 +543,19 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
@@ -592,18 +592,19 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.id,
                 &merchant_key_store,
@@ -930,9 +931,8 @@ impl NewUser {
 
                 let organization_id = self.new_merchant.new_organization.get_organization_id();
                 state
-                    .track_accounts_query(|db| {
-                        db.update_organization_by_org_id(&organization_id, org_update)
-                    })
+                    .accounts_store
+                    .update_organization_by_org_id(&organization_id, org_update)
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to update organization with platform_merchant_id")?;

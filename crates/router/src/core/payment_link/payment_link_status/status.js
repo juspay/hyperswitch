@@ -160,6 +160,7 @@ function boot() {
     initializeEventListeners(paymentDetails);
   }
 }
+window.addEventListener("load", boot);
 
 /**
  * Trigger - on boot

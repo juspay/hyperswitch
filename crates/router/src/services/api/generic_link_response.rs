@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, link_utils::CspNonce};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::{
     GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData, GenericLinksData,
@@ -12,6 +12,7 @@ pub mod context;
 pub fn build_generic_link_html(
     boxed_generic_link_data: GenericLinksData,
     locale: String,
+    csp_nonce: &CspNonce,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     match boxed_generic_link_data {
         GenericLinksData::ExpiredLink(link_data) => build_generic_expired_link_html(&link_data),
@@ -30,7 +31,7 @@ pub fn build_generic_link_html(
             build_payout_link_status_html(&pm_collect_data, locale.as_str())
         }
         GenericLinksData::SecurePaymentLink(payment_link_data) => {
-            build_secure_payment_link_html(payment_link_data)
+            build_secure_payment_link_html(payment_link_data, csp_nonce)
         }
     }
 }

@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
 };
 use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     diesel_error_to_data_error,

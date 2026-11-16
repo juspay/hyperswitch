@@ -57,6 +57,65 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
 }
 
+pub trait ApiPaymentMethodDataMandateIds {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds>;
+}
+
+impl ApiPaymentMethodDataMandateIds for api_models::payments::PaymentMethodData {
+    fn get_mandate_ids(&self) -> Option<mandates::MandateIds> {
+        let mandate_reference_id = match self {
+            Self::NetworkTransactionIdAndCardDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::NetworkTransactionIdAndNetworkTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkTokenWithNTI(
+                    mandates::NetworkTokenWithNTIRef {
+                        network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                        transaction_link_id: details.transaction_link_id.clone(),
+                        token_exp_month: Some(details.token_exp_month.clone()),
+                        token_exp_year: Some(details.token_exp_year.clone()),
+                    },
+                )
+            }
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(details) => {
+                mandates::MandateReferenceId::NetworkMandateId(mandates::NetworkMandateIdRef {
+                    network_transaction_id: details.network_transaction_id.peek().to_owned(),
+                    transaction_link_id: details.transaction_link_id.clone(),
+                })
+            }
+            Self::Card(_)
+            | Self::CardWithNoCVC(_)
+            | Self::CardRedirect(_)
+            | Self::Wallet(_)
+            | Self::PayLater(_)
+            | Self::BankRedirect(_)
+            | Self::BankDebit(_)
+            | Self::BankTransfer(_)
+            | Self::RealTimePayment(_)
+            | Self::Crypto(_)
+            | Self::MandatePayment
+            | Self::Reward
+            | Self::Upi(_)
+            | Self::Voucher(_)
+            | Self::GiftCard(_)
+            | Self::CardToken(_)
+            | Self::OpenBanking(_)
+            | Self::MobilePayment(_)
+            | Self::NetworkToken(_)
+            | Self::ProxyCard(_)
+            | Self::VaultCardTokenData(_) => return None,
+        };
+
+        Some(mandates::MandateIds {
+            mandate_id: None,
+            mandate_reference_id: Some(mandate_reference_id),
+        })
+    }
+}
+
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum ExternalVaultPaymentMethodData {
     Card(Box<ExternalVaultCard>),
@@ -2417,6 +2476,21 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::NetworkToken(network_token_data) => {
                 Self::NetworkToken(From::from(network_token_data))
             }
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndCardDetails(
+                card_details,
+            ) => Self::CardDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndCardDetails::from(*card_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndNetworkTokenDetails(
+                network_token_details,
+            ) => Self::NetworkTokenDetailsForNetworkTransactionId(
+                NetworkTransactionIdAndNetworkTokenDetails::from(*network_token_details).into(),
+            ),
+            api_models::payments::PaymentMethodData::NetworkTransactionIdAndDecryptedWalletTokenDetails(
+                decrypted_wallet_token_details,
+            ) => Self::DecryptedWalletTokenDetailsForNetworkTransactionId(
+                (*decrypted_wallet_token_details).into(),
+            ),
             // ProxyCard / VaultCardTokenData are handled before reaching domain conversion
             // (routed to external_vault_proxy_for_payments_core). These branches should not be
             // reached in normal flow, but we handle them gracefully.

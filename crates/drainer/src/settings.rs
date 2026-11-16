@@ -46,8 +46,10 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
-        let raw_conf =
-            secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client).await;
+        #[allow(clippy::expect_used)]
+        let raw_conf = secrets_transformers::fetch_raw_secrets(conf, &*secret_management_client)
+            .await
+            .expect("Failed to decrypt drainer configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = raw_conf

@@ -38,6 +38,12 @@ use hyperswitch_domain_models::{
         PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData, TokenizationRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{PoFulfill, PoSync},
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+};
 use hyperswitch_interfaces::{
     api::{
         self,
@@ -249,6 +255,7 @@ impl ConnectorValidation for Checkout {
 }
 
 impl api::Payment for Checkout {}
+impl api::Payouts for Checkout {}
 
 impl api::PaymentAuthorize for Checkout {}
 impl api::PaymentSync for Checkout {}
@@ -261,6 +268,40 @@ impl api::PaymentToken for Checkout {}
 impl Dispute for Checkout {}
 impl RetrieveFile for Checkout {}
 impl DefendDispute for Checkout {}
+
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Checkout {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Checkout {
+    fn build_request(
+        &self,
+        _req: &RouterData<PoFulfill, PayoutsData, PayoutsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Checkout payouts are supported only through UCS".to_string(),
+        )
+        .into())
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Checkout {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Checkout {
+    fn build_request(
+        &self,
+        _req: &RouterData<PoSync, PayoutsData, PayoutsResponseData>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(
+            "Checkout payouts are supported only through UCS".to_string(),
+        )
+        .into())
+    }
+}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Checkout

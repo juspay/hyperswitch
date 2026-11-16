@@ -89,8 +89,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, IatapayAuthUpdateResponse, T, AccessTok
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectUrls {
-    success_url: String,
-    failure_url: String,
+    success_url: Secret<String>,
+    failure_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -242,7 +242,7 @@ impl
     }
 }
 
-fn get_redirect_url(return_url: String) -> RedirectUrls {
+fn get_redirect_url(return_url: Secret<String>) -> RedirectUrls {
     RedirectUrls {
         success_url: return_url.clone(),
         failure_url: return_url,
@@ -389,7 +389,7 @@ fn get_iatpay_response(
                     false => (
                         None,
                         Some(RedirectForm::Form {
-                            endpoint: checkout_methods.redirect.redirect_url,
+                            endpoint: checkout_methods.redirect.redirect_url.into(),
                             method: Method::Get,
                             form_fields,
                         }),

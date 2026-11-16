@@ -33,6 +33,9 @@ pub struct Capture {
     /// INFO: This field is deprecated and replaced by processor_capture_data
     pub connector_capture_data: Option<String>,
     pub processor_capture_data: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -60,6 +63,9 @@ pub struct CaptureNew {
     /// INFO: This field is deprecated and replaced by processor_capture_data
     pub connector_capture_data: Option<String>,
     pub processor_capture_data: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

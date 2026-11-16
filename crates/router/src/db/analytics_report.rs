@@ -5,6 +5,7 @@ pub use olap::*;
 
 /// Reports need the `olap` feature; without it the interface is empty.
 #[cfg(not(feature = "olap"))]
+#[router_derive::track_async_interface]
 pub trait AnalyticsReportInterface {}
 
 #[cfg(not(feature = "olap"))]
@@ -15,7 +16,7 @@ mod olap {
     use analytics::reports::{ReportBind, ReportQuery};
     use diesel::sql_types::{Array, Text};
     use error_stack::report;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     pub use row::ReportRow;
     use storage_impl::{utils::pg_connection_read_replica, MockDb};
 
@@ -38,6 +39,7 @@ mod olap {
         }
     }
 
+    #[router_derive::track_async_interface]
     #[async_trait::async_trait]
     pub trait AnalyticsReportInterface {
         /// Runs `query` on the read replica as one read-only cursor, so Postgres scans once, and sends
@@ -99,9 +101,14 @@ mod olap {
             fetch_timeout: std::time::Duration,
             pages: tokio::sync::mpsc::Sender<Vec<ReportRow>>,
         ) -> CustomResult<(), errors::StorageError> {
-            self.diesel_store
-                .stream_analytics_report(query, page_size, fetch_timeout, pages)
-                .await
+            AnalyticsReportInterface::stream_analytics_report(
+                &self.diesel_store,
+                query,
+                page_size,
+                fetch_timeout,
+                pages,
+            )
+            .await
         }
     }
 

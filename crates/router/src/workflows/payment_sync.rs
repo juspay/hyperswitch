@@ -53,24 +53,19 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
-                &db.get_master_key().to_vec().into(),
-            )
+        let merchant_id = tracking_data
+            .merchant_id
+            .as_ref()
+            .get_required_value("merchant_id")?;
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
             .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
-                &key_store,
-            )
+        let merchant_account = state
+            .accounts_store
+            .find_merchant_account_by_merchant_id(merchant_id, &key_store)
             .await?;
 
         let platform = domain::Platform::new(
@@ -214,7 +209,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not find profile_id in payment intent")?;
 
-                    let business_profile = db
+                    let business_profile = state
+                        .accounts_store
                         .find_business_profile_by_profile_id(&key_store, profile_id)
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

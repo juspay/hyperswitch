@@ -10,7 +10,7 @@ license.workspace = true
 [features]
 default = []
 diesel = ["dep:diesel", "hyperswitch_masking/diesel"]
-keymanager = ["dep:router_env"]
+keymanager = ["dep:router_env", "dep:tracing"]
 keymanager_mtls = ["reqwest/rustls"]
 encryption_service = ["dep:router_env"]
 km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
@@ -33,7 +33,7 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = { version = "1.10.1", features = ["serde"] }
 diesel = { version = "2.3.12", features = ["postgres"], optional = true }
-deja = { git = "https://github.com/juspay/deja", rev = "6ace82f8d37c7c5703f9636a608dd8d85a8f6953", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "3fe15f88537c4bf4375504de4582217ba4e2d8e0", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"
@@ -41,6 +41,7 @@ hex = "0.4.3"
 http = "0.2.12"
 ip_network = { version = "0.4.1", default-features = false }
 md5 = "0.7.0"
+mime = "0.3.17"
 nanoid = "0.4.0"
 nutype = { version = "0.4.3", features = ["serde"] }
 once_cell = "1.21.3"
@@ -64,6 +65,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std", "macros"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"], optional = true }
+tracing = { workspace = true, optional = true }
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }

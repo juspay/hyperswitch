@@ -26,6 +26,7 @@ pub mod relay;
 pub mod revenue_recovery;
 pub mod routing;
 pub mod subscriptions;
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 pub mod webhook_events;

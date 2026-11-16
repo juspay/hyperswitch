@@ -36,15 +36,15 @@ use storage_impl::{
     redis::{cache::Caches, RedisStore},
     MockDb,
 };
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, OnceCell};
 
 use self::settings::Tenant;
+#[cfg(all(feature = "v2", feature = "oltp"))]
+use super::client_secret::{client_secret_create, client_secret_delete};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::currency;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
-#[cfg(all(any(feature = "v1", feature = "v2"), feature = "oltp"))]
-use super::ephemeral_key::*;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::payment_methods;
 #[cfg(feature = "payouts")]
@@ -94,8 +94,6 @@ use crate::analytics::routes::{
 };
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
-#[cfg(feature = "partial-auth")]
-use crate::errors::RouterResult;
 #[cfg(feature = "oltp")]
 use crate::routes::authentication;
 #[cfg(feature = "v1")]
@@ -120,7 +118,9 @@ pub use crate::{
 };
 use crate::{
     configs::{secrets_transformers, Settings},
+    core::configs::payment_callback::PaymentCallbackConfig,
     db::kafka_store::{KafkaStore, TenantID},
+    errors::{self, RouterResult},
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
@@ -157,6 +157,7 @@ pub struct SessionState {
     pub superposition_service: Arc<SuperpositionClient>,
     /// Bounded request context used to correlate v1 payment I/O metrics.
     pub payment_metrics_context: Option<PaymentMetricsContext>,
+    payment_callback_config: Arc<OnceCell<PaymentCallbackConfig>>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -175,29 +176,38 @@ impl scheduler::SchedulerSessionState for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 }
 impl SessionState {
-    /// Run an accounts operation with this call site's location in scope.
-    /// Use one call per query to retain each query's location.
-    #[track_caller]
-    pub fn track_accounts_query<'s, F, Fut>(
-        &'s self,
-        operation: F,
-    ) -> impl Future<Output = Fut::Output> + 's
-    where
-        F: FnOnce(&'s dyn AccountsStorageInterface) -> Fut + 's,
-        Fut: Future + 's,
-    {
-        let origin = Location::caller();
-        router_env::call_origin::scope(origin, async move {
-            operation(self.accounts_store.as_ref()).await
-        })
+    /// Keep key-manager context in sync across the main and accounts stores.
+    pub fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.store.set_key_manager_state(key_manager_state.clone());
+        self.accounts_store.set_key_manager_state(key_manager_state);
+    }
+
+    pub(crate) fn get_webhook_registration_base_url(
+        &self,
+        connector_requires_mtls: bool,
+    ) -> RouterResult<&str> {
+        if connector_requires_mtls {
+            self.tenant.mtls_base_url.as_deref().ok_or_else(|| {
+                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                    "mtls_base_url must be configured for connectors that require mTLS webhooks",
+                )
+            })
+        } else {
+            Ok(&self.base_url)
+        }
+    }
+
+    /// Resolve the runtime callback policy once for this request and its clones.
+    pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
+        self.payment_callback_config
+            .get_or_try_init(|| PaymentCallbackConfig::load(self))
+            .await
     }
 
     pub fn set_store(&mut self, store: Box<dyn StorageInterface>) {
@@ -304,10 +314,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -504,11 +511,13 @@ impl AppState {
             .await
             .expect("Failed to create secret management client");
 
+        #[allow(clippy::expect_used)]
         let conf = Box::pin(secrets_transformers::fetch_raw_secrets(
             conf,
             &*secret_management_client,
         ))
-        .await;
+        .await
+        .expect("Failed to decrypt application configuration");
 
         #[allow(clippy::expect_used)]
         let encryption_client = conf
@@ -744,11 +753,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
-        let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
         let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
-        store.set_key_manager_state(key_manager_state);
-        Ok(SessionState {
-            store,
+        let mut state = SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -772,7 +779,10 @@ impl AppState {
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
             payment_metrics_context: None,
-        })
+            payment_callback_config: Arc::default(),
+        };
+        state.set_key_manager_state(key_manager_state);
+        Ok(state)
     }
 
     pub fn process_env_mappings(
@@ -918,6 +928,10 @@ impl Payments {
                     .route(web::get().to(payments::revenue_recovery_invoices_list)),
             )
             .service(
+                web::resource("/profile/recovery-list")
+                    .route(web::get().to(payments::revenue_recovery_invoices_list_profile)),
+            )
+            .service(
                 web::resource("/aggregate").route(web::get().to(payments::get_payments_aggregates)),
             )
             // TODO: Deprecated. Remove this in favour of /v2/recovery
@@ -1038,6 +1052,17 @@ impl Proxy {
 }
 
 #[cfg(feature = "v1")]
+fn configure_payment_callback_routes(config: &mut web::ServiceConfig) {
+    use strum::IntoEnumIterator;
+
+    use super::payments::callback_routes::PaymentCallbackRoute;
+
+    for callback in PaymentCallbackRoute::iter() {
+        config.service(callback.resource());
+    }
+}
+
+#[cfg(feature = "v1")]
 impl Payments {
     pub fn server(state: AppState) -> Scope {
         let mut route = web::scope("/payments").app_data(web::Data::new(state));
@@ -1105,9 +1130,14 @@ impl Payments {
         }
         #[cfg(feature = "oltp")]
         {
+            use super::payments::callback_routes::PaymentCallbackRoute;
+
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
-                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
+                .service(
+                    web::resource("/payment_link")
+                        .route(web::post().to(payments::payment_link_create)),
+                )
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),
@@ -1122,21 +1152,25 @@ impl Payments {
                         .route(web::post().to(payments::payments_update)),
                 )
                 .service(
-                    web::resource("/{payment_id}/post_session_tokens").route(web::post().to(payments::payments_post_session_tokens)),
+                    web::resource("/{payment_id}/post_session_tokens")
+                        .route(web::post().to(payments::payments_post_session_tokens)),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm").route(web::post().to(payments::payments_confirm)),
+                    web::resource("/{payment_id}/confirm")
+                        .route(web::post().to(payments::payments_confirm)),
                 )
                 .service(
-                    web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
+                    web::resource("/{payment_id}/cancel")
+                        .route(web::post().to(payments::payments_cancel)),
                 )
                 .service(
                     web::resource("/{payment_id}/cancel_post_capture")
-                    .route(web::post().to(payments::payments_cancel_post_capture))
-                    .route(web::get().to(payments::payments_cancel_post_capture_retrieve))
+                        .route(web::post().to(payments::payments_cancel_post_capture))
+                        .route(web::get().to(payments::payments_cancel_post_capture_retrieve)),
                 )
                 .service(
-                    web::resource("/{payment_id}/capture").route(web::post().to(payments::payments_capture)),
+                    web::resource("/{payment_id}/capture")
+                        .route(web::post().to(payments::payments_capture)),
                 )
                 .service(
                     web::resource("/{payment_id}/approve")
@@ -1150,63 +1184,43 @@ impl Payments {
                     web::resource("/{payment_id}/eligibility_check")
                         .route(web::post().to(payments::payments_submit_eligibility_check)),
                 )
-                .service(
-                    web::resource("/{payment_id}/client")
-                        .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
-                )
+                .service(web::resource("/{payment_id}/client").route(
+                    web::get().to(payment_methods::list_payment_methods_for_payments_client),
+                ))
                 .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )
+                .configure(configure_payment_callback_routes)
+                .service(PaymentCallbackRoute::Start.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponse.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectResponseWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectComplete.legacy_resource())
+                .service(PaymentCallbackRoute::RedirectCompleteWithCredentials.legacy_resource())
+                .service(PaymentCallbackRoute::Authorize.legacy_resource())
                 .service(
-                    web::resource("/redirect/{payment_id}/{merchant_id}/{attempt_id}")
-                        .route(web::get().to(payments::payments_start)),
-                )
-                .service(
-                    web::resource(
-                        "/{payment_id}/{merchant_id}/redirect/response/{connector}/{creds_identifier}",
-                    )
-                    .route(web::get().to(payments::payments_redirect_response_with_creds_identifier)),
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/response/{connector}")
-                        .route(web::get().to(payments::payments_redirect_response))
-                        .route(web::post().to(payments::payments_redirect_response))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}/{creds_identifier}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect_with_creds_identifier))
-                )
-                .service(
-                    web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
-                        .route(web::get().to(payments::payments_complete_authorize_redirect))
-                        .route(web::post().to(payments::payments_complete_authorize_redirect)),
+                    web::resource("/{payment_id}/3ds/authentication")
+                        .route(web::post().to(payments::payments_external_authentication)),
                 )
                 .service(
                     web::resource("/{payment_id}/complete_authorize")
                         .route(web::post().to(payments::payments_complete_authorize)),
                 )
                 .service(
-                    web::resource("/{payment_id}/incremental_authorization").route(web::post().to(payments::payments_incremental_authorization)),
+                    web::resource("/{payment_id}/incremental_authorization")
+                        .route(web::post().to(payments::payments_incremental_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/extend_authorization").route(web::post().to(payments::payments_extend_authorization)),
+                    web::resource("/{payment_id}/extend_authorization")
+                        .route(web::post().to(payments::payments_extend_authorization)),
                 )
                 .service(
-                    web::resource("/{payment_id}/{merchant_id}/authorize/{connector}")
-                        .route(web::post().to(payments::post_3ds_payments_authorize))
-                        .route(web::get().to(payments::post_3ds_payments_authorize))
+                    web::resource("/{payment_id}/extended_card_info")
+                        .route(web::get().to(payments::retrieve_extended_card_info)),
                 )
                 .service(
-                    web::resource("/{payment_id}/3ds/authentication").route(web::post().to(payments::payments_external_authentication)),
-                )
-                .service(
-                    web::resource("/{payment_id}/extended_card_info").route(web::get().to(payments::retrieve_extended_card_info)),
-                )
-                .service(
-                web::resource("{payment_id}/calculate_tax")
-                    .route(web::post().to(payments::payments_dynamic_tax_calculation)),
+                    web::resource("{payment_id}/calculate_tax")
+                        .route(web::post().to(payments::payments_dynamic_tax_calculation)),
                 )
                 .service(
                     web::resource("{payment_id}/update_metadata")
@@ -1336,19 +1350,6 @@ impl Routing {
                 })),
             );
 
-        #[cfg(feature = "dynamic_routing")]
-        {
-            route = route
-                .service(
-                    web::resource("/evaluate")
-                        .route(web::post().to(routing::call_decide_gateway_open_router)),
-                )
-                .service(
-                    web::resource("/feedback")
-                        .route(web::post().to(routing::call_update_gateway_score_open_router)),
-                )
-        }
-
         #[cfg(feature = "payouts")]
         {
             route = route
@@ -1469,10 +1470,6 @@ impl Routing {
                         routing::routing_link_config(state, req, path, payload, None)
                     },
                 )),
-            )
-            .service(
-                web::resource("/rule/evaluate")
-                    .route(web::post().to(routing::evaluate_routing_rule)),
             );
         route
     }
@@ -2302,20 +2299,11 @@ impl HierarchicalResources {
     }
 }
 
-pub struct EphemeralKey;
-
-#[cfg(all(feature = "v1", feature = "oltp"))]
-impl EphemeralKey {
-    pub fn server(config: AppState) -> Scope {
-        web::scope("/ephemeral_keys")
-            .app_data(web::Data::new(config))
-            .service(web::resource("").route(web::post().to(ephemeral_key_create)))
-            .service(web::resource("/{id}").route(web::delete().to(ephemeral_key_delete)))
-    }
-}
+#[cfg(feature = "v2")]
+pub struct ClientSecret;
 
 #[cfg(feature = "v2")]
-impl EphemeralKey {
+impl ClientSecret {
     pub fn server(config: AppState) -> Scope {
         web::scope("/v2/client-secret")
             .app_data(web::Data::new(config))
@@ -2351,38 +2339,20 @@ pub struct Webhooks;
 #[cfg(all(feature = "oltp", feature = "v1"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/network_token_requestor/ref")
-                    .route(
-                        web::post().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::get().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    )
-                    .route(
-                        web::put().to(receive_network_token_requestor_incoming_webhook::<
-                            webhook_type::OutgoingWebhook,
-                        >),
-                    ),
+                    .route(web::post().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::get().to(receive_network_token_requestor_incoming_webhook))
+                    .route(web::put().to(receive_network_token_requestor_incoming_webhook)),
             )
             .service(
                 web::resource("/{merchant_id}/{connector_id_or_name}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(feature = "frm")]
@@ -2402,41 +2372,33 @@ pub struct RelayWebhooks;
 #[cfg(feature = "oltp")]
 impl RelayWebhooks {
     pub fn server(state: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
         web::scope("/webhooks/relay")
             .app_data(web::Data::new(state))
-            .service(web::resource("/{merchant_id}/{connector_id}").route(
-                web::post().to(receive_incoming_relay_webhook::<webhook_type::OutgoingWebhook>),
-            ))
+            .service(
+                web::resource("/{merchant_id}/{connector_id}")
+                    .route(web::post().to(receive_incoming_relay_webhook)),
+            )
     }
 }
 
 #[cfg(all(feature = "oltp", feature = "v2"))]
 impl Webhooks {
     pub fn server(config: AppState) -> Scope {
-        use api_models::webhooks as webhook_type;
-
         #[allow(unused_mut)]
         let mut route = web::scope("/v2/webhooks")
             .app_data(web::Data::new(config))
             .service(
                 web::resource("/{merchant_id}/{profile_id}/{connector_id}")
-                    .route(
-                        web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    )
-                    .route(web::get().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>))
-                    .route(
-                        web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                    ),
+                    .route(web::post().to(receive_incoming_webhook))
+                    .route(web::get().to(receive_incoming_webhook))
+                    .route(web::put().to(receive_incoming_webhook)),
             );
 
         #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
         {
             route = route.service(
-                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}").route(
-                    web::post()
-                        .to(recovery_receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
-                ),
+                web::resource("/recovery/{merchant_id}/{profile_id}/{connector_id}")
+                    .route(web::post().to(recovery_receive_incoming_webhook)),
             );
         }
 

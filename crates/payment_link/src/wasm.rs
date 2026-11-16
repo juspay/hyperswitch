@@ -82,7 +82,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         redirection_log_endpoint: None,
     };
 
-    build_payment_link_html(payment_link_form_data)
+    build_payment_link_html(payment_link_form_data, None)
         .map_err(|e| format!("Failed to build payment link HTML: {:?}", e))
 }
 

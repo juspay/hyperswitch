@@ -175,7 +175,8 @@ pub async fn form_payment_link_data(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(processor.get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -999,7 +1000,8 @@ pub async fn get_payment_link_status(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Profile id missing in payment link and payment intent")?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(processor.get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

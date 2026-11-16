@@ -29,7 +29,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_url: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub three_ds_requestor_name: Option<String>,
-    pub notification_url: Option<url::Url>,
+    pub notification_url: Option<Secret<url::Url>>,
     pub webhook_url: Option<url::Url>,
 }
 
@@ -49,7 +49,7 @@ pub struct UasAuthenticationRequestData {
     pub browser_details: Option<super::BrowserInformation>,
     pub transaction_details: TransactionDetails,
     pub pre_authentication_data: super::authentication::PreAuthenticationData,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub email: Option<common_utils::pii::Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,

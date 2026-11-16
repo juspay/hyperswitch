@@ -85,7 +85,7 @@ pub struct Authentication {
     pub authentication_client_secret: Option<String>,
     pub force_3ds_challenge: Option<bool>,
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     #[encrypt(ty = Value)]
     pub billing_address: Option<Encryptable<Secret<Value>>>,
     #[encrypt(ty = Value)]
@@ -766,6 +766,7 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait]
 pub trait AuthenticationInterface {
     type Error;

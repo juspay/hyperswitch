@@ -1,4 +1,4 @@
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{
@@ -6,6 +6,7 @@ use crate::{
     types::storage::{self as types, enums},
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CaptureInterface {
     async fn insert_capture(
@@ -34,7 +35,7 @@ pub trait CaptureInterface {
 mod storage {
     use error_stack::{report, ResultExt};
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::{
         redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
         utils::find_all_combined_kv_database,
@@ -94,6 +95,7 @@ mod storage {
                             .clone(),
                         processor_capture_data: capture.processor_capture_data.clone(),
                         connector_capture_data: capture.connector_capture_data.clone(),
+                        feature_metadata: capture.feature_metadata.clone(),
                     };
 
                     let key = created_capture.get_partition_key();
@@ -244,7 +246,7 @@ mod storage {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::report;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::CaptureInterface;
     use crate::{
@@ -339,6 +341,7 @@ impl CaptureInterface for MockDb {
             connector_capture_id: capture.connector_capture_id,
             connector_response_reference_id: capture.connector_response_reference_id,
             processor_capture_data: capture.processor_capture_data,
+            feature_metadata: capture.feature_metadata,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         };
