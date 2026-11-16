@@ -1690,6 +1690,11 @@ static_routing_enabled = false
 url = "http://localhost:8080"
 dashboard_url = "http://localhost:5173"
 admin_secret = ""
+routing_endpoint = "hybrid" # "decide" opts in; "hybrid" rolls back all profiles
+# Existing DE routing flags and profile cutover remain required.
+# Omit the allowlist for all DE-routed profiles, or set profiles for a gradual /decide rollout.
+# decide_profile_ids = "pro_example,pro_other"
+# Rules using mandate_type or mandate_acceptance_type require hybrid until /decide supports them.
 
 [l2_l3_data_config]
 enabled = "true"
