@@ -14,6 +14,23 @@ pub struct AlertRuleConfig {
 #[serde(tag = "datasource", rename_all = "snake_case")]
 pub enum AlertQuery {
     GrafanaCloudwatch(GrafanaCloudwatchQuery),
+    GrafanaLoki(GrafanaLokiQuery),
+}
+
+impl AlertQuery {
+    pub fn metric_source(&self) -> MetricSource {
+        match self {
+            Self::GrafanaCloudwatch(_) => MetricSource::GrafanaCloudwatch,
+            Self::GrafanaLoki(_) => MetricSource::GrafanaLoki,
+        }
+    }
+
+    pub fn end_offset_seconds(&self) -> u32 {
+        match self {
+            Self::GrafanaCloudwatch(query) => query.end_offset_seconds,
+            Self::GrafanaLoki(query) => query.end_offset_seconds,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -28,6 +45,19 @@ pub struct GrafanaCloudwatchQuery {
     pub period: u32,
     #[serde(default = "DEFAULT_END_OFFSET_SECONDS")]
     pub end_offset_seconds: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GrafanaLokiQuery {
+    pub expr: String,
+    pub period: u32,
+    #[serde(default = "DEFAULT_END_OFFSET_SECONDS")]
+    pub end_offset_seconds: u32,
+    #[serde(default)]
+    pub context: BTreeMap<String, String>,
+    #[serde(default)]
+    pub logs: Option<String>,
 }
 
 const DEFAULT_END_OFFSET_SECONDS: fn() -> u32 = || 180;
@@ -59,12 +89,14 @@ pub struct SeverityThreshold {
 #[serde(rename_all = "snake_case")]
 pub enum MetricSource {
     GrafanaCloudwatch,
+    GrafanaLoki,
 }
 
 impl fmt::Display for MetricSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::GrafanaCloudwatch => "grafana_cloudwatch",
+            Self::GrafanaLoki => "grafana_loki",
         })
     }
 }
@@ -181,6 +213,7 @@ mod tests {
             MetricSource::GrafanaCloudwatch.to_string(),
             "grafana_cloudwatch"
         );
+        assert_eq!(MetricSource::GrafanaLoki.to_string(), "grafana_loki");
         for (statistic, name) in [
             (CloudwatchStatistic::Average, "Average"),
             (CloudwatchStatistic::Maximum, "Maximum"),
@@ -247,7 +280,27 @@ mod tests {
             "period": 60
         }))
         .unwrap();
-        let AlertQuery::GrafanaCloudwatch(query) = query;
-        assert_eq!(query.end_offset_seconds, 180);
+        assert_eq!(query.metric_source(), MetricSource::GrafanaCloudwatch);
+        assert_eq!(query.end_offset_seconds(), 180);
+    }
+
+    #[test]
+    fn loki_query_defaults_and_rejects_unknown_fields() {
+        let query: AlertQuery = serde_json::from_value(serde_json::json!({
+            "datasource": "grafana_loki",
+            "expr": "sum(count_over_time({app=\"router\"} |= \"error\" [1m]))",
+            "period": 60
+        }))
+        .unwrap();
+        assert_eq!(query.metric_source(), MetricSource::GrafanaLoki);
+        assert_eq!(query.end_offset_seconds(), 180);
+        assert!(matches!(&query, AlertQuery::GrafanaLoki(query) if query.context.is_empty()));
+        assert!(serde_json::from_value::<AlertQuery>(serde_json::json!({
+            "datasource": "grafana_loki",
+            "expr": "sum(count_over_time({app=\"router\"}[1m]))",
+            "period": 60,
+            "version": "v1"
+        }))
+        .is_err());
     }
 }

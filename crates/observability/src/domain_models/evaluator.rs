@@ -1,13 +1,8 @@
-use std::fmt;
+use std::{collections::BTreeMap, fmt};
 
-use common_types::alert_rules::{
-    AlertQuery, AlertRuleConfig, CloudwatchStatistic, Severity, SeverityThreshold,
-};
+use common_types::alert_rules::{AlertRuleConfig, Severity, SeverityThreshold};
 use common_utils::errors::CustomResult;
-use external_services::metrics_provider::{
-    grafana::cloudwatch::{CloudwatchMetricsQuery, CloudwatchStatistic as ProviderStatistic},
-    MetricPoint, MetricRange,
-};
+use external_services::metrics_provider::{grafana::loki::LogLine, MetricPoint, MetricRange};
 use serde::Deserialize;
 
 use crate::domain::notifier::chat::AlertSeverity;
@@ -18,26 +13,6 @@ pub struct RuleDefinition {
     pub id: String,
     pub name: String,
     pub config: AlertRuleConfig,
-}
-
-impl RuleDefinition {
-    pub fn metrics_query(&self, datasource_uid: &str) -> CloudwatchMetricsQuery {
-        let AlertQuery::GrafanaCloudwatch(query) = &self.config.query;
-        CloudwatchMetricsQuery {
-            datasource_uid: datasource_uid.to_owned(),
-            region: query.region.clone(),
-            namespace: query.namespace.clone(),
-            metric_name: query.metric_name.clone(),
-            dimensions: query.dimensions.clone(),
-            statistic: match query.statistic {
-                CloudwatchStatistic::Average => ProviderStatistic::Average,
-                CloudwatchStatistic::Maximum => ProviderStatistic::Maximum,
-                CloudwatchStatistic::Minimum => ProviderStatistic::Minimum,
-                CloudwatchStatistic::Sum => ProviderStatistic::Sum,
-            },
-            period: query.period,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
@@ -104,6 +79,8 @@ pub struct Evaluation {
     pub datapoints: Vec<MetricPoint>,
     pub breach: Option<SeverityThreshold>,
     pub window: MetricRange,
+    pub breakdown: Vec<(BTreeMap<String, String>, f64)>,
+    pub logs: Vec<LogLine>,
 }
 
 #[derive(Debug, thiserror::Error)]
