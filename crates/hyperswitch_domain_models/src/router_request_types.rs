@@ -1770,6 +1770,8 @@ pub struct PayoutsData {
     pub browser_info: Option<BrowserInformation>,
     /// The category of funds transfer to use when processing the payout.
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// The purpose for which the payout is being carried out.
+    pub purpose: Option<storage_enums::PayoutPurpose>,
     /// Connector-generated state persisted on the payout attempt for later payout steps.
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,

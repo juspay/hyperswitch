@@ -1612,6 +1612,8 @@ diesel::table! {
         billing_descriptor -> Nullable<Jsonb>,
         #[max_length = 64]
         funds_transfer_type -> Nullable<Varchar>,
+        #[max_length = 64]
+        purpose -> Nullable<Varchar>,
         sender_details -> Nullable<Bytea>,
     }
 }

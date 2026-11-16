@@ -274,6 +274,40 @@ impl ForeignFrom<common_enums::PayoutFundsTransferType> for payments_grpc::Payou
     }
 }
 
+impl ForeignFrom<common_enums::PayoutPurpose> for payments_grpc::payout_enums::PayoutPurpose {
+    fn foreign_from(purpose: common_enums::PayoutPurpose) -> Self {
+        use common_enums::PayoutPurpose;
+        match purpose {
+            PayoutPurpose::Donations => Self::Donations,
+            PayoutPurpose::Education => Self::Education,
+            PayoutPurpose::EmergencyNeed => Self::EmergencyNeed,
+            PayoutPurpose::Expatriation => Self::Expatriation,
+            PayoutPurpose::FamilySupport => Self::FamilySupport,
+            PayoutPurpose::FinancialServices => Self::FinancialServices,
+            PayoutPurpose::Gifts => Self::Gifts,
+            PayoutPurpose::Income => Self::Income,
+            PayoutPurpose::Insurance => Self::Insurance,
+            PayoutPurpose::Investment => Self::Investment,
+            PayoutPurpose::ItServices => Self::ItServices,
+            PayoutPurpose::Leisure => Self::Leisure,
+            PayoutPurpose::LoanPayment => Self::LoanPayment,
+            PayoutPurpose::MedicalTreatment => Self::MedicalTreatment,
+            PayoutPurpose::Pension => Self::Pension,
+            PayoutPurpose::Royalties => Self::Royalties,
+            PayoutPurpose::Savings => Self::Savings,
+            PayoutPurpose::TravelAndTourism => Self::TravelAndTourism,
+            PayoutPurpose::Other => Self::Other,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+fn payout_purpose_to_ucs(purpose: Option<common_enums::PayoutPurpose>) -> Option<i32> {
+    purpose
+        .map(payments_grpc::payout_enums::PayoutPurpose::foreign_from)
+        .map(i32::from)
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -10154,6 +10188,7 @@ impl
                 .funds_transfer_type
                 .map(payments_grpc::PayoutFundsTransferType::foreign_from)
                 .map(i32::from),
+            purpose: payout_purpose_to_ucs(router_data.request.purpose),
             vendor_account_details: router_data
                 .request
                 .vendor_details
@@ -10984,13 +11019,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
                     )
                 }
-                api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => {
-                    Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Googlepay wallet not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?
+                api_models::payouts::Wallet::GooglePayDecrypt(google_pay) => {
+                    payments_grpc::payout_method::PayoutMethodData::GooglePayDecrypt(
+                        payments_grpc::GooglePayDecrypt::foreign_try_from(google_pay)?,
+                    )
                 }
                 api_models::payouts::Wallet::Paypal(paypal) => {
                     payments_grpc::payout_method::PayoutMethodData::Paypal(
@@ -11285,6 +11317,34 @@ impl transformers::ForeignTryFrom<&api_models::payouts::ApplePayDecrypt>
                         "Failed to parse card number".to_string(),
                     ),
                 )?,
+            ),
+            expiry_month: Some(item.expiry_month.clone()),
+            expiry_year: Some(item.expiry_year.clone()),
+            card_holder_name: item.card_holder_name.clone(),
+            card_network: item
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from)
+                .map(i32::from),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::GooglePayDecrypt>
+    for payments_grpc::GooglePayDecrypt
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::GooglePayDecrypt) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_primary_account_number: Some(
+                CardNumber::from_str(&item.application_primary_account_number.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
             ),
             expiry_month: Some(item.expiry_month.clone()),
             expiry_year: Some(item.expiry_year.clone()),
