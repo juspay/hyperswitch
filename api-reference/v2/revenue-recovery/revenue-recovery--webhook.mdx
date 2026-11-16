@@ -3,7 +3,7 @@ title: "Outgoing Webhook"
 description: "The next retry of an invoice, sent to the profile's webhook URL"
 ---
 
-On a profile whose `revenue_recovery_trigger_model` is `external_triggers`, you trigger the retries of an invoice and Hyperswitch tells you when. After it records a transaction you sent to [`POST /v2/recovery`](/v2/revenue-recovery/revenue-recovery--create), it decides the invoice's next retry and sends it to the profile's webhook URL. If no webhook arrives within 15 minutes, fall back to your own retry timing.
+On a profile whose `revenue_recovery_trigger_model` is `external_triggers`, you trigger the retries of an invoice and Hyperswitch tells you when. After it records a transaction you sent to [`POST /v2/recovery`](/v2/revenue-recovery/revenue-recovery--create), it decides the invoice's next retry and sends it to the profile's webhook URL.
 
 | Event | Sent when | `schedule_time` | `reason` |
 |---|---|---|---|
