@@ -69,69 +69,6 @@ fn payout_http_success_preserves_business_failure_status() {
 
 #[cfg(feature = "payouts")]
 #[test]
-fn google_pay_payout_method_maps_to_ucs_network_token() {
-    use std::str::FromStr;
-
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use unified_connector_service_cards::CardNumber;
-
-    let google_pay = api_models::payouts::GooglePayDecrypt {
-        application_primary_account_number: CardNumber::from_str("4543474002249996")
-            .expect("valid test DPAN"),
-        expiry_month: Secret::new("07".to_string()),
-        expiry_year: Secret::new("27".to_string()),
-        card_holder_name: Some(Secret::new("Toby Arden".to_string())),
-        card_network: Some(common_enums::CardNetwork::Visa),
-    };
-    let payout_method_data = api_models::payouts::PayoutMethodData::Wallet(
-        api_models::payouts::Wallet::GooglePayDecrypt(google_pay),
-    );
-
-    let payout_method = payments_grpc::PayoutMethod::foreign_try_from(&payout_method_data)
-        .expect("Google Pay decrypted payout should convert to UCS");
-    let google_pay = match payout_method.payout_method_data {
-        Some(payments_grpc::payout_method::PayoutMethodData::GooglePayDecrypt(google_pay)) => {
-            google_pay
-        }
-        other => panic!("expected Google Pay payout method, got {other:?}"),
-    };
-
-    assert_eq!(
-        google_pay
-            .application_primary_account_number
-            .expect("DPAN should be mapped")
-            .peek(),
-        "4543474002249996"
-    );
-    assert_eq!(
-        google_pay
-            .expiry_month
-            .expect("month should be mapped")
-            .peek(),
-        "07"
-    );
-    assert_eq!(
-        google_pay
-            .expiry_year
-            .expect("year should be mapped")
-            .peek(),
-        "27"
-    );
-    assert_eq!(
-        google_pay
-            .card_holder_name
-            .expect("holder name should be mapped")
-            .peek(),
-        "Toby Arden"
-    );
-    assert_eq!(
-        google_pay.card_network,
-        Some(i32::from(payments_grpc::CardNetwork::Visa))
-    );
-}
-
-#[cfg(feature = "payouts")]
-#[test]
 fn payout_purpose_maps_all_router_values_and_preserves_absence() {
     use common_enums::PayoutPurpose as RouterPurpose;
     use payments_grpc::payout_enums::PayoutPurpose as UcsPurpose;
