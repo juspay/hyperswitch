@@ -204,12 +204,13 @@ impl SessionState {
     pub(crate) fn get_webhook_registration_base_url(
         &self,
         connector_requires_mtls: bool,
+        mtls_verification_enabled: bool,
     ) -> RouterResult<&str> {
-        if connector_requires_mtls {
+        if connector_requires_mtls && mtls_verification_enabled {
             self.tenant.mtls_base_url.as_deref().ok_or_else(|| {
                 error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
-                    "mtls_base_url must be configured for connectors that require mTLS webhooks",
+                    "mtls_base_url must be configured when mTLS webhook verification is required and enabled",
                 )
             })
         } else {
