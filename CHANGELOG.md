@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.16.1
+
+### Features
+
+- **connector:** [Checkout] support account-specific payment hosts ([#15216](https://github.com/juspay/hyperswitch/pull/15216)) ([`1cc3e4e`](https://github.com/juspay/hyperswitch/commit/1cc3e4e29b6945f72a0e035a795da92fa407f75b))
+- **revenue_recovery:** Queue reported transactions for the recovery report workflow ([#15209](https://github.com/juspay/hyperswitch/pull/15209)) ([`b1650ed`](https://github.com/juspay/hyperswitch/commit/b1650edc1f2482056bd4093b4f05f5e89950c8f1))
+- **wasm:** Add webhook URL type for mTLS connectors ([#15268](https://github.com/juspay/hyperswitch/pull/15268)) ([`526a6fd`](https://github.com/juspay/hyperswitch/commit/526a6fd2511d7f86bdb107c4b0911e399e3fd1a4))
+
+### Bug Fixes
+
+- **connector:** [Stripe] pass billing zip and country in tokenization request ([#15264](https://github.com/juspay/hyperswitch/pull/15264)) ([`5cfcb55`](https://github.com/juspay/hyperswitch/commit/5cfcb5508981009743da341fc2cccacb17259916))
+- **payouts:** Hide configured amount limits in errors ([#15267](https://github.com/juspay/hyperswitch/pull/15267)) ([`5518229`](https://github.com/juspay/hyperswitch/commit/551822955c471381db0de70c0f7cb1ace79dc80e))
+- **webhooks:** Use mTLS callback URL only when mtls verification is enabled and required ([#15261](https://github.com/juspay/hyperswitch/pull/15261)) ([`4bafece`](https://github.com/juspay/hyperswitch/commit/4bafece8bbf66f9aedd07b59d7f215bbfa135426))
+
+### Refactors
+
+- **events:** Move the event types text migration to v2_migrations ([#15266](https://github.com/juspay/hyperswitch/pull/15266)) ([`f264a21`](https://github.com/juspay/hyperswitch/commit/f264a210facead67f64b1220e4cf5a322b54685a))
+- **router:** Centralize accounts queries and duplicate-read tracking ([#15227](https://github.com/juspay/hyperswitch/pull/15227)) ([`43f0971`](https://github.com/juspay/hyperswitch/commit/43f09714ec673f60b5622780cba8a46444c4d50b))
+
+**Full Changelog:** [`2026.11.16.0...2026.11.16.1`](https://github.com/juspay/hyperswitch/compare/2026.11.16.0...2026.11.16.1)
+
+- - -
+
 ## 2026.11.16.0
 
 ### Features
