@@ -66,6 +66,7 @@ use crate::{
     router_request_types,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     type Error;

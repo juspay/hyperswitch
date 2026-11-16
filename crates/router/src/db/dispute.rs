@@ -8,6 +8,7 @@ use crate::{
     types::storage::{self, enums},
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait DisputeInterface {
     async fn insert_dispute(

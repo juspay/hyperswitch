@@ -31,7 +31,7 @@ use crate::{
         payments::{self, helpers},
         revenue_recovery::retry_stats,
     },
-    db::{errors::RevenueRecoveryError, StorageInterface},
+    db::errors::RevenueRecoveryError,
     routes::{app::ReqState, metrics, SessionState},
     services::{
         self,
@@ -1092,8 +1092,12 @@ impl RevenueRecoveryAttempt {
                 )
             })?;
 
-        let db = &*state.store;
-        db.find_merchant_connector_account_by_id(&payment_merchant_connector_account_id, key_store)
+        state
+            .accounts_store
+            .find_merchant_connector_account_by_id(
+                &payment_merchant_connector_account_id,
+                key_store,
+            )
             .await
             .change_context(
                 errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound {

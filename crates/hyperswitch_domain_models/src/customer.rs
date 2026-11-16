@@ -315,6 +315,7 @@ impl From<CustomerListConstraints> for query::CustomerListConstraints {
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CustomerInterface {
     type Error;

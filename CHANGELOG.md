@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.16.0
+
+### Features
+
+- **revenue_recovery:** Add the recovery request workflow ([#15208](https://github.com/juspay/hyperswitch/pull/15208)) ([`8e75ce7`](https://github.com/juspay/hyperswitch/commit/8e75ce7cce0b462b37d76601ac264a7f603674cc))
+- **webhooks:** Use mTLS callback URL for production connector webhook registration ([#15237](https://github.com/juspay/hyperswitch/pull/15237)) ([`676c83e`](https://github.com/juspay/hyperswitch/commit/676c83ebc6239da086d2a29d17bc450d299eecb9))
+
+**Full Changelog:** [`2026.11.13.1...2026.11.16.0`](https://github.com/juspay/hyperswitch/compare/2026.11.13.1...2026.11.16.0)
+
+- - -
+
 ## 2026.11.13.1
 
 ### Features

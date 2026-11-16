@@ -15,6 +15,7 @@ use crate::{
 #[cfg(feature = "olap")]
 const MAX_LIMIT: usize = 100;
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait RefundInterface {
     #[cfg(feature = "v1")]

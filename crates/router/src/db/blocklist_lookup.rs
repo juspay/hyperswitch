@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait BlocklistLookupInterface {
     async fn insert_blocklist_lookup_entry(
@@ -103,9 +104,11 @@ impl BlocklistLookupInterface for KafkaStore {
         &self,
         blocklist_lookup_entry: storage::BlocklistLookupNew,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .insert_blocklist_lookup_entry(blocklist_lookup_entry)
-            .await
+        BlocklistLookupInterface::insert_blocklist_lookup_entry(
+            &self.diesel_store,
+            blocklist_lookup_entry,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -114,9 +117,12 @@ impl BlocklistLookupInterface for KafkaStore {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
-            .await
+        BlocklistLookupInterface::find_blocklist_lookup_entry_by_merchant_id_fingerprint(
+            &self.diesel_store,
+            merchant_id,
+            fingerprint,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -125,8 +131,11 @@ impl BlocklistLookupInterface for KafkaStore {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistLookup, errors::StorageError> {
-        self.diesel_store
-            .delete_blocklist_lookup_entry_by_merchant_id_fingerprint(merchant_id, fingerprint)
-            .await
+        BlocklistLookupInterface::delete_blocklist_lookup_entry_by_merchant_id_fingerprint(
+            &self.diesel_store,
+            merchant_id,
+            fingerprint,
+        )
+        .await
     }
 }
