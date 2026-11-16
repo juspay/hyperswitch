@@ -63,9 +63,10 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
-/// Checkout payout configuration stored on the merchant connector account.
+/// Checkout payment and payout configuration stored on the merchant connector account.
 #[derive(Debug, serde::Deserialize)]
 pub struct CheckoutMetadata {
+    /// Optional Checkout client ID used to derive the account-specific API subdomain.
     connector_client_id: Option<Secret<String>>,
     /// Checkout currency account (`ca_...`) used as the payout `source.id`.
     connector_currency_account_id: Option<Secret<String>>,
