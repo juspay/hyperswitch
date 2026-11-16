@@ -1099,6 +1099,7 @@ impl UnifiedConnectorServiceClient {
     /// `WebhookEventType`, without requiring credentials or making any outbound connector
     /// call. The caller uses the returned reference to resolve the merchant-connector
     /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    /// Sends `x-webhook-connector` as provider identity alongside the legacy connector metadata.
     pub async fn incoming_webhook_parse_event(
         &self,
         incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
@@ -1109,8 +1110,14 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
+        let mut metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let webhook_connector = connector_name.parse::<MetadataValue<_>>().change_context(
+            UnifiedConnectorServiceError::HeaderInjectionFailed(
+                consts::UCS_HEADER_WEBHOOK_CONNECTOR.to_string(),
+            ),
+        )?;
+        metadata.insert(consts::UCS_HEADER_WEBHOOK_CONNECTOR, webhook_connector);
         *request.metadata_mut() = metadata;
 
         self.event_service_client
