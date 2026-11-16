@@ -19,6 +19,7 @@ use redis_interface::RedisConnectionWithContext;
 use router_env::{env, instrument, logger, tracing::Instrument};
 
 use crate::{
+    configs::settings::UserSettings,
     consts::user::{REDIS_SSO_PREFIX, REDIS_SSO_TTL},
     core::errors::{StorageError, UserErrors, UserResult},
     routes::SessionState,
@@ -390,6 +391,11 @@ pub fn spawn_async_lineage_context_update_to_db(
         }
     };
     tokio::spawn(lineage_update.in_current_span());
+}
+
+/// Self-serve sign up is always disabled in production, and elsewhere when `user.signup_disabled` is set.
+pub fn is_signup_disabled(environment: env::Env, user_settings: &UserSettings) -> bool {
+    matches!(environment, env::Env::Production) || user_settings.signup_disabled
 }
 
 pub fn generate_env_specific_merchant_id(value: String) -> UserResult<id_type::MerchantId> {

@@ -1021,6 +1021,9 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    /// Rejects self-serve sign ups. Production always rejects them regardless of this flag.
+    #[serde(default)]
+    pub signup_disabled: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
