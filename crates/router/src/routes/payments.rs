@@ -327,10 +327,23 @@ pub async fn payment_link_create(
 pub async fn recovery_payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::RecoveryPaymentsCreate>,
+    json_payload: web::Json<Box<serde_json::value::RawValue>>,
 ) -> impl Responder {
     let flow = Flow::RecoveryPaymentsCreate;
-    let mut payload = json_payload.into_inner();
+    let request_body = json_payload.into_inner();
+    let payload =
+        match serde_json::from_str::<payment_types::RecoveryPaymentsCreate>(request_body.get()) {
+            Ok(payload) => payload,
+            Err(error) => {
+                return actix_web::HttpResponse::from_error(
+                    crate::utils::error_parser::custom_json_error_handler(
+                        actix_web::error::JsonPayloadError::Deserialize(error),
+                        &req,
+                    ),
+                );
+            }
+        };
+    let request_body = Secret::new(request_body.get().to_owned());
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -343,6 +356,7 @@ pub async fn recovery_payments_create(
                 auth.platform,
                 auth.profile,
                 req_payload,
+                request_body.clone(),
             )
         },
         &auth::V2ApiKeyAuth {

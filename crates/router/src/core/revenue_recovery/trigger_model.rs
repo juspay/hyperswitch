@@ -13,23 +13,20 @@ use crate::{
 /// start of the API. The model comes from the profile alone. The fields of the request are only
 /// checked against it, and from here on each model has exactly what it needs.
 #[derive(Debug)]
-pub(super) enum RecoveryTrigger<'a> {
+pub(super) enum RecoveryTrigger {
     /// Hyperswitch triggers the retries through these connector accounts.
     Internal {
         billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
         payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
     },
-    /// The merchant triggers the retries on this processor, within these limits.
-    External {
-        connector: RecoveryConnector,
-        retry_config: &'a RevenueRecoveryConfig,
-    },
+    /// The merchant triggers the retries on this processor, within the limits of the profile.
+    External { connector: RecoveryConnector },
 }
 
-impl<'a> RecoveryTrigger<'a> {
+impl RecoveryTrigger {
     pub(super) fn from_profile_settings(
         trigger_model: common_enums::RevenueRecoveryTriggerModel,
-        retry_config: Option<&'a RevenueRecoveryConfig>,
+        retry_config: Option<&RevenueRecoveryConfig>,
         request: &RecoveryPaymentsCreate,
     ) -> RouterResult<Self> {
         match trigger_model {
@@ -52,16 +49,13 @@ impl<'a> RecoveryTrigger<'a> {
                 let connector = request.connector.get_required_value("connector")?;
 
                 // Profiles are refused without it, this holds for one saved before that check.
-                let retry_config = retry_config.ok_or_else(|| {
+                retry_config.ok_or_else(|| {
                     report!(errors::ApiErrorResponse::PreconditionFailed {
                         message: "The `revenue_recovery_config` of the profile is required when its `revenue_recovery_trigger_model` is `external_triggers`".to_owned(),
                     })
                 })?;
 
-                Ok(Self::External {
-                    connector,
-                    retry_config,
-                })
+                Ok(Self::External { connector })
             }
         }
     }

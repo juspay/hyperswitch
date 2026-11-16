@@ -341,6 +341,7 @@ impl RevenueRecoveryInvoice {
             })
             .await
     }
+
     /// Fills in partial authorization from the billing connector account when the invoice
     /// itself does not carry a value.
     fn with_default_partial_authorization(mut self, default: bool) -> Self {
