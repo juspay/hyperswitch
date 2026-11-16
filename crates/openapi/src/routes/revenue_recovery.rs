@@ -158,7 +158,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
             })
         ),
-        (status = 400, description = "Missing or invalid mandatory fields, or the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
         (status = 500, description = "Internal server error"),
     ),

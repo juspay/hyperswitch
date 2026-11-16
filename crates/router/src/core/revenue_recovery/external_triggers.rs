@@ -13,7 +13,7 @@ use common_utils::{
     types::keymanager,
 };
 use diesel_models::{business_profile::RevenueRecoveryConfig, process_tracker::business_status};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::{get_next_retry_for_intent_status, PaymentIntent, PaymentIntentData},
     platform::Platform,
@@ -43,9 +43,9 @@ use crate::{
                 payment_attempt_record::PaymentAttemptRecord, ValidateStatusForOperation,
             },
         },
-        webhooks::recovery_incoming::{RevenueRecoveryAttempt, RevenueRecoveryInvoice},
+        webhooks::recovery_incoming::RevenueRecoveryAttempt,
     },
-    routes::{app::ReqState, lock_utils, metrics, SessionState},
+    routes::{lock_utils, metrics, SessionState},
     types::{
         api as api_types, domain,
         storage::{
@@ -654,48 +654,17 @@ fn reason_name(reason: RecoveryNoRetryReason) -> &'static str {
     }
 }
 
-/// Accepts a transaction the merchant reported, unless its invoice takes no more transactions, and
-/// queues it for the recovery request workflow, which records it. The workflow checks the invoice
-/// again, as it can close while the recovery request waits.
+/// Accepts a transaction the merchant reported and queues it for the recovery request workflow,
+/// which records it. The invoice is not read here: the workflow refuses one that takes no more
+/// transactions, which also covers an invoice that closes while the recovery request waits.
 pub(super) async fn accept_recovery_request(
     state: &SessionState,
-    req_state: &ReqState,
     platform: &Platform,
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
     request_body: &Secret<String>,
     connector: RecoveryConnector,
 ) -> RouterResult<api_models::payments::RecoveryRequestAccepted> {
-    let invoice = RevenueRecoveryInvoice::find_custom_recovery_intent(
-        request.clone(),
-        state,
-        req_state,
-        platform,
-        profile,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to read the invoice of the recovery request")
-    .inspect_err(|_| record_received_recovery_request("failed"))?;
-
-    if let Some(invoice) = invoice.filter(|invoice| {
-        PaymentAttemptRecord
-            .validate_status_for_operation(invoice.status)
-            .is_err()
-    }) {
-        record_received_recovery_request("invoice_closed");
-        logger::info!(
-            invoice_status = %invoice.status,
-            "Recovery request refused, as its invoice takes no more transactions"
-        );
-        return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-            message: format!(
-                "The invoice is `{}` and takes no more transactions",
-                invoice.status
-            ),
-        }));
-    }
-
     queue_recovery_request(state, platform, profile, request, request_body, connector)
         .await
         .inspect_err(|error| {
