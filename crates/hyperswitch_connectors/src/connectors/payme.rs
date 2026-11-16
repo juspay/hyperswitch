@@ -1363,6 +1363,7 @@ impl ConnectorSpecifications for Payme {
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
             api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 

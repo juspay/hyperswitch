@@ -11363,6 +11363,9 @@ impl SurchargeCalculationOverride {
 pub enum ConnectorMandateStatus {
     /// Indicates that the connector mandate is active and can be used for payments.
     Active,
+    /// A connector-mandate revoke was submitted. The mandate must not be used for payments until
+    /// the connector confirms the final state
+    MandateRevocationInitiated,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
 }
@@ -11390,6 +11393,10 @@ impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
     fn from(status: ConnectorMandateStatus) -> Self {
         match status {
             ConnectorMandateStatus::Active => Self::Active,
+            // ConnectorTokenStatus has no pending-revocation representation. Treat an
+            // in-flight revocation as unusable when it is surfaced through the legacy token
+            // status model, rather than accidentally permitting an MIT.
+            ConnectorMandateStatus::MandateRevocationInitiated => Self::Inactive,
             ConnectorMandateStatus::Inactive => Self::Inactive,
         }
     }

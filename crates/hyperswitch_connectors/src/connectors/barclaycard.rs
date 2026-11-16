@@ -1539,7 +1539,8 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -1563,7 +1564,8 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -1587,7 +1589,8 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

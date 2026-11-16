@@ -22,6 +22,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
         },
@@ -37,20 +38,20 @@ use hyperswitch_domain_models::{
             ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
         },
         AccessTokenRequestData, AuthorizeSessionTokenData, GenerateQrRequestData,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCaptureData, PaymentsPreAuthorizeCancelData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
-        SetupMandateRequestData,
+        MandateRevokeRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
+        PaymentsCancelData, PaymentsCaptureData, PaymentsPreAuthorizeCancelData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsUpdatePostConfirmData,
+        PushNotificationRequestData, RefundsData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
             ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
         },
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData,
+        ConnectorWebhookRegisterRouterData, MandateRevokeRouterData, PaymentsAuthorizeRouterData,
         PaymentsAuthorizeSessionTokenRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsGenerateQrRouterData,
         PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
@@ -77,8 +78,8 @@ use crate::{
     connectors::santander::{
         requests::{
             AccessTokenUrlPath, SantanderAuthRequest, SantanderAuthType,
-            SantanderBoletoWebhookRegisterRequest, SantanderMetadataObject,
-            SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderBoletoWebhookRegisterRequest, SantanderCancelRecurrenceRequest,
+            SantanderMetadataObject, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderRefundRequest, SantanderRouterData,
             SantanderSetupMandateRequest, SantanderWebhookRegisterRequest,
         },
@@ -95,7 +96,10 @@ use crate::{
     },
     constants::headers,
     types::{RefreshTokenRouterData, ResponseRouterData},
-    utils::{self as connector_utils, convert_amount, PaymentsAuthorizeRequestData},
+    utils::{
+        self as connector_utils, convert_amount, PaymentsAuthorizeRequestData,
+        RevokeMandateRequestData,
+    },
 };
 
 #[derive(Clone)]
@@ -123,6 +127,7 @@ impl api::Payment for Santander {}
 impl api::PaymentSession for Santander {}
 impl api::ConnectorAccessToken for Santander {}
 impl api::MandateSetup for Santander {}
+impl api::ConnectorMandateRevoke for Santander {}
 impl api::PaymentAuthorize for Santander {}
 impl api::PaymentAuthorizeSessionToken for Santander {}
 impl api::PaymentSync for Santander {}
@@ -960,6 +965,101 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let response: responses::SantanderSetupMandateResponse = res
             .response
             .parse_struct("santander SantanderSetupMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorIntegration<MandateRevoke, MandateRevokeRequestData, MandateRevokeResponseData>
+    for Santander
+{
+    fn get_headers(
+        &self,
+        req: &MandateRevokeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &MandateRevokeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let id_rec = req.request.get_connector_mandate_id()?;
+        Ok(format!(
+            "{}api/v1/rec/{}",
+            self.base_url(connectors),
+            id_rec
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &MandateRevokeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = SantanderCancelRecurrenceRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &MandateRevokeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let auth_details = SantanderAuthType::try_from(&req.connector_auth_type)?;
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Patch)
+                .url(&self.get_url(req, connectors)?)
+                .add_certificate(Some(auth_details.client_id))
+                .add_certificate_key(Some(auth_details.client_secret))
+                .attach_default_headers()
+                .headers(self.get_headers(req, connectors)?)
+                .set_body(self.get_request_body(req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &MandateRevokeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<MandateRevokeRouterData, errors::ConnectorError> {
+        let response: SantanderPixAutomaticRecResponse = res
+            .response
+            .parse_struct("santander SantanderPixAutomaticRecResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -2500,8 +2600,15 @@ impl ConnectorSpecifications for Santander {
         )
     }
 
-    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
-        Some(false)
+    fn should_allow_mit(
+        &self,
+        mandate_status: enums::ConnectorMandateStatus,
+        _current_flow: CurrentFlowInfo,
+    ) -> Option<bool> {
+        Some(matches!(
+            mandate_status,
+            enums::ConnectorMandateStatus::Active
+        ))
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -2516,6 +2623,17 @@ impl ConnectorSpecifications for Santander {
         matches!(
             payment_method_type,
             Some(enums::PaymentMethodType::PixQr) | Some(enums::PaymentMethodType::Boleto)
+        )
+    }
+
+    fn is_connector_mandate_revoke_supported(&self, current_flow: CurrentFlowInfo) -> bool {
+        matches!(
+            current_flow,
+            CurrentFlowInfo::ConnectorMandateRevoke {
+                payment_method_id: Some(_),
+                payment_method_type: Some(enums::PaymentMethodType::PixAutomaticoPush)
+                    | Some(enums::PaymentMethodType::PixAutomaticoQr),
+            }
         )
     }
 
@@ -2661,6 +2779,7 @@ impl ConnectorSpecifications for Santander {
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })
             | Some(CurrentFlowInfo::UpdatePostConfirm { .. })
+            | Some(CurrentFlowInfo::ConnectorMandateRevoke { .. })
             | None => false,
             Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }) => false,
         }
@@ -2677,7 +2796,8 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
-            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
@@ -2692,7 +2812,8 @@ impl ConnectorSpecifications for Santander {
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. }
             | CurrentFlowInfo::UpdatePostConfirm { .. }
-            | CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 }

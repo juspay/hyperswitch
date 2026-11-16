@@ -2102,7 +2102,7 @@ pub fn update_connector_mandate_details_status(
                     connector_mandate_request_reference_id: pm
                         .connector_mandate_request_reference_id
                         .clone(),
-                    connector_customer_id: None,
+                    connector_customer_id: pm.connector_customer_id.clone(),
                 };
                 *pm = update_rec
             });

@@ -706,6 +706,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    /// Check if connector supports the payment-method-scoped connector mandate revoke flow
+    fn is_connector_mandate_revoke_supported(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_connector_mandate_revoke_supported(current_flow),
+            Self::New(connector) => connector.is_connector_mandate_revoke_supported(current_flow),
+        }
+    }
+
     /// Check if connector should be called for UpdatePostConfirm
     fn should_call_connector_for_update_post_confirm(
         &self,
@@ -736,14 +744,14 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
-    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+    fn should_allow_mit(
+        &self,
+        mandate_status: common_enums::ConnectorMandateStatus,
+        current_flow: CurrentFlowInfo,
+    ) -> Option<bool> {
         match self {
-            Self::Old(connector) => {
-                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
-            }
-            Self::New(connector) => {
-                connector.should_allow_mit_when_connector_mandate_status_is_inactive()
-            }
+            Self::Old(connector) => connector.should_allow_mit(mandate_status, current_flow),
+            Self::New(connector) => connector.should_allow_mit(mandate_status, current_flow),
         }
     }
 

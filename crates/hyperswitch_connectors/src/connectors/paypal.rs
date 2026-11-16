@@ -2885,7 +2885,8 @@ impl ConnectorSpecifications for Paypal {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 
@@ -2901,6 +2902,7 @@ impl ConnectorSpecifications for Paypal {
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
             api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 

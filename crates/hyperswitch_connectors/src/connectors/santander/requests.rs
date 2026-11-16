@@ -627,3 +627,16 @@ pub struct SantanderBoletoWebhookRegisterRequest {
     #[serde(rename = "pixBillingWebhookActive")]
     pub pix_billing_webhook_active: bool,
 }
+
+/// Request body for cancelling a Pix Automático recurrence
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderCancelRecurrenceRequest {
+    pub status: SantanderCancelRecurrenceStatus,
+}
+
+/// Only `"CANCELADA"` is a valid value for the recurrence cancel endpoint's status field.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SantanderCancelRecurrenceStatus {
+    Cancelada,
+}

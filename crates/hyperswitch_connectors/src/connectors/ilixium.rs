@@ -683,7 +683,8 @@ impl ConnectorSpecifications for Ilixium {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 }

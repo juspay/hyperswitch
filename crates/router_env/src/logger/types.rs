@@ -178,6 +178,8 @@ pub enum Flow {
     PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
+    /// Payment methods connector mandate revoke flow.
+    PaymentMethodsConnectorMandateRevoke,
     /// Payment methods delete flow.
     PaymentMethodsDelete,
     /// Network token status check flow.

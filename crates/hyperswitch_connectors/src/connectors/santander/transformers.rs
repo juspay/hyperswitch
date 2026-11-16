@@ -16,23 +16,25 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
+        mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PushNotification, AuthorizeSessionToken, GenerateQr, SetupMandate,
     },
     router_request_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AuthorizeSessionTokenData, CurrentFlowInfo, GenerateQrRequestData,
-        PaymentsUpdatePostConfirmData, PushNotificationRequestData, ResponseId,
-        SetupMandateRequestData,
+        MandateRevokeRequestData, PaymentsUpdatePostConfirmData, PushNotificationRequestData,
+        ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, MandateReference,
-        PaymentsResponseData, RefundsResponseData,
+        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
-        PaymentsSyncRouterData, PaymentsUpdatePostConfirmRouterData, RefundsRouterData,
+        ConnectorWebhookRegisterRouterData, MandateRevokeRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCancelRouterData, PaymentsPreAuthorizeCancelRouterData,
+        PaymentsPushNotificationRouterData, PaymentsSyncRouterData,
+        PaymentsUpdatePostConfirmRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -52,7 +54,8 @@ use crate::{
             RecurrenceCalendar, RecurrenceDebtor, RecurrenceLink, RecurrenceValue, RetryPolicy,
             SantanderAccountType, SantanderAuthRequest, SantanderAuthType,
             SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
-            SantanderBoletoPaymentRequest, SantanderBoletoWebhookRegisterRequest, SantanderDebtor,
+            SantanderBoletoPaymentRequest, SantanderBoletoWebhookRegisterRequest,
+            SantanderCancelRecurrenceRequest, SantanderCancelRecurrenceStatus, SantanderDebtor,
             SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
             SantanderMetadataPatch, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
@@ -3527,4 +3530,51 @@ pub fn get_pix_automatico_journey_type(
         .ativacao
         .as_ref()
         .and_then(|activation| activation.tipo_jornada.as_ref())
+}
+
+impl TryFrom<&MandateRevokeRouterData> for SantanderCancelRecurrenceRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(_value: &MandateRevokeRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: SantanderCancelRecurrenceStatus::Cancelada,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            MandateRevoke,
+            SantanderPixAutomaticRecResponse,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    > for MandateRevokeRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            MandateRevoke,
+            SantanderPixAutomaticRecResponse,
+            MandateRevokeRequestData,
+            MandateRevokeResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.response.status {
+            RecurrenceStatus::Cancelada => Ok(Self {
+                response: Ok(MandateRevokeResponseData {
+                    mandate_status: common_enums::MandateStatus::Revoked,
+                }),
+                ..item.data
+            }),
+            status => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(format!(
+                    "recurrence was not cancelled at Santander, status: {status:?}"
+                )))
+                .into(),
+            ),
+        }
+    }
 }

@@ -28,7 +28,6 @@ use rust_decimal::{
 use serde::de;
 use utoipa::ToSchema;
 
-#[cfg(all(feature = "v1", feature = "errors"))]
 use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
@@ -5148,4 +5147,41 @@ pub struct PaymentMethodGetTokenDetailsResponse {
     /// The token associated with the payment method
     #[schema(value_type = String, example = "token_CSum555d9YxDOpGwYq6q")]
     pub payment_method_token: String,
+}
+
+/// Request body for the payment-method-scoped connector tokens revoke API
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ConnectorMandateRevokeRequest {
+    /// Merchant connector account ids whose connector tokens entry on this payment method should be revoked
+    pub merchant_connector_ids: Vec<id_type::MerchantConnectorAccountId>,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorMandateRevokeRequest {}
+
+/// Response of the connector mandate revoke API.
+/// Always returned with HTTP 200 when the request itself is valid; per-item outcomes ride in `results`
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConnectorMandateRevokeResponse {
+    /// Payment method on which the revoke was attempted
+    pub payment_method_id: String,
+    /// Profile scoped by the mandatory `x-profile-id` header; every listed merchant connector
+    /// account must belong to this profile
+    pub profile_id: id_type::ProfileId,
+    /// Per-merchant-connector results, in the same order as the request
+    pub results: Vec<ConnectorMandateRevokeResult>,
+}
+
+impl common_utils::events::ApiEventMetric for ConnectorMandateRevokeResponse {}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ConnectorMandateRevokeResult {
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector: Option<api_enums::Connector>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_mandate_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_mandate_status: Option<api_enums::ConnectorMandateStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<ErrorResponse>,
 }

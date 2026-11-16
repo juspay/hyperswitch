@@ -495,6 +495,10 @@ pub trait ConnectorSpecifications {
     ) -> bool {
         false
     }
+    /// Check if the connector supports revoking a payment-method-scoped connector token.
+    fn is_connector_mandate_revoke_supported(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
     /// Check if connector should be called for UpdatePostConfirm
     fn should_call_connector_for_update_post_confirm(
         &self,
@@ -599,10 +603,14 @@ pub trait ConnectorSpecifications {
         Some(false)
     }
 
-    /// Whether MIT payments may proceed when the selected connector mandate is inactive.
+    /// Whether MIT payments may proceed for the selected connector-mandate status.
     /// `None` keeps the existing permissive behaviour for connectors that have not opted in to
     /// connector-mandate-status validation.
-    fn should_allow_mit_when_connector_mandate_status_is_inactive(&self) -> Option<bool> {
+    fn should_allow_mit(
+        &self,
+        _mandate_status: enums::ConnectorMandateStatus,
+        _current_flow: CurrentFlowInfo,
+    ) -> Option<bool> {
         None
     }
 
