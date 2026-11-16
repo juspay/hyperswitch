@@ -5070,7 +5070,7 @@
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields, or the invoice takes no more transactions",
+            "description": "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
