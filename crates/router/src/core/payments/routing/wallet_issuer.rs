@@ -13,7 +13,17 @@ use hyperswitch_domain_models::{
     routing::{PaymentRoutingInfo, PreRoutingConnectorChoice},
 };
 
-use crate::{core::routing::PaymentsDslInput, logger, types::domain, SessionState};
+use crate::{
+    core::{
+        payments::{
+            decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
+        },
+        routing::PaymentsDslInput,
+    },
+    logger,
+    types::domain,
+    SessionState,
+};
 
 /// Best effort: unavailable wallet keys, decryption failures, and missing BIN records must
 /// not make a payment fail. The normal connector-specific decryption flow still owns errors.
@@ -52,7 +62,7 @@ pub(crate) async fn enrich_wallet_issuer_country(
         let decrypted = if let Some(mca_id) = mca_id {
             let result = match wallet {
                 WalletData::ApplePay(data) => {
-                    super::super::decrypt_apple_pay_wallet_for_eligibility(
+                    decrypt_apple_pay_wallet_for_eligibility(
                         state,
                         processor,
                         business_profile,
@@ -62,10 +72,7 @@ pub(crate) async fn enrich_wallet_issuer_country(
                     .await
                 }
                 WalletData::GooglePay(data) => {
-                    super::super::decrypt_google_pay_wallet_for_eligibility(
-                        state, processor, &mca_id, data,
-                    )
-                    .await
+                    decrypt_google_pay_wallet_for_eligibility(state, processor, &mca_id, data).await
                 }
                 _ => Ok(None),
             };
