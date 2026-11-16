@@ -1578,6 +1578,7 @@ impl RoutingConnectorOutcomeWithApproach {
 pub struct HybridRoutingInput<'a> {
     pub state: &'a SessionState,
     pub business_profile: &'a domain::Profile,
+    pub dimensions: &'a dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     pub payment_dsl_input: &'a routing::PaymentsDslInput<'a>,
     pub backend_input: &'a backend::BackendInput,
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
@@ -1661,10 +1662,9 @@ impl RoutingStage for HybridRoutingStage {
                 .to_string();
 
             if input
-                .state
-                .conf
-                .open_router
-                .use_decide(input.business_profile.get_id())
+                .dimensions
+                .get_decision_engine_decide_enabled(input.state.superposition_service.as_ref())
+                .await
             {
                 let preferred_connectors = input
                     .preferred_connector
@@ -1838,6 +1838,7 @@ pub async fn perform_hybrid_routing_if_enabled(
             let input = HybridRoutingInput {
                 state,
                 business_profile,
+                dimensions,
                 payment_dsl_input,
                 backend_input,
                 fallback_config: &eligible_fallback,

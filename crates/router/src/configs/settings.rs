@@ -426,14 +426,6 @@ pub struct DebitRoutingConfig {
     pub supported_connectors: HashSet<enums::Connector>,
 }
 
-#[derive(Debug, Deserialize, Clone, Copy, Default, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum DecisionEngineRoutingEndpoint {
-    #[default]
-    Hybrid,
-    Decide,
-}
-
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
@@ -448,94 +440,6 @@ pub struct OpenRouter {
     /// enabled; empty disables the header.
     #[serde(default)]
     pub admin_secret: Secret<String>,
-    /// DE payment routing endpoint. Hybrid remains the default and global rollback switch.
-    #[serde(default)]
-    pub routing_endpoint: DecisionEngineRoutingEndpoint,
-    /// Optional comma-separated profile allowlist for `/decide`; omission permits all
-    /// DE-routed profiles when `routing_endpoint` is `decide`.
-    #[serde(default, deserialize_with = "deserialize_hashset")]
-    pub decide_profile_ids: HashSet<id_type::ProfileId>,
-}
-
-impl OpenRouter {
-    pub fn use_decide(&self, profile_id: &id_type::ProfileId) -> bool {
-        self.routing_endpoint == DecisionEngineRoutingEndpoint::Decide
-            && (self.decide_profile_ids.is_empty() || self.decide_profile_ids.contains(profile_id))
-    }
-}
-
-#[cfg(test)]
-mod decision_engine_routing_endpoint_tests {
-    use super::{id_type, DecisionEngineRoutingEndpoint, OpenRouter};
-
-    fn profile_id(value: &str) -> id_type::ProfileId {
-        value.parse().expect("valid profile id")
-    }
-
-    fn parse_config(extra: serde_json::Value) -> Result<OpenRouter, serde_json::Error> {
-        let mut config = serde_json::json!({
-            "dynamic_routing_enabled": true,
-            "static_routing_enabled": true,
-            "url": "http://localhost:8080"
-        });
-        config
-            .as_object_mut()
-            .expect("config object")
-            .extend(extra.as_object().expect("extra config object").clone());
-        serde_json::from_value(config)
-    }
-
-    #[test]
-    fn omitted_endpoint_preserves_hybrid_routing() {
-        let config = parse_config(serde_json::json!({})).expect("legacy config remains valid");
-
-        assert_eq!(
-            config.routing_endpoint,
-            DecisionEngineRoutingEndpoint::Hybrid
-        );
-        assert!(config.decide_profile_ids.is_empty());
-        assert!(!config.use_decide(&profile_id("pro_default")));
-        assert!(!OpenRouter::default().use_decide(&profile_id("pro_default")));
-    }
-
-    #[test]
-    fn rejects_unknown_endpoint() {
-        assert!(parse_config(serde_json::json!({"routing_endpoint": "decide_v2"})).is_err());
-    }
-
-    #[test]
-    fn decide_without_allowlist_enables_all_profiles() {
-        let config =
-            parse_config(serde_json::json!({"routing_endpoint": "decide"})).expect("decide config");
-
-        assert!(config.use_decide(&profile_id("pro_first")));
-        assert!(config.use_decide(&profile_id("pro_second")));
-    }
-
-    #[test]
-    fn decide_allowlist_limits_profiles() {
-        let config = parse_config(serde_json::json!({
-            "routing_endpoint": "decide",
-            "decide_profile_ids": "pro_first, pro_second, pro_first"
-        }))
-        .expect("decide allowlist config");
-
-        assert_eq!(config.decide_profile_ids.len(), 2);
-        assert!(config.use_decide(&profile_id("pro_first")));
-        assert!(config.use_decide(&profile_id("pro_second")));
-        assert!(!config.use_decide(&profile_id("pro_third")));
-    }
-
-    #[test]
-    fn hybrid_rolls_back_even_allowlisted_profiles() {
-        let config = parse_config(serde_json::json!({
-            "routing_endpoint": "hybrid",
-            "decide_profile_ids": "pro_first"
-        }))
-        .expect("rollback config");
-
-        assert!(!config.use_decide(&profile_id("pro_first")));
-    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
