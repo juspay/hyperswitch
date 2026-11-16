@@ -27,6 +27,7 @@ use transformers as configure_connector_webhook_flow;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
         payments::helpers,
         utils as core_utils,
@@ -225,6 +226,18 @@ pub async fn register_connector_webhook(
         .get_webhook_registration_plan(scope, &state.conf.connectors)
         .to_webhook_configuration_failed_response()?;
 
+    let connector_requires_mtls = connector_data.connector.is_webhook_mtls_required();
+    let mtls_verification_enabled = dimension_state::Dimensions::new()
+        .with_connector(connector_data.connector_name)
+        .get_incoming_webhook_mtls_verification_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let webhook_base_url = state
+        .get_webhook_registration_base_url(connector_requires_mtls, mtls_verification_enabled)?;
+
     let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
@@ -258,7 +271,7 @@ pub async fn register_connector_webhook(
 
             let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
             let webhook_url = helpers::create_webhook_url(
-                &state.base_url,
+                webhook_base_url,
                 &mca.merchant_id,
                 merchant_connector_id,
             );
