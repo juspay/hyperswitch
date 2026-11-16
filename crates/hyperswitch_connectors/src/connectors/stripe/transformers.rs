@@ -694,6 +694,10 @@ pub struct StripeBillingAddressCardToken {
     pub state: Option<Secret<String>>,
     #[serde(rename = "billing_details[address][city]")]
     pub city: Option<String>,
+    #[serde(rename = "billing_details[address][postal_code]")]
+    pub zip_code: Option<Secret<String>>,
+    #[serde(rename = "billing_details[address][country]")]
+    pub country: Option<api_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -3074,6 +3078,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             address_line2: item.get_optional_billing_line2(),
             city: item.get_optional_billing_city(),
             state: item.get_optional_billing_state(),
+            zip_code: item.get_optional_billing_zip(),
+            country: item.get_optional_billing_country(),
         };
 
         // Card flow for tokenization is handled separately because of API contact difference
