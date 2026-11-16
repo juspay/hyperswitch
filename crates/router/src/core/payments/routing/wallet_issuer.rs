@@ -25,74 +25,71 @@ pub(crate) async fn enrich_wallet_issuer_country(
     payment: &PaymentsDslInput<'_>,
     input: &mut BackendInput,
 ) {
-    if input
-        .issuer_data
-        .as_ref()
-        .and_then(|issuer| issuer.country)
-        .is_some()
+    let issuer_country = input.issuer_data.as_ref().and_then(|issuer| issuer.country);
+    if let (None, Some(PaymentMethodData::Wallet(wallet))) =
+        (issuer_country, payment.payment_method_data)
     {
-        return;
-    }
-    let Some(PaymentMethodData::Wallet(wallet)) = payment.payment_method_data else {
-        return;
-    };
-    let method_type = match wallet {
-        WalletData::ApplePay(_) => PaymentMethodType::ApplePay,
-        WalletData::GooglePay(_) => PaymentMethodType::GooglePay,
-        _ => return,
-    };
+        let method_type = match wallet {
+            WalletData::ApplePay(_) => Some(PaymentMethodType::ApplePay),
+            WalletData::GooglePay(_) => Some(PaymentMethodType::GooglePay),
+            _ => None,
+        };
 
-    // A session token's issuing MCA identifies the wallet keys. Never select an arbitrary
-    // connector's keys before routing, and never use billing country as issuer country.
-    let decrypted = if wallet_bin(wallet).is_none() {
-        let Some(mca_id) = payment
-            .payment_attempt
-            .straight_through_algorithm
-            .as_ref()
-            .and_then(|value| serde_json::from_value::<PaymentRoutingInfo>(value.clone()).ok())
-            .and_then(|info| wallet_session_mca(info, method_type))
-        else {
-            return;
+        // A session token's issuing MCA identifies the wallet keys. Never select an arbitrary
+        // connector's keys before routing, and never use billing country as issuer country.
+        let mca_id = method_type
+            .filter(|_| wallet_bin(wallet).is_none())
+            .and_then(|method_type| {
+                payment
+                    .payment_attempt
+                    .straight_through_algorithm
+                    .as_ref()
+                    .and_then(|value| {
+                        serde_json::from_value::<PaymentRoutingInfo>(value.clone()).ok()
+                    })
+                    .and_then(|info| wallet_session_mca(info, method_type))
+            });
+        let decrypted = if let Some(mca_id) = mca_id {
+            let result = match wallet {
+                WalletData::ApplePay(data) => {
+                    super::super::decrypt_apple_pay_wallet_for_eligibility(
+                        state,
+                        processor,
+                        business_profile,
+                        &mca_id,
+                        data,
+                    )
+                    .await
+                }
+                WalletData::GooglePay(data) => {
+                    super::super::decrypt_google_pay_wallet_for_eligibility(
+                        state, processor, &mca_id, data,
+                    )
+                    .await
+                }
+                _ => Ok(None),
+            };
+            match result {
+                Ok(Some(EligibilityPaymentMethodData::Wallet(wallet))) => Some(wallet),
+                Ok(_) => None,
+                Err(_) => {
+                    logger::warn!("Wallet issuer-country enrichment could not decrypt the session token; continuing without issuer country");
+                    None
+                }
+            }
+        } else {
+            None
         };
-        let result = match wallet {
-            WalletData::ApplePay(data) => {
-                super::super::decrypt_apple_pay_wallet_for_eligibility(
-                    state,
-                    processor,
-                    business_profile,
-                    &mca_id,
-                    data,
-                )
+        let wallet = decrypted.as_ref().unwrap_or(wallet);
+        enrich_input_from_wallet(input, wallet, |bin| async move {
+            state
+                .store
+                .get_card_info(&bin)
                 .await
-            }
-            WalletData::GooglePay(data) => {
-                super::super::decrypt_google_pay_wallet_for_eligibility(
-                    state, processor, &mca_id, data,
-                )
-                .await
-            }
-            _ => return,
-        };
-        match result {
-            Ok(Some(EligibilityPaymentMethodData::Wallet(wallet))) => Some(wallet),
-            Ok(_) => return,
-            Err(_) => {
-                logger::warn!("Wallet issuer-country enrichment could not decrypt the session token; continuing without issuer country");
-                return;
-            }
-        }
-    } else {
-        None
-    };
-    let wallet = decrypted.as_ref().unwrap_or(wallet);
-    enrich_input_from_wallet(input, wallet, |bin| async move {
-        state
-            .store
-            .get_card_info(&bin)
-            .await
-            .map(|record| record.and_then(|record| record.country_code))
-    })
-    .await;
+                .map(|record| record.and_then(|record| record.country_code))
+        })
+        .await;
+    }
 }
 
 fn wallet_session_mca(
@@ -141,32 +138,30 @@ async fn enrich_input_from_wallet<F, Fut, E>(
         .issuer_data
         .as_ref()
         .and_then(|issuer| issuer.country)
-        .is_some()
+        .is_none()
     {
-        return;
-    }
-    let Some(bin) = wallet_bin(wallet) else {
-        return;
-    };
-    let country = match lookup(bin).await {
-        Ok(Some(code)) => CountryAlpha2::from_str(&code.trim().to_ascii_uppercase())
-            .ok()
-            .map(Country::from_alpha2),
-        Ok(None) => None,
-        Err(_) => {
-            logger::warn!(
-                "Wallet issuer-country BIN lookup failed; continuing without issuer country"
-            );
-            None
+        if let Some(bin) = wallet_bin(wallet) {
+            let country = match lookup(bin).await {
+                Ok(Some(code)) => CountryAlpha2::from_str(&code.trim().to_ascii_uppercase())
+                    .ok()
+                    .map(Country::from_alpha2),
+                Ok(None) => None,
+                Err(_) => {
+                    logger::warn!(
+                        "Wallet issuer-country BIN lookup failed; continuing without issuer country"
+                    );
+                    None
+                }
+            };
+            if let Some(country) = country {
+                input
+                    .issuer_data
+                    .get_or_insert(IssuerDataInput {
+                        name: None,
+                        country: None,
+                    })
+                    .country = Some(country);
+            }
         }
-    };
-    if let Some(country) = country {
-        input
-            .issuer_data
-            .get_or_insert(IssuerDataInput {
-                name: None,
-                country: None,
-            })
-            .country = Some(country);
     }
 }
