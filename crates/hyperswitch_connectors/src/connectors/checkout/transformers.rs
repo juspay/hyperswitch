@@ -988,11 +988,11 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_id: item.router_data.request.connector_mandate_id(),
                     billing_address: billing_details,
                 });
-                let previous_id = Some(
-                    item.router_data
-                        .request
-                        .get_connector_mandate_request_reference_id()?,
-                );
+                let previous_id = item
+                    .router_data
+                    .request
+                    .get_connector_mandate_request_reference_id()
+                    .ok();
                 let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
