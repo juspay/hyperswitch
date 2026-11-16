@@ -4,6 +4,19 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.16.2
+
+### Features
+
+- **connector:** [SANTANDER] Implemented Refunds for PixAutomaticoPush & PixAutomaticoQr ([#15251](https://github.com/juspay/hyperswitch/pull/15251)) ([`a8d0429`](https://github.com/juspay/hyperswitch/commit/a8d042989e4cb94e58f7042e841f695dc4f040f2))
+- **core:** Add processor token details for proxy MIT flow ([#14990](https://github.com/juspay/hyperswitch/pull/14990)) ([`64d48d3`](https://github.com/juspay/hyperswitch/commit/64d48d3422e9627391599e2cca777d70ffb00d87))
+- **revenue_recovery:** Send the next retry to the merchant by webhook ([#15210](https://github.com/juspay/hyperswitch/pull/15210)) ([`aaf0b43`](https://github.com/juspay/hyperswitch/commit/aaf0b435093f4d906503082a9c20f26cdf30d3fb))
+- **ucs:** Send webhook connector header on ParseEvent ([#15270](https://github.com/juspay/hyperswitch/pull/15270)) ([`0dae1c7`](https://github.com/juspay/hyperswitch/commit/0dae1c780db7c16f0dd2ed8cae4bfaeaea7f5744))
+
+**Full Changelog:** [`2026.11.16.1...2026.11.16.2`](https://github.com/juspay/hyperswitch/compare/2026.11.16.1...2026.11.16.2)
+
+- - -
+
 ## 2026.11.16.1
 
 ### Features
