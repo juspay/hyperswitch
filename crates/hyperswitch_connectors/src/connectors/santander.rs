@@ -2538,9 +2538,7 @@ impl ConnectorSpecifications for Santander {
                     );
 
                 match attempt_status {
-                    enums::AttemptStatus::AuthenticationPending => {
-                        supports_non_recurring_cancel || supports_recurring_mit_cancel
-                    }
+                    enums::AttemptStatus::AuthenticationPending => supports_non_recurring_cancel,
                     // A created recurring charge is tracked as Processing until Santander executes it.
                     enums::AttemptStatus::Pending => supports_recurring_mit_cancel,
                     _ => false,

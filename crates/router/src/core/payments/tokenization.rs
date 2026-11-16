@@ -2006,6 +2006,19 @@ pub fn add_connector_mandate_details_in_payment_method(
     }
 }
 
+#[cfg(feature = "v1")]
+pub(crate) fn original_authorization_details_for_mandate_update(
+    is_mit: bool,
+    authorized_amount: i64,
+    authorized_currency: Option<storage_enums::Currency>,
+) -> (Option<i64>, Option<storage_enums::Currency>) {
+    if is_mit {
+        (None, None)
+    } else {
+        (Some(authorized_amount), authorized_currency)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
 pub fn update_connector_mandate_details(
