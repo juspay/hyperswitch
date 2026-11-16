@@ -369,7 +369,7 @@ async fn find_connector_account_of_profile(
     };
 
     let connector_account = state
-        .store
+        .accounts_store
         .find_merchant_connector_account_by_id(
             merchant_connector_id,
             platform.get_processor().get_key_store(),

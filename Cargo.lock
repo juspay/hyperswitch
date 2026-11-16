@@ -8127,11 +8127,13 @@ dependencies = [
 name = "router_derive"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "common_utils",
  "error-stack 0.4.1",
  "indexmap 2.9.0",
  "proc-macro2",
  "quote",
+ "router_env",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -8582,6 +8584,7 @@ dependencies = [
  "num_cpus",
  "rand 0.8.6",
  "redis_interface",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",

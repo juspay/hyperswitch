@@ -6,6 +6,7 @@ use crate::{
     types::storage::{self as storage_types, enums::MerchantStorageScheme},
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait MandateInterface {
     async fn find_mandate_by_merchant_id_mandate_id(

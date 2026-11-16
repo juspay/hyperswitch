@@ -358,7 +358,7 @@ pub async fn complete_from_webhook(
         };
 
     let storage_scheme = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, key_store)
         .await
         .map(|account| account.storage_scheme)
@@ -444,7 +444,7 @@ async fn resolve_interpayments_account(
 ) -> RouterResult<helpers::MerchantConnectorAccountType> {
     let processor = platform.get_processor();
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
         .await
         .change_context(errors::ApiErrorResponse::ProfileNotFound {

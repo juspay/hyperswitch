@@ -348,7 +348,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,
@@ -1003,7 +1004,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 .get_required_value("external vault connector id")?;
 
             let vault_mca = state
-                .store
+                .accounts_store
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     platform.get_processor().get_account().get_id(),
                     &vault_connector_id,

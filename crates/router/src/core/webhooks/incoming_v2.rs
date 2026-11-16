@@ -823,8 +823,8 @@ async fn fetch_mca_and_connector(
     ),
     errors::ApiErrorResponse,
 > {
-    let db = &state.store;
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(connector_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
