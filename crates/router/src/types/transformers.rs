@@ -2466,6 +2466,38 @@ impl ForeignFrom<diesel_models::business_profile::SurchargeConnectorDetails>
     }
 }
 
+#[cfg(feature = "v2")]
+impl ForeignFrom<api_models::admin::RevenueRecoveryConfig>
+    for diesel_models::business_profile::RevenueRecoveryConfig
+{
+    fn foreign_from(item: api_models::admin::RevenueRecoveryConfig) -> Self {
+        Self {
+            max_retry_count: item.max_retry_count,
+            billing_connector_retry_threshold: item.billing_connector_retry_threshold,
+            max_hybrid_cascading_retry_count: item.max_hybrid_cascading_retry_count,
+            grace_period_days: item.grace_period_days,
+            enable_partial_authorization: item.enable_partial_authorization,
+            max_hard_decline_retries: item.max_hard_decline_retries,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl ForeignFrom<diesel_models::business_profile::RevenueRecoveryConfig>
+    for api_models::admin::RevenueRecoveryConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::RevenueRecoveryConfig) -> Self {
+        Self {
+            max_retry_count: item.max_retry_count,
+            billing_connector_retry_threshold: item.billing_connector_retry_threshold,
+            max_hybrid_cascading_retry_count: item.max_hybrid_cascading_retry_count,
+            grace_period_days: item.grace_period_days,
+            enable_partial_authorization: item.enable_partial_authorization,
+            max_hard_decline_retries: item.max_hard_decline_retries,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::CardTestingGuardConfig>
     for diesel_models::business_profile::CardTestingGuardConfig
 {

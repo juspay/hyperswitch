@@ -11,12 +11,12 @@ pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
 pub mod card_issuer;
+pub mod client_secret;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
 pub mod dynamic_routing_stats;
-pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
@@ -111,8 +111,7 @@ pub trait StorageInterface:
     + customers::CustomerInterface<Error = StorageError>
     + dashboard_metadata::DashboardMetadataInterface
     + dispute::DisputeInterface
-    + ephemeral_key::EphemeralKeyInterface
-    + ephemeral_key::ClientSecretInterface
+    + client_secret::ClientSecretInterface
     + events::EventInterface
     + file::FileMetadataInterface
     + FraudCheckInterface
@@ -380,6 +379,10 @@ pub trait RequestIdStore {
         _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
     }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        None
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -418,6 +421,17 @@ impl RequestIdStore for Store {
             self.read_ledger = Some(read_ledger);
         }
     }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger.clone()
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger.clone()
+        }
+    }
 }
 
 pub async fn get_and_deserialize_key<T>(
@@ -450,6 +464,10 @@ impl RequestIdStore for KafkaStore {
         read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
     ) {
         self.diesel_store.attach_read_ledger(read_ledger)
+    }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.diesel_store.get_read_ledger()
     }
 }
 

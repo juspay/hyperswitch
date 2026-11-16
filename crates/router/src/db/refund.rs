@@ -151,7 +151,7 @@ pub trait RefundInterface {
 mod storage {
     use error_stack::report;
     use hyperswitch_domain_models::refunds;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
 
     use super::RefundInterface;
     use crate::{
@@ -548,7 +548,7 @@ mod storage {
     use error_stack::{report, ResultExt};
     use hyperswitch_domain_models::refunds;
     use redis_interface::HsetnxReply;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     use storage_impl::redis::kv_store::{
         decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey,
     };
@@ -684,6 +684,11 @@ mod storage {
                         total_amount: new.total_amount,
                         currency: new.currency,
                         refund_amount: new.refund_amount,
+                        refund_surcharge_amount: new.refund_surcharge_amount,
+                        net_refund_amount: new.net_refund_amount,
+                        external_surcharge_refund_details: new
+                            .external_surcharge_refund_details
+                            .clone(),
                         refund_status: new.refund_status,
                         sent_to_gateway: new.sent_to_gateway,
                         refund_error_message: None,
@@ -911,7 +916,7 @@ mod storage {
                     let conn = connection::pg_connection_write(self).await?;
                     // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
                     // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-                    let result = this.clone().update(&conn, refund.clone()).await;
+                    let result = Box::pin(this.clone().update(&conn, refund.clone())).await;
 
                     match result {
                         Ok(refund) => Ok(refund),
@@ -920,7 +925,7 @@ mod storage {
                                 error.current_context(),
                                 diesel_models::errors::DatabaseError::NotFound
                             ) {
-                                this.update_by_merchant_id(&conn, refund)
+                                Box::pin(this.update_by_merchant_id(&conn, refund))
                                     .await
                                     .map_err(|error| report!(errors::StorageError::from(error)))
                             } else {
@@ -1453,6 +1458,9 @@ impl RefundInterface for MockDb {
             total_amount: new.total_amount,
             currency: new.currency,
             refund_amount: new.refund_amount,
+            refund_surcharge_amount: new.refund_surcharge_amount,
+            net_refund_amount: new.net_refund_amount,
+            external_surcharge_refund_details: new.external_surcharge_refund_details.clone(),
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,
@@ -1509,6 +1517,9 @@ impl RefundInterface for MockDb {
             total_amount: new.total_amount,
             currency: new.currency,
             refund_amount: new.refund_amount,
+            refund_surcharge_amount: new.refund_surcharge_amount,
+            net_refund_amount: new.net_refund_amount,
+            external_surcharge_refund_details: new.external_surcharge_refund_details.clone(),
             refund_status: new.refund_status,
             sent_to_gateway: new.sent_to_gateway,
             refund_error_message: None,

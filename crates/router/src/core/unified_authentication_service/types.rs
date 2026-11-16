@@ -11,6 +11,7 @@ use hyperswitch_domain_models::{
         BrowserInformation,
     },
 };
+use hyperswitch_masking::Secret;
 
 use crate::{
     core::{errors::RouterResult, payments::helpers::MerchantConnectorAccountType},
@@ -89,7 +90,7 @@ pub trait UnifiedAuthenticationService {
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
         _authentication: hyperswitch_domain_models::authentication::Authentication,
-        _return_url: Option<String>,
+        _return_url: Option<Secret<String>>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,
@@ -117,7 +118,7 @@ pub trait UnifiedAuthenticationService {
         _message_category: MessageCategory,
         _device_channel: payments::DeviceChannel,
         _authentication_data: hyperswitch_domain_models::authentication::Authentication,
-        _return_url: Option<String>,
+        _return_url: Option<Secret<String>>,
         _sdk_information: Option<payments::SdkInformation>,
         _threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         _email: Option<common_utils::pii::Email>,

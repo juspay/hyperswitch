@@ -1,6 +1,6 @@
 use diesel_models::ConfigNew;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{MockDb, Store};
 use crate::{

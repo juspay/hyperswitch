@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use common_enums::EntityType;
 use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
@@ -78,6 +78,24 @@ pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
     get_specific_file_key(theme_id, "theme.json")
 }
 
+/// Checks that the asset name is a single plain file name, other than `theme.json`
+pub fn validate_asset_name(asset_name: &str) -> UserResult<()> {
+    let mut components = Path::new(asset_name).components();
+
+    let is_single_normal_component = matches!(
+        (components.next(), components.next()),
+        (Some(Component::Normal(_)), None)
+    );
+    // `Path::components` ignores a trailing `/` and treats `\` as a regular character on Unix
+    let has_separator = asset_name.contains(['/', '\\']);
+
+    if is_single_normal_component && !has_separator && asset_name != "theme.json" {
+        Ok(())
+    } else {
+        Err(UserErrors::InvalidThemeAssetName.into())
+    }
+}
+
 fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
     path.to_str()
         .ok_or(UserErrors::InternalServerError)
@@ -152,8 +170,7 @@ fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserR
 
 async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) -> UserResult<()> {
     state
-        .accounts_store
-        .find_organization_by_org_id(org_id)
+        .track_accounts_query(|db| db.find_organization_by_org_id(org_id))
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))
         .map(|_| ())

@@ -16,7 +16,7 @@ use diesel_models::query::customers as query;
 #[cfg(feature = "v1")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use rustc_hash::FxHashMap;
 #[cfg(feature = "v1")]
 use serde_json::Value;

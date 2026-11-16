@@ -295,14 +295,6 @@ impl MerchantConnectorAccount {
             .is_some_and(|recovery| recovery.enable_partial_authorization)
     }
 
-    /// Positions on the cascading ladder available to an invoice under the hybrid scheme.
-    pub fn get_max_hybrid_cascading_retry_count(&self) -> Option<u16> {
-        self.feature_metadata
-            .as_ref()
-            .and_then(|metadata| metadata.revenue_recovery.as_ref())
-            .map(|recovery| recovery.max_hybrid_cascading_retry_count)
-    }
-
     pub fn get_id(&self) -> id_type::MerchantConnectorAccountId {
         self.id.clone()
     }
@@ -409,6 +401,8 @@ pub struct RevenueRecoveryMetadata {
     pub grace_period_days: u16,
     #[serde(default)]
     pub enable_partial_authorization: bool,
+    #[serde(default)]
+    pub max_hard_decline_retries: u16,
     pub mca_reference: AccountReferenceMap,
 }
 
@@ -864,6 +858,7 @@ impl From<MerchantConnectorAccountFeatureMetadata>
                     .max_hybrid_cascading_retry_count,
                 grace_period_days: recovery_metadata.grace_period_days,
                 enable_partial_authorization: recovery_metadata.enable_partial_authorization,
+                max_hard_decline_retries: recovery_metadata.max_hard_decline_retries,
                 billing_account_reference: DieselBillingAccountReference(
                     recovery_metadata.mca_reference.recovery_to_billing,
                 ),
@@ -891,6 +886,7 @@ impl From<DieselMerchantConnectorAccountFeatureMetadata>
                     .max_hybrid_cascading_retry_count,
                 grace_period_days: recovery_metadata.grace_period_days,
                 enable_partial_authorization: recovery_metadata.enable_partial_authorization,
+                max_hard_decline_retries: recovery_metadata.max_hard_decline_retries,
                 mca_reference: AccountReferenceMap {
                     recovery_to_billing: recovery_metadata.billing_account_reference.0,
                     billing_to_recovery,

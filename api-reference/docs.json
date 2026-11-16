@@ -89,6 +89,12 @@
                     ]
                   },
                   {
+                    "group": "Telephone Order",
+                    "pages": [
+                      "v1/telephone-order/telephone-order--charge"
+                    ]
+                  },
+                  {
                     "group": "Payment Method Session",
                     "pages": [
                       "v2/payment-method-session/payment-method-session--create-v1",
@@ -301,10 +307,7 @@
                       "v1/routing/routing--retrieve-default-for-profile",
                       "v1/routing/routing--update-default-for-profile",
                       "v1/routing/routing--retrieve",
-                      "v1/routing/routing--activate-config",
-                      "v1/routing/routing--evaluate",
-                      "v1/routing/routing--feedback",
-                      "v1/routing/routing--rule-evaluate"
+                      "v1/routing/routing--activate-config"
                     ]
                   },
                   {

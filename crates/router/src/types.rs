@@ -44,7 +44,8 @@ use hyperswitch_domain_models::router_flow_types::{
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
         PostProcessing, PostSessionTokens, PreAuthorizeVoid, PushNotification, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+        SdkSessionUpdate, Session, SetupMandate, SurchargeRefundComplete, SurchargeRefundInit,
+        UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -88,12 +89,12 @@ pub use hyperswitch_domain_models::{
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
-        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSurchargeRefundCompleteData,
+        PaymentsSurchargeRefundInitData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData, PushNotificationRequestData,
+        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -107,7 +108,8 @@ pub use hyperswitch_domain_models::{
         CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
         FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
         PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        SurchargeCalculationResponseData, SurchargeRefundCompleteResponseData,
+        SurchargeRefundInitResponseData, TaxCalculationResponseData, UploadFileResponse,
         VaultResponseData, VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
@@ -182,6 +184,16 @@ pub type SurchargeCalculationRouterData = RouterData<
 >;
 pub type CompleteSurchargeRouterData =
     RouterData<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>;
+pub type SurchargeRefundInitRouterData = RouterData<
+    SurchargeRefundInit,
+    PaymentsSurchargeRefundInitData,
+    SurchargeRefundInitResponseData,
+>;
+pub type SurchargeRefundCompleteRouterData = RouterData<
+    SurchargeRefundComplete,
+    PaymentsSurchargeRefundCompleteData,
+    SurchargeRefundCompleteResponseData,
+>;
 pub type CompleteRefundSurchrgeRouterData = RouterData<
     CompleteRefundSurchrge,
     PaymentsCompleteRefundSurchrgeData,
@@ -1394,6 +1406,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             setup_future_usage: data.request.setup_future_usage,
             off_session: data.request.off_session,
             setup_mandate_details: data.request.setup_mandate_details.clone(),
+            router_notification_url: None,
             router_return_url: data.request.router_return_url.clone(),
             email: data.request.email.clone(),
             customer_name: data.request.customer_name.clone(),
@@ -1449,6 +1462,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             installment_details: None,
             connector_intent_metadata: None,
             enable_avs_check: data.request.enable_avs_check,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -1624,6 +1638,7 @@ impl ForeignFrom<&domain::MerchantConnectorAccountFeatureMetadata>
                     grace_period_days: revenue_recovery_metadata.grace_period_days,
                     enable_partial_authorization: revenue_recovery_metadata
                         .enable_partial_authorization,
+                    max_hard_decline_retries: revenue_recovery_metadata.max_hard_decline_retries,
                     billing_account_reference: revenue_recovery_metadata
                         .mca_reference
                         .recovery_to_billing
@@ -1658,6 +1673,7 @@ impl ForeignTryFrom<&api_models::admin::MerchantConnectorAccountFeatureMetadata>
                     grace_period_days: revenue_recovery_metadata.grace_period_days,
                     enable_partial_authorization: revenue_recovery_metadata
                         .enable_partial_authorization,
+                    max_hard_decline_retries: revenue_recovery_metadata.max_hard_decline_retries,
                     mca_reference,
                 })
             })

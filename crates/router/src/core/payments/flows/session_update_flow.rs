@@ -4,7 +4,10 @@ use super::ConstructFlowSpecificData;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, helpers, transformers, Feature, PaymentData},
+        payments::{
+            self, access_token, callback_urls::ConnectorCallbackUrls, helpers, transformers,
+            Feature, PaymentData,
+        },
     },
     routes::SessionState,
     services,
@@ -31,6 +34,7 @@ impl
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         Box::pin(
             transformers::construct_router_data_to_update_calculated_tax::<
@@ -42,6 +46,7 @@ impl
                 connector_id,
                 processor,
                 merchant_connector_account,
+                connector_callback_urls,
             ),
         )
         .await
@@ -57,6 +62,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         _merchant_recipient_data: Option<types::MerchantRecipientData>,
         _header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::SdkSessionUpdateRouterData> {
         todo!()
     }

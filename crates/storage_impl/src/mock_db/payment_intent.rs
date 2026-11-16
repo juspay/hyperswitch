@@ -227,6 +227,30 @@ impl PaymentIntentInterface for MockDb {
             .unwrap())
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_intent_by_payment_id_processor_merchant_id_profile_id(
+        &self,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &ProcessorMerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+        _key_store: &ProcessorKeyStore,
+        _storage_scheme: ProcessorStorageScheme,
+    ) -> CustomResult<PaymentIntent, StorageError> {
+        self.payment_intents
+            .lock()
+            .await
+            .iter()
+            .find(|payment_intent| {
+                payment_intent.get_id() == payment_id
+                    && payment_intent
+                        .processor_merchant_id
+                        .eq(processor_merchant_id)
+                    && payment_intent.profile_id.as_ref() == Some(profile_id)
+            })
+            .cloned()
+            .ok_or_else(|| StorageError::ValueNotFound("PaymentIntent not found".to_owned()).into())
+    }
+
     #[cfg(feature = "v2")]
     async fn find_payment_intent_by_id(
         &self,

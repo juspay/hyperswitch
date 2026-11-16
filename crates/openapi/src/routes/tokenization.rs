@@ -31,7 +31,7 @@ use utoipa::OpenApi;
     ),
     tag = "Tokenization",
     operation_id = "create_token_vault_api",
-    security(("ephemeral_key" = []),("api_key" = []))
+    security(("api_key" = []))
 )]
 pub async fn create_token_vault_api() {}
 
@@ -59,7 +59,7 @@ pub async fn create_token_vault_api() {}
     ),
     tag = "Tokenization",
     operation_id = "delete_tokenized_data_api",
-    security(("ephemeral_key" = []),("api_key" = []))
+    security(("api_key" = []))
 )]
 
 pub async fn delete_tokenized_data_api() {}

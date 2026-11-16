@@ -970,7 +970,24 @@ impl RedisTokenManager {
         }
     }
 
-    // Get token based on retry type
+    // Get the token calculate picked for a retry, unless it has been hard declined since
+    pub async fn get_retryable_token_using_token_id(
+        state: &SessionState,
+        connector_customer_id: &str,
+        payment_processor_token: &str,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
+        let token = Self::get_payment_processor_token_using_token_id(
+            state,
+            connector_customer_id,
+            payment_processor_token,
+        )
+        .await?;
+
+        Self::discard_hard_declined_token(state, connector_customer_id, token).await
+    }
+
+    // Get token based on retry type, for an EXECUTE task queued before calculate recorded the
+    // token it picked
     // The A/B and adaptive smart paths decide against the invoice's own token, so they resolve it
     // by id rather than the `scheduled_at` marker, which only the decider writes and is shared
     // across invoices.
@@ -1006,6 +1023,15 @@ impl RedisTokenManager {
             }
         }
 
+        Self::discard_hard_declined_token(state, connector_customer_id, token).await
+    }
+
+    // A hard declined token cannot be retried, so its schedule time is cleared and it is dropped
+    async fn discard_hard_declined_token(
+        state: &SessionState,
+        connector_customer_id: &str,
+        token: Option<PaymentProcessorTokenStatus>,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let token = match token {
             Some(t) => {
                 if t.is_hard_decline.unwrap_or(false) {

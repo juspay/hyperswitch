@@ -71,6 +71,10 @@ pub async fn connector_create() {}
 #[utoipa::path(
     post,
     path = "/v2/connector-accounts",
+    params(
+        ("X-Merchant-Id" = String, Header, description = "Merchant ID of the connector account."),
+        ("X-Profile-Id" = String, Header, description = "Authenticated business profile. Must match profile_id in the request body."),
+    ),
     request_body(
         content = MerchantConnectorCreate,
         examples(
@@ -79,6 +83,7 @@ pub async fn connector_create() {}
                     value = json!({
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",
+                        "profile_id": "{{profile_id}}",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
                           "api_key": "{{adyen-api-key}}",
@@ -107,6 +112,7 @@ pub async fn connector_create() {}
                         "connector_type": "payment_processor",
                         "connector_name": "adyen",
                         "connector_label": "EU_adyen",
+                        "profile_id": "{{profile_id}}",
                         "connector_account_details": {
                           "auth_type": "BodyKey",
                           "api_key": "{{adyen-api-key}}",
@@ -119,11 +125,11 @@ pub async fn connector_create() {}
     ),
     responses(
         (status = 200, description = "Merchant Connector Created", body = MerchantConnectorResponse),
-        (status = 400, description = "Missing Mandatory fields"),
+        (status = 400, description = "Missing mandatory fields or profile_id does not match X-Profile-Id"),
     ),
     tag = "Merchant Connector Account",
     operation_id = "Create a Merchant Connector",
-    security(("admin_api_key" = []))
+    security(("admin_api_key" = []), ("jwt_key" = []))
 )]
 pub async fn connector_create() {}
 

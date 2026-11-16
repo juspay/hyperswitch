@@ -15,7 +15,7 @@ mod olap {
     use analytics::reports::{ReportBind, ReportQuery};
     use diesel::sql_types::{Array, Text};
     use error_stack::report;
-    use router_env::{instrument, tracing};
+    use router_env::instrument;
     pub use row::ReportRow;
     use storage_impl::{utils::pg_connection_read_replica, MockDb};
 

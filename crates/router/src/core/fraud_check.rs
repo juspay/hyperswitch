@@ -6,10 +6,7 @@ use api_models::{self, enums as api_enums};
 use common_enums::{CaptureMethod, PaymentMethod, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use self::{
     flows::{self as frm_flows, FeatureFrm},
@@ -137,7 +134,7 @@ where
         .clone_from(&payment_data.get_payment_attempt().connector_transaction_id);
 
     let mut router_data = frm_data
-        .construct_router_data(
+        .construct_router_data_with_callbacks(
             state,
             &frm_data.connector_details.connector_name,
             platform.get_processor(),
@@ -398,7 +395,7 @@ pub async fn pre_payouts_frm_core(
         )?;
 
         let mut router_data: hyperswitch_connectors::types::PoFrmRouterData = frm_data
-            .construct_router_data(
+            .construct_router_data_with_callbacks(
                 state,
                 &applicability.frm_routing_algorithm.data,
                 platform.get_processor(),

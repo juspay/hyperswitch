@@ -8,7 +8,7 @@ use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -17,7 +17,10 @@ use crate::{
         errors::ApiErrorResponse, payment_methods::vault, payments as payments_core,
         unified_connector_service,
     },
-    routes::SessionState,
+    routes::{
+        payments::callback_routes::{ConnectorCallbackPath, PaymentCallbackRoute},
+        SessionState,
+    },
     types::{
         self as core_types, api,
         domain::{self},
@@ -43,7 +46,7 @@ pub async fn perform_authentication(
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
     authentication_data: authentication::Authentication,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
@@ -218,7 +221,7 @@ pub async fn perform_post_authentication(
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication: authentication_update,
         };
 
@@ -574,8 +577,8 @@ async fn call_ucs_pre_authenticate_proxy(
                     connector_authentication_id: threeds_server_transaction_id.clone(),
                     threeds_server_transaction_id,
                     maximum_supported_3ds_version: message_version.clone(),
-                    three_ds_method_data,
-                    three_ds_method_url,
+                    three_ds_method_data: three_ds_method_data.map(ExposeInterface::expose),
+                    three_ds_method_url: three_ds_method_url.map(ExposeInterface::expose),
                     message_version,
                     connector_metadata: None,
                     directory_server_id,
@@ -645,7 +648,11 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         currency: payment_data.payment_intent.currency,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
-        router_return_url: payment_data.payment_intent.return_url.clone(),
+        router_return_url: payment_data
+            .payment_intent
+            .return_url
+            .clone()
+            .map(Into::into),
         complete_authorize_url: None,
         browser_info: None,
         enrolled_for_3ds: true,
@@ -894,7 +901,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             .clone()
             .map(|tds| {
                 hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
-                    params: Some(hyperswitch_masking::Secret::new(tds)),
+                    params: Some(Secret::new(tds)),
                     payload: None,
                 }
             }),
@@ -1172,7 +1179,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 
     Ok(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication,
         },
     )
@@ -1422,14 +1429,21 @@ async fn call_ucs_authenticate_proxy(
         business_profile.get_id().clone(),
     );
 
-    let notification_url = Some(common_utils::types::Url::wrap(
-        url::Url::parse(&payments_core::helpers::create_authorize_url(
-            &state.base_url,
-            payment_attempt,
-            &psp_connector_name,
-        ))
-        .change_context(ApiErrorResponse::InternalServerError)?,
-    ));
+    let notification_url = PaymentCallbackRoute::authorize_url(
+        &state.base_url,
+        state.payment_callback_config().await?.mode,
+        &ConnectorCallbackPath {
+            payment_id: payment_attempt.payment_id.clone(),
+            merchant_id: payment_attempt.processor_merchant_id.clone(),
+            connector: psp_connector_name.to_string(),
+        },
+    )
+    .persist(state)
+    .await?;
+    let notification_url = Some(Secret::new(common_utils::types::Url::wrap(
+        url::Url::parse(notification_url.peek())
+            .change_context(ApiErrorResponse::InternalServerError)?,
+    )));
 
     // Prefer acquirer details set directly on the PSP connector's own metadata; fall back to the
     // profile's card-network-keyed acquirer config the same way
@@ -1598,7 +1612,7 @@ fn parse_ucs_authenticate_response(
     let authentication_type = common_enums::DecoupledAuthenticationType::from(trans_status.clone());
 
     let acs_url = acs_url
-        .map(|url| url::Url::parse(&url))
+        .map(|url| url::Url::parse(url.peek()))
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("acs_url returned by UCS authenticate is not a valid URL")?;
@@ -1608,7 +1622,7 @@ fn parse_ucs_authenticate_response(
             hyperswitch_domain_models::router_request_types::authentication::AuthNFlowType::Challenge(Box::new(
                 hyperswitch_domain_models::router_request_types::authentication::ChallengeParams {
                     acs_url: acs_url.clone(),
-                    challenge_request: challenge_request.clone(),
+                    challenge_request: challenge_request.clone().map(ExposeInterface::expose),
                     challenge_request_key: None,
                     acs_reference_number: acs_reference_number.clone(),
                     acs_trans_id: acs_trans_id.clone(),
@@ -1649,7 +1663,7 @@ fn parse_ucs_authenticate_response(
         authentication_type,
         trans_status,
         acs_url,
-        challenge_request,
+        challenge_request: challenge_request.map(ExposeInterface::expose),
         acs_reference_number,
         acs_trans_id,
         three_ds_server_transaction_id,

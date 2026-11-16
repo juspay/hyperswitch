@@ -4,7 +4,10 @@ use error_stack::ResultExt;
 use super::errors::StorageErrorExt;
 use crate::{
     consts,
-    core::errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
+    core::{
+        errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
+        utils::validate_profile_id_from_auth_layer,
+    },
     routes::{app::settings, SessionState},
     types::{self, api::enums},
 };
@@ -43,6 +46,7 @@ pub async fn check_if_connector_exists(
     state: &SessionState,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     merchant_id: &common_utils::id_type::MerchantId,
+    profile_id: Option<common_utils::id_type::ProfileId>,
 ) -> RouterResult<()> {
     let key_store = state
         .store
@@ -54,22 +58,26 @@ pub async fn check_if_connector_exists(
         .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
 
     #[cfg(feature = "v1")]
-    let _connector = state
-        .store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            connector_id,
-            &key_store,
-        )
-        .await
-        .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: connector_id.get_string_repr().to_string(),
-        })?;
+    {
+        let connector = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                merchant_id,
+                connector_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_id.get_string_repr().to_string(),
+            })?;
+        validate_profile_id_from_auth_layer(profile_id, &connector)?;
+    }
 
     #[cfg(feature = "v2")]
     {
         let _ = connector_id;
         let _ = key_store;
+        let _ = profile_id;
         todo!()
     };
 

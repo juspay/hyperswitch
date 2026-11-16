@@ -80,6 +80,7 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
             None,
             &request,
             DEFAULT_LOCALE,
+            false,
         ))
         .await?;
 

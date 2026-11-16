@@ -22,7 +22,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use external_services::file_storage::MultipartUpload;
 use hyperswitch_masking::PeekInterface;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     logger,

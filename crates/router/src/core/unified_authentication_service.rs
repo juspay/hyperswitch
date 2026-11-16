@@ -45,7 +45,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -408,7 +408,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         message_category: MessageCategory,
         device_channel: payments::DeviceChannel,
         authentication: hyperswitch_domain_models::authentication::Authentication,
-        return_url: Option<String>,
+        return_url: Option<Secret<String>>,
         sdk_information: Option<payments::SdkInformation>,
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
@@ -464,7 +464,7 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         message_category: MessageCategory,
         device_channel: payments::DeviceChannel,
         authentication: hyperswitch_domain_models::authentication::Authentication,
-        return_url: Option<String>,
+        return_url: Option<Secret<String>>,
         sdk_information: Option<payments::SdkInformation>,
         threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
         email: Option<common_utils::pii::Email>,
@@ -588,7 +588,7 @@ pub async fn create_new_authentication(
     acquirer_country_code: Option<String>,
     amount: Option<common_utils::types::MinorUnit>,
     currency: Option<common_enums::Currency>,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
     processor: &domain::Processor,
@@ -712,6 +712,7 @@ pub async fn create_new_authentication(
 pub async fn authentication_create_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
     let db = &*state.store;
@@ -722,10 +723,13 @@ pub async fn authentication_create_core(
         None,
         None,
         platform.get_processor(),
-        req.profile_id.as_ref(),
+        req.profile_id
+            .as_ref()
+            .or(profile_id_from_auth_layer.as_ref()),
         db,
     )
     .await?;
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &business_profile)?;
     let profile_id = business_profile.get_id().to_owned();
     let organization_id = processor_merchant_account.organization_id.clone();
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
@@ -764,7 +768,7 @@ pub async fn authentication_create_core(
                     customer_details
                         .map(|details| {
                             common_utils::ext_traits::Encode::encode_to_value(&details)
-                                .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
+                                .map(Secret::<serde_json::Value>::new)
                                 .change_context(ApiErrorResponse::InternalServerError)
                                 .attach_printable(
                                     "Unable to encode customer details to serde_json::Value",
@@ -933,9 +937,7 @@ impl
 
         Ok(Self {
             authentication_id: authentication.authentication_id,
-            client_secret: authentication
-                .authentication_client_secret
-                .map(hyperswitch_masking::Secret::new),
+            client_secret: authentication.authentication_client_secret.map(Secret::new),
             amount,
             currency,
             force_3ds_challenge: authentication.force_3ds_challenge,
@@ -1031,6 +1033,7 @@ impl
 pub async fn authentication_eligibility_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     req: AuthenticationEligibilityRequest,
     authentication_id: common_utils::id_type::AuthenticationId,
 ) -> RouterResponse<AuthenticationEligibilityResponse> {
@@ -1056,6 +1059,8 @@ pub async fn authentication_eligibility_core(
             id: authentication_id.get_string_repr().to_owned(),
         })?;
 
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &authentication)?;
+
     req.client_secret
         .clone()
         .map(|client_secret| {
@@ -1068,11 +1073,22 @@ pub async fn authentication_eligibility_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
+    common_utils::fp_utils::when(
+        req.profile_id
+            .as_ref()
+            .is_some_and(|profile_id| profile_id != &authentication.profile_id),
+        || {
+            Err(error_stack::report!(ApiErrorResponse::InvalidRequestData {
+                message: "profile_id must match the authentication's profile_id".to_owned(),
+            }))
+        },
+    )?;
+
     let business_profile = core_utils::get_profile_from_business_details(
         None,
         None,
         platform.get_processor(),
-        req.profile_id.as_ref(),
+        Some(&authentication.profile_id),
         db,
     )
     .await?;
@@ -1089,7 +1105,7 @@ pub async fn authentication_eligibility_core(
 
     let notification_url = match authentication.return_url {
         Some(ref url) => Some(
-            url::Url::parse(url)
+            url::Url::parse(url.peek())
                 .change_context(ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to parse return url")?,
         ),
@@ -1256,7 +1272,7 @@ pub async fn authentication_eligibility_core(
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
         merchant_country_code: merchant_country_code.clone(),
-        notification_url,
+        notification_url: notification_url.map(Into::into),
         webhook_url:None
     });
 
@@ -1480,7 +1496,7 @@ pub async fn authentication_authenticate_core(
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
                 .attach_printable("cavv not present after authentication status is success")?;
                 (
-                    Some(hyperswitch_masking::Secret::new(tokenised_data.value1)),
+                    Some(Secret::new(tokenised_data.value1)),
                     authentication.eci.clone(),
                 )
             } else {
@@ -1776,7 +1792,7 @@ pub async fn authentication_retrieve_eligibility_check_core(
 impl
     ForeignTryFrom<(
         &hyperswitch_domain_models::authentication::Authentication,
-        Option<hyperswitch_masking::Secret<String>>,
+        Option<Secret<String>>,
         Option<String>,
         diesel_models::business_profile::AuthenticationConnectorDetails,
     )> for AuthenticationAuthenticateResponse
@@ -1786,7 +1802,7 @@ impl
     fn foreign_try_from(
         (authentication, authentication_value, eci, authentication_details): (
             &hyperswitch_domain_models::authentication::Authentication,
-            Option<hyperswitch_masking::Secret<String>>,
+            Option<Secret<String>>,
             Option<String>,
             diesel_models::business_profile::AuthenticationConnectorDetails,
         ),
@@ -2054,6 +2070,7 @@ async fn use_stored_authentication_value(
 pub async fn authentication_sync_core(
     state: SessionState,
     platform: domain::Platform,
+    profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     auth_flow: AuthFlow,
     req: AuthenticationSyncRequest,
 ) -> RouterResponse<AuthenticationSyncResponse> {
@@ -2074,6 +2091,8 @@ pub async fn authentication_sync_core(
         .to_not_found_response(ApiErrorResponse::AuthenticationNotFound {
             id: authentication_id.get_string_repr().to_owned(),
         })?;
+
+    core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &authentication)?;
 
     req.client_secret
         .map(|client_secret| {
@@ -2314,7 +2333,7 @@ pub async fn authentication_sync_core(
         status: updated_authentication.authentication_status,
         client_secret: updated_authentication
             .authentication_client_secret
-            .map(hyperswitch_masking::Secret::new),
+            .map(Secret::new),
         amount,
         currency,
         authentication_connector,
@@ -2466,7 +2485,7 @@ pub async fn authentication_post_sync_core(
         updated_authentication
             .authentication_client_secret
             .clone()
-            .map(hyperswitch_masking::Secret::new)
+            .map(Secret::new)
             .as_ref(),
         updated_authentication.amount,
     )?;

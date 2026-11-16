@@ -6,7 +6,7 @@ use diesel_models::cards_info as card_info_models;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::cards_info;
 use rdkafka::message::ToBytes;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::{

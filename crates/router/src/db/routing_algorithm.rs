@@ -2,7 +2,7 @@ use diesel_models::{
     enums as storage_enums, errors::DatabaseError, routing_algorithm as routing_storage,
 };
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::mock_db::MockDb;
 
 use crate::{
