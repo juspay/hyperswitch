@@ -118,21 +118,6 @@ impl ReadLedger {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .duplicate_reads()
     }
-
-    /// Return statements read more than once, with locations in recording order.
-    pub fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
-        let reads = self
-            .reads
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut duplicates = reads
-            .iter()
-            .filter(|(_, locations)| locations.len() > 1)
-            .map(|(statement, locations)| (statement.clone(), locations.clone()))
-            .collect::<Vec<_>>();
-        duplicates.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
-        duplicates
-    }
 }
 
 #[cfg(test)]

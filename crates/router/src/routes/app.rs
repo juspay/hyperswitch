@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, panic::Location, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
@@ -134,7 +134,7 @@ pub struct SessionState {
     pub store: Box<dyn StorageInterface>,
     /// Global store is used for global schema operations in tables like Users and Tenants
     pub global_store: Box<dyn GlobalStorageInterface>,
-    accounts_store: Box<dyn AccountsStorageInterface>,
+    pub accounts_store: Box<dyn AccountsStorageInterface>,
     pub conf: Arc<settings::Settings<RawSecret>>,
     pub api_client: Box<dyn crate::services::ApiClient>,
     pub event_handler: EventsHandler,

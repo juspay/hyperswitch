@@ -1850,7 +1850,8 @@ pub async fn create_org_merchant_for_user(
 ) -> UserResponse<()> {
     let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
-        .track_accounts_query(|db| db.insert_organization(db_organization))
+        .accounts_store
+        .insert_organization(db_organization)
         .await
         .change_context(UserErrors::InternalServerError)?;
     let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
@@ -1953,7 +1954,8 @@ pub async fn list_user_roles_details(
         .collect::<HashSet<_>>();
 
     let org_name = state
-        .track_accounts_query(|db| db.find_organization_by_org_id(&user_from_token.org_id))
+        .accounts_store
+        .find_organization_by_org_id(&user_from_token.org_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Org id not found")?
@@ -3241,7 +3243,7 @@ pub async fn list_orgs_for_user(
 
     let resp = futures::future::try_join_all(
         orgs.iter()
-            .map(|org_id| state.track_accounts_query(|db| db.find_organization_by_org_id(org_id))),
+            .map(|org_id| state.accounts_store.find_organization_by_org_id(org_id)),
     )
     .await
     .change_context(UserErrors::InternalServerError)?

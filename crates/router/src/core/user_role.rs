@@ -1067,7 +1067,8 @@ pub async fn list_invitations_for_user(
 
     let org_name_map = futures::future::try_join_all(org_ids.into_iter().map(|org_id| async {
         let org_name = state
-            .track_accounts_query(|db| db.find_organization_by_org_id(&org_id))
+            .accounts_store
+            .find_organization_by_org_id(&org_id)
             .await
             .change_context(UserErrors::InternalServerError)?
             .get_organization_name()
