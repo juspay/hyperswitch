@@ -585,6 +585,9 @@ enum RecoveryRequestOutcome {
     Duplicate,
     /// The invoice is closed, so nothing is recorded.
     InvoiceClosed,
+    /// The transaction has no card and Hyperswitch has no invoice for it yet, so nothing is
+    /// recorded: a new invoice needs the card to retry.
+    CardMissing,
     /// The invoice does not show every attempt recorded on it, so nothing is decided.
     InvoiceOutOfSync,
 }
@@ -618,6 +621,7 @@ impl RecoveryRequestOutcome {
             | Self::Stale
             | Self::Duplicate
             | Self::InvoiceClosed
+            | Self::CardMissing
             | Self::InvoiceOutOfSync => None,
         }
     }
@@ -632,6 +636,7 @@ impl RecoveryRequestOutcome {
             Self::Stale => "stale",
             Self::Duplicate => "duplicate",
             Self::InvoiceClosed => "invoice_closed",
+            Self::CardMissing => "card_missing",
             Self::InvoiceOutOfSync => "invoice_out_of_sync",
         }
     }
@@ -645,6 +650,7 @@ impl RecoveryRequestOutcome {
             | Self::Stale
             | Self::Duplicate
             | Self::InvoiceClosed
+            | Self::CardMissing
             | Self::InvoiceOutOfSync => None,
         }
     }
@@ -659,6 +665,7 @@ impl RecoveryRequestOutcome {
             Self::Stale => business_status::RECOVERY_REQUEST_STALE,
             Self::Duplicate => business_status::RECOVERY_REQUEST_DUPLICATE,
             Self::InvoiceClosed => business_status::RECOVERY_REQUEST_INVOICE_CLOSED,
+            Self::CardMissing => business_status::RECOVERY_REQUEST_RECORDING_FAILED,
             Self::InvoiceOutOfSync => business_status::RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC,
         }
     }
@@ -1010,9 +1017,12 @@ async fn apply_recovery_request(
     retry_config: &RevenueRecoveryConfig,
 ) -> Result<RecoveryRequestOutcome, sch_errors::ProcessTrackerError> {
     let req_state = state.get_req_state();
-    let invoice = api::get_or_create_invoice(state, &req_state, platform, profile, request)
+    let Some(invoice) = api::find_or_create_invoice(state, &req_state, platform, profile, request)
         .await
-        .map_err(|error| recovery_request_step_failed("invoice", error))?;
+        .map_err(|error| recovery_request_step_failed("invoice", error))?
+    else {
+        return Ok(RecoveryRequestOutcome::CardMissing);
+    };
     tracing::Span::current().record("payment_id", invoice.payment_id.get_string_repr());
 
     let previous_recovery_metadata = invoice
@@ -1359,7 +1369,8 @@ async fn finish_recovery_request(
     match outcome {
         RecoveryRequestOutcome::Stale
         | RecoveryRequestOutcome::Duplicate
-        | RecoveryRequestOutcome::InvoiceClosed => {
+        | RecoveryRequestOutcome::InvoiceClosed
+        | RecoveryRequestOutcome::CardMissing => {
             logger::warn!(
                 outcome = outcome.name(),
                 "Recovery request ended without a decision"

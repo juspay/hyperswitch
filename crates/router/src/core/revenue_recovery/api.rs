@@ -475,7 +475,8 @@ async fn record_transaction_and_schedule_retries(
     Ok(updated_recovery_intent)
 }
 
-/// Finds or creates the invoice of the transaction.
+/// Finds or creates the invoice of the transaction, refusing a transaction without its card that
+/// would start one.
 pub(super) async fn get_or_create_invoice(
     state: &SessionState,
     req_state: &ReqState,
@@ -483,6 +484,20 @@ pub(super) async fn get_or_create_invoice(
     profile: &domain::Profile,
     request: &api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    find_or_create_invoice(state, req_state, platform, profile, request)
+        .await?
+        .ok_or_else(|| report!(card_needed_for_a_new_invoice()))
+}
+
+/// Finds or creates the invoice of the transaction. A transaction without its card cannot start
+/// an invoice, so there is none for it when Hyperswitch does not have the invoice yet.
+pub(super) async fn find_or_create_invoice(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent>> {
     if request.payment_method_data.is_none() {
         return recovery_incoming::RevenueRecoveryInvoice::find_custom_recovery_intent(
             request.clone(),
@@ -493,8 +508,7 @@ pub(super) async fn get_or_create_invoice(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to read the invoice of the recovery request")?
-        .ok_or_else(|| report!(card_needed_for_a_new_invoice()));
+        .attach_printable("Failed to read the invoice of the recovery request");
     }
     recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
         request.clone(),
@@ -504,6 +518,7 @@ pub(super) async fn get_or_create_invoice(
         profile,
     )
     .await
+    .map(Some)
     .change_context(errors::ApiErrorResponse::GenericNotFoundError {
         message: format!(
             "Failed to load recovery intent for merchant reference id : {:?}",

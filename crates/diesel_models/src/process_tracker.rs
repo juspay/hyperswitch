@@ -342,6 +342,6 @@ pub mod business_status {
     pub const RECOVERY_REQUEST_WEBHOOK_DISABLED: &str = "RECOVERY_REQUEST_WEBHOOK_DISABLED";
 
     /// A reported transaction could not be recorded: its job failed for good, ran out of retries,
-    /// or waited too long for its invoice
+    /// or waited too long for its invoice, or it has no card and its invoice is new
     pub const RECOVERY_REQUEST_RECORDING_FAILED: &str = "RECOVERY_REQUEST_RECORDING_FAILED";
 }
