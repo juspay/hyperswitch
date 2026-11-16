@@ -32254,8 +32254,7 @@
           "transaction_created_at",
           "connector_customer_id",
           "billing_started_at",
-          "connector_transaction_id",
-          "payment_method_data"
+          "connector_transaction_id"
         ],
         "properties": {
           "amount_details": {
@@ -32286,6 +32285,18 @@
             "type": "string",
             "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
             "example": "mca_1234567890",
+            "nullable": true
+          },
+          "merchant_reference_billing_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.",
+            "example": "billing_account_main",
+            "nullable": true
+          },
+          "merchant_reference_payment_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.",
+            "example": "payment_account_us",
             "nullable": true
           },
           "connector": {
@@ -32377,7 +32388,12 @@
             "example": "993672945374576J"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           "enable_partial_authorization": {
             "type": "boolean",
