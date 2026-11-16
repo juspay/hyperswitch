@@ -2422,6 +2422,35 @@ pub struct RecoveryPaymentsResponse {
     pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 }
 
+/// The next retry of an invoice whose retries the merchant triggers, sent by webhook after each
+/// transaction the merchant reports.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryRetryWebhookDetails {
+    /// Unique identifier of the invoice in Hyperswitch.
+    #[schema(
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub id: id_type::GlobalPaymentId,
+
+    /// Unique identifier of the invoice in the merchant's billing system.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "invoice_mbabizu24mvu3mela5njyh"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// When to trigger the next retry, or why none is scheduled.
+    #[schema(value_type = RecoveryNextRetry)]
+    #[serde(flatten)]
+    pub next_retry: common_payments_types::RecoveryNextRetry,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
@@ -2446,6 +2475,11 @@ pub struct PaymentAttemptRevenueRecoveryData {
     /// Absent when it was not reported, and on attempts recorded before this was kept.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Id of the recovery request that recorded this transaction, for a transaction the merchant
+    /// reported on a profile whose retries it triggers.
+    #[schema(value_type = Option<String>, example = "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_request_id: Option<String>,
 }
 
 #[derive(

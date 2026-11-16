@@ -229,6 +229,7 @@ pub async fn record_internal_attempt_api(
             common_enums::TriggeredBy::Internal,
             None,
             None,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -368,7 +369,7 @@ async fn find_connector_account_of_profile(
     };
 
     let connector_account = state
-        .store
+        .accounts_store
         .find_merchant_connector_account_by_id(
             merchant_connector_id,
             platform.get_processor().get_key_store(),

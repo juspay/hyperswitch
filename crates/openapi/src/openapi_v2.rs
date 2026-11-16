@@ -1031,6 +1031,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::process_tracker::revenue_recovery::RevenueRecoveryResponse,
         api_models::payments::RecoveryPaymentsCreate,
         api_models::payments::RecoveryPaymentsResponse,
+        api_models::payments::RecoveryRetryWebhookDetails,
         api_models::payments::CustomRecoveryPaymentMethodData,
         api_models::payments::AdditionalCardInfo,
         common_types::payments::RecoveryTransactionStatus,
