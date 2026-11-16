@@ -347,7 +347,6 @@ pub async fn custom_revenue_recovery_core(
             payments_api::RecoveryPaymentsCreateResponse::Accepted(
                 Box::pin(external_triggers::accept_recovery_request(
                     &state,
-                    &req_state,
                     &platform,
                     &profile,
                     &request,
