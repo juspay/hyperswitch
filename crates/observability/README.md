@@ -89,6 +89,8 @@ Delivery, metric evaluation and monitoring endpoints:
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/grafana/cloudwatch/evaluate` | `X-Internal-Api-Key`; never sends |
 | `POST` | `/alerts/grafana/cloudwatch/notify` | `X-Internal-Api-Key`; evaluates and delivers |
+| `GET` | `/alerts/grafana/loki/evaluate` | `X-Internal-Api-Key`; never sends |
+| `POST` | `/alerts/grafana/loki/notify` | `X-Internal-Api-Key`; evaluates and delivers |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
 | `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
@@ -346,8 +348,12 @@ query errors are reported per rule when evaluated.
 
 - `POST /alerts/grafana/cloudwatch/notify` evaluates and delivers;
   `GET /alerts/grafana/cloudwatch/evaluate` never sends.
-  Both require the existing `X-Internal-Api-Key` authentication.
+  `POST /alerts/grafana/loki/notify` and `GET /alerts/grafana/loki/evaluate` do the same for
+  `grafana_loki` rules. Each route evaluates only its own datasource's rules.
+  All require the existing `X-Internal-Api-Key` authentication.
 - Alerts use simple text containing the rule, metric/value, threshold, severity, evaluation time and period. ALARM messages also include the UTC query range and actual returned timestamp/value datapoints in chronological order. Exactly one point is marked `SELECTED / BREACHING`; all other returned points are `CONTEXT / NOT EVALUATED` and do not affect the result. RULE ERROR messages mark the range and datapoints unavailable rather than inventing values or missing slots.
+  Loki messages use the same layout with the rule context, the affected label series and the latest
+  log lines in place of the metric details; the LogQL query is not included.
   Banner colors, attachment blocks and decorative templates are deferred.
 - Each rule compares its configured statistic's newest complete sample within a five-minute window.
   A longer metric period uses one complete period. Critical takes priority over warning, then info.
@@ -367,7 +373,24 @@ query errors are reported per rule when evaluated.
   current `ALARM`, not a fabricated transition; evaluation is one actual datapoint. Missing data
   is `NoData` with no notification, and the removed classification field is not rendered.
 
-Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"`. Remove the old version,
+### Loki application alerts
+
+A `grafana_loki` rule holds a LogQL metric `expr`, its bucket `period`
+in seconds, optional `end_offset_seconds` (default 180) and optional `context` lines shown in the
+message (for example `Service`, `Flow`, `Route`, `Error code`). The query runs as a Grafana range
+query with `step` equal to `period`, so write the range selector to match it, for example
+`sum(count_over_time({app="router"} |= "error" [1m]))` with `period: 60`. Loki stamps each point at
+the end of its bucket; the provider restamps it at the bucket start so the same newest-complete-bucket
+selection as CloudWatch applies. The query start is snapped onto the period grid.
+A query may group by bounded labels, for example `sum by (app, container) (...)`. The threshold
+applies to the total across series, and the message lists the top ten series for the breaching
+bucket. No matching logs is `NoData` without a notification. Query failures send RULE ERROR exactly
+as for CloudWatch.
+An optional `logs` LogQL log query, for example `{app="router"} |= "error"`, is run only when the
+rule breaches, over the breaching bucket; its three newest lines (each cut at 300 characters) are
+shown under `Latest logs`. A failed log query is logged and the ALARM is still sent without lines.
+
+Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"` or `"grafana_loki"`. Remove the old version,
 classification, evaluation-period/datapoint/missing-slot fields and global `[evaluator.destinations]`.
 Migrate the previous `[evaluator]` configuration section and `OBSERVABILITY__EVALUATOR__` environment
 variables to `[alert]` and `OBSERVABILITY__ALERT__`; remove the redundant `provider`/`datasource`
@@ -386,7 +409,7 @@ and one rule's query or delivery failure does not cancel independent rules.
 
 ```
 routes/         authenticated request handlers
-core/           request orchestration, including alert_evaluation/grafana_cloudwatch execution
+core/           request orchestration, including alert_evaluation/grafana_{cloudwatch,loki} execution
 domain_models/  typed configuration conversions and evaluation results
 domain/         existing notifier traits and delivery outcomes
 services/chat/  evaluator notification text assets
@@ -394,7 +417,6 @@ services/chat/  evaluator notification text assets
 
 `domain` holds no HTTP. Metric transport lives in `external_services::metrics_provider`.
 The `MetricsProvider` trait uses provider-specific associated query, request, response and error
-types to build requests, fetch metrics and handle typed responses. CloudWatch query/request/response models and frame parsing
-are colocated
-in `external_services/src/metrics_provider/grafana/cloudwatch.rs`; `grafana.rs` holds the shared
-HTTP transport. The evaluator consumes normalized real metric points, not Grafana wire frames.
+types to build requests, fetch metrics and handle typed responses. CloudWatch and Loki request models
+live in `external_services/src/metrics_provider/grafana/{cloudwatch,loki}.rs`; `grafana.rs` holds the
+shared HTTP transport, response handling and frame parsing. The evaluator consumes normalized real metric points, not Grafana wire frames.

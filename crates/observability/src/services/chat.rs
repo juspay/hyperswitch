@@ -1,4 +1,8 @@
-use common_types::alert_rules::{AlertQuery, SeverityThreshold};
+use std::collections::BTreeMap;
+
+use common_types::alert_rules::{
+    AlertQuery, GrafanaCloudwatchQuery, GrafanaLokiQuery, SeverityThreshold,
+};
 use external_services::metrics_provider::MetricPoint;
 use time::PrimitiveDateTime;
 
@@ -16,22 +20,29 @@ pub(crate) enum ChatBody<'a> {
     },
 }
 
+const SERIES_ROWS: usize = 10;
+const LOG_LINE_CHARS: usize = 300;
+
 pub(crate) fn create_notification(
     rule: &RuleDefinition,
     evaluated_at: PrimitiveDateTime,
     body: ChatBody<'_>,
 ) -> Notification {
-    let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
-    let dimensions = if query.dimensions.is_empty() {
-        "None".to_owned()
-    } else {
-        query
-            .dimensions
-            .iter()
-            .map(|(name, value)| format!("{name}: {value}"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
+    match &rule.config.query {
+        AlertQuery::GrafanaCloudwatch(query) => {
+            cloudwatch_notification(rule, query, evaluated_at, body)
+        }
+        AlertQuery::GrafanaLoki(query) => loki_notification(rule, query, evaluated_at, body),
+    }
+}
+
+fn cloudwatch_notification(
+    rule: &RuleDefinition,
+    query: &GrafanaCloudwatchQuery,
+    evaluated_at: PrimitiveDateTime,
+    body: ChatBody<'_>,
+) -> Notification {
+    let dimensions = key_value_lines(&query.dimensions);
     match body {
         ChatBody::Alarm {
             evaluation,
@@ -114,9 +125,131 @@ pub(crate) fn create_notification(
     }
 }
 
+fn loki_notification(
+    rule: &RuleDefinition,
+    query: &GrafanaLokiQuery,
+    evaluated_at: PrimitiveDateTime,
+    body: ChatBody<'_>,
+) -> Notification {
+    let context = key_value_lines(&query.context);
+    match body {
+        ChatBody::Alarm {
+            evaluation,
+            threshold,
+            point,
+        } => {
+            let labelled = evaluation
+                .breakdown
+                .iter()
+                .filter(|(labels, _)| !labels.is_empty())
+                .collect::<Vec<_>>();
+            let mut series = labelled
+                .iter()
+                .take(SERIES_ROWS)
+                .map(|(labels, value)| {
+                    let labels = labels
+                        .iter()
+                        .map(|(name, value)| format!("{name}={value}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("{labels} | {value}")
+                })
+                .collect::<Vec<_>>();
+            if labelled.len() > SERIES_ROWS {
+                series.push(format!("and {} more", labelled.len() - SERIES_ROWS));
+            }
+            let series = if series.is_empty() {
+                "None".to_owned()
+            } else {
+                series.join("\n")
+            };
+            let logs = if evaluation.logs.is_empty() {
+                "None".to_owned()
+            } else {
+                evaluation
+                    .logs
+                    .iter()
+                    .map(|log| {
+                        format!(
+                            "{} UTC | {}",
+                            log.timestamp,
+                            log.line
+                                .trim()
+                                .chars()
+                                .take(LOG_LINE_CHARS)
+                                .collect::<String>()
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            Notification {
+                heading: "ALARM".to_owned(),
+                destination: threshold.destination.clone(),
+                message: format!(
+                    include_str!("chat/assets/loki_alert.txt"),
+                    heading = "ALARM",
+                    rule_name = rule.name,
+                    rule_id = rule.id,
+                    severity = evaluation.level,
+                    evaluated_at = evaluated_at,
+                    description = threshold.description,
+                    context = context,
+                    condition = format_args!(
+                        "value {} {}",
+                        threshold.comparison_operator, threshold.threshold
+                    ),
+                    period = query.period,
+                    value = point.value,
+                    range = format_args!(
+                        "{} UTC to {} UTC",
+                        evaluation.window.from, evaluation.window.to
+                    ),
+                    series = series,
+                    logs = logs,
+                    error = "None",
+                ),
+            }
+        }
+        ChatBody::RuleError { error, destination } => Notification {
+            heading: "RULE ERROR".to_owned(),
+            destination: destination.to_owned(),
+            message: format!(
+                include_str!("chat/assets/loki_alert.txt"),
+                heading = "RULE ERROR",
+                rule_name = rule.name,
+                rule_id = rule.id,
+                severity = "Not evaluated",
+                evaluated_at = evaluated_at,
+                description = "Rule evaluation failed",
+                context = context,
+                condition = "Not evaluated",
+                period = query.period,
+                value = "Unavailable",
+                range = "Unavailable",
+                series = "Unavailable: rule evaluation failed",
+                logs = "Unavailable: rule evaluation failed",
+                error = error,
+            ),
+        },
+    }
+}
+
+fn key_value_lines(entries: &BTreeMap<String, String>) -> String {
+    if entries.is_empty() {
+        "None".to_owned()
+    } else {
+        entries
+            .iter()
+            .map(|(name, value)| format!("{name}: {value}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use external_services::metrics_provider::MetricRange;
+    use external_services::metrics_provider::{grafana::loki::LogLine, MetricRange};
     use serde_json::json;
     use time::macros::datetime;
 
@@ -187,6 +320,8 @@ mod tests {
                     from: datetime!(2026-03-18 10:01:00),
                     to: datetime!(2026-03-18 10:06:00),
                 },
+                breakdown: Vec::new(),
+                logs: Vec::new(),
             };
             let notification = create_notification(
                 &rule,
@@ -230,5 +365,131 @@ mod tests {
             assert!(message.contains("Evaluation: 1 of 1 datapoints\n"));
             assert_eq!(notification.destination, "test-only");
         }
+    }
+
+    #[test]
+    fn loki_alarm_lists_context_series_and_latest_logs_without_the_query() {
+        let rule: RuleDefinition = serde_json::from_value(json!({
+            "id": "router-errors",
+            "name": "Router errors",
+            "config": {
+                "interval_seconds": 60,
+                "query": {
+                    "datasource": "grafana_loki",
+                    "expr": "sum by (app) (count_over_time({app=~\"router\"} |= `error` [1m]))",
+                    "period": 60,
+                    "context": {"Service": "hyperswitch-router"},
+                    "logs": "{app=~\"router\"} |= `error`"
+                },
+                "thresholds": {"severities": {"warning": {
+                    "threshold": 20,
+                    "comparison_operator": "GreaterThanThreshold",
+                    "description": "Router logged errors",
+                    "destination": "oncall"
+                }}}
+            }
+        }))
+        .unwrap();
+        let threshold = rule
+            .config
+            .thresholds
+            .severities
+            .first_key_value()
+            .unwrap()
+            .1;
+        let point = MetricPoint {
+            timestamp: datetime!(2026-03-18 10:04:00),
+            value: 42.0,
+        };
+        let evaluation = Evaluation {
+            level: AlertEvaluationLevel::Warning,
+            latest_point: Some(point.clone()),
+            datapoints: vec![point.clone()],
+            breach: Some(threshold.clone()),
+            window: MetricRange {
+                from: datetime!(2026-03-18 10:00:00),
+                to: datetime!(2026-03-18 10:05:00),
+            },
+            breakdown: (0..12)
+                .map(|index| {
+                    (
+                        BTreeMap::from([("app".to_owned(), format!("router-{index}"))]),
+                        f64::from(12 - index),
+                    )
+                })
+                .chain([(BTreeMap::new(), 1.0)])
+                .collect(),
+            logs: vec![
+                LogLine {
+                    timestamp: datetime!(2026-03-18 10:04:41),
+                    line: "ERROR payment failed\n".to_owned(),
+                },
+                LogLine {
+                    timestamp: datetime!(2026-03-18 10:04:12),
+                    line: "é".repeat(LOG_LINE_CHARS + 1),
+                },
+            ],
+        };
+        let alarm = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &evaluation,
+                threshold,
+                point: &point,
+            },
+        );
+        assert_eq!(alarm.heading, "ALARM");
+        assert_eq!(alarm.destination, "oncall");
+        assert!(alarm.message.starts_with("ALARM: Router errors\n"));
+        assert!(alarm
+            .message
+            .contains("Context:\nService: hyperswitch-router\n"));
+        assert!(alarm.message.contains("Condition: value > 20\n"));
+        assert!(alarm.message.contains("Latest value: 42\n"));
+        assert!(alarm
+            .message
+            .contains("Series — labels | value:\napp=router-0 | 12\napp=router-1 | 11\n"));
+        assert!(alarm.message.contains("app=router-9 | 3\nand 2 more\n"));
+        assert!(alarm.message.contains(&format!(
+            "Latest logs:\n{} UTC | ERROR payment failed\n",
+            datetime!(2026-03-18 10:04:41)
+        )));
+        assert!(alarm.message.contains(&format!(
+            "{} UTC | {}\n",
+            datetime!(2026-03-18 10:04:12),
+            "é".repeat(LOG_LINE_CHARS)
+        )));
+        assert!(!alarm.message.contains(&"é".repeat(LOG_LINE_CHARS + 1)));
+        assert!(!alarm.message.contains("count_over_time"));
+
+        let unlabelled = Evaluation {
+            breakdown: vec![(BTreeMap::new(), 42.0)],
+            ..evaluation.clone()
+        };
+        let alarm = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &unlabelled,
+                threshold,
+                point: &point,
+            },
+        );
+        assert!(alarm.message.contains("Series — labels | value:\nNone\n"));
+
+        let error = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::RuleError {
+                error: "data source request failed",
+                destination: "oncall",
+            },
+        );
+        assert_eq!(error.heading, "RULE ERROR");
+        assert!(error.message.starts_with("RULE ERROR: Router errors\n"));
+        assert!(error
+            .message
+            .contains("Error:\ndata source request failed\n"));
     }
 }
