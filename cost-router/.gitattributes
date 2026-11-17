@@ -1,0 +1,7 @@
+# Shell scripts and files mounted into Linux containers must keep LF line endings on every OS
+# (a Windows clone with core.autocrlf=true would otherwise check them out with CRLF and break bash).
+*.sh     text eol=lf
+*.mjs    text eol=lf
+*.yml    text eol=lf
+*.toml   text eol=lf
+Makefile text eol=lf
