@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix6
+
+### Features
+
+- **connector:** [SANTANDER] Implemented Refunds for PixAutomaticoPush & PixAutomaticoQr ([#15283](https://github.com/juspay/hyperswitch/pull/15283)) ([`ad9c457`](https://github.com/juspay/hyperswitch/commit/ad9c457d7f941e8d8ea7ba97002d287447296780))
+- **core/connector:** [SANTANDER] Implement PreAuthorizeVoid Flow for PixAutomatico MITs ([#15246](https://github.com/juspay/hyperswitch/pull/15246)) ([`ac5af98`](https://github.com/juspay/hyperswitch/commit/ac5af98bf2a17d8db21e7d7dbf8a1189802af028))
+- **payouts:** Persist purpose and enable Checkout Google Pay via UCS ([#15294](https://github.com/juspay/hyperswitch/pull/15294)) ([`27a3ffe`](https://github.com/juspay/hyperswitch/commit/27a3ffeda7f2df4990ee539ab70fa85b01cf3aaa))
+- **wasm:** Add webhook URL type for mTLS connectors ([#15282](https://github.com/juspay/hyperswitch/pull/15282)) ([`4601289`](https://github.com/juspay/hyperswitch/commit/4601289caeb3a3e5a7cab38a8e3a10eb6bd4f8e5))
+- **webhooks:**
+  - Send back mandate amount and currency in mandate outgoing webhooks ([#15245](https://github.com/juspay/hyperswitch/pull/15245)) ([`35fa462`](https://github.com/juspay/hyperswitch/commit/35fa46209b0ae99384a8ff3f4ecf30d4f9332383))
+  - Use mTLS callback URL for production connector webhook registration ([#15260](https://github.com/juspay/hyperswitch/pull/15260)) ([`06ec9c0`](https://github.com/juspay/hyperswitch/commit/06ec9c06fdecc9afc3f57d3fd622c0deea66122f))
+
+### Bug Fixes
+
+- **connector:**
+  - [SANTANDER] Consider solicitacao & recurrence status for PixAutomaticoPush(Journey 1) ([#15244](https://github.com/juspay/hyperswitch/pull/15244)) ([`c188a5a`](https://github.com/juspay/hyperswitch/commit/c188a5a85f03980decb299840b3df8840cff0477))
+  - [Stripe] pass billing zip and country in tokenization request ([#15273](https://github.com/juspay/hyperswitch/pull/15273)) ([`d827dc2`](https://github.com/juspay/hyperswitch/commit/d827dc2e05567fabd927fa520380512192090778))
+- **relay:** Enforce payout amount limits for unreferenced refunds ([#15281](https://github.com/juspay/hyperswitch/pull/15281)) ([`dfcc6f0`](https://github.com/juspay/hyperswitch/commit/dfcc6f050942239ccec84df06a52cee80bcaefb3))
+- **webhooks:** Use mTLS callback URL only when mtls verification is enabled and required ([#15274](https://github.com/juspay/hyperswitch/pull/15274)) ([`2885fef`](https://github.com/juspay/hyperswitch/commit/2885fefe3b8b948e9d5aa479316833a5b861f95c))
+
+**Full Changelog:** [`2026.11.11.1-hotfix5...2026.11.11.1-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix5...2026.11.11.1-hotfix6)
+
+- - -
+
 ## 2026.11.11.1-hotfix5
 
 ### Bug Fixes
