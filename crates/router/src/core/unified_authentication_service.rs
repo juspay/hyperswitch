@@ -715,7 +715,6 @@ pub async fn authentication_create_core(
     profile_id_from_auth_layer: Option<common_utils::id_type::ProfileId>,
     req: AuthenticationCreateRequest,
 ) -> RouterResponse<AuthenticationResponse> {
-    let db = &*state.store;
     let processor_merchant_account = platform.get_processor().get_account();
     let processor_merchant_id = processor_merchant_account.get_id();
     let key_manager_state = (&state).into();
@@ -726,7 +725,7 @@ pub async fn authentication_create_core(
         req.profile_id
             .as_ref()
             .or(profile_id_from_auth_layer.as_ref()),
-        db,
+        state.accounts_store.as_ref(),
     )
     .await?;
     core_utils::validate_profile_id_from_auth_layer(profile_id_from_auth_layer, &business_profile)?;
@@ -1089,7 +1088,7 @@ pub async fn authentication_eligibility_core(
         None,
         platform.get_processor(),
         Some(&authentication.profile_id),
-        db,
+        state.accounts_store.as_ref(),
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
@@ -1392,7 +1391,8 @@ pub async fn authentication_authenticate_core(
 
     let profile_id = authentication.profile_id.clone();
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
@@ -2105,7 +2105,8 @@ pub async fn authentication_sync_core(
 
     let profile_id = authentication.profile_id.clone();
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
@@ -2411,7 +2412,8 @@ pub async fn authentication_post_sync_core(
 
     ensure_not_terminal_status(authentication.trans_status.clone())?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(
             platform.get_processor().get_key_store(),
             &authentication.profile_id,
@@ -2547,7 +2549,7 @@ pub async fn authentication_session_core(
     let mut session_tokens = Vec::new();
 
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(
             platform.get_processor().get_key_store(),
             &authentication.profile_id,
@@ -2595,7 +2597,7 @@ pub async fn get_session_token_for_click_to_pay(
     let key_manager_state = &state.into();
 
     let merchant_connector_account = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             processor.get_account().get_id(),
             &click_to_pay_mca_id,

@@ -137,7 +137,7 @@ pub async fn retrieve_dispute(
             })?;
 
             let business_profile = state
-                .store
+                .accounts_store
                 .find_business_profile_by_profile_id(
                     platform.get_processor().get_key_store(),
                     &payment_attempt.profile_id,
@@ -351,7 +351,8 @@ pub async fn get_platform_disputes_filters(
 
     let db = state.store.as_ref();
 
-    let merchant_accounts = db
+    let merchant_accounts = state
+        .accounts_store
         .list_merchant_accounts_by_organization_id(
             platform.get_provider().get_account().get_org_id(),
         )
@@ -364,11 +365,10 @@ pub async fn get_platform_disputes_filters(
         account.merchant_account_type == common_enums::MerchantAccountType::Connected
     }) {
         let merchant_id = connected_account.get_id().clone();
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -957,7 +957,8 @@ pub async fn fetch_disputes_from_connector(
     req: FetchDisputesRequestData,
 ) -> RouterResponse<FetchDisputesResponse> {
     let db = &*state.store;
-    let merchant_connector_account = db
+    let merchant_connector_account = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_processor().get_account().get_id(),
             &merchant_connector_id,
@@ -1245,18 +1246,16 @@ pub async fn schedule_dispute_sync_task(
 
         let processor_merchant_id = mca.merchant_id.clone();
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let processor_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &processor_merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&processor_merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
             .attach_printable("Error while fetching the key store for processor merchant")?;
 
         let processor_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&processor_merchant_id, &processor_key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)

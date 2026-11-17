@@ -1780,6 +1780,12 @@ placeholder = "Enter Allowed Auth Methods"
 required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[checkout.metadata.connector_client_id]
+name = "connector_client_id"
+label = "Checkout Client ID (API Domain Prefix)"
+placeholder = "Enter Checkout Client ID (cli_...)"
+required = false
+type = "Text"
 
 
 [checkout_payout]
@@ -4084,6 +4090,7 @@ api_secret="Certificates"
 key2="Certificate Key"
 
 [santander_payout]
+webhook_url_type="mtls"
 [[santander_payout.bank_transfer]]
   payment_method_type = "pix"
 [[santander_payout.bank_transfer]]
@@ -6672,6 +6679,7 @@ type = "Text"
   type="Text"
 
 [worldpayxml]
+webhook_url_type="mtls"
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"
 [[worldpayxml.credit]]
@@ -6858,6 +6866,7 @@ required=false
 type="Text"
 
 [worldpayxml_payout]
+webhook_url_type="mtls"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.wallet]]
@@ -6980,6 +6989,7 @@ required = false
 type = "Text"
 
 [santander]
+webhook_url_type="mtls"
 [[santander.bank_transfer]]
 payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
