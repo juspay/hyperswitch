@@ -818,6 +818,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PeachpaymentsCardOnFileTransactionType,
         common_types::payouts::PayoutsBillingDescriptor,
         api_models::enums::PayoutFundsTransferType,
+        api_models::enums::PayoutPurpose,
         api_models::sender::SenderDetails,
         api_models::sender::IndividualSenderDetails,
         api_models::sender::CorporateSenderDetails,
