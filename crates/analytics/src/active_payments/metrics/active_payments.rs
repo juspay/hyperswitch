@@ -9,7 +9,7 @@ use time::PrimitiveDateTime;
 
 use super::ActivePaymentsMetricRow;
 use crate::{
-    query::{Aggregate, FilterTypes, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{Aggregate, GroupByClause, QueryBuilder, QueryFilter, ToSql, Window},
     types::{AnalyticsCollection, AnalyticsDataSource, MetricsError, MetricsResult},
 };
 
@@ -49,10 +49,9 @@ where
             .switch()?;
 
         query_builder
-            .add_custom_filter_clause(
+            .add_filter_in_range_clause(
                 "merchant_id",
-                format!("'{}','{}'", merchant_id.get_string_repr(), publishable_key),
-                FilterTypes::In,
+                &[merchant_id.get_string_repr(), publishable_key],
             )
             .switch()?;
 
@@ -61,10 +60,9 @@ where
             .switch()?;
 
         query_builder
-            .add_custom_filter_clause(
+            .add_filter_in_range_clause(
                 "flow_type",
-                "'sdk', 'payment', 'payment_redirection_response'",
-                FilterTypes::In,
+                &["sdk", "payment", "payment_redirection_response"],
             )
             .switch()?;
 

@@ -216,9 +216,9 @@ impl TryFrom<PaymentsResponseRouterData<ProphetpayTokenResponse>>
 
 fn get_redirect_url_form(
     mut redirect_url: Url,
-    complete_auth_url: Option<String>,
+    complete_auth_url: Option<Secret<String>>,
 ) -> CustomResult<RedirectForm, errors::ConnectorError> {
-    let mut form_fields = HashMap::<String, String>::new();
+    let mut form_fields = HashMap::<String, Secret<String>>::new();
 
     form_fields.insert(
         String::from("redirectUrl"),
@@ -231,7 +231,7 @@ fn get_redirect_url_form(
     redirect_url.set_query(None);
 
     Ok(RedirectForm::Form {
-        endpoint: redirect_url.to_string(),
+        endpoint: redirect_url.to_string().into(),
         method: Method::Get,
         form_fields,
     })

@@ -198,6 +198,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
             is_account_funded_transaction,
             recipient_details,
             enable_avs_check,
+            enable_account_name_verification,
         } = request.clone();
 
         let batch_encrypted_data = domain_types::crypto_operation(
@@ -314,6 +315,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentIntentData<F>, PaymentsUpda
                 .clone()
                 .or(payment_intent.recipient_details.clone()),
             enable_avs_check: enable_avs_check.or(payment_intent.enable_avs_check),
+            enable_account_name_verification: enable_account_name_verification
+                .or(payment_intent.enable_account_name_verification),
             ..payment_intent
         };
 
@@ -411,6 +414,8 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
                 external_surcharge_strategy: intent.external_surcharge_strategy,
                 external_surcharge_applicable: intent.external_surcharge_applicable,
                 enable_avs_check: intent.enable_avs_check,
+                settlement_conclusion_applied: intent.settlement_conclusion_applied,
+                enable_account_name_verification: intent.enable_account_name_verification,
             }));
 
         let new_payment_intent = db
@@ -435,10 +440,10 @@ impl<F: Send + Clone>
     for PaymentUpdateIntent
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsUpdateIntentRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

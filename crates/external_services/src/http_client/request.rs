@@ -5,7 +5,7 @@ pub use common_utils::{errors::CustomResult, request::ContentType};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::errors::HttpClientError;
 pub use hyperswitch_masking::{Mask, Maskable};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[allow(missing_docs)]
 pub trait HeaderExt {

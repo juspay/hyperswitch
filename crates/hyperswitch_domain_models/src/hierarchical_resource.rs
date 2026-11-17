@@ -137,6 +137,7 @@ impl From<HierarchicalResourceDataUpdate>
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait HierarchicalResourceInterface {
     type Error;

@@ -1963,6 +1963,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelPostCap
     where
         F: 'b + Send,
     {
+        // A rejected post capture void leaves the captured payment as it is, so the error is
+        // recorded as the void's outcome in state_metadata instead of failing the payment.
+        let router_data = types::RouterData {
+            response: Ok(router_data
+                .response
+                .unwrap_or_else(|err| get_post_capture_void_response_from_error(&err))),
+            ..router_data
+        };
+
         payment_data = Box::pin(payment_response_update_tracker(
             db,
             payment_data,
@@ -3618,6 +3627,22 @@ async fn delete_cvc_after_success(
     }
 }
 
+/// Builds the post capture void outcome for a connector error. A 5xx does not tell whether the
+/// connector processed the void, so it is kept pending for the sync to resolve.
+#[cfg(feature = "v1")]
+fn get_post_capture_void_response_from_error(err: &ErrorResponse) -> types::PaymentsResponseData {
+    let post_capture_void_status = match err.status_code {
+        500..=511 => common_enums::PostCaptureVoidStatus::Pending,
+        _ => common_enums::PostCaptureVoidStatus::Failed,
+    };
+
+    types::PaymentsResponseData::PostCaptureVoidResponse {
+        post_capture_void_status,
+        connector_reference_id: err.connector_response_reference_id.clone(),
+        description: Some(err.message.clone()),
+    }
+}
+
 #[cfg(feature = "v1")]
 fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
     payment_data: PaymentData<F>,
@@ -3742,6 +3767,7 @@ async fn vault_deferred_payment_method<F: Clone>(
                 payment_method_create_request,
                 None,
                 business_profile,
+                common_enums::WalletDecryptedToken::None,
             ))
             .await
             .map(Some)

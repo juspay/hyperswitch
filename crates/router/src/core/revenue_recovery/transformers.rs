@@ -59,11 +59,18 @@ impl ForeignFrom<api_models::payments::RecoveryPaymentsCreate>
             billing_started_at: Some(data.billing_started_at),
             metadata: data.metadata,
             enable_partial_authorization: data.enable_partial_authorization,
-            customer_present: if data.customer_present {
-                common_enums::PresenceOfCustomerDuringPayment::Present
-            } else {
-                common_enums::PresenceOfCustomerDuringPayment::Absent
-            },
+            // Defaults to absent since recovery retries are merchant initiated
+            customer_present: data
+                .customer_present
+                .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent),
+            setup_future_usage: data
+                .setup_future_usage
+                .unwrap_or(common_enums::FutureUsage::OffSession),
+            // Defaults to recurring since recovery retries are merchant initiated transactions on a saved card for a recurring invoice
+            mit_category: Some(
+                data.mit_category
+                    .unwrap_or(common_enums::MitCategory::Recurring),
+            ),
         }
     }
 }
@@ -82,16 +89,17 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             )),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),
-            processor_payment_method_token: data
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek()
-                .to_string(),
+            processor_payment_method_token: data.payment_method_data.as_ref().map(
+                |payment_method_data| {
+                    payment_method_data
+                        .primary_processor_payment_method_token
+                        .peek()
+                        .to_string()
+                },
+            ),
             connector_customer_id: data.connector_customer_id.peek().to_string(),
-            connector_account_reference_id: data
-                .payment_merchant_connector_id
-                .get_string_repr()
-                .to_string(),
+            // Only the billing connector webhooks look up an account through this reference.
+            connector_account_reference_id: String::new(),
             transaction_created_at: Some(data.transaction_created_at),
             status: data.transaction_status.into(),
             payment_method_type: data.payment_method_type,
@@ -112,7 +120,11 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: Some(data.billing_started_at),
-            card_info: data.payment_method_data.payment_method_metadata.clone(),
+            card_info: data
+                .payment_method_data
+                .as_ref()
+                .map(|payment_method_data| payment_method_data.payment_method_metadata.clone())
+                .unwrap_or_default(),
             charge_id: None,
         }
     }

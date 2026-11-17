@@ -19,6 +19,7 @@ use crate::{
         api, domain,
         storage::{self, enums},
     },
+    utils,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -89,11 +90,31 @@ impl<F: Send + Clone + Sync>
         _payment_id: &common_utils::id_type::GlobalPaymentId,
         request: &PaymentAttemptListRequest,
         platform: &domain::Platform,
-        _profile: &domain::Profile,
+        profile: &domain::Profile,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentAttemptListData<F>>> {
         let db = &*state.store;
         let storage_scheme = platform.get_processor().get_storage_scheme();
+
+        // Attempts are fetched by payment id alone, so make sure the payment belongs to the caller
+        let payment_intent = db
+            .find_payment_intent_by_id(
+                &request.payment_intent_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        if !utils::is_owned_by_merchant_and_profile(
+            platform,
+            profile,
+            &payment_intent.merchant_id,
+            &payment_intent.profile_id,
+        ) {
+            return Err(errors::ApiErrorResponse::PaymentNotFound.into());
+        }
+
         let payment_attempt_list = db
             .find_payment_attempts_by_payment_intent_id(
                 &request.payment_intent_id,
@@ -145,10 +166,10 @@ impl<F: Send + Clone + Sync>
     for PaymentGetListAttempts
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentAttemptListRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

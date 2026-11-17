@@ -178,6 +178,10 @@ impl<T: DatabaseStore> RequestContext for KVRouterStore<T> {
     fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
+
+    fn read_ledger(&self) -> Option<&std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.router_store.read_ledger()
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {

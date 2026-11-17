@@ -3355,36 +3355,11 @@ function threeDsRedirection(
   connectorId,
   paymentMethodType
 ) {
-  let responseContentType = null;
-
-  // First check what type of response we get from the redirect URL
-  cy.request({
-    url: redirectionUrl.href,
+  // Callback URLs are single-use: navigate directly without a probe or retries.
+  cy.visit(redirectionUrl.href, {
     failOnStatusCode: false,
-  }).then((response) => {
-    responseContentType = response.headers["content-type"];
-
-    // Check if the response is JSON
-    if (response.headers["content-type"]?.includes("application/json")) {
-      // For JSON responses, check if it contains useful info
-      if (response.body && typeof response.body === "object") {
-        // If the JSON contains redirect info, use it
-        if (response.body.redirect_url) {
-          cy.visit(response.body.redirect_url, { failOnStatusCode: false });
-        } else {
-          cy.visit(expectedUrl.href);
-          // Verify return URL and exit completely
-          verifyReturnUrl(redirectionUrl, expectedUrl, true);
-          return;
-        }
-      } else {
-        cy.visit(expectedUrl.href);
-        verifyReturnUrl(redirectionUrl, expectedUrl, true);
-        return;
-      }
-    } else {
-      cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-    }
+    retryOnNetworkFailure: false,
+    retryOnStatusCodeFailure: false,
   });
 
   if (connectorId === "paysafe") {
@@ -3506,8 +3481,6 @@ function threeDsRedirection(
   }
   // Nuvei 3DS: 2-step flow (auth button + redirect button)
   if (connectorId === "nuvei") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
-
     cy.document()
       .should("have.property", "readyState")
       .and("equal", "complete");
@@ -3576,7 +3549,6 @@ function threeDsRedirection(
   // Using cy.origin() here causes a cross-origin crash because the sandbox
   // auto-redirect fires before the origin block can execute.
   if (connectorId === "paypal") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
     verifyReturnUrl(redirectionUrl, expectedUrl, true);
     return;
@@ -3588,7 +3560,6 @@ function threeDsRedirection(
   // that's fixed on the router side, just visit the redirection URL and
   // confirm it loads, without waiting for the auto-submit/host change.
   if (connectorId === "paybox") {
-    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
     cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
     return;
   }
@@ -3965,12 +3936,7 @@ function threeDsRedirection(
   );
 
   cy.then(() => {
-    if (
-      responseContentType &&
-      !responseContentType.includes("application/json")
-    ) {
-      verifyReturnUrl(redirectionUrl, expectedUrl, true);
-    }
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
   });
 }
 

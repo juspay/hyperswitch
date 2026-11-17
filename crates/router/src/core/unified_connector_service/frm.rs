@@ -150,11 +150,75 @@ pub async fn call_unified_connector_service_for_frm_notification(
         .resource_id(None)
         .build();
 
-    ucs_client
+    let response = ucs_client
         .notify_connector(request, connector_auth_metadata, grpc_headers, event_type)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS notify_connector gRPC call failed for the FRM notification")?;
+        .attach_printable("UCS notify_connector gRPC call failed for the FRM notification")?
+        .into_inner();
+
+    let response =
+        hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData::foreign_try_from(
+            response,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse UCS FRM notification response")?;
+
+    validate_notify_connector_response(response, connector_name)
+}
+
+#[cfg(feature = "v1")]
+fn validate_notify_connector_response(
+    response: hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData,
+    connector_name: String,
+) -> RouterResult<()> {
+    if response.error_code.is_some()
+        || response.error_message.is_some()
+        || !(200..300).contains(&response.status_code)
+    {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::ExternalConnectorError {
+                code: response
+                    .error_code
+                    .unwrap_or_else(|| hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string()),
+                message: response.error_message.unwrap_or_else(|| {
+                    hyperswitch_interfaces::consts::NO_ERROR_MESSAGE.to_string()
+                }),
+                connector: connector_name,
+                status_code: response.status_code,
+                reason: None,
+            }
+        ));
+    }
 
     Ok(())
+}
+
+#[cfg(all(test, feature = "v1"))]
+mod tests {
+    use hyperswitch_domain_models::router_response_types::NotifyConnectorResponseData;
+
+    use super::validate_notify_connector_response;
+
+    #[test]
+    fn frm_notification_connector_error_is_not_treated_as_success() {
+        let response = NotifyConnectorResponseData {
+            status_code: 502,
+            error_code: Some("bad_gateway".to_string()),
+            error_message: Some("connector unavailable".to_string()),
+        };
+
+        assert!(validate_notify_connector_response(response, "stripe".to_string()).is_err());
+    }
+
+    #[test]
+    fn frm_notification_success_is_accepted() {
+        let response = NotifyConnectorResponseData {
+            status_code: 200,
+            error_code: None,
+            error_message: None,
+        };
+
+        assert!(validate_notify_connector_response(response, "stripe".to_string()).is_ok());
+    }
 }

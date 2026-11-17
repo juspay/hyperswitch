@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
+use hyperswitch_interfaces::{
+    api::ConnectorCommon,
+    webhooks::{IncomingWebhookRequestDetails, WebhookResourceData},
+};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -46,7 +49,7 @@ use crate::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn incoming_webhooks_wrapper(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -61,7 +64,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
     let (webhook_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(incoming_webhooks_core::<W>(
+        Box::pin(incoming_webhooks_core(
             state.clone(),
             req_state,
             req,
@@ -97,7 +100,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
-async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn incoming_webhooks_core(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -305,7 +308,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             connector.is_webhook_source_verification_mandatory(),
             source_verified,
         ) {
-            (true, false) => Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?,
+            (true, false) => {
+                logger::warn!(
+                    connector = %connector.id(),
+                    merchant_id = ?platform.get_processor().get_account().get_id(),
+                    "Incoming webhook blocked: source verification failed and verification is mandatory for this connector"
+                );
+                Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)?
+            }
             _ => {
                 // Unverified webhooks fall back to syncing with the connector, so cap how many of
                 // them each merchant, profile and merchant connector account can push through
@@ -813,8 +823,8 @@ async fn fetch_mca_and_connector(
     ),
     errors::ApiErrorResponse,
 > {
-    let db = &state.store;
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(connector_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

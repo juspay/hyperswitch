@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use api_models::blocklist as api_blocklist;
 use common_utils::{date_time, ext_traits::OptionExt, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     core::errors::{self, RouterResult, StorageErrorExt},
@@ -30,7 +30,7 @@ async fn resolve_clone_targets(
     target_profile_ids: &HashSet<id_type::ProfileId>,
 ) -> RouterResult<Vec<id_type::ProfileId>> {
     let merchant_profile_ids = state
-        .store
+        .accounts_store
         .list_profile_by_merchant_id(processor.get_key_store(), processor.get_account().get_id())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

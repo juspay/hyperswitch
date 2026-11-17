@@ -908,7 +908,7 @@ seed_environment() {
   local signup_resp
   signup_resp=$(curl -s --max-time 30 -X POST "${APP}/user/signup_with_merchant_id" \
     -H "Content-Type: application/json" \
-    -H "api-key: ${ADMIN_API_KEY}" \
+    -H "Authorization: admin-api-key=${ADMIN_API_KEY}" \
     -d "{
       \"email\": \"${DASHBOARD_EMAIL}\",
       \"name\": \"Explorer User\",
@@ -977,7 +977,7 @@ seed_environment() {
   local apikey_resp
   apikey_resp=$(curl -s --max-time 30 -X POST "${APP}/api_keys/${MERCHANT_ID}" \
     -H "Content-Type: application/json" \
-    -H "api-key: ${ADMIN_API_KEY}" \
+    -H "Authorization: admin-api-key=${ADMIN_API_KEY}" \
     -d '{
       "name": "Explorer seed key",
       "description": "API key created by hyperswitch-explore.sh for seeding",

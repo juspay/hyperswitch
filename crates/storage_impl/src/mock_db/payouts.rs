@@ -1,8 +1,11 @@
 use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
-use hyperswitch_domain_models::payouts::{
-    payout_attempt::PayoutAttempt,
-    payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+use hyperswitch_domain_models::{
+    merchant_key_store::MerchantKeyStore,
+    payouts::{
+        payout_attempt::PayoutAttempt,
+        payouts::{Payouts, PayoutsInterface, PayoutsNew, PayoutsUpdate},
+    },
 };
 
 use crate::{errors::StorageError, MockDb};
@@ -14,6 +17,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _payout_id: &common_utils::id_type::PayoutId,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -25,6 +29,7 @@ impl PayoutsInterface for MockDb {
         _this: &Payouts,
         _payout_update: PayoutsUpdate,
         _payout_attempt: &PayoutAttempt,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -34,6 +39,7 @@ impl PayoutsInterface for MockDb {
     async fn insert_payout(
         &self,
         _payout: PayoutsNew,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Payouts, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -44,6 +50,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _payout_id: &common_utils::id_type::PayoutId,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Option<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -55,6 +62,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`
@@ -66,6 +74,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _filters: &hyperswitch_domain_models::payouts::PayoutFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<
         Vec<(
@@ -85,6 +94,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _time_range: &common_utils::types::TimeRange,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<Payouts>, StorageError> {
         // TODO: Implement function for `MockDb`

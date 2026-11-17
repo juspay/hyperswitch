@@ -85,8 +85,10 @@ async fn generate_network_token(
     let db = &*state.store;
     let merchant_id = tracking_data.merchant_id.clone();
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .inspect_err(|error| {
             logger::error!(
@@ -96,7 +98,8 @@ async fn generate_network_token(
             );
         })?;
 
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .inspect_err(|error| {
@@ -107,7 +110,8 @@ async fn generate_network_token(
             );
         })?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             &key_store,
             &merchant_id,
@@ -195,8 +199,10 @@ async fn generate_network_token(
     let db = &*state.store;
     let merchant_id = tracking_data.merchant_id.clone();
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .inspect_err(|error| {
             logger::error!(
@@ -206,7 +212,8 @@ async fn generate_network_token(
             );
         })?;
 
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .inspect_err(|error| {
@@ -217,7 +224,8 @@ async fn generate_network_token(
             );
         })?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             &key_store,
             &merchant_id,

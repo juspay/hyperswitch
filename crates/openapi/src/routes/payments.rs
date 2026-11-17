@@ -314,10 +314,6 @@
                         },
                         "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:05:00Z",
-                        "ephemeral_key": {
-                            "customer_id": "cus_abcdefgh",
-                            "secret": "epk_ephemeralxxxxxxxxxxxx"
-                        },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "expires_on": "2023-10-26T10:20:00Z"
@@ -381,7 +377,6 @@
                         "authentication_type": "no_three_ds",
                         "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:20:00Z",
-                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "merchant_connector_id": "mca_mcaconnectorxxxx",
@@ -430,7 +425,6 @@
                         "authentication_type": "no_three_ds",
                         "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:25:00Z",
-                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "merchant_connector_id": "mca_mcaconnectorxxxx",
@@ -482,7 +476,6 @@
                         },
                         "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:30:00Z",
-                        "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "expires_on": "2023-10-26T10:45:00Z"
@@ -515,7 +508,6 @@
                       },
                       "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:30:00Z",
-                      "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "attempt_count": 1,
                       "expires_on": "2023-10-26T10:45:00Z"
@@ -548,7 +540,6 @@
                     },
                     "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                     "created": "2023-10-26T10:30:00Z",
-                    "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                     "profile_id": "pro_pzzzzzzzzzzz",
                     "attempt_count": 1,
                     "expires_on": "2023-10-26T10:45:00Z"
@@ -840,6 +831,8 @@ pub fn payments_update() {}
 /// - `succeeded`: If authorization is successful and `capture_method` is `automatic`.
 /// - `requires_capture`: If authorization is successful and `capture_method` is `manual`.
 /// - `failed`: If authorization fails.
+/// Profile-restricted requests are authorized against the stored payment before payment-method
+/// prefetch, retry records, address updates, or other confirmation side effects.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/confirm",
@@ -902,6 +895,9 @@ pub fn payments_confirm() {}
 /// The `amount_to_capture` can be specified in the request body; it must be less than or equal to the payment's `amount_capturable`. If omitted, the full capturable amount is captured.
 ///
 /// A payment must be in a capturable state (e.g., `requires_capture`). Attempting to capture an already `succeeded` (and fully captured) payment or one in an invalid state will lead to an error.
+/// When authentication restricts access to a profile, the payment must belong to that profile.
+/// This authorization is checked before creating a capture record, including for multiple captures.
+/// Payments outside the authenticated merchant/profile scope are treated as not found.
 ///
 #[utoipa::path(
     post,
@@ -933,7 +929,8 @@ pub fn payments_confirm() {}
     ),
     responses(
         (status = 200, description = "Payment captured", body = PaymentsResponse),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi),
+        (status = 404, description = "Payment not found in the authenticated merchant/profile scope", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Capture a Payment",
@@ -983,6 +980,8 @@ pub fn payments_connector_session() {}
 /// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: `requires_payment_method`, `requires_capture`, `requires_confirmation`, `requires_customer_action`.
+/// Profile-restricted authentication can cancel only payments in that profile.
+/// Payments outside the authenticated merchant/profile scope are treated as not found before cancellation side effects.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/cancel",
@@ -1013,7 +1012,8 @@ pub fn payments_connector_session() {}
     ),
     responses(
         (status = 200, description = "Payment canceled"),
-        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi),
+        (status = 404, description = "Payment not found in the authenticated merchant/profile scope", body = GenericErrorResponseOpenApi)
     ),
     tag = "Payments",
     operation_id = "Cancel a Payment",
@@ -1327,8 +1327,10 @@ pub fn payments_submit_eligibility_check() {}
 ///
 /// - If eligibility is denied the response will contain `sdk_next_action: deny` and no surcharge details.
 /// - If the merchant has no surcharge connector configured, `surcharge_details` will be `null`.
-/// - Surcharge calculation is best-effort: if the external call fails the payment still proceeds
-///   with `surcharge_details: null`.
+/// - A connector calculation error leaves the payment payable amount unchanged. Its surcharge
+///   details contain a zero surcharge and the connector message. The error code is included
+///   only when the connector supplies one.
+/// - If no calculation is attempted, `surcharge_details` is `null`.
 #[utoipa::path(
     post,
     path = "/payments/{payment_id}/eligibility",
@@ -1588,14 +1590,19 @@ pub fn list_payment_methods() {}
 
 /// Payments - List
 ///
-/// To list the *payments*
+/// List payments and their total count within the authenticated X-Profile-Id.
+/// An optional profile_id query filter must match X-Profile-Id.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
     path = "/v2/payments/list",
-    params(api_models::payments::PaymentListConstraints),
+    params(
+        api_models::payments::PaymentListConstraints,
+        ("X-Profile-Id" = String, Header, description = "Authenticated business profile used to scope payment rows and total_count."),
+    ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 400, description = "Query profile_id does not match X-Profile-Id"),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",

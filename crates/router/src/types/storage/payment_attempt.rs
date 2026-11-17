@@ -13,6 +13,7 @@ pub trait PaymentAttemptExt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
@@ -26,6 +27,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         todo!()
     }
@@ -35,6 +37,7 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: MinorUnit,
         capture_status: enums::CaptureStatus,
+        feature_metadata: Option<common_types::payments::CaptureFeatureMetadata>,
     ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
         let now = common_utils::date_time::now();
@@ -64,6 +67,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             connector_capture_id: None,
             connector_response_reference_id: None,
             processor_capture_data: None,
+            feature_metadata,
             // Below fields are deprecated. Please add any new fields above this line.
             connector_capture_data: None,
         })
@@ -128,6 +132,8 @@ impl AttemptStatusExt for enums::AttemptStatus {
     feature = "dummy_connector"
 ))]
 mod tests {
+    use std::sync::Arc;
+
     use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
     use tokio::sync::oneshot;
 
@@ -138,7 +144,7 @@ mod tests {
         types::{self, domain},
     };
 
-    async fn create_single_connection_test_transaction_pool() -> routes::AppState {
+    async fn create_single_connection_test_session() -> routes::SessionState {
         // Set pool size to 1 and minimum idle connection size to 0
         std::env::set_var("ROUTER__MASTER_DATABASE__POOL_SIZE", "1");
         std::env::set_var("ROUTER__MASTER_DATABASE__MIN_IDLE", "0");
@@ -148,19 +154,31 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
         let api_client = Box::new(services::MockApiClient);
-        Box::pin(routes::AppState::with_storage(
-            conf,
-            StorageImpl::PostgresqlTest,
-            tx,
-            api_client,
-            env!("CARGO_PKG_NAME"),
-        ))
-        .await
+        let app_state = Arc::new(
+            Box::pin(routes::AppState::with_storage(
+                conf,
+                StorageImpl::PostgresqlTest,
+                tx,
+                api_client,
+                env!("CARGO_PKG_NAME"),
+            ))
+            .await,
+        );
+        let tenant_id = app_state
+            .conf
+            .multitenancy
+            .get_tenant_ids()
+            .first()
+            .unwrap()
+            .clone();
+        app_state
+            .get_session_state(&tenant_id, None, || ())
+            .unwrap()
     }
 
     #[tokio::test]
     async fn test_payment_attempt_insert() {
-        let state = create_single_connection_test_transaction_pool().await;
+        let state = create_single_connection_test_session().await;
         let payment_id =
             common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
         let current_time = common_utils::date_time::now();
@@ -259,15 +277,11 @@ mod tests {
             active_frm_id: Default::default(),
         };
 
-        let store = state
-            .stores
-            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
-            .unwrap();
-        let key_store = store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &store.get_master_key().to_vec().into(),
-            )
+        let store = state.store.as_ref();
+        let key_store_master_key = store.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
@@ -288,7 +302,7 @@ mod tests {
     /// Example of unit test
     /// Kind of test: state-based testing
     async fn test_find_payment_attempt() {
-        let state = create_single_connection_test_transaction_pool().await;
+        let state = create_single_connection_test_session().await;
         let current_time = common_utils::date_time::now();
         let payment_id =
             common_utils::id_type::PaymentId::generate_test_payment_id_for_sample_data();
@@ -388,15 +402,11 @@ mod tests {
             payment_account_reference: Default::default(),
             active_frm_id: Default::default(),
         };
-        let store = state
-            .stores
-            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
-            .unwrap();
-        let key_store = store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &store.get_master_key().to_vec().into(),
-            )
+        let store = state.store.as_ref();
+        let key_store_master_key = store.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);
@@ -429,7 +439,7 @@ mod tests {
     /// Example of unit test
     /// Kind of test: state-based testing
     async fn test_payment_attempt_mandate_field() {
-        let state = create_single_connection_test_transaction_pool().await;
+        let state = create_single_connection_test_session().await;
         let uuid = common_utils::generate_uuid_v4().to_string();
         let merchant_id =
             common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("merchant1"))
@@ -532,15 +542,11 @@ mod tests {
             payment_account_reference: Default::default(),
             active_frm_id: Default::default(),
         };
-        let store = state
-            .stores
-            .get(state.conf.multitenancy.get_tenant_ids().first().unwrap())
-            .unwrap();
-        let key_store = store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &store.get_master_key().to_vec().into(),
-            )
+        let store = state.store.as_ref();
+        let key_store_master_key = store.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .unwrap();
         let processor_key_store = domain::ProcessorKeyStore::from_untagged(key_store);

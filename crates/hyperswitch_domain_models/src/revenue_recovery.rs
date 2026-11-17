@@ -16,6 +16,19 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 
+/// Only a transaction made off session with the customer absent is merchant initiated. One that
+/// leaves either out gets the defaults the invoice is created with.
+pub fn is_merchant_initiated(
+    customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+) -> bool {
+    customer_present.unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
+        == common_enums::PresenceOfCustomerDuringPayment::Absent
+        && setup_future_usage
+            .unwrap_or(common_enums::FutureUsage::OffSession)
+            .is_off_session()
+}
+
 /// Recovery payload is unified struct constructed from billing connectors
 #[derive(Debug)]
 pub struct RevenueRecoveryAttemptData {
@@ -34,8 +47,8 @@ pub struct RevenueRecoveryAttemptData {
     pub error_code: Option<String>,
     /// error message sent by billing connector.
     pub error_message: Option<String>,
-    /// mandate token at payment processor end.
-    pub processor_payment_method_token: String,
+    /// mandate token at payment processor end, absent for a transaction reported without its card.
+    pub processor_payment_method_token: Option<String>,
     /// customer id at payment connector for which mandate is attached.
     pub connector_customer_id: String,
     /// Payment gateway identifier id at billing processor.
@@ -94,6 +107,10 @@ pub struct RevenueRecoveryInvoiceData {
     /// Whether the customer was present during the payment. Billing connectors only report
     /// merchant initiated transactions, so they always set this to absent.
     pub customer_present: common_enums::PresenceOfCustomerDuringPayment,
+    /// How the payment method is intended to be used in the future.
+    pub setup_future_usage: common_enums::FutureUsage,
+    /// Category of the merchant initiated transactions made to recover this invoice.
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 #[derive(Clone, Debug)]
@@ -167,7 +184,7 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             customer_present: Some(data.customer_present),
             description: None,
             return_url: None,
-            setup_future_usage: Some(common_enums::FutureUsage::OffSession),
+            setup_future_usage: Some(data.setup_future_usage),
             apply_mit_exemption: None,
             statement_descriptor: None,
             order_details: None,
@@ -187,6 +204,8 @@ impl From<&RevenueRecoveryInvoiceData> for api_payments::PaymentsCreateIntentReq
             is_account_funded_transaction: None,
             recipient_details: None,
             enable_avs_check: None,
+            mit_category: data.mit_category,
+            enable_account_name_verification: None,
         }
     }
 }
@@ -205,6 +224,8 @@ impl From<&BillingConnectorInvoiceSyncResponse> for RevenueRecoveryInvoiceData {
             metadata: None,
             enable_partial_authorization: None,
             customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            setup_future_usage: common_enums::FutureUsage::OffSession,
+            mit_category: None,
         }
     }
 }
@@ -235,9 +256,11 @@ impl
                 .clone(),
             error_code: billing_connector_payment_details.error_code.clone(),
             error_message: billing_connector_payment_details.error_message.clone(),
-            processor_payment_method_token: billing_connector_payment_details
-                .processor_payment_method_token
-                .clone(),
+            processor_payment_method_token: Some(
+                billing_connector_payment_details
+                    .processor_payment_method_token
+                    .clone(),
+            ),
             connector_customer_id: billing_connector_payment_details
                 .connector_customer_id
                 .clone(),
@@ -337,6 +360,9 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                             api_payments::PaymentAttemptRevenueRecoveryData {
                                 attempt_triggered_by: recovery.attempt_triggered_by,
                                 charge_id: recovery.charge_id,
+                                customer_present: recovery.customer_present,
+                                setup_future_usage: recovery.setup_future_usage,
+                                recovery_request_id: recovery.recovery_request_id,
                             }
                         }),
                     },

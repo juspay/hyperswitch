@@ -891,7 +891,7 @@ impl Action {
                 Box::pin(revenue_recovery_core::api::update_payment_intent_api(
                     state,
                     payment_intent.id.clone(),
-                    revenue_recovery_payment_data,
+                    revenue_recovery_payment_data.get_merchant_context(),
                     payment_update_req,
                 ))
                 .await
@@ -1293,13 +1293,18 @@ impl Action {
     pub(crate) async fn decide_retry_failure_action(
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        pt: storage::ProcessTracker,
+        _pt: storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        let next_retry_count = pt.retry_count + 1;
+        let total_retry_count = payment_intent
+            .get_revenue_recovery_retry_count()
+            .ok_or(errors::RecoveryError::ValueNotFound)
+            .attach_printable(
+                "Failed to get the retry count from the payment intent's revenue recovery metadata",
+            )?;
         let error_message = payment_attempt
             .error
             .as_ref()
@@ -1308,6 +1313,10 @@ impl Action {
             .error
             .as_ref()
             .map(|details| details.code.clone());
+        let network_decline_code = payment_attempt
+            .error
+            .as_ref()
+            .and_then(|details| details.network_decline_code.clone());
         let connector_name = payment_attempt
             .connector
             .clone()
@@ -1320,8 +1329,8 @@ impl Action {
             consts::DEFAULT_SUBFLOW_STR,
             error_code,
             error_message,
-            None, // issuer_error_code not available in recovery context
-            None, // card_network
+            network_decline_code,
+            payment_attempt.extract_card_network(),
         )
         .await;
         let is_hard_decline = gsm_record
@@ -1334,7 +1343,7 @@ impl Action {
             .get_schedule_time_based_on_retry_type(
                 state,
                 merchant_id,
-                next_retry_count,
+                u32::from(total_retry_count),
                 payment_attempt,
                 payment_intent,
                 is_hard_decline,
@@ -1387,6 +1396,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         billing_mca_id: old_tracking_data.billing_mca_id.clone(),
         invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
         static_ladder_progress: old_tracking_data.static_ladder_progress,
+        payment_processor_token: None,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)
