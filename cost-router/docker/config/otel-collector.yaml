@@ -1,0 +1,41 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+exporters:
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  debug:
+    verbosity: detailed
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: router
+    const_labels:
+      app_name: router-api
+
+service:
+  telemetry:
+    logs:
+      level: DEBUG
+    metrics:
+      level: detailed
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "0.0.0.0"
+                port: 8888
+
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp]
