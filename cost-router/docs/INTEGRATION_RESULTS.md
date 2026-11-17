@@ -7,8 +7,8 @@ path is `cost-router/scripts/up.sh` then `cost-router/scripts/demo.sh` (end-to-e
 
 ## Setup facts that differ from the repo docs
 - The `:standalone` image is older than repo HEAD config: `config/docker_compose.toml` makes it panic on `ecommpay`
-  ("Unable to deserialize `ecommpay` as Connector"). Workaround: trimmed config copy in `cost-router/docker/config/` plus
-  `cost-router/docker/compose.override.yml` (new files only; tracked files untouched).
+  ("Unable to deserialize `ecommpay` as Connector"). Workaround: `cost-router/docker/compose.override.yml` mounts upstream `config/` unchanged and overlays one
+  patched `cost-router/docker/docker_compose.toml` (`ecommpay` removed from two connector lists; new files only, tracked files untouched).
 - The router panics without superposition ("Failed to initialize superposition client"). `superposition` + `superposition-init` are required.
   `seed_superposition.sh` has CRLF endings and bash-isms; run with bash on a CRLF-stripped copy (`cost-router/docker/seed_superposition.sh`).
 - `migration_runner` applies all migrations then fails with "Failed to apply patch: error applying hunk #5" (schema.rs patch, irrelevant to the DB).

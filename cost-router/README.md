@@ -160,7 +160,7 @@ Example (A: fee 5000, 96%; B: fee 2000, 85%): B wins when `L_eff` is below about
 - `src/hyperswitch/`: `HyperswitchClient` and the single place the `routing` body is built.
 - `src/payments/`: `POST /payments`, `GET /payments/:id/routing-trace`, `DecisionStore` (bounded, in memory), request fingerprint, execution record.
 - `test/`: engine, config, stats, de-duplication, decision store and adapter tests (the adapter tests run against a local fake Hyperswitch).
-- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh`, `verify-priority-order.md`. `docker/`: compose override and trimmed config for the prebuilt image.
+- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh`, `verify-priority-order.md`. `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
 
 ## Limits
 Stats, decisions and idempotency records are per process: in memory, or in one JSON state file when `state_file` is set (then they survive a
