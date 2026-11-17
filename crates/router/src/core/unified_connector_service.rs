@@ -58,7 +58,9 @@ use crate::{
             helpers::{
                 get_ucs_config_source, get_ucs_enabled_mode_from_superposition,
                 is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
-                should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
+                should_execute_based_on_rollout,
+                should_execute_based_on_rollout_from_superposition,
+                should_execute_based_on_rollout_with_precedence,
                 should_execute_based_on_rollout_with_precedence_from_superposition,
                 MerchantConnectorAccountType, ProxyOverride, RolloutExecutionResult,
                 WebhookRolloutConfig, WebhookRolloutExecutionResult,
@@ -1864,59 +1866,10 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let config_source = get_ucs_config_source(state);
     let (ucs_availability, rollout_result) = match config_source {
         UcsConfigSource::Database => {
-            let ucs_availability = check_ucs_availability(state).await;
-            let rollout_key = format!(
-                "{}_{}_{}_{}",
-                consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-                merchant_id,
-                connector_name,
-                flow_name
-            );
-            let rollout_result = should_execute_based_on_rollout::<
-                WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
-            >(state, &rollout_key)
-            .await?;
-            (ucs_availability, rollout_result)
+            should_call_ucs_for_webhooks_via_db(state, processor, connector_name).await?
         }
         UcsConfigSource::Superposition => {
-            let ucs_availability = check_ucs_availability_from_superposition(state).await;
-            let context = superposition::ConfigContext::new()
-                .with(
-                    "organization_id",
-                    processor.get_account().get_org_id().get_string_repr(),
-                )
-                .with("processor_merchant_id", merchant_id)
-                .with("connector", connector_name)
-                .with("flow_name", flow_name);
-            let rollout_result = match state
-                .superposition_service
-                .get_config_value::<serde_json::Value>(
-                    consts::superposition::UCS_ROLLOUT_CONFIG,
-                    Some(&context),
-                    None,
-                )
-                .await
-            {
-                Ok(value) => value
-                    .parse_value::<WebhookRolloutConfig>("WebhookRolloutConfig")
-                    .map(WebhookRolloutExecutionResult::from)
-                    .unwrap_or_else(|error| {
-                        logger::warn!(
-                            ?error,
-                            "Failed to parse Superposition webhook rollout config; defaulting to not execute"
-                        );
-                        WebhookRolloutExecutionResult::default()
-                    }),
-                Err(error) => {
-                    logger::warn!(
-                        ?error,
-                        "Failed to fetch Superposition webhook rollout config; defaulting to not execute"
-                    );
-                    WebhookRolloutExecutionResult::default()
-                }
-            };
-            (ucs_availability, rollout_result)
+            should_call_ucs_for_webhooks_via_superposition(state, processor, connector_name).await?
         }
     };
 
@@ -1944,6 +1897,55 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     );
 
     Ok((execution_path, rollout_result.webhook_flows))
+}
+
+async fn should_call_ucs_for_webhooks_via_db(
+    state: &SessionState,
+    processor: &Processor,
+    connector_name: &str,
+) -> RouterResult<(UcsAvailability, WebhookRolloutExecutionResult)> {
+    let ucs_availability = check_ucs_availability(state).await;
+    let rollout_key = format!(
+        "{}_{}_{}_Webhooks",
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        processor.get_account().get_id().get_string_repr(),
+        connector_name,
+    );
+    let rollout_result = should_execute_based_on_rollout::<
+        WebhookRolloutConfig,
+        WebhookRolloutExecutionResult,
+    >(state, &rollout_key)
+    .await?;
+    Ok((ucs_availability, rollout_result))
+}
+
+async fn should_call_ucs_for_webhooks_via_superposition(
+    state: &SessionState,
+    processor: &Processor,
+    connector_name: &str,
+) -> RouterResult<(UcsAvailability, WebhookRolloutExecutionResult)> {
+    let ucs_availability = check_ucs_availability_from_superposition(state).await;
+    let context = superposition::ConfigContext::new()
+        .with(
+            "organization_id",
+            processor.get_account().get_org_id().get_string_repr(),
+        )
+        .with(
+            "processor_merchant_id",
+            processor.get_account().get_id().get_string_repr(),
+        )
+        .with("connector", connector_name)
+        .with("flow_name", "Webhooks");
+    let rollout_result = should_execute_based_on_rollout_from_superposition::<
+        WebhookRolloutConfig,
+        WebhookRolloutExecutionResult,
+    >(
+        state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
+        Some(&context),
+    )
+    .await?;
+    Ok((ucs_availability, rollout_result))
 }
 
 /// On a redirect-complete callback the inbound request carries only redirect params, so
