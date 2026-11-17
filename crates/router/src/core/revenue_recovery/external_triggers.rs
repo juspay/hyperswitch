@@ -36,7 +36,7 @@ use crate::{
     core::{
         api_locking::{LockAction, LockingInput},
         configs::dimension_state::{self, DimensionsWithProcessorMerchantIdAndConnector},
-        errors::{self, RouterResult},
+        errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self,
             operations::{
@@ -870,21 +870,18 @@ async fn queue_recovery_request(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to construct the recovery request task")?;
-    state.store.insert_process(process).await.map_err(|error| {
-        if error.current_context().is_db_unique_violation() {
-            error.change_context(errors::ApiErrorResponse::GenericDuplicateError {
-                message: format!(
-                    "The transaction {} is already reported for the invoice {}",
-                    request.connector_transaction_id,
-                    request.merchant_reference_id.get_string_repr()
-                ),
-            })
-        } else {
-            error
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to queue the recovery request")
-        }
-    })?;
+    state
+        .store
+        .insert_process(process)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: format!(
+                "The transaction {} is already reported for the invoice {}",
+                request.connector_transaction_id,
+                request.merchant_reference_id.get_string_repr()
+            ),
+        })
+        .attach_printable("Failed to queue the recovery request")?;
     metrics::TASKS_ADDED_COUNT.add(
         1,
         router_env::metric_attributes!(("flow", "RecoveryRequest")),
