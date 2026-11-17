@@ -9043,6 +9043,9 @@ key1 = "Profile ID"
 [elavon_pg.connector_auth.BodyKey]
 api_key="Merchant Alias"
 key1="Secret API Key"
+[elavon_pg.connector_webhook_details]
+merchant_secret="Webhook Shared Secret"
+additional_secret="Webhook Signer ID"
 [[elavon_pg.credit]]
   payment_method_type = "Mastercard"
 [[elavon_pg.credit]]

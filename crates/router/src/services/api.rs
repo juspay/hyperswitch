@@ -463,6 +463,7 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
+    let mut webhook_ack_status_code = None;
     let server_wrap_util_res = server_wrap_util(
         &flow,
         state.clone(),
@@ -478,7 +479,12 @@ where
         let response = match response {
             ApplicationResponse::IncomingWebhookEvent {
                 response: inner, ..
-            } => ApplicationResponse::from(*inner),
+            } => {
+                if let WebhookResponse::StatusCode(status_code) = inner.as_ref() {
+                    webhook_ack_status_code = http::StatusCode::from_u16(*status_code).ok();
+                }
+                ApplicationResponse::from(*inner)
+            }
             other => other,
         };
         logger::info!(api_response =? response);
@@ -496,7 +502,10 @@ where
                 }"#,
             ),
         },
-        Ok(ApplicationResponse::StatusOk) => http_response_ok(),
+        Ok(ApplicationResponse::StatusOk) => webhook_ack_status_code
+            .map_or_else(http_response_ok, |status_code| {
+                HttpResponse::build(status_code).finish()
+            }),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
         Ok(ApplicationResponse::FileData((file_data, content_type))) => {
             http_response_file_data(file_data, content_type)

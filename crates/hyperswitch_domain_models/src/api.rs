@@ -36,13 +36,16 @@ pub enum WebhookResponse<R> {
     TextPlain(String),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
+    /// An empty acknowledgement with a status other than 200; only the webhook route honours
+    /// the code, everywhere else it reads as `StatusOk`.
+    StatusCode(u16),
 }
 
 impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
     fn from(resp: WebhookResponse<R>) -> Self {
         match resp {
             WebhookResponse::Json(r) => Self::Json(r),
-            WebhookResponse::StatusOk => Self::StatusOk,
+            WebhookResponse::StatusOk | WebhookResponse::StatusCode(_) => Self::StatusOk,
             WebhookResponse::TextPlain(s) => Self::TextPlain(s),
             WebhookResponse::FileData((v, m)) => Self::FileData((v, m)),
             WebhookResponse::JsonWithHeaders((r, h)) => Self::JsonWithHeaders((r, h)),

@@ -546,7 +546,9 @@ impl Connector {
     }
 
     pub fn should_acknowledge_webhook_for_resource_not_found_errors(self) -> bool {
-        matches!(self, Self::Adyenplatform | Self::Adyen)
+        // Elavon PG disables a webhook after four unacknowledged retries, so an unmatched
+        // notification must still be acknowledged; the payment reconciles through sync.
+        matches!(self, Self::Adyenplatform | Self::Adyen | Self::ElavonPg)
     }
 
     pub fn should_store_google_pay_pan_only_for_three_ds(

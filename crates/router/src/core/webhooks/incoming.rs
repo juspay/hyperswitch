@@ -357,7 +357,7 @@ async fn incoming_webhooks_core(
         Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
     ) {
         return Ok((
-            WebhookResponse::StatusOk,
+            with_connector_ack_status(WebhookResponse::StatusOk, &connector),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::default()),
         ));
@@ -459,7 +459,25 @@ async fn incoming_webhooks_core(
         }
     };
 
-    Ok((ack_response, webhook_effect, serialized_body))
+    Ok((
+        with_connector_ack_status(ack_response, &connector),
+        webhook_effect,
+        serialized_body,
+    ))
+}
+
+/// An empty acknowledgement goes back with the connector's ack status, so a connector that
+/// only counts e.g. 201 as delivered does not retry, or disable, every webhook it sent.
+fn with_connector_ack_status(
+    ack_response: WebhookResponse<serde_json::Value>,
+    connector: &ConnectorEnum,
+) -> WebhookResponse<serde_json::Value> {
+    match (ack_response, connector.get_webhook_ack_status_code()) {
+        (WebhookResponse::StatusOk, status_code) if status_code != 200 => {
+            WebhookResponse::StatusCode(status_code)
+        }
+        (ack_response, _) => ack_response,
+    }
 }
 
 async fn fetch_three_ds_execution_path(
@@ -836,7 +854,7 @@ fn handle_incoming_webhook_error(
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
         Ok((
-            response,
+            with_connector_ack_status(response, connector),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::Null),
         ))
