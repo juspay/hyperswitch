@@ -14310,14 +14310,14 @@
       "CustomRecoveryPaymentMethodData": {
         "type": "object",
         "required": [
-          "primary_processor_payment_method_token",
           "payment_method_metadata"
         ],
         "properties": {
           "primary_processor_payment_method_token": {
             "type": "string",
-            "description": "Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.",
-            "example": "token_1234"
+            "description": "Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.\nIt can be left out only when the customer is present and the payment is on session, and\nnot for the first transaction of an invoice. The card details can still be sent without it.",
+            "example": "token_1234",
+            "nullable": true
           },
           "payment_method_metadata": {
             "$ref": "#/components/schemas/AdditionalCardInfo"
