@@ -1,4 +1,8 @@
 #!/bin/bash
+# cost-router copy of upstream scripts/seed_superposition.sh, unchanged except this note. It exists only so that
+# cost-router/.gitattributes forces LF line endings: a Windows checkout of the upstream file gets CRLF, which breaks
+# bash inside the Linux superposition-init container.
+#
 # Seed Superposition with default configuration for local development
 
 set -euo pipefail

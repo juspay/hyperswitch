@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Re-runnable end-to-end demo against a running stack (run up.sh first). Creates a fresh merchant per run.
+# Optional probe of plain Hyperswitch (no cost-router) used for docs/INTEGRATION_RESULTS.md. Needs python (JSON parsing).
+# Run up.sh first. Creates a fresh merchant per run.
 set -u
 H=${H:-http://localhost:8080}; ADMIN="Authorization: admin-api-key=test_admin"; J="Content-Type: application/json"
 R=$(date +%s); MID="merchant_demo_$R"

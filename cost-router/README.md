@@ -18,6 +18,7 @@ client ──POST /payments──▶ cost-router ──POST /payments {routing: 
 - **Docker Desktop** (Windows: WSL2 backend) or Docker Engine with the compose plugin. Tested on Windows 10 with 8 GB RAM and WSL2 capped at 4 GB.
 - **Node.js >= 18** (tested with v24) and npm.
 - **bash** (Git Bash on Windows) for `scripts/up.sh`.
+- **Python 3** only for the optional `scripts/hyperswitch-probe.sh`; the demo, tests and load test need only Node.
 - Internet access for the first image pull (the stack images are several GB) and free ports `8080` (Hyperswitch), `5432`, `6379`; the demo uses `3110`.
 
 ## Quick start
@@ -162,7 +163,7 @@ Example (A: fee 5000, 96%; B: fee 2000, 85%): B wins when `L_eff` is below about
 - `src/hyperswitch/`: `HyperswitchClient` and the single place the `routing` body is built.
 - `src/payments/`: `POST /payments`, `GET /payments/:id/routing-trace`, `DecisionStore` (bounded, in memory), request fingerprint, execution record.
 - `test/`: engine, config, stats, de-duplication, decision store and adapter tests (the adapter tests run against a local fake Hyperswitch).
-- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh`, `verify-priority-order.md`. `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
+- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh` (optional, needs python). `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
 
 ## Limits
 Stats, decisions and idempotency records are per process: in memory, or in one JSON state file when `state_file` is set (then they survive a

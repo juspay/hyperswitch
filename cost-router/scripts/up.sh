@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Brings up the minimal Hyperswitch stack (pg, redis, migrations, superposition, router) with the prebuilt image.
-# Uses only NEW files under cost-router/docker (trimmed config copy + compose override); no tracked file is touched.
+# Uses only NEW files under cost-router/docker (compose override + one patched docker_compose.toml); no tracked file is touched.
 set -u
 export PATH="$PATH:/c/Program Files/Docker/Docker/resources/bin"
 cd "$(dirname "$0")/../.."

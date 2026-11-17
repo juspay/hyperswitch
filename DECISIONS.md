@@ -25,7 +25,7 @@ pooled prior for shrinkage. Unpriced connectors rank last; no usable pricing mea
 - Pending attempts are never re-resolved (no webhooks); issuer declines count against a connector by default; a few early failures with no
   successes put every connector under the floor.
 - State is per process (memory or one JSON file), not shared between instances. Timeouts and ambiguous responses are **not tested**.
-- The prebuilt image needed a trimmed config copy and Superposition; `make demo` is untested here (no `make`), `npm run demo` is what ran.
+- The prebuilt image needed one patched config file and Superposition; `make demo` is untested here (no `make`), `npm run demo` is what ran.
 - Caught by running it: my first prior (peers only) ranked a connector with one success below one with one failure (fixed, regression test);
   the assumption that `single` routing means "no failover" was wrong.
 
