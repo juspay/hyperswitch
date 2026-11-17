@@ -3497,6 +3497,7 @@ pub async fn response_handler(
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
         funds_transfer_type: payouts.funds_transfer_type,
+        purpose: payouts.purpose,
         sender_details: payouts.get_optional_sender_details().cloned(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
@@ -3697,6 +3698,7 @@ pub async fn payout_create_db_entries(
         attempt_count: 1,
         metadata: req.metadata.clone(),
         funds_transfer_type: req.funds_transfer_type,
+        purpose: req.purpose,
         sender_details,
         confirm: req.confirm,
         payout_link_id: payout_link
