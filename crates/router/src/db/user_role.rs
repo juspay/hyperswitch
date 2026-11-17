@@ -5,7 +5,7 @@ use diesel_models::{
     user_role as storage,
 };
 use error_stack::{report, ResultExt};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{

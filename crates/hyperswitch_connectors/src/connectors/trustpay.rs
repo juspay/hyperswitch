@@ -1467,7 +1467,9 @@ impl ConnectorSpecifications for Trustpay {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }

@@ -3798,21 +3798,9 @@ export const connectorDetails = {
         },
       },
       DDCConfig: {
-        completeUrlPath: "/redirect/complete/default",
         collectionReferenceParam: "collectionReference",
         firstSubmissionValue: "",
         secondSubmissionValue: "race_condition_test_ddc_123",
-        expectedError: {
-          status: 400,
-          body: {
-            error: {
-              code: "IR_07",
-              type: "invalid_request",
-              message:
-                "Invalid value provided: collection_reference not allowed in AuthenticationPending state",
-            },
-          },
-        },
       },
     }),
     DDCRaceConditionClientSide: getCustomExchange({
@@ -3833,7 +3821,6 @@ export const connectorDetails = {
         },
       },
       DDCConfig: {
-        redirectUrlPath: "/payments/redirect",
         collectionReferenceParam: "collectionReference",
         delayBeforeSubmission: 2000,
         raceConditionScript: `
@@ -4694,6 +4681,9 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         amount: 6500,
+        // 15 min: the spec reuses this intent across several Superposition
+        // updates, longer than the 60s profile expiry left by earlier specs.
+        session_expiry: 900,
       },
       Response: {
         status: 200,

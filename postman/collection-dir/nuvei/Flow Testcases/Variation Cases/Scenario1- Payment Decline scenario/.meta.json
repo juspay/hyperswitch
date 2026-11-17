@@ -1,7 +1,0 @@
-{
-  "childrenOrder": [
-    "Payments - Create(Decline)",
-    "Payments - Create(Do Not Honor)",
-    "Payments - Create(Insufficient Funds)"
-  ]
-}

@@ -296,17 +296,15 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
@@ -499,6 +497,7 @@ async fn payments_create_core() {
         sender_payment_instrument_id: None,
         payment_account_reference: None,
         enable_avs_check: None,
+        enable_account_name_verification: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -618,17 +617,15 @@ async fn payments_create_core_adyen_no_redirect() {
 
     let customer_id = format!("cust_{}", common_utils::generate_uuid_v4());
     let merchant_id = id_type::MerchantId::try_from(Cow::from("juspay_merchant")).unwrap();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
@@ -818,6 +815,7 @@ async fn payments_create_core_adyen_no_redirect() {
             sender_payment_instrument_id: None,
             payment_account_reference: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         },
         vec![],
     ));

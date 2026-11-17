@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -311,13 +311,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
-                &request.payment_method,
+                request.payment_method,
                 &request
                     .payment_method_data
                     .as_ref()
                     .and_then(|pmd| pmd.payment_method_data.clone()),
-                &request.payment_method_type,
-                &mandate_type,
+                request.payment_method_type,
+                mandate_type,
                 &token,
                 &request.ctp_service_details,
             )?;
@@ -463,7 +463,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,
@@ -488,6 +489,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -723,15 +727,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .payment_intent
                 .is_settlement_conclusion_applied()
         {
-            let db = state.store.as_ref();
-
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
                 .get_required_value("business_profile.tax_connector_id")?;
 
             #[cfg(feature = "v1")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
@@ -745,7 +748,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )?;
 
             #[cfg(feature = "v2")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
@@ -1430,6 +1434,9 @@ impl PaymentUpdate {
                     .payment_intent
                     .external_surcharge_applicable,
                 enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                enable_account_name_verification: payment_data
+                    .payment_intent
+                    .enable_account_name_verification,
                 settlement_conclusion_applied: payment_data
                     .payment_intent
                     .settlement_conclusion_applied,

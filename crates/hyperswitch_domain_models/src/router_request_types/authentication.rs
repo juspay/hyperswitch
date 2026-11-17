@@ -1,5 +1,6 @@
 use common_utils::{ext_traits::OptionExt, pii::Email};
 use error_stack::{Report, ResultExt};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -103,7 +104,7 @@ pub struct ConnectorAuthenticationRequestData {
     pub message_category: MessageCategory,
     pub device_channel: api_models::payments::DeviceChannel,
     pub pre_authentication_data: PreAuthenticationData,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub email: Option<Email>,
     pub threeds_method_comp_ind: api_models::payments::ThreeDsCompletionIndicator,
@@ -181,7 +182,7 @@ pub struct ExternalThreeDSConnectorMetadata {
 
 #[derive(Clone, Debug)]
 pub struct AuthenticationStore {
-    pub cavv: Option<hyperswitch_masking::Secret<String>>,
+    pub cavv: Option<Secret<String>>,
     pub authentication: authentication::Authentication,
 }
 

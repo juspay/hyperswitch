@@ -22,7 +22,7 @@ use common_utils::{errors::ErrorSwitch, id_type};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::cards;
 use crate::{
@@ -65,7 +65,8 @@ pub async fn revoke_connector_mandates(
     }
 
     // The merchant-scoped profile fetch is the authorization check for `X-Profile-Id`
-    let profile = db
+    let profile = state
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, &profile_id)
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -283,11 +284,11 @@ async fn prepare_connector_mandate_revoke(
     mandate_reference: &CommonMandateReference,
     mca_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResult<PreparedConnectorMandateRevoke> {
-    let db = state.store.as_ref();
     let key_store = platform.get_processor().get_key_store();
     let merchant_id = platform.get_processor().get_account().get_id();
 
-    let merchant_connector_account = db
+    let merchant_connector_account = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
             &mca_id,

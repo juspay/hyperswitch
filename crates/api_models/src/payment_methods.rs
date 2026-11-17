@@ -28,12 +28,11 @@ use rust_decimal::{
 use serde::de;
 use utoipa::ToSchema;
 
-use crate::errors::types::ErrorResponse;
 #[cfg(feature = "v1")]
 use crate::payments::BankCodeResponse;
 #[cfg(feature = "payouts")]
 use crate::payouts;
-use crate::{admin, enums as api_enums, open_router, payments};
+use crate::{admin, enums as api_enums, errors::types::ErrorResponse, open_router, payments};
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2021,6 +2020,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }
     }
 }
@@ -2080,6 +2080,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             funding_source: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }))
     }
 }

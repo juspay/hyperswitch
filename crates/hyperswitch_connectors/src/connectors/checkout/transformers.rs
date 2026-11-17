@@ -350,6 +350,27 @@ impl From<Option<MitCategory>> for CheckoutPaymentType {
     }
 }
 
+#[derive(Debug, Default, Deserialize)]
+pub struct CheckoutConnectorMetadataObject {
+    pub connector_client_id: Option<Secret<String>>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for CheckoutConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
+    }
+}
+
 pub struct CheckoutAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) processing_channel_id: Secret<String>,
@@ -358,8 +379,8 @@ pub struct CheckoutAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct ReturnUrl {
-    pub success_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
 }
 
 #[skip_serializing_none]
@@ -1168,13 +1189,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=success")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "success"))
+                .transpose()?,
             failure_url: item
                 .router_data
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=failure")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "failure"))
+                .transpose()?,
         };
 
         let connector_auth = &item.router_data.connector_auth_type;
@@ -2765,6 +2788,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::GooglePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),
@@ -2784,6 +2813,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::ApplePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),

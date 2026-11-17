@@ -674,7 +674,9 @@ impl ConnectorSpecifications for Paynearme {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }

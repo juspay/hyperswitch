@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     transformers::ForeignFrom as _,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::helpers;
 #[cfg(feature = "v1")]
@@ -1608,7 +1608,7 @@ pub async fn save_in_locker_external(
         let external_vault_mca_id = external_vault_connector_details.vault_connector_id.clone();
 
         let merchant_connector_account_details = state
-            .store
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 provider.get_account().get_id(),
                 &external_vault_mca_id,

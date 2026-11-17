@@ -1,5 +1,5 @@
 use actix_web::{web, Responder};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     core::{api_locking, payment_link::*},

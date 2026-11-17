@@ -77,7 +77,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers::{
     self as paypal, auth_headers, PaypalAuthResponse, PaypalIncrementalAuthResponse, PaypalMeta,
     PaypalWebhookEventType,
@@ -2885,7 +2885,9 @@ impl ConnectorSpecifications for Paypal {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
@@ -2901,7 +2903,9 @@ impl ConnectorSpecifications for Paypal {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
-            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
             api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }

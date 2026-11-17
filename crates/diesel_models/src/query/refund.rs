@@ -48,7 +48,7 @@ impl Refund {
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
                 .and(dsl::processor_merchant_id.eq(processor_merchant_id)),
-            RefundUpdateInternal::from(refund),
+            RefundUpdateInternal::from(refund).populate_derived_fields(&self),
         )
         .await
         {
@@ -80,7 +80,7 @@ impl Refund {
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
                 .and(dsl::merchant_id.eq(processor_merchant_id)),
-            RefundUpdateInternal::from(refund),
+            RefundUpdateInternal::from(refund).populate_derived_fields(&self),
         )
         .await
         {

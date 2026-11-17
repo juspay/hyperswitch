@@ -164,6 +164,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -1073,6 +1074,7 @@ pub struct PaymentIntent {
     #[encrypt]
     pub recipient_details: Option<Encryptable<Secret<Value>>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
@@ -1289,6 +1291,7 @@ impl PaymentIntent {
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
             enable_avs_check: request.enable_avs_check,
+            enable_account_name_verification: request.enable_account_name_verification,
             mit_category: request.mit_category,
             settlement_conclusion_applied: None,
         })
@@ -1300,6 +1303,18 @@ impl PaymentIntent {
         self.feature_metadata
             .as_ref()
             .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.clone())
+    }
+
+    /// When the merchant should trigger the next retry of this invoice. Absent unless the merchant
+    /// triggers its retries.
+    pub fn get_external_trigger_next_retry(
+        &self,
+    ) -> Option<common_types::payments::RecoveryNextRetry> {
+        self.get_revenue_recovery_metadata()
+            .and_then(|recovery_metadata| recovery_metadata.external_trigger_state)
+            .map(|trigger_state| {
+                get_next_retry_for_intent_status(self.status, trigger_state.next_retry)
+            })
     }
 
     /// Retries already made against this invoice, by the billing connector and by recovery
@@ -1341,10 +1356,14 @@ impl PaymentIntent {
             )
         })?;
 
-        let connector_account_reference_id = billing_connector_account
-            .get_account_reference_id_using_payment_merchant_connector_account_id(
-                revenue_recovery_metadata.active_attempt_payment_connector_id,
-            )
+        let connector_account_reference_id = revenue_recovery_metadata
+            .active_attempt_payment_connector_id
+            .and_then(|payment_merchant_connector_account_id| {
+                billing_connector_account
+                    .get_account_reference_id_using_payment_merchant_connector_account_id(
+                        payment_merchant_connector_account_id,
+                    )
+            })
             .ok_or_else(|| {
                 error_stack::report!(
                     errors::api_error_response::ApiErrorResponse::GenericNotFoundError {
@@ -1362,7 +1381,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: payment_processor_token.to_string(),
+            processor_payment_method_token: Some(payment_processor_token.to_string()),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -1635,8 +1654,8 @@ where
 #[cfg(feature = "v2")]
 #[derive(Clone)]
 pub struct RevenueRecoveryData {
-    pub billing_connector_id: id_type::MerchantConnectorAccountId,
-    pub processor_payment_method_token: String,
+    pub connector_details: common_types::payments::RecoveryConnectorDetails,
+    pub processor_payment_method_token: Option<String>,
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
@@ -1644,6 +1663,28 @@ pub struct RevenueRecoveryData {
     pub triggered_by: storage_enums::enums::TriggeredBy,
     pub card_network: Option<common_enums::CardNetwork>,
     pub card_issuer: Option<String>,
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
+}
+
+/// A closed invoice has no next retry, whatever was last stored for it. Cancelling an invoice does
+/// not touch its recovery metadata, and the state saved after a report can fail to be written.
+#[cfg(feature = "v2")]
+pub fn get_next_retry_for_intent_status(
+    intent_status: common_enums::IntentStatus,
+    next_retry: common_types::payments::RecoveryNextRetry,
+) -> common_types::payments::RecoveryNextRetry {
+    use common_types::payments::{RecoveryNextRetry, RecoveryNoRetryReason};
+
+    if intent_status == common_enums::IntentStatus::Succeeded {
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Recovered)
+    } else if matches!(
+        intent_status,
+        common_enums::IntentStatus::Cancelled | common_enums::IntentStatus::CancelledPostCapture
+    ) {
+        RecoveryNextRetry::not_scheduled(next_retry.retry_count, RecoveryNoRetryReason::Cancelled)
+    } else {
+        next_retry
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1656,7 +1697,7 @@ where
     ) -> CustomResult<Option<FeatureMetadata>, errors::api_error_response::ApiErrorResponse> {
         let payment_intent_feature_metadata = self.payment_intent.get_feature_metadata();
         let revenue_recovery = self.payment_intent.get_revenue_recovery_metadata();
-        let payment_attempt_connector = self.payment_attempt.connector.clone();
+        let connector_details = &self.revenue_recovery_data.connector_details;
 
         let feature_metadata_first_pg_error_code = revenue_recovery
             .as_ref()
@@ -1711,31 +1752,73 @@ where
             ),
         );
 
-        let payment_revenue_recovery_metadata = match payment_attempt_connector {
-            Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
-                // Update retry count by one.
-                total_retry_count: revenue_recovery.as_ref().map_or(
-                    self.revenue_recovery_data.retry_count.unwrap_or(1),
-                    |data| (data.total_retry_count + 1),
-                ),
+        let is_merchant_initiated = self
+            .payment_attempt
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .is_none_or(|recovery_data| {
+                revenue_recovery::is_merchant_initiated(
+                    recovery_data.customer_present,
+                    recovery_data.setup_future_usage,
+                )
+            });
+        // A merchant-initiated transaction the merchant reported makes its card the invoice's. A
+        // customer-initiated one keeps the invoice's card and its last error code, and counts as a
+        // retry only on that card.
+        let kept_invoice_card = revenue_recovery.as_ref().filter(|_| {
+            !is_merchant_initiated
+                && matches!(
+                    connector_details,
+                    common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+                )
+        });
+        let counts_as_retry = kept_invoice_card.is_none_or(|data| {
+            self.revenue_recovery_data
+                .processor_payment_method_token
+                .as_ref()
+                == Some(
+                    &data
+                        .billing_connector_payment_details
+                        .payment_processor_token,
+                )
+        });
+
+        let payment_revenue_recovery_metadata =
+            Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
+                total_retry_count: match revenue_recovery.as_ref() {
+                    None => self.revenue_recovery_data.retry_count.unwrap_or(1),
+                    Some(data) if counts_as_retry => data.total_retry_count + 1,
+                    Some(data) => data.total_retry_count,
+                },
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
-                billing_connector_id: self.revenue_recovery_data.billing_connector_id.clone(),
-                active_attempt_payment_connector_id: self
-                    .payment_attempt
-                    .get_attempt_merchant_connector_account_id()?,
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
+                billing_connector_id: connector_details.get_billing_connector_id().cloned(),
+                active_attempt_payment_connector_id: connector_details
+                    .get_payment_connector_id()
+                    .cloned(),
+                billing_connector_payment_details: kept_invoice_card.map_or_else(
+                    || diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token
-                            .clone(),
+                            .clone()
+                            .or_else(|| {
+                                revenue_recovery.as_ref().map(|data| {
+                                    data.billing_connector_payment_details
+                                        .payment_processor_token
+                                        .clone()
+                                })
+                            })
+                            .unwrap_or_default(),
                         connector_customer_id: self
                             .revenue_recovery_data
                             .connector_customer_id
                             .clone(),
                     },
+                    |data| data.billing_connector_payment_details.clone(),
+                ),
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self
                     .payment_attempt
@@ -1745,10 +1828,7 @@ where
                         errors::api_error_response::ApiErrorResponse::InternalServerError,
                     )
                     .attach_printable("Failed to construct revenue recovery metadata")?,
-                connector: connector.parse().map_err(|err| {
-                    router_env::logger::error!(?err, "Failed to parse connector string to enum");
-                    errors::api_error_response::ApiErrorResponse::InternalServerError
-                })?,
+                connector: connector_details.get_connector(),
                 // Both billing times belong to the invoice rather than to an individual attempt,
                 // so the value recorded first is retained and later webhooks only seed it when it
                 // is still unset.
@@ -1760,17 +1840,27 @@ where
                     .as_ref()
                     .and_then(|data| data.invoice_billing_started_at_time)
                     .or(self.revenue_recovery_data.invoice_billing_started_at_time),
-                billing_connector_payment_method_details,
+                billing_connector_payment_method_details: kept_invoice_card
+                    .map_or(billing_connector_payment_method_details, |data| {
+                        data.billing_connector_payment_method_details.clone()
+                    }),
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
                 revenue_recovery_ab_routing: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.revenue_recovery_ab_routing),
-            }),
-            None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
-                .attach_printable("Connector not found in payment attempt")?,
-        };
+                external_trigger_state: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.external_trigger_state.clone()),
+                last_failure_code: if counts_as_retry {
+                    self.revenue_recovery_data.standardised_error_code
+                } else {
+                    revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.last_failure_code)
+                },
+            });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata
                 .as_ref()

@@ -1303,7 +1303,9 @@ impl ConnectorSpecifications for Nexixpay {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
@@ -1335,7 +1337,9 @@ impl ConnectorSpecifications for Nexixpay {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }

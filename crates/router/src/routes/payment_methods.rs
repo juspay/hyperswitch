@@ -20,7 +20,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v1")]
 pub use migrate::modular_migrate_payment_methods;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use super::app::{AppState, SessionState};
 #[cfg(feature = "v2")]
@@ -471,17 +471,15 @@ async fn get_merchant_account(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> CustomResult<(MerchantKeyStore, domain::MerchantAccount), errors::ApiErrorResponse> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -539,13 +537,11 @@ pub async fn migrate_payment_methods(
                     if let Some(connector_customer_details) = &record.connector_customer_details {
                         for connector_customer in connector_customer_details {
                             if !mca_cache.contains_key(&connector_customer.merchant_connector_id) {
-                                let mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            &merchant_id,
-                            &connector_customer.merchant_connector_id,
-                            platform.get_processor().get_key_store(),
-                        )
+                                let mca = state.accounts_store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                &merchant_id,
+                                &connector_customer.merchant_connector_id,
+                                platform.get_processor().get_key_store(),
+                            )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -820,10 +816,7 @@ pub async fn list_customer_payment_method_api(
                 allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                 allow_platform_self_operation: api_auth.allow_platform_self_operation,
             }),
-            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-                Ok(auth) => auth,
-                Err(err) => return api::log_and_return_error_response(err),
-            },
+            None => Box::new(auth::HeaderAuth(api_auth)),
         };
     Box::pin(api::server_wrap(
         flow,
@@ -843,7 +836,6 @@ pub async fn list_customer_payment_method_api(
                     auth.platform,
                     Some(req),
                     Some(&customer_id),
-                    None,
                 )
                 .await
             })
@@ -866,17 +858,13 @@ pub async fn list_customer_payment_method_api_client(
 ) -> HttpResponse {
     let flow = Flow::CustomerPaymentMethodsList;
     let payload = query_payload.into_inner();
-    let api_key = auth::get_api_key(req.headers()).ok();
     let api_auth = auth::ApiKeyAuth {
         allow_connected_scope_operation: true,
         allow_platform_self_operation: false,
     };
 
     // Check if Authorization header is present for SDK authorization
-    let (auth, _, is_ephemeral_auth) = match req
-        .headers()
-        .get(actix_web::http::header::AUTHORIZATION)
-    {
+    let auth = match req.headers().get(actix_web::http::header::AUTHORIZATION) {
         Some(_) => {
             // If Authorization header is present, use SdkAuthorizationAuth
             let auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
@@ -884,17 +872,12 @@ pub async fn list_customer_payment_method_api_client(
                     allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                     allow_platform_self_operation: api_auth.allow_platform_self_operation,
                 });
-            (auth, api::AuthFlow::Client, false)
+            auth
         }
-        None => {
-            // If Authorization header is not present, use existing logic
-            match auth::get_ephemeral_or_other_auth(req.headers(), false, Some(&payload), api_auth)
-                .await
-            {
-                Ok((auth, _auth_flow, is_ephemeral_auth)) => (auth, _auth_flow, is_ephemeral_auth),
-                Err(e) => return api::log_and_return_error_response(e),
-            }
-        }
+        None => match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok((auth, _)) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        },
     };
 
     Box::pin(api::server_wrap(
@@ -915,7 +898,6 @@ pub async fn list_customer_payment_method_api_client(
                     auth.platform,
                     Some(req),
                     None,
-                    is_ephemeral_auth.then_some(api_key).flatten(),
                 )
                 .await
             })
@@ -1317,11 +1299,6 @@ pub async fn payment_method_delete_api(
         allow_platform_self_operation: true,
     };
 
-    let ephemeral_auth = match auth::is_ephemeral_auth(req.headers(), api_auth) {
-        Ok(auth) => auth,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -1336,7 +1313,7 @@ pub async fn payment_method_delete_api(
             .delete_payment_method(req, auth.platform.get_initiator())
             .await
         },
-        &*ephemeral_auth,
+        &auth::HeaderAuth(api_auth),
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1454,10 +1431,7 @@ pub async fn default_payment_method_set_api(
                 allow_connected_scope_operation: api_auth.allow_connected_scope_operation,
                 allow_platform_self_operation: api_auth.allow_platform_self_operation,
             }),
-            None => match auth::is_ephemeral_auth(req.headers(), api_auth) {
-                Ok(auth) => auth,
-                Err(err) => return api::log_and_return_error_response(err),
-            },
+            None => Box::new(auth::HeaderAuth(api_auth)),
         };
     Box::pin(api::server_wrap(
         flow,

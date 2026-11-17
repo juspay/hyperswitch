@@ -88,7 +88,7 @@ pub struct DummyConnectorPaymentsRequest<const T: u8> {
     amount: MinorUnit,
     currency: Currency,
     payment_method_data: DummyPaymentMethodData,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     connector: DummyConnectors,
 }
 

@@ -77,8 +77,8 @@ pub struct ZslPaymentsRequest {
     mer_txn_date: String,
     mer_id: Secret<String>,
     lang: String,
-    success_url: String,
-    failure_url: String,
+    success_url: Secret<String>,
+    failure_url: Secret<String>,
     success_s2s_url: String,
     failure_s2s_url: String,
     enctype: EncodingType,
@@ -340,7 +340,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ZslPaymentsResponse, T, PaymentsRespons
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Box::new(Some(RedirectForm::Form {
-                            endpoint: redirect_url,
+                            endpoint: redirect_url.into(),
                             method: Method::Get,
                             form_fields: HashMap::new(),
                         })),

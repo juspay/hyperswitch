@@ -92,7 +92,7 @@ use hyperswitch_interfaces::{
 };
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as adyen;
 
 #[cfg(feature = "payouts")]
@@ -3455,7 +3455,9 @@ impl ConnectorSpecifications for Adyen {
             }
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
-            api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
