@@ -12779,7 +12779,8 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
   cy.intercept(
     /\/redirect\/(?:token\/[^/]+\/)?(?:response|complete)\//,
     (req) => {
-      if (!new URL(req.url).pathname.startsWith(`/payments/${paymentId}/`))
+      // `includes`, not `startsWith`: the base URL can carry a prefix (e.g. /api)
+      if (!new URL(req.url).pathname.includes(`/payments/${paymentId}/`))
         return;
       req.on("response", (response) => {
         const location = response.headers.location;

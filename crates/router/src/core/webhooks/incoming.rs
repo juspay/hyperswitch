@@ -580,7 +580,7 @@ async fn process_webhook_business_logic(
     let profile_id = &merchant_connector_account.profile_id;
 
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -2574,13 +2574,16 @@ async fn update_payment_method_mandate_status(
     let updated_mandate_details = updated_mandate_details
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no updated mandate details for payment method")?;
-    let connector_mandate_id = updated_mandate_details
+    let mandate_record = updated_mandate_details
         .payments
         .as_ref()
         .and_then(|payments| payments.get(merchant_connector_id))
-        .map(|mandate_record| mandate_record.connector_mandate_id.clone())
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("connector mandate id not found for payment method mandate webhook")?;
+        .attach_printable("mandate record not found for payment method mandate webhook")?;
+    let connector_mandate_id = mandate_record.connector_mandate_id.clone();
+    let mandate_metadata = mandate_record.mandate_metadata.clone();
+    let mandate_amount = mandate_record.original_payment_authorized_amount;
+    let mandate_currency = mandate_record.original_payment_authorized_currency;
     let connector_mandate_details_value = updated_mandate_details
         .get_mandate_details_value()
         .map_err(|err| {
@@ -2624,6 +2627,10 @@ async fn update_payment_method_mandate_status(
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
             payment_id: Some(payment_id.clone()),
+            amount: mandate_amount.map(common_utils::types::MinorUnit::new),
+            currency: mandate_currency,
+            profile_id: Some(business_profile.get_id().to_owned()),
+            mandate_metadata,
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,
@@ -3547,20 +3554,22 @@ async fn fetch_optional_mca_and_connector(
     ),
     errors::ApiErrorResponse,
 > {
-    let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
         #[cfg(feature = "v1")]
-        let mca = db
+        let merchant_connector_id = common_utils::id_type::MerchantConnectorAccountId::wrap(
+            connector_name_or_mca_id.to_owned(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Error while converting MerchanConnectorAccountId from string
+                    ",
+        )?;
+        #[cfg(feature = "v1")]
+        let mca = state
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 platform.get_processor().get_account().get_id(),
-                &common_utils::id_type::MerchantConnectorAccountId::wrap(
-                    connector_name_or_mca_id.to_owned(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error while converting MerchanConnectorAccountId from string
-                    ",
-                )?,
+                &merchant_connector_id,
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -3575,7 +3584,6 @@ async fn fetch_optional_mca_and_connector(
         let mca: domain::MerchantConnectorAccount = {
             let _ = merchant_account;
             let _ = key_store;
-            let _ = db;
             todo!()
         };
 

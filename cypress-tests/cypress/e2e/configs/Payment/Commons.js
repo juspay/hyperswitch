@@ -4681,6 +4681,9 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         amount: 6500,
+        // 15 min: the spec reuses this intent across several Superposition
+        // updates, longer than the 60s profile expiry left by earlier specs.
+        session_expiry: 900,
       },
       Response: {
         status: 200,

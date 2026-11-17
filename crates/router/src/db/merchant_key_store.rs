@@ -1,4 +1,6 @@
-pub use hyperswitch_domain_models::merchant_key_store::{self, MerchantKeyStoreInterface};
+pub use hyperswitch_domain_models::merchant_key_store::{
+    self, MerchantKeyStoreInterface, TrackedMerchantKeyStoreInterface,
+};
 
 #[cfg(test)]
 mod tests {

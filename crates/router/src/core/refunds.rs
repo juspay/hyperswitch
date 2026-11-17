@@ -1,3 +1,5 @@
+pub mod surcharge;
+
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 
@@ -248,7 +250,7 @@ pub async fn refund_reverse_core(
         &router_data,
         None,
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
     access_token::update_router_data_with_access_token_result(
@@ -625,7 +627,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1322,7 +1324,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1748,18 +1750,45 @@ pub async fn validate_and_create_refund(
             ),
         })?;
 
-    let refund_amount_details = RefundAmountDetails::from(refund_amount);
     let total_amount_captured = payment_intent
         .amount_captured
         .unwrap_or(payment_attempt.get_total_amount());
-    validator::validate_refund_amount(total_amount_captured, &all_refunds, refund_amount_details)
-        .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
+    validator::validate_refund_amount(
+        total_amount_captured,
+        &all_refunds,
+        RefundAmountDetails::from(refund_amount),
+    )
+    .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
         state.conf.refund.max_attempts,
     )
     .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
+
+    // Surcharge refund: (1) validate the requested order amount, (2) initiate — Init to get the fee.
+    // The fee/tracking is set on the new refund row below so it carries the correct net amount.
+    // `None` is a plain or full refund (legacy path).
+    let surcharge_context = surcharge::validate_partial_refund(
+        payment_attempt,
+        payment_intent,
+        req.amount,
+        &all_refunds,
+    )?;
+    let surcharge_details = match &surcharge_context {
+        Some(context) => Some(
+            surcharge::init_surcharge_refund(state, platform, payment_attempt, &refund_id, context)
+                .await?,
+        ),
+        None => None,
+    };
+    let refund_amount_details = match (&surcharge_context, &surcharge_details) {
+        (Some(context), Some(details)) => RefundAmountDetails::new(
+            context.order_amount(),
+            Some(details.refund_surcharge_amount),
+        ),
+        _ => RefundAmountDetails::from(refund_amount),
+    };
 
     let connector = payment_attempt
         .connector
@@ -1809,6 +1838,8 @@ pub async fn validate_and_create_refund(
         refund_amount,
         refund_surcharge_amount,
         net_refund_amount: Some(net_refund_amount),
+        // For a partial surcharge refund, Init already succeeded, so the row carries its tracking.
+        external_surcharge_refund_details: surcharge_details.clone(),
         currency,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -2031,7 +2062,8 @@ pub async fn get_platform_refund_filters(
 
     let db = state.store.as_ref();
 
-    let merchant_accounts = db
+    let merchant_accounts = state
+        .accounts_store
         .list_merchant_accounts_by_organization_id(
             platform.get_provider().get_account().get_org_id(),
         )
@@ -2044,11 +2076,10 @@ pub async fn get_platform_refund_filters(
         account.merchant_account_type == common_enums::MerchantAccountType::Connected
     }) {
         let merchant_id = connected_account.get_id().clone();
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -2193,17 +2224,15 @@ pub async fn refund_manual_update(
     state: SessionState,
     req: api_models::refunds::RefundManualUpdateRequest,
 ) -> RouterResponse<serde_json::Value> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &req.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&req.merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store by merchant_id")?;
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&req.merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)

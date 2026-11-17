@@ -3869,7 +3869,7 @@ impl StorageInterface for KafkaStore {
         Box::new(self.clone())
     }
     fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
-        self.diesel_store.set_key_manager_state(key_manager_state);
+        StorageInterface::set_key_manager_state(&mut self.diesel_store, key_manager_state);
     }
 }
 
@@ -3878,7 +3878,11 @@ impl GlobalStorageInterface for KafkaStore {
         Box::new(self.clone())
     }
 }
-impl AccountsStorageInterface for KafkaStore {}
+impl AccountsStorageInterface for KafkaStore {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 impl PaymentMethodsStorageInterface for KafkaStore {}
 

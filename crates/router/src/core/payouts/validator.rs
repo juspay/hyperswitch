@@ -185,7 +185,7 @@ pub async fn validate_create_request(
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
@@ -240,7 +240,7 @@ pub async fn validate_create_request(
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
     PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
@@ -374,11 +374,7 @@ pub(crate) fn validate_payout_amount(
 
         utils::when(amount < min_amount || amount > max_amount, || {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "payout amount must be between {} and {} in the currency's lowest denomination",
-                    min_amount.get_amount_as_i64(),
-                    max_amount.get_amount_as_i64(),
-                ),
+                message: "Payout amount is not within configured limits".to_string(),
             }))
         })
     })

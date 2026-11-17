@@ -13,23 +13,20 @@ use crate::{
 /// start of the API. The model comes from the profile alone. The fields of the request are only
 /// checked against it, and from here on each model has exactly what it needs.
 #[derive(Debug)]
-pub(super) enum RecoveryTrigger<'a> {
+pub(super) enum RecoveryTrigger {
     /// Hyperswitch triggers the retries through these connector accounts.
     Internal {
         billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
         payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
     },
-    /// The merchant triggers the retries on this processor, within these limits.
-    External {
-        connector: RecoveryConnector,
-        retry_config: &'a RevenueRecoveryConfig,
-    },
+    /// The merchant triggers the retries on this processor, within the limits of the profile.
+    External { connector: RecoveryConnector },
 }
 
-impl<'a> RecoveryTrigger<'a> {
+impl RecoveryTrigger {
     pub(super) fn from_profile_settings(
         trigger_model: common_enums::RevenueRecoveryTriggerModel,
-        retry_config: Option<&'a RevenueRecoveryConfig>,
+        retry_config: Option<&RevenueRecoveryConfig>,
         request: &RecoveryPaymentsCreate,
     ) -> RouterResult<Self> {
         match trigger_model {
@@ -58,10 +55,20 @@ impl<'a> RecoveryTrigger<'a> {
                     })
                 })?;
 
-                Ok(Self::External {
-                    connector,
-                    retry_config,
-                })
+                // The invoice's grace window ends its grace period after billing started, so a
+                // billing start too late for that end to be a date is wrong.
+                request
+                    .billing_started_at
+                    .checked_add(time::Duration::days(i64::from(
+                        retry_config.grace_period_days,
+                    )))
+                    .ok_or_else(|| {
+                        report!(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "`billing_started_at` is wrong: the invoice's grace period would end after the latest date supported".to_owned(),
+                        })
+                    })?;
+
+                Ok(Self::External { connector })
             }
         }
     }

@@ -1,5 +1,12 @@
 #[doc(hidden)]
 pub mod diesel_exports {
+    // Event types, classes and object types are stored as text in v2, where the v1 schema, which
+    // every build compiles and the events model reads, takes those columns as text too.
+    #[cfg(feature = "v2")]
+    pub use diesel::sql_types::{
+        Varchar as EventClass, Varchar as EventObjectType, Varchar as EventType,
+    };
+
     pub use super::{
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
         DbAuthenticationType as AuthenticationType, DbBlocklistDataKind as BlocklistDataKind,
@@ -8,7 +15,6 @@ pub mod diesel_exports {
         DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
         DbDashboardMetadata as DashboardMetadata, DbDeleteStatus as DeleteStatus,
         DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
-        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
         DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbGenericLinkType as GenericLinkType,
         DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
@@ -27,6 +33,10 @@ pub mod diesel_exports {
         DbTokenizationFlag as TokenizationFlag, DbTotpStatus as TotpStatus,
         DbTransactionType as TransactionType, DbUserRoleVersion as UserRoleVersion,
         DbUserStatus as UserStatus, DbWebhookDeliveryAttempt as WebhookDeliveryAttempt,
+    };
+    #[cfg(not(feature = "v2"))]
+    pub use super::{
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
     };
 }
 

@@ -118,7 +118,7 @@ where
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("profile_id is not set in payment_intent")?;
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().get_id(),
@@ -515,7 +515,6 @@ where
 {
     use common_utils::ext_traits::OptionExt;
 
-    let db = &*state.store;
     match business_profile.frm_routing_algorithm.clone().or(platform
         .get_processor()
         .get_account()
@@ -541,7 +540,8 @@ where
                 .clone();
 
             #[cfg(feature = "v1")]
-            let merchant_connector_account_from_db_option = db
+            let merchant_connector_account_from_db_option = state
+                .accounts_store
                 .find_merchant_connector_account_by_profile_id_connector_name(
                     &profile_id,
                     &frm_routing_algorithm_struct.data,
