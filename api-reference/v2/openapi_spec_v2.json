@@ -32198,7 +32198,12 @@
         "enum": [
           "adyen",
           "stripe",
-          "paypal"
+          "paypal",
+          "shift4",
+          "dlocal",
+          "worldpay",
+          "cybersource",
+          "razorpay"
         ]
       },
       "RecoveryNextRetry": {

@@ -1,0 +1,90 @@
+---
+title: "Outgoing Webhook"
+description: "The next retry of an invoice, sent to the profile's webhook URL"
+---
+
+On a profile whose `revenue_recovery_trigger_model` is `external_triggers`, you trigger the retries of an invoice and Hyperswitch tells you when. After it records a transaction you sent to [`POST /v2/recovery`](/v2/revenue-recovery/revenue-recovery--create), it decides the invoice's next retry and sends it to the profile's webhook URL.
+
+A transaction that doesn't change the next retry sends no webhook: for example, one made with the customer present, or a charge that recovers the invoice.
+
+Each webhook has its own `event_id`, and the request is signed in the `X-Webhook-Signature-512` header, like every Hyperswitch outgoing webhook.
+
+## Webhook body
+
+<ResponseField name="merchant_id" type="string" required>
+  The provider merchant id (platform/business owner).
+</ResponseField>
+
+<ResponseField name="event_id" type="string" required>
+  The unique event id for each webhook.
+</ResponseField>
+
+<ResponseField name="event_type" type="string" required>
+  `recovery_retry_scheduled` or `recovery_limits_exhausted`.
+</ResponseField>
+
+<ResponseField name="content" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="type" type="string" required>
+      Always `recovery_retry_details`.
+    </ResponseField>
+
+    <ResponseField name="object" type="object" required>
+      The next retry of the invoice. Every field is always present.
+
+      <Expandable title="properties" defaultOpen>
+        <ResponseField name="id" type="string" required>
+          Unique identifier of the invoice in Hyperswitch.
+        </ResponseField>
+
+        <ResponseField name="merchant_reference_id" type="string" required>
+          Unique identifier of the invoice in the merchant's billing system.
+        </ResponseField>
+
+        <ResponseField name="retry_count" type="integer" required>
+          Number of the next retry, counted the way the `max_retry_count` of the profile counts them: the first retry after the original payment is 1.
+        </ResponseField>
+
+        <ResponseField name="schedule_time" type="string | null" required>
+          The time to trigger the retry at, then report its result through the recovery API. `null` when no retry is scheduled.
+        </ResponseField>
+
+        <ResponseField name="reason" type="string | null" required>
+          Why no retry is scheduled: `retries_exhausted`, `grace_period_expired` or `hard_declined`. `null` when a retry is scheduled.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="timestamp" type="string">
+  The time at which the webhook was sent.
+</ResponseField>
+
+<ResponseField name="processor_merchant_id" type="string | null">
+  The merchant id of the merchant account whose connector credentials are used for payment processing.
+</ResponseField>
+
+<RequestExample>
+
+```json Webhook body
+{
+  "merchant_id": "merchant_1234567890",
+  "event_id": "evt_01a1d62a41b17a208968368ec06459d7",
+  "event_type": "recovery_retry_scheduled",
+  "content": {
+    "type": "recovery_retry_details",
+    "object": {
+      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+      "retry_count": 1,
+      "schedule_time": "2026-11-13T21:31:24.979Z",
+      "reason": null
+    }
+  },
+  "timestamp": "2026-11-13T18:27:35.985Z",
+  "processor_merchant_id": "merchant_1234567890"
+}
+```
+
+</RequestExample>
