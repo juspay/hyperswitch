@@ -2513,6 +2513,78 @@ where
 
 #[derive(Debug)]
 #[cfg(feature = "v1")]
+pub struct MerchantIdAndMcaIdAuth {
+    pub merchant_id: id_type::MerchantId,
+    pub connector_id_or_name: String,
+}
+
+#[derive(Clone, Debug)]
+#[cfg(feature = "v1")]
+pub struct WebhookAuthenticationData {
+    pub platform: domain::Platform,
+    pub merchant_connector_account: domain::MerchantConnectorAccount,
+}
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<WebhookAuthenticationData, A> for MerchantIdAndMcaIdAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(WebhookAuthenticationData, AuthenticationType)> {
+        let (auth, auth_type): (AuthenticationData, _) = MerchantIdAuth(self.merchant_id.clone())
+            .authenticate_and_fetch(request_headers, state)
+            .await?;
+
+        let processor = auth.platform.get_processor();
+        let merchant_connector_account =
+            if api_models::enums::Connector::from_str(&self.connector_id_or_name).is_ok() {
+                let accounts = state
+                    .session_state()
+                    .accounts_store
+                    .find_merchant_connector_account_by_merchant_id_connector_name(
+                        processor.get_account().get_id(),
+                        &self.connector_id_or_name,
+                        processor.get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+                accounts
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| report!(errors::ApiErrorResponse::Unauthorized))?
+            } else {
+                let merchant_connector_id =
+                    id_type::MerchantConnectorAccountId::wrap(self.connector_id_or_name.clone())
+                        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+                state
+                    .session_state()
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        processor.get_account().get_id(),
+                        &merchant_connector_id,
+                        processor.get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?
+            };
+
+        Ok((
+            WebhookAuthenticationData {
+                platform: auth.platform,
+                merchant_connector_account,
+            },
+            auth_type,
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[cfg(feature = "v1")]
 pub struct ApiKeyBasicAuthWithMerchantIdFromRoute {
     pub merchant_id: id_type::MerchantId,
     pub profile_id: Option<id_type::ProfileId>,
