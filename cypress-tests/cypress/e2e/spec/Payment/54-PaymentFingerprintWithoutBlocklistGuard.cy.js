@@ -1,12 +1,16 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, {
-  CONNECTOR_LISTS,
-  shouldIncludeConnector,
   should_continue_further,
 } from "../../configs/Payment/Utils";
 
 let globalState;
+
+const blocklistContext = () => ({
+  processor_merchant_id: globalState.get("merchantId"),
+  provider_merchant_id: globalState.get("merchantId"),
+  profile_id: globalState.get("profileId"),
+});
 
 describe("Card - Payment fingerprint without the blocklist guard", () => {
   before("seed global state", function () {
@@ -16,13 +20,31 @@ describe("Card - Payment fingerprint without the blocklist guard", () => {
       .then((state) => {
         globalState = new State(state);
 
-        if (
-          shouldIncludeConnector(
-            globalState.get("connectorId"),
-            CONNECTOR_LISTS.INCLUDE.PAYMENT_FINGERPRINT
-          )
-        ) {
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSAutoCapture"];
+
+        if (confirmData?.Response?.body?.status !== "succeeded") {
           skip = true;
+          return;
+        }
+
+        if (
+          globalState.get("superpositionBaseUrl") &&
+          globalState.get("superpositionSecret") &&
+          globalState.get("superpositionAuthToken")
+        ) {
+          cy.setSuperpositionConfig(
+            globalState,
+            "payments.payment_blocklist_guard",
+            false,
+            blocklistContext()
+          );
+        } else {
+          cy.task(
+            "cli_log",
+            "Superposition credentials not set — relying on the default blocklist guard (off)"
+          );
         }
       })
       .then(() => {
@@ -65,7 +87,7 @@ describe("Card - Payment fingerprint without the blocklist guard", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["FingerprintNo3DSAutoCapture"];
+        ]["No3DSAutoCapture"];
 
         cy.confirmCallTest(
           fixtures.confirmBody,
@@ -86,9 +108,13 @@ describe("Card - Payment fingerprint without the blocklist guard", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["FingerprintNo3DSAutoCapture"];
+        ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: confirmData,
+          expectFingerprint: true,
+        });
       });
     });
   });

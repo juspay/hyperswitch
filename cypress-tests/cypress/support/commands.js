@@ -5102,6 +5102,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
     allKeysRequired = false,
+    expectFingerprint = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -5203,19 +5204,13 @@ Cypress.Commands.add(
             }
           }
 
-          if (
-            resData.body &&
-            Object.prototype.hasOwnProperty.call(
-              resData.body,
-              "fingerprint_type"
-            )
-          ) {
+          if (expectFingerprint) {
             // The fingerprint digest is derived from the card PAN and a
             // per-merchant secret, so only its presence and type are asserted.
             expect(response.body.fingerprint, "fingerprint").to.be.a("string")
               .and.to.not.be.empty;
             expect(response.body.fingerprint_type, "fingerprint_type").to.equal(
-              resData.body.fingerprint_type
+              "fpan"
             );
           }
 

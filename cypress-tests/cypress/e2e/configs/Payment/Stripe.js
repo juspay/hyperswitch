@@ -424,24 +424,6 @@ export const connectorDetails = {
         },
       },
     },
-    FingerprintNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          fingerprint_type: "fpan",
-        },
-      },
-    },
     PARNegativeNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
