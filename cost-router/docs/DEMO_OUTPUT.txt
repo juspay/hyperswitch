@@ -1,0 +1,111 @@
+
+=== Preflight
+Hyperswitch: health is good
+
+=== Setup: merchant, two connectors (fauxpay cheap but flaky, stripe_test dearer but reliable), retry rule
+merchant=merchant_demo_1794911065448 profile=pro_In4O11L4B7SrgWkelazV
+connectors: fauxpay=mca_JiFqqJIf0Rq2XTjNeNyy stripe_test=mca_qmSgAsO25XKxdUMFUumP
+GSM retry rule for fauxpay DC_08: HTTP 400 (already present is fine)
+fees on a $100 payment: fauxpay 100bps+10 = 110 cents, stripe_test 290bps+30 = 320 cents
+demo assumptions (illustrative): failure_penalty_pct=20, min_sample_size=3
+
+=== Scenario A: auto-retry ENABLED (profile, max 2 retries); floor off to isolate the cost/reliability trade-off
+auto-retry on: HTTP 200
+cost-router started (min_success_rate=0; fresh in-memory stats)
+-- A1. cold start, good card: no reliability data yet, so the cheaper connector wins
+   decision : payment demo_1794911065448_a1 USD 10000: chose fauxpay (score 110.00, fee 110, s_hat 1.0000) over stripe_test (score 320.00, fee 320, s_hat 1.0000); L_eff 2000
+     fauxpay      fee= 110  s_hat=1.000  score=110.0000  rank=1  eligible
+     stripe_test  fee= 320  s_hat=1.000  score=320.0000  rank=2  eligible
+   override : priority   requested: ["fauxpay","stripe_test"]
+   executed : final=fauxpay status=succeeded attempts(unordered)=fauxpay:charged
+   note     : attempt order is not established: Hyperswitch does not guarantee the order of attempts[]
+   PASS  A1 ranks fauxpay (cheapest) first
+   PASS  A1 fauxpay handled the payment
+-- A2. flaky card: fauxpay fails, Hyperswitch auto-retries on the next connector in our list
+   decision : payment demo_1794911065448_a2 USD 10000: chose fauxpay (score 110.00, fee 110, s_hat 1.0000) over stripe_test (score 320.00, fee 320, s_hat 1.0000); L_eff 2000
+     fauxpay      fee= 110  s_hat=1.000  score=110.0000  rank=1  eligible
+     stripe_test  fee= 320  s_hat=1.000  score=320.0000  rank=2  eligible
+   override : priority   requested: ["fauxpay","stripe_test"]
+   executed : final=stripe_test status=succeeded attempts(unordered)=fauxpay:failure, stripe_test:charged
+   note     : attempt order is not established: Hyperswitch does not guarantee the order of attempts[]
+   PASS  A2 request was still [fauxpay, stripe_test]
+   PASS  A2 payment recovered by fallback on stripe_test
+   PASS  A2 both attempts recorded (fauxpay failed, stripe_test charged)
+   PASS  A2 trace does not claim an attempt order
+-- A3. reliability now matters: the dearer but reliable connector wins despite the higher fee
+   decision : payment demo_1794911065448_a3 USD 10000: chose stripe_test (score 740.00, fee 320, s_hat 0.7500) over fauxpay (score 866.00, fee 110, s_hat 0.6000); L_eff 2000
+     fauxpay      fee= 110  s_hat=0.600  score=866.0000  rank=2  eligible
+     stripe_test  fee= 320  s_hat=0.750  score=740.0000  rank=1  eligible
+   override : priority   requested: ["stripe_test","fauxpay"]
+   executed : final=stripe_test status=succeeded attempts(unordered)=stripe_test:charged
+   note     : attempt order is not established: Hyperswitch does not guarantee the order of attempts[]
+   PASS  A3 ranks stripe_test first (lower expected cost than fauxpay)
+   PASS  A3 stripe_test handled it
+   PASS  A3 fauxpay has the lower fee but the worse score
+
+=== Routing trace endpoint: GET /payments/{id}/routing-trace
+   PASS  GET routing-trace returns the stored decision and execution
+{
+  "paymentId": "demo_1794911065448_a3",
+  "routingOverride": "priority",
+  "ordered": [
+    "stripe_test",
+    "fauxpay"
+  ],
+  "summary": "payment demo_1794911065448_a3 USD 10000: chose stripe_test (score 740.00, fee 320, s_hat 0.7500) over fauxpay (score 866.00, fee 110, s_hat 0.6000); L_eff 2000",
+  "failurePenaltyPct": 20,
+  "lEff": "2000",
+  "breakEvenPenaltyPct": 11.6,
+  "execution": {
+    "requestedOrder": [
+      "stripe_test",
+      "fauxpay"
+    ],
+    "finalConnector": "stripe_test",
+    "finalStatus": "succeeded",
+    "attempts": [
+      {
+        "attemptId": "demo_1794911065448_a3_1",
+        "connector": "stripe_test",
+        "status": "charged"
+      }
+    ],
+    "attemptOrderEstablished": false,
+    "usedOutsideRequested": [],
+    "finalIsFirstRequested": true,
+    "notes": [
+      "attempt order is not established: Hyperswitch does not guarantee the order of attempts[]"
+    ]
+  }
+}
+   PASS  GET /v1/payments/{id}/routing-trace (the path named in the assignment) returns the same record
+   PASS  unknown payment id returns 404
+
+=== Idempotent replay
+   PASS  same key + same body returns the stored result (replayed:true)
+   PASS  same key + different body is rejected with 409
+
+=== Scenario B: auto-retry DISABLED, reliability floor min_success_rate=0.85 (illustrative assumption)
+auto-retry off: HTTP 200
+cost-router started (min_success_rate=0.85; fresh in-memory stats)
+-- B1. flaky card, retries off: fauxpay fails and there is NO failover even though stripe_test was in our list
+   decision : payment demo_1794911065448_b1 USD 10000: chose fauxpay (score 110.00, fee 110, s_hat 1.0000) over stripe_test (score 320.00, fee 320, s_hat 1.0000); L_eff 2000
+     fauxpay      fee= 110  s_hat=1.000  score=110.0000  rank=1  eligible
+     stripe_test  fee= 320  s_hat=1.000  score=320.0000  rank=2  eligible
+   override : priority   requested: ["fauxpay","stripe_test"]
+   executed : final=fauxpay status=failed attempts(unordered)=fauxpay:failure
+   note     : attempt order is not established: Hyperswitch does not guarantee the order of attempts[]
+   PASS  B1 request was [fauxpay, stripe_test]
+   PASS  B1 payment failed after a single attempt
+-- B2. every connector is now below the floor: the layer steps aside and Hyperswitch routes normally
+   decision : payment demo_1794911065448_b2 USD 10000: reliability_floor_unmet, every priced candidate is below min_success_rate, deferring to Hyperswitch routing
+     fauxpay      fee= 110  s_hat=0.000  score=2000.0000  rank=-  below_floor (reliability_floor_unmet: s_hat 0.0000 < min_success_rate 0.85)
+     stripe_test  fee= 320  s_hat=0.000  score=2000.0000  rank=-  below_floor (reliability_floor_unmet: s_hat 0.0000 < min_success_rate 0.85)
+   override : omitted_fallback   requested: null
+   executed : final=fauxpay status=failed attempts(unordered)=fauxpay:failure
+   note     : attempt order is not established: Hyperswitch does not guarantee the order of attempts[]
+   note     : no routing override was sent; Hyperswitch chose the connector itself
+   PASS  B2 reliability_floor_unmet, no override sent
+   PASS  B2 trace explains each exclusion
+
+=== ALL CHECKS PASSED
