@@ -1,0 +1,30 @@
+✔ R01-explicit-default-options (3.642541ms)
+✔ R02-omitted-mandate-options (0.76425ms)
+✔ R03-baseline-after-removal (0.587667ms)
+✔ R04-explicit-false (0.703ms)
+✔ R05-supplied-order (0.659333ms)
+✔ R06-absent-mandate (0.720291ms)
+✔ R07-exact-case (0.499292ms)
+✔ R08-scalar-not-array (0.441542ms)
+✔ R09-missing-default (0.847666ms)
+✔ R10-ordered-duplicates (0.656917ms)
+✔ R11-empty-options (1.024208ms)
+✔ R12-null-options (1.538458ms)
+✔ R13-later-tenant (1.29175ms)
+✔ R14-missing-reference (0.9915ms)
+✔ Rust missing-default expectation is deliberately different; no Rust execution claimed (0.231417ms)
+✔ counterexample detects dropping explicit mandate values equal to defaults (0.859167ms)
+✔ counterexample detects sorting semantic option arrays (0.638542ms)
+✔ missing references and null options refuse the contract despite permissive SDK (0.065ms)
+✔ unknown fields and duplicate case/context IDs rejected (3.471709ms)
+✔ depth, arrays and unsafe property bounds (0.574458ms)
+✔ missing or changed evaluator identity refuses execution (1.575791ms)
+✔ reports bind exact corpus, stage and artifacts; missing evidence cannot pass (3.713458ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166.642875

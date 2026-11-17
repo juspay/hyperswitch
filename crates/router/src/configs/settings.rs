@@ -1526,6 +1526,19 @@ impl MerchantAdviceCodeLookupConfig {
 }
 
 impl Settings<SecuredSecret> {
+    /// Sanitized effective constructor inputs; no secret conversion or application startup.
+    #[cfg(all(feature = "required_fields_sync", feature = "v1", not(feature = "v2")))]
+    pub fn required_fields_inputs(
+        &self,
+    ) -> payment_methods::configs::required_fields_renderer::InputResult<
+        payment_methods::configs::required_fields_renderer::EffectiveInputs,
+    > {
+        payment_methods::configs::required_fields_renderer::EffectiveInputs::capture(
+            &self.required_fields,
+            &self.bank_config,
+        )
+    }
+
     pub fn new() -> ApplicationResult<Self> {
         Self::with_config_path(None)
     }

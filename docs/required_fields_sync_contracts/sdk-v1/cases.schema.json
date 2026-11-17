@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "provenance",
+    "review",
+    "resolver_cases",
+    "mapping_cases",
+    "country_cases",
+    "browser_case_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "required-fields-sdk-v1"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "web_revision",
+        "utils_revision",
+        "rust_core_version",
+        "files"
+      ],
+      "properties": {
+        "web_revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "utils_revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "rust_core_version": {
+          "const": "0.119.0"
+        },
+        "files": {
+          "type": "object",
+          "minProperties": 5,
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "owners"
+      ],
+      "properties": {
+        "status": {
+          "const": "pending-owner-review"
+        },
+        "owners": {
+          "const": []
+        }
+      }
+    },
+    "resolver_cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "plan_tests",
+          "config",
+          "context",
+          "expected_js",
+          "expected_rust",
+          "expected_diagnostic"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9-]{1,79}$"
+          },
+          "plan_tests": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 38,
+            "items": {
+              "type": "string",
+              "pattern": "^T(0[1-9]|[12][0-9]|3[0-8])$"
+            }
+          },
+          "config": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "default_configs",
+              "contexts",
+              "overrides",
+              "dimensions"
+            ],
+            "properties": {
+              "default_configs": {
+                "type": "object"
+              },
+              "contexts": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "condition",
+                    "override_with_keys",
+                    "priority",
+                    "weight"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "condition": {
+                      "type": "object"
+                    },
+                    "override_with_keys": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 1,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "priority": {
+                      "type": "integer"
+                    },
+                    "weight": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "overrides": {
+                "type": "object"
+              },
+              "dimensions": {
+                "type": "object"
+              }
+            }
+          },
+          "context": {
+            "type": "object"
+          },
+          "expected_js": {
+            "type": "object"
+          },
+          "expected_rust": {
+            "type": "object"
+          },
+          "expected_diagnostic": {
+            "enum": [
+              null,
+              "invalid-options",
+              "missing-override"
+            ]
+          }
+        }
+      }
+    },
+    "mapping_cases": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "connector",
+          "method",
+          "type",
+          "sdk_type",
+          "source_path",
+          "field_id",
+          "write_path",
+          "read_path",
+          "value",
+          "expected_payload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9-]{1,79}$"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "sdk_type": {
+            "type": "string"
+          },
+          "source_path": {
+            "type": "string"
+          },
+          "field_id": {
+            "type": "string"
+          },
+          "write_path": {
+            "type": "string"
+          },
+          "read_path": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "expected_payload": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "country_cases": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "options",
+          "expected_names"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9-]{1,79}$"
+          },
+          "options": {
+            "type": "array",
+            "maxItems": 256,
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected_names": {
+            "type": "array",
+            "maxItems": 256,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "browser_case_ids": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z][A-Za-z0-9-]{1,79}$"
+      }
+    }
+  },
+  "$comment": "Runtime validator additionally enforces 262144 UTF-8 bytes, combined 128 unique case IDs, depth 16, generic arrays 256/object keys 512/strings 4096, safe keys and artifact paths."
+}

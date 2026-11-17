@@ -1,0 +1,21 @@
+   Compiling required-fields-sdk-contract-probe v0.1.0 (<owned-fixture>/rust-probe)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.95s
+     Running unittests src/lib.rs (<owned-fixture>/rust-target/debug/deps/required_fields_sdk_contract_probe-16d0fe33ebd23161)
+
+running 14 tests
+test tests::baseline_after_removal ... ok
+test tests::explicit_false ... ok
+test tests::exact_case ... ok
+test tests::omitted_mandate_options ... ok
+test tests::ordered_duplicates ... ok
+test tests::null_options ... ok
+test tests::explicit_default_options ... ok
+test tests::empty_options ... ok
+test tests::later_tenant ... ok
+test tests::missing_default ... ok
+test tests::absent_mandate ... ok
+test tests::missing_reference ... ok
+test tests::supplied_order ... ok
+test tests::scalar_not_array ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

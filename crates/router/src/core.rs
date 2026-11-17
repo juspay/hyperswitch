@@ -44,6 +44,8 @@ pub mod payment_link;
 pub mod payment_method_balance;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(all(feature = "required_fields_sync", feature = "v1", not(feature = "v2")))]
+pub mod required_fields_sync;
 
 #[cfg(feature = "v2")]
 pub mod split_payments;

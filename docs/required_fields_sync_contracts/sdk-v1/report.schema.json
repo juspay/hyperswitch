@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "pack_sha256",
+    "provenance",
+    "stage",
+    "execution",
+    "results",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "contract_id": {
+      "const": "required-fields-sdk-v1"
+    },
+    "pack_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "web_revision",
+        "utils_revision",
+        "rust_core_version",
+        "files"
+      ],
+      "properties": {
+        "web_revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "utils_revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "rust_core_version": {
+          "const": "0.119.0"
+        },
+        "files": {
+          "type": "object",
+          "minProperties": 5,
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "stage": {
+      "enum": [
+        "js-resolver",
+        "rust-resolver",
+        "browser-components",
+        "checkout"
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "engine",
+        "artifact_sha256",
+        "runtime"
+      ],
+      "properties": {
+        "engine": {
+          "type": "string"
+        },
+        "artifact_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "type": "string",
+          "maxLength": 128
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "detail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9-]{1,79}$"
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "not_run"
+            ]
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed",
+        "incomplete"
+      ]
+    }
+  },
+  "$comment": "Runtime validation additionally binds exact pack SHA/provenance/stage case IDs, checks aggregate status, requires artifact digest for passed reports, and enforces 65536 UTF-8 bytes. This is evidence, not an authorization/attestation."
+}

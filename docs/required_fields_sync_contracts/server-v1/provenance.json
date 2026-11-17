@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "hyperswitch_revision": "82fe5dfd3ac527fd4a1e03dc01fbb5be13e3198b",
+  "client": {
+    "name": "superposition_sdk",
+    "version": "0.119.0",
+    "package_checksum": "3c6e446f7c20cf3d3fdb81c5f8c4cd2c7d02273c4039ba716a2a6aec354860e6",
+    "package_vcs": "82255fe00892a704565713583c392b53e774e657"
+  },
+  "registry_packages_matching_h_lock": 167,
+  "files": {
+    "Cargo.lock": "82eec17b99ff5985e15ca1809f82d125b85931900ee0d4da7d4fa81eb44106fa",
+    "Cargo.toml": "8d95b3c6eec9d3c8e0577a0fb97f809fb25a4316d32d167573b3dfce32dc2043",
+    "docs/required_fields_sync_contracts/server-v1/cases.json": "7056db41f8edad44c656cec117855068e042fcd16241b118028b3bca0bb4914a",
+    "scripts/required_fields_contracts/Cargo.lock": "7b6a6da7e00124caeb1c69750c6177b198f82d845bae39a3604cc7d2be16ecf3",
+    "scripts/required_fields_contracts/Cargo.toml": "81b82195fd795adddee2d53114b92549733d6d46f32a2ef957e4d6c451965240",
+    "scripts/required_fields_contracts/check_lock.py": "884cd57b2dd053181bfc1419b1502e7ab5fc4f8b7ce44c0558d768c02bd293b1",
+    "scripts/required_fields_contracts/fixture.py": "a223068abe931fde39dc59c71cb54626ff147eec0a1f33ac91675d88043c9204",
+    "scripts/required_fields_contracts/src/api.rs": "5f47c2d31dc1db0cdc1463bf6a67bf6fb961b0cf2e2ec788457f7813685d6457",
+    "scripts/required_fields_contracts/src/contract.rs": "20aa151fb28b012d6a1a5e86b4fe3b7899eeda2763fd1c0d1cf8fa3ab5547b9d",
+    "scripts/required_fields_contracts/src/lib.rs": "be57d76b9f37e0de18fa3c43b18ee8d0114bb9faf6f65127f1a3dcc0f59d1820",
+    "scripts/required_fields_contracts/src/main.rs": "50829d822b97c1eb9e1345f6ca887fc1fd40d555f6f654203f018dc646c69d0b",
+    "scripts/required_fields_contracts/src/suite.rs": "dcb737aff1ef3dbbe46a53c178734b271896b08588b8b6285214cd7bd7b79513",
+    "scripts/required_fields_contracts/src/transport.rs": "336b4f2fc72161f0d078dde85f518154fd83eae93c5f1f472cff2805e2e624ed",
+    "scripts/required_fields_contracts/test_fixture.py": "f2ba27ebd9a9c0d5405eaf495a05efb48da9e150cf7e320c72af373dcdcbc434",
+    "scripts/required_fields_contracts/tests/isolated.rs": "fb9d627df4f1130dddb24fd98a97b2f93a4dc0cf5cf252f16ec93520a25214f5"
+  },
+  "sdk_source_files": {
+    "src/config.rs": "d1890a9a3e414910303faa4578bf3789510e329f38313cfc18872233ab3f5571",
+    "src/operation/bulk_operation/_bulk_operation_input.rs": "2994edc31282d7c4eb9c697f4ab508315c522f5c8545968c6afe148daafacf23",
+    "src/operation/update_dimension/_update_dimension_input.rs": "063928edcd07fe466f7121ee017650d87bae1f0cae5f03533a4f1ee7e96f49ab",
+    "src/protocol_serde/shape_create_context.rs": "eab151cf83f195d13d2f098d936c0ab495ab3f8b2c4232fc32dfe5d3b321f4cf",
+    "src/protocol_serde/shape_get_config.rs": "20f814bedccfe3ce09fbfae21277eb8f23bf540d5c123102ecf31b50b6cb8319",
+    "src/types/_context_action.rs": "ace46c6dd17ad2514d587af5d28225581d780e26793cf3baa0629948488f6aa5",
+    "src/types/_context_identifier.rs": "25d9dc1c49de5acc5babce6b9a76f7d5d0446c6f7ade2555036457a322857d56",
+    "src/types/_context_response.rs": "ed0dddf51658443a8f0b7c4f1f6d591ea2a914853c3d985b064d178e47c6138e",
+    "src/types/_workspace_response.rs": "ea745cc2139acb75babc237ebf412b341d825682b296fd8fa92b12da70060fa5"
+  },
+  "transport": "actual generated SDK with a bounded reqwest 0.13.5 local connector; isolated tests replace only HTTP connector"
+}

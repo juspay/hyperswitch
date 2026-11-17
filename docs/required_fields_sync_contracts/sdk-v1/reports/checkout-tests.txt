@@ -1,0 +1,10 @@
+Running 5 tests using 1 worker
+
+  ✓  1 playwright-tests/e2e/required-fields-sync.spec.ts:96:7 › required-fields sync @hermetic-only › E-card-debit ordinary card form uses Debit even with Credit also eligible (778ms)
+  ✓  2 playwright-tests/e2e/required-fields-sync.spec.ts:111:7 › required-fields sync @hermetic-only › E-snapshot-retained open checkout keeps snapshot; reload acquires changed config (1.4s)
+  ✓  3 playwright-tests/e2e/required-fields-sync.spec.ts:145:7 › required-fields sync @hermetic-only › E-config-fetch-failure cannot be mistaken for required-fields verification (474ms)
+  ✓  4 playwright-tests/e2e/required-fields-sync.spec.ts:165:7 › required-fields sync @hermetic-only › E-confirm-body required validation gates actual card confirm and dynamic billing payload (2.4s)
+  ✓  5 playwright-tests/e2e/required-fields-sync.spec.ts:218:7 › required-fields sync @hermetic-only › E-inheritance actual checkout retains explicit mandate options equal to defaults (1.0s)
+
+  5 passed (6.7s)
+Checkout evidence: <owned-fixture>/checkout-pLVZBH

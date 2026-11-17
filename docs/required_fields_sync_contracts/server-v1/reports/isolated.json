@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "evidence_kind": "isolated_locked_client",
+  "server_certified": false,
+  "hosted_apply_enabled": false,
+  "provenance_sha256": "eb373eb3e79b51a12bc587ba12cf6b2ebc7455b427ef949c4649cf891dcd415e",
+  "runtime": {
+    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "python": "Python 3.14.6"
+  },
+  "executed_artifacts": {
+    "probe_binary_sha256": "8073f53314be31e9ce1473c2e8c832bf0a3b51e858baf7303ef58d00493f7592",
+    "isolated_test_binary_sha256": "43f0d578b1457217df17e5d9a5511201bbedc5f6e71f07ce10e2f6d80770a393"
+  },
+  "results": {
+    "rust": {
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        "ordered_array_identity_is_semantic_even_if_an_external_hash_collides",
+        "pagination_refuses_changed_totals_duplicate_missing_partial_and_permission_scoped_rows",
+        "prerequisite_and_context_transaction_outcomes_do_not_hide_partial_or_unknown_commits",
+        "contract_refuses_missing_metadata_even_when_generated_config_parser_accepts_it",
+        "pinned_sdk_serializes_scopes_and_full_replacement_without_sorting_arrays",
+        "registrations_reject_hosted_dns_credentials_floating_images_and_existing_workspaces",
+        "malformed_success_body_never_becomes_compatible_server_evidence",
+        "real_sdk_list_query_is_paginated_and_prefix_is_explicit_only",
+        "reports_cannot_promote_mock_missing_or_duplicate_evidence_to_server_certification",
+        "same_count_and_version_do_not_hide_changed_full_rows_or_export_order",
+        "post_commit_errors_and_dropped_responses_are_unknown_without_observation",
+        "bootstrap_never_writes_on_existing_workspace_or_permission_failure",
+        "workspace_prerequisite_and_experiment_operations_use_actual_sdk_shapes",
+        "page_byte_limit_and_missing_identity_are_not_complete_inventory",
+        "bulk_action_and_byte_caps_refuse_before_any_sdk_dispatch_without_batching",
+        "caller_timeout_does_not_exclude_a_late_server_commit_or_authorize_retry",
+        "command_is_opt_in_and_ignores_ambient_target_configuration",
+        "generated_client_read_retries_are_bounded_while_writer_dispatches_once"
+      ]
+    },
+    "python_safety": {
+      "passed": 10,
+      "failed": 0
+    },
+    "cargo_check": "passed",
+    "clippy_all_targets_deny_warnings": "passed",
+    "lock_registry_identity_check": "passed"
+  },
+  "server_cases": {
+    "target_identity": "pending",
+    "pagination": "pending",
+    "prefix_preservation": "pending",
+    "merge_replace_delete": "pending",
+    "prerequisites": "pending",
+    "bulk_rollback": "pending",
+    "versions_order": "pending",
+    "ordered_array_identity": "pending",
+    "experiments": "pending",
+    "auth_scope": "pending",
+    "limits": "pending",
+    "post_commit_webhook": "pending",
+    "cache_publication": "pending",
+    "dropped_response": "pending",
+    "dispatch_timeout": "pending",
+    "old_request_exclusion": "pending"
+  }
+}

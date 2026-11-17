@@ -9,6 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+required_fields_sync = ["payment_methods/required_fields_sync"]
 default = ["common_default", "v1", "redis-rs"]
 common_default = [
     "kv_store",
