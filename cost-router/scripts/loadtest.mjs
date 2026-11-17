@@ -1,10 +1,11 @@
 // Load test of the custom path: POST /payments through cost-router at a fixed open-loop rate.
 // Hyperswitch is replaced by an in-process stub that answers instantly, so the numbers measure cost-router's
 // own path (decision, forward, attempt read-back, stats, trace) and not the connectors or the stack.
-// Usage: npm run build && node scripts/loadtest.mjs   (env: LOADTEST_RPS=100, LOADTEST_SECONDS=60)
-// Writes docs/LOADTEST.md and exits 1 if p99 >= 200 ms or any request failed.
+// Usage: npm run build && npm run loadtest   (env: LOADTEST_RPS=100, LOADTEST_SECONDS=60)
+// Prints the results and saves them to loadtest-results/<timestamp>.json (git-ignored). Only with --update-docs does it
+// rewrite the committed docs/LOADTEST.md. Exits 1 if p99 >= 200 ms or any request failed.
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,7 @@ const SECONDS = Number(process.env.LOADTEST_SECONDS ?? 60);
 const PORT = Number(process.env.LOADTEST_PORT ?? 3130);
 const P99_LIMIT_MS = 200;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const UPDATE_DOCS = process.argv.includes('--update-docs');
 
 // ---------- stub Hyperswitch ----------
 const stub = createServer((req, res) => {
@@ -107,6 +109,7 @@ while (next < total) {
 }
 const sendWindowS = (performance.now() - start) / 1000;
 await Promise.all(inflight);
+const wallS = (performance.now() - start) / 1000;
 
 const metrics = await (await fetch(`${CR}/metrics`)).text();
 child.kill();
@@ -115,27 +118,39 @@ stub.close();
 latencies.sort((a, b) => a - b);
 const pct = (p) => latencies[Math.min(latencies.length - 1, Math.ceil((p / 100) * latencies.length) - 1)];
 const r = {
+  date: new Date().toISOString(),
+  node: process.version,
   targetRps: RPS,
-  durationS: SECONDS,
+  plannedDurationS: SECONDS,
   requests: latencies.length,
-  achievedRps: +(latencies.length / sendWindowS).toFixed(1),
+  sendWindowS: +sendWindowS.toFixed(2),
+  wallClockS: +wallS.toFixed(2),
+  offeredRps: +(latencies.length / sendWindowS).toFixed(1),
+  completedRps: +(latencies.length / wallS).toFixed(1),
   errors,
   statusCounts,
-  p50: +pct(50).toFixed(1),
-  p90: +pct(90).toFixed(1),
-  p99: +pct(99).toFixed(1),
-  max: +latencies[latencies.length - 1].toFixed(1),
+  latencyMs: { p50: +pct(50).toFixed(1), p90: +pct(90).toFixed(1), p95: +pct(95).toFixed(1), p99: +pct(99).toFixed(1), max: +latencies[latencies.length - 1].toFixed(1) },
   decisionsCounted: Number(/cost_router_routing_decisions_total\{[^}]*\} (\d+)/.exec(metrics)?.[1] ?? NaN),
 };
-const pass = r.errors === 0 && r.p99 < P99_LIMIT_MS;
+const L = r.latencyMs;
+const pass = r.errors === 0 && L.p99 < P99_LIMIT_MS;
+r.result = pass ? 'PASS' : 'FAIL';
 console.log(JSON.stringify(r, null, 2));
-console.log(pass ? `PASS: p99 ${r.p99} ms < ${P99_LIMIT_MS} ms with no errors` : `FAIL: p99 ${r.p99} ms, errors ${r.errors}`);
+console.log(pass ? `PASS: p99 ${L.p99} ms < ${P99_LIMIT_MS} ms with no errors` : `FAIL: p99 ${L.p99} ms, errors ${r.errors}`);
 
-writeFileSync(
-  join(ROOT, 'docs', 'LOADTEST.md'),
-  `# Load test: ${RPS} RPS for ${SECONDS} s on the custom path
+const outDir = join(ROOT, 'loadtest-results');
+mkdirSync(outDir, { recursive: true });
+const outFile = join(outDir, `${r.date.replace(/[:.]/g, '-')}.json`);
+writeFileSync(outFile, JSON.stringify(r, null, 2));
+console.log(`saved ${outFile}`);
 
-Command: \`npm run build && npm run loadtest\` (\`scripts/loadtest.mjs\`). Run on ${new Date().toISOString().slice(0, 10)}, Windows 10, 8 GB RAM, Node ${process.version}.
+if (UPDATE_DOCS) {
+  writeFileSync(
+    join(ROOT, 'docs', 'LOADTEST.md'),
+    `# Load test: ${RPS} RPS for ${SECONDS} s on the custom path
+
+Command: \`npm run build && npm run loadtest\` (\`scripts/loadtest.mjs\`; this file is rewritten only with \`-- --update-docs\`).
+Run on ${r.date.slice(0, 10)}, Windows 10, 8 GB RAM, Node ${r.node}.
 
 **What is measured:** \`POST /payments\` through cost-router at an open-loop ${RPS} requests/second (each request is sent on schedule,
 whether or not earlier ones finished), each with a new Idempotency-Key. Every request runs the full custom path: routing decision,
@@ -146,11 +161,15 @@ cost-router's own latency. Against the real stack, Hyperswitch's and the PSP's t
 
 | Metric | Value |
 |---|---|
-| Requests | ${r.requests} (${r.achievedRps} RPS achieved) |
+| Requests | ${r.requests} |
+| Duration | ${r.sendWindowS} s sending, ${r.wallClockS} s until the last response |
+| Throughput | ${r.offeredRps} RPS offered, ${r.completedRps} RPS completed |
 | Errors | ${r.errors} (${JSON.stringify(r.statusCounts)}) |
-| p50 / p90 / **p99** / max | ${r.p50} / ${r.p90} / **${r.p99}** / ${r.max} ms |
+| Latency p50 / p95 / **p99** / max | ${L.p50} / ${L.p95} / **${L.p99}** / ${L.max} ms (p90 ${L.p90} ms) |
 | Decisions counted on \`/metrics\` | ${r.decisionsCounted} |
-| Result | **${pass ? 'PASS' : 'FAIL'}** (target p99 < ${P99_LIMIT_MS} ms) |
+| Result | **${r.result}** (target p99 < ${P99_LIMIT_MS} ms) |
 `,
-);
+  );
+  console.log('updated docs/LOADTEST.md');
+}
 process.exit(pass ? 0 : 1);

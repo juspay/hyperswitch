@@ -124,7 +124,9 @@ Node process metrics (`cost_router_process_*`, `cost_router_nodejs_*`) are inclu
 ## Load test
 `npm run build && npm run loadtest` sends `POST /payments` at an open-loop 100 requests/second for 60 s (`LOADTEST_RPS`, `LOADTEST_SECONDS`)
 with Hyperswitch replaced by an in-process stub, so it measures cost-router's own path (decision, forward, attempt read-back, stats, trace).
-Last run: 6000 requests, 0 errors, p99 10.3 ms (target < 200 ms). Results are written to `docs/LOADTEST.md`.
+Each run prints p50/p90/p95/p99, throughput, errors and duration, and saves them to `loadtest-results/<timestamp>.json` (git-ignored).
+`npm run loadtest -- --update-docs` also rewrites the committed `docs/LOADTEST.md`. Last recorded run: 6000 requests, 100 RPS, 0 errors,
+p50 3.4 / p95 5.8 / p99 9.2 ms (target p99 < 200 ms).
 
 ## State file (optional JSON "database")
 Set `state_file` (the example uses `data/state.json`, git-ignored) or `COST_ROUTER_STATE_FILE` to keep statistics, attempt

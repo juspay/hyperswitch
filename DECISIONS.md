@@ -14,7 +14,7 @@ an invented business number). Reliability is measured per **attempt**, since aft
 pooled prior for shrinkage. Unpriced connectors rank last; no usable pricing means no override. Production instinct: idempotent by payment id
 (same key, different body gives 409), only a request hash stored, no card data in traces.
 
-**Bonus:** trace endpoint; Prometheus `GET /metrics` per connector; load test 100 RPS × 60 s, p99 10.3 ms with a stubbed Hyperswitch (`docs/LOADTEST.md`).
+**Bonus:** trace endpoint; Prometheus `GET /metrics` per connector; load test 100 RPS × 60 s, p99 9.2 ms with a stubbed Hyperswitch (`docs/LOADTEST.md`).
 
 **Skipped:** circuit breaker, Redis/Postgres (an optional JSON state file instead), latency routing, BIN-level stats, Rust port.
 
