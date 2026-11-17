@@ -10,6 +10,7 @@
     "up": "node scripts/run-bash.mjs scripts/up.sh",
     "down": "node scripts/run-bash.mjs scripts/down.sh",
     "demo": "node scripts/run-bash.mjs scripts/demo.sh",
+    "serve": "node scripts/serve.mjs",
     "loadtest": "node scripts/loadtest.mjs"
   },
   "jest": {

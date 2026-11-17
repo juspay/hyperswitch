@@ -3,3 +3,4 @@ dist
 config.json
 data/
 loadtest-results/
+.serve/
