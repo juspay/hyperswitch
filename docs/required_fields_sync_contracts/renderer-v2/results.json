@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "step": 4,
+  "date": "2026-11-18",
+  "status": "local-implementation-full-profile-acceptance-blocked",
+  "hosted_apply": "disabled",
+  "revisions": {
+    "H": {
+      "head": "299ae5d8d0b48e427fbc88dea0661d16fb8c2030",
+      "branch": "feat/superposition-required-fields-foundations"
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main"
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": ""
+    }
+  },
+  "toolchain": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "changed_files": [
+    "crates/payment_methods/Cargo.toml",
+    "crates/payment_methods/examples/required_fields_render_profile.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer/artifacts.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer/artifacts_tests.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer/render.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer/render_tests.rs",
+    "crates/payment_methods/src/configs/required_fields_renderer/vocabulary.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/required_fields_sync_contracts/renderer-v2/README.md",
+    "docs/required_fields_sync_contracts/renderer-v2/check-exhaustiveness.py",
+    "docs/required_fields_sync_contracts/renderer-v2/check-resolver.cjs",
+    "docs/required_fields_sync_contracts/renderer-v2/checks.md",
+    "docs/required_fields_sync_contracts/renderer-v2/profile-pending.toml",
+    "docs/required_fields_sync_contracts/renderer-v2/results.json",
+    "docs/superposition_required_fields_sync_implementation_playbook.md"
+  ],
+  "source_file_hashes": [
+    {
+      "path": "crates/payment_methods/Cargo.toml",
+      "sha256": "9b57e93f26708174a3f0b6852f9d8039106decbc8b8d72faec404d38ec313d2f"
+    },
+    {
+      "path": "crates/payment_methods/examples/required_fields_render_profile.rs",
+      "sha256": "002eaa0e1377785aea1e2978f1f7cd22359a5f28e6b31734bab7a18e655cb6a0"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer.rs",
+      "sha256": "e525a26729bdb93d5e553fb9922ce1b85851f1b22377ad545a13fa4ceafcf28e"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/artifacts.rs",
+      "sha256": "383140030eed171557e40189d7773c34fa253920fc32613e15290b5d72e74928"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/artifacts_tests.rs",
+      "sha256": "37ced0b5142c7a9e0e549a32c71a63620131336c742a7f3cd819c654005d0941"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/render.rs",
+      "sha256": "2af1c5501334d5725dd3f46fa3e369e49459ba25445f9f7d9bb14284a044d6ed"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/render_tests.rs",
+      "sha256": "9951a0a22c8cdef0f681621eb4b66e9fc52fb30edcfe983b408be3772a01da57"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/vocabulary.rs",
+      "sha256": "7a9fbe7b781ae25084ad4515a5dc5ae4ae350e1d094fd2c0c5e0b04707767382"
+    }
+  ],
+  "checks": [
+    {
+      "label": "review-tests",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib",
+        "required_fields_renderer"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "feature-off",
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "clean-example",
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--example",
+        "required_fields_render_profile"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "clean-clippy",
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib",
+        "--tests",
+        "--example",
+        "required_fields_render_profile"
+      ],
+      "exit": 0
+    },
+    {
+      "label": "no-dummy",
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--no-default-features",
+        "--features",
+        "v1,payouts,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib"
+      ],
+      "exit": 0
+    }
+  ],
+  "rust_tests": {
+    "passed": 49,
+    "failed": 0,
+    "ignored_export": 1,
+    "export_executed_separately": true
+  },
+  "cross_process": [
+    {
+      "case": "inheritance",
+      "sha256": "89a0c5687cf1786a0ee99047068687602bf8b32cb3bf694c9527313d3c60a9df",
+      "fresh_processes": 4,
+      "identical": true
+    },
+    {
+      "case": "ordered",
+      "sha256": "8cb0b4e26094520671332af95a1b93529ef522d5466515ca2aab8f137f03a599",
+      "fresh_processes": 4,
+      "identical": true
+    },
+    {
+      "case": "empty",
+      "sha256": "d2d4c248adbb10f4319a27c1cbff510002dccf8cfd87d343223831cbf6a84a52",
+      "fresh_processes": 4,
+      "identical": true
+    },
+    {
+      "case": "eps-ab",
+      "sha256": "a8f97f61a506e0de2ddd80d4c0ab593f7924440e097256c986b26983823dfd1f",
+      "fresh_processes": 4,
+      "identical": true
+    }
+  ],
+  "js_resolver": {
+    "schema_version": 1,
+    "layer": "actual-pinned-js-resolver",
+    "assertions": 7,
+    "status": "passed",
+    "browser": "not-executed",
+    "server_order": "not-certified"
+  },
+  "future_field_compile_probe": {
+    "control": "compiled",
+    "added_variant": "E0004",
+    "scope": "copied actual enum and extraction function, not full workspace mutation"
+  },
+  "full_profiles": {
+    "profiles": [
+      {
+        "profile": "eps-ab",
+        "exit": 2,
+        "output_created": true,
+        "status": "blocked",
+        "counts": {
+          "malformed_options": 3,
+          "missing_binding": 1625
+        },
+        "total_diagnostics": 1628,
+        "reported_diagnostics": 256,
+        "malformed_source_sample": {
+          "connector": "nordea",
+          "group": "common",
+          "path": "billing.address.country",
+          "payment_method": "bank_debit",
+          "payment_method_type": "sepa"
+        },
+        "input_manifest": {
+          "build": {
+            "payment_methods_feature_keys": [
+              "DEFAULT",
+              "DUMMY_CONNECTOR",
+              "PAYOUTS",
+              "REQUIRED_FIELDS_SYNC",
+              "V1"
+            ],
+            "release": {
+              "application_revision": "299ae5d8d0b48e427fbc88dea0661d16fb8c2030",
+              "artifact": {
+                "kind": "offline"
+              },
+              "renderer_implementation": "step4-renderer-v2-offline",
+              "source_tree_hash": "sha256:67f14b4ecb78f4ded4fb4e3aff39449f3b2af646e750e20630b7a1f18c0518ea"
+            },
+            "renderer_schema_version": 2,
+            "router_feature_keys": []
+          },
+          "canonical_version": 1,
+          "catalog_hash": "sha256:2d655fcebb67e04627574cddfd97a718a84eb94976c0f7d6c10a4f13533d359c",
+          "effective_settings_hash": "sha256:e1e9aab9fc99a2470aeabb4222872772cf7436d3e667bd931d1f3083daf7ec95",
+          "exclusions_hash": "sha256:1c22ec20e76776106131ffe3900c05fba6bda6c8921b19f125b0a39f3a320397",
+          "mapping_hash": "sha256:5cb86734535ca1e7afc34c1a98c8583259f3336525b8187b1915d8cee39c42d4",
+          "retained_rules_hash": "sha256:d048a0e7ef5ec1f603d8d6ca40be456a0e2e4038ba8acf555e10ced442f93ef2",
+          "schema_version": 1,
+          "settings_provenance": "effective_values_only"
+        }
+      },
+      {
+        "profile": "eps-a",
+        "exit": 2,
+        "output_created": true,
+        "status": "blocked",
+        "counts": {
+          "malformed_options": 3,
+          "missing_binding": 1625
+        },
+        "total_diagnostics": 1628,
+        "reported_diagnostics": 256,
+        "malformed_source_sample": {
+          "connector": "nordea",
+          "group": "common",
+          "path": "billing.address.country",
+          "payment_method": "bank_debit",
+          "payment_method_type": "sepa"
+        },
+        "input_manifest": {
+          "build": {
+            "payment_methods_feature_keys": [
+              "DEFAULT",
+              "DUMMY_CONNECTOR",
+              "PAYOUTS",
+              "REQUIRED_FIELDS_SYNC",
+              "V1"
+            ],
+            "release": {
+              "application_revision": "299ae5d8d0b48e427fbc88dea0661d16fb8c2030",
+              "artifact": {
+                "kind": "offline"
+              },
+              "renderer_implementation": "step4-renderer-v2-offline",
+              "source_tree_hash": "sha256:67f14b4ecb78f4ded4fb4e3aff39449f3b2af646e750e20630b7a1f18c0518ea"
+            },
+            "renderer_schema_version": 2,
+            "router_feature_keys": []
+          },
+          "canonical_version": 1,
+          "catalog_hash": "sha256:2d655fcebb67e04627574cddfd97a718a84eb94976c0f7d6c10a4f13533d359c",
+          "effective_settings_hash": "sha256:69a042efa3314843cbc102218af2385297faa5dbe71b55a2e875592b1c67074f",
+          "exclusions_hash": "sha256:1c22ec20e76776106131ffe3900c05fba6bda6c8921b19f125b0a39f3a320397",
+          "mapping_hash": "sha256:5cb86734535ca1e7afc34c1a98c8583259f3336525b8187b1915d8cee39c42d4",
+          "retained_rules_hash": "sha256:71791a48047b013c8ce7e2ffaed7f5e92ee1d055d25f577a39db945e9b65912e",
+          "schema_version": 1,
+          "settings_provenance": "effective_values_only"
+        }
+      },
+      {
+        "profile": "eps-missing",
+        "exit": 2,
+        "output_created": true,
+        "status": "blocked",
+        "counts": {
+          "malformed_options": 3,
+          "missing_binding": 1625
+        },
+        "total_diagnostics": 1628,
+        "reported_diagnostics": 256,
+        "malformed_source_sample": {
+          "connector": "nordea",
+          "group": "common",
+          "path": "billing.address.country",
+          "payment_method": "bank_debit",
+          "payment_method_type": "sepa"
+        },
+        "input_manifest": {
+          "build": {
+            "payment_methods_feature_keys": [
+              "DEFAULT",
+              "DUMMY_CONNECTOR",
+              "PAYOUTS",
+              "REQUIRED_FIELDS_SYNC",
+              "V1"
+            ],
+            "release": {
+              "application_revision": "299ae5d8d0b48e427fbc88dea0661d16fb8c2030",
+              "artifact": {
+                "kind": "offline"
+              },
+              "renderer_implementation": "step4-renderer-v2-offline",
+              "source_tree_hash": "sha256:67f14b4ecb78f4ded4fb4e3aff39449f3b2af646e750e20630b7a1f18c0518ea"
+            },
+            "renderer_schema_version": 2,
+            "router_feature_keys": []
+          },
+          "canonical_version": 1,
+          "catalog_hash": "sha256:2d655fcebb67e04627574cddfd97a718a84eb94976c0f7d6c10a4f13533d359c",
+          "effective_settings_hash": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+          "exclusions_hash": "sha256:1c22ec20e76776106131ffe3900c05fba6bda6c8921b19f125b0a39f3a320397",
+          "mapping_hash": "sha256:5cb86734535ca1e7afc34c1a98c8583259f3336525b8187b1915d8cee39c42d4",
+          "retained_rules_hash": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+          "schema_version": 1,
+          "settings_provenance": "effective_values_only"
+        }
+      },
+      {
+        "profile": "eps-empty",
+        "exit": 1,
+        "output_created": false,
+        "status": "input-refused-before-render",
+        "reason": "existing bank string parser rejects empty string"
+      }
+    ],
+    "overwrite_guard": "passed"
+  },
+  "historical_not_rerun": [
+    "Step 1 actual Rust resolver",
+    "Step 1 browser component/full checkout",
+    "Step 3 router settings/release/v2/backend checks"
+  ],
+  "pending_gates": [
+    "approved complete mapping/field/country catalogs and exclusions",
+    "separate malformed source/presentation/SDK decisions",
+    "full supported-profile acceptance",
+    "Step 2 exact-server ordered-array identity and other read/write contracts",
+    "MSRV 1.94.1 and broader router build matrix",
+    "journal, coordination, restoration, target V1-V4"
+  ],
+  "validation": {
+    "format_diff_links": "passed (new-file no-index diff exits 1 with no whitespace diagnostics)",
+    "redacted_secret_scan": {
+      "tool": "gitleaks 8.30.1",
+      "scope": "all 17 Step 4 changed/new files copied to owned scan target",
+      "exit": 0,
+      "findings": 0,
+      "config": "built-in defaults; no added suppressions; inline allow comments ignored",
+      "not_claimed": "historical pushed commit findings are not removed by this local scan"
+    },
+    "preservation": {
+      "H": {
+        "head_preserved": true,
+        "branch_preserved": true,
+        "index_preserved": true,
+        "preexisting_changed": [
+          "crates/payment_methods/Cargo.toml",
+          "crates/payment_methods/src/configs/required_fields_renderer.rs",
+          "crates/payment_methods/src/configs/required_fields_renderer/artifacts.rs",
+          "crates/payment_methods/src/configs/required_fields_renderer/artifacts_tests.rs",
+          "docs/required_fields_sync_contracts/README.md",
+          "docs/required_fields_sync_contracts/questions.md",
+          "docs/superposition_required_fields_sync_implementation_playbook.md"
+        ],
+        "missing": [],
+        "unrelated_files_unchanged": true
+      },
+      "W": {
+        "head_preserved": true,
+        "branch_preserved": true,
+        "index_preserved": true,
+        "preexisting_changed": [],
+        "missing": [],
+        "unrelated_files_unchanged": true
+      },
+      "U": {
+        "head_preserved": true,
+        "branch_preserved": true,
+        "index_preserved": true,
+        "preexisting_changed": [],
+        "missing": [],
+        "unrelated_files_unchanged": true
+      }
+    },
+    "owned_fixture_cleanup": {
+      "status": "verified removed",
+      "owner": "66879130-d2a9-4a16-9dec-8f0effd6d37b",
+      "fixture_name": "required-fields-step4-yahd_k5q",
+      "scope": "registered root and its exact temporary pointer only"
+    }
+  }
+}

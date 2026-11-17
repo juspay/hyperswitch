@@ -1,4 +1,4 @@
-//! Pure input capture and artifact contracts. Rendering belongs to the next implementation step.
+//! Pure input capture, deterministic rendering and artifact contracts.
 //! No files, environment, providers, SDK clients or application state are accessed here.
 
 use api_models::enums::FieldType;
@@ -8,6 +8,12 @@ use super::settings::{BankRedirectConfig, RequiredFields};
 
 pub mod artifacts;
 pub use artifacts::*;
+mod render;
+pub use render::{
+    render, DiagnosticCode, RenderDiagnostic, RenderError, RenderScope, RenderedBundle,
+    RetirementAuthority,
+};
+mod vocabulary;
 
 const EPS_PATH: &str = "payment_method_data.bank_redirect.eps.bank_name";
 
@@ -200,8 +206,10 @@ pub struct RenderInputs<'a> {
     pub build: &'a BuildIdentity,
 }
 
-fn source_name<T: serde::de::DeserializeOwned + ToString>(name: &Name) -> InputResult<()> {
-    let value: T = serde_json::from_value(serde_json::Value::String(name.as_str().to_owned()))
+fn source_name<T: std::str::FromStr + ToString>(name: &Name) -> InputResult<()> {
+    let value: T = name
+        .as_str()
+        .parse()
         .map_err(|_| InputError::InputInvalid)?;
     if value.to_string() != name.as_str() {
         return Err(InputError::InputInvalid.into());
@@ -279,3 +287,7 @@ pub fn compiled_feature_keys() -> &'static str {
 #[cfg(test)]
 #[path = "required_fields_renderer/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "required_fields_renderer/render_tests.rs"]
+mod render_tests;

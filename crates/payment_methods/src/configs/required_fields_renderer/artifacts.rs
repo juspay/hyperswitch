@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
 pub const SCHEMA_VERSION: u16 = 1;
+/// v2 uses the pinned SDK's `_dropdown_options` key and explicit renderer compatibility inputs.
+pub const DESIRED_SCHEMA_VERSION: u16 = 2;
 pub const CANONICAL_VERSION: u16 = 1;
 pub const MAX_CONTRACT_BYTES: usize = 128 * 1024;
 pub type InputResult<T> = error_stack::Result<T, InputError>;
@@ -195,6 +197,9 @@ pub struct SourceIdentity {
 pub struct Binding {
     pub source: SourceIdentity,
     pub field: Decision<Name>,
+    /// Required for an alias. Binds approval to the inner path as well as the outer source key.
+    #[serde(default)]
+    pub expected_required_field: Option<Name>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -218,7 +223,7 @@ pub struct SdkContract {
     pub dimensions: BTreeMap<Name, Vec<Name>>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RenderKind {
     Text,
@@ -226,6 +231,7 @@ pub enum RenderKind {
     Country,
     State,
     BankNames,
+    LanguagePreference,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -235,6 +241,13 @@ pub struct FieldContract {
     pub write_path: Name,
     pub read_path: Name,
     pub review: Name,
+    /// Empty legacy catalogs can still be parsed, but cannot authorize rendering a field.
+    #[serde(default)]
+    pub source_types: BTreeSet<Name>,
+    /// Reviewed presentation default, used only to validate an inherited required select.
+    /// It is never emitted or substituted for an explicit source option vector.
+    #[serde(default)]
+    pub default_options: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -364,28 +377,45 @@ pub struct BuildIdentity {
 }
 
 impl BuildIdentity {
+    fn checked_features(value: &str) -> InputResult<BTreeSet<Name>> {
+        let features = value
+            .split(',')
+            .map(|v| Name::try_from(v.to_owned()).map_err(Into::into))
+            .collect::<InputResult<BTreeSet<_>>>()?;
+        let has = |key| features.iter().any(|v| v.as_str() == key);
+        if !has("V1") || has("V2") || !has("REQUIRED_FIELDS_SYNC") {
+            return Err(InputError::UnsupportedBuild.into());
+        }
+        Ok(features)
+    }
+
+    /// A payment_methods-only example/test has no compiled router to attest. Keep that feature
+    /// set empty, require an explicitly offline artifact, and pass this package's compiled keys.
+    pub fn for_offline_renderer(
+        release: ReleaseIdentity,
+        payment_methods: &str,
+    ) -> InputResult<Self> {
+        if !matches!(release.artifact, ArtifactIdentity::Offline) {
+            return Err(InputError::UnsupportedBuild.into());
+        }
+        Ok(Self {
+            release,
+            renderer_schema_version: DESIRED_SCHEMA_VERSION,
+            router_feature_keys: BTreeSet::new(),
+            payment_methods_feature_keys: Self::checked_features(payment_methods)?,
+        })
+    }
+
     pub fn from_feature_keys(
         release: ReleaseIdentity,
         router: &str,
         payment_methods: &str,
     ) -> InputResult<Self> {
-        fn keys(value: &str) -> InputResult<BTreeSet<Name>> {
-            value
-                .split(',')
-                .map(|v| Name::try_from(v.to_owned()).map_err(Into::into))
-                .collect()
-        }
-        let router_feature_keys = keys(router)?;
-        let payment_methods_feature_keys = keys(payment_methods)?;
-        for features in [&router_feature_keys, &payment_methods_feature_keys] {
-            let has = |key| features.iter().any(|v| v.as_str() == key);
-            if !has("V1") || has("V2") || !has("REQUIRED_FIELDS_SYNC") {
-                return Err(InputError::UnsupportedBuild.into());
-            }
-        }
+        let router_feature_keys = Self::checked_features(router)?;
+        let payment_methods_feature_keys = Self::checked_features(payment_methods)?;
         Ok(Self {
             release,
-            renderer_schema_version: SCHEMA_VERSION,
+            renderer_schema_version: DESIRED_SCHEMA_VERSION,
             router_feature_keys,
             payment_methods_feature_keys,
         })
@@ -426,6 +456,7 @@ pub struct ContextKey {
     pub connector: Name,
     pub payment_method: Name,
     pub payment_method_type: Name,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mandate_type: Option<MandateGroup>,
 }
 
@@ -452,7 +483,7 @@ impl TryFrom<String> for ManagedKey {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let field = value.strip_prefix("dynamic_fields.").and_then(|v| {
             v.strip_suffix("._is_required")
-                .or_else(|| v.strip_suffix("._options"))
+                .or_else(|| v.strip_suffix("._dropdown_options"))
         });
         if value.len() > 256
             || !field.is_some_and(|field| {

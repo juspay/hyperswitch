@@ -5,6 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[[example]]
+name = "required_fields_render_profile"
+required-features = ["v1", "required_fields_sync"]
+
 [dependencies]
 tracing = { workspace = true }
 actix-multipart = "0.6.2"

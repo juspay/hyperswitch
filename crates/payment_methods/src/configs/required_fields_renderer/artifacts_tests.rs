@@ -153,6 +153,7 @@ fn malformed_duplicates_missing_values_and_oversize_refuse() {
         field: Decision::Refused {
             reason: name("pending"),
         },
+        expected_required_field: None,
     };
     policy.bindings = vec![binding.clone(), binding];
     assert!(policy.validate().is_err());
@@ -183,6 +184,8 @@ fn catalog_is_strict_at_every_nested_boundary() {
         review: name("review"),
         value: FieldContract {
             render_kind: RenderKind::Text,
+            source_types: BTreeSet::new(),
+            default_options: None,
             write_path: name("a.b"),
             read_path: name("a.b"),
             review: name("review"),
@@ -257,6 +260,22 @@ fn release() -> ReleaseIdentity {
         artifact: ArtifactIdentity::Offline,
         renderer_implementation: name("foundation-v1"),
     }
+}
+
+#[test]
+fn offline_identity_does_not_attest_a_router_or_an_image() {
+    let identity =
+        BuildIdentity::for_offline_renderer(release(), "V1,REQUIRED_FIELDS_SYNC").unwrap();
+    let json = serde_json::to_value(identity).unwrap();
+    assert_eq!(json["router_feature_keys"], serde_json::json!([]));
+    assert_eq!(json["renderer_schema_version"], 2);
+    let mut image = release();
+    image.artifact = ArtifactIdentity::Image {
+        index_digest: digest(&"synthetic-image"),
+        platform_digests: BTreeMap::new(),
+    };
+    assert!(BuildIdentity::for_offline_renderer(image, "V1,REQUIRED_FIELDS_SYNC").is_err());
+    assert!(BuildIdentity::for_offline_renderer(release(), "V2,REQUIRED_FIELDS_SYNC").is_err());
 }
 
 #[test]
@@ -336,16 +355,17 @@ fn parse_errors_do_not_echo_untrusted_input() {
 fn managed_keys_reject_presentation_and_malformed_paths() {
     for key in [
         "dynamic_fields.card.number._is_required",
-        "dynamic_fields.billing.country._options",
+        "dynamic_fields.billing.country._dropdown_options",
     ] {
         assert!(ManagedKey::try_from(key.to_owned()).is_ok());
     }
     for key in [
         "dynamic_fields.card.number._label",
-        "dynamic_fields.._options",
-        "dynamic_fields.card..number._options",
-        "card.number._options",
-        "dynamic_fields.card number._options",
+        "dynamic_fields.card.number._options",
+        "dynamic_fields.._dropdown_options",
+        "dynamic_fields.card..number._dropdown_options",
+        "card.number._dropdown_options",
+        "dynamic_fields.card number._dropdown_options",
     ] {
         assert!(ManagedKey::try_from(key.to_owned()).is_err());
     }
@@ -417,7 +437,7 @@ fn compound_context_keys_serialize_and_ordered_values_remain_in_bundle() {
         contexts: BTreeMap::from([(
             context,
             BTreeMap::from([(
-                "dynamic_fields.card.number._options"
+                "dynamic_fields.card.number._dropdown_options"
                     .to_owned()
                     .try_into()
                     .unwrap(),
@@ -434,7 +454,7 @@ fn compound_context_keys_serialize_and_ordered_values_remain_in_bundle() {
     let bytes = canonical_bytes(&desired).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(
-        parsed["contexts"][0][1]["dynamic_fields.card.number._options"]["value"],
+        parsed["contexts"][0][1]["dynamic_fields.card.number._dropdown_options"]["value"],
         serde_json::json!(["B", "A", "A"])
     );
     assert_eq!(
