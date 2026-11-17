@@ -5205,11 +5205,6 @@ Cypress.Commands.add(
           }
 
           if (expectFingerprint) {
-            // The attempt records the fingerprint type for every card payment,
-            // but the response `fingerprint` is copied from the attempt to the
-            // intent only once the payment succeeds. The digest itself is
-            // derived from the card PAN and a per-merchant secret, so only its
-            // presence and type are asserted.
             expect(response.body.fingerprint_type, "fingerprint_type").to.equal(
               "fpan"
             );
