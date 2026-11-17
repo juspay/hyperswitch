@@ -32295,13 +32295,13 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).",
             "example": "mca_1234567890",
             "nullable": true
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).",
             "example": "mca_1234567890",
             "nullable": true
           },
@@ -32436,7 +32436,7 @@
             "$ref": "#/components/schemas/RecoveryRequestAccepted"
           }
         ],
-        "description": "The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of\nthe profile."
+        "description": "The answer to a reported transaction, which depends on whether the profile uses Fully Managed\nRecovery or Schedule Only Recovery."
       },
       "RecoveryPaymentsResponse": {
         "type": "object",
@@ -32472,7 +32472,7 @@
       },
       "RecoveryRequestAccepted": {
         "type": "object",
-        "description": "A transaction reported on a profile whose `revenue_recovery_trigger_model` is\n`external_triggers`, accepted to be recorded right after the answer.",
+        "description": "A transaction reported under Schedule Only Recovery (`revenue_recovery_trigger_model` is\n`external_triggers`), accepted to be recorded right after the answer.",
         "required": [
           "merchant_reference_id",
           "connector_transaction_id"
@@ -32521,7 +32521,7 @@
             }
           }
         ],
-        "description": "The next retry of an invoice whose retries the merchant triggers, sent by webhook after each\ntransaction the merchant reports."
+        "description": "The next retry of an invoice under Schedule Only Recovery, where the merchant triggers the\nretries, sent by webhook after each transaction the merchant reports."
       },
       "RecoveryTransactionStatus": {
         "type": "string",

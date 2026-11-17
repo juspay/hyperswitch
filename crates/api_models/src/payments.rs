@@ -2417,8 +2417,8 @@ pub struct RecoveryPaymentsResponse {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
-/// A transaction reported on a profile whose `revenue_recovery_trigger_model` is
-/// `external_triggers`, accepted to be recorded right after the answer.
+/// A transaction reported under Schedule Only Recovery (`revenue_recovery_trigger_model` is
+/// `external_triggers`), accepted to be recorded right after the answer.
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryRequestAccepted {
@@ -2437,20 +2437,20 @@ pub struct RecoveryRequestAccepted {
     pub connector_transaction_id: String,
 }
 
-/// The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of
-/// the profile.
+/// The answer to a reported transaction, which depends on whether the profile uses Fully Managed
+/// Recovery or Schedule Only Recovery.
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 #[serde(untagged)]
 pub enum RecoveryPaymentsCreateResponse {
-    /// On `internal_triggers`, the transaction is recorded before the answer.
+    /// Under Fully Managed Recovery, the transaction is recorded before the answer.
     Recorded(RecoveryPaymentsResponse),
-    /// On `external_triggers`, the transaction is recorded after the answer.
+    /// Under Schedule Only Recovery, the transaction is recorded after the answer.
     Accepted(RecoveryRequestAccepted),
 }
 
-/// The next retry of an invoice whose retries the merchant triggers, sent by webhook after each
-/// transaction the merchant reports.
+/// The next retry of an invoice under Schedule Only Recovery, where the merchant triggers the
+/// retries, sent by webhook after each transaction the merchant reports.
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
 pub struct RecoveryRetryWebhookDetails {
@@ -14718,11 +14718,11 @@ pub struct RecoveryPaymentsCreate {
     /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub billing_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
@@ -14734,7 +14734,7 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<String>, example = "payment_account_us")]
     pub merchant_reference_payment_connector_id: Option<String>,
 
-    /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
+    /// Payment processor on which the transaction was processed. Required under Schedule Only Recovery (`revenue_recovery_trigger_model` is `external_triggers`), and ignored under Fully Managed Recovery (`internal_triggers`), where the processor comes from `payment_merchant_connector_id`.
     #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
     pub connector: Option<common_payments_types::RecoveryConnector>,
 
