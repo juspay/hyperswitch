@@ -396,6 +396,9 @@ impl ConnectorData {
                 enums::Connector::Paybox => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paybox::new())))
                 }
+                enums::Connector::Payhound => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Payhound::new())))
+                }
                 enums::Connector::Paydotcom => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Paydotcom::new())))
                 }
@@ -446,6 +449,9 @@ impl ConnectorData {
                 enums::Connector::Revolv3 => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Revolv3::new())))
                 }
+                enums::Connector::Betterpayment => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Betterpayment::new(),
+                ))),
                 enums::Connector::Saferpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Saferpay::new())))
                 }

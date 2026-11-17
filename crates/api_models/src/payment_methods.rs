@@ -2022,6 +2022,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_type: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }
     }
 }
@@ -2081,6 +2082,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             funding_source: None,
             issuer_name: None,
             issuer_country: None,
+            payment_checks: None,
         }))
     }
 }

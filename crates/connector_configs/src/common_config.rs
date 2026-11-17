@@ -88,6 +88,7 @@ pub enum MerchantIdMetadata {
 #[serde(rename_all = "snake_case")]
 pub struct ApiModelMetaData {
     pub merchant_config_currency: Option<api_models::enums::Currency>,
+    pub country_of_incorporation: Option<api_models::enums::CountryAlpha2>,
     pub merchant_account_id: Option<String>,
     pub account_name: Option<String>,
     pub terminal_id: Option<String>,

@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest};
 use api_models::health_check::RouterHealthCheckResponse;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use super::app;
 use crate::{

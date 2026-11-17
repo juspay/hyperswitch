@@ -314,10 +314,6 @@
                         },
                         "client_secret": "pay_custmeta_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:05:00Z",
-                        "ephemeral_key": {
-                            "customer_id": "cus_abcdefgh",
-                            "secret": "epk_ephemeralxxxxxxxxxxxx"
-                        },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "expires_on": "2023-10-26T10:20:00Z"
@@ -381,7 +377,6 @@
                         "authentication_type": "no_three_ds",
                         "client_secret": "pay_mandatesetup_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:20:00Z",
-                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "merchant_connector_id": "mca_mcaconnectorxxxx",
@@ -430,7 +425,6 @@
                         "authentication_type": "no_three_ds",
                         "client_secret": "pay_savecard_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:25:00Z",
-                        "ephemeral_key": { "customer_id": "StripeCustomer123", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "merchant_connector_id": "mca_mcaconnectorxxxx",
@@ -482,7 +476,6 @@
                         },
                         "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                         "created": "2023-10-26T10:30:00Z",
-                        "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                         "profile_id": "pro_pzzzzzzzzzzz",
                         "attempt_count": 1,
                         "expires_on": "2023-10-26T10:45:00Z"
@@ -515,7 +508,6 @@
                       },
                       "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                       "created": "2023-10-26T10:30:00Z",
-                      "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                       "profile_id": "pro_pzzzzzzzzzzz",
                       "attempt_count": 1,
                       "expires_on": "2023-10-26T10:45:00Z"
@@ -548,7 +540,6 @@
                     },
                     "client_secret": "pay_manualbill_xxxxxxxxxxxx_secret_szzzzzzzzzzz",
                     "created": "2023-10-26T10:30:00Z",
-                    "ephemeral_key": { "customer_id": "cus_abcdefgh", "secret": "epk_ephemeralxxxxxxxxxxxx" },
                     "profile_id": "pro_pzzzzzzzzzzz",
                     "attempt_count": 1,
                     "expires_on": "2023-10-26T10:45:00Z"
@@ -1599,14 +1590,19 @@ pub fn list_payment_methods() {}
 
 /// Payments - List
 ///
-/// To list the *payments*
+/// List payments and their total count within the authenticated X-Profile-Id.
+/// An optional profile_id query filter must match X-Profile-Id.
 #[cfg(feature = "v2")]
 #[utoipa::path(
     get,
     path = "/v2/payments/list",
-    params(api_models::payments::PaymentListConstraints),
+    params(
+        api_models::payments::PaymentListConstraints,
+        ("X-Profile-Id" = String, Header, description = "Authenticated business profile used to scope payment rows and total_count."),
+    ),
     responses(
         (status = 200, description = "Successfully retrieved a payment list", body = PaymentListResponse),
+        (status = 400, description = "Query profile_id does not match X-Profile-Id"),
         (status = 404, description = "No payments found")
     ),
     tag = "Payments",

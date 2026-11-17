@@ -314,10 +314,18 @@ pub struct RefundResponse {
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub payment_id: common_utils::id_type::PaymentId,
-    /// The refund amount, which should be less than or equal to the total payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc
+    /// The refund amount excluding any refunded surcharge, in the currency's lowest denomination.
     #[schema(value_type = i64 , minimum = 100, example = 6540)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
+    /// The total refund amount, including any refunded surcharge, in the currency's lowest denomination.
+    #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
+    pub net_amount: Option<MinorUnit>,
+    /// The surcharge amount included in this refund, in the currency's lowest denomination.
+    #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
+    pub surcharge_refund_amount: Option<MinorUnit>,
     /// The three-letter ISO currency code
     #[smithy(value_type = "String")]
     pub currency: String,

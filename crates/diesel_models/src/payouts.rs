@@ -1,4 +1,4 @@
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, pii, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -41,6 +41,8 @@ pub struct Payouts {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[derive(
@@ -86,6 +88,8 @@ pub struct PayoutsNew {
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    pub sender_details: Option<Encryption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -100,6 +104,8 @@ pub enum PayoutsUpdate {
         return_url: Option<String>,
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
+        funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+        sender_details: Option<Encryption>,
         profile_id: Option<common_utils::id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
@@ -142,6 +148,10 @@ pub struct PayoutsUpdateInternal {
     pub return_url: Option<String>,
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: Option<Encryption>,
     pub payout_method_id: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,
@@ -166,6 +176,8 @@ impl Default for PayoutsUpdateInternal {
             return_url: None,
             entity_type: None,
             metadata: None,
+            funds_transfer_type: None,
+            sender_details: None,
             payout_method_id: None,
             profile_id: None,
             status: None,
@@ -193,6 +205,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type,
                 metadata,
+                funds_transfer_type,
+                sender_details,
                 profile_id,
                 status,
                 confirm,
@@ -210,6 +224,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type: Some(entity_type),
                 metadata,
+                funds_transfer_type,
+                sender_details,
                 profile_id,
                 status,
                 confirm,

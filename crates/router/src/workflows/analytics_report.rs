@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ValueExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::{
     consumer::{self, types::process_data},
     utils as pt_utils,
