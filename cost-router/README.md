@@ -45,6 +45,7 @@ What to expect:
 - `npm test` prints an `ERROR [cost-router] routing failed for boom, override omitted: stats backend down` line. That is the intentional
   failure-mode test (the router drops its override and Hyperswitch routes normally), not a failure. It ends with 152 passed.
 - `npm run demo` ends with `ALL CHECKS PASSED` (18 checks).
+
 The same from bash: `bash cost-router/scripts/up.sh`, then `bash scripts/demo.sh` and `bash scripts/down.sh` inside `cost-router/`.
 Windows PowerShell wrappers: `powershell -ExecutionPolicy Bypass -File cost-router\scripts\up.ps1` (also `demo.ps1`, `down.ps1`).
 `make demo` runs the whole chain (stack, install, build, demo); it is untested on the dev machine (no `make`). The first run is dominated by
