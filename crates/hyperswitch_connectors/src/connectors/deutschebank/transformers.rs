@@ -201,8 +201,8 @@ pub struct DeutschebankThreeDSInitializeRequestTds20Data {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct DeutschebankThreeDSInitializeRequestCommunicationData {
-    method_notification_url: String,
-    cres_notification_url: String,
+    method_notification_url: Secret<String>,
+    cres_notification_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -597,10 +597,13 @@ impl
                     redirection_data: Box::new(Some(RedirectForm::Form {
                         endpoint: item.data.request.get_complete_authorize_url()?,
                         method: common_utils::request::Method::Get,
-                        form_fields: HashMap::from([
+                        form_fields: (HashMap::from([
                             ("reference".to_string(), reference.clone()),
                             ("signed_on".to_string(), signed_on.clone()),
-                        ]),
+                        ]))
+                        .into_iter()
+                        .map(|(key, value)| (key, value.into()))
+                        .collect(),
                     })),
                     mandate_reference: if item.data.request.is_mandate_payment() {
                         Box::new(Some(MandateReference {

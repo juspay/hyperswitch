@@ -4924,13 +4924,13 @@
           "Revenue Recovery"
         ],
         "summary": "Revenue Recovery - Create",
-        "description": "Record a transaction made outside of Hyperswitch against a billing connector invoice.",
+        "description": "Record a transaction made outside of Hyperswitch against an invoice.",
         "operationId": "Create a Revenue Recovery Payment",
         "parameters": [
           {
             "name": "X-Profile-Id",
             "in": "header",
-            "description": "Unique identifier of the business profile under which the invoice is processed. The billing and payment merchant connector accounts in the request must belong to this profile.",
+            "description": "Unique identifier of the business profile under which the invoice is processed. Any billing and payment merchant connector accounts in the request must belong to this profile.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4994,6 +4994,59 @@
                     "transaction_created_at": "2022-09-10T10:11:12Z",
                     "transaction_status": "failure"
                   }
+                },
+                "Record a failed transaction on a profile with external triggers": {
+                  "value": {
+                    "amount_details": {
+                      "currency": "USD",
+                      "order_amount": 6540
+                    },
+                    "billing": {
+                      "address": {
+                        "city": "San Francisco",
+                        "country": "US",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "line1": "1467 Harrison Street",
+                        "state": "California",
+                        "zip": "94122"
+                      },
+                      "email": "john@example.com",
+                      "phone": {
+                        "country_code": "+1",
+                        "number": "9123456789"
+                      }
+                    },
+                    "billing_started_at": "2022-09-10T10:11:12Z",
+                    "connector": "stripe",
+                    "connector_customer_id": "cust_12345",
+                    "connector_transaction_id": "993672945374576J",
+                    "error": {
+                      "code": "card_declined",
+                      "message": "The card was declined.",
+                      "network_advice_code": "01",
+                      "network_decline_code": "51",
+                      "network_error_message": "Retry after some time",
+                      "reason": "Insufficient funds"
+                    },
+                    "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                    "payment_method_data": {
+                      "payment_method_metadata": {
+                        "card_exp_month": "01",
+                        "card_exp_year": "2026",
+                        "card_extended_bin": "42424242",
+                        "card_isin": "424242",
+                        "card_network": "Visa",
+                        "card_type": "credit",
+                        "last4": "4242"
+                      },
+                      "primary_processor_payment_method_token": "token_1234"
+                    },
+                    "payment_method_sub_type": "credit",
+                    "payment_method_type": "card",
+                    "transaction_created_at": "2022-09-10T10:11:12Z",
+                    "transaction_status": "failure"
+                  }
                 }
               }
             }
@@ -5006,7 +5059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                  "$ref": "#/components/schemas/RecoveryPaymentsCreateResponse"
                 },
                 "example": {
                   "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
@@ -5017,7 +5070,7 @@
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields",
+            "description": "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
@@ -5328,9 +5381,6 @@
         },
         "security": [
           {
-            "ephemeral_key": []
-          },
-          {
             "api_key": []
           }
         ]
@@ -5384,9 +5434,6 @@
           }
         },
         "security": [
-          {
-            "ephemeral_key": []
-          },
           {
             "api_key": []
           }
@@ -13330,6 +13377,56 @@
           "month"
         ]
       },
+      "CorporateSenderDetails": {
+        "type": "object",
+        "description": "A company providing the funds.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd",
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "treasury@acme.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender.",
+            "nullable": true
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -16145,6 +16242,43 @@
           }
         }
       },
+      "ExternalTriggerState": {
+        "type": "object",
+        "description": "The recovery state kept on an invoice whose retries the merchant triggers, since no scheduled\njob holds it between the merchant's reports.",
+        "required": [
+          "consumed_ladder_rungs",
+          "next_retry"
+        ],
+        "properties": {
+          "consumed_ladder_rungs": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Positions of the static retry ladder the invoice has used.",
+            "minimum": 0
+          },
+          "retries_after_hard_decline": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Retries made with the card of the invoice since it was first hard declined. Absent while it\nhas not been.",
+            "nullable": true,
+            "minimum": 0
+          },
+          "next_retry": {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          "last_recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request this state was last saved for, so a re-run of that request is\nrecognised.",
+            "nullable": true
+          },
+          "last_transaction_created_at": {
+            "type": "string",
+            "description": "When the transaction this state was last saved for was made. A transaction made before it is\nout of date and only recorded.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
+          }
+        }
+      },
       "ExternalVaultConnectorDetails": {
         "type": "object",
         "properties": {
@@ -18358,6 +18492,68 @@
           }
         }
       },
+      "IndividualSenderDetails": {
+        "type": "object",
+        "description": "An individual providing the funds.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "John",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "Doe",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The sender's date of birth, in the format yyyy-mm-dd.",
+            "example": "1990-01-31",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "john.doe@example.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender",
+            "nullable": true
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -18877,6 +19073,30 @@
           "payment_id": {
             "type": "string",
             "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The original authorized amount for the connector mandate, when known.",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile associated with this mandate event, when known.",
+            "nullable": true
+          },
+          "mandate_metadata": {
+            "type": "object",
+            "description": "Connector-specific mandate metadata associated with the original setup payment.",
             "nullable": true
           },
           "status": {
@@ -22467,6 +22687,25 @@
                 "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "RecoveryRetryWebhookDetails",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "recovery_retry_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RecoveryRetryWebhookDetails"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -23294,6 +23533,28 @@
           "charge_id": {
             "type": "string",
             "example": "ch_123abc456def789ghi012klmn",
+            "nullable": true
+          },
+          "customer_present": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PresenceOfCustomerDuringPayment"
+              }
+            ],
+            "nullable": true
+          },
+          "setup_future_usage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FutureUsage"
+              }
+            ],
+            "nullable": true
+          },
+          "recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
         }
@@ -25956,8 +26217,6 @@
         "type": "object",
         "required": [
           "total_retry_count",
-          "billing_connector_id",
-          "active_attempt_payment_connector_id",
           "billing_connector_payment_details",
           "payment_method_type",
           "payment_method_subtype",
@@ -25982,13 +26241,15 @@
           },
           "billing_connector_id": {
             "type": "string",
-            "description": "Billing Connector Id to update the invoices",
-            "example": "mca_1234567890"
+            "description": "Billing Connector Id to update the invoices. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "active_attempt_payment_connector_id": {
             "type": "string",
-            "description": "Payment Connector Id to retry the payments",
-            "example": "mca_1234567890"
+            "description": "Payment Connector Id to retry the payments. Absent when the transaction is recorded without merchant connector accounts.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "billing_connector_payment_details": {
             "$ref": "#/components/schemas/BillingConnectorPaymentDetails"
@@ -26039,6 +26300,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RevenueRecoveryABAlgorithm"
+              }
+            ],
+            "nullable": true
+          },
+          "external_trigger_state": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
+          },
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
               }
             ],
             "nullable": true
@@ -28077,6 +28354,7 @@
         "enum": [
           "adyen",
           "adyenplatform",
+          "checkout",
           "cybersource",
           "deutschebank",
           "ebanx",
@@ -28271,7 +28549,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
+            "description": "Deprecated. Payout execution requires an API key; this value is not used for authentication.",
+            "deprecated": true,
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo",
             "nullable": true
           },
@@ -28326,7 +28605,23 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "payout_token": {
@@ -28366,7 +28661,7 @@
           "session_expiry": {
             "type": "integer",
             "format": "int32",
-            "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
+            "description": "Lifetime of the payout link in seconds, for example 900 for 15 minutes.",
             "example": 900,
             "nullable": true,
             "minimum": 0
@@ -28527,7 +28822,7 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification.",
+            "description": "Legacy client secret retained for compatibility. Payout execution requires an API key.",
             "example": "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo"
           },
           "return_url": {
@@ -28570,6 +28865,22 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "merchant_connector_id": {
@@ -28713,6 +29024,26 @@
           "NaturalPerson",
           "lowercase",
           "Personal"
+        ]
+      },
+      "PayoutFundsTransferType": {
+        "type": "string",
+        "description": "The category of funds transfer to use when processing a payout.",
+        "enum": [
+          "account_to_account",
+          "funds_transfer",
+          "cross_border_money_transfer",
+          "peer_to_peer",
+          "staged_digital_wallet_transfer",
+          "funds_disbursement",
+          "loyalty_payments",
+          "payroll_and_pension_disbursements",
+          "online_gambling",
+          "mastercard_person_to_person",
+          "mastercard_transfer_to_own_account",
+          "mastercard_business_disbursement",
+          "mastercard_business_to_business",
+          "mastercard_gaming_repay"
         ]
       },
       "PayoutLinkInitiateRequest": {
@@ -29661,6 +29992,7 @@
       },
       "PhoneDetails": {
         "type": "object",
+        "description": "Phone contact details shared by payment and payout API models.",
         "properties": {
           "number": {
             "type": "string",
@@ -30318,6 +30650,42 @@
           "merchant_connector_id": {
             "type": "string",
             "nullable": true
+          },
+          "processor_payment_token_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessorPaymentTokenDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ProcessorPaymentTokenDetails": {
+        "type": "object",
+        "description": "Card and network reference details associated with a processor payment token.",
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month.",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year.",
+            "example": "2030",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID from the original customer initiated transaction.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier from the original transaction.",
+            "nullable": true
           }
         }
       },
@@ -30575,6 +30943,15 @@
             "default": "skip",
             "nullable": true
           },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers",
+            "nullable": true
+          },
           "billing_processor_id": {
             "type": "string",
             "description": "Merchant Connector id to be stored for billing_processor connector",
@@ -30638,7 +31015,8 @@
           "is_network_tokenization_enabled",
           "is_click_to_pay_enabled",
           "is_clear_pan_retries_enabled",
-          "split_txns_enabled"
+          "split_txns_enabled",
+          "revenue_recovery_trigger_model"
         ],
         "properties": {
           "merchant_id": {
@@ -30898,6 +31276,14 @@
               }
             ],
             "default": "skip"
+          },
+          "revenue_recovery_trigger_model": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryTriggerModel"
+              }
+            ],
+            "default": "internal_triggers"
           },
           "revenue_recovery_retry_algorithm_type": {
             "allOf": [
@@ -31177,7 +31563,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded"
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body."
           },
           "destination_url": {
             "type": "string",
@@ -31210,7 +31596,7 @@
         ],
         "properties": {
           "response": {
-            "description": "The response received from the destination"
+            "$ref": "#/components/schemas/ProxyResponseBody"
           },
           "status_code": {
             "type": "integer",
@@ -31223,6 +31609,18 @@
             "description": "The headers of the response"
           }
         }
+      },
+      "ProxyResponseBody": {
+        "oneOf": [
+          {
+            "description": "A JSON body"
+          },
+          {
+            "type": "string",
+            "description": "Any other body, as UTF-8 text"
+          }
+        ],
+        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document. Only UTF-8 text is supported. Both variants serialize to the bare\nvalue, so a JSON string and text look the same on the wire; this type is serialize-only."
       },
       "PspTokenization": {
         "type": "object",
@@ -31794,21 +32192,69 @@
           }
         }
       },
+      "RecoveryConnector": {
+        "type": "string",
+        "description": "Payment processor on which the reported transaction was made. Any other value is refused, as\nthe standardised error code of a transaction is looked up by its processor.",
+        "enum": [
+          "adyen",
+          "stripe",
+          "paypal"
+        ]
+      },
+      "RecoveryNextRetry": {
+        "type": "object",
+        "description": "When the merchant should trigger the next retry of an invoice: at `schedule_time`, or not at all\nwhen that is `null`, for the given `reason`.",
+        "required": [
+          "retry_count"
+        ],
+        "properties": {
+          "retry_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of the next retry, counted the way the `max_retry_count` of the profile counts them:\nthe first retry after the original payment is 1.",
+            "minimum": 0
+          },
+          "schedule_time": {
+            "type": "string",
+            "description": "The time to trigger the retry at, then report its result through the recovery API. `null`\nwhen no retry is scheduled.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryNoRetryReason"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "RecoveryNoRetryReason": {
+        "type": "string",
+        "description": "Why no retry is scheduled for an invoice whose retries the merchant triggers.",
+        "enum": [
+          "recovered",
+          "retries_exhausted",
+          "grace_period_expired",
+          "hard_declined",
+          "monitoring",
+          "cancelled",
+          "below_retry_threshold"
+        ]
+      },
       "RecoveryPaymentsCreate": {
         "type": "object",
         "required": [
           "amount_details",
           "merchant_reference_id",
-          "billing_merchant_connector_id",
-          "payment_merchant_connector_id",
           "transaction_status",
           "payment_method_type",
           "payment_method_sub_type",
           "transaction_created_at",
           "connector_customer_id",
           "billing_started_at",
-          "connector_transaction_id",
-          "payment_method_data"
+          "connector_transaction_id"
         ],
         "properties": {
           "amount_details": {
@@ -31831,13 +32277,35 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "example": "mca_1234567890",
+            "nullable": true
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header.",
-            "example": "mca_1234567890"
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "example": "mca_1234567890",
+            "nullable": true
+          },
+          "merchant_reference_billing_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.",
+            "example": "billing_account_main",
+            "nullable": true
+          },
+          "merchant_reference_payment_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.",
+            "example": "payment_account_us",
+            "nullable": true
+          },
+          "connector": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecoveryConnector"
+              }
+            ],
+            "nullable": true
           },
           "transaction_status": {
             "$ref": "#/components/schemas/RecoveryTransactionStatus"
@@ -31920,7 +32388,12 @@
             "example": "993672945374576J"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           "enable_partial_authorization": {
             "type": "boolean",
@@ -31935,6 +32408,17 @@
           }
         },
         "additionalProperties": false
+      },
+      "RecoveryPaymentsCreateResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+          },
+          {
+            "$ref": "#/components/schemas/RecoveryRequestAccepted"
+          }
+        ],
+        "description": "The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of\nthe profile."
       },
       "RecoveryPaymentsResponse": {
         "type": "object",
@@ -31967,6 +32451,59 @@
             "minLength": 30
           }
         }
+      },
+      "RecoveryRequestAccepted": {
+        "type": "object",
+        "description": "A transaction reported on a profile whose `revenue_recovery_trigger_model` is\n`external_triggers`, accepted to be recorded right after the answer.",
+        "required": [
+          "merchant_reference_id",
+          "connector_transaction_id"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier of the transaction at the payment connector.",
+            "example": "993672945374576J"
+          }
+        }
+      },
+      "RecoveryRetryWebhookDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "merchant_reference_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in Hyperswitch.",
+                "example": "pay_mbabizu24mvu3mela5njyhpit4",
+                "maxLength": 30,
+                "minLength": 30
+              },
+              "merchant_reference_id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in the merchant's billing system.",
+                "example": "invoice_mbabizu24mvu3mela5njyh",
+                "maxLength": 30,
+                "minLength": 30
+              }
+            }
+          }
+        ],
+        "description": "The next retry of an invoice whose retries the merchant triggers, sent by webhook after each\ntransaction the merchant reports."
       },
       "RecoveryTransactionStatus": {
         "type": "string",
@@ -33125,6 +33662,14 @@
             "type": "string"
           }
         }
+      },
+      "RevenueRecoveryTriggerModel": {
+        "type": "string",
+        "description": "Decides who triggers the retries of a failed invoice under revenue recovery, and so which\nmodel the recovery API follows.",
+        "enum": [
+          "internal_triggers",
+          "external_triggers"
+        ]
       },
       "RevokeApiKeyResponse": {
         "type": "object",
@@ -34301,6 +34846,56 @@
           }
         }
       },
+      "SenderDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "SepaAndBacsBillingDetails": {
         "type": "object",
         "properties": {
@@ -34781,6 +35376,18 @@
           "attempt_count",
           "created",
           "modified"
+        ]
+      },
+      "SourceOfFunds": {
+        "type": "string",
+        "description": "Origin of the funds, supplied by the merchant.",
+        "enum": [
+          "credit",
+          "debit",
+          "prepaid",
+          "deposit_account",
+          "mobile_money_account",
+          "cash"
         ]
       },
       "SplitPaymentMethodDataRequest": {

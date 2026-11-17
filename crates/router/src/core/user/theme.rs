@@ -5,7 +5,7 @@ use common_utils::{
     types::user::ThemeLineage,
 };
 use diesel_models::user::theme::{ThemeNew, ThemeUpdate};
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
 use hyperswitch_masking::ExposeInterface;
 use rdkafka::message::ToBytes;
@@ -99,6 +99,8 @@ pub async fn upload_file_to_theme_storage(
         .find_theme_by_theme_id(theme_id)
         .await
         .to_not_found_response(UserErrors::ThemeNotFound)?;
+
+    theme_utils::validate_asset_name(&request.asset_name)?;
 
     theme_utils::upload_file_to_theme_bucket(
         &state,
@@ -257,6 +259,24 @@ pub async fn create_user_theme(
             .email_config
             .unwrap_or(state.conf.theme.email_config.clone())
     };
+
+    let user_entity_type = user_from_token
+        .get_role_info_from_db(&state)
+        .await
+        .attach_printable("Invalid role_id in JWT")?
+        .get_entity_type();
+
+    if request.entity_type > user_entity_type {
+        Err(
+            report!(UserErrors::InvalidThemeLineage("entity_type".to_string())).attach_printable(
+                format!(
+                    "User with entity type {user_entity_type} cannot create theme at {} lineage",
+                    request.entity_type
+                ),
+            ),
+        )?;
+    }
+
     let lineage = theme_utils::get_theme_lineage_from_user_token(
         &user_from_token,
         &state,
@@ -439,6 +459,7 @@ pub async fn upload_file_to_user_theme_storage(
     let user_entity_type = user_role_info.get_entity_type();
 
     theme_utils::can_user_access_theme(&user_from_token, &user_entity_type, &db_theme).await?;
+    theme_utils::validate_asset_name(&request.asset_name)?;
     theme_utils::upload_file_to_theme_bucket(
         &state,
         &theme_utils::get_specific_file_key(&db_theme.theme_id, &request.asset_name),

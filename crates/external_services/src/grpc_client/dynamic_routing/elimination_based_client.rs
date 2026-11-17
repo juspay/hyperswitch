@@ -9,7 +9,7 @@ pub use elimination_rate::{
     LabelWithBucketName, UpdateEliminationBucketRequest, UpdateEliminationBucketResponse,
 };
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 #[allow(
     missing_docs,
     unused_qualifications,

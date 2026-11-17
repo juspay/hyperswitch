@@ -85,7 +85,7 @@ pub struct BamboraPaymentsRequest {
     amount: FloatMajorUnit,
     payment_method: PaymentMethod,
     customer_ip: Option<Secret<String, IpAddress>>,
-    term_url: Option<String>,
+    term_url: Option<Secret<String>>,
     card: BamboraCard,
     billing: AddressData,
 }
@@ -332,7 +332,7 @@ pub struct BamboraPaymentsResponse {
 pub struct Bambora3DsResponse {
     #[serde(rename = "3d_session_data")]
     three_d_session_data: Secret<String>,
-    contents: String,
+    contents: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Default, Deserialize)]
@@ -491,10 +491,13 @@ impl<F> TryFrom<ResponseRouterData<F, BamboraResponse, PaymentsAuthorizeData, Pa
             }),
 
             BamboraResponse::ThreeDsResponse(response) => {
-                let value = url::form_urlencoded::parse(response.contents.as_bytes())
-                    .map(|(key, val)| [key, val].concat())
-                    .collect();
-                let redirection_data = Some(RedirectForm::Html { html_data: value });
+                let value: String =
+                    url::form_urlencoded::parse(response.contents.peek().as_bytes())
+                        .map(|(key, val)| [key, val].concat())
+                        .collect();
+                let redirection_data = Some(RedirectForm::Html {
+                    html_data: value.into(),
+                });
                 Ok(Self {
                     status: enums::AttemptStatus::AuthenticationPending,
                     response: Ok(PaymentsResponseData::TransactionResponse {

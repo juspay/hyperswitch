@@ -1,6 +1,6 @@
 use error_stack::report;
 use hyperswitch_domain_models::callback_mapper as domain;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::{DataModelExt, MockDb};
 
 use super::Store;
@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CallbackMapperInterface {
     async fn insert_call_back_mapper(

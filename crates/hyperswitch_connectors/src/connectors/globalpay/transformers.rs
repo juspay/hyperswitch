@@ -576,7 +576,7 @@ pub struct GlobalpayErrorResponse {
     pub detailed_error_description: String,
 }
 
-fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<String> {
+fn get_return_url(item: &PaymentsAuthorizeRouterData) -> Option<Secret<String>> {
     match item.request.payment_method_data.clone() {
         payment_method_data::PaymentMethodData::Wallet(
             payment_method_data::WalletData::PaypalRedirect(_),

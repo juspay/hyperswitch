@@ -58,7 +58,7 @@ Set these once in your shell and reuse them across every example.
 export BASE_URL=http://localhost:8080
 
 # Sandbox (routed through Hyperswitch), when applicable
-# export BASE_URL=https://sandbox.hyperswitch.io
+# export BASE_URL=https://sandbox.hyperswitch.io/decision-engine/api
 
 # Protected endpoints accept either a dashboard JWT or an API key
 export AUTH_HEADER="Authorization: Bearer <jwt_token>"
@@ -71,6 +71,8 @@ export FEATURE_HEADER="x-feature: decision-engine"
 # "public" is the only tenant the shipped config files define.
 export TENANT_HEADER="x-tenant-id: public"
 ```
+
+Every path in this reference is written relative to `BASE_URL`. In sandbox, the Decision Engine sits behind the `/decision-engine/api` prefix, which the gateway strips before the request reaches the service — so `POST /decide` is `https://sandbox.hyperswitch.io/decision-engine/api/decide`. Calling it without that prefix reaches the Hyperswitch app server instead and returns `404 IR_02: Unrecognized request URL`.
 
 Public routes need no auth. Protected routes include `AUTH_HEADER`:
 
@@ -91,7 +93,7 @@ curl "$BASE_URL/analytics/overview?range=1d" \
 | Admin bootstrap | `POST /merchant-account/create` | Admin secret configured for the deployment |
 | Protected APIs | API keys, merchant reads/deletes, routing, rule config, decisions, score updates, config | `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>` |
 | Protected APIs (tenant-scoped) | All `GET /analytics/*`, `POST /gateway-score/reset` | The above, **plus** `TENANT_HEADER` |
-| Sandbox (Hyperswitch) | Same rules, served through `https://sandbox.hyperswitch.io` | Add `x-feature: decision-engine` |
+| Sandbox (Hyperswitch) | Same rules, served through `https://sandbox.hyperswitch.io/decision-engine/api` | Add `x-feature: decision-engine` |
 
 <Warning>
   `TENANT_HEADER` (`x-tenant-id`) has no fallback — omitting it on a route that needs it fails with `TE_03: x-tenant-id not found in headers`, regardless of a valid `AUTH_HEADER`. It's easy to miss because most routes (`/decide-gateway`, `/routing/*`, `/rule/*`, `/merchant-account/*`, `/update-gateway-score`, `/auth/*`, `/api-key/*`) resolve the tenant internally and need no such header — only the routes listed above do.

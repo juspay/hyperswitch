@@ -154,6 +154,7 @@ pub enum MerchantIdConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
+    pub country_of_incorporation: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
     pub account_type: Option<InputData>,
@@ -171,6 +172,8 @@ pub struct ConfigMetadata {
     pub boleto: Option<Vec<InputData>>,
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
+    pub connector_client_id: Option<InputData>,
+    pub connector_currency_account_id: Option<InputData>,
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
@@ -243,6 +246,19 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Determines which Hyperswitch webhook endpoint a connector should use.
+/// Dashboard uses this to show the mTLS callback URL only for connectors that
+/// verify incoming webhook requests with mTLS.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookUrlType {
+    /// Standard webhook endpoint.
+    #[default]
+    NonMtls,
+    /// mTLS-enabled webhook endpoint.
+    Mtls,
+}
+
 /// Wallet flow, based on who decrypts the wallet token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -268,6 +284,8 @@ pub struct PayViaSingleUseTokenInputData {
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
+    #[serde(default)]
+    pub webhook_url_type: WebhookUrlType,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
     pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
@@ -329,6 +347,8 @@ pub struct ConnectorConfig {
     pub custombilling: Option<ConnectorTomlConfig>,
     pub checkbook: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub checkout_payout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
@@ -526,6 +546,7 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
+            PayoutConnectors::Checkout => Ok(connector_data.checkout_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),

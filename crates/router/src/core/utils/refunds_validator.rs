@@ -6,7 +6,7 @@ use hyperswitch_domain_models::refunds::RefundAmountDetails;
 use hyperswitch_domain_models::router_response_types::SupportedPaymentMethodsExt;
 #[cfg(feature = "v1")]
 use hyperswitch_interfaces::{self, api::ConnectorSpecifications};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use time::PrimitiveDateTime;
 
 use crate::{

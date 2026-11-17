@@ -469,7 +469,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
-            | errors::ApiErrorResponse::InvalidEphemeralKey
             | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
             | errors::ApiErrorResponse::ExpiredJwtToken
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,

@@ -78,7 +78,7 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use hyperswitch_masking::{Mask as _, Maskable, PeekInterface};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use stripe::auth_headers;
 
 use self::transformers as stripe;
@@ -498,6 +498,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             (
                 Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
                 PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             )
         ) {

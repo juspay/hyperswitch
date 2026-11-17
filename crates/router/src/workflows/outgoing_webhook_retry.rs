@@ -13,7 +13,7 @@ use common_utils::{
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     utils as scheduler_utils,
@@ -76,10 +76,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             }
         });
 
-        let webhook_key_store = db
+        let webhook_key_store = state
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
             .await?;
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 &webhook_key_store,
                 &tracking_data.business_profile_id,
@@ -169,10 +171,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             // Event inserted by an older version of the application, or event created when sending webhooks to a connector
             None => {
                 // Fetch provider merchant account and keystore
-                let provider_key_store = db
+                let provider_key_store = state
+                    .accounts_store
                     .get_merchant_key_store_by_merchant_id(&provider_merchant_id, master_key)
                     .await?;
-                let provider_account = db
+                let provider_account = state
+                    .accounts_store
                     .find_merchant_account_by_merchant_id(
                         &provider_merchant_id,
                         &provider_key_store,
@@ -185,10 +189,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 {
                     (provider_account.clone(), provider_key_store.clone())
                 } else {
-                    let processor_key_store = db
+                    let processor_key_store = state
+                        .accounts_store
                         .get_merchant_key_store_by_merchant_id(&processor_merchant_id, master_key)
                         .await?;
-                    let processor_account = db
+                    let processor_account = state
+                        .accounts_store
                         .find_merchant_account_by_merchant_id(
                             &processor_merchant_id,
                             &processor_key_store,
@@ -326,10 +332,12 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             .clone()
             .unwrap_or_else(|| tracking_data.merchant_id.clone());
 
-        let webhook_key_store = db
+        let webhook_key_store = state
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
             .await?;
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 &webhook_key_store,
                 &tracking_data.business_profile_id,
@@ -789,6 +797,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                 None,
                 &request,
                 DEFAULT_LOCALE,
+                false,
             ))
             .await?;
 

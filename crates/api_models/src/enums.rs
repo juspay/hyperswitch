@@ -48,6 +48,7 @@ pub enum RoutingAlgorithm {
 pub enum PayoutConnectors {
     Adyen,
     Adyenplatform,
+    Checkout,
     Cybersource,
     Deutschebank,
     Ebanx,
@@ -99,6 +100,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
+            PayoutConnectors::Checkout => Self::Checkout,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
@@ -129,6 +131,7 @@ impl From<PayoutConnectors> for Connector {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
+            PayoutConnectors::Checkout => Self::Checkout,
             PayoutConnectors::Cybersource => Self::Cybersource,
             PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
@@ -160,6 +163,7 @@ impl TryFrom<Connector> for PayoutConnectors {
         match value {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
+            Connector::Checkout => Ok(Self::Checkout),
             Connector::Cybersource => Ok(Self::Cybersource),
             Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Ebanx => Ok(Self::Ebanx),

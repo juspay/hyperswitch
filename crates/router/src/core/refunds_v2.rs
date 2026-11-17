@@ -78,6 +78,29 @@ pub async fn refund_create_core(
         },
     )?;
 
+    payment_attempt = db
+        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
+            platform.get_processor().get_key_store(),
+            &req.payment_id,
+            platform.get_processor().get_storage_scheme(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
+
+    // A transaction the merchant reported has no connector account to refund it through. Refused
+    // here, as a refund saved at this point would stay pending for good.
+    utils::when(
+        payment_attempt.merchant_connector_id.is_none()
+            && !state.conf.merchant_id_auth.merchant_id_auth_enabled,
+        || {
+            Err(report!(errors::ApiErrorResponse::RefundNotPossible {
+                connector: payment_attempt.connector.clone().unwrap_or_default(),
+            }))
+        },
+    )?;
+
     let captured_amount = payment_intent
         .amount_captured
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -93,17 +116,6 @@ pub async fn refund_create_core(
         })
         .attach_printable("amount less than or equal to zero"))
     })?;
-
-    payment_attempt = db
-        .find_payment_attempt_last_successful_or_partially_captured_attempt_by_payment_id(
-            platform.get_processor().get_key_store(),
-            &req.payment_id,
-            platform.get_processor().get_storage_scheme(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-    tracing::Span::current().record("global_refund_id", global_refund_id.get_string_repr());
 
     let merchant_connector_details = req.merchant_connector_details.clone();
 
@@ -134,13 +146,12 @@ pub async fn trigger_refund_to_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    let db = &*state.store;
-
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let storage_scheme = processor.get_account().storage_scheme;
 
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -190,7 +201,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -316,7 +327,7 @@ pub async fn internal_trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -846,8 +857,6 @@ pub async fn sync_refund_with_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    let db = &*state.store;
-
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -860,7 +869,8 @@ pub async fn sync_refund_with_gateway(
 
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -896,7 +906,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -996,7 +1006,7 @@ pub async fn internal_sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1268,6 +1278,7 @@ pub async fn validate_and_create_refund(
         feature_metadata: refund_feature_metadata,
         refund_surcharge_amount: None,
         net_refund_amount: None,
+        external_surcharge_refund_details: None,
         description: req.reason.clone(),
         attempt_id: payment_attempt.id.clone(),
         refund_reason: req.reason,
