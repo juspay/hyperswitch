@@ -850,6 +850,7 @@ where
             platform,
             &feature_config,
             profile_id_from_auth_layer.as_ref(),
+            payment_pre_fetched_info.as_ref(),
         )
         .await?;
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
@@ -3360,6 +3361,7 @@ where
             &platform,
             &feature_config,
             profile_id_from_auth_layer.as_ref(),
+            None,
         )
         .await?;
 
@@ -10856,6 +10858,8 @@ where
     pub force_sync: Option<bool>,
     pub all_keys_required: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
+    /// Additional card data already derived for the current payment method in this flow.
+    pub additional_card_data: Option<api_models::payments::AdditionalPaymentData>,
     pub payment_method_token: Option<PaymentMethodToken>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub refunds: Vec<diesel_refund::Refund>,
@@ -16590,6 +16594,11 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     // Setters Implementation
     fn set_payment_intent(&mut self, payment_intent: storage::PaymentIntent) {
+        if self.payment_intent.customer_id != payment_intent.customer_id
+            || self.payment_intent.profile_id != payment_intent.profile_id
+        {
+            self.additional_card_data = None;
+        }
         self.payment_intent = payment_intent;
     }
 
@@ -16606,6 +16615,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
     }
 
     fn set_payment_method_data(&mut self, payment_method_data: Option<domain::PaymentMethodData>) {
+        if self.payment_method_data != payment_method_data {
+            self.additional_card_data = None;
+        }
         self.payment_method_data = payment_method_data;
     }
 
@@ -16652,6 +16664,9 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         match &mut self.payment_method_data {
             Some(domain::PaymentMethodData::Card(card)) => {
                 logger::debug!("Setting card network: {:?}", card_network);
+                if card.card_network.as_ref() != Some(&card_network) {
+                    self.additional_card_data = None;
+                }
                 card.card_network = Some(card_network);
             }
             Some(domain::PaymentMethodData::Wallet(wallet_data)) => match wallet_data {
@@ -16673,6 +16688,7 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         &mut self,
         debit_routing_output: &api_models::open_router::DebitRoutingOutput,
     ) {
+        self.additional_card_data = None;
         let co_badged_card_data =
             api_models::payment_methods::CoBadgedCardData::from(debit_routing_output);
         let card_type = debit_routing_output

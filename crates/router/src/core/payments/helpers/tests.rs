@@ -1,3 +1,5 @@
+#[cfg(feature = "v1")]
+mod additional_card_data;
 mod client_secret;
 #[cfg(feature = "v1")]
 mod client_secret_session;

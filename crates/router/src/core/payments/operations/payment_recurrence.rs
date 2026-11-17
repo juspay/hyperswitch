@@ -53,7 +53,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
@@ -73,16 +73,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = &*state.store;
         let m_merchant_id = processor_merchant_id.clone();
 
-        let payment_intent = helpers::find_payment_intent(
-            store,
-            &payment_id,
-            &m_merchant_id,
-            platform.get_processor().get_key_store(),
-            storage_scheme,
-            profile_id_from_auth_layer,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (prefetched_payment_intent, prefetched_payment_attempt) = match payment_pre_fetched_info
+        {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                (Some(info.payment_intent), Some(info.payment_attempt))
+            }
+            None => (None, None),
+        };
+
+        let payment_intent = match prefetched_payment_intent {
+            Some(intent) => intent,
+            None => helpers::find_payment_intent(
+                store,
+                &payment_id,
+                &m_merchant_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
@@ -99,16 +114,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let attempt_id = payment_intent.active_attempt.get_id();
         let merchant_key_store = platform.get_processor().get_key_store().clone();
 
-        let payment_attempt = store
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &m_payment_id,
-                &m_merchant_id,
-                attempt_id.as_str(),
-                storage_scheme,
-                &merchant_key_store,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_attempt = match prefetched_payment_attempt {
+            Some(attempt) => attempt,
+            None => store
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &m_payment_id,
+                    &m_merchant_id,
+                    attempt_id.as_str(),
+                    storage_scheme,
+                    &merchant_key_store,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         let profile_id = payment_intent
             .profile_id
@@ -349,6 +367,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         let payment_data = PaymentData {
+            additional_card_data: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

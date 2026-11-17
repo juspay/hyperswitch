@@ -187,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, PaymentsRequest, PaymentData<F>>> {
         let db = &*state.store;
@@ -199,7 +199,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_intent = match payment_method_fetch_data.payment_intent {
+        let (prefetched_intent, prefetched_attempt) = match payment_pre_fetched_info {
+            Some(info) => (Some(info.payment_intent), Some(info.payment_attempt)),
+            None => (None, None),
+        };
+        let payment_intent = match prefetched_intent.or(payment_method_fetch_data.payment_intent) {
             Some(payment_intent) => {
                 helpers::validate_payment_profile(
                     profile_id_from_auth_layer,
@@ -251,16 +255,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             )?;
         }
 
-        let active_payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &processor_merchant_id,
-                payment_intent.active_attempt.get_id().as_str(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let active_payment_attempt = match prefetched_attempt {
+            Some(attempt) => attempt,
+            None => db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &processor_merchant_id,
+                    payment_intent.active_attempt.get_id().as_str(),
+                    storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         // The vault card arm of a fallback follows an earlier attempt on the same intent, so it
         // needs its own attempt or that attempt's decline is overwritten. Only that case: a 3DS
@@ -468,6 +475,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             });
 
         let payment_data = PaymentData {
+            additional_card_data: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -803,6 +811,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<&operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<PaymentMethodFetchData> {
         let payment_id = req
             .payment_id
@@ -810,16 +819,25 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             .get_required_value("payment_id")?
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_intent = helpers::find_payment_intent(
-            state.store.as_ref(),
-            &payment_id,
-            &platform.get_processor().get_processor_merchant_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_storage_scheme(),
-            profile_id_from_auth_layer,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = match payment_pre_fetched_info {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                info.payment_intent.clone()
+            }
+            None => helpers::find_payment_intent(
+                state.store.as_ref(),
+                &payment_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
         // Only the saved-card token flow (`VaultCardTokenData`) needs an up-front fetch. The inline
         // `VaultDataCard` flow carries the card on the request and is parsed in `get_trackers`.
         let card_token = req

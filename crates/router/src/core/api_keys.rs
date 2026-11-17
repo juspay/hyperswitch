@@ -445,10 +445,18 @@ pub async fn revoke_api_key(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
-    let revoked = store
-        .revoke_api_key(&merchant_id, key_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+    let revoked = match api_key.as_ref() {
+        Some(api_key) => store
+            .revoke_api_key(api_key)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?,
+        None => {
+            #[cfg(feature = "accounts_cache")]
+            return Err(errors::ApiErrorResponse::ApiKeyNotFound.into());
+            #[cfg(not(feature = "accounts_cache"))]
+            false
+        }
+    };
 
     if let Some(api_key) = api_key {
         let hashed_api_key = api_key.hashed_api_key;

@@ -114,7 +114,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
 
         // Parallel calls - level 0
-        let mut payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
+        let mut payment_intent = match pre_fetched_intent.or(prefetched_payment_intent) {
             Some(payment_intent) => {
                 helpers::validate_payment_profile(
                     profile_id_from_auth_layer,
@@ -737,6 +737,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
+            fetched_mandate: _,
         } = mandate_details;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
@@ -867,18 +868,35 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request_payment_method_data.payment_method_data.clone()
                 });
 
-        let payment_method_data = payment_method_with_raw_data
+        // Reuse the data derived above only when it came from the same payment method.
+        // The two paths have different source precedence when raw vault data is present.
+        let original_payment_method_data = payment_method_data_from_request
+            .clone()
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details.clone())
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|pm| pm.raw_payment_method_data.clone())
+            });
+        let selected_payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_from_request.map(Into::into))
-            .or(payment_method_recurring_details.clone())
-            .map(|payment_method_data| {
-                if let Some(additional_pm_data) = additional_pm_data {
-                    payment_method_data.apply_additional_payment_data(additional_pm_data)
-                } else {
-                    payment_method_data
-                }
-            });
+            .or(payment_method_recurring_details.clone());
+        let reusable_additional_card_data = helpers::matching_additional_card_data(
+            original_payment_method_data.as_ref(),
+            selected_payment_method_data.as_ref(),
+            additional_pm_data.as_ref(),
+        );
+        let payment_method_data = selected_payment_method_data.map(|payment_method_data| {
+            if let Some(additional_pm_data) = additional_pm_data.clone() {
+                payment_method_data.apply_additional_payment_data(additional_pm_data)
+            } else {
+                payment_method_data
+            }
+        });
+        let additional_card_data = reusable_additional_card_data;
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -1006,6 +1024,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
         let payment_data = PaymentData {
+            additional_card_data,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -1412,6 +1431,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<&operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
         let payment_id = req
             .payment_id
@@ -1419,16 +1439,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .get_required_value("payment_id")?
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_intent = helpers::find_payment_intent(
-            state.store.as_ref(),
-            &payment_id,
-            &platform.get_processor().get_processor_merchant_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_storage_scheme(),
-            profile_id_from_auth_layer,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = match payment_pre_fetched_info
+            .filter(|info| info.payment_intent.payment_id == payment_id)
+        {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                info.payment_intent.clone()
+            }
+            None => helpers::find_payment_intent(
+                state.store.as_ref(),
+                &payment_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
         let profile_id = payment_intent
             .profile_id
             .as_ref()
@@ -2169,6 +2200,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         payment_data.payment_attempt.payment_method =
                             Some(common_enums::PaymentMethod::Card);
 
+                        payment_data.additional_card_data = None;
                         payment_data.payment_method_data = network_token
                             .clone()
                             .map(domain::PaymentMethodData::NetworkToken);
@@ -2916,23 +2948,28 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let dimensions = dimensions.with_profile_id(profile_id.clone());
-        let additional_pm_data = payment_data
-            .payment_method_data
-            .as_ref()
-            .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(
-                    payment_method_data,
-                    &*state.store,
-                    state.superposition_service.as_ref(),
-                    &dimensions,
-                    customer_id,
-                    payment_data.payment_method_token.as_ref(),
-                )
-                .await
-            })
-            .await
-            .transpose()?
-            .flatten();
+        let additional_pm_data =
+            if let Some(additional_card_data) = payment_data.additional_card_data.as_ref() {
+                Some(additional_card_data.clone())
+            } else {
+                payment_data
+                    .payment_method_data
+                    .as_ref()
+                    .async_map(|payment_method_data| async {
+                        helpers::get_additional_payment_data(
+                            payment_method_data,
+                            &*state.store,
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            customer_id,
+                            payment_data.payment_method_token.as_ref(),
+                        )
+                        .await
+                    })
+                    .await
+                    .transpose()?
+                    .flatten()
+            };
 
         let encoded_additional_pm_data = additional_pm_data
             .as_ref()

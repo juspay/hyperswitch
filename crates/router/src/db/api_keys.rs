@@ -27,8 +27,7 @@ pub trait ApiKeyInterface {
 
     async fn revoke_api_key(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        key_id: &common_utils::id_type::ApiKeyId,
+        api_key: &storage::ApiKey,
     ) -> CustomResult<bool, errors::StorageError>;
 
     async fn find_api_key_by_merchant_id_key_id_optional(
@@ -116,14 +115,17 @@ impl ApiKeyInterface for Store {
     #[instrument(skip_all)]
     async fn revoke_api_key(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        key_id: &common_utils::id_type::ApiKeyId,
+        api_key: &storage::ApiKey,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         let delete_call = || async {
-            storage::ApiKey::revoke_by_merchant_id_key_id(&conn, merchant_id, key_id)
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
+            storage::ApiKey::revoke_by_merchant_id_key_id(
+                &conn,
+                &api_key.merchant_id,
+                &api_key.key_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
         };
         #[cfg(not(feature = "accounts_cache"))]
         {
@@ -132,24 +134,9 @@ impl ApiKeyInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            use error_stack::report;
-
-            // We need to fetch api_key here because the key that's saved in cache in HashedApiKey.
-            // Used function from storage model to reuse the connection that made here instead of
-            // creating new.
-
-            let api_key =
-                storage::ApiKey::find_optional_by_merchant_id_key_id(&conn, merchant_id, key_id)
-                    .await
-                    .map_err(|error| report!(errors::StorageError::from(error)))?
-                    .ok_or(report!(errors::StorageError::ValueNotFound(format!(
-                        "ApiKey of {} not found",
-                        key_id.get_string_repr()
-                    ))))?;
-
             cache::publish_and_redact(
                 self,
-                CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                CacheKind::Accounts(api_key.hashed_api_key.clone().into_inner().into()),
                 delete_call,
             )
             .await
@@ -284,14 +271,13 @@ impl ApiKeyInterface for MockDb {
 
     async fn revoke_api_key(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        key_id: &common_utils::id_type::ApiKeyId,
+        api_key: &storage::ApiKey,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut locked_api_keys = self.api_keys.lock().await;
         // find the key to remove, if it exists
         if let Some(pos) = locked_api_keys
             .iter()
-            .position(|k| k.merchant_id == *merchant_id && k.key_id == *key_id)
+            .position(|k| k.merchant_id == api_key.merchant_id && k.key_id == api_key.key_id)
         {
             // use `remove` instead of `swap_remove` so we have a consistent order, which might
             // matter to someone using limit/offset in `list_api_keys_by_merchant_id`
@@ -477,7 +463,8 @@ mod tests {
                 .len(),
             2
         );
-        mockdb.revoke_api_key(&merchant_id, &key_id1).await.unwrap();
+        assert!(mockdb.revoke_api_key(&key1).await.unwrap());
+        assert!(!mockdb.revoke_api_key(&key1).await.unwrap());
         assert_eq!(
             mockdb
                 .list_api_keys_by_merchant_id(&merchant_id, None, None)
@@ -540,7 +527,7 @@ mod tests {
         .await
         .unwrap();
 
-        let delete_call = || async { db.revoke_api_key(&merchant_id, &api.key_id).await };
+        let delete_call = || async { db.revoke_api_key(&api).await };
 
         cache::publish_and_redact(
             &db,

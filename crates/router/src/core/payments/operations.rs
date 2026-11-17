@@ -508,6 +508,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
         _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        _payment_pre_fetched_info: Option<&PaymentPreFetchedInformation>,
     ) -> RouterResult<PaymentMethodFetchData> {
         Ok(PaymentMethodFetchData::default())
     }

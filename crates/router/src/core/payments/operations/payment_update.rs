@@ -65,7 +65,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
@@ -84,16 +84,31 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             auth_flow,
         )
         .await?;
-        payment_intent = helpers::find_payment_intent(
-            db,
-            &payment_id,
-            &processor_merchant_id,
-            platform.get_processor().get_key_store(),
-            storage_scheme,
-            profile_id_from_auth_layer,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (prefetched_payment_intent, prefetched_payment_attempt) = match payment_pre_fetched_info
+        {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                (Some(info.payment_intent), Some(info.payment_attempt))
+            }
+            None => (None, None),
+        };
+
+        payment_intent = match prefetched_payment_intent {
+            Some(intent) => intent,
+            None => helpers::find_payment_intent(
+                db,
+                &payment_id,
+                &processor_merchant_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
 
@@ -144,16 +159,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .attach_printable("Failed to convert order details to value")?
             .or(payment_intent.order_details);
 
-        payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &processor_merchant_id,
-                payment_intent.active_attempt.get_id().as_str(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_attempt = match prefetched_payment_attempt {
+            Some(attempt) => attempt,
+            None => db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &processor_merchant_id,
+                    payment_intent.active_attempt.get_id().as_str(),
+                    storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         let customer_acceptance = request.customer_acceptance.clone();
         let recurring_details = request.recurring_details.clone();
@@ -177,6 +195,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
+            fetched_mandate: _,
         } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
@@ -533,6 +552,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .set_order_tax_amount(order_tax_amount);
 
         let payment_data = PaymentData {
+            additional_card_data: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

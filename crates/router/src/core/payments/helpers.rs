@@ -549,6 +549,7 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    let mut fetched_mandate = None;
     let (
         payment_token,
         payment_method,
@@ -629,6 +630,7 @@ pub async fn get_token_pm_type_mandate_details(
                             mandate_id.to_owned(),
                         ))
                         .await?;
+                        fetched_mandate = mandate_generic_data.fetched_mandate.clone();
 
                         (
                             mandate_generic_data.token,
@@ -725,6 +727,7 @@ pub async fn get_token_pm_type_mandate_details(
                             state, request, platform, mandate_id,
                         ))
                         .await?;
+                        fetched_mandate = mandate_generic_data.fetched_mandate.clone();
                         (
                             mandate_generic_data.token,
                             mandate_generic_data.payment_method,
@@ -897,6 +900,7 @@ pub async fn get_token_pm_type_mandate_details(
         recurring_mandate_payment_data: recurring_payment_data,
         mandate_connector: mandate_connector_details,
         payment_method_info,
+        fetched_mandate,
     })
 }
 
@@ -990,6 +994,7 @@ pub async fn get_token_for_recurring_mandate(
 
     let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
+    let fetched_mandate = mandate.clone();
     let mandate_connector_details = payments::MandateConnectorDetails {
         connector: mandate.connector,
         merchant_connector_id: mandate.merchant_connector_id,
@@ -1034,6 +1039,7 @@ pub async fn get_token_for_recurring_mandate(
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
+            fetched_mandate: Some(fetched_mandate),
         })
     } else {
         Ok(MandateGenericData {
@@ -1049,6 +1055,7 @@ pub async fn get_token_for_recurring_mandate(
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
             payment_method_info: Some(payment_method),
+            fetched_mandate: Some(fetched_mandate),
         })
     }
 }
@@ -2412,6 +2419,9 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Unable to encrypt customer details")?,
                 );
 
+                if payment_data.payment_intent.customer_id.as_ref() != Some(customer.get_id()) {
+                    payment_data.additional_card_data = None;
+                }
                 payment_data.payment_intent.customer_id = Some(customer.get_id().clone());
 
                 Some(customer)
@@ -5918,6 +5928,32 @@ pub fn is_manual_retry_allowed(
         .contains(merchant_id);
     is_payment_status_eligible_for_retry
         .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
+}
+
+/// Reuse derived card details only if they were calculated for the selected payment method.
+#[cfg(feature = "v1")]
+pub(super) fn matching_additional_card_data(
+    original: Option<&domain::PaymentMethodData>,
+    selected: Option<&domain::PaymentMethodData>,
+    additional: Option<&api_models::payments::AdditionalPaymentData>,
+) -> Option<api_models::payments::AdditionalPaymentData> {
+    if matches!(original, Some(domain::PaymentMethodData::Card(_))) && original == selected {
+        additional
+            // An empty lookup result may also represent a transient database error.
+            // Let the later stage retry instead of treating that fallback as resolved.
+            .filter(|data| match data {
+                api_models::payments::AdditionalPaymentData::Card(card) => {
+                    card.card_issuer.is_some()
+                        || card.card_type.is_some()
+                        || card.card_issuing_country.is_some()
+                        || card.bank_code.is_some()
+                }
+                _ => false,
+            })
+            .cloned()
+    } else {
+        None
+    }
 }
 
 #[instrument(skip_all)]

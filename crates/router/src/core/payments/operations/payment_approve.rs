@@ -46,8 +46,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
     > {
@@ -60,15 +60,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &processor_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (prefetched_payment_intent, prefetched_payment_attempt) = match payment_pre_fetched_info
+        {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                (Some(info.payment_intent), Some(info.payment_attempt))
+            }
+            None => (None, None),
+        };
+
+        payment_intent = match prefetched_payment_intent {
+            Some(intent) => intent,
+            None => db
+                .find_payment_intent_by_payment_id_processor_merchant_id(
+                    &payment_id,
+                    &processor_merchant_id,
+                    platform.get_processor().get_key_store(),
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         helpers::validate_payment_status_against_not_allowed_statuses(
             payment_intent.status,
@@ -99,16 +114,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             })?;
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
-        payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &processor_merchant_id,
-                &attempt_id.clone(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_attempt = match prefetched_payment_attempt {
+            Some(attempt) => attempt,
+            None => db
+                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                    &payment_intent.payment_id,
+                    &processor_merchant_id,
+                    &attempt_id.clone(),
+                    storage_scheme,
+                    platform.get_processor().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.get_total_amount().into();
@@ -165,6 +183,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         let frm_response = None;
 
         let payment_data = PaymentData {
+            additional_card_data: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

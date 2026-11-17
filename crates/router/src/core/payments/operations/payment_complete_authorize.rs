@@ -78,7 +78,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
+        payment_intent = match pre_fetched_intent.or(prefetched_payment_intent) {
             Some(payment_intent) => {
                 helpers::validate_payment_profile(
                     profile_id_from_auth_layer,
@@ -161,6 +161,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
+            fetched_mandate: _,
         } = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
@@ -377,6 +378,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             )?;
 
         let payment_data = PaymentData {
+            additional_card_data: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -473,10 +475,20 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<&operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
         let payment_id = req.payment_id.as_ref().get_required_value("payment_id")?;
-        let (payment_intent, payment_attempt) =
-            Box::pin(super::payment_status::get_payment_intent_payment_attempt(
+        let (payment_intent, payment_attempt) = match payment_pre_fetched_info.filter(|info| {
+            matches!(payment_id, api::PaymentIdType::PaymentIntentId(id) if id == &info.payment_intent.payment_id)
+        }) {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                (info.payment_intent.clone(), info.payment_attempt.clone())
+            }
+            None => Box::pin(super::payment_status::get_payment_intent_payment_attempt(
                 state,
                 payment_id,
                 &platform.get_processor().get_processor_merchant_id(),
@@ -484,7 +496,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 platform.get_processor().get_storage_scheme(),
                 profile_id_from_auth_layer,
             ))
-            .await?;
+            .await?,
+        };
 
         let payment_method_info = if let Some(pm_id) = payment_attempt.payment_method_id.as_ref() {
             let payment_method_info = match state
