@@ -56,6 +56,8 @@ type Record struct {
 	size                     int64
 }
 
+// bytes estimates a record's buffered footprint from fixed overhead and string
+// lengths. It enforces the recorder's byte budget, rather than measuring Go heap use.
 func (r *Record) bytes() int64 {
 	n := int64(384 + len(r.FlowID) + len(r.Operation) + len(r.Role) + len(r.Method) + len(r.URL))
 	for _, s := range []*string{r.MerchantID, r.CustomerID, r.MerchantReferenceID, r.PaymentID, r.Status, r.RequestID, r.Message, r.ErrorBody, r.EntityType, r.RequestedConnector, r.SelectedConnectorAccount, r.Connector, r.MerchantConnectorID} {
@@ -72,6 +74,8 @@ type Settings struct {
 	FlushInterval        time.Duration
 }
 
+// DefaultSettings bounds buffered recording to 100,000 events and 64 MiB
+// of estimated payload, flushing batches of 1,000 events or every 50 milliseconds.
 func DefaultSettings() Settings { return Settings{1000, 100000, 64 << 20, 50 * time.Millisecond} }
 
 type Stats struct {
@@ -104,6 +108,9 @@ type Writer struct {
 	metadata map[string]interface{}
 }
 
+// NewWriter exclusively creates a private database for one run, initializes
+// the schema and metadata, and starts a single batching goroutine. Invalid
+// limits or an existing file fail initialization instead of overwriting prior data.
 func NewWriter(file, runID string, settings Settings, metadata map[string]interface{}) (*Writer, error) {
 	if settings.BatchSize < 1 || settings.MaxEvents < 1 || settings.MaxBytes < 1 || settings.FlushInterval <= 0 {
 		return nil, errors.New("invalid recorder settings")
@@ -138,6 +145,9 @@ func NewWriter(file, runID string, settings Settings, metadata map[string]interf
 	return w, nil
 }
 
+// fail latches the first recorder error and updates diagnostic counters.
+// It invokes the registered abort callback outside the mutex, avoiding lock
+// re-entry while ensuring subsequent failures do not trigger duplicate aborts.
 func (w *Writer) fail(err error) {
 	w.mu.Lock()
 	first := w.err == nil
@@ -152,8 +162,13 @@ func (w *Writer) fail(err error) {
 	}
 }
 
+// SetStop installs the test-abort callback used by subsequent recorder failures.
+// Register it before producers begin so capacity or database errors can stop k6.
 func (w *Writer) SetStop(stop func(error)) { w.mu.Lock(); w.stop = stop; w.mu.Unlock() }
 
+// Enqueue accepts a completed record within the shared pending-and-queued
+// event and byte limits. It fails the run on exhaustion rather than silently
+// dropping data; capacity accounting includes batches awaiting commit.
 func (w *Writer) Enqueue(r Record) error {
 	r = sanitizeDiagnostics(r)
 	r.size = r.bytes()
@@ -187,8 +202,14 @@ func (w *Writer) Enqueue(r Record) error {
 	w.mu.Unlock()
 	return nil
 }
+
+// Snapshot returns a mutex-protected copy of recorder counters without
+// waiting for queued writes to reach SQLite.
 func (w *Writer) Snapshot() Stats { w.mu.Lock(); defer w.mu.Unlock(); return w.stats }
 
+// loop is the sole batch consumer, flushing on size, interval, or queue close.
+// Queue exhaustion still drains accepted records; database failures stop further
+// commits and leave the run incomplete.
 func (w *Writer) loop() {
 	defer close(w.done)
 	ticker := time.NewTicker(w.settings.FlushInterval)
@@ -234,6 +255,9 @@ func (w *Writer) loop() {
 	}
 }
 
+// commit writes request events, entity projections, and persisted counters
+// in one SQLite transaction. Queue accounting is released only after commit;
+// any statement failure rolls back the batch and propagates to the writer loop.
 func (w *Writer) commit(batch []*Record) error {
 	start := time.Now()
 	tx, err := w.db.Begin()
@@ -300,8 +324,9 @@ func (w *Writer) commit(batch []*Record) error {
 	return nil
 }
 
-// Begin reserves a bounded slot before an HTTP attempt. Interrupted requests become
-// explicit transport-failure events at shutdown rather than disappearing.
+// Begin reserves bounded capacity and assigns an attempt ID before an HTTP
+// request starts. Pending attempts share limits with queued records; unfinished
+// attempts become explicit transport-failure events during Close.
 func (w *Writer) Begin(r Record) (uint64, error) {
 	r.size = r.bytes()
 	w.mu.Lock()
@@ -327,6 +352,10 @@ func (w *Writer) Begin(r Record) (uint64, error) {
 	w.mu.Unlock()
 	return r.AttemptID, nil
 }
+
+// Finish consumes an attempt reservation exactly once and enqueues its result
+// with the original attempt ID. Unknown or duplicate IDs fail; a result that
+// exceeds remaining queue capacity propagates the recorder failure.
 func (w *Writer) Finish(id uint64, r Record) error {
 	r = sanitizeDiagnostics(r)
 	w.mu.Lock()
@@ -343,6 +372,10 @@ func (w *Writer) Finish(id uint64, r Record) error {
 	return w.Enqueue(r)
 }
 
+// Close blocks new attempt reservations, records pending attempts as interrupted,
+// and drains accepted records before finalizing run metadata and closing SQLite.
+// Test errors, recorder errors, or counter mismatches mark recording incomplete;
+// call it after producers stop, as concurrent finalization is not supported.
 func (w *Writer) Close(testErr error) error {
 	w.mu.Lock()
 	w.closing = true
@@ -396,4 +429,6 @@ func (w *Writer) Close(testErr error) error {
 	return closeErr
 }
 
+// strPointer wraps a string for nullable record fields, preserving the
+// distinction between an absent value and an explicitly supplied empty string.
 func strPointer(s string) *string { return &s }

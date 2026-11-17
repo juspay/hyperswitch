@@ -55,6 +55,8 @@ type progressCollector struct {
 	serverLatencies   []float64
 }
 
+// newProgressCollector initializes run counters and per-flow buckets from
+// scenario metadata. Unknown flow names are not added during sample collection.
 func newProgressCollector(metadata map[string]interface{}) *progressCollector {
 	p := &progressCollector{started: time.Now(), previous: time.Now()}
 	p.state.Flows = map[string]*flowProgress{}
@@ -70,6 +72,10 @@ func newProgressCollector(metadata map[string]interface{}) *progressCollector {
 	}
 	return p
 }
+
+// add aggregates k6 counters and payment-confirm latency samples under p.mu.
+// Latency buffers retain at most 8,192 samples per window; only configured flow
+// names contribute per-flow totals, preventing phase metrics from double counting.
 func (p *progressCollector) add(containers []metrics.SampleContainer) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -149,6 +155,10 @@ func (p *progressCollector) add(containers []metrics.SampleContainer) {
 		}
 	}
 }
+
+// bytes serializes live progress with the supplied recorder counters.
+// Cumulative counts are retained, while TPS deltas and latency buffers reset
+// after each publication; empty windows emit unavailable latency rather than zero.
 func (p *progressCollector) bytes(stats Stats) []byte {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -189,6 +199,11 @@ func (p *progressCollector) bytes(stats Stats) []byte {
 	raw, _ := json.Marshal(p.state)
 	return raw
 }
+
+// writeProgress combines live metrics with recorder and optional controller
+// state, then atomically replaces the progress file. Controller counters override
+// k6 scheduling totals; write failures fail the recorder rather than leaving
+// telemetry loss unreported.
 func (o *sqliteOutput) writeProgress() {
 	if o.progressFile == "" {
 		return
@@ -216,6 +231,9 @@ func (o *sqliteOutput) writeProgress() {
 	}
 }
 
+// serverPercentile sorts the supplied window in place and returns its p99
+// using the lower indexed sample at floor((n-1)*0.99). Empty windows return nil;
+// this live estimate is not a percentile over the entire recorded run.
 func serverPercentile(values []float64) *float64 {
 	if len(values) == 0 {
 		return nil

@@ -23,6 +23,9 @@ type Captured struct {
 	RequestID  *string `js:"request_id"`
 }
 
+// parsedBody reuses k6's cached JSON export and accepts only object bodies.
+// JavaScript parse exceptions become malformed results; unrelated panics are
+// re-raised so recorder defects are not mistaken for invalid server responses.
 func parsedBody(response *k6http.Response) (body map[string]interface{}, malformed bool) {
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
@@ -38,12 +41,20 @@ func parsedBody(response *k6http.Response) (body map[string]interface{}, malform
 	body, _ = response.JSON().Export().(map[string]interface{})
 	return body, false
 }
+
+// stringField returns a nonempty string property, or nil for missing, empty,
+// or differently typed values, including when body is nil.
 func stringField(body map[string]interface{}, key string) *string {
 	if value, ok := body[key].(string); ok && value != "" {
 		return &value
 	}
 	return nil
 }
+
+// complete resolves a reserved attempt from the native k6 response, capturing
+// HTTP timing, HS-only latency, entity IDs, connector attribution, and errors.
+// A missing response uses elapsed wall time; the returned IDs are available only
+// after the record is accepted by the writer, not necessarily persisted.
 func complete(id uint64, response *k6http.Response, transportError string) (Captured, error) {
 	w, err := current()
 	if err != nil {
@@ -152,6 +163,9 @@ func complete(id uint64, response *k6http.Response, transportError string) (Capt
 
 var latencyMilliseconds = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?$`)
 
+// parseServerLatency accepts a trimmed, nonnegative decimal x-hs-latency
+// value in milliseconds, including zero. Missing, malformed, or overflowing
+// values return nil so unavailable latency is not reported as zero.
 func parseServerLatency(header string) *float64 {
 	text := strings.TrimSpace(header)
 	if !latencyMilliseconds.MatchString(text) {

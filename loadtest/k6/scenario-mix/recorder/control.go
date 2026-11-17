@@ -63,6 +63,9 @@ type loadControl struct {
 	onDone            func()
 }
 
+// newLoadControl validates load metadata and creates weighted admission queues,
+// a bearer-authenticated loopback HTTP endpoint, and the scheduling goroutine.
+// It writes endpoint discovery before serving; the active clock starts on enter.
 func newLoadControl(metadata map[string]interface{}, file, token string, onDone func()) (*loadControl, error) {
 	if token == "" {
 		return nil, errors.New("console control token is required")
@@ -143,6 +146,9 @@ func newLoadControl(metadata map[string]interface{}, file, token string, onDone 
 	go c.loop()
 	return c, nil
 }
+
+// writeFile publishes controller discovery or status through a private temporary
+// file and rename, so readers do not observe partially written JSON.
 func (c *loadControl) writeFile(value interface{}) error {
 	raw, _ := json.Marshal(value)
 	if err := os.WriteFile(c.file+".tmp", raw, 0600); err != nil {
@@ -150,6 +156,10 @@ func (c *loadControl) writeFile(value interface{}) error {
 	}
 	return os.Rename(c.file+".tmp", c.file)
 }
+
+// rate returns the configured rate at the current active time, interpolating
+// linear stages. Callers must hold c.mu when the controller is running; pause
+// and fault gating are handled by callers rather than by this calculation.
 func (c *loadControl) rate() float64 {
 	if len(c.load.Stages) == 0 {
 		return c.load.Rate
@@ -166,7 +176,9 @@ func (c *loadControl) rate() float64 {
 	return start
 }
 
-// Integrate each linear ramp exactly, even when a scheduling tick is delayed.
+// offeredBetween integrates configured traffic over an active-time interval.
+// Each linear ramp contributes its exact area, avoiding endpoint-rate estimates
+// when scheduler ticks are delayed. Callers hold c.mu during live scheduling.
 func (c *loadControl) offeredBetween(from, to float64) float64 {
 	if len(c.load.Stages) == 0 {
 		return c.load.Rate * (to - from)
@@ -187,6 +199,9 @@ func (c *loadControl) offeredBetween(from, to float64) float64 {
 	}
 	return area
 }
+
+// snapshot copies controller state and per-flow admission totals under c.mu.
+// Wall time includes pauses and gates; offered TPS is zero outside running state.
 func (c *loadControl) snapshot() controlSnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -205,6 +220,11 @@ func (c *loadControl) snapshot() controlSnapshot {
 	}
 	return controlSnapshot{State: c.state, FaultGate: c.faultGate, Active: c.active, Wall: wall, InFlight: c.inFlight, Dropped: c.dropped, Offered: rate, Started: total, FlowStarts: starts}
 }
+
+// action applies a validated pause, resume, or fault-cycle transition under
+// c.mu. Fault gates freeze active time while traffic continues; release can
+// set the next recovery boundary, and recover can skip to an explicit boundary
+// without manufacturing catch-up traffic. Invalid transitions return an error.
 func (c *loadControl) action(action string, until ...*float64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -273,6 +293,10 @@ func (c *loadControl) action(action string, until ...*float64) error {
 	}
 	return nil
 }
+
+// enter registers a VU waiting for its named flow's next admission slot.
+// It starts an idle controller and blocks until admitted, cancelled, or stopped;
+// a true result must be paired with leave after the flow finishes.
 func (c *loadControl) enter(ctx context.Context, name string) bool {
 	c.mu.Lock()
 	f := c.flows[name]
@@ -302,6 +326,9 @@ func (c *loadControl) enter(ctx context.Context, name string) bool {
 		return false
 	}
 }
+
+// leave decrements in-flight work under c.mu and completes a pending pause
+// when the last admitted flow has drained.
 func (c *loadControl) leave() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -312,6 +339,11 @@ func (c *loadControl) leave() {
 		c.state = "paused"
 	}
 }
+
+// step advances one scheduling tick, distributing integrated offered traffic
+// using fractional per-flow credit. Slots without a waiting VU are dropped,
+// not backlogged; fault gates keep traffic flowing with active time frozen.
+// It returns true only after duration, fault recovery, and draining are complete.
 func (c *loadControl) step(now time.Time) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -376,6 +408,9 @@ func (c *loadControl) step(now time.Time) bool {
 	}
 	return false
 }
+
+// loop drives admission at millisecond ticks until stopped or fully drained.
+// On completion it publishes final controller state and invokes onDone once.
 func (c *loadControl) loop() {
 	defer close(c.done)
 	ticker := time.NewTicker(time.Millisecond)
@@ -393,6 +428,9 @@ func (c *loadControl) loop() {
 		}
 	}
 }
+
+// close stops scheduling, waits for the loop to exit, closes the control HTTP
+// server, and publishes the final snapshot. It must be called only once.
 func (c *loadControl) close() {
 	close(c.stop)
 	<-c.done

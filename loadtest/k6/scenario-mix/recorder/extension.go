@@ -21,6 +21,8 @@ var active struct {
 	control *loadControl
 }
 
+// init registers the JavaScript module and output extension under the names
+// used by scenarios and the k6 --out flag.
 func init() {
 	modules.Register("k6/x/sqlite-recorder", &module{})
 	output.RegisterExtension("sqlite-recorder", newOutput)
@@ -29,16 +31,27 @@ func init() {
 type module struct{}
 type instance struct{ vu modules.VU }
 
+// NewModuleInstance binds the module to a virtual user so admission waits
+// can observe that VU's cancellation context.
 func (*module) NewModuleInstance(vu modules.VU) modules.Instance { return &instance{vu: vu} }
+
+// Exports exposes recording, admission control, and statistics to scenarios.
+// The attribution version lets scripts detect connector-aware recorder support.
 func (i *instance) Exports() modules.Exports {
 	return modules.Exports{Default: map[string]interface{}{"connectorAttribution": 1, "record": record, "begin": begin, "finish": finish, "complete": complete, "stats": snapshot, "enter": i.enter, "leave": leave}}
 }
+
+// enter waits for admission through the active load controller. It returns
+// false when control is unavailable or the VU is cancelled before admission.
 func (i *instance) enter(name string) bool {
 	active.RLock()
 	c := active.control
 	active.RUnlock()
 	return c != nil && c.enter(i.vu.Context(), name)
 }
+
+// leave releases one admitted flow when a controller exists, allowing pause
+// and completion to finish draining in-flight work.
 func leave() {
 	active.RLock()
 	c := active.control
@@ -47,6 +60,9 @@ func leave() {
 		c.leave()
 	}
 }
+
+// current reads the active writer under the shared lock and rejects recording
+// when k6 has not started the sqlite-recorder output.
 func current() (*Writer, error) {
 	active.RLock()
 	defer active.RUnlock()
@@ -55,6 +71,9 @@ func current() (*Writer, error) {
 	}
 	return active.writer, nil
 }
+
+// record queues an already assembled response projection on the active writer.
+// Writer availability, capacity, and persistence failures propagate to the caller.
 func record(r Record) error {
 	w, err := current()
 	if err != nil {
@@ -62,6 +81,9 @@ func record(r Record) error {
 	}
 	return w.Enqueue(r)
 }
+
+// snapshot returns current recorder counters, or the final retained counters
+// after shutdown. It fails when no run has produced statistics.
 func snapshot() (Stats, error) {
 	active.RLock()
 	defer active.RUnlock()
@@ -85,11 +107,22 @@ type sqliteOutput struct {
 	control      *loadControl
 }
 
+// newOutput constructs the k6 output without opening resources; Start performs
+// environment validation and initializes recording.
 func newOutput(params output.Params) (output.Output, error) {
 	return &sqliteOutput{params: params}, nil
 }
-func (*sqliteOutput) Description() string                       { return "buffered SQLite response recorder" }
+
+// Description supplies the human-readable output name shown by k6.
+func (*sqliteOutput) Description() string { return "buffered SQLite response recorder" }
+
+// SetTestRunStopCallback stores k6's abort callback for recorder failures and
+// load-duration completion; k6 installs it before Start.
 func (o *sqliteOutput) SetTestRunStopCallback(stop func(error)) { o.stop = stop }
+
+// Start opens the run database, publishes the active writer, and optionally
+// starts authenticated load control and periodic progress reporting. Required
+// paths and run metadata come from the output environment; setup errors fail startup.
 func (o *sqliteOutput) Start() error {
 	file := o.params.Environment["SQLITE_RECORDER_DB"]
 	runID := o.params.Environment["SQLITE_RECORDER_RUN_ID"]
@@ -152,12 +185,22 @@ func (o *sqliteOutput) Start() error {
 	}()
 	return nil
 }
+
+// AddMetricSamples forwards k6 samples to live aggregation when a progress
+// file was configured; database request capture uses the JavaScript API instead.
 func (o *sqliteOutput) AddMetricSamples(samples []metrics.SampleContainer) {
 	if o.progress != nil {
 		o.progress.add(samples)
 	}
 }
+
+// Stop finalizes recording when k6 supplies no test error, using the same
+// drain and resource cleanup path as StopWithTestError.
 func (o *sqliteOutput) Stop() error { return o.StopWithTestError(nil) }
+
+// StopWithTestError stops progress polling, drains and closes the writer, then
+// publishes final telemetry and releases load control. A controller-completed run
+// with no in-flight work clears the stop error before completeness is evaluated.
 func (o *sqliteOutput) StopWithTestError(err error) error {
 	if o.writer == nil {
 		return nil
@@ -183,8 +226,9 @@ func (o *sqliteOutput) StopWithTestError(err error) error {
 	return result
 }
 
-// A threshold failure after the test ends affects test success, not data completeness.
-// Early threshold aborts and other interruptions still leave recording incomplete.
+// recordingError excludes thresholds evaluated after a finished test from
+// recording completeness. Early threshold aborts and other interruptions remain
+// errors because they may have truncated the captured workload.
 func recordingError(err error) error {
 	var reason errext.HasAbortReason
 	if errors.As(err, &reason) && reason.AbortReason() == errext.AbortedByThresholdsAfterTestEnd {
@@ -193,6 +237,9 @@ func recordingError(err error) error {
 	return err
 }
 
+// begin reserves an HTTP attempt before execution and classifies baseline and
+// entity operations. started is a Unix-millisecond timestamp temporarily stored
+// in LatencyMS; optional connectors identify the requested connector and MCA.
 func begin(flowID string, merchantID *string, operation, method, url string, customerID, reference, paymentID *string, amount *int64, started int64, connectors ...string) (uint64, error) {
 	w, err := current()
 	if err != nil {
@@ -228,6 +275,9 @@ func begin(flowID string, merchantID *string, operation, method, url string, cus
 	return w.Begin(Record{RequestedConnector: requested, SelectedConnectorAccount: selected, FlowID: flowID, MerchantID: merchantID, Operation: operation, Role: role, Method: method, URL: url,
 		CustomerID: customerID, MerchantReferenceID: reference, PaymentID: paymentID, Amount: amount, ObservedAt: time.Now().UnixMilli(), LatencyMS: float64(started), EntityType: entity})
 }
+
+// finish submits an explicitly assembled result for a reserved attempt.
+// The writer rejects unknown or previously finished attempt IDs.
 func finish(id uint64, r Record) error {
 	w, err := current()
 	if err != nil {
