@@ -37,8 +37,8 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds,
     router_request_types::{RefundsData, ResponseId},
     router_response_types::{
-        fraud_check::FraudCheckResponseData, PaymentsResponseData, PayoutsResponseData,
-        RefundsResponseData,
+        fraud_check::FraudCheckResponseData, AcceptDisputeResponse, DefendDisputeResponse,
+        PaymentsResponseData, PayoutsResponseData, RefundsResponseData, SubmitEvidenceResponse,
     },
 };
 use hyperswitch_interfaces::{consts as interface_consts, helpers as interface_helpers};
@@ -1649,8 +1649,10 @@ pub fn build_merchant_rollout_scope(
     let payment_method_str = payment_method.to_string();
 
     match flow_name {
-        // Refund keys carry no payment method.
-        "Execute" | "RSync" => format!("{merchant_id}_{connector_name}_{flow_name}"),
+        // Refund and dispute keys carry no payment method.
+        "Execute" | "RSync" | "Accept" | "Evidence" | "Defend" => {
+            format!("{merchant_id}_{connector_name}_{flow_name}")
+        }
 
         _ => match payment_method {
             // These payment methods are discriminated further by payment method type.
@@ -1699,75 +1701,52 @@ fn build_rollout_keys_and_context(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
 ) -> (Vec<String>, superposition::ConfigContext) {
-    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+    let scope = build_merchant_rollout_scope(
+        merchant_id,
+        connector_name,
+        flow_name,
+        payment_method,
+        payment_method_type,
+    );
+    let keys = build_rollout_keys_for_scope(org_id, merchant_id, &scope);
 
-    // Build base context (common for all flows)
     let mut context = superposition::ConfigContext::new()
         .with("organization_id", org_id)
         .with("processor_merchant_id", merchant_id)
         .with("connector", connector_name)
         .with("flow_name", flow_name);
 
-    let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
-        // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
-        (
-            format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}"),
-            format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}"),
-        )
-    } else {
-        let payment_method_str = payment_method.to_string();
-        match payment_method {
+    // Refund and dispute scopes have no payment-method dimension.
+    if !matches!(
+        flow_name,
+        "Execute" | "RSync" | "Accept" | "Evidence" | "Defend"
+    ) {
+        context = context.with("payment_method", &payment_method.to_string());
+        if matches!(
+            payment_method,
             common_enums::PaymentMethod::Wallet
-            | common_enums::PaymentMethod::BankRedirect
-            | common_enums::PaymentMethod::Voucher
-            | common_enums::PaymentMethod::PayLater => {
-                let payment_method_type_str = payment_method_type
-                    .map(|pmt| pmt.to_string())
-                    .unwrap_or_else(|| "unknown".to_string());
-
-                // Add payment_method and payment_method_type to context
-                context = context
-                    .with("payment_method", &payment_method_str)
-                    .with("payment_method_type", &payment_method_type_str);
-
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
-                )
-            }
-            common_enums::PaymentMethod::Card
-            | common_enums::PaymentMethod::CardRedirect
-            | common_enums::PaymentMethod::Upi
-            | common_enums::PaymentMethod::Crypto
-            | common_enums::PaymentMethod::Reward
-            | common_enums::PaymentMethod::BankDebit
-            | common_enums::PaymentMethod::RealTimePayment
-            | common_enums::PaymentMethod::BankTransfer
-            | common_enums::PaymentMethod::GiftCard
-            | common_enums::PaymentMethod::MobilePayment
-            | common_enums::PaymentMethod::NetworkToken
-            | common_enums::PaymentMethod::OpenBanking => {
-                // Add payment_method to context
-                context = context.with("payment_method", &payment_method_str);
-
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                )
-            }
+                | common_enums::PaymentMethod::BankRedirect
+                | common_enums::PaymentMethod::Voucher
+                | common_enums::PaymentMethod::PayLater
+        ) {
+            let payment_method_type = payment_method_type
+                .map(|pmt| pmt.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            context = context.with("payment_method_type", &payment_method_type);
         }
-    };
-
-    // Ascending precedence order (lowest first, highest last)
-    let keys = vec![
-        format!("{prefix}_{org_id}"),
-        format!("{prefix}_{org_id}_{merchant_id}"),
-        org_merchant_connector_key,
-        merchant_connector_key,
-    ];
+    }
 
     (keys, context)
+}
+
+fn build_rollout_keys_for_scope(org_id: &str, merchant_id: &str, scope: &str) -> Vec<String> {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+    vec![
+        format!("{prefix}_{org_id}"),
+        format!("{prefix}_{org_id}_{merchant_id}"),
+        format!("{prefix}_{org_id}_{scope}"),
+        format!("{prefix}_{scope}"),
+    ]
 }
 
 /// Build rollout key for payouts — single key, org-level precedence not applied to payouts yet.
@@ -3110,7 +3089,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
 }
 
 /// Gets the UCS client from session state
-fn get_ucs_client(
+pub(crate) fn get_ucs_client(
     state: &SessionState,
 ) -> RouterResult<
     &external_services::grpc_client::unified_connector_service::UnifiedConnectorServiceClient,
@@ -3993,6 +3972,150 @@ pub fn handle_unified_connector_service_response_for_refund_void_post_refund(
     ))
 }
 
+impl ForeignTryFrom<payments_grpc::DisputeStatus> for common_enums::DisputeStatus {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(status: payments_grpc::DisputeStatus) -> Result<Self, Self::Error> {
+        match status {
+            payments_grpc::DisputeStatus::DisputeOpened => Ok(Self::DisputeOpened),
+            payments_grpc::DisputeStatus::DisputeExpired => Ok(Self::DisputeExpired),
+            payments_grpc::DisputeStatus::DisputeAccepted => Ok(Self::DisputeAccepted),
+            payments_grpc::DisputeStatus::DisputeCancelled => Ok(Self::DisputeCancelled),
+            payments_grpc::DisputeStatus::DisputeChallenged => Ok(Self::DisputeChallenged),
+            payments_grpc::DisputeStatus::DisputeWon => Ok(Self::DisputeWon),
+            payments_grpc::DisputeStatus::DisputeLost => Ok(Self::DisputeLost),
+            payments_grpc::DisputeStatus::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("UCS dispute response carried DISPUTE_STATUS_UNSPECIFIED")),
+        }
+    }
+}
+
+/// Builds the router-data error for a UCS dispute response that carries an `ErrorInfo`.
+fn build_dispute_error_response(
+    error_info: &payments_grpc::ErrorInfo,
+    status_code: u16,
+) -> Result<ErrorResponse, error_stack::Report<UnifiedConnectorServiceError>> {
+    let connector_details = error_info.connector_details.as_ref();
+    Ok(ErrorResponse {
+        code: connector_details
+            .and_then(|details| details.code.clone())
+            .ok_or(
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                )
+                .attach_printable("Missing error code in UCS dispute response ErrorInfo"),
+            )?,
+        message: connector_details
+            .and_then(|details| details.message.clone())
+            .ok_or(
+                error_stack::Report::new(
+                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                )
+                .attach_printable("Missing error message in UCS dispute response ErrorInfo"),
+            )?,
+        reason: connector_details.and_then(|details| details.reason.clone()),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id: None,
+        connector_response_reference_id: None,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        connector_metadata: None,
+    })
+}
+
+/// Return type of the shared UCS dispute response handler.
+type UnifiedConnectorServiceDisputeResult = CustomResult<
+    (
+        Result<(common_enums::DisputeStatus, Option<String>), ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
+/// Shared shape of the three dispute responses: (dispute_status, connector_status) or error.
+fn handle_unified_connector_service_dispute_response(
+    error: Option<&payments_grpc::ErrorInfo>,
+    dispute_status: payments_grpc::DisputeStatus,
+    connector_status_code: Option<String>,
+    grpc_status_code: u32,
+) -> UnifiedConnectorServiceDisputeResult {
+    let status_code = transformers::convert_connector_service_status_code(grpc_status_code)?;
+    let response = match error {
+        Some(error_info) => Err(build_dispute_error_response(error_info, status_code)?),
+        None => Ok((
+            common_enums::DisputeStatus::foreign_try_from(dispute_status)?,
+            connector_status_code,
+        )),
+    };
+    Ok((response, status_code))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_accept(
+    response: payments_grpc::DisputeServiceAcceptResponse,
+) -> CustomResult<(Result<AcceptDisputeResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(|(dispute_status, connector_status)| AcceptDisputeResponse {
+            dispute_status,
+            connector_status,
+        }),
+        status_code,
+    ))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_submit_evidence(
+    response: payments_grpc::DisputeServiceSubmitEvidenceResponse,
+) -> CustomResult<(Result<SubmitEvidenceResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(
+            |(dispute_status, connector_status)| SubmitEvidenceResponse {
+                dispute_status,
+                connector_status,
+            },
+        ),
+        status_code,
+    ))
+}
+
+pub fn handle_unified_connector_service_response_for_dispute_defend(
+    response: payments_grpc::DisputeServiceDefendResponse,
+) -> CustomResult<(Result<DefendDisputeResponse, ErrorResponse>, u16), UnifiedConnectorServiceError>
+{
+    let dispute_status = response.dispute_status();
+    let (router_data_response, status_code) = handle_unified_connector_service_dispute_response(
+        response.error.as_ref(),
+        dispute_status,
+        response.connector_status_code,
+        response.status_code,
+    )?;
+    Ok((
+        router_data_response.map(|(dispute_status, connector_status)| DefendDisputeResponse {
+            dispute_status,
+            connector_status,
+        }),
+        status_code,
+    ))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_cancel(
     response: payments_grpc::PaymentServiceVoidResponse,
     prev_status: AttemptStatus,
@@ -4317,6 +4440,29 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
     }
 }
 
+fn redact_dispute_evidence_for_logging(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, field) in fields {
+                if matches!(
+                    key.as_str(),
+                    "file_content" | "fileContent" | "text_content" | "textContent"
+                ) {
+                    *field = serde_json::Value::String("[REDACTED]".to_string());
+                } else {
+                    redact_dispute_evidence_for_logging(field);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                redact_dispute_evidence_for_logging(item);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Emit the connector event for a Hyperswitch -> UCS gRPC call, tagged
 /// `destination = unified_connector_service` (same `connector_events` stream as a direct call).
 #[allow(clippy::too_many_arguments)]
@@ -4414,8 +4560,9 @@ where
     let router_data_clone = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+    redact_dispute_evidence_for_logging(&mut grpc_request_body);
 
     // Update connector call count metrics for UCS operations
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
@@ -4651,8 +4798,9 @@ where
     let payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
+    let mut grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
         .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+    redact_dispute_evidence_for_logging(&mut grpc_request_body);
 
     // Update connector call count metrics for UCS operations
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(

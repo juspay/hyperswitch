@@ -311,13 +311,51 @@ pub struct RecoveryRequestAttempts {
     pub recorded: Option<revenue_recovery::RecoveryPaymentAttempt>,
     /// How many attempts were recorded on the invoice before the transaction's.
     pub earlier: usize,
-    /// The processor token of the card of the last attempt recorded before the transaction's.
-    pub previous_card: Option<String>,
-    /// How many attempts the invoice has.
-    pub total: usize,
+    /// The card of the last merchant-initiated attempt recorded before the transaction's: the card
+    /// the invoice's last decision, and its error code, were for.
+    pub previous_retry_card: Option<String>,
+    /// How many of the invoice's attempts count as retries.
+    pub counted_as_retries: usize,
 }
 #[derive(Debug)]
 pub struct RevenueRecoveryAttempt(revenue_recovery::RevenueRecoveryAttemptData);
+
+/// Whether the merchant initiated an attempt, by what it was recorded with.
+#[cfg(feature = "v2")]
+fn is_merchant_initiated_attempt(attempt: &api_payments::PaymentAttemptResponse) -> bool {
+    attempt
+        .feature_metadata
+        .as_ref()
+        .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+        .is_none_or(|recovery_data| {
+            revenue_recovery::is_merchant_initiated(
+                recovery_data.customer_present,
+                recovery_data.setup_future_usage,
+            )
+        })
+}
+
+/// How many of an invoice's attempts count as retries, replayed in the order they were made: every
+/// merchant-initiated one, and a customer-initiated one on the invoice's card at the time. The first
+/// attempt's card is the invoice's until a merchant-initiated attempt brings its own.
+#[cfg(feature = "v2")]
+fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
+    let mut attempts: Vec<&api_payments::PaymentAttemptResponse> = attempts.iter().collect();
+    attempts.sort_by_key(|attempt| attempt.created_at);
+    let mut invoice_card: Option<&String> = None;
+    let mut retries = 0;
+    for attempt in attempts {
+        let card = attempt.payment_token.as_ref();
+        let is_merchant_initiated = is_merchant_initiated_attempt(attempt);
+        if is_merchant_initiated || invoice_card.is_none() || card == invoice_card {
+            retries += 1;
+        }
+        if card.is_some() && (is_merchant_initiated || invoice_card.is_none()) {
+            invoice_card = card;
+        }
+    }
+    retries
+}
 
 impl RevenueRecoveryInvoice {
     pub async fn get_or_create_custom_recovery_intent(
@@ -341,6 +379,23 @@ impl RevenueRecoveryInvoice {
             })
             .await
     }
+
+    /// The invoice of a transaction the merchant reported, when Hyperswitch already has it.
+    pub async fn find_custom_recovery_intent(
+        data: api_models::payments::RecoveryPaymentsCreate,
+        state: &SessionState,
+        req_state: &ReqState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+    ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
+    {
+        Self(revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(
+            data,
+        ))
+        .get_payment_intent(state, req_state, platform, profile)
+        .await
+    }
+
     /// Fills in partial authorization from the billing connector account when the invoice
     /// itself does not carry a value.
     fn with_default_partial_authorization(mut self, default: bool) -> Self {
@@ -556,10 +611,12 @@ impl RevenueRecoveryAttempt {
                 recorded_at.is_none_or(|recorded_at| attempt.created_at < recorded_at)
             })
             .collect();
-        let previous_card = earlier
+        let previous_retry_card = earlier
             .iter()
+            .filter(|attempt| is_merchant_initiated_attempt(attempt))
             .max_by_key(|attempt| attempt.created_at)
             .and_then(|attempt| attempt.payment_token.clone());
+        let counted_as_retries = count_retries(&attempts.payment_attempt_list);
         let recorded = match listed {
             Some(attempt) => Some(recovery_attempt.to_recovery_attempt(state, attempt).await),
             None => None,
@@ -567,8 +624,8 @@ impl RevenueRecoveryAttempt {
         Ok(RecoveryRequestAttempts {
             recorded,
             earlier: earlier.len(),
-            previous_card,
-            total: attempts.payment_attempt_list.len(),
+            previous_retry_card,
+            counted_as_retries,
         })
     }
 
@@ -923,7 +980,23 @@ impl RevenueRecoveryAttempt {
             }
         }?;
 
-        if recovery_attempt.attempt_status.is_terminal_status() {
+        // The invoice's last error code is for its card, so a transaction the merchant reported on
+        // another card is not counted against it.
+        let invoice_card = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .map(|recovery_metadata| {
+                &recovery_metadata
+                    .billing_connector_payment_details
+                    .payment_processor_token
+            });
+        let is_on_invoice_card = !matches!(
+            connector_details,
+            common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+        ) || invoice_card
+            .is_none_or(|card| self.0.processor_payment_method_token.as_ref() == Some(card));
+        if recovery_attempt.attempt_status.is_terminal_status() && is_on_invoice_card {
             retry_stats::RetryOutcomeEvent::from_retry_outcome(
                 recovery_attempt.created_at,
                 payment_intent
@@ -1046,7 +1119,10 @@ impl RevenueRecoveryAttempt {
                 .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: Some(payment_method_data),
+            payment_method_data: revenue_recovery_attempt_data
+                .processor_payment_method_token
+                .is_some()
+                .then_some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,
@@ -1186,6 +1262,12 @@ impl RevenueRecoveryAttempt {
         payment_connector: common_enums::connector_enums::Connector,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
+        let Some(payment_processor_token) = revenue_recovery_attempt_data
+            .processor_payment_method_token
+            .clone()
+        else {
+            return Ok(());
+        };
 
         let error_code = revenue_recovery_attempt_data.error_code.clone();
         let error_message = revenue_recovery_attempt_data.error_message.clone();
@@ -1232,9 +1314,7 @@ impl RevenueRecoveryAttempt {
             is_hard_decline: Some(is_hard_decline),
             modified_at: Some(recovery_attempt.created_at),
             payment_processor_token_details: PaymentProcessorTokenDetails {
-                payment_processor_token: revenue_recovery_attempt_data
-                    .processor_payment_method_token
-                    .clone(),
+                payment_processor_token,
                 expiry_month: revenue_recovery_attempt_data
                     .card_info
                     .card_exp_month

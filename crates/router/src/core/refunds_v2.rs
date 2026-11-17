@@ -201,7 +201,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -327,7 +327,7 @@ pub async fn internal_trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -906,7 +906,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1006,7 +1006,7 @@ pub async fn internal_sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 

@@ -3,6 +3,8 @@ use hyperswitch_domain_models::mandates;
 mod tests;
 mod transformers;
 pub mod utils;
+#[cfg(feature = "v1")]
+pub(super) mod wallet_issuer;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]

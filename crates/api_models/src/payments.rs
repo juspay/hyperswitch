@@ -2415,11 +2415,38 @@ pub struct RecoveryPaymentsResponse {
         example = "invoice_mbabizu24mvu3mela5njyh"
     )]
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
+}
 
-    /// When to trigger the next retry of the invoice. Sent when the `revenue_recovery_trigger_model` of the profile is `external_triggers` and the transaction was made off session with the customer absent. Any other transaction is only recorded.
-    #[schema(value_type = Option<RecoveryNextRetry>)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
+/// A transaction reported on a profile whose `revenue_recovery_trigger_model` is
+/// `external_triggers`, accepted to be recorded right after the answer.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryRequestAccepted {
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "invoice_mbabizu24mvu3mela5njyh"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Unique identifier of the transaction at the payment connector.
+    #[schema(example = "993672945374576J")]
+    pub connector_transaction_id: String,
+}
+
+/// The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of
+/// the profile.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(untagged)]
+pub enum RecoveryPaymentsCreateResponse {
+    /// On `internal_triggers`, the transaction is recorded before the answer.
+    Recorded(RecoveryPaymentsResponse),
+    /// On `external_triggers`, the transaction is recorded after the answer.
+    Accepted(RecoveryRequestAccepted),
 }
 
 /// The next retry of an invoice whose retries the merchant triggers, sent by webhook after each
@@ -14633,8 +14660,8 @@ pub struct PaymentsAttemptRecordRequest {
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
     /// payment method token at payment processor end.
-    #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: String,
+    #[schema(value_type = Option<String>, example = "1234567890")]
+    pub processor_payment_method_token: Option<String>,
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
@@ -14699,6 +14726,14 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
+    /// The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "billing_account_main")]
+    pub merchant_reference_billing_connector_id: Option<String>,
+
+    /// The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "payment_account_us")]
+    pub merchant_reference_payment_connector_id: Option<String>,
+
     /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
     #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
     pub connector: Option<common_payments_types::RecoveryConnector>,
@@ -14755,8 +14790,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// Payment method token and card details at the payment processor's end.
-    pub payment_method_data: CustomRecoveryPaymentMethodData,
+    /// Payment method token and card details at the payment processor's end. Required unless the
+    /// customer is present and the payment is on session.
+    pub payment_method_data: Option<CustomRecoveryPaymentMethodData>,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
