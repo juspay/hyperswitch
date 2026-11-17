@@ -78,58 +78,44 @@ struct RetryLimitChecks {
     is_below_retry_threshold: bool,
 }
 
-/// Why the limits of the profile allow no retry of an invoice, before any retry time is worked out.
+/// Why the profile limits allow no retry.
 enum RetryLimitStop {
-    /// No retry follows, for this reason.
     NoRetry(RecoveryNoRetryReason),
-    /// The grace window of the invoice cannot be worked out, so no retry can be decided.
     GraceWindowUnresolved,
 }
 
-/// The time the retry algorithm of the profile gives the next retry, with the state to keep for
-/// the one after.
 struct RetryTimeChoice {
     retry_time: PrimitiveDateTime,
     next_ladder_progress: Option<StaticLadderProgress>,
     assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
-/// What a step of a recovery request found: either the recovery request carries on with it, or it
-/// ends with an outcome.
+/// Whether a recovery request carries on or ends with an outcome.
 enum RecoveryRequestStep<T> {
     Continue(T),
     Stop(RecoveryRequestOutcome),
 }
 
-/// What a recovery request does about the attempt of its transaction.
+/// What to do with the transaction's attempt.
 enum RecordedAttemptCheck {
-    /// The recovery request ends here, with this outcome.
     Stop(RecoveryRequestOutcome),
-    /// An earlier run of this recovery request recorded the transaction and decided its next retry,
-    /// so the merchant is told that decision.
     ResendSavedDecision(RecoveryNextRetry),
-    /// The transaction is not recorded yet, and the invoice takes it.
     Record,
-    /// An earlier run of this recovery request recorded the transaction, but decided nothing.
     Recorded(Box<RecoveryPaymentAttempt>),
 }
 
-/// Why a stored recovery request cannot be applied, which no later run can change.
+/// Why a stored recovery request cannot be applied.
 enum RecoveryRequestRejection {
-    /// Its tracking data or its body cannot be read.
     Unreadable,
-    /// The profile has no revenue recovery config.
     NoRetryConfig,
 }
 
-/// Where the webhook of a decision goes.
 struct WebhookTarget {
     event_type: common_enums::EventType,
     webhook_recipient: webhooks::utils::WebhookRecipientContext,
     idempotent_event_id: String,
 }
 
-/// What a recovery request is applied with.
 #[derive(Clone, Copy)]
 struct RecoveryRequestContext<'a> {
     state: &'a SessionState,
@@ -277,8 +263,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
 }
 
 /// Decides the next retry of an invoice: first whatever the limits of the profile rule out, then
-/// its time under the retry algorithm of the profile, then whatever the card allows. An invoice
-/// whose grace window cannot be worked out gets no decision.
+/// its time under the retry algorithm of the profile, then whatever the card allows.
 async fn decide_next_retry(
     state: &SessionState,
     platform: &Platform,
@@ -334,8 +319,6 @@ async fn decide_next_retry(
     }
 }
 
-/// The next retry of an invoice the limits of the profile allow one for: its time under the retry
-/// algorithm of the profile, then whatever the card allows.
 async fn schedule_next_retry(
     state: &SessionState,
     platform: &Platform,
@@ -387,8 +370,6 @@ async fn schedule_next_retry(
     }
 }
 
-/// The time the retry algorithm of the profile gives the next retry of an invoice, or why it gives
-/// none.
 async fn get_retry_time(
     state: &SessionState,
     platform: &Platform,
@@ -486,7 +467,6 @@ async fn get_card_availability(
     }
 }
 
-/// Whether the invoice's recovery has ended: it is paid or cancelled, so no retry follows.
 fn is_recovery_invoice_ended(invoice_status: common_enums::IntentStatus) -> bool {
     matches!(
         invoice_status,
@@ -497,8 +477,7 @@ fn is_recovery_invoice_ended(invoice_status: common_enums::IntentStatus) -> bool
 }
 
 /// Keeps what the merchant's next recovery request needs on the invoice, through the update-intent
-/// operation. A paid or cancelled invoice has ended, so it has no next retry to keep. An invoice
-/// without its recovery metadata is an error.
+/// operation. A paid or cancelled invoice has ended, so it has no next retry to keep.
 async fn save_trigger_state(
     state: &SessionState,
     platform: &Platform,
@@ -608,9 +587,6 @@ fn get_last_failure_code(
     }
 }
 
-/// What the limits of the profile say about a retry of this transaction, before any retry time is
-/// worked out: the end of the grace window of the invoice when they allow one, or why they allow
-/// none.
 fn check_retry_limits(
     invoice_status: common_enums::IntentStatus,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
@@ -711,9 +687,7 @@ enum RecoveryRequestOutcome {
     /// The transaction has no card and Hyperswitch has no invoice for it yet, so nothing is
     /// recorded: a new invoice needs the card to retry.
     CardMissing,
-    /// The invoice does not show every attempt recorded on it, so nothing is decided.
     InvoiceOutOfSync,
-    /// The grace window of the invoice cannot be worked out, so nothing is decided.
     GraceWindowUnresolved,
 }
 
@@ -1026,7 +1000,6 @@ pub(crate) async fn process_recovery_request(
     }
 }
 
-/// The encrypted body of a stored recovery request, if this release can read its tracking data.
 fn decode_stored_recovery_request(
     tracking_data: &pcr::RecoveryRequestTrackingData,
 ) -> Result<Vec<u8>, RecoveryRequestRejection> {
@@ -1046,7 +1019,6 @@ fn decode_stored_recovery_request(
     }
 }
 
-/// Reads the decoded recovery request with its merchant's key and applies it.
 async fn process_decoded_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
@@ -1081,8 +1053,6 @@ async fn process_decoded_recovery_request(
     }
 }
 
-/// The recovery request in the decrypted body, with the revenue recovery config of the profile it
-/// is applied with.
 fn prepare_recovery_request(
     body: &str,
     profile: &domain::Profile,
@@ -1120,7 +1090,6 @@ fn prepare_recovery_request(
     }
 }
 
-/// Ends a recovery request that cannot be applied.
 async fn finish_rejected_recovery_request(
     state: &SessionState,
     process: &storage::ProcessTracker,
@@ -1136,8 +1105,6 @@ async fn finish_rejected_recovery_request(
     }
 }
 
-/// Applies the recovery request under its invoice's lock, or waits for the lock while another
-/// recovery request of the invoice holds it.
 async fn apply_recovery_request_under_lock(
     context: RecoveryRequestContext<'_>,
     process: &storage::ProcessTracker,
@@ -1242,8 +1209,6 @@ async fn apply_recovery_request(
     }
 }
 
-/// Records the reported transaction on its invoice unless it is recorded already, then decides the
-/// next retry and tells the merchant.
 async fn apply_recovery_request_to_invoice(
     context: RecoveryRequestContext<'_>,
     invoice: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
@@ -1352,10 +1317,6 @@ async fn apply_recovery_request_to_invoice(
     }
 }
 
-/// What the recovery request does about the attempt of its transaction: one recorded by another
-/// recovery request is a duplicate, one this recovery request recorded and decided on gets that
-/// decision again, and an invoice that does not show every attempt recorded on it, or is closed to
-/// new attempts, takes no decision.
 fn check_recorded_attempt(
     recorded: Option<RecoveryPaymentAttempt>,
     invoice_status: common_enums::IntentStatus,
@@ -1399,8 +1360,6 @@ fn check_recorded_attempt(
     }
 }
 
-/// Once the transaction is recorded: a charged card starts over, and a merchant-initiated
-/// transaction no newer one was decided on decides the next retry of the invoice.
 async fn decide_after_recording(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
@@ -1427,9 +1386,6 @@ async fn decide_after_recording(
     }
 }
 
-/// Whether the recorded transaction decides the next retry of the invoice: one made with the
-/// customer is not a retry, and one older than the transaction the invoice was last decided on is
-/// stale.
 fn check_retry_eligibility(
     request: &RecoveryPaymentsCreate,
     previous_trigger_state: Option<&ExternalTriggerState>,
@@ -1458,7 +1414,6 @@ fn check_retry_eligibility(
     }
 }
 
-/// Decides the next retry of the invoice, keeps it on the invoice and tells the merchant.
 async fn decide_save_and_send(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
@@ -1478,8 +1433,6 @@ async fn decide_save_and_send(
     let payment_intent = read_invoice(state, platform, profile, payment_id)
         .await
         .map_err(|error| recovery_request_step_failed("invoice", error))?;
-    // Retries so far, not counting the invoice's first attempt. The transaction is recorded by now,
-    // so the invoice has its recovery metadata.
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -1594,8 +1547,6 @@ async fn send_next_retry(
     }
 }
 
-/// Where the webhook of a decision goes, or how the recovery request ends without sending it: the
-/// decision needs no webhook, the profile takes none, or an earlier run already queued it.
 async fn check_webhook_delivery(
     context: RecoveryRequestContext<'_>,
     outcome: RecoveryRequestOutcome,

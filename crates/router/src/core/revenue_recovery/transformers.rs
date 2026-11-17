@@ -116,8 +116,6 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .error
                 .as_ref()
                 .and_then(|error| error.network_error_message.clone()),
-            // The first transaction of an invoice is its attempt, not a retry, so the invoice's count
-            // starts at 0. Later transactions add to the count kept on the invoice.
             retry_count: Some(0),
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: Some(data.billing_started_at),

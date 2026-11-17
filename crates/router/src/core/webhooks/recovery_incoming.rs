@@ -337,8 +337,7 @@ fn is_merchant_initiated_attempt(attempt: &api_payments::PaymentAttemptResponse)
 
 /// How many of an invoice's attempts count as retries, replayed in the order they were made: every
 /// merchant-initiated one, and a customer-initiated one on the invoice's card at the time. The first
-/// attempt is the invoice's attempt, not a retry, so it is not counted. The first attempt's card is
-/// the invoice's until a merchant-initiated attempt brings its own.
+/// attempt's card is the invoice's until a merchant-initiated attempt brings its own.
 #[cfg(feature = "v2")]
 fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
     let mut attempts: Vec<&api_payments::PaymentAttemptResponse> = attempts.iter().collect();
@@ -355,7 +354,6 @@ fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
             invoice_card = card;
         }
     }
-    // The first attempt always counts above, as the invoice has no card before it.
     retries.saturating_sub(1)
 }
 
