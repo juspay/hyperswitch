@@ -89,11 +89,14 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             )),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),
-            processor_payment_method_token: data
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek()
-                .to_string(),
+            processor_payment_method_token: data.payment_method_data.as_ref().map(
+                |payment_method_data| {
+                    payment_method_data
+                        .primary_processor_payment_method_token
+                        .peek()
+                        .to_string()
+                },
+            ),
             connector_customer_id: data.connector_customer_id.peek().to_string(),
             // Only the billing connector webhooks look up an account through this reference.
             connector_account_reference_id: String::new(),
@@ -117,7 +120,11 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: Some(data.billing_started_at),
-            card_info: data.payment_method_data.payment_method_metadata.clone(),
+            card_info: data
+                .payment_method_data
+                .as_ref()
+                .map(|payment_method_data| payment_method_data.payment_method_metadata.clone())
+                .unwrap_or_default(),
             charge_id: None,
         }
     }

@@ -135,7 +135,8 @@ impl<F: Send + Clone + Sync>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,
@@ -265,15 +266,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
                 .payment_intent
                 .is_settlement_conclusion_applied()
         {
-            let db = state.store.as_ref();
-
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
                 .get_required_value("business_profile.tax_connector_id")?;
 
             #[cfg(feature = "v1")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
@@ -287,7 +287,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
                 )?;
 
             #[cfg(feature = "v2")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(

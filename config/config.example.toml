@@ -368,7 +368,7 @@ cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 celero.base_url = "https://sandbox.gotnpgateway.com"
 chargebee.base_url = "https://$.chargebee.com/api/"
 checkbook.base_url = "https://api.sandbox.checkbook.io"
-checkout.base_url = "https://api.sandbox.checkout.com/"
+checkout.base_url = "https://{{optional_client_id}}api.sandbox.checkout.com/"
 citigate.base_url = "https://gw-test.cgate.tech"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 coingate.base_url = "https://api-sandbox.coingate.com"
@@ -772,7 +772,7 @@ bank_debit.bacs = { connector_list = "adyen" }                                  
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.google_pay = { connector_list = "stripe,bankofamerica,authorizedotnet,cybersource,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub" }
 bank_redirect.giropay = { connector_list = "globalpay" }
@@ -1537,6 +1537,7 @@ global_tenant = { tenant_id = "global", schema = "public", redis_key_prefix = ""
 
 [multitenancy.tenants.public]
 base_url = "http://localhost:8080"               # URL of the tenant
+mtls_base_url = "http://localhost:8080"
 schema = "public"                                # Postgres db schema
 accounts_schema = "public"
 redis_key_prefix = ""                            # Redis key distinguisher

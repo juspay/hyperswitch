@@ -9,6 +9,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait GenericLinkInterface {
     async fn find_generic_link_by_link_id(

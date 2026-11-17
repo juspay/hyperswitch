@@ -4,6 +4,7 @@ use common_types::payments::{RecoveryConnectorAccounts, RecoveryConnectorDetails
 use common_utils::id_type;
 use error_stack::{report, FutureExt, ResultExt};
 use hyperswitch_domain_models::{payments as payments_domain, platform::Platform};
+use hyperswitch_masking::Secret;
 
 use super::{external_triggers, trigger_model::RecoveryTrigger};
 use crate::{
@@ -108,6 +109,7 @@ pub async fn call_proxy_api(
     let recurring_details = api_models::mandates::ProcessorPaymentToken {
         processor_payment_token: payment_processor_token.to_string(),
         merchant_connector_id: Some(connector_accounts.payment_connector_id.clone()),
+        processor_payment_token_details: None,
     };
     let req = payments_api::ProxyPaymentsRequest {
         return_url: None,
@@ -229,6 +231,7 @@ pub async fn record_internal_attempt_api(
             common_enums::TriggeredBy::Internal,
             None,
             None,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
@@ -309,11 +312,13 @@ pub async fn custom_revenue_recovery_core(
     platform: Platform,
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
-) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
+    request_body: Secret<String>,
+) -> RouterResponse<payments_api::RecoveryPaymentsCreateResponse> {
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
+    validate_payment_method_data(&request)?;
 
-    let (updated_recovery_intent, next_retry) = match RecoveryTrigger::from_profile_settings(
+    let response = match RecoveryTrigger::from_profile_settings(
         profile.revenue_recovery_trigger_model,
         profile.revenue_recovery_config.as_ref(),
         &request,
@@ -332,27 +337,31 @@ pub async fn custom_revenue_recovery_core(
                 &payment_merchant_connector_id,
             ))
             .await?;
-            (updated_recovery_intent, None)
+            payments_api::RecoveryPaymentsCreateResponse::Recorded(
+                payments_api::RecoveryPaymentsResponse {
+                    id: updated_recovery_intent.payment_id,
+                    intent_status: updated_recovery_intent.status,
+                    merchant_reference_id: updated_recovery_intent.merchant_reference_id,
+                },
+            )
         }
-        RecoveryTrigger::External {
-            connector,
-            retry_config,
-        } => {
-            Box::pin(external_triggers::record_transaction_and_get_next_retry(
-                &state,
-                &req_state,
-                &platform,
-                &profile,
-                &request,
-                connector,
-                retry_config,
-            ))
-            .await?
+        RecoveryTrigger::External { connector } => {
+            payments_api::RecoveryPaymentsCreateResponse::Accepted(
+                Box::pin(external_triggers::accept_recovery_request(
+                    &state,
+                    &platform,
+                    &profile,
+                    &request,
+                    &request_body,
+                    connector,
+                ))
+                .await?,
+            )
         }
     };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        get_recovery_payments_response(&updated_recovery_intent, next_retry),
+        response,
     ))
 }
 
@@ -368,7 +377,7 @@ async fn find_connector_account_of_profile(
     };
 
     let connector_account = state
-        .store
+        .accounts_store
         .find_merchant_connector_account_by_id(
             merchant_connector_id,
             platform.get_processor().get_key_store(),
@@ -467,19 +476,8 @@ async fn record_transaction_and_schedule_retries(
     Ok(updated_recovery_intent)
 }
 
-fn get_recovery_payments_response(
-    recovery_intent: &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent,
-    next_retry: Option<common_types::payments::RecoveryNextRetry>,
-) -> payments_api::RecoveryPaymentsResponse {
-    payments_api::RecoveryPaymentsResponse {
-        id: recovery_intent.payment_id.to_owned(),
-        intent_status: recovery_intent.status.to_owned(),
-        merchant_reference_id: recovery_intent.merchant_reference_id.to_owned(),
-        next_retry,
-    }
-}
-
-/// Finds or creates the invoice of the transaction.
+/// Finds or creates the invoice of the transaction, refusing a transaction without its card that
+/// would start one.
 pub(super) async fn get_or_create_invoice(
     state: &SessionState,
     req_state: &ReqState,
@@ -487,6 +485,32 @@ pub(super) async fn get_or_create_invoice(
     profile: &domain::Profile,
     request: &api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResult<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent> {
+    find_or_create_invoice(state, req_state, platform, profile, request)
+        .await?
+        .ok_or_else(|| report!(card_needed_for_a_new_invoice()))
+}
+
+/// Finds or creates the invoice of the transaction. A transaction without its card cannot start
+/// an invoice, so there is none for it when Hyperswitch does not have the invoice yet.
+pub(super) async fn find_or_create_invoice(
+    state: &SessionState,
+    req_state: &ReqState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<Option<hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent>> {
+    if request.payment_method_data.is_none() {
+        return recovery_incoming::RevenueRecoveryInvoice::find_custom_recovery_intent(
+            request.clone(),
+            state,
+            req_state,
+            platform,
+            profile,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read the invoice of the recovery request");
+    }
     recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
         request.clone(),
         state,
@@ -495,6 +519,7 @@ pub(super) async fn get_or_create_invoice(
         profile,
     )
     .await
+    .map(Some)
     .change_context(errors::ApiErrorResponse::GenericNotFoundError {
         message: format!(
             "Failed to load recovery intent for merchant reference id : {:?}",
@@ -505,7 +530,7 @@ pub(super) async fn get_or_create_invoice(
 }
 
 /// Records the transaction against the invoice.
-pub(super) async fn record_transaction(
+async fn record_transaction(
     state: &SessionState,
     req_state: &ReqState,
     platform: &Platform,
@@ -587,14 +612,39 @@ pub async fn cancel_revenue_recovery_core(
         })
     })?;
 
+    let response = api_payments::RecoveryPaymentsResponse {
+        id: cancelled_intent.id,
+        intent_status: cancelled_intent.status,
+        merchant_reference_id: cancelled_intent.merchant_reference_id,
+    };
+
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
-        get_recovery_payments_response(
-            &hyperswitch_domain_models::revenue_recovery::RecoveryPaymentIntent::from(
-                &cancelled_intent,
-            ),
-            cancelled_intent.get_external_trigger_next_retry(),
-        ),
+        response,
     ))
+}
+
+/// The card can be left out only when the customer is present and pays on session, as the merchant
+/// may then have none to send.
+fn validate_payment_method_data(
+    request: &api_models::payments::RecoveryPaymentsCreate,
+) -> RouterResult<()> {
+    let is_customer_present_on_session = request.customer_present
+        == Some(common_enums::PresenceOfCustomerDuringPayment::Present)
+        && request.setup_future_usage == Some(common_enums::FutureUsage::OnSession);
+    if request.payment_method_data.is_none() && !is_customer_present_on_session {
+        return Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "payment_method_data".into(),
+        }));
+    }
+    Ok(())
+}
+
+/// A transaction reported without its card cannot start an invoice, which keeps the card to retry.
+pub(super) fn card_needed_for_a_new_invoice() -> errors::ApiErrorResponse {
+    errors::ApiErrorResponse::InvalidRequestData {
+        message: "payment_method_data is required for the first transaction of an invoice"
+            .to_string(),
+    }
 }
 
 fn validate_customer_information(

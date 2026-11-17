@@ -4684,7 +4684,8 @@ pub async fn build_merchant_enabled_pms_context(
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
 
-    let all_mcas = db
+    let all_mcas = state
+        .accounts_store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
             &profile_id,
@@ -5516,7 +5517,8 @@ pub async fn list_payment_methods(
     let (_profile_id, business_profile) =
         match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
             Some(profile_id) => {
-                let business_profile = db
+                let business_profile = state
+                    .accounts_store
                     .find_business_profile_by_profile_id(
                         platform.get_processor().get_key_store(),
                         &profile_id,
@@ -6599,7 +6601,7 @@ pub async fn list_customer_payment_method(
         .transpose()?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+        state.accounts_store.as_ref(),
         platform.get_processor(),
         profile_id.as_ref(),
     )
@@ -6613,12 +6615,10 @@ pub async fn list_customer_payment_method(
     // The MCA list is used to evaluate if the payment method has connector_mandate_details for any active MCA
     let merchant_connector_accounts = match business_profile.as_ref() {
         Some(business_profile) => Some(
-            state
-                .store
-                .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    platform.get_processor().get_account().get_id(),
-                    business_profile.get_id(),
-                )
+            state.accounts_store.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                        platform.get_processor().get_account().get_id(),
+                        business_profile.get_id(),
+                    )
                 .await
                 .change_context(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 
 use common_enums::EntityType;
 use common_utils::{ext_traits::AsyncExt, id_type, types::user::ThemeLineage};
@@ -78,6 +78,24 @@ pub fn get_theme_file_key(theme_id: &str) -> PathBuf {
     get_specific_file_key(theme_id, "theme.json")
 }
 
+/// Checks that the asset name is a single plain file name, other than `theme.json`
+pub fn validate_asset_name(asset_name: &str) -> UserResult<()> {
+    let mut components = Path::new(asset_name).components();
+
+    let is_single_normal_component = matches!(
+        (components.next(), components.next()),
+        (Some(Component::Normal(_)), None)
+    );
+    // `Path::components` ignores a trailing `/` and treats `\` as a regular character on Unix
+    let has_separator = asset_name.contains(['/', '\\']);
+
+    if is_single_normal_component && !has_separator && asset_name != "theme.json" {
+        Ok(())
+    } else {
+        Err(UserErrors::InvalidThemeAssetName.into())
+    }
+}
+
 fn path_buf_to_str(path: &PathBuf) -> UserResult<&str> {
     path.to_str()
         .ok_or(UserErrors::InternalServerError)
@@ -152,7 +170,8 @@ fn validate_tenant(state: &SessionState, tenant_id: &id_type::TenantId) -> UserR
 
 async fn validate_org(state: &SessionState, org_id: &id_type::OrganizationId) -> UserResult<()> {
     state
-        .track_accounts_query(|db| db.find_organization_by_org_id(org_id))
+        .accounts_store
+        .find_organization_by_org_id(org_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("org_id".to_string()))
         .map(|_| ())
@@ -163,17 +182,15 @@ async fn validate_merchant_and_get_key_store(
     org_id: &id_type::OrganizationId,
     merchant_id: &id_type::MerchantId,
 ) -> UserResult<MerchantKeyStore> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("merchant_id".to_string()))?;
@@ -202,7 +219,7 @@ async fn validate_profile(
     key_store: &MerchantKeyStore,
 ) -> UserResult<()> {
     state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
         .await
         .to_not_found_response(UserErrors::InvalidThemeLineage("profile_id".to_string()))
