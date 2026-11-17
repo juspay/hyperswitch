@@ -6,13 +6,7 @@ import getConnectorDetails, {
 
 let globalState;
 
-const blocklistContext = () => ({
-  processor_merchant_id: globalState.get("merchantId"),
-  provider_merchant_id: globalState.get("merchantId"),
-  profile_id: globalState.get("profileId"),
-});
-
-describe("Card - Payment fingerprint without the blocklist guard", () => {
+describe("Card - Payment fingerprint generation", () => {
   before("seed global state", function () {
     let skip = false;
 
@@ -26,25 +20,6 @@ describe("Card - Payment fingerprint without the blocklist guard", () => {
 
         if (confirmData?.Response?.body?.status !== "succeeded") {
           skip = true;
-          return;
-        }
-
-        if (
-          globalState.get("superpositionBaseUrl") &&
-          globalState.get("superpositionSecret") &&
-          globalState.get("superpositionAuthToken")
-        ) {
-          cy.setSuperpositionConfig(
-            globalState,
-            "payments.payment_blocklist_guard",
-            false,
-            blocklistContext()
-          );
-        } else {
-          cy.task(
-            "cli_log",
-            "Superposition credentials not set — relying on the default blocklist guard (off)"
-          );
         }
       })
       .then(() => {
@@ -58,7 +33,7 @@ describe("Card - Payment fingerprint without the blocklist guard", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Card payment is fingerprinted with the blocklist guard off", () => {
+  context("Card payment gets a fingerprint", () => {
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       let shouldContinue = true;
 
