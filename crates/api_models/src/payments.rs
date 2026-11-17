@@ -2392,6 +2392,7 @@ pub struct PaymentAttemptRecordResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[schema(title = "Fully Managed Recovery")]
 pub struct RecoveryPaymentsResponse {
     /// Unique identifier of the invoice in Hyperswitch against which the transaction has been recorded.
     #[schema(
@@ -2421,6 +2422,7 @@ pub struct RecoveryPaymentsResponse {
 /// `external_triggers`), accepted to be recorded right after the answer.
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[schema(title = "Schedule Only Recovery")]
 pub struct RecoveryRequestAccepted {
     /// Unique identifier of the invoice in the merchant's billing system against which the
     /// transaction is being recorded.

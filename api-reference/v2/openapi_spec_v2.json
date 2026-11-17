@@ -32440,6 +32440,7 @@
       },
       "RecoveryPaymentsResponse": {
         "type": "object",
+        "title": "Fully Managed Recovery",
         "required": [
           "id",
           "intent_status"
@@ -32472,6 +32473,7 @@
       },
       "RecoveryRequestAccepted": {
         "type": "object",
+        "title": "Schedule Only Recovery",
         "description": "A transaction reported under Schedule Only Recovery (`revenue_recovery_trigger_model` is\n`external_triggers`), accepted to be recorded right after the answer.",
         "required": [
           "merchant_reference_id",
