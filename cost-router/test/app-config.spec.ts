@@ -5,7 +5,8 @@ import { ConfigError } from '../src/engine';
 import { loadAppConfig, parseAppConfig } from '../src/app.config';
 import { rawConfig } from './helpers';
 
-const SECRET = 'sk_live_SUPER_SECRET_VALUE';
+// Obviously fake placeholder; the tests only check it never appears in error messages.
+const SECRET = 'placeholder-not-a-real-key-0000';
 const file = (over: Record<string, unknown> = {}) => ({
   port: 3100,
   hyperswitch: { base_url: 'http://file-host:8080' },
