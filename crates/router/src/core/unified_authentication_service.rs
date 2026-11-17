@@ -1159,7 +1159,11 @@ pub async fn authentication_eligibility_core(
                 };
 
                 if let Some(isin) = card_isin {
-                    if let Ok(Some(card_info)) = db.get_card_info(&isin).await {
+                    if let Ok(Some(card_info)) = db
+                        .get_card_info(&isin)
+                        .await
+                        .map(|resolved| resolved.into_record())
+                    {
                         card_network = card_info.card_network;
                     }
                 }

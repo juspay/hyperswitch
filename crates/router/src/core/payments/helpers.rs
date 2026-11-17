@@ -2425,9 +2425,6 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     .attach_printable("Unable to encrypt customer details")?,
                 );
 
-                if payment_data.payment_intent.customer_id.as_ref() != Some(customer.get_id()) {
-                    payment_data.additional_card_data = None;
-                }
                 payment_data.payment_intent.customer_id = Some(customer.get_id().clone());
 
                 Some(customer)
@@ -5936,36 +5933,13 @@ pub fn is_manual_retry_allowed(
         .map(|payment_status_check| payment_status_check && is_merchant_id_enabled_for_retries)
 }
 
-/// Reuse derived card details only if they were calculated for the selected payment method.
-#[cfg(feature = "v1")]
-pub(super) fn matching_additional_card_data(
-    original: Option<&domain::PaymentMethodData>,
-    selected: Option<&domain::PaymentMethodData>,
-    additional: Option<&api_models::payments::AdditionalPaymentData>,
-) -> Option<api_models::payments::AdditionalPaymentData> {
-    if matches!(original, Some(domain::PaymentMethodData::Card(_))) && original == selected {
-        additional
-            // An empty lookup result may also represent a transient database error.
-            // Let the later stage retry instead of treating that fallback as resolved.
-            .filter(|data| match data {
-                api_models::payments::AdditionalPaymentData::Card(card) => {
-                    card.card_issuer.is_some()
-                        || card.card_type.is_some()
-                        || card.card_issuing_country.is_some()
-                        || card.bank_code.is_some()
-                }
-                _ => false,
-            })
-            .cloned()
-    } else {
-        None
-    }
-}
+pub use hyperswitch_domain_models::cards_info::ResolvedCardInfo;
 
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
+    card_info: &ResolvedCardInfo,
     superposition_service: &external_services::superposition::SuperpositionClient,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
@@ -6061,45 +6035,35 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_isin
-                    .clone()
-                    .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
-                    })
-                    .await
-                    .flatten()
-                    .map(|card_info| {
-                        api_models::payments::AdditionalPaymentData::Card(Box::new(
-                            api_models::payments::AdditionalCardInfo {
-                                card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
-                                bank_code: card_info.bank_code,
-                                card_type: card_info.card_type,
-                                card_subtype: card_info.card_subtype,
-                                card_segment_type: card_info
-                                    .card_segment_type
-                                    .and_then(|segment_type| segment_type.parse().ok()),
-                                funding_source: card_info.funding_source,
-                                card_issuing_country: card_info.card_issuing_country,
-                                card_issuing_country_code: card_info.country_code,
-                                last4: last4.clone(),
-                                card_isin: card_isin.clone(),
-                                card_extended_bin: card_extended_bin.clone(),
-                                card_exp_month: Some(card_data.card_exp_month.clone()),
-                                card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.card_holder_name.clone(),
-                                // These are filled after calling the processor / connector
-                                payment_checks: None,
-                                authentication_data: None,
-                                auth_code: None,
-                                is_regulated,
-                                signature_network: signature_network.clone(),
-                            },
-                        ))
-                    });
+                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_network.clone().or(card_info.card_network),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_subtype: card_info.card_subtype,
+                            card_segment_type: card_info
+                                .card_segment_type
+                                .and_then(|segment_type| segment_type.parse().ok()),
+                            funding_source: card_info.funding_source,
+                            card_issuing_country: card_info.card_issuing_country,
+                            card_issuing_country_code: card_info.country_code,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.card_exp_month.clone()),
+                            card_exp_year: Some(card_data.card_exp_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            auth_code: None,
+                            is_regulated,
+                            signature_network: signature_network.clone(),
+                        },
+                    ))
+                });
                 Ok(Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
@@ -6210,45 +6174,35 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_isin
-                    .clone()
-                    .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
-                    })
-                    .await
-                    .flatten()
-                    .map(|card_info| {
-                        api_models::payments::AdditionalPaymentData::Card(Box::new(
-                            api_models::payments::AdditionalCardInfo {
-                                card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
-                                bank_code: card_info.bank_code,
-                                card_type: card_info.card_type,
-                                card_subtype: card_info.card_subtype,
-                                card_segment_type: card_info
-                                    .card_segment_type
-                                    .and_then(|segment_type| segment_type.parse().ok()),
-                                funding_source: card_info.funding_source,
-                                card_issuing_country: card_info.card_issuing_country,
-                                card_issuing_country_code: card_info.country_code,
-                                last4: last4.clone(),
-                                card_isin: card_isin.clone(),
-                                card_extended_bin: card_extended_bin.clone(),
-                                card_exp_month: Some(card_data.card_exp_month.clone()),
-                                card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.card_holder_name.clone(),
-                                // These are filled after calling the processor / connector
-                                payment_checks: None,
-                                authentication_data: None,
-                                auth_code: None,
-                                is_regulated,
-                                signature_network: signature_network.clone(),
-                            },
-                        ))
-                    });
+                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_network.clone().or(card_info.card_network),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_subtype: card_info.card_subtype,
+                            card_segment_type: card_info
+                                .card_segment_type
+                                .and_then(|segment_type| segment_type.parse().ok()),
+                            funding_source: card_info.funding_source,
+                            card_issuing_country: card_info.card_issuing_country,
+                            card_issuing_country_code: card_info.country_code,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.card_exp_month.clone()),
+                            card_exp_year: Some(card_data.card_exp_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            auth_code: None,
+                            is_regulated,
+                            signature_network: signature_network.clone(),
+                        },
+                    ))
+                });
                 Ok(Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
@@ -6284,6 +6238,7 @@ pub async fn get_additional_payment_data(
                     card_with_network_token_details.card_details.clone(),
                 ),
                 db,
+                card_info,
                 superposition_service,
                 dimensions,
                 customer_id,
@@ -6648,45 +6603,35 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_isin
-                    .clone()
-                    .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
-                    })
-                    .await
-                    .flatten()
-                    .map(|card_info| {
-                        api_models::payments::AdditionalPaymentData::Card(Box::new(
-                            api_models::payments::AdditionalCardInfo {
-                                card_issuer: card_info.card_issuer,
-                                card_network: card_network.clone().or(card_info.card_network),
-                                bank_code: card_info.bank_code,
-                                card_type: card_info.card_type,
-                                card_subtype: card_info.card_subtype,
-                                card_segment_type: card_info
-                                    .card_segment_type
-                                    .and_then(|segment_type| segment_type.parse().ok()),
-                                funding_source: card_info.funding_source,
-                                card_issuing_country: card_info.card_issuing_country,
-                                card_issuing_country_code: card_info.country_code,
-                                last4: last4.clone(),
-                                card_isin: card_isin.clone(),
-                                card_extended_bin: card_extended_bin.clone(),
-                                card_exp_month: Some(card_data.card_exp_month.clone()),
-                                card_exp_year: Some(card_data.card_exp_year.clone()),
-                                card_holder_name: card_data.card_holder_name.clone(),
-                                // These are filled after calling the processor / connector
-                                payment_checks: None,
-                                authentication_data: None,
-                                is_regulated: None,
-                                signature_network: None,
-                                auth_code: None,
-                            },
-                        ))
-                    });
+                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_network.clone().or(card_info.card_network),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_subtype: card_info.card_subtype,
+                            card_segment_type: card_info
+                                .card_segment_type
+                                .and_then(|segment_type| segment_type.parse().ok()),
+                            funding_source: card_info.funding_source,
+                            card_issuing_country: card_info.card_issuing_country,
+                            card_issuing_country_code: card_info.country_code,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: Some(card_data.card_exp_month.clone()),
+                            card_exp_year: Some(card_data.card_exp_year.clone()),
+                            card_holder_name: card_data.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
+                            auth_code: None,
+                        },
+                    ))
+                });
                 Ok(Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
@@ -6766,50 +6711,38 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_isin
-                    .clone()
-                    .async_and_then(|card_isin| async move {
-                        db.get_card_info(&card_isin)
-                            .await
-                            .map_err(|error| services::logger::warn!(card_info_error=?error))
-                            .ok()
-                    })
-                    .await
-                    .flatten()
-                    .map(|card_info| {
-                        api_models::payments::AdditionalPaymentData::Card(Box::new(
-                            api_models::payments::AdditionalCardInfo {
-                                card_issuer: card_info.card_issuer,
-                                card_network: card_with_limited_details
-                                    .card_network
-                                    .clone()
-                                    .or(card_info.card_network),
-                                bank_code: card_info.bank_code,
-                                card_type: card_info.card_type,
-                                card_subtype: card_info.card_subtype,
-                                card_segment_type: card_info
-                                    .card_segment_type
-                                    .and_then(|segment_type| segment_type.parse().ok()),
-                                funding_source: card_info.funding_source,
-                                card_issuing_country: card_info.card_issuing_country,
-                                card_issuing_country_code: card_info.country_code,
-                                last4: last4.clone(),
-                                card_isin: card_isin.clone(),
-                                card_extended_bin: card_extended_bin.clone(),
-                                card_exp_month: card_with_limited_details.card_exp_month.clone(),
-                                card_exp_year: card_with_limited_details.card_exp_year.clone(),
-                                card_holder_name: card_with_limited_details
-                                    .card_holder_name
-                                    .clone(),
-                                // These are filled after calling the processor / connector
-                                payment_checks: None,
-                                authentication_data: None,
-                                is_regulated: None,
-                                signature_network: None,
-                                auth_code: None,
-                            },
-                        ))
-                    });
+                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                    api_models::payments::AdditionalPaymentData::Card(Box::new(
+                        api_models::payments::AdditionalCardInfo {
+                            card_issuer: card_info.card_issuer,
+                            card_network: card_with_limited_details
+                                .card_network
+                                .clone()
+                                .or(card_info.card_network),
+                            bank_code: card_info.bank_code,
+                            card_type: card_info.card_type,
+                            card_subtype: card_info.card_subtype,
+                            card_segment_type: card_info
+                                .card_segment_type
+                                .and_then(|segment_type| segment_type.parse().ok()),
+                            funding_source: card_info.funding_source,
+                            card_issuing_country: card_info.card_issuing_country,
+                            card_issuing_country_code: card_info.country_code,
+                            last4: last4.clone(),
+                            card_isin: card_isin.clone(),
+                            card_extended_bin: card_extended_bin.clone(),
+                            card_exp_month: card_with_limited_details.card_exp_month.clone(),
+                            card_exp_year: card_with_limited_details.card_exp_year.clone(),
+                            card_holder_name: card_with_limited_details.card_holder_name.clone(),
+                            // These are filled after calling the processor / connector
+                            payment_checks: None,
+                            authentication_data: None,
+                            is_regulated: None,
+                            signature_network: None,
+                            auth_code: None,
+                        },
+                    ))
+                });
                 Ok(Some(card_info.unwrap_or_else(|| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {

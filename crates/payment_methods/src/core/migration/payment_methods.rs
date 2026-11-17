@@ -320,6 +320,7 @@ pub async fn populate_bin_details_for_masked_card(
         let card_info = db
             .get_card_info(&card_isin)
             .await
+            .map(|resolved| resolved.into_record())
             .map_err(|error| logger::error!(card_info_error=?error))
             .ok()
             .flatten();

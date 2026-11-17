@@ -43,6 +43,7 @@ pub async fn retrieve_card_info(
     let card_info = db
         .get_card_info(&request.card_iin)
         .await
+        .map(|resolved| resolved.into_record())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to retrieve card information")?
         .ok_or(report!(errors::ApiErrorResponse::InvalidCardIin))?;
@@ -214,6 +215,7 @@ impl<'a> CardInfoMigrateExecutor<'a> {
         let maybe_card_info = db
             .get_card_info(&self.record.card_iin)
             .await
+            .map(|resolved| resolved.into_record())
             .change_context(errors::ApiErrorResponse::InvalidCardIin)?;
         Ok(maybe_card_info)
     }

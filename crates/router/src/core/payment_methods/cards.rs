@@ -2687,7 +2687,7 @@ pub async fn add_payment_method_data(
 
                         let card_info = db
                             .get_card_info(card_isin.as_str())
-                            .await
+                            .await.map(|resolved| resolved.into_record())
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to get card info")?;
 

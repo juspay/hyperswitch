@@ -4177,6 +4177,7 @@ impl PaymentMethodExt for domain::PaymentMethodVaultingData {
                     .store
                     .get_card_info(&card_isin)
                     .await
+                    .map(|resolved| resolved.into_record())
                     .map_err(|error| services::logger::error!(card_info_error=?error))
                     .ok()
                     .flatten();
@@ -4286,6 +4287,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                         .store
                         .get_card_info(card_isin)
                         .await
+                        .map(|resolved| resolved.into_record())
                         .map_err(|error| services::logger::error!(card_info_error=?error))
                         .ok()
                         .flatten()

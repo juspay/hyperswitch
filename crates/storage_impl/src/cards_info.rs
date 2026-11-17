@@ -1,6 +1,6 @@
 pub use diesel_models::{CardInfo, UpdateCardInfo};
 use error_stack::report;
-use hyperswitch_domain_models::cards_info::CardsInfoInterface;
+use hyperswitch_domain_models::cards_info::{CardsInfoInterface, ResolvedCardInfo};
 use router_env::instrument;
 
 use crate::{
@@ -17,11 +17,13 @@ impl KvStorePartition for CardInfo {}
 impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
-    async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
+    async fn get_card_info(&self, card_iin: &str) -> CustomResult<ResolvedCardInfo, StorageError> {
         let conn = pg_connection_read(self).await?;
-        CardInfo::find_by_iin(&conn, card_iin)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        ResolvedCardInfo::from_lookup_result(
+            CardInfo::find_by_iin(&conn, card_iin)
+                .await
+                .map_err(|error| report!(StorageError::from(error))),
+        )
     }
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
@@ -47,11 +49,13 @@ impl<T: DatabaseStore> CardsInfoInterface for RouterStore<T> {
 impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
     type Error = StorageError;
     #[instrument(skip_all)]
-    async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
+    async fn get_card_info(&self, card_iin: &str) -> CustomResult<ResolvedCardInfo, StorageError> {
         let conn = pg_connection_read(self).await?;
-        CardInfo::find_by_iin(&conn, card_iin)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        ResolvedCardInfo::from_lookup_result(
+            CardInfo::find_by_iin(&conn, card_iin)
+                .await
+                .map_err(|error| report!(StorageError::from(error))),
+        )
     }
     #[instrument(skip_all)]
     async fn add_card_info(&self, data: CardInfo) -> CustomResult<CardInfo, StorageError> {
@@ -77,14 +81,14 @@ impl<T: DatabaseStore> CardsInfoInterface for KVRouterStore<T> {
 impl CardsInfoInterface for MockDb {
     type Error = StorageError;
     #[instrument(skip_all)]
-    async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        Ok(self
+    async fn get_card_info(&self, card_iin: &str) -> CustomResult<ResolvedCardInfo, StorageError> {
+        ResolvedCardInfo::from_lookup_result(Ok(self
             .cards_info
             .lock()
             .await
             .iter()
             .find(|ci| ci.card_iin == card_iin)
-            .cloned())
+            .cloned()))
     }
 
     async fn add_card_info(&self, _data: CardInfo) -> CustomResult<CardInfo, StorageError> {

@@ -553,8 +553,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
+        let payment_method_data = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into));
+        let card_info = helpers::ResolvedCardInfo::for_payment_method(
+            &*state.store,
+            payment_method_data.as_ref(),
+        )
+        .await;
         let payment_data = PaymentData {
-            additional_card_data: None,
+            card_info,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -575,10 +584,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
-            payment_method_data: request
-                .payment_method_data
-                .as_ref()
-                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
@@ -1166,6 +1172,7 @@ impl PaymentUpdate {
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
+                    &payment_data.card_info,
                     state.superposition_service.as_ref(),
                     &dimensions.with_profile_id(profile_id.clone()),
                     customer_id,

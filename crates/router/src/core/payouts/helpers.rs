@@ -647,6 +647,7 @@ pub async fn save_payout_data_to_locker(
                 .async_and_then(|card_isin| async move {
                     db.get_card_info(&card_isin)
                         .await
+                        .map(|resolved| resolved.into_record())
                         .map_err(|error| services::logger::warn!(card_info_error=?error))
                         .ok()
                 })
@@ -1732,6 +1733,7 @@ pub async fn get_additional_payout_data(
                 .async_and_then(|card_isin| async move {
                     db.get_card_info(&card_isin)
                         .await
+                        .map(|resolved| resolved.into_record())
                         .map_err(|error| services::logger::warn!(card_info_error=?error))
                         .ok()
                 })

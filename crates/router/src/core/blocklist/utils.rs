@@ -793,6 +793,7 @@ pub async fn check_profile_blocking_config(
             .store
             .get_card_info(&card_isin)
             .await
+            .map(|resolved| resolved.into_record())
             .map_err(|error| logger::warn!(card_info_error=?error))
             .ok()
             .flatten();

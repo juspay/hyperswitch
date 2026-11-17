@@ -39,6 +39,7 @@ pub async fn populate_bin_details_for_payment_method_create(
             .async_and_then(|card_isin| async move {
                 db.get_card_info(&card_isin)
                     .await
+                    .map(|resolved| resolved.into_record())
                     .map_err(|error| logger::error!(card_info_error=?error))
                     .ok()
             })
