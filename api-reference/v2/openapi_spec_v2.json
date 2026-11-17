@@ -5063,7 +5063,7 @@
                 },
                 "examples": {
                   "Fully Managed Recovery": {
-                    "summary": "Recorded under Fully Managed Recovery",
+                    "summary": "Fully Managed Recovery",
                     "value": {
                       "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
                       "intent_status": "failed",
@@ -5071,7 +5071,7 @@
                     }
                   },
                   "Schedule Only Recovery": {
-                    "summary": "Accepted under Schedule Only Recovery",
+                    "summary": "Schedule Only Recovery",
                     "value": {
                       "connector_transaction_id": "993672945374576J",
                       "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
