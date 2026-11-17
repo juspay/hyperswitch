@@ -10070,7 +10070,7 @@ additional_secret="Webhook Signer ID"
   placeholder = "Enter Allowed Auth Methods"
   required = true
   type = "MultiSelect"
-  options = ["CRYPTOGRAM_3DS"]
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 [[elavon_pg.connector_wallets_details.google_pay]]
   name = "merchant_name"
   label = "Google Pay Merchant Name"
@@ -10113,7 +10113,7 @@ additional_secret="Webhook Signer ID"
   placeholder = "Enter Allowed Auth Methods"
   required = true
   type = "MultiSelect"
-  options = ["CRYPTOGRAM_3DS"]
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [mifinity_payout]
 [[mifinity_payout.wallet]]
