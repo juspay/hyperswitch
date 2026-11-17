@@ -1027,7 +1027,6 @@ pub struct UserSettings {
     pub email_token_expiry_in_secs: u64,
     pub password_max_attempts: u16,
     pub password_lock_duration_in_secs: i64,
-    /// Rejects self-serve sign ups. Production always rejects them regardless of this flag.
     #[serde(default)]
     pub signup_disabled: bool,
 }
