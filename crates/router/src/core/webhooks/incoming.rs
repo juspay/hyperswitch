@@ -580,7 +580,7 @@ async fn process_webhook_business_logic(
     let profile_id = &merchant_connector_account.profile_id;
 
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -3554,20 +3554,22 @@ async fn fetch_optional_mca_and_connector(
     ),
     errors::ApiErrorResponse,
 > {
-    let db = &state.store;
     if connector_name_or_mca_id.starts_with("mca_") {
         #[cfg(feature = "v1")]
-        let mca = db
+        let merchant_connector_id = common_utils::id_type::MerchantConnectorAccountId::wrap(
+            connector_name_or_mca_id.to_owned(),
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Error while converting MerchanConnectorAccountId from string
+                    ",
+        )?;
+        #[cfg(feature = "v1")]
+        let mca = state
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 platform.get_processor().get_account().get_id(),
-                &common_utils::id_type::MerchantConnectorAccountId::wrap(
-                    connector_name_or_mca_id.to_owned(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error while converting MerchanConnectorAccountId from string
-                    ",
-                )?,
+                &merchant_connector_id,
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -3582,7 +3584,6 @@ async fn fetch_optional_mca_and_connector(
         let mca: domain::MerchantConnectorAccount = {
             let _ = merchant_account;
             let _ = key_store;
-            let _ = db;
             todo!()
         };
 

@@ -58,8 +58,9 @@ use router_env::tracing;
 use time::Duration;
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
-    self as payments_grpc, client_authentication_token_data,
-    recipient_account::AccountType as RecipientAccountType,
+    self as payments_grpc,
+    additional_payment_data::PaymentMethodData as AdditionalPaymentMethodData,
+    client_authentication_token_data, recipient_account::AccountType as RecipientAccountType,
     recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
     EventServiceHandleRequest, EventServiceParseRequest,
 };
@@ -1335,10 +1336,6 @@ impl
         )?;
 
         Ok(Self {
-            risk_assessment_data: None,
-            split_settlement: None,
-            split_payments: None,
-            domain_data: None,
             mit_category: None,
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
@@ -1494,6 +1491,10 @@ impl
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
+            domain_data: None,
+            risk_assessment_data: None,
+            split_payments: None,
+            split_settlement: None,
         })
     }
 }
@@ -1726,6 +1727,11 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
     for payments_grpc::ConnectorMandateReferenceId
 {
     fn foreign_from(value: &mandates::ConnectorMandateReferenceId) -> Self {
+        let (network_transaction_id, transaction_link_id) = value
+            .get_additional_mandate_details()
+            .map(|details| (details.network_transaction_id, details.transaction_link_id))
+            .unwrap_or_default();
+
         Self {
             connector_mandate_id: value.get_connector_mandate_id(),
             payment_method_id: value.get_payment_method_id(),
@@ -1734,8 +1740,8 @@ impl ForeignFrom<&mandates::ConnectorMandateReferenceId>
             mandate_metadata: value.get_mandate_metadata().map(|mandate_metadata| {
                 Secret::new(serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default())
             }),
-            network_transaction_id: None,
-            transaction_link_id: None,
+            network_transaction_id,
+            transaction_link_id,
         }
     }
 }
@@ -1760,10 +1766,16 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
         let connector_mandate_request_reference_id = structured
             .and_then(|r| r.get_connector_mandate_request_reference_id())
             .or_else(|| router_data.connector_mandate_request_reference_id.clone());
+        let (network_transaction_id, transaction_link_id) = structured
+            .and_then(|r| r.get_additional_mandate_details())
+            .map(|details| (details.network_transaction_id, details.transaction_link_id))
+            .unwrap_or_default();
 
         if connector_mandate_id.is_none()
             && payment_method_id.is_none()
             && connector_mandate_request_reference_id.is_none()
+            && network_transaction_id.is_none()
+            && transaction_link_id.is_none()
         {
             return None;
         }
@@ -1771,6 +1783,8 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
             connector_mandate_id,
             payment_method_id,
             connector_mandate_request_reference_id,
+            network_transaction_id,
+            transaction_link_id,
             mandate_metadata: structured
                 .and_then(|connector_mandate_reference_id| {
                     connector_mandate_reference_id.get_mandate_metadata()
@@ -1780,8 +1794,6 @@ impl ForeignFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
                         serde_json::to_string(&mandate_metadata.expose()).unwrap_or_default(),
                     )
                 }),
-            network_transaction_id: None,
-            transaction_link_id: None,
         })
     }
 }
@@ -3839,6 +3851,40 @@ impl
     }
 }
 
+// Processor-token expiry is carried internally in additional_mandate_details.
+// Map it to UCS's existing AdditionalCardInfo fields to avoid duplicating expiry details. Explicit token expiry overrides stored card expiry.
+fn merge_processor_token_expiry(
+    additional_payment_data: &mut Option<payments_grpc::AdditionalPaymentData>,
+    details: api_models::mandates::ProcessorPaymentTokenDetails,
+) -> Result<(), error_stack::Report<UnifiedConnectorServiceError>> {
+    if details.card_exp_month.is_some() || details.card_exp_year.is_some() {
+        let payment_data = additional_payment_data.get_or_insert_with(Default::default);
+        match payment_data
+            .payment_method_data
+            .get_or_insert_with(|| AdditionalPaymentMethodData::Card(Default::default()))
+        {
+            AdditionalPaymentMethodData::Card(card) => {
+                if let Some(month) = details.card_exp_month {
+                    card.card_exp_month = Some(month);
+                }
+                if let Some(year) = details.card_exp_year {
+                    card.card_exp_year = Some(year);
+                }
+                Ok(())
+            }
+            AdditionalPaymentMethodData::Wallet(_) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                "Processor token card expiry cannot be combined with wallet additional payment data"
+                    .to_string(),
+                )
+                .into(),
+            ),
+        }
+    } else {
+        Ok(())
+    }
+}
+
 impl
     transformers::ForeignTryFrom<
         &RouterData<Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
@@ -3884,23 +3930,9 @@ impl
                     Some(payments_grpc::MandateReference {
                         mandate_id_type: Some(
                             payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                                payments_grpc::ConnectorMandateReferenceId {
-                                    connector_mandate_id: connector_mandate_id
-                                        .get_connector_mandate_id(),
-                                    payment_method_id: connector_mandate_id.get_payment_method_id(),
-                                    connector_mandate_request_reference_id: connector_mandate_id
-                                        .get_connector_mandate_request_reference_id(),
-                                    mandate_metadata: connector_mandate_id
-                                        .get_mandate_metadata()
-                                        .map(|mandate_metadata| {
-                                            Secret::new(
-                                                serde_json::to_string(&mandate_metadata.expose())
-                                                    .unwrap_or_default(),
-                                            )
-                                        }),
-                                    network_transaction_id: None,
-                                    transaction_link_id: None,
-                                },
+                                payments_grpc::ConnectorMandateReferenceId::foreign_from(
+                                    connector_mandate_id,
+                                ),
                             ),
                         ),
                     })
@@ -3989,13 +4021,24 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
-        let additional_payment_data = router_data
+        let mut additional_payment_data = router_data
             .request
             .additional_payment_method_data
             .clone()
             .map(|additional_payment_data| {
                 payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
             });
+
+        if let Some(mandates::MandateReferenceId::ConnectorMandateId(reference)) = router_data
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|mandate| mandate.mandate_reference_id.as_ref())
+        {
+            if let Some(details) = reference.get_additional_mandate_details() {
+                merge_processor_token_expiry(&mut additional_payment_data, details)?;
+            }
+        }
 
         let auth_type = payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)
             .attach_printable("Failed to convert authentication type")?;

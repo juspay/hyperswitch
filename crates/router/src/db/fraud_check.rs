@@ -9,6 +9,7 @@ use crate::{
     services::Store,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait FraudCheckInterface {
     async fn insert_fraud_check_response(

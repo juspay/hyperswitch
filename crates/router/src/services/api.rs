@@ -397,14 +397,16 @@ where
 
     state.event_handler().log_event(&api_event);
 
-    if let Some(read_ledger) = session_state.get_read_ledger() {
-        let duplicate_reads = read_ledger.duplicate_reads();
-        if !duplicate_reads.is_empty() {
-            logger::debug!(
-                flow = %read_ledger.flow(),
-                ?duplicate_reads,
-                "Duplicate database reads in session"
-            );
+    if tracing::enabled!(tracing::Level::DEBUG) {
+        if let Some(read_ledger) = session_state.get_read_ledger() {
+            let duplicate_reads = read_ledger.duplicate_reads();
+            if !duplicate_reads.is_empty() {
+                logger::debug!(
+                    flow = %read_ledger.flow(),
+                    ?duplicate_reads,
+                    "Duplicate database reads in session"
+                );
+            }
         }
     }
 

@@ -152,7 +152,7 @@ async fn get_surcharge_webhook_event(
     merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<Option<types::WebhookPayload>, errors::ApiErrorResponse> {
     let merchant_surcharge_connector = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_provider().get_account().get_id(),
             &merchant_surcharge_connector_id,
@@ -672,7 +672,7 @@ async fn trigger_webhook_to_connector(
     };
 
     let mca_result = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &provider_merchant_id,
             merchant_connector_id,
@@ -797,7 +797,7 @@ async fn update_payment_attempt_from_webhook_response(
 ) {
     if event.event_type == enums::EventType::SurchargePaymentSucceeded {
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
             .await;
 
