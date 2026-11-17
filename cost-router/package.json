@@ -9,7 +9,8 @@
     "test": "jest",
     "stack:up": "bash scripts/up.sh",
     "stack:down": "bash scripts/down.sh",
-    "demo": "bash scripts/demo.sh"
+    "demo": "bash scripts/demo.sh",
+    "loadtest": "node scripts/loadtest.mjs"
   },
   "jest": {
     "preset": "ts-jest",

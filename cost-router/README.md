@@ -121,6 +121,11 @@ enums, never payment ids.
 
 Node process metrics (`cost_router_process_*`, `cost_router_nodejs_*`) are included when started with `npm start`.
 
+## Load test
+`npm run build && npm run loadtest` sends `POST /payments` at an open-loop 100 requests/second for 60 s (`LOADTEST_RPS`, `LOADTEST_SECONDS`)
+with Hyperswitch replaced by an in-process stub, so it measures cost-router's own path (decision, forward, attempt read-back, stats, trace).
+Last run: 6000 requests, 0 errors, p99 10.3 ms (target < 200 ms). Results are written to `docs/LOADTEST.md`.
+
 ## State file (optional JSON "database")
 Set `state_file` (the example uses `data/state.json`, git-ignored) or `COST_ROUTER_STATE_FILE` to keep statistics, attempt
 de-duplication and stored decisions in **one** human-readable JSON file, so they survive a restart together (saving only the counters
@@ -155,7 +160,7 @@ Example (A: fee 5000, 96%; B: fee 2000, 85%): B wins when `L_eff` is below about
 - `src/hyperswitch/`: `HyperswitchClient` and the single place the `routing` body is built.
 - `src/payments/`: `POST /payments`, `GET /payments/:id/routing-trace`, `DecisionStore` (bounded, in memory), request fingerprint, execution record.
 - `test/`: engine, config, stats, de-duplication, decision store and adapter tests (the adapter tests run against a local fake Hyperswitch).
-- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `hyperswitch-probe.sh`, `verify-priority-order.md`. `docker/`: compose override and trimmed config for the prebuilt image.
+- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh`, `verify-priority-order.md`. `docker/`: compose override and trimmed config for the prebuilt image.
 
 ## Limits
 Stats, decisions and idempotency records are per process: in memory, or in one JSON state file when `state_file` is set (then they survive a
