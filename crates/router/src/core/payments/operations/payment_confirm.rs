@@ -721,7 +721,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         // Parallel calls - level 2
-        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
+        let ((mandate_details, _), additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),
@@ -737,7 +737,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             recurring_mandate_payment_data,
             mandate_connector,
             payment_method_info,
-            fetched_mandate: _,
         } = mandate_details;
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());

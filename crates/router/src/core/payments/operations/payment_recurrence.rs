@@ -272,7 +272,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("mandate_details")),
         );
 
-        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
+        let ((mandate_details, _), additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),

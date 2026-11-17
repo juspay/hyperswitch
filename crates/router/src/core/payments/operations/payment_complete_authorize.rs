@@ -153,16 +153,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .change_context(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
-        let m_helpers::MandateGenericData {
-            token,
-            payment_method,
-            payment_method_type,
-            mandate_data,
-            recurring_mandate_payment_data,
-            mandate_connector,
-            payment_method_info,
-            fetched_mandate: _,
-        } = Box::pin(helpers::get_token_pm_type_mandate_details(
+        let (
+            m_helpers::MandateGenericData {
+                token,
+                payment_method,
+                payment_method_type,
+                mandate_data,
+                recurring_mandate_payment_data,
+                mandate_connector,
+                payment_method_info,
+            },
+            _,
+        ) = Box::pin(helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type.to_owned(),
