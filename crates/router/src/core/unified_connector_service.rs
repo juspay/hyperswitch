@@ -1858,25 +1858,67 @@ pub async fn should_call_unified_connector_service_for_webhooks(
 
     let flow_name = "Webhooks";
 
-    // Check UCS availability using idiomatic helper
-    let ucs_availability = check_ucs_availability(state).await;
-
-    let rollout_key = format!(
-        "{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-        merchant_id,
-        connector_name,
-        flow_name
-    );
-
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout::<
-        WebhookRolloutConfig,
-        WebhookRolloutExecutionResult,
-    >(state, &rollout_key)
-    .await?;
+    let config_source = get_ucs_config_source(state);
+    let (ucs_availability, rollout_result) = match config_source {
+        UcsConfigSource::Database => {
+            let ucs_availability = check_ucs_availability(state).await;
+            let rollout_key = format!(
+                "{}_{}_{}_{}",
+                consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+                merchant_id,
+                connector_name,
+                flow_name
+            );
+            let rollout_result = should_execute_based_on_rollout::<
+                WebhookRolloutConfig,
+                WebhookRolloutExecutionResult,
+            >(state, &rollout_key)
+            .await?;
+            (ucs_availability, rollout_result)
+        }
+        UcsConfigSource::Superposition => {
+            let ucs_availability = check_ucs_availability_from_superposition(state).await;
+            let context = superposition::ConfigContext::new()
+                .with(
+                    "organization_id",
+                    processor.get_account().get_org_id().get_string_repr(),
+                )
+                .with("processor_merchant_id", merchant_id)
+                .with("connector", connector_name)
+                .with("flow_name", flow_name);
+            let rollout_result = match state
+                .superposition_service
+                .get_config_value::<serde_json::Value>(
+                    consts::superposition::UCS_ROLLOUT_CONFIG,
+                    Some(&context),
+                    None,
+                )
+                .await
+            {
+                Ok(value) => value
+                    .parse_value::<WebhookRolloutConfig>("WebhookRolloutConfig")
+                    .map(WebhookRolloutExecutionResult::from)
+                    .unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Failed to parse Superposition webhook rollout config; defaulting to not execute"
+                        );
+                        WebhookRolloutExecutionResult::default()
+                    }),
+                Err(error) => {
+                    logger::warn!(
+                        ?error,
+                        "Failed to fetch Superposition webhook rollout config; defaulting to not execute"
+                    );
+                    WebhookRolloutExecutionResult::default()
+                }
+            };
+            (ucs_availability, rollout_result)
+        }
+    };
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -1892,6 +1934,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     };
 
     router_env::logger::info!(
+        ?config_source,
         "Webhook gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
         gateway_system,
         execution_path,
