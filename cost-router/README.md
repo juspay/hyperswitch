@@ -22,16 +22,21 @@ client ──POST /payments──▶ cost-router ──POST /payments {routing: 
 - Internet access for the first image pull (the stack images are several GB) and free ports `8080` (Hyperswitch), `5432`, `6379`; the demo uses `3110`.
 
 ## Quick start
+Any OS, including Windows PowerShell or cmd (on Windows, Git for Windows must be installed; Git Bash is found automatically):
 ```bash
-git clone <this fork> && cd hyperswitch
-bash cost-router/scripts/up.sh          # Hyperswitch stack (prebuilt images, dummy connectors); superposition seeding takes ~3 min
-cd cost-router
-npm install && npm run build
-npm test                                # unit and adapter tests, no Docker needed
-bash scripts/demo.sh                    # end-to-end demo, prints a PASS/FAIL line per check (also: npm run demo, make demo)
-bash scripts/down.sh                    # stop the stack
+git clone --branch feature/cost-aware-routing https://github.com/nileshvishwakarma51/hyperswitch.git
+cd hyperswitch/cost-router
+npm install
+npm run up          # Hyperswitch stack (prebuilt images, dummy connectors); superposition seeding takes ~3 min
+npm run build
+npm test            # unit and adapter tests, no Docker needed
+npm run demo        # end-to-end demo against the stack, one PASS/FAIL line per check
+npm run down        # stop the stack (keeps the database volume)
 ```
-`make demo` runs the whole chain (stack, install, build, demo); it is untested on the dev machine (no `make`), while `bash scripts/demo.sh` / `npm run demo` is what was run. The first run is dominated by image downloads, not by our code.
+The same from bash: `bash cost-router/scripts/up.sh`, then `bash scripts/demo.sh` and `bash scripts/down.sh` inside `cost-router/`.
+Windows PowerShell wrappers: `powershell -ExecutionPolicy Bypass -File cost-router\scripts\up.ps1` (also `demo.ps1`, `down.ps1`).
+`make demo` runs the whole chain (stack, install, build, demo); it is untested on the dev machine (no `make`). The first run is dominated by
+image downloads, not by our code.
 
 ### What the demo shows (`scripts/demo.sh`, real Hyperswitch, dummy connectors)
 It creates a fresh merchant with two connectors, **fauxpay** (cheap, flaky: fails on the test card `4000000000009995`) and **stripe_test**
@@ -163,7 +168,7 @@ Example (A: fee 5000, 96%; B: fee 2000, 85%): B wins when `L_eff` is below about
 - `src/hyperswitch/`: `HyperswitchClient` and the single place the `routing` body is built.
 - `src/payments/`: `POST /payments`, `GET /payments/:id/routing-trace`, `DecisionStore` (bounded, in memory), request fingerprint, execution record.
 - `test/`: engine, config, stats, de-duplication, decision store and adapter tests (the adapter tests run against a local fake Hyperswitch).
-- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `hyperswitch-probe.sh` (optional, needs python). `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
+- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `run-bash.mjs` (finds Git Bash on Windows for the npm scripts), `up.ps1`/`demo.ps1`/`down.ps1` (PowerShell wrappers), `hyperswitch-probe.sh` (optional, needs python). `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
 
 ## Limits
 Stats, decisions and idempotency records are per process: in memory, or in one JSON state file when `state_file` is set (then they survive a
