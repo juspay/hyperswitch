@@ -1980,9 +1980,10 @@ impl
             )),
             device_channel: ucs_device_channel(Some(request.device_channel.clone())),
             sdk_information: ucs_sdk_information(request.sdk_information.clone()),
-            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(Some(
-                request.force_3ds_challenge,
-            )),
+            three_ds_requestor_challenge_indicator: ucs_challenge_indicator(
+                Some(request.force_3ds_challenge),
+                None,
+            ),
             three_ds_requestor_authentication_indicator: None,
             message_category: Some(
                 payments_grpc::ThreeDsMessageCategory::foreign_from(&request.message_category)
