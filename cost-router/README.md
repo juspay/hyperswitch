@@ -67,8 +67,24 @@ It creates a fresh merchant with two connectors, **fauxpay** (cheap, flaky: fail
 
 The demo's `failure_penalty_pct=20`, `min_sample_size=3` and floor `0.85` are **illustrative business assumptions**, not recommendations.
 
+## Manual testing with Postman (or curl)
+1. `npm run up` (the Hyperswitch stack).
+2. `npm run serve`: creates a fresh merchant with fauxpay + stripe_test, writes `.serve/config.json` (git-ignored, no API key), and runs
+   cost-router on `http://localhost:3100` until Ctrl+C. It prints merchant_id, profile_id, the API key (local dummy stack only), the test
+   cards and a ready-to-run curl.
+3. Import `postman/cost-router.postman_collection.json`, set the collection variable `profile_id` to the printed value (or import
+   `.serve/postman_environment.json`), and run the "1. cost-router" folder in order.
+
+Options, as env or flags: `AUTO_RETRY=on|off` / `--auto-retry=off` (default on) and `MIN_SUCCESS_RATE=0.85` / `--min-success-rate=0.85`
+(default 0). Scenario B (floor, retries off): `npm run serve -- --auto-retry=off --min-success-rate=0.85`. The collection's
+"Setup" folder is a by-hand alternative; it still needs a cost-router config for those connector ids, which `serve` writes for you.
+
 ## Troubleshooting
 - **`port is already allocated`**: another stack holds 5432, 6379, 8080 or 8081. Stop it (`docker compose -p <name> down`), then `npm run up` again.
+- **`npm run serve` says Hyperswitch is not reachable**: run `npm run up` first and wait for `health is good`.
+- **`npm run serve` says cost-router exited during startup**: port 3100 is taken (another `serve` or `npm start`). Stop it, or use
+  `COST_ROUTER_PORT=3101 npm run serve` and change the Postman variable `cr_url`.
+- **Postman says "Set the profile_id variable first"**: copy the `profile_id` printed by `npm run serve` into the collection variable.
 - **`curl localhost:8080/health` is refused**: the stack is still starting or seeding; wait about 3-4 min after `npm run up` starts.
 - **Windows: `bash` fails with a WSL error**: use `npm run up` / `npm run demo` (they find Git Bash) instead of typing `bash` in PowerShell.
 - **Clean restart**: `npm run down -- -v` also deletes the database volume.
@@ -187,8 +203,9 @@ Example (A: fee 5000, 96%; B: fee 2000, 85%): B wins when `L_eff` is below about
 - `src/stats/`: `AttemptStatsStore` interface, in-memory rolling window, bounded attempt de-duplication.
 - `src/hyperswitch/`: `HyperswitchClient` and the single place the `routing` body is built.
 - `src/payments/`: `POST /payments`, `GET /payments/:id/routing-trace`, `DecisionStore` (bounded, in memory), request fingerprint, execution record.
+- `src/dev/demo-config.ts`: the config used by `npm run demo` and `npm run serve` (illustrative demo values; no API key), unit-tested.
 - `test/`: engine, config, stats, de-duplication, decision store and adapter tests (the adapter tests run against a local fake Hyperswitch).
-- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `run-bash.mjs` (finds Git Bash on Windows for the npm scripts), `up.ps1`/`demo.ps1`/`down.ps1` (PowerShell wrappers), `hyperswitch-probe.sh` (optional, needs python). `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
+- `scripts/`: `up.sh`, `down.sh`, `demo.sh`/`demo.mjs`, `loadtest.mjs`, `run-bash.mjs` (finds Git Bash on Windows for the npm scripts), `up.ps1`/`demo.ps1`/`down.ps1` (PowerShell wrappers), `serve.mjs` (manual-testing mode), `lib/setup.mjs` (shared by demo and serve), `hyperswitch-probe.sh` (optional, needs python). `postman/`: collection for manual testing. `docker/`: compose override, one patched `docker_compose.toml` for the prebuilt image, seed script copy (LF).
 
 ## Limits
 Stats, decisions and idempotency records are per process: in memory, or in one JSON state file when `state_file` is set (then they survive a
