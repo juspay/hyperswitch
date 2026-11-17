@@ -518,8 +518,7 @@
                 "group": "Revenue Recovery",
                 "pages": [
                   "v2/revenue-recovery/revenue-recovery--create",
-                  "v2/revenue-recovery/revenue-recovery--cancel",
-                  "v2/revenue-recovery/revenue-recovery--webhook"
+                  "v2/revenue-recovery/revenue-recovery--cancel"
                 ]
               }
             ]

@@ -1054,16 +1054,6 @@ pub enum RecoveryConnector {
     Stripe,
     /// PayPal.
     Paypal,
-    /// Shift4.
-    Shift4,
-    /// dLocal.
-    Dlocal,
-    /// Worldpay.
-    Worldpay,
-    /// Cybersource.
-    Cybersource,
-    /// Razorpay.
-    Razorpay,
 }
 
 impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
@@ -1072,11 +1062,6 @@ impl From<RecoveryConnector> for common_enums::connector_enums::Connector {
             RecoveryConnector::Adyen => Self::Adyen,
             RecoveryConnector::Stripe => Self::Stripe,
             RecoveryConnector::Paypal => Self::Paypal,
-            RecoveryConnector::Shift4 => Self::Shift4,
-            RecoveryConnector::Dlocal => Self::Dlocal,
-            RecoveryConnector::Worldpay => Self::Worldpay,
-            RecoveryConnector::Cybersource => Self::Cybersource,
-            RecoveryConnector::Razorpay => Self::Razorpay,
         }
     }
 }
