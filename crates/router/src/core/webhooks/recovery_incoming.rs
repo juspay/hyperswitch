@@ -1119,10 +1119,13 @@ impl RevenueRecoveryAttempt {
                 .clone(),
             payment_method_type: revenue_recovery_attempt_data.payment_method_type,
             payment_method_subtype: revenue_recovery_attempt_data.payment_method_sub_type,
-            payment_method_data: revenue_recovery_attempt_data
+            // Card details are recorded when the transaction came with its token or its card details.
+            payment_method_data: (revenue_recovery_attempt_data
                 .processor_payment_method_token
                 .is_some()
-                .then_some(payment_method_data),
+                || revenue_recovery_attempt_data.card_info
+                    != api_payments::AdditionalCardInfo::default())
+            .then_some(payment_method_data),
             metadata: None,
             feature_metadata: Some(feature_metadata),
             transaction_created_at: revenue_recovery_attempt_data.transaction_created_at,

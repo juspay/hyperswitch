@@ -6716,8 +6716,10 @@ impl PaymentMethodDataResponseWithBilling {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
 pub struct CustomRecoveryPaymentMethodData {
     /// Primary payment method token at payment processor end, i.e. the connector token or connector mandate id.
-    #[schema(value_type = String, example = "token_1234")]
-    pub primary_processor_payment_method_token: Secret<String>,
+    /// It can be left out only when the customer is present and the payment is on session, and
+    /// not for the first transaction of an invoice. The card details can still be sent without it.
+    #[schema(value_type = Option<String>, example = "token_1234")]
+    pub primary_processor_payment_method_token: Option<Secret<String>>,
 
     /// Card details associated with the primary payment method token.
     pub payment_method_metadata: AdditionalCardInfo,
@@ -14790,8 +14792,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// Payment method token and card details at the payment processor's end. Required unless the
-    /// customer is present and the payment is on session.
+    /// Payment method token and card details at the payment processor's end. The token is required
+    /// unless the customer is present and the payment is on session, and then this can be left out,
+    /// or sent with the card details alone.
     pub payment_method_data: Option<CustomRecoveryPaymentMethodData>,
 
     /// Allow partial authorization for this payment
@@ -14805,6 +14808,17 @@ pub struct RecoveryPaymentsCreate {
 
 #[cfg(feature = "v2")]
 impl RecoveryPaymentsCreate {
+    /// The processor token of the card the transaction was made with, when the request has one.
+    pub fn get_processor_payment_method_token(&self) -> Option<&Secret<String>> {
+        self.payment_method_data
+            .as_ref()
+            .and_then(|payment_method_data| {
+                payment_method_data
+                    .primary_processor_payment_method_token
+                    .as_ref()
+            })
+    }
+
     /// Who started the reported transaction, when the request says both whether the customer was
     /// present and how the payment method is set up for future use.
     pub fn get_transaction_initiator(&self) -> Option<common_enums::TransactionInitiator> {
