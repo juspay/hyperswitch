@@ -19,7 +19,9 @@ client ──POST /payments──▶ cost-router ──POST /payments {routing: 
 - **Node.js >= 18** (tested with v24) and npm.
 - **bash** (Git Bash on Windows) for `scripts/up.sh`.
 - **Python 3** only for the optional `scripts/hyperswitch-probe.sh`; the demo, tests and load test need only Node.
-- Internet access for the first image pull (the stack images are several GB) and free ports `8080` (Hyperswitch), `5432`, `6379`; the demo uses `3110`.
+- Internet access for the first image pull (the stack images are several GB).
+- Free ports `5432`, `6379`, `8080` and `8081` (a leftover Docker stack on these gives "port is already allocated"; stop it with
+  `docker compose -p <name> down`). The demo also uses `3110`.
 
 ## Quick start
 Any OS, including Windows PowerShell or cmd (on Windows, Git for Windows must be installed; Git Bash is found automatically):
@@ -33,6 +35,16 @@ npm test            # unit and adapter tests, no Docker needed
 npm run demo        # end-to-end demo against the stack, one PASS/FAIL line per check
 npm run down        # stop the stack (keeps the database volume)
 ```
+What to expect:
+- `npm run up` takes about 4 min once images are downloaded (on the first run, downloads of several GB dominate; allow longer on a slow
+  connection). It ends with `Container <folder>-hyperswitch-server-1 Started` and then `health is good`.
+- The lines `Failed to apply patch: error applying hunk #5` and `migration_runner-1 exited with code 1` are expected and harmless: they
+  come from upstream's `schema.rs` patch step after all migrations have been applied.
+- A long pause on `superposition-init` is its seeding (about 3 min).
+- Check the stack: `curl localhost:8080/health` returns `health is good`.
+- `npm test` prints an `ERROR [cost-router] routing failed for boom, override omitted: stats backend down` line. That is the intentional
+  failure-mode test (the router drops its override and Hyperswitch routes normally), not a failure. It ends with 152 passed.
+- `npm run demo` ends with `ALL CHECKS PASSED` (18 checks).
 The same from bash: `bash cost-router/scripts/up.sh`, then `bash scripts/demo.sh` and `bash scripts/down.sh` inside `cost-router/`.
 Windows PowerShell wrappers: `powershell -ExecutionPolicy Bypass -File cost-router\scripts\up.ps1` (also `demo.ps1`, `down.ps1`).
 `make demo` runs the whole chain (stack, install, build, demo); it is untested on the dev machine (no `make`). The first run is dominated by
@@ -53,6 +65,13 @@ It creates a fresh merchant with two connectors, **fauxpay** (cheap, flaky: fail
 | B2 | same | every connector is below the floor: `reliability_floor_unmet`, **no override sent**, Hyperswitch routes normally |
 
 The demo's `failure_penalty_pct=20`, `min_sample_size=3` and floor `0.85` are **illustrative business assumptions**, not recommendations.
+
+## Troubleshooting
+- **`port is already allocated`**: another stack holds 5432, 6379, 8080 or 8081. Stop it (`docker compose -p <name> down`), then `npm run up` again.
+- **`curl localhost:8080/health` is refused**: the stack is still starting or seeding; wait about 3-4 min after `npm run up` starts.
+- **Windows: `bash` fails with a WSL error**: use `npm run up` / `npm run demo` (they find Git Bash) instead of typing `bash` in PowerShell.
+- **Clean restart**: `npm run down -- -v` also deletes the database volume.
+- **No `make` on Windows**: use the Quick start commands; `make demo` is for Linux/macOS.
 
 ## Using it by hand
 ```bash
