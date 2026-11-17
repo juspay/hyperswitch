@@ -155,7 +155,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
             examples(
                 (
                     "Fully Managed Recovery" = (
-                        summary = "Recorded, under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`)",
+                        summary = "Recorded under Fully Managed Recovery",
                         value = json!({
                             "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
                             "intent_status": "failed",
@@ -165,7 +165,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 ),
                 (
                     "Schedule Only Recovery" = (
-                        summary = "Accepted, under Schedule Only Recovery (`revenue_recovery_trigger_model` is `external_triggers`)",
+                        summary = "Accepted under Schedule Only Recovery",
                         value = json!({
                             "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                             "connector_transaction_id": "993672945374576J"
