@@ -1,6 +1,6 @@
 use diesel_models::user_authentication_method as storage;
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
     services::Store,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait UserAuthenticationMethodInterface {
     async fn insert_user_authentication_method(

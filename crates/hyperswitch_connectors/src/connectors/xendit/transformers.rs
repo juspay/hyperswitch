@@ -51,8 +51,8 @@ pub enum PaymentMethodType {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChannelProperties {
-    pub success_return_url: String,
-    pub failure_return_url: String,
+    pub success_return_url: Secret<String>,
+    pub failure_return_url: Secret<String>,
     pub skip_three_d_secure: bool,
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -486,7 +486,7 @@ impl TryFrom<PaymentsResponseRouterData<XenditPaymentResponse>> for PaymentsAuth
                     Some(actions) if !actions.is_empty() => {
                         actions.first().map_or(Box::new(None), |single_action| {
                             Box::new(Some(RedirectForm::Form {
-                                endpoint: single_action.url.clone(),
+                                endpoint: single_action.url.clone().into(),
                                 method: match single_action.method {
                                     MethodType::Get => Method::Get,
                                     MethodType::Post => Method::Post,

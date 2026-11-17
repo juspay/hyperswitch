@@ -461,7 +461,7 @@ where
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
-                    .construct_router_data(
+                    .construct_router_data_with_callbacks(
                         state,
                         connector.connector.id(),
                         processor,

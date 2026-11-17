@@ -39,9 +39,9 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 trait Shift4AuthorizePreprocessingCommon {
     fn is_automatic_capture(&self) -> Result<bool, Error>;
-    fn get_router_return_url(&self) -> Option<String>;
+    fn get_router_return_url(&self) -> Option<Secret<String>>;
     fn get_email_optional(&self) -> Option<pii::Email>;
-    fn get_complete_authorize_url(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>>;
     fn get_currency_required(&self) -> Result<enums::Currency, Error>;
     fn get_metadata(&self) -> Result<Option<serde_json::Value>, Error>;
     fn get_payment_method_data_required(&self) -> Result<PaymentMethodData, Error>;
@@ -67,7 +67,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.email.clone()
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -86,7 +86,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.is_auto_capture()
     }
 
-    fn get_router_return_url(&self) -> Option<String> {
+    fn get_router_return_url(&self) -> Option<Secret<String>> {
         self.router_return_url.clone()
     }
 
@@ -102,7 +102,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreAuthenticateData {
         self.email.clone()
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -126,7 +126,7 @@ impl Shift4AuthorizePreprocessingCommon for PaymentsPreAuthenticateData {
         self.is_auto_capture()
     }
 
-    fn get_router_return_url(&self) -> Option<String> {
+    fn get_router_return_url(&self) -> Option<Secret<String>> {
         self.router_return_url.clone()
     }
 
@@ -203,7 +203,7 @@ pub struct Cards3DSRequest {
     pub card_exp_month: Secret<String>,
     #[serde(rename = "card[expYear]")]
     pub card_exp_year: Secret<String>,
-    return_url: String,
+    return_url: Secret<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -217,7 +217,7 @@ pub struct CardsNon3DSRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Flow {
-    pub return_url: String,
+    pub return_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -755,9 +755,9 @@ impl TryFrom<&BankRedirectData> for PaymentMethodType {
     }
 }
 
-impl TryFrom<Option<String>> for Flow {
+impl TryFrom<Option<Secret<String>>> for Flow {
     type Error = Error;
-    fn try_from(router_return_url: Option<String>) -> Result<Self, Self::Error> {
+    fn try_from(router_return_url: Option<Secret<String>>) -> Result<Self, Self::Error> {
         Ok(Self {
             return_url: router_return_url.ok_or(errors::ConnectorError::RequestEncodingFailed)?,
         })

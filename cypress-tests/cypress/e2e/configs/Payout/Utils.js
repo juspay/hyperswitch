@@ -115,9 +115,6 @@ export const CONNECTOR_LISTS = {
     // Payout recurring feature - only verified connectors
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
-    // Client-authenticated payout confirm (PR #14547) - only verified
-    // connectors
-    CLIENT_AUTH_CONFIRM: ["paypal"],
     WALLET_PAYOUT: ["paypal"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer", "trustly"],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],

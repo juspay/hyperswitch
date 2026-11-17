@@ -1,5 +1,6 @@
 use common_enums as storage_enums;
-use common_utils::{id_type, pii, types::MinorUnit};
+use common_utils::{encryption::Encryption, id_type, pii, types::MinorUnit};
+use hyperswitch_masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
 use time::PrimitiveDateTime;
@@ -7,13 +8,16 @@ use time::PrimitiveDateTime;
 use super::payout_attempt::PayoutAttempt;
 #[cfg(feature = "olap")]
 use super::PayoutFetchConstraints;
+use crate::{merchant_key_store::MerchantKeyStore, type_encryption::OptionalEncryptableJsonType};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PayoutsInterface {
     type Error;
     async fn insert_payout(
         &self,
         _payout: PayoutsNew,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, Self::Error>;
 
@@ -21,6 +25,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_id: &id_type::PayoutId,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, Self::Error>;
 
@@ -29,6 +34,7 @@ pub trait PayoutsInterface {
         _this: &Payouts,
         _payout: PayoutsUpdate,
         _payout_attempt: &PayoutAttempt,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Payouts, Self::Error>;
 
@@ -36,6 +42,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _payout_id: &id_type::PayoutId,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Option<Payouts>, Self::Error>;
 
@@ -44,6 +51,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, Self::Error>;
 
@@ -52,6 +60,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _filters: &PayoutFetchConstraints,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(
@@ -68,6 +77,7 @@ pub trait PayoutsInterface {
         &self,
         _merchant_id: &id_type::MerchantId,
         _time_range: &common_utils::types::TimeRange,
+        _merchant_key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, Self::Error>;
 
@@ -100,7 +110,7 @@ pub trait PayoutsInterface {
     ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, Self::Error>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Payouts {
     pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
@@ -117,6 +127,11 @@ pub struct Payouts {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: OptionalEncryptableJsonType<api_models::sender::SenderDetails>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
@@ -132,7 +147,7 @@ pub struct Payouts {
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PayoutsNew {
     pub payout_id: id_type::PayoutId,
     pub merchant_id: id_type::MerchantId,
@@ -149,6 +164,11 @@ pub struct PayoutsNew {
     pub return_url: Option<String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    /// The category of funds transfer to use when processing the payout.
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: OptionalEncryptableJsonType<api_models::sender::SenderDetails>,
     pub created_at: PrimitiveDateTime,
     pub last_modified_at: PrimitiveDateTime,
     pub attempt_count: i16,
@@ -164,6 +184,15 @@ pub struct PayoutsNew {
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
+impl Payouts {
+    /// Access the decrypted sender identity carried in this domain value.
+    pub fn get_optional_sender_details(&self) -> Option<&api_models::sender::SenderDetails> {
+        self.sender_details
+            .as_ref()
+            .map(|sender_details| sender_details.get_inner().peek().inner())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum PayoutsUpdate {
     Update {
@@ -176,6 +205,8 @@ pub enum PayoutsUpdate {
         return_url: Option<String>,
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
+        funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+        sender_details: Option<Encryption>,
         profile_id: Option<id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
         confirm: Option<bool>,
@@ -216,6 +247,10 @@ pub struct PayoutsUpdateInternal {
     pub return_url: Option<String>,
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    /// Sender identity supplied with the payout request; normalized at the domain boundary.
+    /// Encrypted at rest with the merchant key.
+    pub sender_details: Option<Encryption>,
     pub payout_method_id: Option<String>,
     pub profile_id: Option<id_type::ProfileId>,
     pub status: Option<storage_enums::PayoutStatus>,
@@ -240,6 +275,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type,
                 metadata,
+                funds_transfer_type,
+                sender_details,
                 profile_id,
                 status,
                 confirm,
@@ -257,6 +294,8 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 return_url,
                 entity_type: Some(entity_type),
                 metadata,
+                funds_transfer_type,
+                sender_details,
                 profile_id,
                 status,
                 confirm,

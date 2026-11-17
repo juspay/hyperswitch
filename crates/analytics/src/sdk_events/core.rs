@@ -9,7 +9,7 @@ use api_models::analytics::{
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{
     events::{get_sdk_event, SdkEventsResult},

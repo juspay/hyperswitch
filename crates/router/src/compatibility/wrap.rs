@@ -134,6 +134,7 @@ where
             let config = state.conf();
             api::build_redirection_form(
                 &redirection_data.redirect_form,
+                redirection_data.callback_url.as_ref(),
                 redirection_data.payment_method_data,
                 redirection_data.amount,
                 redirection_data.currency,

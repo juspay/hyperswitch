@@ -57,7 +57,7 @@ use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
 
@@ -4148,11 +4148,11 @@ pub async fn get_card_from_vault<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn delete_card_from_vault<'a>(
+pub async fn delete_card_from_vault(
     state: &routes::SessionState,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    card_reference: &'a str,
+    card_reference: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResp, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = &state.conf.jwekey.get_inner();
@@ -4256,9 +4256,9 @@ pub async fn mock_call_to_locker_hs(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_get_card<'a>(
+pub async fn mock_get_card(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<(payment_methods::GetCardResponse, Option<String>), errors::VaultError> {
     let locker_mock_up = db
         .find_locker_by_card_id(card_id)
@@ -4292,10 +4292,10 @@ pub async fn mock_get_card<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_get_payment_method<'a>(
+pub async fn mock_get_payment_method(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::GetPaymentMethodResponse, errors::VaultError> {
     let db = &*state.store;
     let locker_mock_up = db
@@ -4324,9 +4324,9 @@ pub async fn mock_get_payment_method<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_delete_card_hs<'a>(
+pub async fn mock_delete_card_hs(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResp, errors::VaultError> {
     db.delete_locker_mock_up(card_id)
         .await
@@ -4339,9 +4339,9 @@ pub async fn mock_delete_card_hs<'a>(
 }
 
 #[instrument(skip_all)]
-pub async fn mock_delete_card<'a>(
+pub async fn mock_delete_card(
     db: &dyn db::StorageInterface,
-    card_id: &'a str,
+    card_id: &str,
 ) -> errors::CustomResult<payment_methods::DeleteCardResponse, errors::VaultError> {
     let locker_mock_up = db
         .delete_locker_mock_up(card_id)
@@ -4684,7 +4684,8 @@ pub async fn build_merchant_enabled_pms_context(
     // --- Load all MCAs and filter by connector type ---
     let profile_id = business_profile.get_id().clone();
 
-    let all_mcas = db
+    let all_mcas = state
+        .accounts_store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
             &profile_id,
@@ -5516,7 +5517,8 @@ pub async fn list_payment_methods(
     let (_profile_id, business_profile) =
         match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
             Some(profile_id) => {
-                let business_profile = db
+                let business_profile = state
+                    .accounts_store
                     .find_business_profile_by_profile_id(
                         platform.get_processor().get_key_store(),
                         &profile_id,
@@ -6599,7 +6601,7 @@ pub async fn list_customer_payment_method(
         .transpose()?;
 
     let business_profile = core_utils::validate_and_get_business_profile(
-        db,
+        state.accounts_store.as_ref(),
         platform.get_processor(),
         profile_id.as_ref(),
     )
@@ -6613,12 +6615,10 @@ pub async fn list_customer_payment_method(
     // The MCA list is used to evaluate if the payment method has connector_mandate_details for any active MCA
     let merchant_connector_accounts = match business_profile.as_ref() {
         Some(business_profile) => Some(
-            state
-                .store
-                .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                    platform.get_processor().get_account().get_id(),
-                    business_profile.get_id(),
-                )
+            state.accounts_store.list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                        platform.get_processor().get_account().get_id(),
+                        business_profile.get_id(),
+                    )
                 .await
                 .change_context(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

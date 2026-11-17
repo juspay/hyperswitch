@@ -206,6 +206,7 @@ impl<F: Send + Clone + Sync>
             triggered_by: request.triggered_by,
             card_network: request.card_network.clone(),
             card_issuer: request.card_issuer.clone(),
+            standardised_error_code: request.standardised_error_code,
         };
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -303,10 +304,10 @@ impl<F: Send + Clone> ValidateRequest<F, PaymentsAttemptRecordRequest, PaymentAt
     for PaymentAttemptRecord
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsAttemptRecordRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

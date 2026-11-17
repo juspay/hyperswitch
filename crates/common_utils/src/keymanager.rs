@@ -12,9 +12,7 @@ use reqwest::{
     header::{HeaderMap, HeaderName, HeaderValue},
     StatusCode,
 };
-use router_env::{
-    global_meter, histogram_metric_f64, instrument, logger, metric_attributes, tracing,
-};
+use router_env::{global_meter, histogram_metric_f64, instrument, logger, metric_attributes};
 
 #[cfg(feature = "ext_services_latency")]
 use crate::consts::EXTERNAL_CALL_TAG;

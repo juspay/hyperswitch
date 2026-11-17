@@ -117,7 +117,7 @@ pub struct EmvThreedsData {
     #[serde(skip_serializing_if = "Option::is_none")]
     cres: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    notification_u_r_l: Option<String>,
+    notification_u_r_l: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     protocol_version: Option<String>,
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
@@ -218,7 +218,7 @@ impl EmvThreedsData {
         self
     }
 
-    pub fn set_notification_u_r_l(mut self, notification_u_r_l: String) -> Self {
+    pub fn set_notification_u_r_l(mut self, notification_u_r_l: Secret<String>) -> Self {
         self.notification_u_r_l = Some(notification_u_r_l);
         self
     }
@@ -1264,9 +1264,12 @@ fn build_threeds_form(ds_emv3ds: &RedsysEmv3DSData) -> Result<RedirectForm, Erro
     form_fields.insert("creq".to_string(), creq);
 
     Ok(RedirectForm::Form {
-        endpoint,
+        endpoint: endpoint.into(),
         method: common_utils::request::Method::Post,
-        form_fields,
+        form_fields: (form_fields)
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect(),
     })
 }
 
