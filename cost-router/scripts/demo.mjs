@@ -6,119 +6,36 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { AMOUNT, CARD_FLAKY, CARD_OK, HYPERSWITCH_URL as H, call, ensureBuilt, hyperswitchHealth, loadDemoConfig, payBody, setAutoRetry, setupMerchant } from './lib/setup.mjs';
 
-const H = process.env.HYPERSWITCH_URL ?? 'http://localhost:8080';
 const CR_PORT = Number(process.env.COST_ROUTER_PORT ?? 3110);
 const CR = `http://localhost:${CR_PORT}`;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const RUN = Date.now();
-const ADMIN = { Authorization: 'admin-api-key=test_admin' };
-
-// Demo amounts are USD minor units (cents). 10000 = $100.00.
-const AMOUNT = 10000;
-// ILLUSTRATIVE business assumptions for the demo only (see README "Configuration").
-const FAILURE_PENALTY_PCT = 20;
-const MIN_SAMPLE_SIZE = 3;
-const FEES = { fauxpay: { bps: 100, fixed: 10 }, stripe_test: { bps: 290, fixed: 30 } }; // cheap+flaky vs dear+reliable
-const CARD_OK = '4242424242424242'; // succeeds on every dummy connector
-const CARD_FLAKY = '4000000000009995'; // fails on fauxpay (DC_08, retryable), succeeds on stripe_test
+ensureBuilt(ROOT);
+const demo = await loadDemoConfig(ROOT);
 
 let failed = 0;
 const check = (name, ok, detail = '') => {
   console.log(`   ${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : detail ? `  (${detail})` : ''}`);
   if (!ok) failed += 1;
 };
-const hr = (t) => console.log(`\n=== ${t}`);
+const hr = (t) => console.log(`
+=== ${t}`);
 
-async function call(base, path, { method = 'GET', headers = {}, body } = {}) {
-  const res = await fetch(base + path, {
-    method,
-    headers: { 'content-type': 'application/json', ...headers },
-    ...(body !== undefined && { body: JSON.stringify(body) }),
-  });
-  const text = await res.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : {};
-  } catch {
-    json = { raw: text };
-  }
-  return { status: res.status, json };
-}
-
-// ---------- Hyperswitch setup ----------
 async function setup() {
-  const mid = `merchant_demo_${RUN}`;
-  const m = await call(H, '/accounts', {
-    method: 'POST',
-    headers: ADMIN,
-    body: { merchant_id: mid, merchant_name: 'CostRouter Demo', primary_business_details: [{ country: 'US', business: 'default' }] },
-  });
-  if (m.status !== 200) throw new Error(`merchant create failed: ${m.status} ${JSON.stringify(m.json)}`);
-  const profile = m.json.default_profile;
-  const k = await call(H, `/api_keys/${mid}`, { method: 'POST', headers: ADMIN, body: { name: 'demo', description: 'demo', expiration: 'never' } });
-  const apiKey = k.json.api_key;
-  const pm = [
-    {
-      payment_method: 'card',
-      payment_method_types: [
-        { payment_method_type: 'credit', card_networks: ['Visa', 'Mastercard'], minimum_amount: 0, maximum_amount: 99999999, recurring_enabled: true, installment_payment_enabled: true },
-      ],
-    },
-  ];
-  const mca = async (name) =>
-    (
-      await call(H, `/account/${mid}/connectors`, {
-        method: 'POST',
-        headers: { 'api-key': apiKey },
-        body: { connector_type: 'payment_processor', connector_name: name, connector_account_details: { auth_type: 'HeaderKey', api_key: 'dummy' }, test_mode: true, disabled: false, payment_methods_enabled: pm },
-      })
-    ).json.merchant_connector_id;
-  const ids = { fauxpay: await mca('fauxpay'), stripe_test: await mca('stripe_test') };
-  // GSM rule: makes fauxpay's DC_08 error retryable. It is a global row: a duplicate on re-run is harmless.
-  const g = await call(H, '/gsm', {
-    method: 'POST',
-    headers: ADMIN,
-    body: {
-      connector: 'fauxpay', flow: 'Payment', sub_flow: 'Authorize', code: 'DC_08',
-      message: 'Payment declined: Internal Server Error from Connector, Please try again later',
-      status: 'failure', decision: 'retry', step_up_possible: false, clear_pan_possible: false, feature: 'retry',
-      feature_data: { retry: { step_up_possible: false, clear_pan_possible: false, alternate_network_possible: false, decision: 'retry' } },
-    },
-  });
-  console.log(`merchant=${mid} profile=${profile}`);
-  console.log(`connectors: fauxpay=${ids.fauxpay} stripe_test=${ids.stripe_test}`);
-  console.log(`GSM retry rule for fauxpay DC_08: HTTP ${g.status}${g.status === 200 ? '' : ' (already present is fine)'}`);
-  return { mid, profile, apiKey, ids };
+  const s = await setupMerchant(H);
+  console.log(`merchant=${s.mid} profile=${s.profile}`);
+  console.log(`connectors: fauxpay=${s.ids.fauxpay} stripe_test=${s.ids.stripe_test}`);
+  console.log(`GSM retry rule for fauxpay DC_08: HTTP ${s.gsmStatus}${s.gsmStatus === 200 ? '' : ' (already present is fine)'}`);
+  return s;
 }
-
-const setAutoRetry = (s, enabled) =>
-  call(H, `/account/${s.mid}/business_profile/${s.profile}`, {
-    method: 'POST',
-    headers: { 'api-key': s.apiKey },
-    body: enabled ? { is_auto_retries_enabled: true, max_auto_retries_enabled: 2 } : { is_auto_retries_enabled: false },
-  });
 
 // ---------- cost-router process ----------
 let child;
 async function startRouter(s, minSuccessRate, label) {
   await stopRouter();
-  const cfg = {
-    port: CR_PORT,
-    hyperswitch: { base_url: H },
-    candidates: [
-      { connector: 'fauxpay', merchant_connector_id: s.ids.fauxpay },
-      { connector: 'stripe_test', merchant_connector_id: s.ids.stripe_test },
-    ],
-    routing: {
-      fee_table: Object.fromEntries(Object.entries(FEES).map(([c, f]) => [c, [{ match: { currency: 'USD' }, bps: f.bps, fixed: f.fixed }]])),
-      failure_penalty_pct: FAILURE_PENALTY_PCT,
-      min_sample_size: MIN_SAMPLE_SIZE,
-      window_minutes: 60,
-      min_success_rate: minSuccessRate,
-      issuer_decline_codes: [],
-    },
-  };
+  const cfg = demo.buildDemoConfig({ port: CR_PORT, hyperswitchUrl: H, connectorIds: s.ids, minSuccessRate });
   const path = join(mkdtempSync(join(tmpdir(), 'cost-router-demo-')), 'config.json');
   writeFileSync(path, JSON.stringify(cfg, null, 2));
   child = spawn(process.execPath, ['dist/main.js'], {
@@ -140,7 +57,8 @@ async function startRouter(s, minSuccessRate, label) {
     }
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`cost-router did not start:\n${log}`);
+  throw new Error(`cost-router did not start:
+${log}`);
 }
 async function stopRouter() {
   if (!child) return;
@@ -154,20 +72,8 @@ async function stopRouter() {
 }
 
 // ---------- payments ----------
-const payBody = (s, card) => ({
-  amount: AMOUNT,
-  currency: 'USD',
-  confirm: true,
-  capture_method: 'automatic',
-  authentication_type: 'no_three_ds',
-  profile_id: s.profile,
-  payment_method: 'card',
-  payment_method_type: 'credit',
-  payment_method_data: { card: { card_number: card, card_exp_month: '12', card_exp_year: '2030', card_holder_name: 'Demo', card_cvc: '123' } },
-  billing: { address: { line1: '1 Main St', city: 'San Francisco', state: 'CA', zip: '94000', country: 'US', first_name: 'A', last_name: 'B' } },
-});
 async function pay(s, id, card) {
-  const r = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': id }, body: payBody(s, card) });
+  const r = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': id }, body: payBody(s.profile, card) });
   if (r.status !== 200) throw new Error(`POST /payments ${id}: ${r.status} ${JSON.stringify(r.json)}`);
   return r.json;
 }
@@ -189,15 +95,16 @@ function show(label, o) {
 
 async function main() {
   hr('Preflight');
-  const health = await fetch(`${H}/health`).then((r) => r.text()).catch(() => null);
-  if (!health) throw new Error(`Hyperswitch is not reachable at ${H}. Run scripts/up.sh first.`);
+  const health = await hyperswitchHealth(H);
+  if (!health) throw new Error(`Hyperswitch is not reachable at ${H}. Run npm run up (or scripts/up.sh) first.`);
   console.log(`Hyperswitch: ${health}`);
 
   hr('Setup: merchant, two connectors (fauxpay cheap but flaky, stripe_test dearer but reliable), retry rule');
   const s = await setup();
   const fee = (f) => Math.round((AMOUNT * f.bps) / 10000) + f.fixed;
+  const FEES = demo.DEMO_FEES;
   console.log(`fees on a $${AMOUNT / 100} payment: fauxpay ${FEES.fauxpay.bps}bps+${FEES.fauxpay.fixed} = ${fee(FEES.fauxpay)} cents, stripe_test ${FEES.stripe_test.bps}bps+${FEES.stripe_test.fixed} = ${fee(FEES.stripe_test)} cents`);
-  console.log(`demo assumptions (illustrative): failure_penalty_pct=${FAILURE_PENALTY_PCT}, min_sample_size=${MIN_SAMPLE_SIZE}`);
+  console.log(`demo assumptions (illustrative): failure_penalty_pct=${demo.DEMO_FAILURE_PENALTY_PCT}, min_sample_size=${demo.DEMO_MIN_SAMPLE_SIZE}`);
 
   // ---------------- Scenario A: auto-retry ON ----------------
   hr('Scenario A: auto-retry ENABLED (profile, max 2 retries); floor off to isolate the cost/reliability trade-off');
@@ -252,9 +159,9 @@ async function main() {
   check('unknown payment id returns 404', (await call(CR, '/payments/does_not_exist/routing-trace')).status === 404);
 
   hr('Idempotent replay');
-  const rep = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': `demo_${RUN}_a3` }, body: payBody(s, CARD_OK) });
+  const rep = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': `demo_${RUN}_a3` }, body: payBody(s.profile, CARD_OK) });
   check('same key + same body returns the stored result (replayed:true)', rep.status === 200 && rep.json.replayed === true);
-  const conflict = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': `demo_${RUN}_a3` }, body: { ...payBody(s, CARD_OK), amount: AMOUNT + 1 } });
+  const conflict = await call(CR, '/payments', { method: 'POST', headers: { 'idempotency-key': `demo_${RUN}_a3` }, body: { ...payBody(s.profile, CARD_OK), amount: AMOUNT + 1 } });
   check('same key + different body is rejected with 409', conflict.status === 409, String(conflict.status));
 
   // ---------------- Scenario B: auto-retry OFF + reliability floor ----------------
