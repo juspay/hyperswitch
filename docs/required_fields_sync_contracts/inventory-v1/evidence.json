@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "step": 5,
+  "date": "2026-11-18",
+  "scope": "local synthetic/locked-client only; not server certification",
+  "repositories": [
+    {
+      "label": "H",
+      "head": "299ae5d8d0b48e427fbc88dea0661d16fb8c2030",
+      "branch": "feat/superposition-required-fields-foundations"
+    },
+    {
+      "label": "W",
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main"
+    },
+    {
+      "label": "U",
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": ""
+    }
+  ],
+  "client_version": "0.119.0",
+  "registered_certified_targets": 0,
+  "hosted_apply": "disabled",
+  "fixture": {
+    "kind": "disposable-filesystem-build",
+    "name": "required-fields-step5-6p0zanjv",
+    "owner": "15df1abc-877b-49b5-ae1a-3e2564b1c67d",
+    "purpose": "Step 5 offline read-only inventory checks",
+    "hosted_target": null,
+    "network": "offline; synthetic in-memory dispatch only",
+    "cleanup": {
+      "status": "completed",
+      "owner_verified": true,
+      "active_owned_processes": 0,
+      "removed": "registered fixture root, dependency/build caches and exact matching temporary pointer only"
+    }
+  },
+  "executed_checks": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "cargo_home": "owned complete dependency cache copy; no config/credentials",
+      "target": "owned/router-target"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "note": "final check after credential-binding edits; owned offline Cargo home/target"
+    }
+  ],
+  "test_counts": {
+    "passed": 47,
+    "failed": 0,
+    "ignored": 0,
+    "existing_foundations": 18,
+    "inventory": 23,
+    "adapter": 5,
+    "sdk_request_comparison": 1,
+    "sdk_operations_compared": 7
+  },
+  "lock_comparison": {
+    "identical_registry_dependencies": 162,
+    "mismatches": 0,
+    "root_lock_changed": false
+  },
+  "full_router_check": {
+    "initial_complete_build_exit": 0,
+    "existing_warnings": [
+      "analytics_report.rs unused pii::Email",
+      "analytics_report.rs unused PeekInterface",
+      "required_fields_sync.rs pre-existing renderer::compiled_feature_keys qualification",
+      "num-bigint-dig 0.8.4 future compatibility"
+    ],
+    "final_incremental_check_exit": 0,
+    "initial_duration": "11m 23s",
+    "final_duration": "2m 03s"
+  },
+  "static_checks": {
+    "rustfmt_exit": 0,
+    "git_diff_check_exit": 0,
+    "supplemental_whitespace_file_checks": 20,
+    "local_markdown_links": 41,
+    "missing_links": 0,
+    "json_valid": true
+  },
+  "preservation": [
+    {
+      "repository": "H",
+      "baseline_git_visible_files": 4738,
+      "branch_revision_index_unchanged": true,
+      "prior_files_changed_only_as_authorized": [
+        "crates/router/src/core/required_fields_sync.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/questions.md",
+        "docs/superposition_required_fields_sync_implementation_playbook.md"
+      ]
+    },
+    {
+      "repository": "W",
+      "baseline_git_visible_files": 580,
+      "branch_revision_index_unchanged": true,
+      "prior_files_changed_only_as_authorized": []
+    },
+    {
+      "repository": "U",
+      "baseline_git_visible_files": 745,
+      "branch_revision_index_unchanged": true,
+      "prior_files_changed_only_as_authorized": []
+    }
+  ],
+  "blocked_gates": [
+    "exact-server/client read contracts and image/source provenance",
+    "registered full-scope reader permission receipt",
+    "stable full-row counted ordering and all experiment/group history",
+    "latest-version ordering and per-resource empty boundaries",
+    "real malformed/partial/concurrent-read fault injection and transport",
+    "remaining non-default/release/MSRV matrix; default v1 sync-enabled router check passed",
+    "Step 4 full-profile owner approvals",
+    "journal, writer exclusion, restoration and target V1-V4"
+  ],
+  "sources": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "8d95b3c6eec9d3c8e0577a0fb97f809fb25a4316d32d167573b3dfce32dc2043"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "94d146629105fe6e6ec283fecf3cbc11344792aa70ab72f763d6f2992a3dbf82"
+    },
+    {
+      "path": "crates/router/Cargo.toml",
+      "sha256": "5439942d93cad1c07473bafbd44d2f96a7db404078322d5dace365b0a8db0aa4"
+    },
+    {
+      "path": "crates/router/src/core.rs",
+      "sha256": "7245272d1129e0dc534de7181d870307770159cb568b2ac700a520989a83ab38"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "e6fb8ff1bfadb2139b741baed88c880d8e5a6237f320fbece2588df68356b560"
+    },
+    {
+      "path": "crates/external_services/src/superposition.rs",
+      "sha256": "025e3abb8bd3acf2826a1b03987fe699884ddcd8a3d451658767d6763ba9f204"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/administration.rs",
+      "sha256": "39436afd575ffa4f404288293c5698e89d5e3b208f5bdf38b7d438f8ac6e17e8"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/administration_tests.rs",
+      "sha256": "3f71fa23ae627b10498be53758007b78ea52d6adf0ea8d8d99e959949e299a5d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/inventory.rs",
+      "sha256": "64001990c29ed696701c9f0662bc757984d52d9ec6a164b28357e4fd4f1ba875"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/inventory_tests.rs",
+      "sha256": "2af3f8633c663b2410bc2832f5ddd99db442694bf4d9dd3af33ec50cdaef666c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/raw_json.rs",
+      "sha256": "44f0b09a1005232cf9b031f7942f7c828ab27d5dc629f18786ba4db8ac39b62c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/tests.rs",
+      "sha256": "7eaa990bddfe94416fbdab18ea207fd4429e4e0dd0f94abb3a48e1acf4ce01ae"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/types.rs",
+      "sha256": "0314290443a852f34540ee01a43459fef7709446fa5b3b21d7f4e376ca2a4830"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "567e22f95aae2d2d879da5e074347de59d2d8a024c7a947946bed98c917d9ec4"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/sdk_wire.rs",
+      "sha256": "36510343957d28adb26f828f1d2c7742d3f1d9b65403df1facfde04d28a73ec0"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.toml",
+      "sha256": "8f9d0d98dd5973618eaf1338cf9d5d8042a19e7d4bdb906ec4bc4f21f868240a"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.lock",
+      "sha256": "8b701967745a20c5530d04dec6bcee5bfb45003cfa192bcc1a66e7a45b689107"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_contexts.rs",
+      "sha256": "165f7c3f8230dabcb82fe3eea3bfbd4f1f10ea89249ac4a9ffc740dc1e0c5463"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_default_configs.rs",
+      "sha256": "69d278d8d4a463e63c7fbb6f832f82a5050fd89453dc331ff7d9ba41d6e8a33b"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_dimensions.rs",
+      "sha256": "1cc5fc8d8703431fe52d47a5aa031989081a05a35527393c3f2b225e38bc9ffb"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_experiment.rs",
+      "sha256": "5278f47924ebadb0855e3dda987529e3cde5e50e8623a33bb9d91d2337c8d6b9"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_experiment_groups.rs",
+      "sha256": "089d3d32719c3e8ac7e827a5a3c6f25949d73fea15606d1026125c7491bc575d"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/get_workspace.rs",
+      "sha256": "17b87a5eb03bfebd559d81e68b4abfa5fef4bff980470f0fc6329654eace524f"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/operation/list_versions.rs",
+      "sha256": "f3970725cc92f99504fe07914dabc596d758d0db6c277e5cb192c776b6f2077e"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/protocol_serde/shape_dimension_type.rs",
+      "sha256": "b9f78fc3ad6cde7307f8ab3e69a95f053d588f7e84d2598602bb7c696149864a"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_context_response.rs",
+      "sha256": "ed0dddf51658443a8f0b7c4f1f6d591ea2a914853c3d985b064d178e47c6138e"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_default_config_response.rs",
+      "sha256": "6c7c677f7192c4ca3e6ea6e02168241be411fe52ed4e79fcdda7a0761065a829"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_dimension_response.rs",
+      "sha256": "6b1d1c495befc1ca4bdfba1d5cbf9e410e59e723f7e4dfe3dffce442e20ca84c"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_experiment_response.rs",
+      "sha256": "45720c62a004f89809ef72adc37bbed139d173ce211205add8812f4f1daeca58"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_experiment_group_response.rs",
+      "sha256": "461e94f002bbb1f23a3e3937078caf6a6da6190b9870ae72c0d7adcf4b690512"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_workspace_response.rs",
+      "sha256": "ea745cc2139acb75babc237ebf412b341d825682b296fd8fa92b12da70060fa5"
+    },
+    {
+      "path": "cargo-registry:superposition_sdk-0.119.0/src/types/_workspace_lock.rs",
+      "sha256": "061c51c371cc491741881c26fd547e1d78a3c26d3f3b8218000cd13f690e6931"
+    },
+    {
+      "path": "cargo-registry:superposition_core-0.119.0/build.rs",
+      "sha256": "7842c9b3262d1841351db45c181ab9821a1ef091a675f6001916390ecea09e7a"
+    }
+  ],
+  "toolchain": {
+    "rustc": "1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo": "1.97.1 (c980f4866 2026-06-30)",
+    "declared_msrv_1_94_1": "not installed or tested"
+  },
+  "secret_scan": {
+    "exit": 0,
+    "findings": 0,
+    "files_scanned": 20,
+    "redaction": "100%",
+    "scope": "Step 5 new/changed files plus unchanged adjacent router foundation test; default rules; no suppressions",
+    "version": "8.30.1"
+  },
+  "setup_notes": [
+    "Initial incomplete copy of dependency caches failed on fastrand source in owned CARGO_HOME; original local source/archive existed.",
+    "Overlay copy encountered existing symlink/read-only cache entries; only owned Git cache copy was recreated.",
+    "No DOCS_RS bypass, dependency patch, network or shared-cache correction used.",
+    "Core 0.119.0 standalone offline locked metadata prerequisite passed; previous cache blocker is historical."
+  ]
+}

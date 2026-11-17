@@ -1,4 +1,9 @@
-//! Foundation boundaries only. No inventory, plan construction, CLI dispatch or mutation adapter.
+//! Input foundations and direct read-only inventory. No planner, sync CLI or mutation adapter.
+
+pub mod administration;
+pub mod inventory;
+mod raw_json;
+pub mod types;
 
 use std::path::PathBuf;
 
