@@ -116,7 +116,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request.business_label.as_ref(),
                     platform.get_processor(),
                     request.profile_id.as_ref(),
-                    &*state.store,
+                    state.accounts_store.as_ref(),
                 )
                 .await?
             }
@@ -504,14 +504,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_id: None,
                         mandate_reference_id: Some(
                             mandates::MandateReferenceId::ConnectorMandateId(
-                                mandates::ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()),
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                    None,
-                                ),
+                                mandates::ConnectorMandateReferenceId::from(token),
                             ),
                         ),
                     }),
@@ -876,15 +869,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .payment_intent
                 .is_settlement_conclusion_applied()
         {
-            let db = state.store.as_ref();
-
             let merchant_connector_id = business_profile
                 .tax_connector_id
                 .as_ref()
                 .get_required_value("business_profile.tax_connector_id")?;
 
             #[cfg(feature = "v1")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
@@ -898,7 +890,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )?;
 
             #[cfg(feature = "v2")]
-            let mca = db
+            let mca = state
+                .accounts_store
                 .find_merchant_connector_account_by_id(merchant_connector_id, key_store)
                 .await
                 .to_not_found_response(
@@ -972,7 +965,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             req.business_label.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
-            &*state.store,
+            state.accounts_store.as_ref(),
         )
         .await?;
         helpers::validate_payment_profile(

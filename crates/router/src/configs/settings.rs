@@ -8,7 +8,8 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::Url};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -1846,10 +1847,29 @@ impl Default for CellInformation {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ThemeSettings {
     pub storage: FileStorageConfig,
     pub email_config: EmailThemeConfig,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            storage: FileStorageConfig::default(),
+            email_config: EmailThemeConfig {
+                entity_name: SafeString::default(),
+                #[allow(clippy::expect_used)]
+                entity_logo_url: Url::wrap(
+                    url::Url::parse("https://example.com/Logo.png")
+                        .expect("Failed to parse default email entity logo URL"),
+                ),
+                primary_color: SafeString::default(),
+                foreground_color: SafeString::default(),
+                background_color: SafeString::default(),
+            },
+        }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -2024,6 +2044,8 @@ impl<'de> Deserialize<'de> for TenantConfig {
         #[derive(Deserialize)]
         struct Inner {
             base_url: String,
+            #[serde(default)]
+            mtls_base_url: Option<String>,
             schema: String,
             accounts_schema: String,
             redis_key_prefix: String,
@@ -2042,6 +2064,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                         Tenant {
                             tenant_id: key,
                             base_url: value.base_url,
+                            mtls_base_url: value.mtls_base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,

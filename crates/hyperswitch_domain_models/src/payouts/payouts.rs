@@ -10,6 +10,7 @@ use super::payout_attempt::PayoutAttempt;
 use super::PayoutFetchConstraints;
 use crate::{merchant_key_store::MerchantKeyStore, type_encryption::OptionalEncryptableJsonType};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PayoutsInterface {
     type Error;

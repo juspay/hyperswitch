@@ -666,7 +666,7 @@ pub async fn payouts_create_core_wrapper(
                 req.business_label.as_ref(),
                 platform.get_processor(),
                 req.profile_id.as_ref(),
-                &*state.store,
+                state.accounts_store.as_ref(),
             )
             .await?
         }
@@ -4295,14 +4295,18 @@ async fn validate_and_get_business_profile(
     processor: &domain::Processor,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Profile> {
-    let db = &*state.store;
-
-    if let Some(business_profile) =
-        core_utils::validate_and_get_business_profile(db, processor, Some(profile_id)).await?
+    if let Some(business_profile) = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(profile_id),
+    )
+    .await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+        state
+            .accounts_store
+            .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -4540,18 +4544,16 @@ pub async fn payouts_manual_update_core(
             connector_payout_id,
         } = req;
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)

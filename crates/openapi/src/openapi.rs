@@ -919,6 +919,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::NetworkTokenWithVaultCardFallback,
         api_models::mandates::VaultCardData,
         api_models::mandates::ProcessorPaymentToken,
+        api_models::mandates::ProcessorPaymentTokenDetails,
         api_models::payments::CustomerDetails,
         api_models::payments::GiftCardData,
         api_models::payments::GiftCardDetails,

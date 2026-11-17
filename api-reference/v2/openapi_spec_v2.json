@@ -5059,7 +5059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                  "$ref": "#/components/schemas/RecoveryPaymentsCreateResponse"
                 },
                 "example": {
                   "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
@@ -5070,7 +5070,7 @@
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields, or the invoice takes no more transactions",
+            "description": "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
@@ -16250,14 +16250,6 @@
           "next_retry"
         ],
         "properties": {
-          "last_failure_code": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/StandardisedCode"
-              }
-            ],
-            "nullable": true
-          },
           "consumed_ladder_rungs": {
             "type": "integer",
             "format": "int32",
@@ -16273,6 +16265,17 @@
           },
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          "last_recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request this state was last saved for, so a re-run of that request is\nrecognised.",
+            "nullable": true
+          },
+          "last_transaction_created_at": {
+            "type": "string",
+            "description": "When the transaction this state was last saved for was made. A transaction made before it is\nout of date and only recorded.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
           }
         }
       },
@@ -22684,6 +22687,25 @@
                 "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "RecoveryRetryWebhookDetails",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "recovery_retry_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RecoveryRetryWebhookDetails"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -23527,6 +23549,12 @@
                 "$ref": "#/components/schemas/FutureUsage"
               }
             ],
+            "nullable": true
+          },
+          "recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
         }
@@ -26280,6 +26308,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/ExternalTriggerState"
+              }
+            ],
+            "nullable": true
+          },
+          "last_failure_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StandardisedCode"
               }
             ],
             "nullable": true
@@ -30655,6 +30691,42 @@
           "merchant_connector_id": {
             "type": "string",
             "nullable": true
+          },
+          "processor_payment_token_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessorPaymentTokenDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ProcessorPaymentTokenDetails": {
+        "type": "object",
+        "description": "Card and network reference details associated with a processor payment token.",
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month.",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year.",
+            "example": "2030",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID from the original customer initiated transaction.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier from the original transaction.",
+            "nullable": true
           }
         }
       },
@@ -31532,7 +31604,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded"
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body."
           },
           "destination_url": {
             "type": "string",
@@ -31565,7 +31637,7 @@
         ],
         "properties": {
           "response": {
-            "description": "The response received from the destination"
+            "$ref": "#/components/schemas/ProxyResponseBody"
           },
           "status_code": {
             "type": "integer",
@@ -31578,6 +31650,18 @@
             "description": "The headers of the response"
           }
         }
+      },
+      "ProxyResponseBody": {
+        "oneOf": [
+          {
+            "description": "A JSON body"
+          },
+          {
+            "type": "string",
+            "description": "Any other body, as UTF-8 text"
+          }
+        ],
+        "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document. Only UTF-8 text is supported. Both variants serialize to the bare\nvalue, so a JSON string and text look the same on the wire; this type is serialize-only."
       },
       "PspTokenization": {
         "type": "object",
@@ -32193,8 +32277,8 @@
         "enum": [
           "recovered",
           "retries_exhausted",
-          "grace_period_exceeded",
-          "hard_decline",
+          "grace_period_expired",
+          "hard_declined",
           "monitoring",
           "cancelled",
           "below_retry_threshold"
@@ -32211,8 +32295,7 @@
           "transaction_created_at",
           "connector_customer_id",
           "billing_started_at",
-          "connector_transaction_id",
-          "payment_method_data"
+          "connector_transaction_id"
         ],
         "properties": {
           "amount_details": {
@@ -32243,6 +32326,18 @@
             "type": "string",
             "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
             "example": "mca_1234567890",
+            "nullable": true
+          },
+          "merchant_reference_billing_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.",
+            "example": "billing_account_main",
+            "nullable": true
+          },
+          "merchant_reference_payment_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.",
+            "example": "payment_account_us",
             "nullable": true
           },
           "connector": {
@@ -32334,7 +32429,12 @@
             "example": "993672945374576J"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           "enable_partial_authorization": {
             "type": "boolean",
@@ -32349,6 +32449,17 @@
           }
         },
         "additionalProperties": false
+      },
+      "RecoveryPaymentsCreateResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+          },
+          {
+            "$ref": "#/components/schemas/RecoveryRequestAccepted"
+          }
+        ],
+        "description": "The answer to a reported transaction, which depends on the `revenue_recovery_trigger_model` of\nthe profile."
       },
       "RecoveryPaymentsResponse": {
         "type": "object",
@@ -32379,16 +32490,61 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
-          },
-          "next_retry": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecoveryNextRetry"
-              }
-            ],
-            "nullable": true
           }
         }
+      },
+      "RecoveryRequestAccepted": {
+        "type": "object",
+        "description": "A transaction reported on a profile whose `revenue_recovery_trigger_model` is\n`external_triggers`, accepted to be recorded right after the answer.",
+        "required": [
+          "merchant_reference_id",
+          "connector_transaction_id"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier of the transaction at the payment connector.",
+            "example": "993672945374576J"
+          }
+        }
+      },
+      "RecoveryRetryWebhookDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "merchant_reference_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in Hyperswitch.",
+                "example": "pay_mbabizu24mvu3mela5njyhpit4",
+                "maxLength": 30,
+                "minLength": 30
+              },
+              "merchant_reference_id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in the merchant's billing system.",
+                "example": "invoice_mbabizu24mvu3mela5njyh",
+                "maxLength": 30,
+                "minLength": 30
+              }
+            }
+          }
+        ],
+        "description": "The next retry of an invoice whose retries the merchant triggers, sent by webhook after each\ntransaction the merchant reports."
       },
       "RecoveryTransactionStatus": {
         "type": "string",

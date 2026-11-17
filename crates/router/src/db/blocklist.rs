@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait BlocklistInterface {
     async fn insert_blocklist_entry(
@@ -1238,7 +1239,7 @@ impl BlocklistInterface for KafkaStore {
         &self,
         pm_blocklist: storage::BlocklistNew,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store.insert_blocklist_entry(pm_blocklist).await
+        BlocklistInterface::insert_blocklist_entry(&self.diesel_store, pm_blocklist).await
     }
 
     #[instrument(skip_all)]
@@ -1249,8 +1250,7 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(
+        BlocklistInterface::list_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_id(&self.diesel_store,
                 processor_merchant_id,
                 transaction_type,
                 profile_id,
@@ -1266,13 +1266,13 @@ impl BlocklistInterface for KafkaStore {
         transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-                processor_merchant_id,
-                transaction_type,
-                fingerprint_id,
-            )
-            .await
+        BlocklistInterface::find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            fingerprint_id,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1283,14 +1283,14 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                transaction_type,
-                profile_id,
-                fingerprint_id,
-            )
-            .await
+        BlocklistInterface::find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            profile_id,
+            fingerprint_id,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1301,8 +1301,7 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_ids: Vec<String>,
     ) -> CustomResult<Option<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+        BlocklistInterface::find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(&self.diesel_store,
                 processor_merchant_id,
                 transaction_type,
                 profile_id,
@@ -1319,14 +1318,14 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         card_bins: Vec<String>,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
-                processor_merchant_id,
-                transaction_type,
-                profile_id,
-                card_bins,
-            )
-            .await
+        BlocklistInterface::list_blocklist_entries_by_processor_merchant_id_profile_id_card_bins(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            profile_id,
+            card_bins,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1336,13 +1335,13 @@ impl BlocklistInterface for KafkaStore {
         transaction_type: common_enums::BlocklistTransactionType,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-                processor_merchant_id,
-                transaction_type,
-                fingerprint_id,
-            )
-            .await
+        BlocklistInterface::delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            fingerprint_id,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1354,15 +1353,15 @@ impl BlocklistInterface for KafkaStore {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id_data_kind(
-                processor_merchant_id,
-                transaction_type,
-                data_kind,
-                limit,
-                offset,
-            )
-            .await
+        BlocklistInterface::list_blocklist_entries_by_processor_merchant_id_data_kind(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            data_kind,
+            limit,
+            offset,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1373,8 +1372,7 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
-        self.diesel_store
-            .delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
+        BlocklistInterface::delete_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(&self.diesel_store,
                 processor_merchant_id,
                 transaction_type,
                 profile_id,
@@ -1393,16 +1391,16 @@ impl BlocklistInterface for KafkaStore {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
-                processor_merchant_id,
-                transaction_type,
-                profile_id,
-                data_kind,
-                limit,
-                offset,
-            )
-            .await
+        BlocklistInterface::list_blocklist_entries_by_processor_merchant_id_profile_id_data_kind(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            profile_id,
+            data_kind,
+            limit,
+            offset,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1415,8 +1413,7 @@ impl BlocklistInterface for KafkaStore {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(
+        BlocklistInterface::list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id(&self.diesel_store,
                 processor_merchant_id,
                 transaction_type,
                 profile_id,
@@ -1437,8 +1434,7 @@ impl BlocklistInterface for KafkaStore {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(
+        BlocklistInterface::list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id(&self.diesel_store,
                 merchant_id,
                 transaction_type,
                 profile_id,
@@ -1458,8 +1454,7 @@ impl BlocklistInterface for KafkaStore {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(
+        BlocklistInterface::list_blocklist_entries_after_fingerprint_by_processor_merchant_id_profile_id_all_types(&self.diesel_store,
                 processor_merchant_id,
                 profile_id,
                 after_fingerprint_id,
@@ -1478,8 +1473,7 @@ impl BlocklistInterface for KafkaStore {
         snapshot_at: time::PrimitiveDateTime,
         limit: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(
+        BlocklistInterface::list_blocklist_entries_after_fingerprint_by_legacy_merchant_id_profile_id_all_types(&self.diesel_store,
                 merchant_id,
                 profile_id,
                 after_fingerprint_id,
@@ -1497,8 +1491,7 @@ impl BlocklistInterface for KafkaStore {
         profile_id: Option<&common_utils::id_type::ProfileId>,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
-        self.diesel_store
-            .get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(
+        BlocklistInterface::get_blocklist_entries_count_by_processor_merchant_id_profile_id_data_kind(&self.diesel_store,
                 processor_merchant_id,
                 transaction_type,
                 profile_id,
@@ -1514,13 +1507,13 @@ impl BlocklistInterface for KafkaStore {
         transaction_type: common_enums::BlocklistTransactionType,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
-        self.diesel_store
-            .get_blocklist_entries_count_by_processor_merchant_id_data_kind(
-                processor_merchant_id,
-                transaction_type,
-                data_kind,
-            )
-            .await
+        BlocklistInterface::get_blocklist_entries_count_by_processor_merchant_id_data_kind(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+            data_kind,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1531,7 +1524,7 @@ impl BlocklistInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<Vec<(i32, i64)>, errors::StorageError> {
-        self.diesel_store.count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(
+        BlocklistInterface::count_blocklist_entries_by_fingerprint_length_processor_merchant_id_profile_id_data_kind(&self.diesel_store,
                         processor_merchant_id,
                         transaction_type,
                         profile_id,
@@ -1546,12 +1539,12 @@ impl BlocklistInterface for KafkaStore {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: common_enums::BlocklistTransactionType,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
-        self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id(
-                processor_merchant_id,
-                transaction_type,
-            )
-            .await
+        BlocklistInterface::list_blocklist_entries_by_processor_merchant_id(
+            &self.diesel_store,
+            processor_merchant_id,
+            transaction_type,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -1559,8 +1552,6 @@ impl BlocklistInterface for KafkaStore {
         &self,
         entries: Vec<storage::BlocklistNew>,
     ) -> CustomResult<usize, errors::StorageError> {
-        self.diesel_store
-            .bulk_insert_blocklist_entries(entries)
-            .await
+        BlocklistInterface::bulk_insert_blocklist_entries(&self.diesel_store, entries).await
     }
 }

@@ -28,12 +28,10 @@ pub async fn generate_sample_data_for_user(
     )
     .await?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .change_context(SampleDataError::InternalServerError)
         .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error
@@ -96,12 +94,10 @@ pub async fn delete_sample_data_for_user(
 ) -> SampleDataApiResponse<()> {
     let merchant_id_del = user_from_token.merchant_id;
     let key_manager_state = &(&state).into();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id_del,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id_del, &key_store_master_key)
         .await
         .change_context(SampleDataError::InternalServerError)
         .attach_printable("Not able to fetch merchant key store")?; // If not able to fetch merchant key store for any reason, this should be an internal server error

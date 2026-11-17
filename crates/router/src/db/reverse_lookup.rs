@@ -7,6 +7,7 @@ use crate::{
     },
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ReverseLookupInterface {
     async fn insert_reverse_lookup(

@@ -8329,6 +8329,7 @@ impl
                 charge_id: recovery.charge_id.clone(),
                 customer_present: recovery.customer_present,
                 setup_future_usage: recovery.setup_future_usage,
+                recovery_request_id: recovery.recovery_request_id.clone(),
             }
         });
         Self { revenue_recovery }
@@ -8381,6 +8382,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                     external_trigger_state: payment_revenue_recovery_metadata
                         .external_trigger_state
                         .clone(),
+                    last_failure_code: payment_revenue_recovery_metadata.last_failure_code,
                 }
             });
         let apple_pay_details = feature_metadata

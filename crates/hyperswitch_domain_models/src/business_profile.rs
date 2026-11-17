@@ -1374,6 +1374,7 @@ pub enum ProfileUpdate {
     },
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ProfileInterface {
     type Error;

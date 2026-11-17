@@ -531,6 +531,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// data for every other invoice.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_trigger_state: Option<common_types::payments::ExternalTriggerState>,
+    /// Standardised error code of the last failed transaction of the invoice. The result of the
+    /// next transaction is counted against it in the cluster data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
