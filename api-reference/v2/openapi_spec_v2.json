@@ -5055,16 +5055,28 @@
         },
         "responses": {
           "200": {
-            "description": "Revenue Recovery Transaction Recorded Successfully",
+            "description": "The transaction is recorded (Fully Managed Recovery, `internal_triggers`), or accepted to be recorded right after the answer (Schedule Only Recovery, `external_triggers`)",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RecoveryPaymentsCreateResponse"
                 },
-                "example": {
-                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                  "intent_status": "failed",
-                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                "examples": {
+                  "Fully Managed Recovery": {
+                    "summary": "Recorded, on a profile whose `revenue_recovery_trigger_model` is `internal_triggers`",
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  },
+                  "Schedule Only Recovery": {
+                    "summary": "Accepted, on a profile whose `revenue_recovery_trigger_model` is `external_triggers`",
+                    "value": {
+                      "connector_transaction_id": "993672945374576J",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  }
                 }
               }
             }
