@@ -1,24 +1,46 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+  should_continue_further,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
-describe("Payment fingerprint is generated regardless of the blocklist guard", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+describe("Card - Payment fingerprint without the blocklist guard", () => {
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.PAYMENT_FINGERPRINT
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "Card payment with the blocklist guard disabled (the default) still gets a fingerprint",
-    () => {
-      it("create-payment-intent", () => {
+  context("Card payment is fingerprinted with the blocklist guard off", () => {
+    it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
@@ -30,42 +52,44 @@ describe("Payment fingerprint is generated regardless of the blocklist guard", (
           "automatic",
           globalState
         );
+
+        if (!should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
 
-      it("confirm-payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["No3DSAutoCapture"];
+        ]["FingerprintNo3DSAutoCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+
+        if (!should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
       });
 
-      it("retrieve-payment-and-check-fingerprint", () => {
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status, "status").to.equal(200);
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["FingerprintNo3DSAutoCapture"];
 
-          if (response.body.status !== "succeeded") {
-            cy.task(
-              "cli_log",
-              `Payment did not reach 'succeeded' (status: ${response.body.status}) — skipping the fingerprint assertion, this connector/scenario can't confirm the fix synchronously`
-            );
-            return;
-          }
-
-          expect(response.body.fingerprint, "fingerprint").to.not.be.null;
-          expect(response.body.fingerprint_type, "fingerprint_type").to.equal(
-            "fpan"
-          );
-        });
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
-    }
-  );
+    });
+  });
 });

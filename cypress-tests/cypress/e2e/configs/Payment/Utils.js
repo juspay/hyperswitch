@@ -836,6 +836,7 @@ export const CONNECTOR_LISTS = {
     REQUIRES_CVV: ["bankofamerica"],
     PAYMENT_ACCOUNT_REFERENCE: ["stripe", "checkout"],
     AUTH_CODE: ["checkout", "worldpayxml"],
+    PAYMENT_FINGERPRINT: ["stripe"],
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
