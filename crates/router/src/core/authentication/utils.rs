@@ -548,7 +548,100 @@ pub async fn create_new_authentication(
         })
 }
 
+#[cfg(feature = "v1")]
 pub async fn do_auth_connector_call<F, Req, Res>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
+    authentication_connector_name: String,
+    router_data: RouterData<F, Req, Res>,
+) -> RouterResult<RouterData<F, Req, Res>>
+where
+    Req: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    Res: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    F: hyperswitch_interfaces::api::gateway::FlowGateway<
+        SessionState,
+        ExternalAuthenticationFlowData,
+        Req,
+        Res,
+        payments::gateway::context::RouterGatewayContext,
+    >,
+    dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+    dyn api::ConnectorV2 + Sync:
+        services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,
+{
+    let connector_data =
+        api::AuthenticationConnectorData::get_connector_by_name(&authentication_connector_name)?;
+    let connector_integration: services::BoxedExternalAuthenticationConnectorIntegrationInterface<
+        F,
+        Req,
+        Res,
+    > = connector_data.connector.get_connector_integration();
+
+    let (execution_path, updated_state, rollout_result) =
+        crate::core::unified_connector_service::should_call_unified_connector_service(
+            state,
+            processor,
+            &router_data,
+            None,
+            payments::CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::ThreeDsAuthentication,
+        )
+        .await?;
+
+    let gateway_context = payments::gateway::context::RouterGatewayContext {
+        creds_identifier: None,
+        processor: processor.clone(),
+        header_payload: hyperswitch_domain_models::payments::HeaderPayload::default(),
+        lineage_ids: external_services::grpc_client::LineageIds::new(
+            business_profile.merchant_id.clone(),
+            business_profile.get_id().clone(),
+        ),
+        merchant_connector_account,
+        execution_path,
+        kill_switch_enabled: rollout_result.kill_switch_enabled,
+        kill_switch_threshold: rollout_result.kill_switch_threshold,
+        connector_decline_threshold: rollout_result.connector_decline_threshold,
+        rollout_scope: rollout_result.rollout_scope.clone(),
+        execution_mode: execution_path.get_execution_mode(),
+    };
+
+    hyperswitch_interfaces::api::gateway::execute_payment_gateway(
+        &updated_state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        gateway_context,
+    )
+    .await
+    .to_payment_failed_response()
+}
+
+#[cfg(feature = "v2")]
+pub async fn do_auth_connector_call<F, Req, Res>(
+    state: &SessionState,
+    _processor: &domain::Processor,
+    _business_profile: &domain::Profile,
+    _merchant_connector_account: payments::helpers::MerchantConnectorAccountType,
+    authentication_connector_name: String,
+    router_data: RouterData<F, Req, Res>,
+) -> RouterResult<RouterData<F, Req, Res>>
+where
+    Req: std::fmt::Debug + Clone + 'static,
+    Res: std::fmt::Debug + Clone + 'static,
+    F: std::fmt::Debug + Clone + 'static,
+    dyn api::Connector + Sync: services::api::ConnectorIntegration<F, Req, Res>,
+    dyn api::ConnectorV2 + Sync:
+        services::api::ConnectorIntegrationV2<F, ExternalAuthenticationFlowData, Req, Res>,
+{
+    do_auth_connector_call_direct(state, authentication_connector_name, router_data).await
+}
+
+pub async fn do_auth_connector_call_direct<F, Req, Res>(
     state: &SessionState,
     authentication_connector_name: String,
     router_data: RouterData<F, Req, Res>,

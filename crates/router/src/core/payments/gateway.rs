@@ -7,6 +7,8 @@ pub mod complete_authorize_gateway;
 pub mod context;
 pub mod create_customer_gateway;
 pub mod create_order_gateway;
+#[cfg(feature = "v1")]
+pub mod external_authentication_gateway;
 pub mod generate_qr_gateway;
 pub mod incremental_authorization_gateway;
 pub mod payment_method_token_create_gateway;

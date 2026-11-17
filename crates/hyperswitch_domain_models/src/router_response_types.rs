@@ -729,7 +729,7 @@ pub struct MandateRevokeResponseData {
     pub mandate_status: common_enums::MandateStatus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub enum AuthenticationResponseData {
     PreAuthVersionCallResponse {
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,

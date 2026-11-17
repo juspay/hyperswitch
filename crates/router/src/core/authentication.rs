@@ -2,6 +2,8 @@ pub(crate) mod utils;
 
 pub mod transformers;
 pub mod types;
+#[cfg(feature = "v1")]
+pub(crate) mod ucs;
 
 use api_models::payments;
 use common_enums::Currency;
@@ -30,6 +32,8 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication(
     state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     payment_method_data: domain::PaymentMethodData,
@@ -68,7 +72,7 @@ pub async fn perform_authentication(
         currency,
         message_category,
         device_channel.clone(),
-        merchant_connector_account,
+        merchant_connector_account.clone(),
         authentication_data.clone(),
         return_url,
         sdk_information.clone(),
@@ -82,6 +86,9 @@ pub async fn perform_authentication(
     )?;
     let response = Box::pin(utils::do_auth_connector_call(
         state,
+        processor,
+        business_profile,
+        merchant_connector_account,
         authentication_connector.clone(),
         router_data,
     ))
@@ -165,13 +172,16 @@ pub async fn perform_post_authentication(
         let router_data = transformers::construct_post_authentication_router_data(
             state,
             authentication_connector.to_string(),
-            business_profile,
-            three_ds_connector_account,
+            business_profile.clone(),
+            three_ds_connector_account.clone(),
             &authentication,
             payment_id,
         )?;
         let router_data = Box::pin(utils::do_auth_connector_call(
             state,
+            processor,
+            &business_profile,
+            three_ds_connector_account,
             authentication_connector.to_string(),
             router_data,
         ))
@@ -286,8 +296,10 @@ pub async fn perform_pre_authentication(
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
                 payment_id.clone(),
+                amount,
+                currency,
             )?;
-        let router_data = Box::pin(utils::do_auth_connector_call(
+        let router_data = Box::pin(utils::do_auth_connector_call_direct(
             state,
             authentication_connector_name.clone(),
             router_data,
@@ -337,9 +349,14 @@ pub async fn perform_pre_authentication(
             &three_ds_connector_account,
             business_profile.merchant_id.clone(),
             payment_id,
+            amount,
+            currency,
         )?;
     let router_data = Box::pin(utils::do_auth_connector_call(
         state,
+        processor,
+        business_profile,
+        three_ds_connector_account.clone(),
         authentication_connector_name,
         router_data,
     ))
