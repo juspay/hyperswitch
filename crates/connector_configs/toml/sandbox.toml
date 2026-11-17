@@ -6419,6 +6419,7 @@ key1="Client Id"
 api_key="Client Secret"
 
 [santander_payout]
+webhook_url_type="mtls"
 [[santander_payout.bank_transfer]]
   payment_method_type = "pix"
 [[santander_payout.bank_transfer]]
@@ -7678,6 +7679,7 @@ type = "Text"
   type="Text"
 
 [worldpayxml]
+webhook_url_type="mtls"
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"
 [[worldpayxml.credit]]
@@ -7864,6 +7866,7 @@ required=false
 type="Text"
 
 [worldpayxml_payout]
+webhook_url_type="mtls"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.wallet]]
@@ -7940,6 +7943,7 @@ type = "Select"
 options = []
 
 [santander]
+webhook_url_type="mtls"
 [[santander.bank_transfer]]
 payment_method_type = "pix_qr"
 [[santander.bank_transfer]]

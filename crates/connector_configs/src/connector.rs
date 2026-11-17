@@ -246,6 +246,19 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Determines which Hyperswitch webhook endpoint a connector should use.
+/// Dashboard uses this to show the mTLS callback URL only for connectors that
+/// verify incoming webhook requests with mTLS.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookUrlType {
+    /// Standard webhook endpoint.
+    #[default]
+    NonMtls,
+    /// mTLS-enabled webhook endpoint.
+    Mtls,
+}
+
 /// Wallet flow, based on who decrypts the wallet token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -271,6 +284,8 @@ pub struct PayViaSingleUseTokenInputData {
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
+    #[serde(default)]
+    pub webhook_url_type: WebhookUrlType,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
     pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
