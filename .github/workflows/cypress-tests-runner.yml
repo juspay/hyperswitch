@@ -36,7 +36,6 @@ env:
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 16777216
-  DUPLICATE_READ_LOG_PATH: ${{ github.workspace }}/duplicate-read-logs.txt
 
 jobs:
   formatter:
@@ -472,19 +471,13 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Check duplicate database reads
-        id: duplicate_reads
-        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
-        shell: bash
-        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
-
-      - name: Upload duplicate-read lines on failure
-        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+      - name: Collect server logs for duplicate-read check
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
-          name: duplicate-read-logs-mandatory-${{ matrix.batch.name }}
-          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
-          if-no-files-found: ignore
+          name: duplicate-read-source-mandatory-${{ matrix.batch.name }}
+          path: ${{ env.SERVER_LOG_PATH }}
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload server logs on failure
@@ -747,19 +740,13 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Check duplicate database reads
-        id: duplicate_reads
-        if: ${{ !cancelled() && steps.cypress.outcome != 'skipped' }}
-        shell: bash
-        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
-
-      - name: Upload duplicate-read lines on failure
-        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+      - name: Collect server logs for duplicate-read check
+        if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
-          name: duplicate-read-logs-extended-${{ matrix.batch.name }}
-          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
-          if-no-files-found: ignore
+          name: duplicate-read-source-extended-${{ matrix.batch.name }}
+          path: ${{ env.SERVER_LOG_PATH }}
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload server logs on failure
@@ -1210,19 +1197,13 @@ jobs:
           kill "${{ env.PID }}"
           kill "${{ env.MITM_PID }}" 2>/dev/null || true
 
-      - name: Check duplicate database reads
-        id: duplicate_reads
-        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && steps.cypress.outcome != 'skipped' }}
-        shell: bash
-        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
-
-      - name: Upload duplicate-read lines on failure
-        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+      - name: Collect server logs for duplicate-read check
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
-          name: duplicate-read-logs-mitm-${{ matrix.batch.name }}
-          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
-          if-no-files-found: ignore
+          name: duplicate-read-source-mitm-${{ matrix.batch.name }}
+          path: ${{ env.SERVER_LOG_PATH }}
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload MITM replay logs on failure
@@ -1498,19 +1479,13 @@ jobs:
 
           kill "${{ env.PID }}"
 
-      - name: Check duplicate database reads
-        id: duplicate_reads
-        if: ${{ !cancelled() && steps.cypress.outcome != 'skipped' }}
-        shell: bash
-        run: bash scripts/check_duplicate_reads.sh "$SERVER_LOG_PATH" "$DUPLICATE_READ_LOG_PATH"
-
-      - name: Upload duplicate-read lines on failure
-        if: ${{ failure() && steps.duplicate_reads.outcome == 'failure' }}
+      - name: Collect server logs for duplicate-read check
+        if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7
         with:
-          name: duplicate-read-logs-optional-${{ matrix.batch.name }}
-          path: ${{ env.DUPLICATE_READ_LOG_PATH }}
-          if-no-files-found: ignore
+          name: duplicate-read-source-optional-${{ matrix.batch.name }}
+          path: ${{ env.SERVER_LOG_PATH }}
+          if-no-files-found: error
           retention-days: 1
 
       - name: Upload server logs on failure
@@ -2026,3 +2001,37 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
           disable_search: true
+
+  check-duplicate-reads:
+    name: Check duplicate database reads after Cypress
+    needs: [mandatory-cypress-tests, extended-cypress-tests, mitm-cassette-replay-cypress-tests, runner-optional-connectors, runner_alpha, runner_v2]
+    if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
+    runs-on: hypersage-runners
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Prepare log directory
+        run: mkdir -p duplicate-read-sources
+
+      - name: Download Cypress server logs
+        uses: actions/download-artifact@v8
+        with:
+          pattern: duplicate-read-source-*
+          path: duplicate-read-sources
+
+      - name: Check all collected logs
+        shell: bash
+        run: |
+          status=0
+          while IFS= read -r -d '' server_log; do
+            echo "Checking $server_log"
+            duplicate_log="${server_log%/*}/duplicate-read-logs.txt"
+            if ! bash scripts/check_duplicate_reads.sh "$server_log" "$duplicate_log"; then
+              status=1
+              if [[ -s "$duplicate_log" ]]; then
+                cat "$duplicate_log"
+              fi
+            fi
+          done < <(find duplicate-read-sources -type f -name 'server-logs.txt' -print0)
+          exit "$status"
