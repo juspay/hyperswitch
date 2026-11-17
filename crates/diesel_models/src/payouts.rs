@@ -42,8 +42,8 @@ pub struct Payouts {
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
-    pub purpose: Option<storage_enums::PayoutPurpose>,
     pub sender_details: Option<Encryption>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
 }
 
 #[derive(
@@ -90,8 +90,8 @@ pub struct PayoutsNew {
     pub created_by: Option<String>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
-    pub purpose: Option<storage_enums::PayoutPurpose>,
     pub sender_details: Option<Encryption>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
