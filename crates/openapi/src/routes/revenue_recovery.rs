@@ -39,7 +39,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
         content = RecoveryPaymentsCreate,
         examples(
             (
-                "Record a failed transaction and schedule a retry" = (
+                "Fully Managed Recovery" = (
                     value = json!({
                         "amount_details": {
                             "order_amount": 6540,
@@ -91,7 +91,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 )
             ),
             (
-                "Record a failed transaction on a profile with external triggers" = (
+                "Schedule Only Recovery" = (
                     value = json!({
                         "amount_details": {
                             "order_amount": 6540,
@@ -150,12 +150,12 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
     responses(
         (
             status = 200,
-            description = "The transaction is recorded (Fully Managed Recovery, `internal_triggers`), or accepted to be recorded right after the answer (Schedule Only Recovery, `external_triggers`)",
+            description = "The transaction is recorded (Fully Managed Recovery), or accepted to be recorded right after the answer (Schedule Only Recovery)",
             body = RecoveryPaymentsCreateResponse,
             examples(
                 (
                     "Fully Managed Recovery" = (
-                        summary = "Recorded, on a profile whose `revenue_recovery_trigger_model` is `internal_triggers`",
+                        summary = "Recorded, under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`)",
                         value = json!({
                             "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
                             "intent_status": "failed",
@@ -165,7 +165,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 ),
                 (
                     "Schedule Only Recovery" = (
-                        summary = "Accepted, on a profile whose `revenue_recovery_trigger_model` is `external_triggers`",
+                        summary = "Accepted, under Schedule Only Recovery (`revenue_recovery_trigger_model` is `external_triggers`)",
                         value = json!({
                             "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                             "connector_transaction_id": "993672945374576J"
@@ -174,7 +174,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 ),
             )
         ),
-        (status = 400, description = "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "Missing or invalid mandatory fields, or, under Fully Managed Recovery, the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
         (status = 500, description = "Internal server error"),
     ),

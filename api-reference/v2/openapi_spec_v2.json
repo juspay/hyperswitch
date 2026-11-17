@@ -4945,7 +4945,7 @@
                 "$ref": "#/components/schemas/RecoveryPaymentsCreate"
               },
               "examples": {
-                "Record a failed transaction and schedule a retry": {
+                "Fully Managed Recovery": {
                   "value": {
                     "amount_details": {
                       "currency": "USD",
@@ -4995,7 +4995,7 @@
                     "transaction_status": "failure"
                   }
                 },
-                "Record a failed transaction on a profile with external triggers": {
+                "Schedule Only Recovery": {
                   "value": {
                     "amount_details": {
                       "currency": "USD",
@@ -5055,7 +5055,7 @@
         },
         "responses": {
           "200": {
-            "description": "The transaction is recorded (Fully Managed Recovery, `internal_triggers`), or accepted to be recorded right after the answer (Schedule Only Recovery, `external_triggers`)",
+            "description": "The transaction is recorded (Fully Managed Recovery), or accepted to be recorded right after the answer (Schedule Only Recovery)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5063,7 +5063,7 @@
                 },
                 "examples": {
                   "Fully Managed Recovery": {
-                    "summary": "Recorded, on a profile whose `revenue_recovery_trigger_model` is `internal_triggers`",
+                    "summary": "Recorded, under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`)",
                     "value": {
                       "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
                       "intent_status": "failed",
@@ -5071,7 +5071,7 @@
                     }
                   },
                   "Schedule Only Recovery": {
-                    "summary": "Accepted, on a profile whose `revenue_recovery_trigger_model` is `external_triggers`",
+                    "summary": "Accepted, under Schedule Only Recovery (`revenue_recovery_trigger_model` is `external_triggers`)",
                     "value": {
                       "connector_transaction_id": "993672945374576J",
                       "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
@@ -5082,7 +5082,7 @@
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields, or, on `internal_triggers`, the invoice takes no more transactions",
+            "description": "Missing or invalid mandatory fields, or, under Fully Managed Recovery, the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
