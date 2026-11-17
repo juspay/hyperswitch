@@ -1,38 +1,36 @@
 # DECISIONS
 
 **Built:** cost-aware routing as a NestJS layer (`cost-router/`) in front of an unmodified Hyperswitch. Per payment it ranks connectors by
-`score = s_hat·fee + (1 − s_hat)·L_eff` (fee only on success; `L_eff = failure_penalty_pct × amount`, clamped to the highest fee), sends the
-order as `routing: {type: priority}`, reads per-attempt outcomes back, and stores a trace (`GET /payments/{id}/routing-trace`). A cheap flaky PSP
-loses to a dearer reliable one once its failures show; below a reliability floor the layer steps aside and Hyperswitch routes normally.
+`score = s_hat·fee + (1 − s_hat)·L_eff` (fee charged on success; `L_eff = failure_penalty_pct × amount`, at least the highest fee), sends the
+order as `routing: {type: priority}`, reads per-attempt outcomes back, and keeps a trace (`GET /v1/payments/{id}/routing-trace`). A cheap flaky
+PSP loses to a dearer reliable one once its failures show; below a reliability floor the layer steps aside and Hyperswitch routes normally.
 
-**Why a layer, not Rust inside the router:** this machine (8 GB, no Rust toolchain) cannot realistically compile the router. The engine is a pure
-module (no framework, clock or I/O), so porting it into a `RoutingStage` is mechanical. Cost: less in-Hyperswitch depth, and I did not confirm
-with the founders that this reading of the brief is acceptable. No Hyperswitch file was changed.
+**Why a layer, not Rust in the router:** this machine (8 GB, no Rust toolchain) could not realistically compile the router. The engine is a
+pure module (no framework, clock or I/O), so porting it into a `RoutingStage` is mechanical. Cost: less in-Hyperswitch depth, and I did not
+confirm this reading of the brief with the founders. No Hyperswitch file was changed.
 
-**Decisions:** integer minor units end to end. `failure_penalty_pct` and `min_success_rate` are required, **no default** (a default would be an
-invented business number). Reliability is measured per **attempt**, not per payment: after a retry the final status would credit the wrong
-connector. One common pooled prior for shrinkage. Unpriced connectors rank last; no usable pricing means no override. Production instinct:
-idempotent by payment id (same key, different body gives 409), only a request hash is stored, no card data in traces.
+**Decisions:** integer minor units end to end. `failure_penalty_pct` and `min_success_rate` are required with **no default** (a default would be
+an invented business number). Reliability is measured per **attempt**, since after a retry the final status credits the wrong connector. One
+pooled prior for shrinkage. Unpriced connectors rank last; no usable pricing means no override. Production instinct: idempotent by payment id
+(same key, different body gives 409), only a request hash stored, no card data in traces.
 
-**Skipped:** circuit breaker, Redis/Postgres (a JSON state file instead), latency, BIN/issuer-level stats, load test, Rust port. Prometheus
-metrics per connector are at `GET /metrics`.
+**Bonus:** trace endpoint; Prometheus `GET /metrics` per connector; load test 100 RPS × 60 s, p99 10.3 ms with a stubbed Hyperswitch (`docs/LOADTEST.md`).
 
-**Time:** about 2 hours of hands-on design and implementation. Installing WSL2 and Docker on this machine (admin steps, a reboot) and
-pulling images took several more hours and are not counted; I was working on other things in between, so the session spans longer.
+**Skipped:** circuit breaker, Redis/Postgres (an optional JSON state file instead), latency routing, BIN-level stats, Rust port.
 
 **Broken or hacky:**
 - The score is a **single-connector approximation**, not the optimal fallback-chain cost when retries are on.
-- Hyperswitch treats the override as a **preference** (verified): disabled or unknown connectors are silently replaced, and with profile auto-retry on,
-  retries go **past our list**, so a connector the floor excluded can still run. The trace keeps requested vs actual execution apart and claims no
-  attempt order (`attempts[]` order is not guaranteed).
-- Pending attempts are never re-resolved (one read, no webhooks); first terminal status wins; with the default empty `issuer_decline_codes`,
-  issuer declines count against a connector. A few early failures with no successes put every connector under the floor.
-- Stats, idempotency and traces are per process: in memory, or in one JSON state file (temp-file-and-rename writes, single-process lock)
-  that survives restarts but is rewritten on every payment, so it is not for high volume and not shared between instances.
-- Timeouts and ambiguous responses are **not tested**. The prebuilt image needed a trimmed config copy and Superposition. `make demo` is untested
-  (no `make` here); `npm run demo` is what ran.
-- Caught by running it: my first prior (peers only) ranked a connector with one success below one with one failure (fixed, regression test), and my
-  assumption that `single` routing means "no failover" was wrong.
+- Hyperswitch treats the override as a **preference**: unknown or disabled connectors are silently replaced, and with auto-retry on, retries go
+  past our list, so a connector the floor excluded can still run. The trace keeps requested and actual execution apart.
+- Pending attempts are never re-resolved (no webhooks); issuer declines count against a connector by default; a few early failures with no
+  successes put every connector under the floor.
+- State is per process (memory or one JSON file), not shared between instances. Timeouts and ambiguous responses are **not tested**.
+- The prebuilt image needed a trimmed config copy and Superposition; `make demo` is untested here (no `make`), `npm run demo` is what ran.
+- Caught by running it: my first prior (peers only) ranked a connector with one success below one with one failure (fixed, regression test);
+  the assumption that `single` routing means "no failover" was wrong.
 
-**With 4 more hours:** (1) chain-aware scoring from a measured recovery rate, plus a way to keep retries inside the list; (2) shared durable stats
-(Postgres/Redis instead of the JSON file) with webhook ingestion for pending attempts; (3) timeout and double-charge tests, a 100 RPS load test, the Rust port.
+**Time:** about 2 hours of hands-on work. WSL2/Docker installation (admin steps, reboot) and image downloads took several more hours on this
+machine and are not counted; I worked on other things in between.
+
+**With 4 more hours:** chain-aware scoring from a measured recovery rate and a way to keep retries inside the list; shared durable stats with
+webhook ingestion for pending attempts; timeout and double-charge tests, and the Rust `RoutingStage` port.
