@@ -823,8 +823,7 @@ fn record_received_recovery_request(outcome: &'static str) {
 /// Queues a transaction the merchant reported, to be recorded and answered by the recovery request
 /// workflow, under the recovery request's id, which its job id is built from. A transaction
 /// already reported in the profile is refused, as its job id is taken, whatever became of that
-/// job. The job keeps `request_body`, the request exactly as the merchant sent it, and reads
-/// `request` back from it.
+/// job. The job keeps `request_body`, the serialised `request`, and reads `request` back from it.
 async fn queue_recovery_request(
     state: &SessionState,
     platform: &Platform,

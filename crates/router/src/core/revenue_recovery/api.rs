@@ -312,7 +312,6 @@ pub async fn custom_revenue_recovery_core(
     platform: Platform,
     profile: domain::Profile,
     request: api_models::payments::RecoveryPaymentsCreate,
-    request_body: Secret<String>,
 ) -> RouterResponse<payments_api::RecoveryPaymentsCreateResponse> {
     validate_recovery_amounts(&request)?;
     validate_customer_information(&request)?;
@@ -346,6 +345,10 @@ pub async fn custom_revenue_recovery_core(
             )
         }
         RecoveryTrigger::External { connector } => {
+            let request_body = serde_json::to_string(&request)
+                .map(Secret::new)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize the recovery request")?;
             payments_api::RecoveryPaymentsCreateResponse::Accepted(
                 Box::pin(external_triggers::accept_recovery_request(
                     &state,
