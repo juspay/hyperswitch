@@ -118,7 +118,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
-    Wallet(api_models::payment_methods::WalletDetail),
+    Wallet(api_models::payment_methods::RawWalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 

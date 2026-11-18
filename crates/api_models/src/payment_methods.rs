@@ -667,6 +667,17 @@ pub enum WalletPaymentMethodData {
     PayPal(Box<payments::PaypalRedirection>),
 }
 
+/// Wallet metadata returned by payment-method APIs, without decrypted credentials.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletPaymentMethodResponseData {
+    ApplePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePay(Box<PaymentMethodDataWalletInfo>),
+    #[schema(value_type = PaypalRedirection)]
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -799,6 +810,59 @@ impl From<GPayPredecryptData> for WalletDetail {
             application_primary_account_number: data.application_primary_account_number,
             expiry_month: data.card_exp_month,
             expiry_year: data.card_exp_year,
+        }
+    }
+}
+
+/// Raw wallet output. Transaction secrets are attached only during authorized retrieval,
+/// never included in the persistent wallet payload.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RawWalletDetail {
+    ApplePayDecryptedData {
+        #[schema(value_type = String)]
+        application_primary_account_number: CardNumber,
+        #[schema(value_type = String)]
+        expiry_month: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = String)]
+        expiry_year: hyperswitch_masking::Secret<String>,
+        /// Available once for the session token; null after consumption or expiry.
+        #[serde(default)]
+        #[schema(value_type = Option<ApplePayCryptogramData>)]
+        payment_data: Option<common_types::payments::ApplePayCryptogramData>,
+    },
+    GooglePayDecryptedData {
+        #[schema(value_type = String)]
+        application_primary_account_number: CardNumber,
+        #[schema(value_type = String)]
+        expiry_month: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = String)]
+        expiry_year: hyperswitch_masking::Secret<String>,
+    },
+}
+
+impl From<WalletDetail> for RawWalletDetail {
+    fn from(wallet: WalletDetail) -> Self {
+        match wallet {
+            WalletDetail::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::ApplePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+                payment_data: None,
+            },
+            WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
         }
     }
 }
@@ -1327,7 +1391,7 @@ impl CardDetailUpdate {
 pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
     BankDebit(BankDebitDetailsPaymentMethod),
-    Wallet(WalletPaymentMethodData),
+    Wallet(WalletPaymentMethodResponseData),
 }
 
 #[cfg(feature = "v2")]
@@ -1363,7 +1427,7 @@ pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(Box<RawCardWithNTDetails>),
     BankDebit(BankDebitDetail),
-    Wallet(WalletDetail),
+    Wallet(RawWalletDetail),
     ProxyCard(RawProxyCardDataResponse),
 }
 
@@ -4930,6 +4994,66 @@ pub struct PaymentMethodSessionDeleteSavedPaymentMethod {
     pub payment_method_token: String,
 }
 
+/// Instrument data accepted by the modular payment-method session.
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionDataRequest {
+    #[serde(flatten)]
+    pub payment_method_data: PaymentMethodSessionData,
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodSessionData {
+    #[schema(value_type = Card)]
+    Card(payments::Card),
+    BankDebit(PaymentMethodSessionBankDebitData),
+    Wallet(PaymentMethodSessionWalletData),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodSessionBankDebitData {
+    AchBankDebit {
+        #[schema(value_type = Option<BankDebitBilling>)]
+        billing_details: Option<payments::BankDebitBilling>,
+        #[schema(value_type = String)]
+        account_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = String)]
+        routing_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<BankNames>)]
+        bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = Option<BankType>)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PaymentMethodSessionWalletData {
+    ApplePay(Box<PaymentMethodSessionApplePayData>),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PaymentMethodSessionApplePayData {
+    /// Encrypted Apple Pay payment token. Decrypted input is not accepted here.
+    #[schema(value_type = String)]
+    pub payment_data: hyperswitch_masking::Secret<String>,
+    #[schema(value_type = ApplepayPaymentMethod)]
+    pub payment_method: payments::ApplepayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodSessionConfirmRequest {
@@ -4942,8 +5066,8 @@ pub struct PaymentMethodSessionConfirmRequest {
     pub payment_method_subtype: Option<common_enums::PaymentMethodType>,
 
     /// The payment instrument data to be used for the payment
-    #[schema(value_type = PaymentMethodDataRequest)]
-    pub payment_method_data: payments::PaymentMethodDataRequest,
+    #[schema(value_type = PaymentMethodSessionDataRequest)]
+    pub payment_method_data: PaymentMethodSessionDataRequest,
 
     /// The return url to which the customer should be redirected to after adding the payment method
     #[schema(value_type = Option<String>)]

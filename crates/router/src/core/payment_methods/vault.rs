@@ -2855,6 +2855,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
             bank_debit_token_data.payment_method_id
         }
+        storage::PaymentTokenData::WalletToken(wallet) => wallet.payment_method_id,
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
@@ -2979,6 +2980,69 @@ pub async fn insert_cvc_using_payment_token(
         );
 
     Ok(card_token_cvc_storage)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn store_apple_pay_cryptogram(
+    state: &routes::SessionState,
+    session_token: &str,
+    cryptogram: &common_types::payments::ApplePayCryptogramData,
+    fulfillment_time: i64,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    let connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let encrypted: Encryption = core_utils::create_encrypted_data(
+        &state.into(),
+        key_store,
+        cryptogram,
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt Apple Pay cryptogram")?
+    .into();
+    let key = format!("pm_token_{session_token}_hyperswitch_apple_pay_cryptogram");
+    connection
+        .serialize_and_set_key_with_expiry(&key.into(), encrypted, fulfillment_time)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to store Apple Pay cryptogram")
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn consume_apple_pay_cryptogram(
+    state: &routes::SessionState,
+    session_token: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<common_types::payments::ApplePayCryptogramData>> {
+    let connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let key = format!("pm_token_{session_token}_hyperswitch_apple_pay_cryptogram");
+    let Some(payload) = connection
+        .consume_key(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to consume Apple Pay cryptogram")?
+    else {
+        return Ok(None);
+    };
+    let encrypted: Encryption = serde_json::from_str(&payload)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Invalid encrypted Apple Pay cryptogram")?;
+    pm_cards::decrypt_generic_data(state, Some(encrypted), key_store)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to decrypt Apple Pay cryptogram")?
+        .get_required_value("Apple Pay cryptogram")
+        .map(Some)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
 }
 
 #[instrument(skip_all)]

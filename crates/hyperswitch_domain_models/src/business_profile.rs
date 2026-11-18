@@ -694,6 +694,8 @@ pub struct Profile {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -824,6 +826,8 @@ impl From<ProfileSetter> for Profile {
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
             revenue_recovery_config: value.revenue_recovery_config,
+            apple_pay_certificates: None,
+            apple_pay_certificates_encrypted: None,
         }
     }
 }
@@ -890,6 +894,8 @@ pub struct ProfileDbBuilder {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -958,6 +964,8 @@ impl From<ProfileDbBuilder> for Profile {
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
             revenue_recovery_config: value.revenue_recovery_config,
+            apple_pay_certificates: value.apple_pay_certificates,
+            apple_pay_certificates_encrypted: value.apple_pay_certificates_encrypted,
         }
     }
 }

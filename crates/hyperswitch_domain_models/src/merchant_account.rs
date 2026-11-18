@@ -157,6 +157,8 @@ pub struct MerchantAccountSetter {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -178,6 +180,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             product_type,
             merchant_account_type,
             fingerprint_secret,
+            apple_pay_certificates,
+            apple_pay_certificates_encrypted,
         } = item;
         Self {
             id,
@@ -195,6 +199,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             product_type,
             merchant_account_type,
             fingerprint_secret,
+            apple_pay_certificates,
+            apple_pay_certificates_encrypted,
         }
     }
 }
@@ -217,6 +223,8 @@ pub struct MerchantAccount {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
 }
 
 impl MerchantAccount {

@@ -972,6 +972,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         consts::FINGERPRINT_SECRET_LENGTH,
                         "fs",
                     ))),
+                    apple_pay_certificates: None,
+                    apple_pay_certificates_encrypted: None,
                 }),
             )
         }
