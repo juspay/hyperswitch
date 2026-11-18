@@ -94,6 +94,42 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
+/// Only attach an existing customer; inline attributes never create or update one.
+#[cfg(feature = "v1")]
+async fn get_and_validate_payout_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<Option<domain::Customer>> {
+    let customer = match req.get_customer_id() {
+        Some(customer_id) => {
+            Some(helpers::get_existing_customer_details(state, customer_id, platform).await?)
+        }
+        None => None,
+    };
+
+    validate_customer_for_payout_method(
+        customer.as_ref().map(|customer| customer.get_id()),
+        req.payout_method_data.as_ref(),
+    )?;
+
+    Ok(customer)
+}
+
+/// Validate before request-driven writes, using the intent's customer ID for existing payouts.
+#[cfg(feature = "v1")]
+pub(super) fn validate_customer_for_payout_method(
+    customer_id: Option<&id_type::CustomerId>,
+    payout_method_data: Option<&payouts::PayoutMethodData>,
+) -> RouterResult<()> {
+    match (payout_method_data, customer_id) {
+        (Some(_), None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id when payout_method_data is provided".into(),
+        })),
+        _ => Ok(()),
+    }
+}
+
 /// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
@@ -141,7 +177,7 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer creation or raw-method lookup.
+/// Validate identity before customer or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -178,7 +214,7 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before any customer side effects so the cap applies to the
+    // Resolve the profile before customer lookup so the cap applies to the
     // exact merchant/profile context that will own the payout.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
@@ -234,7 +270,7 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before creating customers or resolving payout methods.
+    // Resolve the profile and kill switch before resolving customers or payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -247,19 +283,7 @@ pub async fn validate_create_request(
         .await?;
     let profile_id = business_profile.get_id().to_owned();
 
-    // Fetch customer details (merge of loose fields + customer object) and create DB entry
-    let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = if customer_in_request.customer_id.is_some()
-        || customer_in_request.name.is_some()
-        || customer_in_request.email.is_some()
-        || customer_in_request.phone.is_some()
-        || customer_in_request.phone_country_code.is_some()
-        || customer_in_request.document_details.is_some()
-    {
-        helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
-    } else {
-        None
-    };
+    let customer = get_and_validate_payout_customer(state, platform, req).await?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
