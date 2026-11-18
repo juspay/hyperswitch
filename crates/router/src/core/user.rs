@@ -232,7 +232,7 @@ pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
-    if utils::user::is_signup_disabled(env::which(), &state.conf.user) {
+    if state.conf.user.signup_disabled {
         return Err(report!(UserErrors::InvalidCredentials));
     }
 
@@ -369,7 +369,7 @@ pub async fn connect_account(
         .err()
         .unwrap_or(false)
     {
-        if utils::user::is_signup_disabled(env::which(), &state.conf.user) {
+        if state.conf.user.signup_disabled {
             return Err(report!(UserErrors::InvalidCredentials));
         }
 
