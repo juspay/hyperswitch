@@ -34,7 +34,7 @@ impl ResolvedCardInfo {
         S::Error: std::fmt::Debug,
     {
         let Some(payment_method_data) = payment_method_data else {
-            return ResolvedCardInfo { record: None };
+            return Self { record: None };
         };
         let (card_number, issuer, network, card_type, country, bank_code, co_badged) =
         match payment_method_data {
@@ -86,7 +86,7 @@ impl ResolvedCardInfo {
                 &card.bank_code,
                 None,
             ),
-            _ => return ResolvedCardInfo { record: None },
+            _ => return Self { record: None },
         };
         // Mirror enrichment's shortcut when all required metadata is already supplied.
         let has_usable_network = network.is_some()
@@ -102,14 +102,14 @@ impl ResolvedCardInfo {
             && country.is_some()
             && bank_code.is_some()
         {
-            return ResolvedCardInfo { record: None };
+            return Self { record: None };
         }
         let card_isin = card_number.get_card_isin();
         match store.get_card_info(&card_isin).await {
             Ok(resolved) => resolved,
             Err(error) => {
                 router_env::logger::warn!(card_info_error=?error);
-                ResolvedCardInfo { record: None }
+                Self { record: None }
             }
         }
     }
@@ -140,12 +140,13 @@ mod tests {
     use super::ResolvedCardInfo;
 
     #[test]
-    fn a_missing_bin_is_a_successful_resolution() -> Result<(), error_stack::Report<std::io::Error>>
-    {
-        let resolved = ResolvedCardInfo::from_lookup_result::<std::io::Error>(Ok(None))?;
-        assert!(resolved.as_ref().is_none());
-        assert!(resolved.into_record().is_none());
-        Ok(())
+    fn a_missing_bin_is_a_successful_resolution() {
+        let resolved = ResolvedCardInfo::from_lookup_result::<std::io::Error>(Ok(None));
+        assert!(resolved.as_ref().is_ok_and(|info| info.as_ref().is_none()));
+        assert!(matches!(
+            resolved.map(ResolvedCardInfo::into_record),
+            Ok(None)
+        ));
     }
 
     #[test]
