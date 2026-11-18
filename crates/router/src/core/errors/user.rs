@@ -132,6 +132,8 @@ pub enum UserErrors {
     InvalidSavedViewName,
     #[error("Maximum attempts reached for Password")]
     MaxPasswordAttemptsReached,
+    #[error("SignupDisabled")]
+    SignupDisabled,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -340,6 +342,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::MaxPasswordAttemptsReached => {
                 AER::TooManyRequests(ApiError::new(sub_code, 67, self.get_error_message(), None))
             }
+            Self::SignupDisabled => {
+                AER::BadRequest(ApiError::new(sub_code, 68, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -435,6 +440,7 @@ impl UserErrors {
                 "Account locked after too many failed sign in attempts. Please try again later"
                     .to_string()
             }
+            Self::SignupDisabled => "Sign up is disabled".to_string(),
         }
     }
 }

@@ -236,7 +236,7 @@ pub async fn signup_token_only_flow(
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
     if state.conf.user.signup_disabled {
-        return Err(report!(UserErrors::InvalidCredentials));
+        return Err(report!(UserErrors::SignupDisabled));
     }
 
     let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
@@ -392,7 +392,7 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if state.conf.user.signup_disabled {
-            return Err(report!(UserErrors::InvalidCredentials));
+            return Err(report!(UserErrors::SignupDisabled));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
