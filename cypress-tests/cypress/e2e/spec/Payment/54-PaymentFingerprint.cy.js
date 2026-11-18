@@ -10,7 +10,7 @@ let globalState;
 const confirmDataFor = (flowKey) =>
   getConnectorDetails(globalState.get("connectorId"))["card_pm"][flowKey];
 
-const runFingerprintFlow = (flowKey, retrieveAfterFailedConfirm = false) => {
+const runFingerprintFlow = (flowKey, isFailedPaymentFlow = false) => {
   let shouldContinue = true;
 
   cy.step("Create Payment Intent", () => {
@@ -38,9 +38,9 @@ const runFingerprintFlow = (flowKey, retrieveAfterFailedConfirm = false) => {
 
     cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
 
-    if (!retrieveAfterFailedConfirm && !should_continue_further(confirmData)) {
-      shouldContinue = false;
-    }
+    shouldContinue = isFailedPaymentFlow
+      ? confirmData.Response?.status === 200
+      : should_continue_further(confirmData);
   });
 
   cy.step("Retrieve Payment", () => {
@@ -85,29 +85,12 @@ describe("Card - Payment fingerprint generation", () => {
   });
 
   context("Succeeded card payment gets a fingerprint", () => {
-    before(function () {
-      if (
-        confirmDataFor("No3DSAutoCapture")?.Response?.body?.status !==
-        "succeeded"
-      ) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       runFingerprintFlow("No3DSAutoCapture");
     });
   });
 
   context("Failed card payment still records the fingerprint type", () => {
-    before(function () {
-      if (
-        confirmDataFor("No3DSFailPayment")?.Response?.body?.status !== "failed"
-      ) {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
       runFingerprintFlow("No3DSFailPayment", true);
     });
