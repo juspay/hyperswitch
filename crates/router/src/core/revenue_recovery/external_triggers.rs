@@ -13,11 +13,11 @@ use common_utils::{
     types::keymanager,
 };
 use diesel_models::{business_profile::RevenueRecoveryConfig, process_tracker::business_status};
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::{get_next_retry_for_intent_status, PaymentIntent, PaymentIntentData},
     platform::Platform,
-    revenue_recovery::{RecoveryPaymentAttempt, RecoveryPaymentIntent},
+    revenue_recovery::RecoveryPaymentAttempt,
     type_encryption::{crypto_operation, CryptoOperation},
     ApiModelToDieselModelConvertor,
 };
@@ -36,16 +36,16 @@ use crate::{
     core::{
         api_locking::{LockAction, LockingInput},
         configs::dimension_state::{self, DimensionsWithProcessorMerchantIdAndConnector},
-        errors::{self, RouterResult, StorageErrorExt},
+        errors::{self, RouterResult},
         payments::{
             self,
             operations::{
                 payment_attempt_record::PaymentAttemptRecord, ValidateStatusForOperation,
             },
         },
-        webhooks::recovery_incoming::RevenueRecoveryAttempt,
+        webhooks::{self, recovery_incoming::RevenueRecoveryAttempt},
     },
-    routes::{app::ReqState, lock_utils, metrics, SessionState},
+    routes::{lock_utils, metrics, SessionState},
     types::{
         api as api_types, domain,
         storage::{
@@ -91,166 +91,6 @@ impl NextRetryDecision {
             assigned_ab_algorithm: None,
         }
     }
-}
-
-/// Records a transaction the merchant reports and, when it was made off session with the customer
-/// absent, works out when they should trigger the next retry. The reports of an invoice are handled
-/// one at a time, as each one builds on the state the last one left, and no connector sync is there
-/// to correct a report handled out of turn.
-pub(super) async fn record_transaction_and_get_next_retry(
-    state: &SessionState,
-    req_state: &ReqState,
-    platform: &Platform,
-    profile: &domain::Profile,
-    request: &RecoveryPaymentsCreate,
-    connector: RecoveryConnector,
-    retry_config: &RevenueRecoveryConfig,
-) -> RouterResult<(RecoveryPaymentIntent, Option<RecoveryNextRetry>)> {
-    let invoice_lock = LockAction::Hold {
-        input: LockingInput {
-            unique_locking_key: request.merchant_reference_id.get_string_repr().to_owned(),
-            api_identifier: lock_utils::ApiIdentifier::Payments,
-            override_lock_retries: None,
-        },
-    };
-    let merchant_id = platform.get_processor().get_account().get_id().to_owned();
-
-    invoice_lock
-        .clone()
-        .perform_locking_action(state, merchant_id.clone())
-        .await?;
-
-    let result = Box::pin(handle_merchant_report(
-        state,
-        req_state,
-        platform,
-        profile,
-        request,
-        connector,
-        retry_config,
-    ))
-    .await;
-
-    if let Err(error) = invoice_lock.free_lock_action(state, merchant_id).await {
-        logger::error!(?error, "Failed to release the lock of the invoice");
-    }
-
-    result
-}
-
-/// Records the transaction and decides the next retry. A transaction made on session or with the
-/// customer present is only recorded: it is not a retry, so what the invoice last told the merchant
-/// stays as it was.
-///
-/// Once the transaction is recorded the merchant must get an answer, because reporting it again is
-/// refused as a duplicate. So the steps after recording log their failures rather than fail the
-/// request, apart from reading the invoice back, which fails only if the database just went away.
-async fn handle_merchant_report(
-    state: &SessionState,
-    req_state: &ReqState,
-    platform: &Platform,
-    profile: &domain::Profile,
-    request: &RecoveryPaymentsCreate,
-    connector: RecoveryConnector,
-    retry_config: &RevenueRecoveryConfig,
-) -> RouterResult<(RecoveryPaymentIntent, Option<RecoveryNextRetry>)> {
-    // A value sent in the request takes priority over the one on the profile.
-    let request = &RecoveryPaymentsCreate {
-        enable_partial_authorization: request
-            .enable_partial_authorization
-            .or(Some(retry_config.enable_partial_authorization.into())),
-        ..request.clone()
-    };
-
-    let invoice = api::get_or_create_invoice(state, req_state, platform, profile, request).await?;
-
-    PaymentAttemptRecord
-        .validate_status_for_operation(invoice.status)
-        .map_err(|_| {
-            report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "The invoice is `{}` and takes no more transactions",
-                    invoice.status
-                ),
-            })
-        })?;
-
-    let previous_recovery_metadata = invoice
-        .feature_metadata
-        .as_ref()
-        .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref());
-    let is_existing_invoice = previous_recovery_metadata.is_some();
-    let is_same_card = previous_recovery_metadata.is_some_and(|recovery_metadata| {
-        recovery_metadata
-            .billing_connector_payment_details
-            .payment_processor_token
-            == *request
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek()
-    });
-    let previous_trigger_state = previous_recovery_metadata
-        .and_then(|recovery_metadata| recovery_metadata.external_trigger_state.clone());
-
-    let (recovery_attempt, _) = Box::pin(api::record_transaction(
-        state,
-        req_state,
-        platform,
-        profile,
-        request,
-        &invoice,
-        &RecoveryConnectorDetails::ReportedByMerchant {
-            connector: connector.into(),
-        },
-    ))
-    .await?;
-
-    let is_merchant_initiated = request
-        .customer_present
-        .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
-        == common_enums::PresenceOfCustomerDuringPayment::Absent
-        && request
-            .setup_future_usage
-            .unwrap_or(common_enums::FutureUsage::OffSession)
-            .is_off_session();
-
-    reset_card_history_after_a_charge(state, request).await;
-
-    let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id).await?;
-    let updated_invoice = RecoveryPaymentIntent::from(&payment_intent);
-
-    if !is_merchant_initiated {
-        return Ok((updated_invoice, None));
-    }
-
-    let (trigger_state, assigned_ab_algorithm) = Box::pin(decide_recovery_request_retry(
-        state,
-        platform,
-        profile,
-        retry_config,
-        request,
-        &recovery_attempt,
-        &payment_intent,
-        previous_trigger_state.as_ref(),
-        is_existing_invoice,
-        is_same_card,
-    ))
-    .await;
-    let next_retry = trigger_state.next_retry;
-    if let Err(error) = save_trigger_state(
-        state,
-        platform,
-        profile,
-        payment_intent,
-        trigger_state,
-        assigned_ab_algorithm,
-    )
-    .await
-    {
-        logger::error!(?error, "Failed to save the recovery state of the invoice");
-    }
-
-    Ok((updated_invoice, Some(next_retry)))
 }
 
 /// The recovery state of an invoice after a merchant-initiated recovery request: its next retry
@@ -338,6 +178,9 @@ async fn decide_recovery_request_retry(
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
 /// Hyperswitch makes.
 async fn reset_card_history_after_a_charge(state: &SessionState, request: &RecoveryPaymentsCreate) {
+    let Some(payment_method_data) = request.payment_method_data.as_ref() else {
+        return;
+    };
     match request.transaction_status {
         RecoveryTransactionStatus::Failure => {}
         RecoveryTransactionStatus::Charged | RecoveryTransactionStatus::PartialCharged => {
@@ -348,8 +191,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
                     &None,
                     &None,
                     Some(
-                        request
-                            .payment_method_data
+                        payment_method_data
                             .primary_processor_payment_method_token
                             .peek()
                             .as_str(),
@@ -733,6 +575,8 @@ enum RecoveryRequestOutcome {
     LimitsExhausted(RecoveryNoRetryReason),
     /// Recorded, and no retry follows, for a reason that needs no webhook.
     NoWebhook(RecoveryNoRetryReason),
+    /// Recorded and decided, with the next retry's reason, but the profile takes no webhooks.
+    WebhookDisabled(Option<RecoveryNoRetryReason>),
     /// Made with the customer, so only recorded.
     CustomerInitiated,
     /// A newer recovery request of the invoice was applied first, so only recorded.
@@ -741,6 +585,9 @@ enum RecoveryRequestOutcome {
     Duplicate,
     /// The invoice is closed, so nothing is recorded.
     InvoiceClosed,
+    /// The transaction has no card and Hyperswitch has no invoice for it yet, so nothing is
+    /// recorded: a new invoice needs the card to retry.
+    CardMissing,
     /// The invoice does not show every attempt recorded on it, so nothing is decided.
     InvoiceOutOfSync,
 }
@@ -763,15 +610,33 @@ impl RecoveryRequestOutcome {
         }
     }
 
+    /// The webhook that tells the merchant the decision, for a decision that has one.
+    fn webhook_event(self) -> Option<common_enums::EventType> {
+        match self {
+            Self::RetryScheduled => Some(common_enums::EventType::RecoveryRetryScheduled),
+            Self::LimitsExhausted(_) => Some(common_enums::EventType::RecoveryLimitsExhausted),
+            Self::NoWebhook(_)
+            | Self::WebhookDisabled(_)
+            | Self::CustomerInitiated
+            | Self::Stale
+            | Self::Duplicate
+            | Self::InvoiceClosed
+            | Self::CardMissing
+            | Self::InvoiceOutOfSync => None,
+        }
+    }
+
     fn name(self) -> &'static str {
         match self {
             Self::RetryScheduled => "retry_scheduled",
             Self::LimitsExhausted(_) => "limits_exhausted",
             Self::NoWebhook(_) => "no_webhook",
+            Self::WebhookDisabled(_) => "webhook_disabled",
             Self::CustomerInitiated => "customer_initiated",
             Self::Stale => "stale",
             Self::Duplicate => "duplicate",
             Self::InvoiceClosed => "invoice_closed",
+            Self::CardMissing => "card_missing",
             Self::InvoiceOutOfSync => "invoice_out_of_sync",
         }
     }
@@ -779,11 +644,13 @@ impl RecoveryRequestOutcome {
     fn reason(self) -> Option<RecoveryNoRetryReason> {
         match self {
             Self::LimitsExhausted(reason) | Self::NoWebhook(reason) => Some(reason),
+            Self::WebhookDisabled(reason) => reason,
             Self::RetryScheduled
             | Self::CustomerInitiated
             | Self::Stale
             | Self::Duplicate
             | Self::InvoiceClosed
+            | Self::CardMissing
             | Self::InvoiceOutOfSync => None,
         }
     }
@@ -793,10 +660,12 @@ impl RecoveryRequestOutcome {
             Self::RetryScheduled => business_status::RECOVERY_REQUEST_RETRY_SCHEDULED,
             Self::LimitsExhausted(_) => business_status::RECOVERY_REQUEST_LIMITS_EXHAUSTED,
             Self::NoWebhook(_) => business_status::RECOVERY_REQUEST_NO_WEBHOOK,
+            Self::WebhookDisabled(_) => business_status::RECOVERY_REQUEST_WEBHOOK_DISABLED,
             Self::CustomerInitiated => business_status::RECOVERY_REQUEST_CUSTOMER_INITIATED,
             Self::Stale => business_status::RECOVERY_REQUEST_STALE,
             Self::Duplicate => business_status::RECOVERY_REQUEST_DUPLICATE,
             Self::InvoiceClosed => business_status::RECOVERY_REQUEST_INVOICE_CLOSED,
+            Self::CardMissing => business_status::RECOVERY_REQUEST_RECORDING_FAILED,
             Self::InvoiceOutOfSync => business_status::RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC,
         }
     }
@@ -814,19 +683,51 @@ fn reason_name(reason: RecoveryNoRetryReason) -> &'static str {
     }
 }
 
-/// Queues a transaction the merchant reported, to be recorded and answered by the recovery request
-/// workflow, and returns the recovery request's id, which its job id is built from. A transaction
-/// already reported in the profile is refused, as its job id is taken, whatever became of that
-/// job. The job keeps `request_body`, the request exactly as the merchant sent it, and reads
-/// `request` back from it.
-pub(crate) async fn queue_recovery_request(
+/// Accepts a transaction the merchant reported and queues it for the recovery request workflow,
+/// which records it. The invoice is not read here: the workflow refuses one that takes no more
+/// transactions, which also covers an invoice that closes while the recovery request waits.
+pub(super) async fn accept_recovery_request(
     state: &SessionState,
     platform: &Platform,
     profile: &domain::Profile,
     request: &RecoveryPaymentsCreate,
     request_body: &Secret<String>,
     connector: RecoveryConnector,
-) -> RouterResult<String> {
+) -> RouterResult<api_models::payments::RecoveryRequestAccepted> {
+    queue_recovery_request(state, platform, profile, request, request_body, connector)
+        .await
+        .inspect_err(|error| {
+            record_received_recovery_request(match error.current_context() {
+                errors::ApiErrorResponse::GenericDuplicateError { .. } => "duplicate",
+                _ => "failed",
+            })
+        })?;
+    record_received_recovery_request("queued");
+
+    Ok(api_models::payments::RecoveryRequestAccepted {
+        merchant_reference_id: request.merchant_reference_id.clone(),
+        connector_transaction_id: request.connector_transaction_id.clone(),
+    })
+}
+
+fn record_received_recovery_request(outcome: &'static str) {
+    metrics::REVENUE_RECOVERY_REQUEST_RECEIVED
+        .add(1, router_env::metric_attributes!(("outcome", outcome)));
+}
+
+/// Queues a transaction the merchant reported, to be recorded and answered by the recovery request
+/// workflow, under the recovery request's id, which its job id is built from. A transaction
+/// already reported in the profile is refused, as its job id is taken, whatever became of that
+/// job. The job keeps `request_body`, the request exactly as the merchant sent it, and reads
+/// `request` back from it.
+async fn queue_recovery_request(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    request: &RecoveryPaymentsCreate,
+    request_body: &Secret<String>,
+    connector: RecoveryConnector,
+) -> RouterResult<()> {
     let recovery_request_id = get_recovery_request_id(
         profile.get_id(),
         &request.merchant_reference_id,
@@ -890,7 +791,7 @@ pub(crate) async fn queue_recovery_request(
         connector_transaction_id = %request.connector_transaction_id,
         "Recovery request queued"
     );
-    Ok(recovery_request_id)
+    Ok(())
 }
 
 /// The id of a recovery request, the same for every request for a transaction: the profile, the
@@ -956,10 +857,10 @@ async fn decrypt_recovery_request(
     Ok(decrypted.into_inner().expose())
 }
 
-/// Records a transaction the merchant reported and decides the next retry of its invoice. Called by
-/// the recovery request workflow: every outcome finishes the job here, apart from a wait for the
-/// invoice's lock, which puts the job back in the queue, and only a temporary error is returned, for
-/// the workflow to run the recovery request again.
+/// Records a transaction the merchant reported, decides the next retry of its invoice and tells the
+/// merchant by webhook. Called by the recovery request workflow: every outcome finishes the job here,
+/// apart from a wait for the invoice's lock, which puts the job back in the queue, and only a
+/// temporary error is returned, for the workflow to run the recovery request again.
 #[instrument(
     skip_all,
     fields(
@@ -1105,8 +1006,8 @@ async fn load_recovery_request_context(
     Ok((platform, profile))
 }
 
-/// Records the reported transaction and decides the next retry, under the invoice's lock. An error
-/// is temporary, and the recovery request runs again.
+/// Records the reported transaction, decides the next retry and tells the merchant, under the
+/// invoice's lock. An error is temporary, and the recovery request runs again.
 async fn apply_recovery_request(
     state: &SessionState,
     tracking_data: &pcr::RecoveryRequestTrackingData,
@@ -1116,9 +1017,12 @@ async fn apply_recovery_request(
     retry_config: &RevenueRecoveryConfig,
 ) -> Result<RecoveryRequestOutcome, sch_errors::ProcessTrackerError> {
     let req_state = state.get_req_state();
-    let invoice = api::get_or_create_invoice(state, &req_state, platform, profile, request)
+    let Some(invoice) = api::find_or_create_invoice(state, &req_state, platform, profile, request)
         .await
-        .map_err(|error| recovery_request_step_failed("invoice", error))?;
+        .map_err(|error| recovery_request_step_failed("invoice", error))?
+    else {
+        return Ok(RecoveryRequestOutcome::CardMissing);
+    };
     tracing::Span::current().record("payment_id", invoice.payment_id.get_string_repr());
 
     let previous_recovery_metadata = invoice
@@ -1148,16 +1052,23 @@ async fn apply_recovery_request(
             if let Some(saved_state) = previous_trigger_state.as_ref().filter(|trigger_state| {
                 trigger_state.last_recovery_request_id.as_deref() == Some(recovery_request_id)
             }) {
-                return Ok(RecoveryRequestOutcome::from_next_retry(
-                    &get_next_retry_for_intent_status(invoice.status, saved_state.next_retry),
-                ));
+                return Box::pin(send_next_retry(
+                    state,
+                    platform,
+                    profile,
+                    tracking_data,
+                    &invoice.payment_id,
+                    get_next_retry_for_intent_status(invoice.status, saved_state.next_retry),
+                    true,
+                ))
+                .await;
             }
             let recorded_on_invoice = previous_recovery_metadata
                 .map(|recovery_metadata| usize::from(recovery_metadata.total_retry_count));
-            if recorded_on_invoice != Some(attempts.total) {
+            if recorded_on_invoice != Some(attempts.counted_as_retries) {
                 logger::error!(
                     ?recorded_on_invoice,
-                    attempts = ?attempts.total,
+                    attempts_counted_as_retries = ?attempts.counted_as_retries,
                     "The invoice does not show every attempt recorded on it"
                 );
                 return Ok(RecoveryRequestOutcome::InvoiceOutOfSync);
@@ -1192,7 +1103,10 @@ async fn apply_recovery_request(
 
     reset_card_history_after_a_charge(state, request).await;
 
-    if !is_merchant_initiated(request) {
+    if !hyperswitch_domain_models::revenue_recovery::is_merchant_initiated(
+        request.customer_present,
+        request.setup_future_usage,
+    ) {
         return Ok(RecoveryRequestOutcome::CustomerInitiated);
     }
     if let Some(last_transaction_created_at) = previous_trigger_state
@@ -1211,13 +1125,17 @@ async fn apply_recovery_request(
     }
 
     let is_existing_invoice = attempts.earlier > 0;
-    let is_same_card = attempts.previous_card.as_ref()
-        == Some(
-            request
-                .payment_method_data
-                .primary_processor_payment_method_token
-                .peek(),
-        );
+    let is_same_card = request
+        .payment_method_data
+        .as_ref()
+        .is_some_and(|payment_method_data| {
+            attempts.previous_retry_card.as_ref()
+                == Some(
+                    payment_method_data
+                        .primary_processor_payment_method_token
+                        .peek(),
+                )
+        });
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
         .map_err(|error| recovery_request_step_failed("invoice", error))?;
@@ -1257,20 +1175,116 @@ async fn apply_recovery_request(
         reason = ?next_retry.reason,
         "Next retry of the invoice decided"
     );
-    Ok(RecoveryRequestOutcome::from_next_retry(&next_retry))
+    Box::pin(send_next_retry(
+        state,
+        platform,
+        profile,
+        tracking_data,
+        &invoice.payment_id,
+        next_retry,
+        false,
+    ))
+    .await
 }
 
-/// Only a transaction made off session with the customer absent is merchant initiated. A request
-/// that leaves either out gets the defaults the invoice is created with.
-fn is_merchant_initiated(request: &RecoveryPaymentsCreate) -> bool {
-    request
-        .customer_present
-        .unwrap_or(common_enums::PresenceOfCustomerDuringPayment::Absent)
-        == common_enums::PresenceOfCustomerDuringPayment::Absent
-        && request
-            .setup_future_usage
-            .unwrap_or(common_enums::FutureUsage::OffSession)
-            .is_off_session()
+/// Tells the merchant the next retry of the invoice by webhook, for a decision that has one, and
+/// returns how the recovery request ends. The webhook's event is keyed by the recovery request. A
+/// later run answering from the decision an earlier run saved (`is_saved_decision`) sends it only
+/// if that run did not.
+async fn send_next_retry(
+    state: &SessionState,
+    platform: &Platform,
+    profile: &domain::Profile,
+    tracking_data: &pcr::RecoveryRequestTrackingData,
+    payment_id: &id_type::GlobalPaymentId,
+    next_retry: RecoveryNextRetry,
+    is_saved_decision: bool,
+) -> Result<RecoveryRequestOutcome, sch_errors::ProcessTrackerError> {
+    let outcome = RecoveryRequestOutcome::from_next_retry(&next_retry);
+    let Some(event_type) = outcome.webhook_event() else {
+        return Ok(outcome);
+    };
+    let webhook_recipient =
+        webhooks::utils::resolve_webhook_recipient_from_created_by(state, platform, profile, None)
+            .await
+            .map_err(|error| recovery_request_step_failed("webhook", error))?;
+    let idempotent_event_id = webhooks::utils::get_idempotent_event_id(
+        &tracking_data.recovery_request_id,
+        event_type,
+        common_enums::WebhookDeliveryAttempt::InitialAttempt,
+    )
+    .map_err(|error| recovery_request_step_failed("webhook", error))?;
+    let webhook_url = webhook_recipient
+        .profile
+        .get_webhook_url_from_profile()
+        .change_context(errors::WebhooksFlowError::MerchantWebhookUrlNotConfigured);
+    if webhooks::utils::is_outgoing_webhook_disabled(
+        state,
+        &webhook_url,
+        &webhook_recipient.profile,
+        &idempotent_event_id,
+    ) {
+        return Ok(RecoveryRequestOutcome::WebhookDisabled(next_retry.reason));
+    }
+    if is_saved_decision
+        && is_webhook_queued(state, platform, &webhook_recipient, &idempotent_event_id).await?
+    {
+        logger::info!(
+            %event_type,
+            %idempotent_event_id,
+            "Recovery webhook already queued by an earlier run of the recovery request"
+        );
+        return Ok(outcome);
+    }
+
+    Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
+        state.clone(),
+        platform.clone(),
+        event_type,
+        common_enums::EventClass::RevenueRecovery,
+        tracking_data.recovery_request_id.clone(),
+        common_enums::EventObjectType::RecoveryRetryDetails,
+        api_models::webhooks::OutgoingWebhookContent::RecoveryRetryDetails(Box::new(
+            api_models::payments::RecoveryRetryWebhookDetails {
+                id: payment_id.clone(),
+                merchant_reference_id: tracking_data.merchant_reference_id.clone(),
+                next_retry,
+            },
+        )),
+        tracking_data.received_at,
+        webhook_recipient,
+    ))
+    .await
+    .map_err(|error| recovery_request_step_failed("webhook", error))?;
+    metrics::REVENUE_RECOVERY_REQUEST_TIME_TO_WEBHOOK.record(
+        (common_utils::date_time::now() - tracking_data.received_at).as_seconds_f64(),
+        router_env::metric_attributes!(("outcome", outcome.name())),
+    );
+    logger::info!(%event_type, %idempotent_event_id, "Recovery webhook queued");
+    Ok(outcome)
+}
+
+/// Whether an earlier run of the recovery request already queued its webhook, which it stored as
+/// an event.
+async fn is_webhook_queued(
+    state: &SessionState,
+    platform: &Platform,
+    webhook_recipient: &webhooks::utils::WebhookRecipientContext,
+    idempotent_event_id: &str,
+) -> Result<bool, sch_errors::ProcessTrackerError> {
+    match state
+        .store
+        .find_event_by_merchant_id_idempotent_event_id(
+            platform.get_provider().get_account().get_id(),
+            idempotent_event_id,
+            &webhook_recipient.key_store,
+        )
+        .await
+    {
+        Ok(_) => Ok(true),
+        Err(error) if error.current_context().is_db_not_found() => Ok(false),
+        Err(error) => Err(recovery_request_step_failed("webhook", error)),
+    }
 }
 
 /// The invoice as it is now, read through the get intent operation.
@@ -1331,7 +1345,10 @@ async fn wait_for_invoice_lock(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::RETRIES_EXCEEDED)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_recovery_request_outcome("retries_exceeded", None);
     Ok(())
@@ -1352,12 +1369,18 @@ async fn finish_recovery_request(
     match outcome {
         RecoveryRequestOutcome::Stale
         | RecoveryRequestOutcome::Duplicate
-        | RecoveryRequestOutcome::InvoiceClosed => {
+        | RecoveryRequestOutcome::InvoiceClosed
+        | RecoveryRequestOutcome::CardMissing => {
             logger::warn!(
                 outcome = outcome.name(),
                 "Recovery request ended without a decision"
             )
         }
+        RecoveryRequestOutcome::WebhookDisabled(reason) => logger::warn!(
+            ?reason,
+            "Recovery request decided, but the merchant is not told: outgoing webhooks are off or \
+             the profile has no webhook URL"
+        ),
         RecoveryRequestOutcome::InvoiceOutOfSync => logger::error!(
             outcome = outcome.name(),
             "Recovery request not decided, as its invoice does not show every attempt recorded on \
@@ -1393,7 +1416,10 @@ pub(crate) async fn finish_failed_recovery_request(
     state
         .store
         .as_scheduler()
-        .finish_process_with_business_status(process.clone(), business_status::FAILURE)
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+        )
         .await?;
     record_recovery_request_outcome("failed", None);
     Ok(())
@@ -1439,7 +1465,10 @@ pub(crate) async fn retry_recovery_request(
             state
                 .store
                 .as_scheduler()
-                .finish_process_with_business_status(process, business_status::RETRIES_EXCEEDED)
+                .finish_process_with_business_status(
+                    process,
+                    business_status::RECOVERY_REQUEST_RECORDING_FAILED,
+                )
                 .await
                 .change_context(sch_errors::ProcessTrackerError::ProcessUpdateFailed)?;
             record_recovery_request_outcome("retries_exceeded", None);

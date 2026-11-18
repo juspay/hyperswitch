@@ -410,6 +410,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             webhook_url: Some(webhook_url),
             browser_info,
             funds_transfer_type: payouts.funds_transfer_type,
+            purpose: payouts.purpose,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
@@ -1224,7 +1225,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     processor: &domain::Processor,
     dispute: &storage::Dispute,
-) -> RouterResult<types::AcceptDisputeRouterData> {
+) -> RouterResult<(
+    types::AcceptDisputeRouterData,
+    helpers::MerchantConnectorAccountType,
+)> {
     let profile_id = payment_intent
         .profile_id
         .as_ref()
@@ -1330,7 +1334,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_returned_payment_method_details: None,
         customer_date_of_birth: None,
     };
-    Ok(router_data)
+    Ok((router_data, merchant_connector_account))
 }
 
 #[cfg(feature = "v1")]
@@ -1342,7 +1346,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
     processor: &domain::Processor,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
-) -> RouterResult<types::SubmitEvidenceRouterData> {
+) -> RouterResult<(
+    types::SubmitEvidenceRouterData,
+    helpers::MerchantConnectorAccountType,
+)> {
     let connector_id = &dispute.connector;
     let profile_id = payment_intent
         .profile_id
@@ -1445,7 +1452,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_returned_payment_method_details: None,
         customer_date_of_birth: None,
     };
-    Ok(router_data)
+    Ok((router_data, merchant_connector_account))
 }
 
 #[cfg(feature = "v1")]

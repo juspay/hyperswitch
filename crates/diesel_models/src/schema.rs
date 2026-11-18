@@ -1613,6 +1613,8 @@ diesel::table! {
         #[max_length = 64]
         funds_transfer_type -> Nullable<Varchar>,
         sender_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        purpose -> Nullable<Varchar>,
     }
 }
 

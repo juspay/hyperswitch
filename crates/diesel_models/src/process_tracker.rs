@@ -336,4 +336,12 @@ pub mod business_status {
     /// A reported transaction's attempt is recorded, but its invoice does not show every attempt
     /// recorded on it, so the recovery request is not decided and the invoice needs a manual check
     pub const RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC: &str = "RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC";
+
+    /// A reported transaction was recorded and decided, but the merchant was not told: outgoing
+    /// webhooks are off, or the profile has no webhook URL
+    pub const RECOVERY_REQUEST_WEBHOOK_DISABLED: &str = "RECOVERY_REQUEST_WEBHOOK_DISABLED";
+
+    /// A reported transaction could not be recorded: its job failed for good, ran out of retries,
+    /// or waited too long for its invoice, or it has no card and its invoice is new
+    pub const RECOVERY_REQUEST_RECORDING_FAILED: &str = "RECOVERY_REQUEST_RECORDING_FAILED";
 }

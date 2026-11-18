@@ -1099,6 +1099,7 @@ impl UnifiedConnectorServiceClient {
     /// `WebhookEventType`, without requiring credentials or making any outbound connector
     /// call. The caller uses the returned reference to resolve the merchant-connector
     /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    /// Sends `x-webhook-connector` as provider identity alongside the legacy connector metadata.
     pub async fn incoming_webhook_parse_event(
         &self,
         incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
@@ -1109,8 +1110,14 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
+        let mut metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let webhook_connector = connector_name.parse::<MetadataValue<_>>().change_context(
+            UnifiedConnectorServiceError::HeaderInjectionFailed(
+                consts::UCS_HEADER_WEBHOOK_CONNECTOR.to_string(),
+            ),
+        )?;
+        metadata.insert(consts::UCS_HEADER_WEBHOOK_CONNECTOR, webhook_connector);
         *request.metadata_mut() = metadata;
 
         self.event_service_client
@@ -1226,6 +1233,112 @@ impl UnifiedConnectorServiceClient {
                     method="refund_void_post_refund",
                     connector_name=?connector_name,
                     "UCS refund void post-refund gRPC call failed"
+                )
+            })
+    }
+
+    /// Accepts (concedes) a dispute via DisputeService.Accept
+    pub async fn dispute_accept(
+        &self,
+        dispute_accept_request: payments_grpc::DisputeServiceAcceptRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::DisputeServiceAcceptResponse>>
+    {
+        let mut request = tonic::Request::new(dispute_accept_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .accept(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_accept",
+                    connector_name=?connector_name,
+                    "UCS dispute accept gRPC call failed"
+                )
+            })
+    }
+
+    /// Submits dispute evidence via DisputeService.SubmitEvidence
+    pub async fn dispute_submit_evidence(
+        &self,
+        dispute_submit_evidence_request: payments_grpc::DisputeServiceSubmitEvidenceRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::DisputeServiceSubmitEvidenceResponse>,
+    > {
+        let mut request = tonic::Request::new(dispute_submit_evidence_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .submit_evidence(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_submit_evidence",
+                    connector_name=?connector_name,
+                    "UCS dispute submit evidence gRPC call failed"
+                )
+            })
+    }
+
+    /// Defends a dispute via DisputeService.Defend
+    pub async fn dispute_defend(
+        &self,
+        dispute_defend_request: payments_grpc::DisputeServiceDefendRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::DisputeServiceDefendResponse>>
+    {
+        let mut request = tonic::Request::new(dispute_defend_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .defend(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_defend",
+                    connector_name=?connector_name,
+                    "UCS dispute defend gRPC call failed"
                 )
             })
     }

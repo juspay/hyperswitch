@@ -9526,6 +9526,45 @@ pub enum PayoutFundsTransferType {
     MastercardGamingRepay,
 }
 
+/// The purpose for which a payout is being carried out.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutPurpose {
+    Donations,
+    Education,
+    EmergencyNeed,
+    Expatriation,
+    FamilySupport,
+    FinancialServices,
+    Gifts,
+    Income,
+    Insurance,
+    Investment,
+    ItServices,
+    Leisure,
+    LoanPayment,
+    MedicalTreatment,
+    Pension,
+    Royalties,
+    Savings,
+    TravelAndTourism,
+    Other,
+}
+
 #[derive(
     Clone,
     Copy,
