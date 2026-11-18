@@ -272,6 +272,15 @@ describe("Offer Engine", () => {
   context(
     "Offer quoted by saved payment_token applies on a saved-card confirm",
     () => {
+      let offerEngineDetails;
+
+      before(() => {
+        globalState.set("offerQuoteId", undefined);
+        offerEngineDetails = getConnectorDetails(
+          globalState.get("connectorId")
+        ).offer_engine;
+      });
+
       it("list customer payment methods", () => {
         cy.listCustomerPMCallTest(globalState);
       });
@@ -287,15 +296,13 @@ describe("Offer Engine", () => {
       });
 
       it("payment eligibility check by payment_token surfaces an eligible offer", () => {
-        globalState.set("offerQuoteId", undefined);
         const eligibilityBody = Cypress._.cloneDeep(
           fixtures.eligibilityCheckBody
         );
         delete eligibilityBody.payment_method_data;
         eligibilityBody.payment_token = globalState.get("paymentToken");
         const eligibilityData = Cypress._.cloneDeep(
-          getConnectorDetails(globalState.get("connectorId")).offer_engine
-            .OfferEligibilityCheck
+          offerEngineDetails.OfferEligibilityCheck
         );
         delete eligibilityData.Request.payment_method_data;
         cy.paymentsOfferEligibilityCheck(
@@ -306,9 +313,6 @@ describe("Offer Engine", () => {
       });
 
       it("saved-card confirm call applies the offer quoted by token", () => {
-        const offerEngineDetails = getConnectorDetails(
-          globalState.get("connectorId")
-        ).offer_engine;
         cy.saveCardConfirmCallTest(
           Cypress._.cloneDeep(fixtures.saveCardConfirmBody),
           offerEngineDetails.ConfirmWithOfferAppliedSavedCard,
@@ -317,9 +321,8 @@ describe("Offer Engine", () => {
       });
 
       it("applied_offer is reflected on payment retrieve", () => {
-        const savedCardRetrieve = getConnectorDetails(
-          globalState.get("connectorId")
-        ).offer_engine.AppliedOfferOnRetrieveSavedCard;
+        const savedCardRetrieve =
+          offerEngineDetails.AppliedOfferOnRetrieveSavedCard;
         cy.retrievePaymentCallTest({
           globalState,
           data: savedCardRetrieve,
