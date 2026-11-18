@@ -30,6 +30,14 @@ describe("OMP Scoping - Payouts", () => {
       payoutIdPA = globalState.get("payoutIdPA");
       payoutIdPB = globalState.get("payoutIdPB");
       payoutsExecution = globalState.get("payoutsExecution");
+
+      if (!payoutsExecution) {
+        cy.task(
+          "cli_log",
+          "Skipping this suite: no payout_processor credentials in the " +
+            "creds file (see 00-Setup.cy.js)."
+        );
+      }
     });
   });
 
@@ -38,13 +46,7 @@ describe("OMP Scoping - Payouts", () => {
   });
 
   beforeEach(function () {
-    if (!payoutsExecution) {
-      cy.task(
-        "cli_log",
-        "Skipping: no payout_processor credentials in the creds file (see 00-Setup.cy.js)."
-      );
-      this.skip();
-    }
+    if (!payoutsExecution) this.skip();
   });
 
   // Ground-truth snapshot, deliberately merchant-wide (no X-Profile-Id) so
