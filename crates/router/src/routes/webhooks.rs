@@ -37,10 +37,7 @@ pub async fn receive_incoming_webhook(
                 false,
             )
         },
-        &auth::MerchantIdAndMcaIdAuth {
-            merchant_id,
-            connector_id_or_name: connector_id_or_name.clone(),
-        },
+        &auth::MerchantIdAuth(merchant_id),
         api_locking::LockAction::NotApplicable,
     ))
     .await
