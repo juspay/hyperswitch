@@ -178,7 +178,7 @@ async fn decide_recovery_request_retry(
 /// A charged card is healthy again, so its retry history starts over, as it does for the retries
 /// Hyperswitch makes.
 async fn reset_card_history_after_a_charge(state: &SessionState, request: &RecoveryPaymentsCreate) {
-    let Some(payment_method_data) = request.payment_method_data.as_ref() else {
+    let Some(token) = request.get_processor_payment_method_token() else {
         return;
     };
     match request.transaction_status {
@@ -190,12 +190,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
                     request.connector_customer_id.peek(),
                     &None,
                     &None,
-                    Some(
-                        payment_method_data
-                            .primary_processor_payment_method_token
-                            .peek()
-                            .as_str(),
-                    ),
+                    Some(token.peek().as_str()),
                 )
                 .await;
             if let Err(error) = reset {
@@ -1126,16 +1121,8 @@ async fn apply_recovery_request(
 
     let is_existing_invoice = attempts.earlier > 0;
     let is_same_card = request
-        .payment_method_data
-        .as_ref()
-        .is_some_and(|payment_method_data| {
-            attempts.previous_retry_card.as_ref()
-                == Some(
-                    payment_method_data
-                        .primary_processor_payment_method_token
-                        .peek(),
-                )
-        });
+        .get_processor_payment_method_token()
+        .is_some_and(|token| attempts.previous_retry_card.as_ref() == Some(token.peek()));
     let payment_intent = read_invoice(state, platform, profile, &invoice.payment_id)
         .await
         .map_err(|error| recovery_request_step_failed("invoice", error))?;
