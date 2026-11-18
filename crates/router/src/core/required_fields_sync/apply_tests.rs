@@ -29,6 +29,20 @@ struct Case {
     fixture: Fixture,
     actions: Vec<PlannedAction>,
     frozen: Vec<j::PreparedRequest>,
+    #[cfg(feature = "required_fields_sync")]
+    desired: VerifiedDesired,
+    #[cfg(feature = "required_fields_sync")]
+    bundle: Value,
+    #[cfg(feature = "required_fields_sync")]
+    ownership: OwnershipManifest,
+    #[cfg(feature = "required_fields_sync")]
+    prerequisites: PrerequisitePolicy,
+    #[cfg(feature = "required_fields_sync")]
+    projection: ProjectionContract,
+    #[cfg(feature = "required_fields_sync")]
+    reports: Vec<Vec<u8>>,
+    #[cfg(feature = "required_fields_sync")]
+    approval: SemanticApproval,
 }
 async fn case(shape: Shape) -> Case {
     let mut fixture = Fixture::new();
@@ -163,6 +177,7 @@ async fn case(shape: Shape) -> Case {
     intent.authority = registration.authority.clone();
     intent.generation = 1;
     intent.executor_image = d("image");
+    intent.source = "4".repeat(40).try_into().unwrap();
     intent.release = desired.release_hash.clone();
     intent.bundle = desired.bundle_hash.clone();
     let manifest = &desired.desired.input_manifest;
@@ -242,6 +257,20 @@ async fn case(shape: Shape) -> Case {
         fixture,
         actions: plan.actions().to_vec(),
         frozen,
+        #[cfg(feature = "required_fields_sync")]
+        desired,
+        #[cfg(feature = "required_fields_sync")]
+        bundle,
+        #[cfg(feature = "required_fields_sync")]
+        ownership,
+        #[cfg(feature = "required_fields_sync")]
+        prerequisites,
+        #[cfg(feature = "required_fields_sync")]
+        projection,
+        #[cfg(feature = "required_fields_sync")]
+        reports,
+        #[cfg(feature = "required_fields_sync")]
+        approval,
     }
 }
 
@@ -1142,3 +1171,7 @@ fn all_outcome_exit_codes_and_unknown_over_partial_are_explicit() {
 
 #[path = "recovery_tests.rs"]
 mod recovery_tests;
+
+#[cfg(feature = "required_fields_sync")]
+#[path = "operation_tests.rs"]
+mod operation_tests;

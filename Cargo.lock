@@ -8118,6 +8118,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio",
+ "toml_edit 0.22.26",
  "totp-rs",
  "tracing",
  "tracing-futures",

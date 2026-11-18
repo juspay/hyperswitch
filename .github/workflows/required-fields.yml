@@ -1,0 +1,145 @@
+name: Required-fields offline and independent semantics
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      check_complete_seed:
+        description: Attempt the complete local seed acceptance gate (currently blocked on review)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      RUSTUP_TOOLCHAIN: stable
+      PYTHONDONTWRITEBYTECODE: 1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select disposable local paths
+        run: |
+          cat >> "$GITHUB_ENV" <<EOF
+          CARGO_HOME=$RUNNER_TEMP/required-fields-cargo
+          CARGO_TARGET_DIR=$RUNNER_TEMP/required-fields-target
+          RF_SEED_FIXTURE_ROOT=$RUNNER_TEMP/required-fields-seed
+          RF_CLI_FIXTURE_ROOT=$RUNNER_TEMP/required-fields-cli
+          EOF
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - uses: arduino/setup-protoc@v3
+      - name: Provision build dependencies (no server or uploader)
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libpq-dev libssl-dev pkg-config cmake clang
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path scripts/required_fields_inventory_checks/Cargo.toml
+          cargo fetch --locked --manifest-path scripts/required_fields_contracts/Cargo.toml
+          cargo fetch --locked --manifest-path docs/required_fields_sync_contracts/sdk-v1/rust-probe/Cargo.toml
+          python3 scripts/required_fields_ci/register.py --root "$RF_SEED_FIXTURE_ROOT" --purpose 'Step 14 isolated seed and CI checks'
+          python3 scripts/required_fields_ci/register.py --root "$RF_CLI_FIXTURE_ROOT" --purpose 'Step 7 offline CLI checks'
+      - name: Offline semantic, seed, contract-unit and supported feature checks
+        shell: bash
+        run: |
+          sudo unshare --net -- setpriv --reuid="$(id -u)" --regid="$(id -g)" --init-groups \
+            env -i PATH="$PATH" HOME="$HOME" \
+            CARGO_HOME="$CARGO_HOME" CARGO_TARGET_DIR="$CARGO_TARGET_DIR" CARGO_BUILD_JOBS=2 \
+            CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+            RUSTUP_TOOLCHAIN=stable PYTHONDONTWRITEBYTECODE=1 \
+            RF_SEED_FIXTURE_ROOT="$RF_SEED_FIXTURE_ROOT" RF_CLI_FIXTURE_ROOT="$RF_CLI_FIXTURE_ROOT" \
+            bash scripts/required_fields_ci/offline_checks.sh
+      - name: Complete local seed acceptance (no upload; missing approval is an error)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_complete_seed }}
+        shell: bash
+        run: |
+          sudo unshare --net -- setpriv --reuid="$(id -u)" --regid="$(id -g)" --init-groups env -i PATH="$PATH" \
+            "$CARGO_TARGET_DIR/debug/router" required-fields seed \
+            --input-profile config/required_fields_sync/local-profile.json \
+            --seed-policy config/required_fields_sync/local-seed-policy.json \
+            --template config/superposition_seed.toml --check
+      - name: Retain synthetic seed reports and independent resolver inputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: required-fields-seed-evidence
+          path: |
+            ${{ runner.temp }}/required-fields-seed/seed-cli-report.json
+            ${{ runner.temp }}/required-fields-seed/seed-semantic-fixtures/*.json
+            ${{ runner.temp }}/required-fields-seed/build-guards/report.json
+          if-no-files-found: error
+
+  browser:
+    needs: offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONDONTWRITEBYTECODE: 1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Select disposable browser path
+        run: echo "RF_BROWSER_ROOT=$RUNNER_TEMP/required-fields-browser" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          repository: juspay/hyperswitch-web
+          ref: 939f45786aee1c3b14e3f0b134bb42cb2cf2dd39
+          path: web-source
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: juspay/hyperswitch-sdk-utils
+          ref: 1af3e5dabf9d5a17dd864ac7312151ebac4367c6
+          path: web-source/shared-code
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26.0.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: required-fields-seed-evidence
+          path: ${{ runner.temp }}/seed-evidence
+      - name: Verify pins and provision a disposable source copy
+        shell: bash
+        run: |
+          python3 scripts/required_fields_ci/prepare_browser.py --web-source web-source --work-root "$RF_BROWSER_ROOT"
+          for directory in "$RF_BROWSER_ROOT/web" "$RF_BROWSER_ROOT/web/playwright-tests" "$RF_BROWSER_ROOT/web/Hyperswitch-React-Demo-App"; do
+            npm ci --prefix "$directory" --ignore-scripts --no-audit --no-fund --update-notifier=false \
+              --registry=https://registry.npmjs.org --userconfig="$RF_BROWSER_ROOT/npm-user.npmrc" \
+              --globalconfig="$RF_BROWSER_ROOT/npm-global.npmrc" --cache="$RF_BROWSER_ROOT/npm-cache"
+          done
+          PLAYWRIGHT_BROWSERS_PATH="$RF_BROWSER_ROOT/browsers" node "$RF_BROWSER_ROOT/web/playwright-tests/node_modules/@playwright/test/cli.js" install --with-deps chromium --only-shell
+      - name: Independent pinned resolver rejects generator-agreed wrong seed
+        shell: bash
+        run: |
+          sudo unshare --net -- setpriv --reuid="$(id -u)" --regid="$(id -g)" --init-groups env -i PATH="$PATH" \
+            REQUIRED_FIELDS_CASE_PACK="$GITHUB_WORKSPACE/docs/required_fields_sync_contracts/sdk-v1/cases.json" \
+            node scripts/required_fields_ci/seed_semantics.cjs "$RF_BROWSER_ROOT/web" "$RUNNER_TEMP/seed-evidence/seed-semantic-fixtures"
+      - name: Hermetic actual browser and intercepted confirm checks
+        shell: bash
+        run: |
+          sudo unshare --net -- env -i PATH="$PATH" RF_BROWSER_ROOT="$RF_BROWSER_ROOT" \
+            RF_UID="$(id -u)" RF_GID="$(id -g)" bash -c \
+            'ip link set lo up; exec setpriv --reuid="$RF_UID" --regid="$RF_GID" --init-groups env -i PATH="$PATH" PYTHONDONTWRITEBYTECODE=1 python3 scripts/required_fields_ci/run_browser.py --root "$RF_BROWSER_ROOT"'
+      - name: Retain bound browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: required-fields-browser-evidence
+          path: |
+            ${{ runner.temp }}/required-fields-browser/ci-commands.json
+            ${{ runner.temp }}/required-fields-browser/ci-command-*.log
+            ${{ runner.temp }}/required-fields-browser/verifier-*/report.json
+          if-no-files-found: error

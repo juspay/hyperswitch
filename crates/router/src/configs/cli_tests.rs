@@ -88,6 +88,66 @@ fn only_explicit_render_and_plan_arguments_are_accepted() {
     ])
     .is_err());
 }
+
+#[cfg(feature = "required_fields_sync")]
+#[test]
+fn execution_arguments_require_exact_intent_and_restore_choice() {
+    let base = ["router", "required-fields"];
+    let common = [
+        "--target",
+        "synthetic-target",
+        "--command-config",
+        "config.json",
+        "--output",
+        "report.json",
+    ];
+    for (kind, tail) in [
+        ("status", vec!["--run", "run"]),
+        ("apply", vec!["--intent", "2", "--plan-hash", "hash"]),
+        (
+            "resume",
+            vec!["--run", "run", "--intent", "2", "--plan-hash", "hash"],
+        ),
+        (
+            "restore",
+            vec!["--from-run", "run", "--intent", "2", "--plan"],
+        ),
+        (
+            "restore",
+            vec!["--from-run", "run", "--intent", "2", "--plan-hash", "hash"],
+        ),
+    ] {
+        let args: Vec<_> = base
+            .into_iter()
+            .chain([kind])
+            .chain(common)
+            .chain(tail)
+            .collect();
+        assert!(RouterCmdLineConf::try_parse_from(&args).is_ok(), "{kind}");
+        for flag in [
+            "--force",
+            "--host",
+            "--workspace",
+            "--token",
+            "--skip-verification",
+        ] {
+            let mut denied = args.clone();
+            denied.push(flag);
+            denied.push("synthetic-private-value");
+            assert!(RouterCmdLineConf::try_parse_from(denied).is_err());
+        }
+    }
+    for tail in [vec![], vec!["--plan", "--plan-hash", "hash"]] {
+        assert!(RouterCmdLineConf::try_parse_from(
+            base.into_iter()
+                .chain(["restore"])
+                .chain(common)
+                .chain(["--from-run", "run", "--intent", "2"])
+                .chain(tail)
+        )
+        .is_err());
+    }
+}
 #[cfg(not(feature = "required_fields_sync"))]
 #[test]
 fn disabled_build_has_no_required_fields_command() {
@@ -101,4 +161,31 @@ fn disabled_build_has_no_required_fields_command() {
         "bundle.json"
     ])
     .is_err());
+}
+
+#[cfg(feature = "required_fields_sync")]
+#[test]
+fn seed_requires_an_explicit_profile_policy_template_and_exclusive_output_mode() {
+    let base = [
+        "router",
+        "required-fields",
+        "seed",
+        "--input-profile",
+        "local.json",
+        "--seed-policy",
+        "policy.json",
+        "--template",
+        "seed.toml",
+    ];
+    for tail in [vec!["--check"], vec!["--output", "new.toml"]] {
+        assert!(RouterCmdLineConf::try_parse_from(base.into_iter().chain(tail)).is_ok());
+    }
+    for tail in [
+        vec![],
+        vec!["--check", "--output", "new.toml"],
+        vec!["--check", "--upload"],
+        vec!["--check", "--force"],
+    ] {
+        assert!(RouterCmdLineConf::try_parse_from(base.into_iter().chain(tail)).is_err());
+    }
 }

@@ -19,6 +19,9 @@ use super::{
 #[cfg(feature = "required_fields_sync")]
 #[path = "command_tests.rs"]
 mod command_tests;
+#[cfg(feature = "required_fields_sync")]
+#[path = "seed_tests.rs"]
+mod seed_tests;
 
 #[path = "verification_tests.rs"]
 mod verification_tests;

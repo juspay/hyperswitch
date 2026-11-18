@@ -2,6 +2,10 @@
 //! Neither these fixtures nor their modeled V1–V4 receipts certify a platform or server.
 use super::{super::super::super::recovery::*, *};
 
+#[cfg(feature = "required_fields_sync")]
+#[path = "operation_recovery_tests.rs"]
+mod operation_recovery_tests;
+
 struct Original {
     target: ac::CertifiedMutationTarget,
     intent: a::ReleaseIntent,
@@ -208,7 +212,7 @@ fn recovery_intent(
     intent.recovery = Some(observation.intent(&intent.readers).unwrap());
     intent
 }
-fn image() -> RetainedRecoveryImage {
+pub(super) fn image() -> RetainedRecoveryImage {
     RetainedRecoveryImage {
         image: d("recovery-image"),
         receipt: d("retention-receipt"),
@@ -216,7 +220,7 @@ fn image() -> RetainedRecoveryImage {
         retained_until_unix: 100_000_000,
     }
 }
-fn retention() -> j::Retention {
+pub(super) fn retention() -> j::Retention {
     j::Retention {
         created_at_unix: 1,
         retain_until_unix: 1 + j::MIN_RETENTION_SECONDS,

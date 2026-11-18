@@ -18,6 +18,35 @@ pub mod configs {
 )]
 pub mod command;
 
+#[cfg(feature = "required_fields_sync")]
+#[path = "../../../crates/router/src/core/required_fields_sync/seed.rs"]
+pub mod seed;
+#[cfg(feature = "required_fields_sync")]
+#[path = "../../../crates/router/src/core/required_fields_sync/seed_command.rs"]
+#[allow(
+    dead_code,
+    reason = "actual binary dispatch is checked in the router build"
+)]
+pub mod seed_command;
+
+#[cfg(feature = "required_fields_sync")]
+#[path = "../../../crates/router/src/core/required_fields_sync/attestation.rs"]
+pub mod attestation;
+#[cfg(feature = "required_fields_sync")]
+#[path = "../../../crates/router/src/core/required_fields_sync/operation.rs"]
+#[allow(
+    dead_code,
+    reason = "actual binary adapter is checked in the router build"
+)]
+pub mod operation;
+#[cfg(feature = "required_fields_sync")]
+#[path = "../../../crates/router/src/core/required_fields_sync/operation_executor.rs"]
+#[allow(
+    dead_code,
+    reason = "process observation is called by the actual router runtime"
+)]
+pub mod operation_executor;
+
 #[path = "../../../crates/router/src/core/required_fields_sync/administration.rs"]
 pub mod administration;
 #[path = "../../../crates/router/src/core/required_fields_sync/apply.rs"]

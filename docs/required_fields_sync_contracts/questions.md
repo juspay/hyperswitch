@@ -93,3 +93,61 @@ credentials, deployment, staging or commit was performed. See [choices/caps/outc
 - **Q9 checks:** production modules pass isolated fault/recovery tests; an explicitly owned separate read-only process reconstructs lost-create evidence after the original fixture executor disappears. Actual router/format/lint results are in [Step 12 checks](recovery-v1/checks.md). No SDK/business-source/seed change or hosted restore ran.
 
 No open certification question is closed by a synthetic success. Step 13 is next only after review and a separate request.
+
+
+## Step 13 evidence refresh — 18 November 2026
+
+- **Q3/Q4/Q6:** one shared executor connects existing safety/journal/recovery gates. Production
+  adapter provisioning still has no certified implementation; CLI requests cannot supply a
+  capability, endpoint override or force flag. Synthetic fixtures do not close these questions.
+- **Q9:** startup observes actual loaded inputs and compiled features; optional desired-state
+  observations require an explicit matching effective profile. Executable hashes and immutable
+  profile/image bindings are checked separately from user-provided release claims. Actual image
+  provenance and the wider release/MSRV matrix remain pending.
+- **Q5/Q7/Q10:** final reports contain bounded metric fields and separate rollout/sync/verification
+  status. Real one-shot collector/alert delivery, pod identity attachment and stale-backup alerts
+  remain platform dependencies; stdout/private file output is not a delivery certificate.
+
+[Step 13 checks](operations-v1/checks.md) record executed local evidence. Original source/SDK
+business decisions and every target V1–V4 gate remain open. No hosted target was enabled.
+
+
+## Step 14 evidence refresh — 18 November 2026
+
+- **Q1/Q8/Q11:** the seed editor preserves ordered values and requires exact local grants. The
+  explicit development bank profile has no automatic exclusions; full mapping/field catalog,
+  unrestricted country/AC–TA and initial migration approval remain pending. No business/SDK
+  corrections are included.
+- **Q2/Q9:** CI pins SDK 0.119.0 and separately checks the existing 0.102.0/0.113.0/0.115.5
+  server candidates. Offline unit evidence is not server certification. Exact cached image/source
+  fixtures and uploader/Deja API regression remain pending; no uploader ran.
+- **Q1/Q5/Q9:** the exact W/U/verifier archive was exercised with isolated real browser tests,
+  clean child inputs and intercepted confirm. That proves only its synthetic local scope. Linux
+  workflow execution, deployed/old/mobile artifact coverage, release/MSRV/feature matrix and
+  real target V1–V4 remain open.
+
+[Step 14 checks](seed-v1/checks.md) distinguish implementation, independent semantic evidence and
+remaining approval/platform gates. Nothing in this record enables hosted mutation.
+
+
+## Step 15 evidence update
+
+- **Source/access resolved locally:** the user supplied the selected `hyperswitch-helm` checkout.
+  I's 16 ApplicationSet files / 36 release-region selections and actual Deployment/Rollout/image
+  helpers are recorded in [deployment-v1](deployment-v1/README.md). Main selected v1 tags are
+  present; one custom integ-v2 tag is missing and stays non-authoritative. No hosted access was
+  authorized or used. Missing chart source is no longer the main v1 local render blocker.
+- **Q3/Q4:** empty registry, exact declared digest/input/intent bindings, disabled values wiring,
+  permanently suspended PostSync Job, separate companion mounts, named-Lease RBAC and static
+  checks are implemented. They do not establish physical targets, complete readers/current
+  intent, held rollout gates or external-writer exclusion. Manual/automatic Argo behavior,
+  scaling and effective admission/workload-identity/credential isolation remain untested.
+- **Q6/Q7:** journal, baseline/unresolved protection, independent recovery image and backup
+  identity/startup obligations are defined; actual storage, retention/access and publisher
+  contracts remain pending. Job scratch is not durable evidence.
+- **Q1/V1–V4/P8:** exact W/U source/archive/case pins are checked; companion OCI packaging and
+  the H response/case/report exchange, actual target browsers/per-pod caches, Jenkins immutable
+  intent publisher, collector/alerts and fallback canaries remain missing. No successful stub,
+  guessed alert metric or credential-bearing companion was substituted.
+- **Q10:** inspected InfraSwitch dispatch/version-header logic does not satisfy equivalent
+  execution/authority/rollout controls; it remains disabled. No pipeline or live state changed.

@@ -21,6 +21,7 @@ serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.140", features = ["raw_value", "preserve_order"] }
 sha2 = "=0.10.9"
 toml = "=0.8.22"
+toml_edit = { version = "=0.22.26", features = ["serde"] }
 error-stack = "=0.4.1"
 thiserror = "=1.0.69"
 time = { version = "=0.3.41", features = ["formatting", "parsing"] }

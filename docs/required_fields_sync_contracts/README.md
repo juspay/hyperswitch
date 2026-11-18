@@ -1,6 +1,6 @@
 # Required-fields sync evidence and progress
 
-Updated **2026-11-18** through **playbook Step 12 local work**. [Recovery evidence](recovery-v1/README.md) covers observation-first resume, three-way restoration, retained baseline/image bindings and the existing apply gates. Synthetic recovery does not certify server termination, writer exclusion, retention, deployed readers or V1–V4. All production registries remain empty; hosted apply/resume/restore remains disabled. This sanitized register contains no hosted credentials, adoption grants or environment authorization.
+Updated **2026-11-18** through **playbook Step 15 local disabled deployment definitions**. [Deployment evidence](deployment-v1/README.md) records I and actual-chart changes, selected-tag renders and pending platform acceptance. [Seed/CI evidence](seed-v1/README.md) remains the Step 14 checkpoint. All production registries remain empty; hosted apply/resume/restore remains disabled. This sanitized register contains no hosted credentials, adoption grants or environment authorization.
 
 Execution order: [implementation playbook](../superposition_required_fields_sync_implementation_playbook.md). Technical specification: [implementation plan](../superposition_required_fields_sync_implementation_plan.md). Read the selected step and its plan sections before changing code.
 
@@ -47,13 +47,13 @@ Execution order: [implementation playbook](../superposition_required_fields_sync
 - [ ] **10 — Apply state machine:** locally implemented with synthetic faults, actual locked-SDK wire/retry checks and independent journal recovery. Exact-server/raw-transport, real safety/storage and terminal verification/recovery gates remain open; see apply-v1.
 - [ ] **11 — V1–V4 verification:** locally implemented with bounded read transport, actual pinned browser package, independent report reader and provider startup/last-good checks; target/server/platform/old-reader certification remains open; see verification-v1.
 - [ ] **12 — Resume/restoration:** locally implemented and tested; original evidence/baseline retained, before-state retry requires drained/revoked old executor, inverse planning shares approvals and V1–V4. Real server/platform/retention/recovery-image gates remain open; see recovery-v1.
-- [ ] **13 — Mutating CLI/reporting:** needs Steps 7–12.
-- [ ] **14 — Seed/CI:** offline subset can follow Step 7; browser/full CLI gates need Steps 11/13.
+- [ ] **13 — Mutating CLI/reporting:** locally implemented with shared execution, read-only status/inverse planning, release observations and bounded reports. Actual binary denials and synthetic engine checks pass; production adapter provisioning, image/collector certification and review remain open; see operations-v1.
+- [ ] **14 — Seed/CI:** local editor/command and independent CI gates implemented; focused local evidence in seed-v1. Complete profile/migration approval, uploader/exact-server, Linux CI and broader feature/platform acceptance remain pending.
 - [ ] **15 — Disabled deployment integration:** needs Steps 8–13 and actual selected Helm/platform source.
 - [ ] **16 — Integrated failure drills/handoff:** needs Steps 10–15 and verified disposable resources.
 - [ ] **17 — Target adoption packet:** needs Step 16 and target-specific external gates; preparation does not authorize apply.
 
-No step after 12 was started. T01–T38 were not executed in Step 0. Step 1 supplies actual JS/Rust and local browser evidence for applicable T05–T09/T29/T35–T38 portions. Step 2 supplies isolated client/guard evidence, not server T10/T14/T16–T19/T22 certification. Step 3 supplies foundation evidence; Step 4 supplies the recorded pure portions of T01–T09 and focused build evidence, not T10 server certification; Step 5 supplies isolated T13/T14 and actual-client read-wire evidence, not exact-server T16 certification; Step 6 supplies the pure ownership/preflight/approval and bounded resolver portions of T07–T15/T22/T32/T35–T37; exact-server and candidate-specific browser portions remain pending. Step 7 adds T25 command isolation/redaction and the recorded T33 build-boundary checks, not target certification. Step 8 adds the local journal portions of T18/T23/T24; server outcomes, real storage and actual restoration remain unexecuted. Step 9 adds local T20/T25/T26 protocol evidence; real T21 enforcement and T34 platform integration were not executed. Step 10 adds local T12/T16–T21/T23/T32 engine/wire/recovery portions; no real server, writer-exclusion or V1–V4 certificate is implied. Each step's matrix distinguishes executed coverage from remaining gates.
+No step after 14 was started. T01–T38 were not executed in Step 0. Step 1 supplies actual JS/Rust and local browser evidence for applicable T05–T09/T29/T35–T38 portions. Step 2 supplies isolated client/guard evidence, not server T10/T14/T16–T19/T22 certification. Step 3 supplies foundation evidence; Step 4 supplies the recorded pure portions of T01–T09 and focused build evidence, not T10 server certification; Step 5 supplies isolated T13/T14 and actual-client read-wire evidence, not exact-server T16 certification; Step 6 supplies the pure ownership/preflight/approval and bounded resolver portions of T07–T15/T22/T32/T35–T37; exact-server and candidate-specific browser portions remain pending. Step 7 adds T25 command isolation/redaction and the recorded T33 build-boundary checks, not target certification. Step 8 adds the local journal portions of T18/T23/T24; server outcomes, real storage and actual restoration remain unexecuted. Step 9 adds local T20/T25/T26 protocol evidence; real T21 enforcement and T34 platform integration were not executed. Step 10 adds local T12/T16–T21/T23/T32 engine/wire/recovery portions; no real server, writer-exclusion or V1–V4 certificate is implied. Each step's matrix distinguishes executed coverage from remaining gates.
 
 ## Target and acceptance status
 
@@ -65,11 +65,14 @@ No step after 12 was started. T01–T38 were not executed in Step 0. Step 1 supp
 | Step 8 local recovery journal | Implemented; isolated faults/independent filesystem reader, with actual build results in [journal-v1](journal-v1/checks.md); Q6 certification pending |
 | Step 9 local authority/coordination | Implemented; local protocol and loopback transport evidence in [coordination-v1](coordination-v1/checks.md); actual enforcement/rollout/retention certification pending |
 | Step 11 local verification | Implemented; [checks and remaining gates](verification-v1/checks.md); every target V1–V4 remains uncertified |
-| Step 10 local disabled apply | Implemented; [checks and remaining gates](apply-v1/checks.md); no production registration or mutating command |
+| Step 10 local disabled apply | Implemented; [checks and remaining gates](apply-v1/checks.md); no production registration; gated command wiring is recorded separately in Step 13 |
+| Step 13 local commands/release observations | [Implemented local paths and checks](operations-v1/checks.md); actual adapter provisioning, image/collector and target certification remain pending |
+| Step 14 local seed/CI | [Implementation and checks](seed-v1/checks.md); committed seed unchanged, full business/target/CI-platform acceptance pending |
+| Step 15 disabled deployment definitions | [Local I/chart renders and checks](deployment-v1/checks.md); no target activation; effective platform, publisher/companion/storage/reporting and V1–V4 gates pending |
 | Plan P0 contract certification and decisions | Open; accountable owners unassigned |
-| Feature implementation/build/test acceptance | Pure renderer, inventory, planner and offline/read-only CLI locally implemented; focused checks in renderer-v2/inventory-v1/planner-v1/cli-v1. Full supported profiles, real-server and bound-browser certification and broader release/MSRV/feature matrix remain open |
+| Feature implementation/build/test acceptance | Renderer, inventory, planner, read-only CLI and gated operational command interfaces locally implemented; focused checks in renderer-v2/inventory-v1/planner-v1/cli-v1/operations-v1. Full supported profiles, real-server and bound-browser certification and broader release/MSRV/feature matrix remain open |
 | Target V1 persisted state / V2 router-cache / V3 actual SDK / V4 fallback | All uncertified; local SDK/browser cases are executed, but are not target V3 proof |
-| Disposable fixtures | Step 1 source/build copies/static origins and Steps 2–11 owned filesystem builds, Step 8 owned journal fixtures and Step 9 coordination and Step 11 read-only loopback wire fixtures only; no Superposition/API server or hosted workspace started. Registrations and cleanup recorded per step. |
+| Disposable fixtures | Step 1 source/build copies/static origins and Steps 2–14 owned filesystem builds/tests, Step 8 owned journal fixtures and Step 9 coordination and Step 11 read-only loopback wire fixtures only; no Superposition/API server or hosted workspace started. Registrations and cleanup recorded per step. |
 | Hosted read-only target authorization | **None supplied** |
 | Hosted apply/restore/deployment | **Disabled / not authorized**; no enabling changes made |
 
@@ -141,3 +144,42 @@ Existing uncommitted Steps 8–11 were preserved. Suggested H commit:
 After review, Step 13 local command/report wiring is next only on a separate request. Real server,
 writer exclusion, retention/access, recovery-image and V1–V4 certification remain required before
 hosted mutation. No staging, commit, push, deployment or hosted restore occurred.
+
+
+## Step 13 review checkpoint
+
+[Execution commands and release observations](operations-v1/README.md) reuse the implemented
+planner/journal/coordinator/apply/recovery/verifier interfaces. Exact outcomes and pending delivery
+are explicit; status and restore planning have zero mutation/lease calls in local fixtures.
+Production capability/provisioning registries still refuse; no real-target successful command is
+claimed. [Checks](operations-v1/checks.md) separate actual binary denials, synthetic engine paths
+and remaining platform certification. No unexecuted check is a pass.
+
+Only H changes in this step. W/U/I, original plan/roadmap, seed, dependency locks and indexes are
+preserved. Steps 8–12 were committed/pushed under separate authorization as `68c9387241`; their
+earlier uncommitted handoffs are historical. No remote refresh or bot formatter merge is part of
+Step 13. Suggested H commit: `feat: wire required-fields execution and release attestations`.
+After review, Step 14 is next only on a new request. No staging, commit, push or deployment occurred.
+
+
+## Step 14 review checkpoint
+
+[Seed generation/CI handoff](seed-v1/README.md), [checks](seed-v1/checks.md) and
+[evidence](seed-v1/evidence.json) record the new work separately from the pre-existing uncommitted
+Step 13 changes. Explicit local banks/features are recorded; unreviewed mappings, country catalog
+and ownership refuse, so no full seed migration is claimed. Independent Rust, actual pinned JS
+and actual browser evidence remain distinct. No uploader/API target, hosted action or server
+version change occurred. Step 15 is next only after review and a separate request.
+
+
+## Step 15 review checkpoint
+
+[Disabled deployment definitions and source evidence](deployment-v1/README.md),
+[checks and T20/T21/T23/T26–T30/T34 gaps](deployment-v1/checks.md), and
+[machine evidence](deployment-v1/evidence.json) cover I, the actual local selected Helm
+repository and H documentation. Current chart and three patched selected v1 tag copies render
+and lint locally; this does not certify live settings, writer exclusion, journal access,
+manual/automatic Argo execution, browser packaging/exchange, report delivery or backup startup.
+No target or production adapter is activated. Earlier H/W changes and all Git indexes are
+preserved. Next work is review and the stated deployment/contract gates; Step 16 adoption
+remains blocked and was not started. Separate manual commit suggestions are in deployment-v1.

@@ -1,4 +1,4 @@
-//! Observation-first recovery. No replay, CLI entry point, reset, implicit approval or hosted adapter.
+//! Observation-first recovery shared by gated commands. No replay, reset or implicit approval.
 use serde::Serialize;
 
 #[path = "recovery_restore.rs"]
@@ -61,6 +61,10 @@ pub struct RecoverySource {
     run: RecoveredRun,
 }
 impl RecoverySource {
+    #[cfg(feature = "required_fields_sync")]
+    pub(super) fn from_recovered(run: RecoveredRun) -> Self {
+        Self { run }
+    }
     pub async fn load<R: JournalReader>(
         reader: &R,
         certificate: &CertifiedJournalStore,

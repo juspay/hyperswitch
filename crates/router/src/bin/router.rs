@@ -88,6 +88,9 @@ async fn serve(cmd_line: CmdLineConf) -> ApplicationResult<()> {
 
     logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
 
+    #[cfg(feature = "required_fields_sync")]
+    router::core::required_fields_sync::command_runtime::emit_startup_attestation(&conf);
+
     #[cfg(feature = "deja")]
     router_env::tracing::info!(
         target: "deja",

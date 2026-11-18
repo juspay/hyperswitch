@@ -4,7 +4,7 @@ This standalone crate imports the actual feature-gated router inventory files an
 artifact types by path, plus the later actual planner, CLI argument/orchestration, journal, coordination and disabled apply
 modules. It has no substitute production implementation, AppState, credentials, server target
 or hosted connection. Its 168 registry dependency identities/checksums match H's `Cargo.lock`.
-The root manifest and lock are unchanged.
+Step 14 adds a direct edge to the already-locked `toml_edit 0.22.26` in this crate and the opt-in router; no package version/checksum changes.
 
 Inspect commands before running. Register a new disposable filesystem directory with an
 owner/purpose marker and use it as `CARGO_TARGET_DIR`; verify ownership before cleanup.
@@ -108,3 +108,23 @@ bounded read-only child with a cleared environment. It removes only that verifie
 Missing registration fails; no hosted storage or real retention/access capability is supplied.
 Snapshot v2 recovery references are mandatory and independently checked. See
 [Step 12 evidence](../../docs/required_fields_sync_contracts/recovery-v1/README.md).
+
+
+Step 13 imports the actual operation/attestation/shared-executor modules. Ordinary tests exercise
+synthetic command-to-engine outcomes, identity refusals, read-only status/inverse planning,
+resume/restore gates, executable hashing and final-report failure handling. The opt-in
+`operation_file_contract_and_exported_binary_inputs` test requires `RF_OPERATION_FIXTURE_ROOT`
+with purpose `Step 13 isolated command checks`, matching absolute root/cleanup scope and null
+hosted target. It writes only a new `operation-inputs` child and refuses existing outputs.
+[Step 13 checks](../../docs/required_fields_sync_contracts/operations-v1/checks.md) distinguish
+actual router build/binary evidence from these synthetic adapters. No production certificate is
+created, and no dependency version or lockfile change is required.
+
+
+Step 14 imports the actual pure seed editor and early command adapter. Handwritten fixtures
+check exact managed values, ordered options, manual TOML preservation, explicit retirement,
+metadata/ownership refusals and deterministic check equality. The separate ignored
+`seed_export_independent_semantic_inputs` test requires `RF_SEED_FIXTURE_ROOT` with owner UUID,
+purpose `Step 14 isolated seed and CI checks`, canonical matching root/cleanup scope and null
+hosted target. It creates only a new synthetic good/wrong input directory; the actual pinned JS
+oracle must reject the wrong seed despite generator equality. See [Step 14 checks](../../docs/required_fields_sync_contracts/seed-v1/checks.md).

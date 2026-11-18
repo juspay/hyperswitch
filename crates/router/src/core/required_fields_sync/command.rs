@@ -27,7 +27,7 @@ pub(super) const MAX_PROFILE_BYTES: usize = 2 * 1024 * 1024;
 pub(super) const MAX_PLAN_BYTES: usize = 128 * 1024;
 const MAX_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandCode {
     InputInvalid,
@@ -41,6 +41,10 @@ pub enum CommandCode {
     ReadIncomplete,
     PlanRefused,
     OutputUnavailable,
+    CertificationPending,
+    NotAuthoritative,
+    JournalUnavailable,
+    SeedDrift,
 }
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -53,6 +57,9 @@ pub enum Phase {
     Discovery,
     Plan,
     Output,
+    Status,
+    Execute,
+    Seed,
 }
 
 #[derive(Debug, thiserror::Error, Serialize)]
@@ -62,6 +69,18 @@ pub struct CommandError {
     pub phase: Phase,
     pub detail: Option<String>,
     pub diagnostic_counts: BTreeMap<String, usize>,
+}
+impl CommandError {
+    pub fn exit_code(&self) -> u8 {
+        if matches!(
+            self.code,
+            CommandCode::NotAuthoritative | CommandCode::TargetMismatch
+        ) {
+            3
+        } else {
+            2
+        }
+    }
 }
 pub(super) type CommandResult<T> = error_stack::Result<T, CommandError>;
 pub(super) fn fail(code: CommandCode, phase: Phase) -> error_stack::Report<CommandError> {
@@ -124,7 +143,7 @@ pub(super) struct InputProfile {
     pub exclusions: ExclusionPolicy,
 }
 impl InputProfile {
-    fn validate(&self) -> CommandResult<()> {
+    pub(super) fn validate(&self) -> CommandResult<()> {
         if self.schema_version != 1 || !matches!(self.release.artifact, ArtifactIdentity::Offline) {
             return Err(fail(CommandCode::InputInvalid, Phase::Input));
         }
@@ -227,9 +246,12 @@ impl CommandSummary {
 
 /// Never includes paths, input values, endpoint/headers, credentials or source error strings.
 pub fn refusal_json(error: &CommandError) -> serde_json::Value {
-    serde_json::json!({"schema_version":1,"outcome":"refused","code":error.code,"phase":error.phase,
+    serde_json::json!({"schema_version":1,"outcome":"refused","code":error.code,"phase":error.phase,"exit_code":error.exit_code(),
         "detail":error.detail,"diagnostic_counts":error.diagnostic_counts,"superposition_mutations_dispatched":0,
-        "leases_acquired":0,"hosted_apply":"disabled"})
+        "leases_acquired":0,"hosted_apply":"disabled", "application_rollout":"not_asserted",
+        "collector_delivery":"pending_platform_certification",
+        "metrics":{"outcome":"refused","phase":error.phase,"refusal":error.code,
+            "requests_dispatched":0,"target_class":"unregistered_or_fixture"}})
 }
 
 pub(super) fn read_file(path: &Path, cap: usize, phase: Phase) -> CommandResult<Vec<u8>> {
@@ -265,11 +287,11 @@ pub(super) fn read_file(path: &Path, cap: usize, phase: Phase) -> CommandResult<
     }
     Ok(bytes)
 }
-fn parse<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> CommandResult<T> {
+pub(super) fn parse<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> CommandResult<T> {
     Json::parse(bytes).map_err(|_| fail(CommandCode::InputInvalid, Phase::Input))?;
     serde_json::from_slice(bytes).map_err(|_| fail(CommandCode::InputInvalid, Phase::Input))
 }
-fn output_available(path: &Path) -> CommandResult<()> {
+pub(super) fn output_available(path: &Path) -> CommandResult<()> {
     if path.file_name().is_none()
         || std::fs::symlink_metadata(path).is_ok()
         || !path
@@ -282,12 +304,22 @@ fn output_available(path: &Path) -> CommandResult<()> {
     }
     Ok(())
 }
-fn write_artifact(path: &Path, value: &serde_json::Value) -> CommandResult<()> {
-    let bytes = serde_json::to_vec(value)
+pub(super) fn write_artifact(path: &Path, value: &serde_json::Value) -> CommandResult<()> {
+    let mut bytes = serde_json::to_vec(value)
         .map_err(|_| fail(CommandCode::OutputUnavailable, Phase::Output))?;
     if bytes.len() > MAX_OUTPUT_BYTES {
         return Err(fail(CommandCode::OutputUnavailable, Phase::Output));
     }
+    bytes.push(b'\n');
+    write_new(path, &bytes)
+}
+pub(super) fn write_bytes(path: &Path, bytes: &[u8]) -> CommandResult<()> {
+    if bytes.len() > MAX_OUTPUT_BYTES {
+        return Err(fail(CommandCode::OutputUnavailable, Phase::Output));
+    }
+    write_new(path, bytes)
+}
+fn write_new(path: &Path, bytes: &[u8]) -> CommandResult<()> {
     let mut options = OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -298,8 +330,7 @@ fn write_artifact(path: &Path, value: &serde_json::Value) -> CommandResult<()> {
     let mut file = options
         .open(path)
         .map_err(|_| fail(CommandCode::OutputUnavailable, Phase::Output))?;
-    file.write_all(&bytes)
-        .and_then(|_| file.write_all(b"\n"))
+    file.write_all(bytes)
         .and_then(|_| file.sync_all())
         .map_err(|_| fail(CommandCode::OutputUnavailable, Phase::Output))
 }
@@ -318,6 +349,7 @@ pub(super) async fn run(
     let artifacts: &ArtifactArgs = match &command {
         RequiredFieldsCommand::Render(args) => args,
         RequiredFieldsCommand::Plan { artifacts, .. } => artifacts,
+        _ => return Err(fail(CommandCode::InputInvalid, Phase::Arguments)),
     };
     output_available(&artifacts.output)?;
     let bytes = read_file(&artifacts.input_profile, MAX_PROFILE_BYTES, Phase::Input)?;

@@ -131,6 +131,9 @@ pub struct Settings<S: SecretState> {
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
+    #[cfg(feature = "required_fields_sync")]
+    #[serde(default)]
+    pub required_fields_sync: crate::core::required_fields_sync::attestation::Settings,
     pub delayed_session_response: DelayedSessionConfig,
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub billing_connectors_payment_sync: BillingConnectorPaymentsSyncCall,

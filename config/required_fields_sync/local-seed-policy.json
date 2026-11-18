@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "contract_id": "local-seed-ownership-pending",
+  "profile_hash": "sha256:a36133109abb350dbf449f2bf1ab6510f9cb07fedcb97f4a845a91cfdf7a3e20",
+  "router_feature_keys": [
+    "ACCOUNTS_CACHE",
+    "COMMON_DEFAULT",
+    "DEFAULT",
+    "DUMMY_CONNECTOR",
+    "FRM",
+    "KM_FORWARD_X_REQUEST_ID",
+    "KV_STORE",
+    "OLAP",
+    "OLTP",
+    "PARTIAL_AUTH",
+    "PAYOUTS",
+    "PAYOUT_RETRY",
+    "REDIS_RS",
+    "REQUIRED_FIELDS_SYNC",
+    "RETRY",
+    "STRIPE",
+    "TLS",
+    "V1"
+  ],
+  "payment_methods_feature_keys": [
+    "DUMMY_CONNECTOR",
+    "PAYOUTS",
+    "REQUIRED_FIELDS_SYNC",
+    "V1"
+  ],
+  "scope": {
+    "status": "refused",
+    "reason": "mapping-catalog-grants-and-initial-migration-review-pending"
+  }
+}

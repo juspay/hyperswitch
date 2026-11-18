@@ -25,7 +25,7 @@ pub struct RouterCmdLineConf {
 #[cfg(feature = "required_fields_sync")]
 #[derive(clap::Subcommand)]
 pub enum RouterCommand {
-    /// Offline rendering and provisional read-only planning. Hosted apply remains disabled.
+    /// Required-fields executor. Uncertified targets and hosted mutation remain disabled.
     RequiredFields(RequiredFieldsArgs),
 }
 
@@ -48,10 +48,38 @@ pub struct ArtifactArgs {
 }
 
 #[cfg(feature = "required_fields_sync")]
+#[derive(clap::Args, Clone)]
+pub struct OperationArgs {
+    /// Registered identity; endpoint, headers and credentials cannot be supplied here.
+    #[arg(long)]
+    pub target: String,
+    /// Strict operation configuration. Missing mode means disabled.
+    #[arg(long)]
+    pub command_config: PathBuf,
+    /// New private final report, never an existing file or symlink.
+    #[arg(long)]
+    pub output: PathBuf,
+}
+
+#[cfg(feature = "required_fields_sync")]
 #[derive(clap::Subcommand, Clone)]
 pub enum RequiredFieldsCommand {
     /// Render compiled required fields without initializing a service or HTTP client.
     Render(ArtifactArgs),
+    /// Generate or check an explicitly granted local seed subset without uploading anything.
+    Seed {
+        #[arg(long)]
+        input_profile: PathBuf,
+        #[arg(long)]
+        seed_policy: PathBuf,
+        #[arg(long)]
+        template: PathBuf,
+        /// Compare in memory; never writes the template or an output file.
+        #[arg(long, conflicts_with = "output", required_unless_present = "output")]
+        check: bool,
+        #[arg(long, conflicts_with = "check", required_unless_present = "check")]
+        output: Option<PathBuf>,
+    },
     /// Discover a registered read-only target and emit a provisional, unverified candidate.
     Plan {
         #[command(flatten)]
@@ -62,6 +90,50 @@ pub enum RequiredFieldsCommand {
         /// Explicit plan-mode configuration, grants, prerequisites and release intent.
         #[arg(long, value_name = "PLAN.json")]
         plan_config: PathBuf,
+    },
+    /// Read durable run evidence without acquiring a lease or changing state.
+    Status {
+        #[command(flatten)]
+        args: OperationArgs,
+        #[arg(long)]
+        run: String,
+    },
+    /// Execute an exact accepted plan through all certified safety gates.
+    Apply {
+        #[command(flatten)]
+        args: OperationArgs,
+        #[arg(long)]
+        intent: u64,
+        #[arg(long)]
+        plan_hash: String,
+    },
+    /// Observe a prior run and replan under a new authorized intent; never replay blindly.
+    Resume {
+        #[command(flatten)]
+        args: OperationArgs,
+        #[arg(long)]
+        run: String,
+        #[arg(long)]
+        intent: u64,
+        #[arg(long)]
+        plan_hash: String,
+    },
+    /// Plan an inverse without writes, or apply its exact accepted hash with every apply gate.
+    Restore {
+        #[command(flatten)]
+        args: OperationArgs,
+        #[arg(long)]
+        from_run: String,
+        #[arg(long)]
+        intent: u64,
+        #[arg(
+            long,
+            conflicts_with = "plan_hash",
+            required_unless_present = "plan_hash"
+        )]
+        plan: bool,
+        #[arg(long, conflicts_with = "plan", required_unless_present = "plan")]
+        plan_hash: Option<String>,
     },
 }
 

@@ -311,6 +311,14 @@ superposition-down:
         podman-compose -f docker-compose-development.yml down
     fi
 
+# Generate a new local seed artifact offline; review its diff before any upload.
+required-fields-seed-generate profile policy output:
+    cargo run --offline --locked -p router --features required_fields_sync --bin router -- required-fields seed --input-profile "{{profile}}" --seed-policy "{{policy}}" --template config/superposition_seed.toml --output "{{output}}"
+
+# Check the committed seed without changing files or contacting Superposition.
+required-fields-seed-check profile policy:
+    cargo run --offline --locked -p router --features required_fields_sync --bin router -- required-fields seed --input-profile "{{profile}}" --seed-policy "{{policy}}" --template config/superposition_seed.toml --check
+
 # Seed Superposition with default dimensions and configs
 superposition-seed:
     #! /usr/bin/env bash

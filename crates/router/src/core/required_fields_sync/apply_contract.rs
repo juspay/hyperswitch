@@ -133,6 +133,12 @@ pub enum ApplyOutcome {
 #[derive(Debug, Serialize)]
 pub struct ApplyReport {
     pub schema_version: u16,
+    pub run: Digest,
+    pub intent_generation: u64,
+    pub input_manifest: Digest,
+    pub bundle: Digest,
+    pub executor_image: Digest,
+    pub leases_acquired: u8,
     pub target: Digest,
     pub plan: Digest,
     pub outcome: ApplyOutcome,
@@ -144,7 +150,20 @@ pub struct ApplyReport {
     pub reason: Option<ApplyCode>,
     pub recovery_artifact: Option<Digest>,
     pub verification: Option<Digest>,
+    /// Bounded request observations; hashes stay in reports, never in metric label sets.
+    pub requests: Vec<RequestReport>,
+    pub actions: std::collections::BTreeMap<super::planner_types::ActionKind, usize>,
+    pub evidence_scope: EvidenceScope,
     pub hosted_apply: &'static str,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct RequestReport {
+    pub request: Digest,
+    pub kind: &'static str,
+    pub phase: &'static str,
+    pub transport_ms: u64,
+    pub status: Option<u16>,
+    pub outcome: &'static str,
 }
 pub(super) struct OutcomeFacts {
     pub planned: usize,

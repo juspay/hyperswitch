@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-required_fields_sync = ["payment_methods/required_fields_sync", "dep:superposition_provider", "dep:superposition_types"]
+required_fields_sync = ["payment_methods/required_fields_sync", "dep:superposition_provider", "dep:superposition_types", "dep:toml_edit"]
 default = ["common_default", "v1", "redis-rs"]
 common_default = [
     "kv_store",
@@ -215,6 +215,7 @@ clap = { version = "4.5.38", default-features = false, features = [
     "usage",
 ] }
 config = { version = "0.14.1", features = ["toml"] }
+toml_edit = { version = "=0.22.26", features = ["serde"], optional = true }
 prost-types = { version = "0.14", optional = true }
 cookie = "0.18.1"
 csv = "1.3.1"

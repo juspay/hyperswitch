@@ -1,4 +1,4 @@
-//! Internal disabled engine. No CLI/HTTP activation and no automatic replay, batching or rollback.
+//! Guarded engine shared by command execution. No registered hosted activation or automatic replay.
 use std::{
     sync::atomic::{AtomicBool, Ordering},
     time::Duration,
@@ -155,6 +155,7 @@ impl Cancellation {
         }
     }
 }
+#[derive(Clone)]
 pub struct ApplyLimits {
     pub read_attempts: u8,
     pub read_ms: u64,
@@ -194,7 +195,7 @@ impl Default for ApplyLimits {
     }
 }
 impl ApplyLimits {
-    fn validate(&self) -> ApplyResult<()> {
+    pub(super) fn validate(&self) -> ApplyResult<()> {
         if !(1..=3).contains(&self.read_attempts)
             || self.read_ms == 0
             || self.read_ms > 5000
@@ -218,10 +219,10 @@ pub struct ApplyRuntime<'a, S, G, C, J, W, R, V> {
     pub cancellation: &'a Cancellation,
     pub limits: ApplyLimits,
 }
-fn coordinate<T>(result: super::authority::CoordinationResult<T>) -> ApplyResult<T> {
+pub(super) fn coordinate<T>(result: super::authority::CoordinationResult<T>) -> ApplyResult<T> {
     use super::authority::CoordinationCode as C;
     result.map_err(|e| {
-        fail(match e.current_context().code {
+        let code = match e.current_context().code {
             C::NotAuthoritative
             | C::StaleIntent
             | C::RolloutIncomplete
@@ -229,7 +230,8 @@ fn coordinate<T>(result: super::authority::CoordinationResult<T>) -> ApplyResult
             | C::MembershipChanged => ApplyCode::NotAuthoritative,
             C::TargetMismatch => ApplyCode::TargetMismatch,
             _ => ApplyCode::LeaseLost,
-        })
+        };
+        e.change_context(ApplyError { code })
     })
 }
 fn journaled<T>(result: journal::JournalResult<T>) -> ApplyResult<T> {
@@ -302,7 +304,9 @@ impl<
             }
         }
     }
-    async fn execute_inner(
+    // The command orchestrator renews across planning AND execution; it must not run a second
+    // competing renewal loop. Other callers use execute(), which owns renewal itself.
+    pub(super) async fn execute_inner(
         &self,
         prepared: PreparedApply,
         baseline: Option<&ArtifactReference>,
@@ -311,6 +315,12 @@ impl<
         let approval_expiry = prepared.approval_expiry;
         let mut report = ApplyReport {
             schema_version: 1,
+            run: self.session.execution().owner.run.clone(),
+            intent_generation: self.session.execution().intent.generation,
+            input_manifest: self.session.execution().intent.input_manifest.clone(),
+            bundle: self.session.execution().intent.bundle.clone(),
+            executor_image: self.session.execution().intent.executor_image.clone(),
+            leases_acquired: 1,
             target: prepared.binding.clone(),
             plan: prepared.plan.clone(),
             outcome: ApplyOutcome::Refused,
@@ -322,6 +332,15 @@ impl<
             reason: None,
             recovery_artifact: None,
             verification: None,
+            requests: vec![],
+            evidence_scope: self.target.scope,
+            actions: prepared.actions.iter().fold(
+                std::collections::BTreeMap::new(),
+                |mut counts, action| {
+                    *counts.entry(action.kind.clone()).or_insert(0) += 1;
+                    counts
+                },
+            ),
             hosted_apply: "disabled",
         };
         let mut preflight = false;
@@ -418,6 +437,7 @@ impl<
                 // only once the transport future is polled; cancellation before that is a
                 // no-write refusal. Neither request bytes nor action order are rebuilt.
                 let mut dispatched = false;
+                let started = tokio::time::Instant::now();
                 let reply = tokio::select! {
                     biased;
                     () = self.cancellation.wait() => WireReply::unknown(TransportOutcome::ExecutorLost),
@@ -432,6 +452,16 @@ impl<
                 }
                 report.dispatched += 1;
                 report.unknown.push(request_hash.clone());
+                report.requests.push(RequestReport {
+                    request: request_hash.clone(),
+                    kind: match request.action_indices.first().and_then(|i| prepared.actions.get(*i)).map(|a| &a.kind) {
+                        Some(super::planner_types::ActionKind::CreateDefault) => "create_default",
+                        Some(super::planner_types::ActionKind::ExtendDimension) => "extend_dimension",
+                        _ => "context_transaction",
+                    },
+                    phase: "transport", transport_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+                    status: reply.status, outcome: "unknown",
+                });
                 journaled(
                     run.record_observation(Observation::Transport {
                         request: request_hash.clone(),
@@ -464,6 +494,13 @@ impl<
                 match evidence.disposition {
                     RequestDisposition::Committed => report.committed.push(request_hash.clone()),
                     RequestDisposition::RejectedNoChange => report.rejected.push(request_hash),
+                }
+                if let Some(observation) = report.requests.last_mut() {
+                    observation.phase = "observed";
+                    observation.outcome = match evidence.disposition {
+                        RequestDisposition::Committed => "committed",
+                        RequestDisposition::RejectedNoChange => "rejected_no_change",
+                    };
                 }
                 let resolved = journaled(run.record_resolution(&evidence).await)?;
                 coordinate(
