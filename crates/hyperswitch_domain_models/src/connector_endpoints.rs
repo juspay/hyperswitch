@@ -47,6 +47,7 @@ pub struct Connectors {
     pub cybersource: ConnectorParams,
     pub cybersourcedecisionmanager: ConnectorParams,
     pub datatrans: ConnectorParamsWithSecondaryBaseUrl,
+    pub betterpayment: ConnectorParams,
     pub deutschebank: ConnectorParams,
     pub digitalvirgo: ConnectorParams,
     pub dlocal: ConnectorParams,
@@ -54,6 +55,7 @@ pub struct Connectors {
     pub dummyconnector: ConnectorParams,
     pub dwolla: ConnectorParams,
     pub ebanx: ConnectorParams,
+    pub ecommpay: ConnectorParams,
     pub elavon: ConnectorParams,
     pub elavon_pg: ConnectorParams,
     pub envoy: ConnectorParams,
@@ -118,6 +120,7 @@ pub struct Connectors {
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
     pub payeezy: ConnectorParams,
+    pub payhound: ConnectorParams,
     pub payjustnow: ConnectorParams,
     pub payjustnowinstore: ConnectorParams,
     pub payload: ConnectorParams,
@@ -223,8 +226,6 @@ impl NoParams {
 pub struct ConnectorParamsWithKeys {
     /// base url
     pub base_url: String,
-    /// api key
-    pub api_key: Secret<String>,
     /// merchant ID
     pub merchant_id: Secret<String>,
 }

@@ -46,7 +46,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 use requests::{
     FacilitapayAuthRequest, FacilitapayCustomerRequest, FacilitapayPaymentsRequest,
@@ -824,20 +824,17 @@ impl webhooks::IncomingWebhook for Facilitapay {
             .parse_struct("FacilitapayWebhookNotification")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let connector_webhook_secrets = match connector_webhook_details {
-            Some(secret_value) => {
-                let secret = secret_value
-                    .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
-                        "MerchantConnectorWebhookDetails",
-                    )
-                    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-                secret.merchant_secret.expose()
-            }
-            None => "default_secret".to_string(),
-        };
+        let connector_webhook_secrets = connector_webhook_details
+            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+            .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
+                "MerchantConnectorWebhookDetails",
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         // FacilitaPay uses a simple 4-digit secret for verification
-        Ok(webhook_body.notification.secret.peek() == &connector_webhook_secrets)
+        Ok(webhook_body.notification.secret.peek()
+            == connector_webhook_secrets.merchant_secret.peek())
     }
 
     fn get_webhook_object_reference_id(

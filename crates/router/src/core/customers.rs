@@ -22,11 +22,11 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;
-#[cfg(feature = "v1")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use crate::core::payments::helpers as payments_helpers;
 #[cfg(feature = "v2")]
 use crate::core::utils::create_encrypted_data;
@@ -623,8 +623,9 @@ pub async fn retrieve_customer(
     let db = state.store.as_ref();
 
     let response = db
-        .find_customer_by_global_id(
+        .find_customer_by_global_id_merchant_id(
             &id,
+            provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
@@ -662,6 +663,28 @@ pub async fn retrieve_customer_by_merchant_reference_id(
             .change_context(errors::CustomersErrorResponse::InternalServerError)
             .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
+}
+
+/// Whether a customer identifier supplied in the request should be interpreted as the
+/// merchant's customer reference instead of a Hyperswitch global customer ID.
+#[cfg(feature = "v2")]
+pub async fn should_use_merchant_reference_id_as_customer_id(
+    state: &SessionState,
+    provider: &domain::Provider,
+    api_key_type: common_enums::ApiKeyType,
+    customer_id: &id_type::CustomerId,
+) -> bool {
+    match api_key_type {
+        common_enums::ApiKeyType::Internal => false,
+        common_enums::ApiKeyType::External => {
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                state,
+                provider,
+                Some(customer_id),
+            )
+            .await
+        }
+    }
 }
 
 #[instrument(skip(state))]
@@ -797,8 +820,9 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
         let provider = platform.get_provider();
         let customer_orig = db
-            .find_customer_by_global_id(
+            .find_customer_by_global_id_merchant_id(
                 self,
+                provider.get_account().get_id(),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
             )
@@ -1386,8 +1410,9 @@ impl VerifyIdForUpdateCustomer<'_> {
         db: &dyn StorageInterface,
     ) -> Result<domain::Customer, error_stack::Report<errors::CustomersErrorResponse>> {
         let customer = db
-            .find_customer_by_global_id(
+            .find_customer_by_global_id_merchant_id(
                 self.id,
+                self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
             )

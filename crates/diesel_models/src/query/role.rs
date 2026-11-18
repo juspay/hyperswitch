@@ -1,9 +1,8 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_enums::EntityType;
 use common_utils::id_type;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, result::Error as DieselError,
-    BoolExpressionMethods, ExpressionMethods, QueryDsl,
+    associations::HasTable, result::Error as DieselError, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl,
 };
 use error_stack::{report, ResultExt};
 use strum::IntoEnumIterator;
@@ -148,15 +147,9 @@ impl Role {
             query = query.limit(limit.into());
         }
 
-        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
-        match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Filter,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(generics::db_metrics::DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => match err {
@@ -214,15 +207,9 @@ impl Role {
             }
         };
 
-        router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
-        match generics::db_metrics::track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            generics::db_metrics::DatabaseOperation::Filter,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(generics::db_metrics::DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => Err(report!(err)).change_context(errors::DatabaseError::Others),

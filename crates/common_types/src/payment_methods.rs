@@ -110,6 +110,21 @@ impl PaymentMethodsEnabled {
     }
 }
 
+/// Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate
+#[derive(
+    Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PayViaSingleUseToken {
+    /// Hyperswitch decides whether to make the payment via a single-use token, based on the connector's default requirement
+    #[default]
+    Default,
+    /// Create a single-use token for subsequent authorization or mandate setup.
+    Enabled,
+    /// Don't create a single-use token before authorization or mandate setup
+    Disabled,
+}
+
 /// Details of a specific payment method subtype enabled for the connector for the given merchant account
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
@@ -158,6 +173,11 @@ pub struct RequestPaymentMethodTypes {
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment should be made via a single-use token.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 
 impl From<RequestPaymentMethodTypesV1> for RequestPaymentMethodTypes {
@@ -172,6 +192,7 @@ impl From<RequestPaymentMethodTypesV1> for RequestPaymentMethodTypes {
             maximum_amount: value.maximum_amount,
             recurring_enabled: value.recurring_enabled,
             installment_payment_enabled: value.installment_payment_enabled,
+            pay_via_single_use_token: value.pay_via_single_use_token,
         }
     }
 }
@@ -187,6 +208,7 @@ struct RequestPaymentMethodTypesV1 {
     pub maximum_amount: Option<common_utils::types::MinorUnit>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 
 impl RequestPaymentMethodTypes {

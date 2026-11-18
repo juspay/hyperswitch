@@ -2,7 +2,7 @@ use diesel_models::{
     enums as storage_enums, errors::DatabaseError, routing_algorithm as routing_storage,
 };
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::mock_db::MockDb;
 
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
 
 type StorageResult<T> = CustomResult<T, errors::StorageError>;
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait RoutingAlgorithmInterface {
     async fn insert_routing_algorithm(

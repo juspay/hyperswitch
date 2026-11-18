@@ -44,9 +44,9 @@ async fn get_payment_context(
         .async_map(|pi| async {
             db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &pi.payment_id,
-                &pi.processor_merchant_id,
+                &domain::ProcessorMerchantId::from(pi.processor_merchant_id.clone()),
                 &pi.active_attempt.get_id(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
                 platform.get_processor().get_key_store(),
             )
             .await
@@ -142,7 +142,6 @@ pub async fn get_profile_superposition_sdk_config(
     profile_id: String,
 ) -> RouterResponse<SuperPositionConfigResponse> {
     let merchant_account = platform.get_processor().get_account();
-    let db = &*state.store;
 
     let profile_id_typed =
         common_utils::id_type::ProfileId::try_from(std::borrow::Cow::from(profile_id.clone()))
@@ -150,7 +149,8 @@ pub async fn get_profile_superposition_sdk_config(
                 field_name: "profile_id".into(),
             })?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(
             platform.get_processor().get_key_store(),
             &profile_id_typed,
@@ -160,7 +160,8 @@ pub async fn get_profile_superposition_sdk_config(
             id: profile_id.to_owned(),
         })?;
 
-    let mcas = db
+    let mcas = state
+        .accounts_store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
             &profile_id_typed,
@@ -359,9 +360,9 @@ pub async fn get_superposition_sdk_config(
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            merchant_account.get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             platform.get_processor().get_key_store(),
-            merchant_account.storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -374,7 +375,8 @@ pub async fn get_superposition_sdk_config(
         },
     )?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

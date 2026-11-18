@@ -42,7 +42,7 @@ pub struct OpennodePaymentsRequest {
     currency: String,
     description: String,
     auto_settle: bool,
-    success_url: String,
+    success_url: Secret<String>,
     callback_url: String,
     order_id: String,
 }
@@ -124,7 +124,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, OpennodePaymentsResponse, T, PaymentsRe
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
         let redirection_data = RedirectForm::Form {
-            endpoint: item.response.data.hosted_checkout_url.to_string(),
+            endpoint: item.response.data.hosted_checkout_url.to_string().into(),
             method: Method::Get,
             form_fields,
         };
@@ -269,7 +269,7 @@ fn get_crypto_specific_payment_data(
 pub struct OpennodeWebhookDetails {
     pub id: String,
     pub callback_url: String,
-    pub success_url: String,
+    pub success_url: Secret<String>,
     pub status: OpennodePaymentStatus,
     pub payment_method: String,
     pub missing_amt: String,

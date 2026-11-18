@@ -380,7 +380,7 @@ async fn resolve_webhook_recipient_inner(
 
         (
             provider.get_account().clone(),
-            provider.get_key_store().clone(),
+            provider.get_key_store().inner().clone(),
             provider_profile,
         )
     } else {
@@ -388,7 +388,7 @@ async fn resolve_webhook_recipient_inner(
 
         (
             processor.get_account().clone(),
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             profile.clone(),
         )
     };
@@ -428,7 +428,7 @@ async fn get_default_profile_for_platform_merchant(
         .attach_printable("Platform merchant does not have a default profile configured")?;
 
     state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(provider.get_key_store(), profile_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -449,7 +449,7 @@ async fn get_default_profile_for_platform_merchant(
     })?;
 
     let profiles = state
-        .store
+        .accounts_store
         .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

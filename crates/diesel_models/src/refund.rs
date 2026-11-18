@@ -69,6 +69,16 @@ pub struct Refund {
     pub issuer_error_message: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 impl Refund {
@@ -103,6 +113,13 @@ impl Refund {
             processor_merchant_id.get_string_repr(),
             internal_reference_id,
         )
+    }
+
+    /// The surcharge refund tracking stored on this refund, if it has one.
+    pub fn surcharge_refund_details(
+        &self,
+    ) -> Option<common_types::refunds::ExternalSurchargeRefundDetails> {
+        self.external_surcharge_refund_details.clone()
     }
 }
 
@@ -154,6 +171,16 @@ pub struct Refund {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
     pub id: id_type::GlobalRefundId,
     #[diesel(deserialize_as = RequiredFromNullable<id_type::RefundReferenceId>)]
     pub merchant_reference_id: id_type::RefundReferenceId,
@@ -207,6 +234,16 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -256,6 +293,16 @@ pub struct RefundNew {
     pub processor_transaction_data: Option<String>,
     pub processor_merchant_id: Option<id_type::MerchantId>,
     pub created_by: Option<String>,
+    /// Settlement metadata supplied for this operation, retained across status updates.
+    #[serde(default)]
+    pub feature_metadata: Option<common_types::refunds::RefundFeatureMetadata>,
+    #[serde(default)]
+    pub refund_surcharge_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub net_refund_amount: Option<MinorUnit>,
+    #[serde(default)]
+    pub external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -299,6 +346,11 @@ pub enum RefundUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<Option<String>>,
         refund_error_code: Option<Option<String>>,
+        updated_by: String,
+    },
+    /// Persist InterPayments Init/Complete progress through the normal update path.
+    SurchargeUpdate {
+        external_surcharge_refund_details: common_types::refunds::ExternalSurchargeRefundDetails,
         updated_by: String,
     },
 }
@@ -366,6 +418,10 @@ pub struct RefundUpdateInternal {
     unified_message: Option<String>,
     issuer_error_code: Option<String>,
     issuer_error_message: Option<String>,
+    refund_surcharge_amount: Option<MinorUnit>,
+    net_refund_amount: Option<MinorUnit>,
+    external_surcharge_refund_details:
+        Option<common_types::refunds::ExternalSurchargeRefundDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -407,6 +463,18 @@ impl RefundUpdateInternal {
             unified_message: self.unified_message,
             ..source
         }
+    }
+
+    /// Stores the surcharge fee and derives `net_refund_amount` as order + surcharge amount.
+    pub fn populate_derived_fields(self, source: &Refund) -> Self {
+        let mut update_internal = self;
+        let surcharge = update_internal
+            .refund_surcharge_amount
+            .or(source.refund_surcharge_amount);
+        update_internal.refund_surcharge_amount = surcharge;
+        update_internal.net_refund_amount =
+            Some(source.refund_amount + surcharge.unwrap_or_default());
+        update_internal
     }
 }
 
@@ -460,6 +528,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::MetadataAndReasonUpdate {
                 metadata,
@@ -481,6 +552,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::StatusUpdate {
                 connector_refund_id,
@@ -504,6 +578,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message: None,
                 issuer_error_code: None,
                 issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::ErrorUpdate {
                 refund_status,
@@ -532,6 +609,9 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 unified_message,
                 issuer_error_code,
                 issuer_error_message,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
             },
             RefundUpdate::ManualUpdate {
                 connector_refund_id,
@@ -549,6 +629,34 @@ impl From<RefundUpdate> for RefundUpdateInternal {
                 refund_arn: None,
                 metadata: None,
                 refund_reason: None,
+                modified_at: common_utils::date_time::now(),
+                processor_refund_data: None,
+                unified_code: None,
+                unified_message: None,
+                issuer_error_code: None,
+                issuer_error_message: None,
+                refund_surcharge_amount: None,
+                net_refund_amount: None,
+                external_surcharge_refund_details: None,
+            },
+            RefundUpdate::SurchargeUpdate {
+                external_surcharge_refund_details,
+                updated_by,
+            } => Self {
+                refund_status: None,
+                refund_surcharge_amount: Some(
+                    external_surcharge_refund_details.refund_surcharge_amount,
+                ),
+                net_refund_amount: None,
+                external_surcharge_refund_details: Some(external_surcharge_refund_details),
+                updated_by,
+                connector_refund_id: None,
+                sent_to_gateway: None,
+                refund_error_message: None,
+                refund_arn: None,
+                metadata: None,
+                refund_reason: None,
+                refund_error_code: None,
                 modified_at: common_utils::date_time::now(),
                 processor_refund_data: None,
                 unified_code: None,

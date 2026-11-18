@@ -3,8 +3,11 @@ name: Create a nightly tag
 on:
   workflow_call:
     secrets:
-      token:
-        description: GitHub token for authenticating with GitHub
+      client_id:
+        description: Client ID of the GitHub App
+        required: true
+      app_private_key:
+        description: Private key of the GitHub App
         required: true
     outputs:
       tag:
@@ -28,11 +31,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Generate a token
+        id: generate_token
+        uses: actions/create-github-app-token@v3
+        env:
+          NODE_USE_ENV_PROXY: "1"
+        with:
+          client-id: ${{ secrets.client_id }}
+          private-key: ${{ secrets.app_private_key }}
+
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          token: ${{ secrets.token }}
+          token: ${{ steps.generate_token.outputs.token }}
 
       - name: Check if the workflow is run on an allowed branch
         shell: bash
@@ -142,8 +154,8 @@ jobs:
       - name: Set git configuration
         shell: bash
         run: |
-          git config --local user.name 'github-actions'
-          git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config --local user.name 'hyperswitch-bot[bot]'
+          git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
 
       - name: Commit, tag and push generated changelog
         shell: bash

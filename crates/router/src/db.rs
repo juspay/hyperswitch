@@ -11,12 +11,12 @@ pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
 pub mod card_issuer;
+pub mod client_secret;
 pub mod configs;
 pub mod customers;
 pub mod dashboard_metadata;
 pub mod dispute;
 pub mod dynamic_routing_stats;
-pub mod ephemeral_key;
 pub mod events;
 pub mod file;
 pub mod fraud_check;
@@ -53,15 +53,18 @@ use diesel_models::{
 use error_stack::ResultExt;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
-    payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
+    payout_attempt::TrackedPayoutAttemptInterface, payouts::TrackedPayoutsInterface,
 };
 use hyperswitch_domain_models::{
-    authentication::AuthenticationInterface,
-    card_issuer::CardIssuersInterface,
-    cards_info::CardsInfoInterface,
+    authentication::TrackedAuthenticationInterface,
+    card_issuer::TrackedCardIssuersInterface,
+    cards_info::TrackedCardsInfoInterface,
     master_key::MasterKeyInterface,
-    payment_methods::PaymentMethodInterface,
-    payments::{payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface},
+    payment_methods::TrackedPaymentMethodInterface,
+    payments::{
+        payment_attempt::TrackedPaymentAttemptInterface,
+        payment_intent::TrackedPaymentIntentInterface,
+    },
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
@@ -76,7 +79,10 @@ use storage_impl::{
 };
 
 pub use self::kafka_store::KafkaStore;
-use self::{fraud_check::FraudCheckInterface, organization::OrganizationInterface};
+use self::{
+    fraud_check::FraudCheckInterface,
+    organization::{OrganizationInterface, TrackedOrganizationInterface},
+};
 pub use crate::{
     core::errors::{self, ProcessTrackerError},
     errors::CustomResult,
@@ -103,63 +109,56 @@ pub trait StorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + address::AddressInterface
-    + api_keys::ApiKeyInterface
-    + blocklist_lookup::BlocklistLookupInterface
-    + configs::ConfigInterface<Error = StorageError>
-    + capture::CaptureInterface
-    + customers::CustomerInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
-    + dispute::DisputeInterface
-    + ephemeral_key::EphemeralKeyInterface
-    + ephemeral_key::ClientSecretInterface
-    + events::EventInterface
-    + file::FileMetadataInterface
-    + FraudCheckInterface
-    + locker_mock_up::LockerMockUpInterface
-    + mandate::MandateInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
+    + address::TrackedAddressInterface
+    + api_keys::TrackedApiKeyInterface
+    + blocklist_lookup::TrackedBlocklistLookupInterface
+    + hyperswitch_domain_models::configs::TrackedConfigInterface<Error = StorageError>
+    + capture::TrackedCaptureInterface
+    + hyperswitch_domain_models::customer::TrackedCustomerInterface<Error = StorageError>
+    + dispute::TrackedDisputeInterface
+    + client_secret::TrackedClientSecretInterface
+    + events::TrackedEventInterface
+    + file::TrackedFileMetadataInterface
+    + fraud_check::TrackedFraudCheckInterface
+    + locker_mock_up::TrackedLockerMockUpInterface
+    + mandate::TrackedMandateInterface
     + merchant_connector_account::ConnectorAccessToken
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
-    + PaymentAttemptInterface<Error = StorageError>
-    + PaymentIntentInterface<Error = StorageError>
-    + PaymentMethodInterface<Error = StorageError>
-    + analytics_report::AnalyticsReportInterface
-    + blocklist::BlocklistInterface
-    + blocklist_fingerprint::BlocklistFingerprintInterface
-    + batch_blocklist_job::BatchBlocklistJobInterface
-    + CardIssuersInterface<Error = StorageError>
-    + dynamic_routing_stats::DynamicRoutingStatsInterface
+    + TrackedPaymentAttemptInterface<Error = StorageError>
+    + TrackedPaymentIntentInterface<Error = StorageError>
+    + TrackedPaymentMethodInterface<Error = StorageError>
+    + analytics_report::TrackedAnalyticsReportInterface
+    + blocklist::TrackedBlocklistInterface
+    + blocklist_fingerprint::TrackedBlocklistFingerprintInterface
+    + batch_blocklist_job::TrackedBatchBlocklistJobInterface
+    + TrackedCardIssuersInterface<Error = StorageError>
+    + dynamic_routing_stats::TrackedDynamicRoutingStatsInterface
     + scheduler::SchedulerInterface
-    + PayoutAttemptInterface<Error = StorageError>
-    + PayoutsInterface<Error = StorageError>
-    + refund::RefundInterface
-    + reverse_lookup::ReverseLookupInterface
-    + CardsInfoInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
+    + TrackedPayoutAttemptInterface<Error = StorageError>
+    + TrackedPayoutsInterface<Error = StorageError>
+    + refund::TrackedRefundInterface
+    + reverse_lookup::TrackedReverseLookupInterface
+    + TrackedCardsInfoInterface<Error = StorageError>
     + MasterKeyInterface
-    + payment_link::PaymentLinkInterface
+    + payment_link::TrackedPaymentLinkInterface
     + RedisConnInterface
     + CacheInterface
     + RequestIdStore
-    + business_profile::ProfileInterface<Error = StorageError>
-    + routing_algorithm::RoutingAlgorithmInterface
-    + gsm::GsmInterface
-    + unified_translations::UnifiedTranslationsInterface
-    + authorization::AuthorizationInterface
-    + user::sample_data::BatchSampleDataInterface
-    + health_check::HealthCheckDbInterface
-    + user_authentication_method::UserAuthenticationMethodInterface
-    + AuthenticationInterface<Error = StorageError>
-    + generic_link::GenericLinkInterface
-    + relay::RelayInterface
-    + user::theme::ThemeInterface
-    + payment_method_session::PaymentMethodsSessionInterface
-    + tokenization::TokenizationInterface
-    + callback_mapper::CallbackMapperInterface
-    + storage_impl::subscription::SubscriptionInterface<Error = StorageError>
-    + storage_impl::invoice::InvoiceInterface<Error = StorageError>
+    + routing_algorithm::TrackedRoutingAlgorithmInterface
+    + gsm::TrackedGsmInterface
+    + unified_translations::TrackedUnifiedTranslationsInterface
+    + authorization::TrackedAuthorizationInterface
+    + user::sample_data::TrackedBatchSampleDataInterface
+    + health_check::TrackedHealthCheckDbInterface
+    + user_authentication_method::TrackedUserAuthenticationMethodInterface
+    + TrackedAuthenticationInterface<Error = StorageError>
+    + generic_link::TrackedGenericLinkInterface
+    + relay::TrackedRelayInterface
+    + user::theme::TrackedThemeInterface
+    + payment_method_session::TrackedPaymentMethodsSessionInterface
+    + tokenization::TrackedTokenizationInterface
+    + callback_mapper::TrackedCallbackMapperInterface
+    + hyperswitch_domain_models::subscription::TrackedSubscriptionInterface<Error = StorageError>
+    + hyperswitch_domain_models::invoice::TrackedInvoiceInterface<Error = StorageError>
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -218,16 +217,17 @@ pub trait AccountsStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + OrganizationInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
-    + business_profile::ProfileInterface<Error = StorageError>
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
+    + TrackedOrganizationInterface
+    + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
+    + business_profile::TrackedProfileInterface<Error = StorageError>
+    + merchant_connector_account::TrackedMerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::TrackedMerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::TrackedHierarchicalResourceInterface<Error = StorageError>
+    + dashboard_metadata::TrackedDashboardMetadataInterface
     + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 #[cfg(not(feature = "deja"))]
@@ -236,15 +236,17 @@ pub trait AccountsStorageInterface:
     Send
     + Sync
     + dyn_clone::DynClone
-    + OrganizationInterface
-    + merchant_account::MerchantAccountInterface<Error = StorageError>
-    + business_profile::ProfileInterface<Error = StorageError>
-    + merchant_connector_account::MerchantConnectorAccountInterface<Error = StorageError>
-    + merchant_key_store::MerchantKeyStoreInterface<Error = StorageError>
-    + hierarchical_resource::HierarchicalResourceInterface<Error = StorageError>
-    + dashboard_metadata::DashboardMetadataInterface
+    + TrackedOrganizationInterface
+    + merchant_account::TrackedMerchantAccountInterface<Error = StorageError>
+    + business_profile::TrackedProfileInterface<Error = StorageError>
+    + merchant_connector_account::TrackedMerchantConnectorAccountInterface<Error = StorageError>
+    + merchant_key_store::TrackedMerchantKeyStoreInterface<Error = StorageError>
+    + hierarchical_resource::TrackedHierarchicalResourceInterface<Error = StorageError>
+    + dashboard_metadata::TrackedDashboardMetadataInterface
+    + RequestIdStore
     + 'static
 {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState);
 }
 
 pub trait CommonStorageInterface:
@@ -299,7 +301,11 @@ impl GlobalStorageInterface for Store {
     }
 }
 
-impl AccountsStorageInterface for Store {}
+impl AccountsStorageInterface for Store {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 #[async_trait::async_trait]
 impl StorageInterface for MockDb {
@@ -338,7 +344,11 @@ impl GlobalStorageInterface for MockDb {
     }
 }
 
-impl AccountsStorageInterface for MockDb {}
+impl AccountsStorageInterface for MockDb {
+    fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        StorageInterface::set_key_manager_state(self, key_manager_state);
+    }
+}
 
 impl CommonStorageInterface for MockDb {
     fn get_global_storage_interface(&self) -> Box<dyn GlobalStorageInterface> {
@@ -370,6 +380,19 @@ pub trait RequestIdStore {
     fn get_request_id(&self) -> Option<String> {
         None
     }
+
+    /// Hand this store the session's read ledger, so what it reads is weighed
+    /// against what the session already read. One ledger per session, attached
+    /// to each of its stores.
+    fn attach_read_ledger(
+        &mut self,
+        _read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+    }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        None
+    }
 }
 
 impl RequestIdStore for MockDb {}
@@ -392,6 +415,32 @@ impl RequestIdStore for Store {
 
     fn get_request_id(&self) -> Option<String> {
         self.request_id.clone()
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        // Both direct and KV-delegated reads use the ledger in `RouterStore`.
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger = Some(read_ledger);
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger = Some(read_ledger);
+        }
+    }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.read_ledger.clone()
+        }
+        #[cfg(not(feature = "kv_store"))]
+        {
+            self.read_ledger.clone()
+        }
     }
 }
 
@@ -418,6 +467,17 @@ dyn_clone::clone_trait_object!(AccountsStorageInterface);
 impl RequestIdStore for KafkaStore {
     fn add_request_id(&mut self, request_id: String) {
         self.diesel_store.add_request_id(request_id)
+    }
+
+    fn attach_read_ledger(
+        &mut self,
+        read_ledger: std::sync::Arc<common_utils::read_ledger::ReadLedger>,
+    ) {
+        self.diesel_store.attach_read_ledger(read_ledger)
+    }
+
+    fn get_read_ledger(&self) -> Option<std::sync::Arc<common_utils::read_ledger::ReadLedger>> {
+        self.diesel_store.get_read_ledger()
     }
 }
 
@@ -477,13 +537,13 @@ impl OrganizationInterface for KafkaStore {
         &self,
         organization: OrganizationNew,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.insert_organization(organization).await
+        OrganizationInterface::insert_organization(&self.diesel_store, organization).await
     }
     async fn find_organization_by_org_id(
         &self,
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store.find_organization_by_org_id(org_id).await
+        OrganizationInterface::find_organization_by_org_id(&self.diesel_store, org_id).await
     }
 
     async fn update_organization_by_org_id(
@@ -491,8 +551,7 @@ impl OrganizationInterface for KafkaStore {
         org_id: &id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> CustomResult<Organization, StorageError> {
-        self.diesel_store
-            .update_organization_by_org_id(org_id, update)
+        OrganizationInterface::update_organization_by_org_id(&self.diesel_store, org_id, update)
             .await
     }
 }
