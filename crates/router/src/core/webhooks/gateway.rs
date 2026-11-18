@@ -7,9 +7,8 @@ use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_domain_models::api::WebhookResponse;
-use hyperswitch_interfaces::{
-    helpers::ForeignFrom,
-    webhooks::{IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData},
+use hyperswitch_interfaces::webhooks::{
+    IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
 use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
@@ -1044,10 +1043,7 @@ async fn build_event_context(
         event_context: Some(payments_grpc::event_context::EventContext::Payment(
             payments_grpc::PaymentEventContext {
                 capture_method,
-                previous_status: Option::<payments_grpc::PaymentStatus>::foreign_from(
-                    payment_attempt.status,
-                )
-                .map(i32::from),
+                previous_status: None,
             },
         )),
     })

@@ -19,6 +19,34 @@ use crate::{
     types::{self, api, domain},
 };
 
+/// Keep an in-progress capture or void when a successful webhook reports authorization.
+/// `current_status` must come from the payment attempt read under the payment lock.
+pub fn reconcile_webhook_payment_status(
+    current_status: common_enums::AttemptStatus,
+    reported_status: common_enums::AttemptStatus,
+    action: &payments::CallConnectorAction,
+    response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
+) -> common_enums::AttemptStatus {
+    use common_enums::AttemptStatus;
+
+    if response.is_ok()
+        && matches!(
+            action,
+            payments::CallConnectorAction::HandleResponse { .. }
+                | payments::CallConnectorAction::UCSConsumeResponse(_)
+        )
+        && reported_status == AttemptStatus::Authorized
+        && matches!(
+            current_status,
+            AttemptStatus::CaptureInitiated | AttemptStatus::VoidInitiated
+        )
+    {
+        current_status
+    } else {
+        reported_status
+    }
+}
+
 #[cfg(feature = "v1")]
 #[async_trait]
 impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -119,59 +147,53 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         // Read before the connector call: connectors on the V2 interface rebuild the returned
         // router data from `PaymentFlowData`, which does not carry this flag.
         let accept_amount_mismatch = self.accept_amount_mismatch;
-        match (self.request.sync_type.clone(), capture_sync_method_result) {
+        let current_status = self.status;
+        let mut new_router_data = match (self.request.sync_type.clone(), capture_sync_method_result)
+        {
             (
                 types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
-                let mut new_router_data = self
-                    .execute_connector_processing_step_for_each_capture(
-                        state,
-                        pending_connector_capture_id_list,
-                        call_connector_action,
-                        connector_integration,
-                        return_raw_connector_response,
-                        gateway_context,
-                    )
-                    .await?;
-                // Initiating Integrity checks
-                let integrity_result = helpers::check_integrity_based_on_flow(
-                    &new_router_data.request,
-                    &new_router_data.response,
-                    accept_amount_mismatch,
-                );
-
-                new_router_data.integrity_check = integrity_result;
-
-                Ok(new_router_data)
+                self.execute_connector_processing_step_for_each_capture(
+                    state,
+                    pending_connector_capture_id_list,
+                    call_connector_action.clone(),
+                    connector_integration,
+                    return_raw_connector_response,
+                    gateway_context,
+                )
+                .await?
             }
-            (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
+            (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => return Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
-                let mut new_router_data = gateway::execute_payment_gateway(
+                gateway::execute_payment_gateway(
                     state,
                     connector_integration,
                     &self,
-                    call_connector_action,
+                    call_connector_action.clone(),
                     connector_request,
                     return_raw_connector_response,
                     gateway_context,
                 )
                 .await
-                .to_payment_failed_response()?;
-
-                // Initiating Integrity checks
-                let integrity_result = helpers::check_integrity_based_on_flow(
-                    &new_router_data.request,
-                    &new_router_data.response,
-                    accept_amount_mismatch,
-                );
-
-                new_router_data.integrity_check = integrity_result;
-
-                Ok(new_router_data)
+                .to_payment_failed_response()?
             }
-        }
+        };
+
+        new_router_data.integrity_check = helpers::check_integrity_based_on_flow(
+            &new_router_data.request,
+            &new_router_data.response,
+            accept_amount_mismatch,
+        );
+        new_router_data.status = reconcile_webhook_payment_status(
+            current_status,
+            new_router_data.status,
+            &call_connector_action,
+            &new_router_data.response,
+        );
+
+        Ok(new_router_data)
     }
 
     async fn add_access_token<'a>(
