@@ -6,16 +6,14 @@ use api_models::payment_methods::{
 use hyperswitch_masking::PeekInterface;
 use serde_json::json;
 
-#[test]
-fn session_apple_pay_accepts_encrypted_input_but_rejects_decrypted_credentials(
-) -> Result<(), serde_json::Error> {
-    let mut request = json!({
+fn apple_pay_confirm_request(payment_data: serde_json::Value) -> serde_json::Value {
+    json!({
         "payment_method_type": "wallet",
         "payment_method_subtype": "apple_pay",
         "payment_method_data": {
             "wallet": {
                 "apple_pay": {
-                    "payment_data": "encrypted-apple-pay-token",
+                    "payment_data": payment_data,
                     "payment_method": {
                         "display_name": "Visa 1234",
                         "network": "Visa",
@@ -25,23 +23,28 @@ fn session_apple_pay_accepts_encrypted_input_but_rejects_decrypted_credentials(
                 }
             }
         }
-    });
-    let parsed: PaymentMethodSessionConfirmRequest = serde_json::from_value(request.clone())?;
+    })
+}
+
+#[test]
+fn session_apple_pay_accepts_encrypted_input_but_rejects_decrypted_credentials() {
+    let parsed = serde_json::from_value::<PaymentMethodSessionConfirmRequest>(
+        apple_pay_confirm_request(json!("encrypted-apple-pay-token")),
+    );
     assert!(matches!(
-        parsed.payment_method_data.payment_method_data,
-        PaymentMethodSessionData::Wallet(PaymentMethodSessionWalletData::ApplePay(data))
+        parsed.map(|request| request.payment_method_data.payment_method_data),
+        Ok(PaymentMethodSessionData::Wallet(PaymentMethodSessionWalletData::ApplePay(data)))
             if data.payment_data.peek() == "encrypted-apple-pay-token"
                 && data.payment_method.network == "Visa"
     ));
 
-    request["payment_method_data"]["wallet"]["apple_pay"]["payment_data"] = json!({
+    let request = apple_pay_confirm_request(json!({
         "application_primary_account_number": "4242424242424242",
         "application_expiration_month": "12",
         "application_expiration_year": "30",
         "payment_data": { "online_payment_cryptogram": "cryptogram", "eci_indicator": "05" }
-    });
+    }));
     assert!(serde_json::from_value::<PaymentMethodSessionConfirmRequest>(request).is_err());
-    Ok(())
 }
 
 #[test]
@@ -66,19 +69,21 @@ fn session_rejects_unsupported_instruments_and_missing_instrument_data() {
 }
 
 #[test]
-fn raw_apple_pay_without_cryptogram_returns_explicit_null() -> Result<(), serde_json::Error> {
-    let raw: api_models::payment_methods::RawWalletDetail = serde_json::from_value(json!({
+fn raw_apple_pay_without_cryptogram_returns_explicit_null() {
+    let response = serde_json::from_value::<api_models::payment_methods::RawWalletDetail>(json!({
         "apple_pay_decrypted_data": {
             "application_primary_account_number": "4242424242424242",
             "expiry_month": "12",
             "expiry_year": "2030"
         }
-    }))?;
+    }))
+    .and_then(serde_json::to_value);
 
-    let response = serde_json::to_value(raw)?;
     assert_eq!(
-        response["apple_pay_decrypted_data"].get("payment_data"),
+        response
+            .as_ref()
+            .ok()
+            .and_then(|value| value.pointer("/apple_pay_decrypted_data/payment_data")),
         Some(&serde_json::Value::Null)
     );
-    Ok(())
 }
