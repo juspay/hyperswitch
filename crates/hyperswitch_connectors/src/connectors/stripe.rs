@@ -19,7 +19,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
+    payment_method_data::{PayLaterData, PaymentMethodData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         Accept, AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
@@ -500,6 +500,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
                 PaymentMethodData::Card(_)
                     | PaymentMethodData::CardWithOptionalCVC(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect { .. })
             )
         ) {
             return Ok(format!(
