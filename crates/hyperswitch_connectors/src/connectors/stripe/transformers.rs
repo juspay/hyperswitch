@@ -2507,6 +2507,24 @@ fn create_stripe_line_items_data(
     })
 }
 
+/// Shipping address of a PaymentIntent, sent only when it has the name and the first address line.
+fn get_payment_intent_shipping_address(
+    item: &PaymentsAuthorizeRouterData,
+) -> Option<StripeShippingAddress> {
+    item.get_optional_shipping_full_name()
+        .zip(item.get_optional_shipping_line1())
+        .map(|(name, line1)| StripeShippingAddress {
+            city: item.get_optional_shipping_city(),
+            country: item.get_optional_shipping_country(),
+            line1: Some(line1),
+            line2: item.get_optional_shipping_line2(),
+            zip: item.get_optional_shipping_zip(),
+            state: item.get_optional_shipping_state(),
+            name: Some(name),
+            phone: item.get_optional_shipping_phone_number(),
+        })
+}
+
 fn is_klarna_payment(payment_method_data: &PaymentMethodData) -> bool {
     matches!(
         payment_method_data,
@@ -2606,21 +2624,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
 
         let is_klarna = is_klarna_payment(&item.request.payment_method_data);
 
-        // Klarna uses the shipping address for its risk checks, so keep it with the token
-        let shipping_address = if payment_method_token.is_some() && !is_klarna {
-            None
-        } else {
-            Some(StripeShippingAddress {
-                city: item.get_optional_shipping_city(),
-                country: item.get_optional_shipping_country(),
-                line1: item.get_optional_shipping_line1(),
-                line2: item.get_optional_shipping_line2(),
-                zip: item.get_optional_shipping_zip(),
-                state: item.get_optional_shipping_state(),
-                name: item.get_optional_shipping_full_name(),
-                phone: item.get_optional_shipping_phone_number(),
-            })
-        };
+        let shipping_address = get_payment_intent_shipping_address(item);
 
         let billing_address = if payment_method_token.is_some() {
             None
