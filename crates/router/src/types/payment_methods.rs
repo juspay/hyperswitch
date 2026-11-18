@@ -25,7 +25,7 @@ pub trait VaultingInterface {
 
     fn get_vaulting_flow_name() -> &'static str;
 
-    fn supports_plain_response() -> bool {
+    fn supports_jws_response() -> bool {
         false
     }
 }
@@ -172,8 +172,8 @@ impl VaultingInterface for GetVaultFingerprint {
         consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE
     }
 
-    // The response is only a fingerprint id.
-    fn supports_plain_response() -> bool {
+    // Fingerprint responses can omit encryption, but must still be signed.
+    fn supports_jws_response() -> bool {
         true
     }
 }

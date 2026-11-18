@@ -2354,14 +2354,22 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         .attach_printable("Failed to get response from vault")?;
 
     #[cfg(feature = "v2")]
-    let is_plain_response = V::supports_plain_response() && is_plain_vault_response(&response);
+    let is_jws_response = locker.jws_fingerprint_response
+        && V::supports_jws_response()
+        && is_jws_vault_response(&response);
     #[cfg(not(feature = "v2"))]
-    let is_plain_response = false;
+    let is_jws_response = false;
 
-    if is_plain_response {
-        String::from_utf8(response.response.to_vec())
+    if is_jws_response {
+        let jws_body: services::JwsBody = response
+            .response
+            .parse_struct("JwsBody")
             .change_context(errors::VaultError::ResponseDeserializationFailed)
-            .attach_printable("Plain vault response is not valid UTF-8")
+            .attach_printable("Failed to get JwsBody from vault response")?;
+
+        pm_transforms::get_verified_vault_response_payload(jwekey, jws_body)
+            .change_context(errors::VaultError::ResponseDecryptionFailed)
+            .attach_printable("Error verifying signed vault response payload")
     } else {
         let jwe_body: services::JweBody = response
             .response
@@ -2382,16 +2390,15 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     }
 }
 
-/// The vault marks a response it returned unencrypted (at the caller's request) with the same
-/// header the caller sent; anything without it is a JWE envelope.
+/// The vault echoes `jws` for signed-only responses; all other responses must be JWE envelopes.
 #[cfg(feature = "v2")]
-fn is_plain_vault_response(response: &types::Response) -> bool {
+fn is_jws_vault_response(response: &types::Response) -> bool {
     response
         .headers
         .as_ref()
         .and_then(|headers| headers.get(consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER))
         .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value == consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN)
+        .is_some_and(|value| value == consts::V2_VAULT_FP_RESPONSE_ENCODING_JWS)
 }
 
 pub async fn create_entity_in_locker(
@@ -2573,10 +2580,10 @@ fn batch_fingerprint_entry<D: serde::Serialize>(
 
 #[cfg(feature = "v2")]
 fn fingerprint_response_headers(state: &routes::SessionState) -> Option<HashMap<String, String>> {
-    state.conf.locker.plain_fingerprint_response.then(|| {
+    state.conf.locker.jws_fingerprint_response.then(|| {
         HashMap::from([(
             consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
-            consts::V2_VAULT_FP_RESPONSE_ENCODING_PLAIN.to_string(),
+            consts::V2_VAULT_FP_RESPONSE_ENCODING_JWS.to_string(),
         )])
     })
 }

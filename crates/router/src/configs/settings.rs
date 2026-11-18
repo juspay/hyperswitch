@@ -1135,8 +1135,11 @@ pub struct Locker {
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
     pub create_entity_on_merchant_create: bool,
+    /// Request signed-only fingerprint responses instead of signed and encrypted responses.
     #[cfg(feature = "v2")]
-    pub plain_fingerprint_response: bool,
+    // Keep existing deployments compatible while removing unsigned response handling.
+    #[serde(alias = "plain_fingerprint_response")]
+    pub jws_fingerprint_response: bool,
     #[cfg(feature = "v2")]
     pub use_batched_fingerprint: bool,
 }
