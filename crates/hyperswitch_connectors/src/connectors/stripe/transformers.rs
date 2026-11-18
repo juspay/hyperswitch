@@ -193,6 +193,30 @@ pub struct StripeMandateRequest {
     mandate_type: StripeMandateType,
 }
 
+/// Online mandate details, taking the ip address and user agent from the browser info when
+/// the customer acceptance doesn't carry them
+fn get_online_mandate_type(
+    online_mandate: Option<&common_types::payments::OnlineMandate>,
+    browser_info: Option<&BrowserInformation>,
+) -> Option<StripeMandateType> {
+    let ip_address = online_mandate
+        .and_then(|online_mandate| online_mandate.ip_address.clone())
+        .or_else(|| {
+            browser_info
+                .and_then(|browser_info| browser_info.ip_address)
+                .map(|ip_address| Secret::new(ip_address.to_string()))
+        });
+    let user_agent = online_mandate
+        .map(|online_mandate| online_mandate.user_agent.clone())
+        .or_else(|| browser_info.and_then(|browser_info| browser_info.user_agent.clone()));
+    ip_address
+        .zip(user_agent)
+        .map(|(ip_address, user_agent)| StripeMandateType::Online {
+            ip_address,
+            user_agent,
+        })
+}
+
 impl TryFrom<&common_types::payments::CustomerAcceptance> for StripeMandateRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -220,6 +244,23 @@ impl TryFrom<&common_types::payments::CustomerAcceptance> for StripeMandateReque
             AcceptanceType::Offline => StripeMandateType::Offline,
         };
         Ok(Self { mandate_type })
+    }
+}
+
+impl StripeMandateRequest {
+    /// Mandate request only when the customer acceptance (with the browser info as fallback) has
+    /// everything Stripe needs; an incomplete online acceptance is skipped instead of failing
+    fn from_complete_customer_acceptance(
+        customer_acceptance: &common_types::payments::CustomerAcceptance,
+        browser_info: Option<&BrowserInformation>,
+    ) -> Option<Self> {
+        let mandate_type = match customer_acceptance.acceptance_type {
+            AcceptanceType::Online => {
+                get_online_mandate_type(customer_acceptance.online.as_ref(), browser_info)
+            }
+            AcceptanceType::Offline => Some(StripeMandateType::Offline),
+        };
+        mandate_type.map(|mandate_type| Self { mandate_type })
     }
 }
 
@@ -361,7 +402,8 @@ pub struct SetupIntentRequest {
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
     pub return_url: Option<Secret<String>>,
-    /// Payment method created by the tokenization call (Klarna on Stripe Connect)
+    /// Payment method created by the tokenization call
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<Secret<String>>,
     #[serde(flatten)]
     pub payment_data: Option<StripePaymentMethodData>,
@@ -379,9 +421,10 @@ pub struct SetupIntentRequest {
     /// The Stripe account ID that these funds are intended for
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
+    /// Not sent for a tokenized payment method, which already holds its billing details
     #[serde(flatten)]
-    pub billing: StripeBillingAddress,
-    /// Customer acceptance for the mandate, sent for payment methods that require it (Klarna)
+    pub billing: Option<StripeBillingAddress>,
+    /// Customer acceptance, so Stripe creates the mandate along with the SetupIntent
     #[serde(flatten)]
     pub setup_mandate_details: Option<StripeMandateRequest>,
     /// Currency of the future Klarna payments; Stripe requires it when it cannot be inferred
@@ -2471,6 +2514,25 @@ fn is_klarna_payment(payment_method_data: &PaymentMethodData) -> bool {
     )
 }
 
+/// Whether the tokenization call creates a PaymentMethod (`pm_…`) via `/v1/payment_methods`.
+/// Every other payment method is tokenized via `/v1/tokens`, which returns a legacy token
+/// (`tok_…`) instead.
+pub fn is_payment_methods_api_tokenization(
+    split_payments: Option<&SplitPaymentsRequest>,
+    payment_method_data: &PaymentMethodData,
+) -> bool {
+    matches!(
+        (split_payments, payment_method_data),
+        (
+            Some(SplitPaymentsRequest::StripeSplitPayment(_)),
+            PaymentMethodData::Card(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect { .. })
+        )
+    )
+}
+
 pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
     data.request.is_stripe_split_payment()
         && (data.request.payment_method_data.is_card_payment()
@@ -3051,47 +3113,130 @@ fn validate_setup_mandate_payment_method(
     }
 }
 
-impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
+/// `payment_method` and `payment_method_data[...]` fields of a SetupIntent; only one is set
+struct SetupIntentPaymentMethodDetails {
+    payment_method: Option<Secret<String>>,
+    payment_data: Option<StripePaymentMethodData>,
+}
+
+impl TryFrom<(&SetupMandateRouterData, StripePaymentMethodType)>
+    for SetupIntentPaymentMethodDetails
+{
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        validate_setup_mandate_payment_method(item)?;
-
-        let is_klarna = is_klarna_payment(&item.request.payment_method_data);
-        let pm_type = if is_klarna {
-            StripePaymentMethodType::Klarna
-        } else {
-            StripePaymentMethodType::Card
-        };
-
-        // For Stripe Connect, Klarna is tokenized into a payment method (`pm_…`) on the right
-        // account before the SetupIntent, so the SetupIntent references it instead of sending
-        // the payment method data inline
-        let klarna_payment_method = match (
-            is_klarna,
-            &item.request.split_payments,
-            &item.payment_method_token,
-        ) {
-            (
-                true,
-                Some(SplitPaymentsRequest::StripeSplitPayment(_)),
-                Some(PaymentMethodToken::Token(payment_method_id)),
-            ) => Some(payment_method_id.clone()),
-            _ => None,
-        };
-
-        let payment_data = match klarna_payment_method {
-            Some(_) => None,
+    fn try_from(
+        (item, pm_type): (&SetupMandateRouterData, StripePaymentMethodType),
+    ) -> Result<Self, Self::Error> {
+        match &item.payment_method_token {
+            Some(PaymentMethodToken::Token(payment_method_id))
+                if is_payment_methods_api_tokenization(
+                    item.request.split_payments.as_ref(),
+                    &item.request.payment_method_data,
+                ) =>
+            {
+                Ok(Self {
+                    payment_method: Some(payment_method_id.clone()),
+                    payment_data: None,
+                })
+            }
             // Setup mandate is not made via a single-use token, send the decrypted wallet token directly
-            None => Some(
-                match get_wallet_network_token_payment_data(
+            _ => {
+                let payment_data = match get_wallet_network_token_payment_data(
                     &item.request.payment_method_data,
                     item.payment_method_token.as_ref(),
                 )? {
                     Some(network_token_payment_data) => network_token_payment_data,
                     None => StripePaymentMethodData::try_from((item, item.auth_type, pm_type))?,
-                },
-            ),
-        };
+                };
+                Ok(Self {
+                    payment_method: None,
+                    payment_data: Some(payment_data),
+                })
+            }
+        }
+    }
+}
+
+impl From<&SetupMandateRouterData> for StripeBillingAddress {
+    fn from(item: &SetupMandateRouterData) -> Self {
+        Self {
+            city: item.get_optional_billing_city(),
+            country: item.get_optional_billing_country(),
+            address_line1: item.get_optional_billing_line1(),
+            address_line2: item.get_optional_billing_line2(),
+            zip_code: item.get_optional_billing_zip(),
+            state: item.get_optional_billing_state(),
+            name: item.get_optional_billing_full_name(),
+            email: item.get_optional_billing_email(),
+            phone: item.get_optional_billing_phone_number(),
+        }
+    }
+}
+
+/// Billing details sent inline with the payment method data of a SetupIntent
+fn get_setup_intent_billing_address(
+    item: &SetupMandateRouterData,
+    payment_data: Option<&StripePaymentMethodData>,
+) -> Option<StripeBillingAddress> {
+    match payment_data {
+        // A tokenized payment method already holds its billing details
+        None => None,
+        // Multibanco already carries `payment_method_data[billing_details][email]`
+        Some(StripePaymentMethodData::BankTransfer(
+            StripeBankTransferData::MultibancoBankTransfers(_),
+        )) => None,
+        Some(_) => Some(StripeBillingAddress::from(item)),
+    }
+}
+
+/// Customer acceptance sent so Stripe creates the mandate along with the SetupIntent. It is sent
+/// only when complete, so an incomplete acceptance doesn't fail the setup mandate; Stripe doesn't
+/// require it to set up a payment method (Klarna included)
+fn get_setup_intent_mandate_details(item: &SetupMandateRouterData) -> Option<StripeMandateRequest> {
+    item.request
+        .customer_acceptance
+        .as_ref()
+        .and_then(|customer_acceptance| {
+            StripeMandateRequest::from_complete_customer_acceptance(
+                customer_acceptance,
+                item.request.browser_info.as_ref(),
+            )
+        })
+}
+
+/// Currency of the future payments, required by Stripe for Klarna SetupIntents
+fn get_setup_intent_klarna_currency(
+    item: &SetupMandateRouterData,
+    pm_type: StripePaymentMethodType,
+) -> Option<enums::Currency> {
+    match pm_type {
+        StripePaymentMethodType::Klarna => Some(item.request.currency),
+        _ => None,
+    }
+}
+
+/// `payment_method_types` of a SetupIntent
+impl TryFrom<&SetupMandateRouterData> for StripePaymentMethodType {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        match &item.request.payment_method_data {
+            PaymentMethodData::PayLater(pay_later_data) => Ok(Self::try_from(pay_later_data)?),
+            // Stripe takes `card` for every other mandate payment method (cards, wallets)
+            _ => Ok(Self::Card),
+        }
+    }
+}
+
+impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        validate_setup_mandate_payment_method(item)?;
+
+        let pm_type = StripePaymentMethodType::try_from(item)?;
+
+        let SetupIntentPaymentMethodDetails {
+            payment_method,
+            payment_data,
+        } = SetupIntentPaymentMethodDetails::try_from((item, pm_type))?;
 
         let meta_data = Some(get_transaction_metadata(
             item.request.metadata.clone(),
@@ -3126,43 +3271,13 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             _ => None,
         };
 
-        let billing = match &payment_data {
-            // A tokenized payment method already holds its billing details
-            None => StripeBillingAddress::default(),
-            // Multibanco already carries `payment_method_data[billing_details][email]`
-            Some(StripePaymentMethodData::BankTransfer(
-                StripeBankTransferData::MultibancoBankTransfers(_),
-            )) => StripeBillingAddress::default(),
-            Some(_) => StripeBillingAddress {
-                city: item.get_optional_billing_city(),
-                country: item.get_optional_billing_country(),
-                address_line1: item.get_optional_billing_line1(),
-                address_line2: item.get_optional_billing_line2(),
-                zip_code: item.get_optional_billing_zip(),
-                state: item.get_optional_billing_state(),
-                name: item.get_optional_billing_full_name(),
-                email: item.get_optional_billing_email(),
-                phone: item.get_optional_billing_phone_number(),
-            },
-        };
-
-        // Klarna SetupIntents carry the customer acceptance and the currency of the future payments
-        let (setup_mandate_details, klarna_currency) = if is_klarna {
-            (
-                item.request
-                    .customer_acceptance
-                    .as_ref()
-                    .map(StripeMandateRequest::try_from)
-                    .transpose()?,
-                Some(item.request.currency),
-            )
-        } else {
-            (None, None)
-        };
+        let billing = get_setup_intent_billing_address(item, payment_data.as_ref());
+        let setup_mandate_details = get_setup_intent_mandate_details(item);
+        let klarna_currency = get_setup_intent_klarna_currency(item, pm_type);
 
         Ok(Self {
             confirm: true,
-            payment_method: klarna_payment_method,
+            payment_method,
             payment_data,
             return_url: item.request.router_return_url.clone(),
             off_session: item.request.off_session,

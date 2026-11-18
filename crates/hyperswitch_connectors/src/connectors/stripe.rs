@@ -19,7 +19,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{PayLaterData, PaymentMethodData},
+    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         Accept, AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
@@ -490,26 +490,15 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        if matches!(
-            (
-                req.request.split_payments.as_ref(),
-                req.request.payment_method_data.clone()
-            ),
-            (
-                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
-                PaymentMethodData::Card(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                    | PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect { .. })
-            )
+        let path = if stripe::is_payment_methods_api_tokenization(
+            req.request.split_payments.as_ref(),
+            &req.request.payment_method_data,
         ) {
-            return Ok(format!(
-                "{}{}",
-                self.base_url(connectors),
-                "v1/payment_methods"
-            ));
-        }
-        Ok(format!("{}{}", self.base_url(connectors), "v1/tokens"))
+            "v1/payment_methods"
+        } else {
+            "v1/tokens"
+        };
+        Ok(format!("{}{}", self.base_url(connectors), path))
     }
 
     fn get_request_body(
