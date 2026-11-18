@@ -3002,22 +3002,24 @@ where
         {
             Ok(Self {
                 related_transaction_id: item.request.get_related_transaction_id().clone(),
-                device_details: DeviceDetails {
-                    ip_address: Secret::new(
-                        item.recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|r| r.mandate_metadata.as_ref())
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .clone()
-                            .expose()
-                            .as_str()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .to_owned(),
-                    ),
+                device_details: match item
+                    .recurring_mandate_payment_data
+                    .as_ref()
+                    .and_then(|r| r.mandate_metadata.as_ref())
+                {
+                    Some(metadata) => DeviceDetails {
+                        ip_address: Secret::new(
+                            metadata
+                                .clone()
+                                .expose()
+                                .as_str()
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "browser_info.ip_address".into(),
+                                })?
+                                .to_owned(),
+                        ),
+                    },
+                    None => DeviceDetails::foreign_try_from(&item.request.get_browser_info())?,
                 },
                 payment_option: PaymentOption {
                     user_payment_option_id: item.request.get_connector_mandate_id().clone(),
