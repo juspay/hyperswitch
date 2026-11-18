@@ -214,7 +214,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let store = state.store.clone();
+        let profile_state = state.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
         // Each fork below gets its own span rather than the caller's. These are
@@ -225,7 +225,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
-                store
+                profile_state
+                    .accounts_store
                     .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
@@ -930,14 +931,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_id: None,
                         mandate_reference_id: Some(
                             mandates::MandateReferenceId::ConnectorMandateId(
-                                ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()), // connector_mandate_id
-                                    None, // payment_method_id
-                                    None, // update_history
-                                    None, // mandate_metadata
-                                    None, // connector_mandate_request_reference_id
-                                    None,
-                                ),
+                                ConnectorMandateReferenceId::from(token),
                             ),
                         ),
                     })
@@ -2065,13 +2059,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         field_name: "authentication_product_ids".into(),
                     })?;
                     let merchant_id = &business_profile.merchant_id;
-                    let connector_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            merchant_id,
-                            &click_to_pay_mca_id,
-                            platform.get_processor().get_key_store(),
-                        )
+                    let connector_mca = state.accounts_store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                merchant_id,
+                                &click_to_pay_mca_id,
+                                platform.get_processor().get_key_store(),
+                            )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

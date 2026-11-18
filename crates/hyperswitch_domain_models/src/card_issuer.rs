@@ -1,6 +1,7 @@
 use common_utils::{errors, id_type};
 use diesel_models::card_issuer;
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CardIssuersInterface {
     type Error;

@@ -36,14 +36,14 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .clone()
             .get_required_value("merchant_id")?;
 
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await?;
 
-        let merchant_account = db
+        let merchant_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 

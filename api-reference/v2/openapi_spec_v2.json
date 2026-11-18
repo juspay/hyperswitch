@@ -4945,7 +4945,7 @@
                 "$ref": "#/components/schemas/RecoveryPaymentsCreate"
               },
               "examples": {
-                "Record a failed transaction and schedule a retry": {
+                "Fully Managed Recovery": {
                   "value": {
                     "amount_details": {
                       "currency": "USD",
@@ -4995,7 +4995,7 @@
                     "transaction_status": "failure"
                   }
                 },
-                "Record a failed transaction on a profile with external triggers": {
+                "Schedule Only Recovery": {
                   "value": {
                     "amount_details": {
                       "currency": "USD",
@@ -5055,22 +5055,34 @@
         },
         "responses": {
           "200": {
-            "description": "Revenue Recovery Transaction Recorded Successfully",
+            "description": "The transaction is recorded (Fully Managed Recovery), or accepted to be recorded right after the answer (Schedule Only Recovery)",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+                  "$ref": "#/components/schemas/RecoveryPaymentsCreateResponse"
                 },
-                "example": {
-                  "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                  "intent_status": "failed",
-                  "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                "examples": {
+                  "Fully Managed Recovery": {
+                    "summary": "Fully Managed Recovery",
+                    "value": {
+                      "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                      "intent_status": "failed",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  },
+                  "Schedule Only Recovery": {
+                    "summary": "Schedule Only Recovery",
+                    "value": {
+                      "connector_transaction_id": "993672945374576J",
+                      "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                    }
+                  }
                 }
               }
             }
           },
           "400": {
-            "description": "Missing or invalid mandatory fields, or the invoice takes no more transactions",
+            "description": "Missing or invalid mandatory fields, or, under Fully Managed Recovery, the invoice takes no more transactions",
             "content": {
               "application/json": {
                 "schema": {
@@ -12831,6 +12843,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payload",
           "payme",
           "paynearme",
@@ -16265,6 +16278,17 @@
           },
           "next_retry": {
             "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          "last_recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request this state was last saved for, so a re-run of that request is\nrecognised.",
+            "nullable": true
+          },
+          "last_transaction_created_at": {
+            "type": "string",
+            "description": "When the transaction this state was last saved for was made. A transaction made before it is\nout of date and only recorded.",
+            "example": "2022-09-10T10:11:12.000Z",
+            "nullable": true
           }
         }
       },
@@ -22676,6 +22700,25 @@
                 "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "title": "RecoveryRetryWebhookDetails",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "recovery_retry_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RecoveryRetryWebhookDetails"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -23519,6 +23562,12 @@
                 "$ref": "#/components/schemas/FutureUsage"
               }
             ],
+            "nullable": true
+          },
+          "recovery_request_id": {
+            "type": "string",
+            "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
+            "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
           }
         }
@@ -28580,6 +28629,14 @@
             ],
             "nullable": true
           },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
           "sender_details": {
             "allOf": [
               {
@@ -28835,6 +28892,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
               }
             ],
             "nullable": true
@@ -29337,6 +29402,31 @@
           }
         ],
         "description": "The payout method information for response"
+      },
+      "PayoutPurpose": {
+        "type": "string",
+        "description": "The purpose for which a payout is being carried out.",
+        "enum": [
+          "donations",
+          "education",
+          "emergency_need",
+          "expatriation",
+          "family_support",
+          "financial_services",
+          "gifts",
+          "income",
+          "insurance",
+          "investment",
+          "it_services",
+          "leisure",
+          "loan_payment",
+          "medical_treatment",
+          "pension",
+          "royalties",
+          "savings",
+          "travel_and_tourism",
+          "other"
+        ]
       },
       "PayoutRequest": {
         "oneOf": [
@@ -30613,6 +30703,42 @@
           },
           "merchant_connector_id": {
             "type": "string",
+            "nullable": true
+          },
+          "processor_payment_token_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessorPaymentTokenDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ProcessorPaymentTokenDetails": {
+        "type": "object",
+        "description": "Card and network reference details associated with a processor payment token.",
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month.",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year.",
+            "example": "2030",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID from the original customer initiated transaction.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier from the original transaction.",
             "nullable": true
           }
         }
@@ -32126,7 +32252,12 @@
         "enum": [
           "adyen",
           "stripe",
-          "paypal"
+          "paypal",
+          "shift4",
+          "dlocal",
+          "worldpay",
+          "cybersource",
+          "razorpay"
         ]
       },
       "RecoveryNextRetry": {
@@ -32164,8 +32295,8 @@
         "enum": [
           "recovered",
           "retries_exhausted",
-          "grace_period_exceeded",
-          "hard_decline",
+          "grace_period_expired",
+          "hard_declined",
           "monitoring",
           "cancelled",
           "below_retry_threshold"
@@ -32182,8 +32313,7 @@
           "transaction_created_at",
           "connector_customer_id",
           "billing_started_at",
-          "connector_transaction_id",
-          "payment_method_data"
+          "connector_transaction_id"
         ],
         "properties": {
           "amount_details": {
@@ -32206,14 +32336,26 @@
           },
           "billing_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "description": "Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).",
             "example": "mca_1234567890",
             "nullable": true
           },
           "payment_merchant_connector_id": {
             "type": "string",
-            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.",
+            "description": "Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).",
             "example": "mca_1234567890",
+            "nullable": true
+          },
+          "merchant_reference_billing_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.",
+            "example": "billing_account_main",
+            "nullable": true
+          },
+          "merchant_reference_payment_connector_id": {
+            "type": "string",
+            "description": "The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.",
+            "example": "payment_account_us",
             "nullable": true
           },
           "connector": {
@@ -32305,7 +32447,12 @@
             "example": "993672945374576J"
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomRecoveryPaymentMethodData"
+              }
+            ],
+            "nullable": true
           },
           "enable_partial_authorization": {
             "type": "boolean",
@@ -32321,8 +32468,20 @@
         },
         "additionalProperties": false
       },
+      "RecoveryPaymentsCreateResponse": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryPaymentsResponse"
+          },
+          {
+            "$ref": "#/components/schemas/RecoveryRequestAccepted"
+          }
+        ],
+        "description": "The answer to a reported transaction, which depends on whether the profile uses Fully Managed\nRecovery or Schedule Only Recovery."
+      },
       "RecoveryPaymentsResponse": {
         "type": "object",
+        "title": "Fully Managed Recovery",
         "required": [
           "id",
           "intent_status"
@@ -32350,16 +32509,62 @@
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
-          },
-          "next_retry": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecoveryNextRetry"
-              }
-            ],
-            "nullable": true
           }
         }
+      },
+      "RecoveryRequestAccepted": {
+        "type": "object",
+        "title": "Schedule Only Recovery",
+        "description": "A transaction reported under Schedule Only Recovery (`revenue_recovery_trigger_model` is\n`external_triggers`), accepted to be recorded right after the answer.",
+        "required": [
+          "merchant_reference_id",
+          "connector_transaction_id"
+        ],
+        "properties": {
+          "merchant_reference_id": {
+            "type": "string",
+            "description": "Unique identifier of the invoice in the merchant's billing system against which the\ntransaction is being recorded.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
+            "maxLength": 30,
+            "minLength": 30
+          },
+          "connector_transaction_id": {
+            "type": "string",
+            "description": "Unique identifier of the transaction at the payment connector.",
+            "example": "993672945374576J"
+          }
+        }
+      },
+      "RecoveryRetryWebhookDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/RecoveryNextRetry"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "merchant_reference_id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in Hyperswitch.",
+                "example": "pay_mbabizu24mvu3mela5njyhpit4",
+                "maxLength": 30,
+                "minLength": 30
+              },
+              "merchant_reference_id": {
+                "type": "string",
+                "description": "Unique identifier of the invoice in the merchant's billing system.",
+                "example": "invoice_mbabizu24mvu3mela5njyh",
+                "maxLength": 30,
+                "minLength": 30
+              }
+            }
+          }
+        ],
+        "description": "The next retry of an invoice under Schedule Only Recovery, where the merchant triggers the\nretries, sent by webhook after each transaction the merchant reports."
       },
       "RecoveryTransactionStatus": {
         "type": "string",
@@ -33709,6 +33914,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payme",
           "paynearme",
           "payload",

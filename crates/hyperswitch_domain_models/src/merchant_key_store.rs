@@ -75,6 +75,7 @@ impl super::behaviour::Conversion for MerchantKeyStore {
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait MerchantKeyStoreInterface {
     type Error;

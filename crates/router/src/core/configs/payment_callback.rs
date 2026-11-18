@@ -8,7 +8,7 @@
 //! `common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME` seconds.
 
 use error_stack::ResultExt;
-use hyperswitch_domain_models::configs::ConfigInterface;
+use hyperswitch_domain_models::configs::TrackedConfigInterface;
 use serde::Deserialize;
 use storage_impl::errors::StorageError;
 
@@ -66,7 +66,7 @@ impl PaymentCallbackConfig {
     }
 
     async fn load_from_store(
-        store: &(impl ConfigInterface<Error = StorageError> + ?Sized),
+        store: &(impl TrackedConfigInterface<Error = StorageError> + ?Sized),
     ) -> RouterResult<Self> {
         let config = store
             .find_config_by_key_optional(Self::KEY)
