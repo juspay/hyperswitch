@@ -2091,22 +2091,8 @@ impl PaymentAttempt {
     }
 
     /// Extract the customer_acceptance stored on the payment attempt
-    pub fn get_customer_acceptance(&self) -> Option<common_types::payments::CustomerAcceptance> {
-        use hyperswitch_masking::ExposeInterface;
-
-        self.customer_acceptance
-            .clone()
-            .and_then(|customer_acceptance| {
-                customer_acceptance
-                    .expose()
-                    .parse_value("CustomerAcceptance")
-                    .map_err(|_| {
-                        logger::warn!(
-                            "Failed to parse payment_attempt.customer_acceptance to CustomerAcceptance"
-                        )
-                    })
-                    .ok()
-            })
+    pub fn get_customer_acceptance(&self) -> Option<pii::SecretSerdeValue> {
+        self.customer_acceptance.clone()
     }
 }
 

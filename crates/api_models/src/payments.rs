@@ -7852,10 +7852,10 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
-    /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer. The customer_acceptance sub object is usually passed by the SDK or client.
+    /// Evidence of the customer's acceptance that was captured when the payment was confirmed, returned as stored on the payment attempt.
     #[schema(value_type = Option<CustomerAcceptance>)]
     #[smithy(value_type = "Option<CustomerAcceptance>")]
-    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
 
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
