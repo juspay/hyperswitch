@@ -66,14 +66,7 @@ use crate::{
 };
 pub const REQUIRED_FIELDS_CONFIG_FILE: &str = "payment_required_fields_v2.toml";
 
-#[derive(clap::Parser, Default)]
-#[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
-pub struct CmdLineConf {
-    /// Config file.
-    /// Application will look for "config/config.toml" if this option isn't specified.
-    #[arg(short = 'f', long, value_name = "FILE")]
-    pub config_path: Option<PathBuf>,
-}
+pub use super::cli::CmdLineConf;
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
@@ -1544,6 +1537,39 @@ impl Settings<SecuredSecret> {
     }
 
     pub fn with_config_path(config_path: Option<PathBuf>) -> ApplicationResult<Self> {
+        let config = Self::config_from_sources(config_path)?;
+        let mut settings: Self = serde_path_to_error::deserialize(config)
+            .attach_printable("Unable to deserialize application configuration")
+            .change_context(ApplicationError::ConfigurationError)?;
+        #[cfg(feature = "v1")]
+        {
+            settings.required_fields = RequiredFields::new(&settings.bank_config);
+        }
+        Ok(settings)
+    }
+
+    /// The command uses the same source/precedence builder, deserializing only constructor inputs.
+    #[cfg(all(feature = "required_fields_sync", feature = "v1", not(feature = "v2")))]
+    pub fn required_fields_inputs_with_config_path(
+        config_path: PathBuf,
+    ) -> ApplicationResult<payment_methods::configs::required_fields_renderer::EffectiveInputs>
+    {
+        #[derive(Deserialize, Default)]
+        #[serde(default)]
+        struct RequiredFieldsSettings {
+            bank_config: BankRedirectConfig,
+        }
+        let inputs: RequiredFieldsSettings =
+            serde_path_to_error::deserialize(Self::config_from_sources(Some(config_path))?)
+                .change_context(ApplicationError::ConfigurationError)?;
+        payment_methods::configs::required_fields_renderer::EffectiveInputs::capture(
+            &RequiredFields::new(&inputs.bank_config),
+            &inputs.bank_config,
+        )
+        .change_context(ApplicationError::ConfigurationError)
+    }
+
+    fn config_from_sources(config_path: Option<PathBuf>) -> ApplicationResult<config::Config> {
         // Configuration values are picked up in the following priority order (1 being least
         // priority):
         // 1. Defaults from the implementation of the `Default` trait.
@@ -1597,19 +1623,10 @@ impl Settings<SecuredSecret> {
             })
         };
 
-        let config = config
+        config
             .add_source(environment_source)
             .build()
-            .change_context(ApplicationError::ConfigurationError)?;
-
-        let mut settings: Self = serde_path_to_error::deserialize(config)
-            .attach_printable("Unable to deserialize application configuration")
-            .change_context(ApplicationError::ConfigurationError)?;
-        #[cfg(feature = "v1")]
-        {
-            settings.required_fields = RequiredFields::new(&settings.bank_config);
-        }
-        Ok(settings)
+            .change_context(ApplicationError::ConfigurationError)
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {

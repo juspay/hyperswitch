@@ -2,7 +2,7 @@
 
 use std::{collections::BTreeMap, time::Duration};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::{raw_json::Json, Digest, Name, Revision};
 
@@ -71,7 +71,8 @@ pub(crate) const PAGED: [Resource; 5] = [
     Resource::ExperimentGroups,
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TargetIdentity {
     pub target_id: Name,
     pub organisation: Name,

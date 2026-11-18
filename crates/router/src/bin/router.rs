@@ -1,20 +1,51 @@
+use std::process::{ExitCode, Termination as _};
+
 use error_stack::ResultExt;
 use router::{
-    configs::settings::{CmdLineConf, Settings},
+    configs::{
+        cli::RouterCmdLineConf,
+        settings::{CmdLineConf, Settings},
+    },
     core::errors::{ApplicationError, ApplicationResult},
     logger,
 };
 
 #[tokio::main]
-async fn main() -> ApplicationResult<()> {
+async fn main() -> ExitCode {
+    let args: Vec<_> = std::env::args_os().collect();
+    let cmd_line = match <RouterCmdLineConf as clap::Parser>::try_parse_from(&args) {
+        Ok(value) => value,
+        Err(error) => {
+            if !matches!(
+                error.kind(),
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+            ) && args.iter().skip(1).any(|v| v == "required-fields")
+            {
+                return router::configs::cli::rejected_required_fields_arguments();
+            }
+            error.exit();
+        }
+    };
+    #[cfg(feature = "required_fields_sync")]
+    if let Some(router::configs::cli::RouterCommand::RequiredFields(args)) = cmd_line.command {
+        use router::core::required_fields_sync::{
+            command::{CommandCode, Phase},
+            command_runtime,
+        };
+        if cmd_line.serving.config_path.is_some() {
+            return command_runtime::reject(CommandCode::InputInvalid, Phase::Arguments);
+        }
+        return command_runtime::execute(args.command).await;
+    }
+    Box::pin(serve(cmd_line.serving)).await.report()
+}
+
+async fn serve(cmd_line: CmdLineConf) -> ApplicationResult<()> {
     // Pin the process-level rustls crypto backend.
     #[allow(clippy::expect_used)]
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("Failed to install default rustls CryptoProvider");
-
-    // get commandline config before initializing config
-    let cmd_line = <CmdLineConf as clap::Parser>::parse();
 
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)

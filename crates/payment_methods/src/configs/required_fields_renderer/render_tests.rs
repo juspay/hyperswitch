@@ -45,6 +45,61 @@ fn build() -> BuildIdentity {
     .unwrap()
 }
 
+/// Explicit all-excluded fixtures exercise CLI plumbing, never business-profile acceptance.
+/// Writes only below a separately registered disposable root; normal tests do not run this.
+#[test]
+#[ignore = "requires RF_CLI_FIXTURE_ROOT ownership registration"]
+fn export_router_cli_profiles() {
+    use std::io::Write as _;
+    let root = std::path::PathBuf::from(std::env::var("RF_CLI_FIXTURE_ROOT").unwrap());
+    let owner: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("owner.json")).unwrap()).unwrap();
+    assert!(root.is_absolute());
+    assert_eq!(owner["root"], json!(root));
+    assert_eq!(owner["cleanup_scope"], json!(root));
+    assert_eq!(owner["purpose"], "Step 7 offline CLI checks");
+    let banks: BankRedirectConfig =
+        serde_json::from_value(json!({"eps":{"stripe":{"banks":"abn_amro"}}})).unwrap();
+    let inputs = EffectiveInputs::capture(&RequiredFields::new(&banks), &banks).unwrap();
+    let mut fixture = Fixture::new();
+    fixture.exclusions.sources = inputs
+        .rules()
+        .iter()
+        .map(|rule| Exclusion {
+            source: rule.source.clone(),
+            reason: name("synthetic-cli-all-excluded-not-adoption"),
+            review: name("synthetic-cli-only"),
+        })
+        .collect();
+    let release = serde_json::to_value(build()).unwrap()["release"].clone();
+    let seed = json!({"schema_version":1,"profile_id":"synthetic-cli-seed-all-excluded","inputs":{"kind":"seed","stripe_eps_banks":["abn_amro"]},"release":release,"policy":fixture.policy,"catalog":fixture.catalog,"exclusions":fixture.exclusions});
+    let mut effective = seed.clone();
+    effective["profile_id"] = json!("synthetic-cli-effective-all-excluded");
+    effective["inputs"] = json!({"kind":"effective_settings","settings_file":"unavailable-services.toml","expected_settings_hash":inputs.settings_hash().unwrap()});
+    let mut blocked = seed.clone();
+    blocked["exclusions"]["sources"] = json!([]);
+    for (name, value) in [
+        ("seed-profile.json", seed),
+        ("effective-profile.json", effective),
+        ("blocked-profile.json", blocked),
+    ] {
+        let mut file = std::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(root.join(name))
+            .unwrap();
+        file.write_all(&serde_json::to_vec(&value).unwrap())
+            .unwrap();
+    }
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(root.join("unavailable-services.toml"))
+        .unwrap();
+    file.write_all(b"[bank_config.eps.stripe]\nbanks = 'abn_amro'\n[master_database]\nhost = '127.0.0.1'\nport = 'intentionally-invalid-unrelated-setting'\n[redis]\nhost = '127.0.0.1'\nport = 1\n[secrets]\njwt_secret = 'synthetic-sensitive-never-log'\n").unwrap();
+    assert!(inputs.rules().len() > 1000);
+}
+
 struct Fixture {
     rules: RequiredFields,
     banks: BankRedirectConfig,

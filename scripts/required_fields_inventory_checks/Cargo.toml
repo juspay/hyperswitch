@@ -8,7 +8,15 @@ publish = false
 # Compiles the actual router inventory modules by path; never a server certification harness.
 [workspace]
 
+[features]
+default = ["required_fields_sync"]
+required_fields_sync = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("vergen"))'] }
+
 [dependencies]
+clap = { version = "=4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.140", features = ["raw_value", "preserve_order"] }
 sha2 = "=0.10.9"

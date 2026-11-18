@@ -1,6 +1,6 @@
 # Required-fields sync evidence and progress
 
-Updated **2026-11-18** through **playbook Step 5 local work**. The bounded direct inventory reader and lossless completeness boundary are implemented; [Step 5 checks](inventory-v1/checks.md) distinguish synthetic/locked-client evidence from pending real-server certification. The production certified-target registry is empty and refuses network reads. Step 4 renderer/profile approvals and earlier target-specific gates remain open. This sanitized register contains no hosted credentials, adoption grants or authorization to contact a service.
+Updated **2026-11-18** through **playbook Step 7 local work**. The existing router now exposes opt-in offline render and provisional read-only plan commands before unrelated service initialization. [Step 7 checks](cli-v1/checks.md) distinguish isolated orchestration, actual binary execution and remaining acceptance gates. Read and projection registries remain empty; hosted apply remains disabled. Step 4 profile approvals and earlier target-specific gates remain open. This sanitized register contains no hosted credentials, real adoption grants or authorization to contact a service.
 
 Execution order: [implementation playbook](../superposition_required_fields_sync_implementation_playbook.md). Technical specification: [implementation plan](../superposition_required_fields_sync_implementation_plan.md). Read the selected step and its plan sections before changing code.
 
@@ -16,6 +16,10 @@ Execution order: [implementation playbook](../superposition_required_fields_sync
 
 - [Step 5 direct inventory](inventory-v1/README.md), [checks](inventory-v1/checks.md) and [results](inventory-v1/evidence.json): raw row preservation, bounded two-pass proof, actual locked-client request comparison and pending real-server scope/pagination certification.
 
+- [Step 6 ownership and planner](planner-v1/README.md), [checks](planner-v1/checks.md) and [evidence](planner-v1/evidence.json): pure complete-row planning, exact approvals, separate JS/Rust/browser evidence boundaries and pending certification.
+
+- [Step 7 offline/read-only commands](cli-v1/README.md), [checks](cli-v1/checks.md), [evidence](cli-v1/evidence.json), [local draft PR](cli-v1/review-draft.md) and [walkthrough](cli-v1/walkthrough.md): explicit profiles, shared Settings projection, redacted provisional reports and no mutating command wiring.
+
 **Evidence vocabulary:** *source* means inspected code/configuration; *executed* identifies a command and its result; *historical* means an earlier investigation's evidence, not a rerun; *proposed* is a choice still needing the relevant review; *open* means evidence is missing. Source inference is labeled separately. Neither source review nor Cargo metadata certifies a server, browser, build or deployment.
 
 ## Step checklist
@@ -26,8 +30,8 @@ Execution order: [implementation playbook](../superposition_required_fields_sync
 - [ ] **3 — Pure inputs and canonical artifacts:** locally implemented; 27 focused actual-package tests pass, including the 17 artifact tests also run in isolation. Isolated Clippy and focused build-script guards pass. Router settings/release/MSRV and other feature gates remain separately recorded in foundation-v1; pending checks and review prevent blanket acceptance. Unapproved mappings remain refused.
 - [ ] **4 — Renderer:** locally implemented and tested; full compiled profiles remain blocked on 1,625 missing bindings and three malformed-option occurrences. Owner approvals, supported-profile acceptance and dependent reader/server gates remain open; see renderer-v2.
 - [ ] **5 — Read-only inventory:** locally implemented; 47 isolated tests and focused build/Clippy pass. Full raw rows, two-pass consistency and sealed completeness proof; no certified production target. Step 2 read/permission contracts and review remain required; see inventory-v1.
-- [ ] **6 — Ownership/planner/preflight:** needs Steps 1/4/5 and certified ordering/projection from Step 2.
-- [ ] **7 — Offline/read-only CLI and early review:** needs Steps 4–6.
+- [ ] **6 — Ownership/planner/preflight:** locally implemented; 73 isolated tests plus the opt-in exporter, actual pinned JS/Rust comparisons and focused checks. Exact-server ordering/identity and authenticated full-browser candidate receipts remain pending; see planner-v1. Review/approvals remain required.
+- [ ] **7 — Offline/read-only CLI and early review:** locally implemented; parser/orchestration/actual binary evidence and missing matrix gates are separated in cli-v1. Production targets remain unregistered; human review and dependent certification remain required.
 - [ ] **8 — Durable journal:** needs Steps 3/6; Q6 for real storage certification.
 - [ ] **9 — Authority/coordination/writer exclusion:** needs Steps 6/8 and Q3/Q4.
 - [ ] **10 — Apply state machine:** needs Steps 2/6/8/9.
@@ -39,7 +43,7 @@ Execution order: [implementation playbook](../superposition_required_fields_sync
 - [ ] **16 — Integrated failure drills/handoff:** needs Steps 10–15 and verified disposable resources.
 - [ ] **17 — Target adoption packet:** needs Step 16 and target-specific external gates; preparation does not authorize apply.
 
-No step after 5 was started. T01–T38 were not executed in Step 0. Step 1 supplies actual JS/Rust and local browser evidence for applicable T05–T09/T29/T35–T38 portions. Step 2 supplies isolated client/guard evidence, not server T10/T14/T16–T19/T22 certification. Step 3 supplies foundation evidence; Step 4 supplies the recorded pure portions of T01–T09 and focused build evidence, not T10 server certification; Step 5 supplies isolated T13/T14 and actual-client read-wire evidence, not exact-server T16 certification; each step's matrix distinguishes executed coverage from remaining gates.
+No step after 7 was started. T01–T38 were not executed in Step 0. Step 1 supplies actual JS/Rust and local browser evidence for applicable T05–T09/T29/T35–T38 portions. Step 2 supplies isolated client/guard evidence, not server T10/T14/T16–T19/T22 certification. Step 3 supplies foundation evidence; Step 4 supplies the recorded pure portions of T01–T09 and focused build evidence, not T10 server certification; Step 5 supplies isolated T13/T14 and actual-client read-wire evidence, not exact-server T16 certification; Step 6 supplies the pure ownership/preflight/approval and bounded resolver portions of T07–T15/T22/T32/T35–T37; exact-server and candidate-specific browser portions remain pending. Step 7 adds T25 command isolation/redaction and the recorded T33 build-boundary checks, not target certification. Each step's matrix distinguishes executed coverage from remaining gates.
 
 ## Target and acceptance status
 
@@ -49,9 +53,9 @@ No step after 5 was started. T01–T38 were not executed in Step 0. Step 1 suppl
 | Step 1 local contract/harness | Implemented; JS/Rust/components/checkout checks pass; [results](sdk-v1/browser-checks.md); owner review pending |
 | Step 2 local API harness | Implemented; isolated checks pass; [results](server-v1/checks.md); every server candidate remains uncertified |
 | Plan P0 contract certification and decisions | Open; accountable owners unassigned |
-| Feature implementation/build/test acceptance | Pure renderer/offline profiles and direct inventory locally implemented; focused checks in renderer-v2/inventory-v1. Full supported profiles, real-server certification, broader router/release matrix and later planner/command gates remain open |
+| Feature implementation/build/test acceptance | Pure renderer, inventory, planner and offline/read-only CLI locally implemented; focused checks in renderer-v2/inventory-v1/planner-v1/cli-v1. Full supported profiles, real-server and bound-browser certification and broader release/MSRV/feature matrix remain open |
 | Target V1 persisted state / V2 router-cache / V3 actual SDK / V4 fallback | All uncertified; local SDK/browser cases are executed, but are not target V3 proof |
-| Disposable fixtures | Step 1 source/build copies/static origins and Steps 2–5 owned filesystem builds only; no Superposition/API server or hosted workspace started. Registrations and cleanup recorded per step. |
+| Disposable fixtures | Step 1 source/build copies/static origins and Steps 2–7 owned filesystem builds only; no Superposition/API server or hosted workspace started. Registrations and cleanup recorded per step. |
 | Hosted read-only target authorization | **None supplied** |
 | Hosted apply/restore/deployment | **Disabled / not authorized**; no enabling changes made |
 
@@ -73,6 +77,10 @@ Step 3 adds H pure contracts/tests, settings/report boundaries, opt-in feature/b
 
 Step 4 adds only H renderer/contracts/tests, an opt-in offline example, and renderer evidence/checkpoint updates. Suggested H commit: `feat: render required-fields Superposition contributions`. Business-source corrections and SDK/presentation changes remain separate unimplemented proposals. W/U, seed, original plan/roadmap, dependency lock and indexes remain preserved.
 
-Step 5 adds only H direct read-only inventory/types/raw parsing/tests, an isolated actual-source check crate and inventory evidence/checkpoint updates. Suggested H commit: `feat: inventory required-fields configuration without loss`. Keep the earlier uncommitted Step 4 renderer group separate. No index/history/branch changes or hosted activity occurred.
+Step 5 adds only H direct read-only inventory/types/raw parsing/tests, an isolated actual-source check crate and inventory evidence/checkpoint updates. Suggested H commit: `feat: inventory required-fields configuration without loss`. Historical handoff requested separate Step 4/5 commits; those are now committed at 2785cd427 and 6a2e18696, respectively. No index/history/branch changes or hosted activity occurred.
 
-After review, **Step 6 local ownership/preflight/planner work** is next in playbook order; Step 2 read/ordering/projection contracts and Step 4 approvals still gate acceptance. Step 2 certification can resume independently with verified disposable dependencies. No later step has begun. Stop for review.
+Step 6 adds only H pure ownership/planner/preflight/types/tests, the existing isolated check-crate imports, offline resolver probes and progress evidence. W/U, seed, original plan/roadmap, dependency locks/manifests and all indexes remain preserved. Suggested H commit: `feat: plan required-fields changes with explicit ownership`. No Step 6 staging/commit occurred.
+
+Step 7 adds only H CLI/runtime orchestration, the shared Settings projection, focused fixtures/tests and local review documents. The isolated companion adds exact H-locked Clap; the root manifest/lock, W/U, seed, original plan/roadmap and Git indexes remain preserved. Suggested manual H commit: `feat: expose required-fields render and planning commands`. Step 6's uncommitted planner group remains separate; shared module/test/progress hunks require manual review. No staging/commit/push or remote PR occurred.
+
+After this renderer/planner review checkpoint, **Step 8's local durable-journal work** is next on a separate request; Q6 storage certification remains independent. Step 2 certification and Step 1 owner/candidate-browser work can resume with verified disposable dependencies. No later step has begun. Stop for review.

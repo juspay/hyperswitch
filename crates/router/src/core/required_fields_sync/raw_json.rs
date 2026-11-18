@@ -103,6 +103,28 @@ impl Json {
     pub(crate) fn raw(&self) -> &str {
         self.raw.get()
     }
+
+    /// Rebuild only the containing object. Every retained child keeps its original JSON bytes.
+    pub(crate) fn members(members: &BTreeMap<String, Self>) -> InventoryResult<Self> {
+        let mut bytes = Vec::new();
+        bytes.push(b'{');
+        for (index, (key, value)) in members.iter().enumerate() {
+            if index != 0 {
+                bytes.push(b',');
+            }
+            serde_json::to_writer(&mut bytes, key).map_err(|_| failure(Kind::MalformedJson))?;
+            bytes.push(b':');
+            bytes.extend_from_slice(value.raw().as_bytes());
+        }
+        bytes.push(b'}');
+        Self::parse(&bytes)
+    }
+
+    pub(crate) fn replacing(&self, key: &str, value: Self) -> InventoryResult<Self> {
+        let mut members = self.object()?.clone();
+        members.insert(key.to_owned(), value);
+        Self::members(&members)
+    }
     pub(crate) fn object(&self) -> InventoryResult<&BTreeMap<String, Self>> {
         match &self.shape {
             Shape::Object(value) => Ok(value),

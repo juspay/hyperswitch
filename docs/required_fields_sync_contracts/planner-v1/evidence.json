@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "step": 6,
+  "status": "local_checks_passed_external_acceptance_pending",
+  "hosted_apply": "disabled",
+  "date": "2026-11-18",
+  "revisions": [
+    {
+      "repository": "H",
+      "revision": "6a2e1869643b4008fe6e46cdd4c3b1873712f0c8",
+      "branch": "feat/superposition-required-fields-foundations"
+    },
+    {
+      "repository": "W",
+      "revision": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main"
+    },
+    {
+      "repository": "U",
+      "revision": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "detached"
+    }
+  ],
+  "fixture": {
+    "id": "required-fields-step6-2kaln9rq",
+    "owner": "82fc53ca-dd61-4e52-b376-de92efc49682",
+    "purpose": "Step 6 offline synthetic planner checks",
+    "kind": "owned_filesystem_only",
+    "cleanup": {
+      "status": "owned_build_and_cache_copies_removed",
+      "removed_child_directories": [
+        "target",
+        "router-target",
+        "core-target",
+        "cargo-home",
+        "scan"
+      ],
+      "retained": "ownership marker, command logs, synthetic cases/core probe and preservation baseline for local review"
+    }
+  },
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 101,
+      "label": "initial-check"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 6,
+      "label": "planner-test-complete"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "plan::tests::export_synthetic_planner_cases",
+        "--",
+        "--exact",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 1,
+      "resolver_requests_and_expectations_unchanged": true,
+      "label": "export-cases-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 1,
+      "label": "library-check"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 3,
+      "label": "clippy"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2,
+      "label": "clippy-complete"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "<owned-fixture>/core-probe/Cargo.toml"
+      ],
+      "exit": 0,
+      "seconds": 92,
+      "label": "core-check"
+    },
+    {
+      "command": [
+        "node",
+        "docs/required_fields_sync_contracts/planner-v1/check-resolvers.cjs",
+        "<owned-fixture>",
+        "<W>"
+      ],
+      "exit": 0,
+      "seconds": 0,
+      "label": "resolver-command"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 101,
+      "seconds": 814,
+      "label": "router-check"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 138,
+      "label": "router-check-final"
+    }
+  ],
+  "tests": {
+    "isolated_passed": 73,
+    "isolated_failed": 0,
+    "isolated_opt_in_ignored": 1,
+    "exporter_separately_passed": 1,
+    "core_existing_passed": 14,
+    "core_new_probe_passed": 1,
+    "js_observations_passed": 396,
+    "rust_observations_passed": 396,
+    "synthetic_profiles": 5,
+    "full_browser": "not_executed_for_projected_candidates",
+    "server_certification": "pending",
+    "trusted_executor_receipt": "not_issued"
+  },
+  "additional_checks": {
+    "format": "passed",
+    "whitespace": "passed",
+    "javascript_syntax": "passed",
+    "companion_locked_registry_matches": 162,
+    "companion_dependency_mismatches": 0,
+    "document_links_json": "passed",
+    "secret_scan": {
+      "status": "passed",
+      "tool": "gitleaks 8.30.1",
+      "default_rules": true,
+      "allow_comments_ignored": true,
+      "files": 18,
+      "findings": 0
+    },
+    "preservation": "passed"
+  },
+  "pending_gates": [
+    "Exact-server source/image provenance, permission scope, pagination, order, identity, experiments and limits",
+    "Bound browser matrix executor and authenticated report registration; actual before/after components and intercepted checkout",
+    "Business/catalog/ownership/profile approvals; full renderer profiles remain blocked on existing bindings and malformed data",
+    "MSRV 1.94.1, release/other-feature matrix and deployed artifact/input attestation",
+    "Journal, coordination, restoration and target V1\u2013V4"
+  ],
+  "next_eligible_work": "Step 7 offline/read-only CLI only after review and a separate request; uncertified gates remain closed",
+  "changed_files": [
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/impact.rs",
+    "crates/router/src/core/required_fields_sync/ownership.rs",
+    "crates/router/src/core/required_fields_sync/plan.rs",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs",
+    "crates/router/src/core/required_fields_sync/planner_types.rs",
+    "crates/router/src/core/required_fields_sync/preflight.rs",
+    "crates/router/src/core/required_fields_sync/raw_json.rs",
+    "crates/router/src/core/required_fields_sync/types.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/planner-v1/README.md",
+    "docs/required_fields_sync_contracts/planner-v1/check-resolvers.cjs",
+    "docs/required_fields_sync_contracts/planner-v1/checks.md",
+    "docs/required_fields_sync_contracts/planner-v1/core-check.rs",
+    "docs/required_fields_sync_contracts/planner-v1/evidence.json",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/src/lib.rs"
+  ],
+  "source_files": [
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "46628c752029ba42694932b8b9d7100e15271875fa2b3783dc828b9e4d56638b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/impact.rs",
+      "sha256": "9d3d0a45867bac9e2f2dbb7e9930629fb657fd857b7f23bfd818e1ccd58f82cf"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/ownership.rs",
+      "sha256": "c1c27ad9cce1d06f2a426d249de3e9b8ebb23eda76e152f50370926f0569e63d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/plan.rs",
+      "sha256": "76189b695094b49fcca7e074093616f84df57900d6f7ade48f8ff519418915f7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "sha256": "804cbb8d98abb4638608aec53fef50ac9376fe195966d6a62b3fa81ada7695e4"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_types.rs",
+      "sha256": "3dfeeb2484a75301595f091af8de3e97bf72653c1c05ffe0ad33cf797e37aa18"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/preflight.rs",
+      "sha256": "ab60ca89651b6a4e0ec0f4032d0399888851faa6b2c36e092da15b246105e913"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/raw_json.rs",
+      "sha256": "d39385f75d2b870a141817e5d54b30576dbe4431935f7d15b1d372109a65ea64"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/types.rs",
+      "sha256": "3f093131c824723bed3dcb0849fc3bc0d4e0132e2815faab40b5b96321c117c9"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/planner-v1/check-resolvers.cjs",
+      "sha256": "2bd9c0faeeb4a492b654ba3bd69cb8c1b897c8f521565c9a6860eeca0173c896"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/planner-v1/core-check.rs",
+      "sha256": "e595f77445def3fe9816aeab03b4d8ef3fac0dc50060a07efa41d8f5e4504600"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "32a6a141be9cd0b1f4574c372dd231734890983a49c4db8c93c11bdf77bcb6ac"
+    }
+  ],
+  "not_performed": [
+    "hosted access",
+    "secrets retrieval",
+    "server/container startup",
+    "uploader",
+    "mutation dispatch",
+    "lease acquisition",
+    "journal writes",
+    "SDK/source-data/seed changes",
+    "staging",
+    "commit",
+    "push",
+    "Step 7 implementation"
+  ],
+  "preservation": {
+    "H": {
+      "preserved_files_checked": 4747,
+      "unexpected_changes": [],
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "status_unchanged": null
+    },
+    "W": {
+      "preserved_files_checked": 580,
+      "unexpected_changes": [],
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "status_unchanged": true
+    },
+    "U": {
+      "preserved_files_checked": 745,
+      "unexpected_changes": [],
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "status_unchanged": true
+    }
+  }
+}

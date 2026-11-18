@@ -1,5 +1,6 @@
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
 
+pub mod cli;
 pub(crate) mod defaults;
 pub mod secrets_transformers;
 pub mod settings;

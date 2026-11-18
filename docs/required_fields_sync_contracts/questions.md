@@ -1,6 +1,6 @@
 # Open questions and dependent gates
 
-2026-11-18, updated through Step 4 local rendering. All items remain **open**. Component responsibilities below are **proposed from plan §13**, not assigned people or approvals. **Named accountable owner: unassigned for Q1–Q11.** No hosted target is authorized. Only owned filesystem builds/Step 1 local static origins were registered; no Superposition/workspace target was started.
+2026-11-18, updated through Step 7 local command wiring. All items remain **open**. Component responsibilities below are **proposed from plan §13**, not assigned people or approvals. **Named accountable owner: unassigned for Q1–Q11.** No hosted target is authorized. Only owned filesystem builds/Step 1 local static origins were registered; no Superposition/workspace target was started.
 
 | ID | Current evidence / outstanding decision | Proposed responsible component and required evidence | Gate blocked / independent work available |
 |---|---|---|---|
@@ -23,3 +23,22 @@ No open question prevented completion of documentation-only Step 0. Step 1's loc
 - **Q2/Q4 source and executed evidence:** locked SDK 0.119.0 seven-operation read-wire comparison and 47 isolated tests pass. Full permission scope/all experiment history, stable counted ordering/latest versions and exact-server compatibility remain uncertified. An empty sealed target registry refuses network reads; synthetic test certificates cannot dispatch HTTP. [Inventory evidence](inventory-v1/README.md) records experiment-group discovery and the object-form dimension wire union. No deployed scope is inferred from totals or checked-in URLs.
 - **Q9 executed evidence:** actual inventory modules compile/test and pass Clippy in the isolated companion; all 162 dependency identities/checksums match H. Current offline core metadata passes, refreshing the old cache blocker. The cbindgen relative-output side effect is isolated in an owned cache copy for the router check; the actual default-v1 sync-enabled router check passes with pre-existing warnings. Remaining matrix gates are in [checks/results](inventory-v1/checks.md). This is not release/MSRV attestation.
 - **Unchanged blockers:** Q1/Q8/Q11 business/profile approvals, Q3/Q6/Q7 target/journal/fallback evidence and all apply/restore/V1–V4 gates remain open. Step 5 neither invokes functions nor changes source data, SDK/serving behavior, seed or prior certification records. Step 6 local work is next only after review and an explicit request.
+
+## Step 6 evidence refresh — 18 November 2026
+
+- **Q1/Q8/Q11 source and executed evidence:** pure grant/preservation/preflight/planning checks and 396 actual JS plus 396 actual Rust resolver observations pass. Catalog/seed data cannot replace missing live metadata. Eight before/after SDK stage receipts and exact semantic approvals are required; the new full-browser matrix executor and authenticated receipt adapter remain unregistered. Historical Step 1 browser results are not candidate receipts. Business/catalog/source corrections and full-profile approvals remain open.
+- **Q2/Q4:** actual core 0.119.0 reproduces ordered-array/separator identity collisions, and the planner refuses conflicting observed/projected identities. This is not exact-server certification. Permission, pagination, ordering, limits and experiments still require the Step 2 disposable server contract. Both production registries remain empty; there is no hosted authorization.
+- **Q9:** the existing actual-source companion retains all 162 H-locked registry identities. Current checks, full router build results and preserved limitations are in [Step 6 checks/evidence](planner-v1/checks.md). No MSRV/release/other-feature or deployment attestation is inferred.
+- **Q3/Q6/Q7 and all mutation gates:** still open. No authority service, lease, journal write, backup change, mutation adapter, serving read, restoration or V1–V4 check was implemented/executed in Step 6. Pending-create digests are pure intended identities, not durable receipts.
+
+At the Step 6 checkpoint, Step 7 was next and had not started. The following refresh records only its newly executed evidence.
+
+
+## Step 7 evidence refresh — 18 November 2026
+
+- **Q9 source and executed evidence:** opt-in router render/plan dispatch now precedes unrelated initialization. A shared Settings projection captures only relevant inputs; named seeds ignore ambient bank overrides, effective profiles require a matching settings hash. Parser, synthetic orchestration, actual binary and rejected-build checks are distinguished in [Step 7 checks/evidence](cli-v1/checks.md). Exact H-locked Clap was added only to the isolated companion. Release/image/MSRV and the remaining feature matrix are not inferred.
+- **Q2/Q4:** production read/projection registries are still empty. Target/config validation precedes credential reads and transport; no endpoint/header/token overrides or write/lease methods exist. Successful synthetic planning cannot certify server contracts or a real identity's permission scope.
+- **Q1/Q8/Q11:** explicitly all-excluded compiled profiles test command plumbing only. Full business profiles remain refused; existing source/SDK corrections and ownership/catalog approvals stay separate. No new candidate browser or resolver certification is claimed.
+- **Q3/Q6/Q7 and mutation gates:** no journal, authority, coordination, mutating command, restoration or V1–V4 enablement was added. Local draft PR and synthetic walkthrough are available for the human checkpoint. No hosted target was contacted.
+
+After review, Step 8's local journal work is next on an explicit request, with Q6 storage certification still open. No later step has begun.
