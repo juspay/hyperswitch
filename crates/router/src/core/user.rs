@@ -370,7 +370,7 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if state.conf.user.signup_disabled {
-            return Err(report!(UserErrors::SignupDisabled));
+            return Err(report!(UserErrors::InvalidCredentials));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
