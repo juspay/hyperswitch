@@ -2532,6 +2532,19 @@ fn is_klarna_payment(payment_method_data: &PaymentMethodData) -> bool {
     )
 }
 
+/// Stripe `payment_method_types` for pay later data; `None` for every other payment method,
+/// where Stripe falls back to `card`
+fn get_pay_later_payment_method_type(
+    payment_method_data: &PaymentMethodData,
+) -> Result<Option<StripePaymentMethodType>, ConnectorError> {
+    match payment_method_data {
+        PaymentMethodData::PayLater(pay_later_data) => {
+            StripePaymentMethodType::try_from(pay_later_data).map(Some)
+        }
+        _ => Ok(None),
+    }
+}
+
 /// Whether the tokenization call creates a PaymentMethod (`pm_…`) via `/v1/payment_methods`.
 /// Every other payment method is tokenized via `/v1/tokens`, which returns a legacy token
 /// (`tok_…`) instead.
@@ -2622,8 +2635,6 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
         let amount = data.1;
         let order_id = item.connector_request_reference_id.clone();
 
-        let is_klarna = is_klarna_payment(&item.request.payment_method_data);
-
         let shipping_address = get_payment_intent_shipping_address(item);
 
         let billing_address = if payment_method_token.is_some() {
@@ -2669,9 +2680,10 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 })
             };
 
-            // Stripe defaults payment_method_types to card, so a tokenized Klarna payment
+            // Stripe defaults payment_method_types to card, so a tokenized pay later payment
             // method needs its type on the PaymentIntent
-            let payment_method_types = is_klarna.then_some(StripePaymentMethodType::Klarna);
+            let payment_method_types =
+                get_pay_later_payment_method_type(&item.request.payment_method_data)?;
 
             (
                 None,
@@ -3222,11 +3234,9 @@ fn get_setup_intent_klarna_currency(
 impl TryFrom<&SetupMandateRouterData> for StripePaymentMethodType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
-        match &item.request.payment_method_data {
-            PaymentMethodData::PayLater(pay_later_data) => Ok(Self::try_from(pay_later_data)?),
-            // Stripe takes `card` for every other mandate payment method (cards, wallets)
-            _ => Ok(Self::Card),
-        }
+        // Stripe takes `card` for every other mandate payment method (cards, wallets)
+        Ok(get_pay_later_payment_method_type(&item.request.payment_method_data)?
+            .unwrap_or(Self::Card))
     }
 }
 
