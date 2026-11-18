@@ -48,6 +48,8 @@
 //! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
 //! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
 
+use std::collections::BTreeMap;
+
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -72,6 +74,8 @@ pub struct AlertEvaluationResponse {
 #[derive(Debug, Serialize)]
 pub struct AlertRuleEvaluationResponse {
     pub id: String,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub labels: BTreeMap<String, String>,
     pub status: AlertRuleEvaluationStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level: Option<AlertEvaluationLevel>,
@@ -99,9 +103,11 @@ impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationR
         match run {
             RuleRun::Evaluated {
                 level,
+                labels,
                 notification,
             } => Self {
                 id: rule.id.clone(),
+                labels,
                 status: AlertRuleEvaluationStatus::Evaluated,
                 level: Some(level),
                 error: None,
@@ -114,6 +120,7 @@ impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationR
                 notification,
             } => Self {
                 id: rule.id.clone(),
+                labels: BTreeMap::new(),
                 status: AlertRuleEvaluationStatus::Failed,
                 level: None,
                 error: Some(error),

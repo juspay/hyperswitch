@@ -5,7 +5,7 @@ use external_services::metrics_provider::{
     grafana::loki::{GrafanaLoki, LokiLogsQuery, LokiMetricsQuery},
     MetricPoint, MetricRange, MetricSeries,
 };
-use time::{Duration, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 use crate::{
     core::alert_evaluation::{evaluate_series, fetch_window, AlertEvaluator},
@@ -23,7 +23,7 @@ impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
         query: &GrafanaLokiQuery,
         datasource_uid: &str,
         now: PrimitiveDateTime,
-    ) -> EvaluatorResult<Evaluation> {
+    ) -> EvaluatorResult<Vec<Evaluation>> {
         let (series, window, last) = fetch_window(
             self,
             LokiMetricsQuery {
@@ -36,10 +36,16 @@ impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
             now,
         )
         .await?;
-        let mut evaluation = evaluate_total(series, &rule.config.thresholds, window, last)?;
-        if let (Some(logs), Some(_), Some(latest)) =
-            (&query.logs, &evaluation.breach, &evaluation.latest_point)
-        {
+        let window = MetricRange {
+            from: last,
+            ..window
+        };
+        let mut evaluations = evaluate_instances(series, &rule.config.thresholds, window, last)?;
+        if let Some(logs) = query.logs.as_ref().filter(|_| {
+            evaluations
+                .iter()
+                .any(|evaluation| evaluation.breach.is_some())
+        }) {
             match self
                 .fetch_logs(
                     LokiLogsQuery {
@@ -47,57 +53,45 @@ impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
                         expr: logs.clone(),
                         limit: LOG_LINES,
                     },
-                    MetricRange {
-                        from: latest.timestamp,
-                        to: latest.timestamp + Duration::seconds(i64::from(query.period)),
-                    },
+                    window,
                 )
                 .await
             {
-                Ok(lines) => evaluation.logs = lines,
+                Ok(lines) => evaluations
+                    .iter_mut()
+                    .filter(|evaluation| evaluation.breach.is_some())
+                    .for_each(|evaluation| evaluation.logs = lines.clone()),
                 Err(error) => {
                     logger::warn!(tag = "evaluator_logs", rule_id = %rule.id, error = ?error, "Sample log lines unavailable")
                 }
             }
         }
-        Ok(evaluation)
+        Ok(evaluations)
     }
 }
 
-fn evaluate_total(
-    series: Vec<MetricSeries>,
+fn evaluate_instances(
+    mut series: Vec<MetricSeries>,
     thresholds: &AlertThresholds,
     window: MetricRange,
     last: PrimitiveDateTime,
-) -> EvaluatorResult<Evaluation> {
-    let mut totals = BTreeMap::<PrimitiveDateTime, f64>::new();
-    for point in series.iter().flat_map(|series| &series.points) {
-        *totals.entry(point.timestamp).or_default() += point.value;
+) -> EvaluatorResult<Vec<Evaluation>> {
+    series.retain(|series| !series.points.is_empty());
+    if series.is_empty() {
+        let empty = MetricSeries {
+            points: vec![MetricPoint {
+                timestamp: last,
+                value: 0.0,
+            }],
+            labels: BTreeMap::new(),
+        };
+        return evaluate_series(vec![empty], thresholds, window, last)
+            .map(|evaluation| vec![evaluation]);
     }
-    let total = MetricSeries {
-        points: totals
-            .into_iter()
-            .map(|(timestamp, value)| MetricPoint { timestamp, value })
-            .collect(),
-        labels: BTreeMap::new(),
-    };
-    let mut evaluation = evaluate_series(vec![total], thresholds, window, last)?;
-    if let Some(latest) = &evaluation.latest_point {
-        evaluation.breakdown = series
-            .into_iter()
-            .filter_map(|series| {
-                series
-                    .points
-                    .iter()
-                    .find(|point| point.timestamp == latest.timestamp)
-                    .map(|point| (series.labels.clone(), point.value))
-            })
-            .collect();
-        evaluation
-            .breakdown
-            .sort_by(|left, right| right.1.total_cmp(&left.1));
-    }
-    Ok(evaluation)
+    series
+        .into_iter()
+        .map(|series| evaluate_series(vec![series], thresholds, window, last))
+        .collect()
 }
 
 #[cfg(test)]
@@ -108,65 +102,103 @@ mod tests {
     use super::*;
     use crate::domain_models::evaluator::AlertEvaluationLevel;
 
+    fn thresholds() -> AlertThresholds {
+        AlertThresholds {
+            severities: BTreeMap::from([
+                (
+                    Severity::Critical,
+                    SeverityThreshold {
+                        threshold: 20.0,
+                        comparison_operator: ComparisonOperator::GreaterThanThreshold,
+                        description: String::new(),
+                        destination: "oncall".to_owned(),
+                    },
+                ),
+                (
+                    Severity::Warning,
+                    SeverityThreshold {
+                        threshold: 5.0,
+                        comparison_operator: ComparisonOperator::GreaterThanThreshold,
+                        description: String::new(),
+                        destination: "oncall".to_owned(),
+                    },
+                ),
+            ]),
+        }
+    }
+
+    fn window() -> MetricRange {
+        MetricRange {
+            from: datetime!(2026-03-18 10:04:00),
+            to: datetime!(2026-03-18 10:05:00),
+        }
+    }
+
     #[test]
-    fn labelled_series_are_summed_for_the_threshold_and_kept_as_a_sorted_breakdown() {
-        let series = |app: &str, values: [(PrimitiveDateTime, f64); 2]| MetricSeries {
-            points: values
-                .into_iter()
-                .map(|(timestamp, value)| MetricPoint { timestamp, value })
-                .collect(),
-            labels: BTreeMap::from([("app".to_owned(), app.to_owned())]),
+    fn each_series_is_its_own_instance_judged_against_the_thresholds() {
+        let last = datetime!(2026-03-18 10:04:00);
+        let series = |flow: &str, value: f64| MetricSeries {
+            points: vec![MetricPoint {
+                timestamp: last,
+                value,
+            }],
+            labels: BTreeMap::from([("flow".to_owned(), flow.to_owned())]),
         };
-        let thresholds = AlertThresholds {
-            severities: BTreeMap::from([(
-                Severity::Warning,
-                SeverityThreshold {
-                    threshold: 30.0,
-                    comparison_operator: ComparisonOperator::GreaterThanThreshold,
-                    description: String::new(),
-                    destination: "oncall".to_owned(),
-                },
-            )]),
-        };
-        let evaluation = evaluate_total(
+        let evaluations = evaluate_instances(
             vec![
-                series(
-                    "small",
-                    [
-                        (datetime!(2026-03-18 10:03:00), 50.0),
-                        (datetime!(2026-03-18 10:04:00), 9.0),
-                    ],
-                ),
-                series(
-                    "large",
-                    [
-                        (datetime!(2026-03-18 10:03:00), 1.0),
-                        (datetime!(2026-03-18 10:04:00), 22.0),
-                    ],
-                ),
+                series("PaymentsCreate", 3.0),
+                series("PaymentsConfirm", 9.0),
+                series("Refunds", 25.0),
             ],
-            &thresholds,
-            MetricRange {
-                from: datetime!(2026-03-18 10:00:00),
-                to: datetime!(2026-03-18 10:05:00),
-            },
-            datetime!(2026-03-18 10:04:00),
+            &thresholds(),
+            window(),
+            last,
         )
         .unwrap();
-        assert_eq!(evaluation.level, AlertEvaluationLevel::Warning);
-        assert_eq!(evaluation.latest_point.map(|point| point.value), Some(31.0));
         assert_eq!(
-            evaluation.breakdown,
-            vec![
+            evaluations
+                .iter()
+                .map(|evaluation| (
+                    evaluation.labels.get("flow").map(String::as_str),
+                    evaluation.level,
+                    evaluation.latest_point.as_ref().map(|point| point.value)
+                ))
+                .collect::<Vec<_>>(),
+            [
                 (
-                    BTreeMap::from([("app".to_owned(), "large".to_owned())]),
-                    22.0
+                    Some("PaymentsCreate"),
+                    AlertEvaluationLevel::Normal,
+                    Some(3.0)
                 ),
                 (
-                    BTreeMap::from([("app".to_owned(), "small".to_owned())]),
-                    9.0
+                    Some("PaymentsConfirm"),
+                    AlertEvaluationLevel::Warning,
+                    Some(9.0)
                 ),
+                (Some("Refunds"), AlertEvaluationLevel::Critical, Some(25.0)),
             ]
+        );
+    }
+
+    #[test]
+    fn no_matching_logs_is_one_unlabelled_instance_valued_zero() {
+        let last = datetime!(2026-03-18 10:04:00);
+        let placeholder = MetricSeries {
+            points: Vec::new(),
+            labels: BTreeMap::new(),
+        };
+        let evaluations =
+            evaluate_instances(vec![placeholder], &thresholds(), window(), last).unwrap();
+        assert_eq!(evaluations.len(), 1);
+        let evaluation = evaluations.first().unwrap();
+        assert_eq!(evaluation.level, AlertEvaluationLevel::Normal);
+        assert!(evaluation.labels.is_empty());
+        assert_eq!(
+            evaluation.latest_point,
+            Some(MetricPoint {
+                timestamp: last,
+                value: 0.0
+            })
         );
     }
 }

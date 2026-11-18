@@ -103,6 +103,7 @@ async fn lazy_store() -> Store {
 #[derive(Clone, Copy)]
 enum MetricReply {
     Value(f64),
+    Series(&'static [(&'static str, f64)]),
     Logs(&'static str),
     NoData,
     Failure,
@@ -188,6 +189,19 @@ async fn metric_server(
                             "200 OK",
                             json!({"results":{"A":{"frames":[{"data":{"values":[[timestamp],[value]]}}]}}}),
                         )
+                    }
+                    MetricReply::Series(series) => {
+                        let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
+                        let frames = series
+                            .iter()
+                            .map(|(flow, value)| {
+                                json!({
+                                    "schema":{"fields":[{"name":"Time"},{"name":"Value","labels":{"flow":flow}}]},
+                                    "data":{"values":[[to],[value]]}
+                                })
+                            })
+                            .collect::<Vec<_>>();
+                        ("200 OK", json!({"results":{"A":{"frames":frames}}}))
                     }
                     MetricReply::Logs(line) => {
                         let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
@@ -959,8 +973,21 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
             requests[expr]["queries"][0]["datasource"]["uid"],
             "synthetic-loki"
         );
-        assert_eq!(requests[expr]["queries"][0]["queryType"], "range");
-        assert_eq!(requests[expr]["queries"][0]["step"], "60s");
+        assert_eq!(requests[expr]["queries"][0]["queryType"], "instant");
+        assert!(requests[expr]["queries"][0].get("step").is_none());
+        assert_eq!(
+            requests[expr]["to"]
+                .as_str()
+                .unwrap()
+                .parse::<i64>()
+                .unwrap()
+                - requests[expr]["from"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<i64>()
+                    .unwrap(),
+            60_000
+        );
         assert_eq!(requests[logs]["queries"][0]["direction"], "backward");
         assert_eq!(requests[logs]["queries"][0]["maxLines"], 3);
         assert_eq!(
@@ -977,6 +1004,85 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
             60_000
         );
         assert_eq!(calls["oncall"].lock().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn loki_each_series_is_its_own_instance_and_only_breaching_instances_alert() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let expr = r#"sum by (flow) (count_over_time({app="router"} |= "EndRequest" | json | extra_status_code =~ "5.." [1m]))"#;
+        let (base_url, _, _) = metric_server(
+            1,
+            HashMap::from([(
+                expr.to_owned(),
+                MetricReply::Series(&[
+                    ("PaymentsCreate", 3.0),
+                    ("PaymentsConfirm", 9.0),
+                    ("Refunds", 25.0),
+                ]),
+            )]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![json!({
+                "id": "router-5xx",
+                "name": "Router 5xx",
+                "config": {
+                    "interval_seconds": 60,
+                    "query": {"datasource": "grafana_loki", "expr": expr, "period": 60},
+                    "thresholds": {"severities": {
+                        "critical": {
+                            "threshold": 20,
+                            "comparison_operator": "GreaterThanThreshold",
+                            "description": "Router 5xx",
+                            "destination": "oncall"
+                        },
+                        "warning": {
+                            "threshold": 5,
+                            "comparison_operator": "GreaterThanThreshold",
+                            "description": "Router 5xx",
+                            "destination": "oncall"
+                        }
+                    }}
+                }
+            })],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+        let body = serde_json::to_value(
+            observability::core::alert_evaluation::notify(state, MetricSource::GrafanaLoki)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        let rules = body["rules"].as_array().unwrap();
+        assert_eq!(
+            rules
+                .iter()
+                .map(|rule| (
+                    rule["id"].as_str().unwrap(),
+                    rule["labels"]["flow"].as_str().unwrap(),
+                    rule["level"].as_str().unwrap(),
+                    rule.get("delivered").and_then(Value::as_bool)
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("router-5xx", "PaymentsCreate", "normal", None),
+                ("router-5xx", "PaymentsConfirm", "warning", Some(true)),
+                ("router-5xx", "Refunds", "critical", Some(true)),
+            ]
+        );
+        let sent = calls["oncall"].lock().unwrap();
+        assert_eq!(sent.len(), 2);
+        assert!(rules.iter().skip(1).all(|rule| rule["message"]
+            .as_str()
+            .unwrap()
+            .starts_with(&format!(
+                "ALARM: Router 5xx (flow={})\n",
+                rule["labels"]["flow"].as_str().unwrap()
+            ))));
     });
 }
 

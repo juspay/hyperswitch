@@ -52,7 +52,7 @@ pub struct GrafanaCloudwatchQuery {
 pub struct GrafanaLokiQuery {
     pub expr: String,
     pub period: u32,
-    #[serde(default = "DEFAULT_END_OFFSET_SECONDS")]
+    #[serde(default = "DEFAULT_LOKI_END_OFFSET_SECONDS")]
     pub end_offset_seconds: u32,
     #[serde(default)]
     pub context: BTreeMap<String, String>,
@@ -61,6 +61,7 @@ pub struct GrafanaLokiQuery {
 }
 
 const DEFAULT_END_OFFSET_SECONDS: fn() -> u32 = || 180;
+const DEFAULT_LOKI_END_OFFSET_SECONDS: fn() -> u32 = || 60;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -293,7 +294,7 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(query.metric_source(), MetricSource::GrafanaLoki);
-        assert_eq!(query.end_offset_seconds(), 180);
+        assert_eq!(query.end_offset_seconds(), 60);
         assert!(matches!(&query, AlertQuery::GrafanaLoki(query) if query.context.is_empty()));
         assert!(serde_json::from_value::<AlertQuery>(serde_json::json!({
             "datasource": "grafana_loki",

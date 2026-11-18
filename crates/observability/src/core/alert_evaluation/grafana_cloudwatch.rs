@@ -17,7 +17,7 @@ impl AlertEvaluator<GrafanaCloudwatchQuery> for GrafanaCloudwatch {
         query: &GrafanaCloudwatchQuery,
         datasource_uid: &str,
         now: PrimitiveDateTime,
-    ) -> EvaluatorResult<Evaluation> {
+    ) -> EvaluatorResult<Vec<Evaluation>> {
         evaluate_metrics(
             self,
             metrics_query(query, datasource_uid),
@@ -27,6 +27,7 @@ impl AlertEvaluator<GrafanaCloudwatchQuery> for GrafanaCloudwatch {
             now,
         )
         .await
+        .map(|evaluation| vec![evaluation])
     }
 }
 

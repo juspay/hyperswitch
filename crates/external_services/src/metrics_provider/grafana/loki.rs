@@ -31,8 +31,6 @@ pub struct LokiMetricsRequest {
     from: String,
     to: String,
     queries: [GrafanaLokiQuery; 1],
-    #[serde(skip)]
-    period: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -105,13 +103,8 @@ impl MetricsProvider for GrafanaLoki {
         range: MetricRange,
     ) -> MetricsResult<Self::MetricsRequest> {
         let period = i64::from(query.period);
-        let steps = (range.to - range.from)
-            .whole_seconds()
-            .checked_div(period)
-            .ok_or(MetricsError::MalformedResponse)
-            .attach_printable("query period must be greater than zero")?;
         Ok(LokiMetricsRequest {
-            from: epoch_millis(range.to - Duration::seconds(period * steps)),
+            from: epoch_millis(range.to - Duration::seconds(period)),
             to: epoch_millis(range.to),
             queries: [GrafanaLokiQuery {
                 ref_id: QUERY_REF_ID,
@@ -120,11 +113,9 @@ impl MetricsProvider for GrafanaLoki {
                     uid: query.datasource_uid,
                 },
                 expr: query.expr,
-                query_type: QueryType::Range,
-                step: format!("{}s", query.period),
-                interval_ms: u64::from(query.period) * 1000,
+                query_type: QueryType::Instant,
+                interval_ms: period * 1000,
             }],
-            period: query.period,
         })
     }
 
@@ -140,7 +131,8 @@ impl MetricsProvider for GrafanaLoki {
         &self,
         request: Self::MetricsRequest,
     ) -> MetricsResult<Vec<MetricSeries>> {
-        let period = Duration::seconds(i64::from(request.period));
+        let [query] = &request.queries;
+        let period = Duration::milliseconds(query.interval_ms);
         let (status, response) = self
             .client
             .execute::<Self::MetricsRequest, Self::MetricsResponse>(request)
@@ -173,6 +165,7 @@ impl MetricsProvider for GrafanaLoki {
 #[serde(rename_all = "lowercase")]
 enum QueryType {
     Range,
+    Instant,
 }
 
 #[derive(Debug, Serialize)]
@@ -270,8 +263,7 @@ struct GrafanaLokiQuery {
     datasource: GrafanaDatasource,
     expr: String,
     query_type: QueryType,
-    step: String,
-    interval_ms: u64,
+    interval_ms: i64,
 }
 
 #[cfg(test)]
@@ -292,20 +284,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn fetch_posts_a_range_query_and_stamps_points_at_bucket_start() {
+    async fn fetch_posts_an_instant_query_and_stamps_the_point_at_the_minute_start() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/api/ds/query"))
             .and(header("authorization", "Bearer loki-test-token"))
             .and(body_json(json!({
-                "from": "1700000000000",
+                "from": "1700000240000",
                 "to": "1700000300000",
                 "queries": [{
                     "refId": "A",
                     "datasource": {"type": "loki", "uid": "loki-main"},
                     "expr": "sum(count_over_time({app=\"router\"} |= \"error\" [1m]))",
-                    "queryType": "range",
-                    "step": "60s",
+                    "queryType": "instant",
                     "intervalMs": 60000
                 }]
             })))
@@ -313,8 +304,8 @@ mod tests {
                 "results": {"A": {"frames": [{
                     "schema": {"fields": [{"name": "Time"}, {"name": "Value", "labels": {"app": "router"}}]},
                     "data": {"values": [
-                    [1_700_000_240_000_i64, 1_700_000_300_000_i64],
-                    [3.0, 5.0]
+                    [1_700_000_300_000_i64],
+                    [5.0]
                 ]}}]}}
             })))
             .mount(&server)
@@ -342,16 +333,10 @@ mod tests {
             provider.fetch_metrics(request).await.unwrap(),
             vec![MetricSeries {
                 labels: BTreeMap::from([("app".to_owned(), "router".to_owned())]),
-                points: vec![
-                    MetricPoint {
-                        timestamp: at(1_700_000_180),
-                        value: 3.0,
-                    },
-                    MetricPoint {
-                        timestamp: at(1_700_000_240),
-                        value: 5.0,
-                    },
-                ],
+                points: vec![MetricPoint {
+                    timestamp: at(1_700_000_240),
+                    value: 5.0,
+                }],
             }]
         );
     }
@@ -421,23 +406,5 @@ mod tests {
                 },
             ]
         );
-    }
-
-    #[test]
-    fn query_start_is_snapped_onto_the_period_grid() {
-        let request = GrafanaLoki::build_request(
-            LokiMetricsQuery {
-                datasource_uid: "loki-main".to_owned(),
-                expr: "sum(count_over_time({app=\"router\"}[2m]))".to_owned(),
-                period: 120,
-            },
-            MetricRange {
-                from: at(1_700_000_040),
-                to: at(1_700_000_340),
-            },
-        )
-        .unwrap();
-        assert_eq!(request.from, "1700000100000");
-        assert_eq!(request.to, "1700000340000");
     }
 }

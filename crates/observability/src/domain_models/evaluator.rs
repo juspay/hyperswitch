@@ -54,6 +54,7 @@ pub struct Notification {
 pub enum RuleRun {
     Evaluated {
         level: AlertEvaluationLevel,
+        labels: BTreeMap<String, String>,
         notification: Option<Notification>,
     },
     Failed {
@@ -74,7 +75,7 @@ pub struct Evaluation {
     pub datapoints: Vec<MetricPoint>,
     pub breach: Option<SeverityThreshold>,
     pub window: MetricRange,
-    pub breakdown: Vec<(BTreeMap<String, String>, f64)>,
+    pub labels: BTreeMap<String, String>,
     pub logs: Vec<LogLine>,
 }
 
