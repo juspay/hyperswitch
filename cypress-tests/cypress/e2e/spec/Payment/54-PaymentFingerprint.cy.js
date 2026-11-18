@@ -1,5 +1,4 @@
 import * as fixtures from "../../../fixtures/imports";
-import { isCI } from "../../../utils/RequestBodyUtils";
 import State from "../../../utils/State";
 import getConnectorDetails, {
   should_continue_further,
@@ -65,10 +64,13 @@ describe("Card - Payment fingerprint generation", () => {
       .then((state) => {
         globalState = new State(state);
 
-        if (isCI()) {
+        return cy.vaultAvailabilityCheck(globalState);
+      })
+      .then((vaultAvailable) => {
+        if (!vaultAvailable) {
           cy.task(
             "cli_log",
-            "Skipping fingerprint spec in CI - the CI router has no vault signing key or vault, so fingerprints cannot be generated"
+            "Vault is not available in this environment, skipping fingerprint spec"
           );
           skip = true;
         }
