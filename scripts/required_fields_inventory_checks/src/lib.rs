@@ -20,8 +20,26 @@ pub mod command;
 
 #[path = "../../../crates/router/src/core/required_fields_sync/administration.rs"]
 pub mod administration;
+#[path = "../../../crates/router/src/core/required_fields_sync/apply.rs"]
+pub mod apply;
+#[path = "../../../crates/router/src/core/required_fields_sync/apply_contract.rs"]
+pub mod apply_contract;
+#[path = "../../../crates/router/src/core/required_fields_sync/apply_observation.rs"]
+pub mod apply_observation;
+#[path = "../../../crates/router/src/core/required_fields_sync/authority.rs"]
+pub mod authority;
+#[path = "../../../crates/router/src/core/required_fields_sync/coordination.rs"]
+pub mod coordination;
 #[path = "../../../crates/router/src/core/required_fields_sync/inventory.rs"]
 pub mod inventory;
+#[path = "../../../crates/router/src/core/required_fields_sync/journal.rs"]
+pub mod journal;
+#[path = "../../../crates/router/src/core/required_fields_sync/journal_snapshot.rs"]
+mod journal_snapshot;
+#[path = "../../../crates/router/src/core/required_fields_sync/kubernetes_coordination.rs"]
+pub mod kubernetes_coordination;
+#[path = "../../../crates/router/src/core/required_fields_sync/mutation.rs"]
+pub mod mutation;
 #[path = "../../../crates/router/src/core/required_fields_sync/raw_json.rs"]
 mod raw_json;
 #[path = "../../../crates/router/src/core/required_fields_sync/types.rs"]
@@ -37,6 +55,23 @@ pub mod plan;
 pub mod planner_types;
 #[path = "../../../crates/router/src/core/required_fields_sync/preflight.rs"]
 pub mod preflight;
+#[path = "../../../crates/router/src/core/required_fields_sync/recovery.rs"]
+pub mod recovery;
+#[path = "../../../crates/router/src/core/required_fields_sync/recovery_data.rs"]
+mod recovery_data;
 
 #[cfg(test)]
+mod mutation_wire;
+#[cfg(test)]
 mod sdk_wire;
+
+#[path = "../../../crates/router/src/core/required_fields_sync/verification.rs"]
+pub mod verification;
+#[path = "../../../crates/router/src/core/required_fields_sync/verification_provider.rs"]
+pub mod verification_provider;
+
+#[path = "../../../crates/router/src/core/required_fields_sync/verification_browser.rs"]
+pub mod verification_browser;
+
+#[path = "../../../crates/router/src/core/required_fields_sync/verification_http.rs"]
+pub mod verification_http;

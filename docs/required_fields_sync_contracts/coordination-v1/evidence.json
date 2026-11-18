@@ -1,0 +1,404 @@
+{
+  "schema_version": 1,
+  "step": 9,
+  "date": "2026-11-18",
+  "scope": "local authority/coordination and synthetic loopback wire evidence; no real control certification",
+  "hosted_apply": "disabled; production execution and safety factories refuse",
+  "revisions": [
+    {
+      "repository": "H",
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations"
+    },
+    {
+      "repository": "W",
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main"
+    },
+    {
+      "repository": "U",
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": ""
+    },
+    {
+      "repository": "I",
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main"
+    }
+  ],
+  "starting_state": "Step 8 journal work already uncommitted; original plan/roadmap and W SDK cases already untracked; no staging/history changes",
+  "fixture": {
+    "owner": "be9263eb-65ed-4005-93ba-b6a0b968a266",
+    "purpose": "Step 9 isolated coordination checks",
+    "logs_retained_at": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step9-ulr8huij",
+    "network": {
+      "exit": 0,
+      "stdout": "loopback bind allowed\nnon-loopback denied by OS\n",
+      "stderr": "",
+      "policy": "(version 1)(allow default)(deny network*)(allow network-bind (local ip \"localhost:*\"))(allow network-inbound (local ip \"localhost:*\"))(allow network-outbound (remote ip \"localhost:*\"))",
+      "scope": "OS policy check; reserved documentation-only address 192.0.2.1; no hosted target"
+    },
+    "wire_children_remaining": [],
+    "wire_scope": "synthetic Python fault fixture, not Kubernetes or an external-writer barrier",
+    "cleanup": {
+      "removed": [
+        "cargo-home",
+        "target-isolated",
+        "target-router",
+        "scan-source",
+        "scan-final"
+      ],
+      "retained": "owner marker, original baseline, runner and evidence scripts, test/build/policy/scan logs and metadata",
+      "wire_children": "none remain; test killed and waited for owned Python children",
+      "scope": "only Step 9 registered root; Step 8 fixture untouched"
+    }
+  },
+  "compiler": {
+    "executed": "rustc stable 1.97.1",
+    "declared_msrv": "1.94.1",
+    "msrv_check": "not executed; toolchain not installed"
+  },
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 22.44,
+      "network": "OS network denied",
+      "log": "isolated-tests-acceptance.log",
+      "record": "isolated-tests-acceptance",
+      "log_sha256": "0c9a0273cd7c1264e2593ff9e039a4badb381fd0a44b3450765548bc2ebd9afa"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "kubernetes_coordination::tests::owned_loopback_adapter_cas_conflict_unknown_outcome_and_restart",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.36,
+      "network": "owned loopback only",
+      "log": "loopback-adapter-reviewed.log",
+      "record": "loopback-adapter-reviewed",
+      "log_sha256": "ccbb0de5f37a66d57fcb2b7050f0ee8acd0a6dd0fe47d91e8f1c9ca95e04327a"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.89,
+      "network": "OS network denied",
+      "log": "isolated-clippy-reviewed.log",
+      "record": "isolated-clippy-reviewed",
+      "log_sha256": "993306b0703657388af4314c86b764f370f7208fff9b2aeec378967628eca592"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 831.2,
+      "network": "OS network denied",
+      "log": "router-check.log",
+      "record": "router-check",
+      "log_sha256": "67e5e7b2ad013ac42b3c8c79f4c9b6620c8e29316318f9f5050c9aaee7852078"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 120.41,
+      "network": "OS network denied",
+      "log": "router-clippy-reviewed.log",
+      "record": "router-clippy-reviewed",
+      "log_sha256": "25e3f95f641be14fedce6da43074608f672bff6d85ba69030c0c51bb0e9639a9"
+    }
+  ],
+  "initial_diagnostics": [
+    {
+      "record": "isolated-initial",
+      "result": "exit 101; locked companion needed existing time feature dependency edges"
+    },
+    {
+      "record": "isolated-lock-resolution",
+      "result": "exit 0; single offline unlocked resolution; no package identity/version change"
+    },
+    {
+      "record": "isolated-clippy",
+      "result": "exit 101; test Mutex scope fixed before await; subsequent strict checks passed"
+    },
+    {
+      "record": "router-check",
+      "result": "exit 0; three existing warnings and one new unnecessary qualification subsequently fixed"
+    },
+    {
+      "record": "loopback-adapter-policy-rejected",
+      "result": "exit 65 before test; literal sandbox address syntax rejected"
+    },
+    {
+      "record": "network-proof-policy-too-broad",
+      "result": "policy probe failed; directional outbound restriction installed and verified before final wire rerun"
+    }
+  ],
+  "acceptance": {
+    "ordinary_tests": "111 passed, zero failed, eight opt-in ignored; 19 new ordinary Step 9 cases",
+    "owned_transport": "one selected opt-in test passed with actual reqwest adapter; identity before writes, CAS conflict, denied read, lost acknowledgement, no retry, unresolved restart",
+    "T20": "local protocol and loopback evidence passed; real Kubernetes/RBAC/clock/persistence certification pending",
+    "T21": "negative contract cases only; real external writer prevention and old accepted request exclusion NOT executed",
+    "T25": "scope/closed factories/redaction and existing command tests; no new mutating wiring",
+    "T26": "synthetic full-population/intent/refusal cases; actual issuer/rollout/route/compatibility evidence pending",
+    "T34": "not executed; no platform integration/deployment",
+    "Q6": "real journal and persistent coordinator retention/access/encryption certification pending",
+    "V1_V4_and_restoration": "not implemented/executed by this step",
+    "hosted_authorization": "none; no hosted contact"
+  },
+  "proposed_choices": {
+    "atomicity": "lease and persistent active-run annotation co-located in one preprovisioned Lease; no delete/TTL cleanup; Q3/Q4/Q6 review required",
+    "bounds": {
+      "lease_ms": 60000,
+      "renew_ms": 10000,
+      "dispatch_margin_ms": 15000,
+      "control_deadline_ms": 5000,
+      "state_bytes": 65536,
+      "response_bytes": 1048576,
+      "targets": 64,
+      "readers": 32,
+      "pods_per_workload": 256,
+      "predecessors": 8
+    }
+  },
+  "external_availability": {
+    "inspection": "read-only docker image ls on explicitly selected local OrbStack unix socket; kube-apiserver/etcd/kindest-node/minikube filters returned no cached images",
+    "not_performed": "no kubeconfig read, cluster selection/bootstrap, image pull, hosted query or credentials lookup"
+  },
+  "warnings": {
+    "final_router": [
+      "two existing analytics imports",
+      "existing renderer qualification",
+      "two existing Step 6 preflight numeric casts"
+    ],
+    "new_coordination_warnings": 0,
+    "dependency_notice": "existing num-bigint-dig 0.8.4 future incompatibility"
+  },
+  "dependencies": {
+    "external_entries": 168,
+    "exactly_match_H": true,
+    "root_manifest_lock_preserved": true
+  },
+  "source_artifacts": [
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "0d262cf3c8a6bb1687428fa426e596d75b779ec8ed480c238c715e8099c7a532"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/authority.rs",
+      "sha256": "ef5c7cd1a0007d58d3b7e986f2c300b4c08e632ebd64f426757f1b55c89abfac"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/coordination.rs",
+      "sha256": "bddebe245a7b9514335af1ec7513b355aee615b8745c5df17eae61a72672ca1b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/coordination_journal_tests.rs",
+      "sha256": "a201067f62a61bad2e5a241dea24bb8c46c5d49a319e8191479e9d3461e909da"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+      "sha256": "a5d919181d289367119923404a3572ad26503f1684e387fd8f6f403519a6f1d5"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal.rs",
+      "sha256": "34af978e9e79352350ff8a374635b3eb00e2f4596ef1092207c9693352474a19"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+      "sha256": "e1566f04efa7a5fc7412f149598362e330145c4a3790ddf48340869ee997106b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_tests.rs",
+      "sha256": "ae43e5412a1fab46b22792a5e76d819e4680341571f0720fd4ff8bce73fb10c2"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/kubernetes_coordination.rs",
+      "sha256": "12254667e4bfde7f5bc50329bd3ba6aac452ec7c693cd042fd160379d799e3be"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/kubernetes_coordination_tests.rs",
+      "sha256": "e39e1d618261291564cbadbd195f266714376c67765069c840f8b59b80b09d1e"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "sha256": "673b53a487e339b29e20d1df4fcf9927702cf96dd8ed31beacb3a452c87fee64"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.lock",
+      "sha256": "9ba484d2cf20a4dfcc85d3715dfc20a00abdb45edabfc5936d6b0832b01d5a0a"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.toml",
+      "sha256": "02e0901c00e13bec2d588b89254d01a21b93f4b479484e81a87d380cfc177f30"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/coordination_fixture.py",
+      "sha256": "2760448e519d0cc11ecfc724c7bd63b345ff5faa5feef2459ec6cb56639cb175"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "cdc58d5a9ef6218507bf681562b1242efb63e51434263e216d45fe1a7d4aa973"
+    }
+  ],
+  "changed_files": [
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/authority.rs",
+    "crates/router/src/core/required_fields_sync/coordination.rs",
+    "crates/router/src/core/required_fields_sync/coordination_journal_tests.rs",
+    "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+    "crates/router/src/core/required_fields_sync/journal.rs",
+    "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+    "crates/router/src/core/required_fields_sync/journal_tests.rs",
+    "crates/router/src/core/required_fields_sync/kubernetes_coordination.rs",
+    "crates/router/src/core/required_fields_sync/kubernetes_coordination_tests.rs",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/coordination-v1/README.md",
+    "docs/required_fields_sync_contracts/coordination-v1/checks.md",
+    "docs/required_fields_sync_contracts/coordination-v1/evidence.json",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/Cargo.lock",
+    "scripts/required_fields_inventory_checks/Cargo.toml",
+    "scripts/required_fields_inventory_checks/README.md",
+    "scripts/required_fields_inventory_checks/coordination_fixture.py",
+    "scripts/required_fields_inventory_checks/src/lib.rs"
+  ],
+  "preservation": {
+    "H": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [
+        "crates/router/src/core/required_fields_sync/journal.rs",
+        "crates/router/src/core/required_fields_sync/journal_tests.rs",
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/planner_tests.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/questions.md",
+        "docs/superposition_required_fields_sync_implementation_playbook.md",
+        "scripts/required_fields_inventory_checks/Cargo.lock",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "scripts/required_fields_inventory_checks/README.md",
+        "scripts/required_fields_inventory_checks/src/lib.rs"
+      ],
+      "new_files": [
+        "crates/router/src/core/required_fields_sync/authority.rs",
+        "crates/router/src/core/required_fields_sync/coordination.rs",
+        "crates/router/src/core/required_fields_sync/coordination_journal_tests.rs",
+        "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+        "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+        "crates/router/src/core/required_fields_sync/kubernetes_coordination.rs",
+        "crates/router/src/core/required_fields_sync/kubernetes_coordination_tests.rs",
+        "docs/required_fields_sync_contracts/coordination-v1/README.md",
+        "docs/required_fields_sync_contracts/coordination-v1/checks.md",
+        "docs/required_fields_sync_contracts/coordination-v1/evidence.json",
+        "scripts/required_fields_inventory_checks/coordination_fixture.py"
+      ],
+      "missing_files": [],
+      "baseline_file_count": 4784
+    },
+    "W": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [],
+      "new_files": [],
+      "missing_files": [],
+      "baseline_file_count": 580
+    },
+    "U": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [],
+      "new_files": [],
+      "missing_files": [],
+      "baseline_file_count": 745
+    },
+    "I": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [],
+      "new_files": [],
+      "missing_files": [],
+      "baseline_file_count": 2343
+    }
+  },
+  "sanitization": {
+    "tool": "gitleaks 8.30.1",
+    "rules": "built-in defaults; no repo config/ignore; allow comments ignored; GITLEAKS environment cleared",
+    "exit": 0,
+    "findings": 0,
+    "files": 22,
+    "log_sha256": "545d8141b7ae8397d8fb87dd23fb20b785beed208488b0c31744c61128f9d6ca"
+  },
+  "document_checks": {
+    "markdown_relative_links": 62,
+    "missing_links": 0,
+    "json_parsing": "passed",
+    "source_hash_binding": "passed",
+    "scoped_rustfmt": "passed",
+    "python_syntax_without_repo_bytecode": "passed",
+    "git_diff_check": "passed"
+  },
+  "next_step": "Step 10 local disabled state machine only after review and a separate request; real-control gates remain blocked",
+  "suggested_commit": "feat: coordinate required-fields execution by target and release"
+}

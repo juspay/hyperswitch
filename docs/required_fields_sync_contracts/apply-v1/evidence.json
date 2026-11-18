@@ -1,0 +1,883 @@
+{
+  "schema_version": 1,
+  "step": 10,
+  "date": "2026-11-18",
+  "status": "local implementation; certification pending",
+  "hosted_apply_enabled": false,
+  "scope": "synthetic fixtures and in-memory locked SDK only; no actual Superposition/server/platform certificate",
+  "revisions": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "starting_index_sha256": "2a0dd819c367ef4fbcd78deb7fa31fdcfedbaae48f5aa8827d7f2bb2ab801db0",
+      "starting_hashed_file_count": 4795
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "starting_index_sha256": "501608d743ce8a8f3c4bbed61c36a61fff1d525e572a3bd2127ae08b1130f78b",
+      "starting_hashed_file_count": 580
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "detached",
+      "starting_index_sha256": "359a0e540417b9ad420b08981a7f05ad9b808766e90032d80b1f466fd79bf49c",
+      "starting_hashed_file_count": 736
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "starting_index_sha256": "d030d32dd141587618fe67e3a97403e50cf49cd1170caf536b6a7dd33e29f0de",
+      "starting_hashed_file_count": 2343
+    }
+  },
+  "preserved_uncommitted_work": "H Steps 8/9 and existing W/U/I work; original plan/roadmap, manifest/locks, source/SDK/seed unchanged",
+  "fixture": {
+    "owner": "4f95d2b2-c161-4e9a-b32b-a6e4b20d705a",
+    "purpose": "Step 10 isolated apply checks",
+    "root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn",
+    "cleanup_scope": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn",
+    "network": "offline builds and memory transport; no server writes without certified disposable target"
+  },
+  "baseline_sha256": "566049f60e2051e1307f236e5d996a48e7c9846b2b2f91da743a403a4cfc33c8",
+  "source_hashes": {
+    "crates/router/src/core/required_fields_sync.rs": "58665a7ac0765e7a5126ccee5dfeb0441c0d56dcfd3f62f6917f02d58c6bbf88",
+    "crates/router/src/core/required_fields_sync/apply.rs": "f8d9837edde365a0b88ec3039daaaa64e8d33f57b9956bb9786c9ef772ced9ad",
+    "crates/router/src/core/required_fields_sync/apply_contract.rs": "e03f28a4f094bca4df05ed15b96a50f12de94e15c29ef6963b7fefe6b4bbd27e",
+    "crates/router/src/core/required_fields_sync/apply_observation.rs": "128e3faba83b8f4ca852bbd1e4d2ab822fd1d78a647cf5adeaddeb30120c5768",
+    "crates/router/src/core/required_fields_sync/apply_tests.rs": "84eae8631c712ed5cdd2eda34c7556318ca0b9e2fbf0237870160c22de5c333f",
+    "crates/router/src/core/required_fields_sync/coordination.rs": "7da0c0c6a413cd78734fdf9e0e4d5b21c8ee9f0ce16811bf5ccf4cb036312a2b",
+    "crates/router/src/core/required_fields_sync/journal.rs": "2708b547c57d0d10fe2cda030806513c796b917ccff93cfb96c60335b1652bee",
+    "crates/router/src/core/required_fields_sync/journal_coordination.rs": "0a1c4c3183ec644c3f8f0156360e0eb632463d4b6384eae0244e25dafcc9256a",
+    "crates/router/src/core/required_fields_sync/journal_tests.rs": "ebc0a52ded079c32d3f646bf64789fed6adffd68153c09420df9edd0ac180f44",
+    "crates/router/src/core/required_fields_sync/mutation.rs": "090cfab4cbbdb04fb942d3e88789518090c9a9fbb8eaba0dc1d8305c429f571e",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs": "6ad63947e1681a2a19673e169f0b112408822c7fb92f6292e07b3a1922df93c5",
+    "docs/required_fields_sync_contracts/README.md": "36dec8434ba615b0a1b96607e9d7e8edb4845fec5978e441ce2a3dfdc983c9d5",
+    "docs/required_fields_sync_contracts/apply-v1/README.md": "e3ef9d6f32bbf0aec982413c911af73aa66f7d8808db5c380410e9653da3354a",
+    "docs/required_fields_sync_contracts/apply-v1/checks.md": "d50ef00974b6f0b9bca9ba6380f0f732535630bd88ca770045e11e025605b7d0",
+    "docs/required_fields_sync_contracts/questions.md": "5a3267c873940b8b84760cf3e4bfc0300cc2db8e2d843624f0d87d82f7cfd068",
+    "docs/superposition_required_fields_sync_implementation_playbook.md": "b498d087607cee466ba0958174f8294cd4365be18a24140facb8c7c6c9fadf96",
+    "scripts/required_fields_inventory_checks/README.md": "105ace9b78f5f0024ee7737d075e74161ea828401d97bee961a31597b7b7d28c",
+    "scripts/required_fields_inventory_checks/src/lib.rs": "061502c5dc55770655b56f586af4db7c4a65a80a1c104b74297684945dd5e166",
+    "scripts/required_fields_inventory_checks/src/mutation_wire.rs": "46429720688b8843a274187c1ff08426b5960225c4578b364e1daab4f1849997"
+  },
+  "files": [
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/apply.rs",
+    "crates/router/src/core/required_fields_sync/apply_contract.rs",
+    "crates/router/src/core/required_fields_sync/apply_observation.rs",
+    "crates/router/src/core/required_fields_sync/apply_tests.rs",
+    "crates/router/src/core/required_fields_sync/coordination.rs",
+    "crates/router/src/core/required_fields_sync/journal.rs",
+    "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+    "crates/router/src/core/required_fields_sync/journal_tests.rs",
+    "crates/router/src/core/required_fields_sync/mutation.rs",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/apply-v1/README.md",
+    "docs/required_fields_sync_contracts/apply-v1/checks.md",
+    "docs/required_fields_sync_contracts/apply-v1/evidence.json",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/README.md",
+    "scripts/required_fields_inventory_checks/src/lib.rs",
+    "scripts/required_fields_inventory_checks/src/mutation_wire.rs"
+  ],
+  "checks": {
+    "isolated-test-release-review": {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 18.37,
+      "network": "OS network denied",
+      "log": "isolated-test-release-review.log"
+    },
+    "isolated-clippy-release-review": {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.26,
+      "network": "OS network denied",
+      "log": "isolated-clippy-release-review.log"
+    },
+    "isolated-independent-reader": {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "journal::tests::fixture::independent_process_recovery_and_filesystem_tamper",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.4,
+      "network": "OS network denied",
+      "log": "isolated-independent-reader.log"
+    },
+    "isolated-sdk-wire": {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "mutation_wire"
+      ],
+      "exit": 0,
+      "seconds": 10.71,
+      "network": "OS network denied",
+      "log": "isolated-sdk-wire.log"
+    },
+    "router-check-complete": {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 115.55,
+      "network": "OS network denied",
+      "log": "router-check-complete.log"
+    },
+    "router-clippy-release-review": {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 121.61,
+      "network": "OS network denied",
+      "log": "router-clippy-release-review.log"
+    }
+  },
+  "commands": [
+    {
+      "record": "isolated-all.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 17.57,
+      "network": "OS network denied",
+      "log": "isolated-all.log",
+      "log_sha256": "a61fa3d3d5d207436939e06de1ec79c56618fdff329f7d1c48f3de9c3a4b35c4"
+    },
+    {
+      "record": "isolated-apply-tests-2.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "apply_tests"
+      ],
+      "exit": 0,
+      "seconds": 13.97,
+      "network": "OS network denied",
+      "log": "isolated-apply-tests-2.log",
+      "log_sha256": "36a1ad154d86c814b34663d31cb795d30eefffc0e308ce1d9924dbe2ed713592"
+    },
+    {
+      "record": "isolated-apply-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "apply_tests"
+      ],
+      "exit": 101,
+      "seconds": 37.5,
+      "network": "OS network denied",
+      "log": "isolated-apply-tests.log",
+      "log_sha256": "86b6a93626943b61c5aeebb004d36a4abe13edded36a61485e532973b97cfa2a"
+    },
+    {
+      "record": "isolated-clippy-capacity.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 3.51,
+      "network": "OS network denied",
+      "log": "isolated-clippy-capacity.log",
+      "log_sha256": "2c90e7fd05859ca3e6f9959647b63e2f212382cbc0b2480b4ef7c3ecb85d046e"
+    },
+    {
+      "record": "isolated-clippy-complete.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.16,
+      "network": "OS network denied",
+      "log": "isolated-clippy-complete.log",
+      "log_sha256": "e7ab0b4221d1c494830ff6ebb820d2e0b3c3d7d267b17f5d7b10d9393012f129"
+    },
+    {
+      "record": "isolated-clippy-final.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 2.82,
+      "network": "OS network denied",
+      "log": "isolated-clippy-final.log",
+      "log_sha256": "82c9e64fd30f79ac9e0a2c77c350654e863d408995040b72a750f68466f09827"
+    },
+    {
+      "record": "isolated-clippy-release-review.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.26,
+      "network": "OS network denied",
+      "log": "isolated-clippy-release-review.log",
+      "log_sha256": "5f8a0b97f0a4210dfb8e063303af191ddeb841dee0a39967f6d947b90ab067d1"
+    },
+    {
+      "record": "isolated-clippy-reviewed.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.34,
+      "network": "OS network denied",
+      "log": "isolated-clippy-reviewed.log",
+      "log_sha256": "8471b771d43917cc4eefe5bd1510fa4202d36194c9f42a07b9a3beb205c4f9b4"
+    },
+    {
+      "record": "isolated-clippy.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 2.99,
+      "network": "OS network denied",
+      "log": "isolated-clippy.log",
+      "log_sha256": "091027f285ef5bca4d8d4e70a7ff58024dd9cd92d08cc713cd6f22f098f7bf14"
+    },
+    {
+      "record": "isolated-first.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 41.95,
+      "network": "OS network denied",
+      "log": "isolated-first.log",
+      "log_sha256": "51575a92f84f6786dfac65b66ec7127e6027c03fd79150bcc2b8befc898c975b"
+    },
+    {
+      "record": "isolated-independent-reader.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "journal::tests::fixture::independent_process_recovery_and_filesystem_tamper",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.4,
+      "network": "OS network denied",
+      "log": "isolated-independent-reader.log",
+      "log_sha256": "6927be76bfc9a7a49e9ee9d3ad19f3d31e78ac663f4dc4c50f646ebd48e628d8"
+    },
+    {
+      "record": "isolated-sdk-wire.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "mutation_wire"
+      ],
+      "exit": 0,
+      "seconds": 10.71,
+      "network": "OS network denied",
+      "log": "isolated-sdk-wire.log",
+      "log_sha256": "6092ed0fe617fca614fba6d3a1db61382517e498a468aec877acdd10120569e7"
+    },
+    {
+      "record": "isolated-test-release-review.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 18.37,
+      "network": "OS network denied",
+      "log": "isolated-test-release-review.log",
+      "log_sha256": "fa1237ae8d3fe5aae8090f94e71c65f1b86e97c4141374391a40aada86606d17"
+    },
+    {
+      "record": "isolated-tests-audited.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 19.63,
+      "network": "OS network denied",
+      "log": "isolated-tests-audited.log",
+      "log_sha256": "60b8178e90a55f47f8ad010fb7fa0d6de4f7c392ccbd7fe85fa04b645c6f3ef2"
+    },
+    {
+      "record": "isolated-tests-capacity.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 101,
+      "seconds": 2.93,
+      "network": "OS network denied",
+      "log": "isolated-tests-capacity.log",
+      "log_sha256": "72443a1e7b5ad7dbb101278f3139a5b0da261bb25d3cbf84d4a784e509d468df"
+    },
+    {
+      "record": "isolated-tests-complete.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 18.16,
+      "network": "OS network denied",
+      "log": "isolated-tests-complete.log",
+      "log_sha256": "11482613ff3c90dd93467e0d46d7991cc8275b9583cf41405b15041bc77e8b3f"
+    },
+    {
+      "record": "isolated-tests-final.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 18.0,
+      "network": "OS network denied",
+      "log": "isolated-tests-final.log",
+      "log_sha256": "56f21063f88fb0dd044358f6325eba692d9397d5ae0e18caaa1a3d95f9b4a119"
+    },
+    {
+      "record": "router-check-complete.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 115.55,
+      "network": "OS network denied",
+      "log": "router-check-complete.log",
+      "log_sha256": "184b3a6f901213114a8f306a7799884e71ab49cb05ceae00eb750b941f9686d6"
+    },
+    {
+      "record": "router-check.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 801.18,
+      "network": "OS network denied",
+      "log": "router-check.log",
+      "log_sha256": "6a01c232fe5afb4cc8da47449f79b341b7975d6f84133077b014d76cc4336705"
+    },
+    {
+      "record": "router-clippy-final.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 302.39,
+      "network": "OS network denied",
+      "log": "router-clippy-final.log",
+      "log_sha256": "168d646665ec158e6d0ee14a4049c69fd12ad4f8eb58455ce8b076cfa190b04c"
+    },
+    {
+      "record": "router-clippy-release-review.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 121.61,
+      "network": "OS network denied",
+      "log": "router-clippy-release-review.log",
+      "log_sha256": "fc8a1efeb5c0fbecc09315ed12d2d2f9bff76406480061ad1240ba37226f2bec"
+    },
+    {
+      "record": "router-clippy-reviewed.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 119.83,
+      "network": "OS network denied",
+      "log": "router-clippy-reviewed.log",
+      "log_sha256": "43730d6f50c35016a5bdac705c037cd03807c8e095d87d4a90f96512d783ce31"
+    },
+    {
+      "record": "secret-scan.json",
+      "tool": "8.30.1",
+      "command": [
+        "gitleaks",
+        "dir",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/scan-files",
+        "--no-banner",
+        "--redact",
+        "--ignore-gitleaks-allow",
+        "--gitleaks-ignore-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/absent-ignore",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/gitleaks-report.json"
+      ],
+      "exit": 0,
+      "findings": 0,
+      "files": 20,
+      "configuration": "default rules; no repository config/ignore/baseline; GITLEAKS env cleared; allow comments disabled",
+      "scope": "changed file contents only, not whole history",
+      "network": "OS denied"
+    },
+    {
+      "record": "server-availability.json",
+      "command": [
+        "docker",
+        "--host",
+        "unix:///Users/deepanshu.bansal/.orbstack/run/docker.sock",
+        "image",
+        "inspect",
+        "34e698528b00",
+        "--format",
+        "{{json .RepoDigests}} {{index .Config.Labels \"org.opencontainers.image.revision\"}} {{index .Config.Labels \"org.opencontainers.image.version\"}} {{index .Config.Labels \"org.opencontainers.image.source\"}}"
+      ],
+      "exit": 0,
+      "selected_metadata": "[\"ghcr.io/juspay/superposition-demo@sha256:bd14b25e3fd4d85d977ee714afaaed991b8ec512bac3db1f38f7ac7d95297f8e\"]  25.10",
+      "stderr": "",
+      "certification": "pending; image metadata is not authenticated/fault/limit/exclusion evidence; no certified disposable registration exists"
+    }
+  ],
+  "test_summary": {
+    "ordinary_passed": 126,
+    "ordinary_failed": 0,
+    "ordinary_ignored": 8,
+    "new_ordinary_cases": 15,
+    "apply_cases": 12,
+    "actual_locked_sdk_cases": 2,
+    "legacy_reader_cases": 1,
+    "independent_process_parent_passed": 1,
+    "real_server_cases_run": 0
+  },
+  "toolchain": {
+    "used": "stable 1.97.1 aarch64-apple-darwin",
+    "declared_msrv": "1.94.1 not installed; not executed"
+  },
+  "source_findings": {
+    "sdk_version": "0.119.0",
+    "dimension_method": "PATCH",
+    "bulk_envelope": "operations array in object",
+    "replacement_context_identity": "server-returned id union",
+    "sdk_normalizes_decimal_lexeme": true,
+    "raw_dispatch_retains_decimal_lexeme": true,
+    "cached_image": "ghcr.io/juspay/superposition-demo@sha256:bd14b25e3fd4d85d977ee714afaaed991b8ec512bac3db1f38f7ac7d95297f8e",
+    "image_provenance_verified": false,
+    "image_started": false
+  },
+  "proposed_choices": {
+    "transport": "raw frozen reqwest bytes with actual SDK semantic wire comparison; no retry/redirect/proxy",
+    "request_deadline_ms_max": 10000,
+    "context_body_bytes_max": 524288,
+    "journal_requests_max": 32,
+    "aggregate_journal_budget": "reserve before writes; may reduce request ceiling",
+    "journal_event_version": 2,
+    "legacy_reader_compatibility": "new reader accepts v1; old readers refuse v2; retained image certification pending",
+    "terminal_holds": "remain blocked; terminal completion/recovery belongs to later steps"
+  },
+  "outcomes": {
+    "NoChangeVerified": 0,
+    "NoChangeUnverified": 6,
+    "Refused": [
+      2,
+      3
+    ],
+    "RejectedNoChange": 7,
+    "AppliedVerified": 0,
+    "PartialApplied": 4,
+    "CommitUnknown": 5,
+    "AppliedUnverified": 6
+  },
+  "known_progress_without_receipt": "after exact direct proof but failed resolution append, report known progress with journal error; retain durable pending claim and require independent recovery observation",
+  "missing_gates": [
+    "exact server provenance and explicitly registered disposable authenticated fixture",
+    "raw mutation transport/auth/base-path/limits and server transaction/fault/old-request certification",
+    "real journal retention/encryption/access and retained v2 recovery image",
+    "real authority/rollout/external-writer exclusion and old-request drain",
+    "terminal lifecycle, restoration and all target V1\u2013V4",
+    "business/profile/SDK candidate approvals",
+    "release/MSRV/cross-target/other-feature build evidence"
+  ],
+  "preservation": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "index_unchanged": true,
+      "starting_file_count": 4795,
+      "changed_files": [
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/apply.rs",
+        "crates/router/src/core/required_fields_sync/apply_contract.rs",
+        "crates/router/src/core/required_fields_sync/apply_observation.rs",
+        "crates/router/src/core/required_fields_sync/apply_tests.rs",
+        "crates/router/src/core/required_fields_sync/coordination.rs",
+        "crates/router/src/core/required_fields_sync/journal.rs",
+        "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+        "crates/router/src/core/required_fields_sync/journal_tests.rs",
+        "crates/router/src/core/required_fields_sync/mutation.rs",
+        "crates/router/src/core/required_fields_sync/planner_tests.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/apply-v1/README.md",
+        "docs/required_fields_sync_contracts/apply-v1/checks.md",
+        "docs/required_fields_sync_contracts/apply-v1/evidence.json",
+        "docs/required_fields_sync_contracts/questions.md",
+        "docs/superposition_required_fields_sync_implementation_playbook.md",
+        "scripts/required_fields_inventory_checks/README.md",
+        "scripts/required_fields_inventory_checks/src/lib.rs",
+        "scripts/required_fields_inventory_checks/src/mutation_wire.rs"
+      ],
+      "removed_files": [],
+      "baseline_omissions_verified_against_HEAD": []
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "index_unchanged": true,
+      "starting_file_count": 580,
+      "changed_files": [],
+      "removed_files": [],
+      "baseline_omissions_verified_against_HEAD": []
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "index_unchanged": true,
+      "starting_file_count": 736,
+      "changed_files": [],
+      "removed_files": [],
+      "baseline_omissions_verified_against_HEAD": [
+        "assets/v2/icons/ark\u00e9abanqueentreprisesetinstitutionnels.svg",
+        "assets/v2/icons/ark\u00e9abanquepriv\u00e9e.svg",
+        "assets/v2/icons/cr\u00e9ditagricole.svg",
+        "assets/v2/icons/cr\u00e9ditmutuel.svg",
+        "assets/v2/icons/cr\u00e9ditmutueldebretagne.svg",
+        "assets/v2/icons/cr\u00e9ditmutueldusudouest.svg",
+        "assets/v2/icons/soci\u00e9t\u00e9g\u00e9n\u00e9rale.svg",
+        "assets/v2/icons/s\u00e4\u00e4st\u00f6pankki.svg",
+        "assets/v2/icons/\u00e5landsbanken.svg"
+      ]
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "index_unchanged": true,
+      "starting_file_count": 2343,
+      "changed_files": [],
+      "removed_files": [],
+      "baseline_omissions_verified_against_HEAD": []
+    },
+    "dependencies": {
+      "matching_external_identities": 168,
+      "manifest_lock_changes": false
+    }
+  },
+  "review": "Step 10 only; Step 11 local verification next after review and separate request; no stage/commit/push/PR/deployment",
+  "suggested_commit": "feat: apply required-fields plans with recoverable outcomes",
+  "document_checks": {
+    "json": "parsed",
+    "relative_markdown_links_checked": 70,
+    "whitespace": "tracked and new changed files clean",
+    "rustfmt_command": [
+      "rustfmt",
+      "+nightly",
+      "--edition",
+      "2021",
+      "--config",
+      "skip_children=true",
+      "--check",
+      "crates/router/src/core/required_fields_sync.rs",
+      "crates/router/src/core/required_fields_sync/apply.rs",
+      "crates/router/src/core/required_fields_sync/apply_contract.rs",
+      "crates/router/src/core/required_fields_sync/apply_observation.rs",
+      "crates/router/src/core/required_fields_sync/apply_tests.rs",
+      "crates/router/src/core/required_fields_sync/coordination.rs",
+      "crates/router/src/core/required_fields_sync/journal.rs",
+      "crates/router/src/core/required_fields_sync/journal_coordination.rs",
+      "crates/router/src/core/required_fields_sync/journal_tests.rs",
+      "crates/router/src/core/required_fields_sync/mutation.rs",
+      "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "scripts/required_fields_inventory_checks/src/lib.rs",
+      "scripts/required_fields_inventory_checks/src/mutation_wire.rs"
+    ],
+    "rustfmt_exit": 0,
+    "git_diff_check_exit": 0,
+    "incremental_diff": "step10.diff against initial copied sources inspected",
+    "dependency_identities": {
+      "matching_external_identities": 168,
+      "manifest_lock_changes": false
+    },
+    "source_binding": "SHA-256 for changed source/doc files excluding self-referential evidence.json"
+  },
+  "secret_scan": {
+    "tool": "8.30.1",
+    "command": [
+      "gitleaks",
+      "dir",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/scan-files",
+      "--no-banner",
+      "--redact",
+      "--ignore-gitleaks-allow",
+      "--gitleaks-ignore-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/absent-ignore",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step10-mj68gdwn/gitleaks-report.json"
+    ],
+    "exit": 0,
+    "findings": 0,
+    "files": 20,
+    "configuration": "default rules; no repository config/ignore/baseline; GITLEAKS env cleared; allow comments disabled",
+    "scope": "changed file contents only, not whole history",
+    "network": "OS denied"
+  },
+  "cleanup": {
+    "removed_owned_children": [
+      "cargo-home",
+      "target-isolated",
+      "target-router",
+      "scan-files"
+    ],
+    "journal_fixture_child_cleaned_by_test": true,
+    "retained": "owner markers, baseline hashes, starting-source copies, commands/logs, sanitized check records and incremental diff",
+    "repositories_and_other_fixtures": "not cleaned or modified",
+    "owner_verified": true
+  }
+}

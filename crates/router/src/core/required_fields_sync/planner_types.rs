@@ -185,7 +185,7 @@ impl PlanLimits {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionKind {
     Create,
@@ -224,7 +224,7 @@ impl PlannedAction {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionSummary {
     pub kind: ActionKind,
     pub subject: Digest,

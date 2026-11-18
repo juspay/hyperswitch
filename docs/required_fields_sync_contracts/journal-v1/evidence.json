@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "step": 8,
+  "date": "2026-11-18",
+  "scope": "local journal only; production store registry empty",
+  "hosted_apply": "disabled",
+  "revisions": [
+    {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "repository": "H"
+    },
+    {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "repository": "W"
+    },
+    {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "repository": "U"
+    }
+  ],
+  "fixture": {
+    "owner": "4e1acf42-6636-4916-b9c3-df41131c47dc",
+    "purpose": "Step 8 isolated journal checks",
+    "owned_journal_children": "removed by parent test after success",
+    "network": "OS sandbox denies network; loopback bind denied",
+    "cleanup": {
+      "retained_executable": {
+        "path": "review-reader/required-fields-recovery-tests",
+        "sha256": "6e7f91927b448a17cfe3573cdab861694592656e5a1d25a8d2a1c2e40fe936f2",
+        "bytes": 34679248,
+        "scope": "same synthetic test executable used by independent child; not a certified release recovery image"
+      },
+      "removed": [
+        "cargo-home",
+        "target-isolated",
+        "target-router",
+        "scan-final"
+      ],
+      "retained": "owner marker, original baseline, test/build/scan logs and metadata, runner script and recovery test binary"
+    },
+    "logs_retained_at": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step8-1zo60ckm"
+  },
+  "compiler": {
+    "executed": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "declared_msrv": "1.94.1",
+    "msrv_check": "not executed; toolchain unavailable locally"
+  },
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 6.78,
+      "network": "OS sandbox denies network",
+      "log": "isolated-tests-final.log",
+      "log_sha256": "9890169d2ad36d11624a90905fed72fdb141954b88821d09cdb7dca93d34714f"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "journal::tests::fixture::independent_process_recovery_and_filesystem_tamper",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.45,
+      "network": "OS sandbox denies network",
+      "log": "filesystem-recovery-final.log",
+      "log_sha256": "94ed2b5fdb525e9d414095362e994e4da4a76436beb03523774463b8d9664ed1"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2.34,
+      "network": "OS sandbox denies network",
+      "log": "isolated-clippy-final.log",
+      "log_sha256": "4e8af3beb23f471afc66d48574f0a496a773ed1046a4845ee48d9a89da1e9fce"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 727.57,
+      "network": "OS sandbox denies network",
+      "log": "router-check.log",
+      "log_sha256": "14bffb188f6403d684dec27a19db5ec3b503afafecdd003ef19db9145b54b15f"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 298.09,
+      "network": "OS sandbox denies network",
+      "log": "router-clippy-final.log",
+      "log_sha256": "0ed27a4819f3fdd65a4c7651d347c51fbf198f2562c6f98aaea1fe4d22f81be9"
+    }
+  ],
+  "source_artifacts": [
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "fd2b8d623799546f2f554fbd7f08428ab6d75609cf10295ee8e8e26b6c850bd7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal.rs",
+      "sha256": "891470ccaa43c7d1d1ad80889a793568cb2fbc29a1c7cf1901ae477a79f91655"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_capture_tests.rs",
+      "sha256": "21c14c37d4a9e9334f50220de696b6d5f7752515850b0ffe4023c4563d374780"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_fixture_tests.rs",
+      "sha256": "ae801bf36beba92e7e8d0a4379a0c2699021aed35f886bb99896338062af20e4"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+      "sha256": "316573b43203f051bf1a40b5307531ebb03c97319eeb17d6fc0bd27635b0c128"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_tests.rs",
+      "sha256": "3e2bbd31fc3ae0ec2c2f3fa709477a819e3011bbfabbd6897b847ac80665cff7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/plan.rs",
+      "sha256": "4167a3c2af8ff250affa638531f2c6779480e4ac3f3ae0fa0692af53f7bbbf22"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "sha256": "e8f5936b6458aba4d25903bcb1d947b5dc2dab17ade5dd1c253c7d30ebec4e18"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "0d8a459de794009c8a9596a3cdf6ddbf43e6962f5e5d8d603e06b562354f676f"
+    }
+  ],
+  "acceptance": {
+    "local_journal_faults": "passed: 16 unit/fault tests plus accepted planner snapshot fixture within 92 passing suite; seven opt-in ignored",
+    "independent_reader": "passed: owned filesystem parent plus separate same-user child; no writer memory or final report",
+    "hosted_storage_certification": "pending Q6; no authorized target",
+    "server_post_commit_faults": "not executed; Step 2 dependency",
+    "three_way_restoration": "not implemented or executed; Step 12",
+    "coordination_and_active_record": "not implemented; Step 9",
+    "V1_V4": "not executed",
+    "input_classification_retention_encryption_access": "pending Q6 owner approval and scoped real-store evidence"
+  },
+  "preservation": {
+    "H": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/plan.rs",
+        "crates/router/src/core/required_fields_sync/planner_tests.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/questions.md",
+        "docs/superposition_required_fields_sync_implementation_playbook.md",
+        "scripts/required_fields_inventory_checks/README.md",
+        "scripts/required_fields_inventory_checks/src/lib.rs"
+      ],
+      "missing_files": [],
+      "baseline_file_count": 4776
+    },
+    "W": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [],
+      "missing_files": [],
+      "baseline_file_count": 580
+    },
+    "U": {
+      "head_preserved": true,
+      "branch_preserved": true,
+      "index_preserved": true,
+      "changed_existing_files": [],
+      "missing_files": [],
+      "baseline_file_count": 745
+    }
+  },
+  "notes": [
+    "Initial local observation event format failed two tests due to nested Serde tag collision; fixed and entire suite rerun.",
+    "The first router check overlapped final snapshot/recovery hardening; final-source compilation is the separate router Clippy check.",
+    "Checks never instantiate legacy storage adapters or load hosted credentials."
+  ],
+  "sanitization": {
+    "tool": "gitleaks 8.30.1",
+    "scope": "all 16 changed/new Step 8 files; copied without repo config or ignore files",
+    "rules": "defaults; allow comments ignored; GITLEAKS_* environment cleared",
+    "exit": 0,
+    "findings": 0,
+    "final_document_rescan": "passed; zero findings"
+  },
+  "dependency_check": {
+    "external_companion_entries": 168,
+    "all_match_H_lock_exactly": true,
+    "root_and_companion_manifests_locks_unchanged": true
+  },
+  "warnings": {
+    "router_check": [
+      "two existing analytics imports",
+      "existing renderer qualification"
+    ],
+    "router_clippy": [
+      "same three existing warnings",
+      "two existing Step 6 preflight numeric casts"
+    ],
+    "new_journal_warnings": 0,
+    "dependency_notice": "existing num-bigint-dig 0.8.4 future incompatibility"
+  },
+  "changed_files": [
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/journal.rs",
+    "crates/router/src/core/required_fields_sync/journal_capture_tests.rs",
+    "crates/router/src/core/required_fields_sync/journal_fixture_tests.rs",
+    "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+    "crates/router/src/core/required_fields_sync/journal_tests.rs",
+    "crates/router/src/core/required_fields_sync/plan.rs",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/journal-v1/README.md",
+    "docs/required_fields_sync_contracts/journal-v1/checks.md",
+    "docs/required_fields_sync_contracts/journal-v1/evidence.json",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/README.md",
+    "scripts/required_fields_inventory_checks/src/lib.rs"
+  ],
+  "document_checks": {
+    "scoped_rustfmt": "passed",
+    "git_diff_check": "passed",
+    "markdown_relative_links": "passed",
+    "json_and_source_hash_binding": "passed"
+  }
+}

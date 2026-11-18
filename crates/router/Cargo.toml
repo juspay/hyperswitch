@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-required_fields_sync = ["payment_methods/required_fields_sync"]
+required_fields_sync = ["payment_methods/required_fields_sync", "dep:superposition_provider", "dep:superposition_types"]
 default = ["common_default", "v1", "redis-rs"]
 common_default = [
     "kv_store",
@@ -352,7 +352,9 @@ storage_impl = { version = "0.1.0", path = "../storage_impl", default-features =
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 payment_methods = { version = "0.1.0", path = "../payment_methods", default-features = false }
 subscriptions = { version = "0.1.0", path = "../subscriptions", default-features = false }
+superposition_provider = { version = "=0.119.0", optional = true }
 superposition_sdk = { version = "0.119.0" }
+superposition_types = { version = "=0.119.0", optional = true }
 
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false }

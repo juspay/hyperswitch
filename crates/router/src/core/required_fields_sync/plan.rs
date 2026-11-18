@@ -39,6 +39,9 @@ impl PlanCandidate {
 }
 pub struct ReadOnlyPlan {
     candidate: PlanCandidate,
+    // Retain the evidence already validated by accept for restricted recovery artifacts.
+    pub(super) accepted_reports: Vec<Vec<u8>>,
+    pub(super) accepted_approval: Option<SemanticApproval>,
 }
 impl ReadOnlyPlan {
     pub fn report(&self) -> &PlanReport {
@@ -47,10 +50,16 @@ impl ReadOnlyPlan {
     pub fn actions(&self) -> &[PlannedAction] {
         self.candidate.actions()
     }
+    pub(super) fn case_request_json(&self) -> &str {
+        self.candidate.case_request_json()
+    }
 }
 
-fn projection_hash(contract: &ProjectionContract) -> PlanResult<Digest> {
-    digest(&(
+pub(super) fn projection_hash(contract: &ProjectionContract) -> PlanResult<Digest> {
+    digest(&projection_material(contract))
+}
+pub(super) fn projection_material(contract: &ProjectionContract) -> impl Serialize + '_ {
+    (
         &contract.id,
         &contract.target,
         &contract.authority,
@@ -71,7 +80,7 @@ fn projection_hash(contract: &ProjectionContract) -> PlanResult<Digest> {
             &contract.connector_sets,
             &contract.browser_scenarios,
         ),
-    ))
+    )
 }
 
 pub fn prepare(
@@ -91,6 +100,7 @@ pub fn prepare(
         intent,
         contract,
         limits,
+        None,
     )
     .map_err(|error| {
         PlanError {
@@ -102,6 +112,10 @@ pub fn prepare(
     })
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one shared planner with an optional sealed restoration image map"
+)]
 fn prepare_inner(
     inventory: &CompleteInventory,
     desired: &VerifiedDesired,
@@ -110,6 +124,7 @@ fn prepare_inner(
     intent: PlanIntent,
     contract: &ProjectionContract,
     limits: PlanLimits,
+    restored_creations: Option<&BTreeMap<super::ContextKey, Json>>,
 ) -> PlanResult<PlanCandidate> {
     limits.validate()?;
     let proof = inventory.proof();
@@ -294,6 +309,21 @@ fn prepare_inner(
                     json(&"Managed required-field contribution (contract rf-v1)")?,
                 ),
             ])))?;
+            let row = if let Some(saved) = restored_creations.and_then(|rows| rows.get(&condition))
+            {
+                // The sealed inverse builder restores only wire-supported saved metadata. The
+                // same ordering/experiment/prerequisite/case gates below inspect the new row.
+                if checked(checked(saved.get("value"))?.canonical())?
+                    != checked(condition_json.canonical())?
+                    || checked(checked(saved.get("override"))?.canonical())?
+                        != checked(values.canonical())?
+                {
+                    return Err(refuse(PlanCode::BindingMismatch));
+                }
+                saved.clone()
+            } else {
+                row
+            };
             let virtual_id = format!(
                 "pending:{}",
                 serde_json::to_string(&intention).map_err(|_| refuse(PlanCode::InvalidInput))?
@@ -520,6 +550,48 @@ fn prepare_inner(
         actions_hash,
         target: proof.target.clone(),
     })
+}
+
+/// Private entry used only by the three-way builder; it does not bypass accept or impact gates.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn prepare_restoration(
+    inventory: &CompleteInventory,
+    desired: &VerifiedDesired,
+    ownership: &OwnershipManifest,
+    prerequisites: &PrerequisitePolicy,
+    intent: PlanIntent,
+    contract: &ProjectionContract,
+    limits: PlanLimits,
+    creations: &BTreeMap<super::ContextKey, Json>,
+) -> PlanResult<PlanCandidate> {
+    prepare_inner(
+        inventory,
+        desired,
+        ownership,
+        prerequisites,
+        intent,
+        contract,
+        limits,
+        Some(creations),
+    )
+}
+pub(super) fn bind_recovery(candidate: &mut PlanCandidate, binding: &Digest) -> PlanResult<()> {
+    candidate.analysis.request = checked(
+        candidate
+            .analysis
+            .request
+            .replacing("recovery_binding", json(binding)?),
+    )?;
+    if candidate.analysis.request.raw().len() > 262144 {
+        return Err(refuse(PlanCode::LimitExceeded));
+    }
+    candidate.report.case_request_hash = hash(&candidate.analysis.request)?;
+    candidate.report.candidate_hash = digest(&(
+        &candidate.report.candidate_hash,
+        &candidate.report.case_request_hash,
+        binding,
+    ))?;
+    Ok(())
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -767,7 +839,15 @@ pub fn accept(
     } else {
         "provisional_no_change"
     };
-    Ok(ReadOnlyPlan { candidate })
+    Ok(ReadOnlyPlan {
+        candidate,
+        accepted_reports: reports.iter().map(|bytes| bytes.to_vec()).collect(),
+        accepted_approval: if needs_approval {
+            approval.cloned()
+        } else {
+            None
+        },
+    })
 }
 
 #[cfg(test)]

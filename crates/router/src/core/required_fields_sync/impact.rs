@@ -64,7 +64,7 @@ pub(super) fn overlap(a: &Json, b: &Json) -> PlanResult<bool> {
     Ok(true)
 }
 
-fn order(rows: &[ContextRow], inventory: &CompleteInventory) -> PlanResult<Vec<ContextRow>> {
+pub(super) fn order(rows: &[ContextRow], inventory: &CompleteInventory) -> PlanResult<Vec<ContextRow>> {
     let mut ordered = Vec::new();
     let mut used_positions = BTreeMap::new();
     for row in rows {

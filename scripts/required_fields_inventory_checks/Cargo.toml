@@ -23,9 +23,13 @@ sha2 = "=0.10.9"
 toml = "=0.8.22"
 error-stack = "=0.4.1"
 thiserror = "=1.0.69"
+time = { version = "=0.3.41", features = ["formatting", "parsing"] }
 tokio = { version = "=1.50.0", features = ["macros", "rt-multi-thread", "time"] }
 reqwest = { version = "=0.13.5", default-features = false }
 superposition_sdk = { version = "=0.119.0", default-features = false, features = ["rt-tokio"] }
+
+superposition_provider = "=0.119.0"
+superposition_types = "=0.119.0"
 
 [dev-dependencies]
 aws-smithy-runtime-api = { version = "=1.20.0", features = ["client", "http-1x"] }

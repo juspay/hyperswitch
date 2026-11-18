@@ -62,6 +62,53 @@ impl HttpConnector for Capture {
 }
 
 #[tokio::test]
+async fn verification_exports_use_locked_get_config_without_projection_filters() {
+    let capture = Capture(Arc::new(Mutex::new(Vec::new())));
+    let connector = SharedHttpConnector::new(capture.clone());
+    let client = superposition_sdk::Client::from_conf(
+        superposition_sdk::Config::builder()
+            .behavior_version(superposition_sdk::config::BehaviorVersion::latest())
+            .endpoint_url("https://synthetic.invalid")
+            .bearer_token(superposition_sdk::config::Token::new(
+                "synthetic-fixture",
+                None,
+            ))
+            .http_client(http_client_fn(move |_, _| connector.clone()))
+            .retry_config(RetryConfig::standard().with_max_attempts(1))
+            .timeout_config(
+                TimeoutConfig::builder()
+                    .operation_timeout(Duration::from_secs(2))
+                    .build(),
+            )
+            .sleep_impl(aws_smithy_async::rt::sleep::TokioSleep::new())
+            .build(),
+    );
+    for version in [None, Some("v-1")] {
+        // Fixture deliberately does not return a config. This test certifies serialization only.
+        let _ = client
+            .get_config()
+            .org_id("synthetic-org")
+            .workspace_id("synthetic-workspace")
+            .set_version(version.map(str::to_owned))
+            .send()
+            .await;
+        let seen = capture.0.lock().unwrap().pop().unwrap();
+        assert_eq!(seen.method, "POST");
+        assert_eq!(seen.path, "/config");
+        assert_eq!(seen.body, b"{}");
+        assert_eq!(
+            seen.query,
+            version
+                .into_iter()
+                .map(|v| ("version".to_owned(), v.to_owned()))
+                .collect()
+        );
+        assert_eq!(seen.org.as_deref(), Some("synthetic-org"));
+        assert_eq!(seen.workspace.as_deref(), Some("synthetic-workspace"));
+    }
+}
+
+#[tokio::test]
 async fn all_seven_direct_read_operations_match_the_actual_locked_sdk_requests() {
     let capture = Capture(Arc::new(Mutex::new(Vec::new())));
     let connector = SharedHttpConnector::new(capture.clone());

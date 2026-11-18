@@ -20,6 +20,16 @@ use super::{
 #[path = "command_tests.rs"]
 mod command_tests;
 
+#[path = "verification_tests.rs"]
+mod verification_tests;
+
+#[path = "apply_tests.rs"]
+mod apply_tests;
+#[path = "coordination_journal_tests.rs"]
+mod coordination_journal_tests;
+#[path = "journal_capture_tests.rs"]
+mod journal_capture_tests;
+
 const REQUIRED: &str = "dynamic_fields.choice._is_required";
 const OPTIONS: &str = "dynamic_fields.choice._dropdown_options";
 fn n(s: &str) -> Name {

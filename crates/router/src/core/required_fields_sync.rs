@@ -1,17 +1,32 @@
 //! Input foundations, direct inventory, pure planning and offline/read-only commands.
-//! No mutation adapter or lease acquisition.
+//! Production execution remains unregistered; the disabled apply engine has no command wiring.
 
 pub mod administration;
+pub mod apply;
+pub mod apply_contract;
+pub mod apply_observation;
+pub mod authority;
 pub mod command;
 pub mod command_runtime;
+pub mod coordination;
 pub mod impact;
 pub mod inventory;
+pub mod journal;
+mod journal_snapshot;
+pub mod kubernetes_coordination;
+pub mod mutation;
 pub mod ownership;
 pub mod plan;
 pub mod planner_types;
 pub mod preflight;
 mod raw_json;
+pub mod recovery;
+mod recovery_data;
 pub mod types;
+pub mod verification;
+pub mod verification_browser;
+pub mod verification_http;
+pub mod verification_provider;
 
 use std::path::PathBuf;
 
