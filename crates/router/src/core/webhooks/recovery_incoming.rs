@@ -343,18 +343,22 @@ fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
     let mut attempts: Vec<&api_payments::PaymentAttemptResponse> = attempts.iter().collect();
     attempts.sort_by_key(|attempt| attempt.created_at);
     let mut invoice_card: Option<&String> = None;
-    let mut retries = 0;
+    let mut retries: usize = 0;
     for attempt in attempts {
         let card = attempt.payment_token.as_ref();
         let is_merchant_initiated = is_merchant_initiated_attempt(attempt);
+        // Counts the attempt as a try on the invoice: a merchant-initiated retry, an attempt made
+        // before the invoice's card is known, or a customer-initiated attempt on the invoice's card.
         if is_merchant_initiated || invoice_card.is_none() || card == invoice_card {
             retries += 1;
         }
+        // The first card seen, or the card of a merchant-initiated retry, becomes the invoice's card.
         if card.is_some() && (is_merchant_initiated || invoice_card.is_none()) {
             invoice_card = card;
         }
     }
-    retries
+    // The first try is the original charge, not a retry.
+    retries.saturating_sub(1)
 }
 
 impl RevenueRecoveryInvoice {

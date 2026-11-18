@@ -35,7 +35,7 @@ pub struct RecoveryRequestTrackingData {
     pub received_at: time::PrimitiveDateTime,
     /// Version of the stored request's format, which a run checks before reading the request.
     pub request_version: u8,
-    /// The request exactly as the merchant sent it, encrypted with the merchant's key and base64
+    /// The serialised request, encrypted with the merchant's key and base64
     /// encoded.
     pub encrypted_request: String,
 }
