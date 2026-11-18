@@ -21,6 +21,10 @@ env:
   RUST_BACKTRACE: short
 
 jobs:
+  required-fields:
+    name: Required-fields offline and independent semantics
+    uses: ./.github/workflows/required-fields.yml
+
   formatting:
     name: Check formatting
     runs-on: hypersage-runners

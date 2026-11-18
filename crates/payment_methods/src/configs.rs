@@ -1,4 +1,6 @@
 pub mod payment_connector_required_fields;
+#[cfg(all(feature = "required_fields_sync", feature = "v1", not(feature = "v2")))]
+pub mod required_fields_renderer;
 pub mod settings;
 
 use hyperswitch_masking::Secret;

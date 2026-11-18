@@ -1,0 +1,437 @@
+{
+  "schema_version": 1,
+  "scope": "synthetic_local",
+  "request_sha256": "f08d104915a1623fe0808d8f6c54ffb55156fe5ce51329fd732ceb1638feabad",
+  "run": "f7cf6be1a77d487b4f9a3f92ab463e772fabec6ebf8fa7711ce7c14b41daed5d",
+  "target": "262448aa3bd292926360848c8b79f1eb272780cbc587f7c27693c566a47f049a",
+  "plan": "251fbe1494177a3a83a173b4cca85c52362f9666ec3fe8036349ddbfad4b2e8d",
+  "reader": "4b2a49ecb249ca0727ef282c591c7f3a5bfc1258347b5ce8e961475d291d2165",
+  "cases_sha256": "90de05e8e074b0368db7cdc460141f5634a538cc9ef26d4cf8da42af09dd5fff",
+  "artifacts_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+  "bindings": [
+    {
+      "phase": "projected_before",
+      "response_sha256": "e538fc126889c68cdba57520480b0c249fa21d9008f8afd5cd22459c99f3da28",
+      "input_sha256": "aed8b002936257d27b977c73345da9ee0c504e8fcd34cd8ee87c78b754bd60de"
+    },
+    {
+      "phase": "projected_after",
+      "response_sha256": "543e2d4bf8d98f334553943ca34e71ef4f3c2cd4063b734de5476656c3b52b71",
+      "input_sha256": "aed8b002936257d27b977c73345da9ee0c504e8fcd34cd8ee87c78b754bd60de"
+    },
+    {
+      "phase": "post_apply",
+      "response_sha256": "543e2d4bf8d98f334553943ca34e71ef4f3c2cd4063b734de5476656c3b52b71",
+      "input_sha256": "aed8b002936257d27b977c73345da9ee0c504e8fcd34cd8ee87c78b754bd60de"
+    }
+  ],
+  "parent_pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e",
+  "observations": {
+    "B-response-0": "17d942778758d2efa9e2300c98b09acdce5d0443cc247a879fec74082009ba77",
+    "E-response-0": "f94dbe52f05e764f5ff668940f96318c1a72dcf012aa26d080920eba4afb00c8",
+    "B-response-1": "ee8f1760df8fdb8e7c0b9acaf97ceb899592defc3a47a0c978be13eaba56cb7d",
+    "E-response-1": "1e94532d09eb1121939f029690fa25f40bcb546973c600664ef68b0abde465ea",
+    "B-response-2": "ee8f1760df8fdb8e7c0b9acaf97ceb899592defc3a47a0c978be13eaba56cb7d",
+    "E-response-2": "83925ff0dbc71a0729080422d3297f5eeaaa1519b5b6a455b0287c6de9ea9a74",
+    "E-retained": "11c99d7d4be5e53fe7e0c6ad30a546c5539bd4c5f5b37ebf85d9d9d9f8672f2d"
+  },
+  "status": "passed",
+  "platform_credential_isolation": "pending",
+  "artifact_kind": "sanitized_execution_index_not_a_verifier_receipt",
+  "original_report_sha256": "f454bb6b11aa4e6702d72b7a462a09b8c640cab9c7e8e844a640cbfb46f91dcc",
+  "original_report": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/verifier-rQnxQT/report.json",
+  "reports": [
+    {
+      "schema_version": 1,
+      "contract_id": "required-fields-sdk-v1",
+      "pack_sha256": "90de05e8e074b0368db7cdc460141f5634a538cc9ef26d4cf8da42af09dd5fff",
+      "stage": "browser-components",
+      "execution": {
+        "engine": "browser-components",
+        "artifact_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+        "runtime": "Playwright 1.63.0 / Chromium 153.0.8010.12 / Node v26.0.0"
+      },
+      "results": [
+        {
+          "id": "B-response-0",
+          "status": "passed",
+          "detail": "Playwright passed; 231ms"
+        },
+        {
+          "id": "B-response-1",
+          "status": "passed",
+          "detail": "Playwright passed; 189ms"
+        },
+        {
+          "id": "B-response-2",
+          "status": "passed",
+          "detail": "Playwright passed; 178ms"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "schema_version": 1,
+      "contract_id": "required-fields-sdk-v1",
+      "pack_sha256": "90de05e8e074b0368db7cdc460141f5634a538cc9ef26d4cf8da42af09dd5fff",
+      "stage": "checkout",
+      "execution": {
+        "engine": "checkout",
+        "artifact_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+        "runtime": "Playwright 1.63.0 / Chromium 153.0.8010.12 / Node v26.0.0"
+      },
+      "results": [
+        {
+          "id": "E-response-0",
+          "status": "passed",
+          "detail": "Playwright passed; 2139ms"
+        },
+        {
+          "id": "E-response-1",
+          "status": "passed",
+          "detail": "Playwright passed; 2251ms"
+        },
+        {
+          "id": "E-response-2",
+          "status": "passed",
+          "detail": "Playwright passed; 2218ms"
+        },
+        {
+          "id": "E-retained",
+          "status": "passed",
+          "detail": "Playwright passed; 1049ms"
+        }
+      ],
+      "status": "passed"
+    }
+  ],
+  "regressions": [
+    {
+      "schema_version": 1,
+      "contract_id": "required-fields-sdk-v1",
+      "pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e",
+      "stage": "browser-components",
+      "execution": {
+        "engine": "browser-components",
+        "artifact_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+        "runtime": "Playwright 1.63.0 / Chromium 153.0.8010.12 / Node v26.0.0"
+      },
+      "results": [
+        {
+          "id": "B-context-defaults",
+          "status": "passed",
+          "detail": "Playwright passed; 215ms"
+        },
+        {
+          "id": "B-context-collection-or",
+          "status": "passed",
+          "detail": "Playwright passed; 181ms"
+        },
+        {
+          "id": "B-mandate-classification",
+          "status": "passed",
+          "detail": "Playwright passed; 197ms"
+        },
+        {
+          "id": "B-provider-currency-absent",
+          "status": "passed",
+          "detail": "Playwright passed; 173ms"
+        },
+        {
+          "id": "B-eligibility-order",
+          "status": "passed",
+          "detail": "Playwright passed; 178ms"
+        },
+        {
+          "id": "B-credit-only",
+          "status": "passed",
+          "detail": "Playwright passed; 178ms"
+        },
+        {
+          "id": "B-connector-orders",
+          "status": "passed",
+          "detail": "Playwright passed; 188ms"
+        },
+        {
+          "id": "B-givex-alias-orders",
+          "status": "passed",
+          "detail": "Playwright passed; 183ms"
+        },
+        {
+          "id": "B-prefill-hidden",
+          "status": "passed",
+          "detail": "Playwright passed; 211ms"
+        },
+        {
+          "id": "B-prefill-visible",
+          "status": "passed",
+          "detail": "Playwright passed; 211ms"
+        },
+        {
+          "id": "B-billing-force",
+          "status": "passed",
+          "detail": "Playwright passed; 175ms"
+        },
+        {
+          "id": "B-missing-metadata",
+          "status": "passed",
+          "detail": "Playwright passed; 171ms"
+        },
+        {
+          "id": "B-empty-config",
+          "status": "passed",
+          "detail": "Playwright passed; 167ms"
+        },
+        {
+          "id": "B-empty-connectors",
+          "status": "passed",
+          "detail": "Playwright passed; 165ms"
+        },
+        {
+          "id": "B-lowercase-bank-type",
+          "status": "passed",
+          "detail": "Playwright passed; 242ms"
+        },
+        {
+          "id": "B-capitalized-bank-type",
+          "status": "passed",
+          "detail": "Playwright passed; 211ms"
+        },
+        {
+          "id": "B-empty-render-types",
+          "status": "passed",
+          "detail": "Playwright passed; 198ms"
+        },
+        {
+          "id": "B-state-empty",
+          "status": "passed",
+          "detail": "Playwright passed; 211ms"
+        },
+        {
+          "id": "B-state-invalid",
+          "status": "passed",
+          "detail": "Playwright passed; 195ms"
+        },
+        {
+          "id": "B-state-order",
+          "status": "passed",
+          "detail": "Playwright passed; 192ms"
+        },
+        {
+          "id": "B-state-country-change",
+          "status": "passed",
+          "detail": "Playwright passed; 211ms"
+        },
+        {
+          "id": "B-country-cases",
+          "status": "passed",
+          "detail": "Playwright passed; 197ms"
+        },
+        {
+          "id": "B-alias-payloads",
+          "status": "passed",
+          "detail": "Playwright passed; 578ms"
+        },
+        {
+          "id": "B-assets-locale",
+          "status": "passed",
+          "detail": "Playwright passed; 138ms"
+        },
+        {
+          "id": "B-assets-english",
+          "status": "passed",
+          "detail": "Playwright passed; 142ms"
+        },
+        {
+          "id": "B-assets-bundled",
+          "status": "passed",
+          "detail": "Playwright passed; 214ms"
+        },
+        {
+          "id": "B-ordered-dropdowns",
+          "status": "passed",
+          "detail": "Playwright passed; 259ms"
+        },
+        {
+          "id": "B-prefill-select",
+          "status": "passed",
+          "detail": "Playwright passed; 209ms"
+        },
+        {
+          "id": "B-core-language",
+          "status": "passed",
+          "detail": "Playwright passed; 181ms"
+        },
+        {
+          "id": "B-ui-type-normalization",
+          "status": "passed",
+          "detail": "Playwright passed; 184ms"
+        },
+        {
+          "id": "B-inheritance",
+          "status": "passed",
+          "detail": "Playwright passed; 267ms"
+        },
+        {
+          "id": "B-forced-billing-orders",
+          "status": "passed",
+          "detail": "Playwright passed; 176ms"
+        },
+        {
+          "id": "B-state-missing",
+          "status": "passed",
+          "detail": "Playwright passed; 208ms"
+        },
+        {
+          "id": "B-connector-exception",
+          "status": "passed",
+          "detail": "Playwright passed; 177ms"
+        },
+        {
+          "id": "B-baseline-removal",
+          "status": "passed",
+          "detail": "Playwright passed; 184ms"
+        },
+        {
+          "id": "B-render-kind-change",
+          "status": "passed",
+          "detail": "Playwright passed; 212ms"
+        },
+        {
+          "id": "B-eft-bank-type",
+          "status": "passed",
+          "detail": "Playwright passed; 244ms"
+        },
+        {
+          "id": "B-assets-malformed",
+          "status": "passed",
+          "detail": "Playwright passed; 138ms"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "schema_version": 1,
+      "contract_id": "required-fields-sdk-v1",
+      "pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e",
+      "stage": "checkout",
+      "execution": {
+        "engine": "checkout",
+        "artifact_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+        "runtime": "Playwright 1.63.0 / Chromium 153.0.8010.12 / Node v26.0.0"
+      },
+      "results": [
+        {
+          "id": "E-card-debit",
+          "status": "passed",
+          "detail": "Playwright passed; 595ms"
+        },
+        {
+          "id": "E-snapshot-retained",
+          "status": "passed",
+          "detail": "Playwright passed; 1120ms"
+        },
+        {
+          "id": "E-config-fetch-failure",
+          "status": "passed",
+          "detail": "Playwright passed; 381ms"
+        },
+        {
+          "id": "E-confirm-body",
+          "status": "passed",
+          "detail": "Playwright passed; 2301ms"
+        },
+        {
+          "id": "E-inheritance",
+          "status": "passed",
+          "detail": "Playwright passed; 1083ms"
+        }
+      ],
+      "status": "passed"
+    },
+    {
+      "schema_version": 1,
+      "contract_id": "required-fields-sdk-v1",
+      "pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e",
+      "stage": "js-resolver",
+      "execution": {
+        "engine": "js-resolver",
+        "artifact_sha256": "5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19",
+        "runtime": "v26.0.0"
+      },
+      "results": [
+        {
+          "id": "R01-explicit-default-options",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R02-omitted-mandate-options",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R03-baseline-after-removal",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R04-explicit-false",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R05-supplied-order",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R06-absent-mandate",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R07-exact-case",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R08-scalar-not-array",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R09-missing-default",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R10-ordered-duplicates",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R11-empty-options",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R12-null-options",
+          "status": "passed",
+          "detail": "SDK behavior observed; contract refuses invalid-options"
+        },
+        {
+          "id": "R13-later-tenant",
+          "status": "passed",
+          "detail": "actual pinned CacReader matches independent expectation"
+        },
+        {
+          "id": "R14-missing-reference",
+          "status": "passed",
+          "detail": "SDK behavior observed; contract refuses missing-override"
+        }
+      ],
+      "status": "passed"
+    }
+  ]
+}

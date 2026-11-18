@@ -1,0 +1,38 @@
+# Synthetic settings; deliberately no business mapping or country approval.
+# Copy to an owned disposable directory to vary EPS banks (string, empty, absent).
+schema_version = 1
+profile_id = "compiled-eps-ab-pending-review"
+
+[bank_config.eps.stripe]
+banks = "abn_amro,bank_austria"
+
+[policy]
+schema_version = 1
+contract_id = "pending-business-mapping"
+bindings = []
+[policy.connectors]
+[policy.payment_methods]
+[policy.payment_method_types]
+
+[catalog]
+schema_version = 1
+contract_id = "pending-business-field-catalog"
+[catalog.sdk]
+contract_id = "step1-pinned-local-source-only"
+web_revision = "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39"
+shared_revision = "1af3e5dabf9d5a17dd864ac7312151ebac4367c6"
+evaluator_hash = "sha256:5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19"
+[catalog.sdk.dimensions]
+connector = []
+payment_method = []
+payment_method_type = []
+mandate_type = []
+[catalog.fields]
+[catalog.unrestricted_countries]
+status = "refused"
+reason = "ordered-country-assets-and-business-review-pending"
+
+[exclusions]
+schema_version = 1
+contract_id = "no-automatic-exclusions"
+sources = []

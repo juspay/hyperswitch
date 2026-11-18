@@ -44,7 +44,7 @@ clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "deja", "fred", "redis-rs") ) ) # Exclude default, v1, deja (v1-only feature), and both backend flags
+            | del( .[] | select( . == ("default", "v1", "deja", "required_fields_sync", "fred", "redis-rs") ) ) # Exclude default, v1-only features, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
     FEATURES="${FEATURES},{{ redis_interface_backend }}"
@@ -62,7 +62,7 @@ check_v2 redis_interface_backend="redis-rs" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "deja", "fred", "redis-rs") ) ) # Exclude default, v1, deja (v1-only feature), and both backend flags
+            | del( .[] | select( . == ("default", "v1", "deja", "required_fields_sync", "fred", "redis-rs") ) ) # Exclude default, v1-only features, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
     FEATURES="${FEATURES},{{ redis_interface_backend }}"
@@ -310,6 +310,14 @@ superposition-down:
     elif command -v podman-compose &> /dev/null; then
         podman-compose -f docker-compose-development.yml down
     fi
+
+# Generate a new local seed artifact offline; review its diff before any upload.
+required-fields-seed-generate profile policy output:
+    cargo run --offline --locked -p router --features required_fields_sync --bin router -- required-fields seed --input-profile "{{profile}}" --seed-policy "{{policy}}" --template config/superposition_seed.toml --output "{{output}}"
+
+# Check the committed seed without changing files or contacting Superposition.
+required-fields-seed-check profile policy:
+    cargo run --offline --locked -p router --features required_fields_sync --bin router -- required-fields seed --input-profile "{{profile}}" --seed-policy "{{policy}}" --template config/superposition_seed.toml --check
 
 # Seed Superposition with default dimensions and configs
 superposition-seed:

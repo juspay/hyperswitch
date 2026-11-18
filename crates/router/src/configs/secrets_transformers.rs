@@ -777,6 +777,8 @@ pub(crate) async fn fetch_raw_secrets(
         notify_iframe_exit_and_redirect: conf.notify_iframe_exit_and_redirect,
         list_dispute_supported_connectors: conf.list_dispute_supported_connectors,
         required_fields: conf.required_fields,
+        #[cfg(feature = "required_fields_sync")]
+        required_fields_sync: conf.required_fields_sync,
         delayed_session_response: conf.delayed_session_response,
         webhook_source_verification_call: conf.webhook_source_verification_call,
         billing_connectors_payment_sync: conf.billing_connectors_payment_sync,

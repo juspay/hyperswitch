@@ -1,0 +1,707 @@
+{
+  "schema_version": 1,
+  "step": 12,
+  "date": "2026-11-18",
+  "scope": "local_synthetic_recovery_only",
+  "hosted_apply": "disabled",
+  "hosted_restore": "disabled",
+  "starting_revisions": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "index_hash": "2a0dd819c367ef4fbcd78deb7fa31fdcfedbaae48f5aa8827d7f2bb2ab801db0"
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "index_hash": "501608d743ce8a8f3c4bbed61c36a61fff1d525e572a3bd2127ae08b1130f78b"
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "index_hash": "359a0e540417b9ad420b08981a7f05ad9b808766e90032d80b1f466fd79bf49c"
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "index_hash": "d030d32dd141587618fe67e3a97403e50cf49cd1170caf536b6a7dd33e29f0de"
+    }
+  },
+  "baseline_state": "H Steps 8\u201311 and W Step 1/11 changes preexist and remain preserved; U and I clean",
+  "owned_fixture": {
+    "owner": "b2db39ec-3473-420f-b76a-9459760fb9aa",
+    "root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step12-v69hrg85",
+    "cleanup_scope": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step12-v69hrg85",
+    "purpose": "Step 12 isolated recovery checks",
+    "hosted_target": null
+  },
+  "owned_cache_registration": {
+    "owner_root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm",
+    "owner": "7cc8ac85-1ccb-420e-beed-b62c332ce188",
+    "targets": [
+      "cargo-home",
+      "target-isolated",
+      "target-router"
+    ],
+    "purpose": "Reuse existing owned isolated build/cache directories only; no credential configuration or hosted target"
+  },
+  "tools": [
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "-Vv"
+      ],
+      "exit": 0,
+      "output": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6\n"
+    },
+    {
+      "command": [
+        "rustup",
+        "toolchain",
+        "list"
+      ],
+      "exit": 0,
+      "output": "stable-aarch64-apple-darwin (active, default)\nstable-x86_64-apple-darwin\nnightly-aarch64-apple-darwin\n"
+    },
+    {
+      "command": [
+        "gitleaks",
+        "version"
+      ],
+      "exit": 0,
+      "output": "8.30.1\n"
+    }
+  ],
+  "changed_files": [
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/apply.rs",
+    "crates/router/src/core/required_fields_sync/apply_observation.rs",
+    "crates/router/src/core/required_fields_sync/apply_tests.rs",
+    "crates/router/src/core/required_fields_sync/authority.rs",
+    "crates/router/src/core/required_fields_sync/coordination.rs",
+    "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+    "crates/router/src/core/required_fields_sync/journal.rs",
+    "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+    "crates/router/src/core/required_fields_sync/journal_tests.rs",
+    "crates/router/src/core/required_fields_sync/plan.rs",
+    "crates/router/src/core/required_fields_sync/planner_types.rs",
+    "crates/router/src/core/required_fields_sync/recovery.rs",
+    "crates/router/src/core/required_fields_sync/recovery_data.rs",
+    "crates/router/src/core/required_fields_sync/recovery_fixture_tests.rs",
+    "crates/router/src/core/required_fields_sync/recovery_restore.rs",
+    "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/required_fields_sync_contracts/recovery-v1/README.md",
+    "docs/required_fields_sync_contracts/recovery-v1/checks.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/README.md",
+    "scripts/required_fields_inventory_checks/src/lib.rs",
+    "docs/required_fields_sync_contracts/recovery-v1/evidence.json"
+  ],
+  "source_hashes": [
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "starting_sha256": "3b5d69b7e510dfbc0ec6eaf3103168e7c5907234b5fe1829ecdef8ee1f1a1bf3",
+      "sha256": "a6c8dd4b3ef34629e78d602e1f7f16b48160e3cbe6f741ebb2ec3b25c1252bc2"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply.rs",
+      "starting_sha256": "f8d9837edde365a0b88ec3039daaaa64e8d33f57b9956bb9786c9ef772ced9ad",
+      "sha256": "c109abe2fe0fe7271101720ddf06ac2bb5ad5fde78a3ac02fc9e37613809140c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply_observation.rs",
+      "starting_sha256": "128e3faba83b8f4ca852bbd1e4d2ab822fd1d78a647cf5adeaddeb30120c5768",
+      "sha256": "f1e148ef2989f341428f4b5ee2089f76d1c38b1f8ab24ff12eaa820f75a1a81d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply_tests.rs",
+      "starting_sha256": "84eae8631c712ed5cdd2eda34c7556318ca0b9e2fbf0237870160c22de5c333f",
+      "sha256": "18296f217bb6b55794c88903853f5dc660467f2e375b83627879f5808cc71794"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/authority.rs",
+      "starting_sha256": "ef5c7cd1a0007d58d3b7e986f2c300b4c08e632ebd64f426757f1b55c89abfac",
+      "sha256": "e472d1dc78cb3e01dcdb558aabe8c8c84bc7e722ee62495c6b53defb9cc1dfd2"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/coordination.rs",
+      "starting_sha256": "7da0c0c6a413cd78734fdf9e0e4d5b21c8ee9f0ce16811bf5ccf4cb036312a2b",
+      "sha256": "c0bbed15279291acc0af7b217134c44f979c446a1eaa7319b92d910aa800af43"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+      "starting_sha256": "a5d919181d289367119923404a3572ad26503f1684e387fd8f6f403519a6f1d5",
+      "sha256": "c89a8bc5f747c3aaadb651db60d8fc83254c5d9170defba7702326319047f3e7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal.rs",
+      "starting_sha256": "2708b547c57d0d10fe2cda030806513c796b917ccff93cfb96c60335b1652bee",
+      "sha256": "b8b2ee6a73697dc8fe9c77efa84dd8087323977d181606b78ea015e4263c12b3"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+      "starting_sha256": "316573b43203f051bf1a40b5307531ebb03c97319eeb17d6fc0bd27635b0c128",
+      "sha256": "4df75d29e9f757c42e54acf4c349e8508b7d00480c391e6838740f46cc2c87ec"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/journal_tests.rs",
+      "starting_sha256": "ebc0a52ded079c32d3f646bf64789fed6adffd68153c09420df9edd0ac180f44",
+      "sha256": "74c846792e1aa047e6b213f49d9179016718cf28d44be2e88ca87f9ac8f17edc"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/plan.rs",
+      "starting_sha256": "4167a3c2af8ff250affa638531f2c6779480e4ac3f3ae0fa0692af53f7bbbf22",
+      "sha256": "60833db6d76bccd92173e5746a8364d5ee69c03550f7ed7a8e588c5a0b2c63ff"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_types.rs",
+      "starting_sha256": "3dfeeb2484a75301595f091af8de3e97bf72653c1c05ffe0ad33cf797e37aa18",
+      "sha256": "1cd942ed5d3540e9aaf50afe1ac5fed3ebc362849944d638ef2f7cbed620d1a1"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery.rs",
+      "starting_sha256": null,
+      "sha256": "d15ffb2e40b4dc94a5a62d675e4c947bc312eea855b58448e8c0bcc3bc05e96e"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery_data.rs",
+      "starting_sha256": null,
+      "sha256": "8a44595f9a71875423068713010d3209c4dca16727e1c01f674761b63cabd5ee"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery_fixture_tests.rs",
+      "starting_sha256": null,
+      "sha256": "0ecab7a81bf503ae43bf5e208bcdb4797bd8c94fd9249a7d29d2318865806040"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery_restore.rs",
+      "starting_sha256": null,
+      "sha256": "29b8fcf1549841b5f84ad6bfe3f5f37be37abc86a8a9e63bd1e3f0a91ec547b7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+      "starting_sha256": null,
+      "sha256": "0993c6da75208b2fa71dcab36f1d290e6e43b3f6b5b97527e5a5a1d5f99ed5c2"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/README.md",
+      "starting_sha256": "94481ee6aaa01a08f869c5a6fbe8aa95656dd08316bf0a1fe2aea1705d88c00c",
+      "sha256": "11a2c536805907be1518c64f63c84eb61510884eb3ad1b2d12df02614d8d81ab"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/questions.md",
+      "starting_sha256": "3d69d276961b10d49b30963c582b54ee06e34635879ddebe51d336579a4c8692",
+      "sha256": "8d90d4761aab50d759c43bca3fd8f99b548b836de6a0e31930ed34b6a9d3139c"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/recovery-v1/README.md",
+      "starting_sha256": null,
+      "sha256": "4c11269bd6abb15d0b51ef895c74e621b481990964a3189f7d253e8ccc5c6c13"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/recovery-v1/checks.md",
+      "starting_sha256": null,
+      "sha256": "ed3c73b003c2f98bac379bdb70ee27321268bf42f74832273d691b77e3c5b4ed"
+    },
+    {
+      "path": "docs/superposition_required_fields_sync_implementation_playbook.md",
+      "starting_sha256": "c115b444b21e50ba4e4ab0b13e637fec4a5849609117dd47591c0d0caef9a3d4",
+      "sha256": "abf4479e5a2479802cdb84a52d5c634a8a1877664ea821f0ce0b10c5f7ae929c"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/README.md",
+      "starting_sha256": "96e2204d1f981bee80393754cd642411bbc327e160b4d54e2e261fe264bee432",
+      "sha256": "ec295fd1019e7f18d5bfa385790b4b82b74dd6dd4532f555dae42f3aecc86074"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "starting_sha256": "8d2a9d488d369093d21282d23efa0804f1b7412d97c3d5b2ec9d485ee321ed0d",
+      "sha256": "0eef7ca9dae46fc3a6a88805f194c87bf7c3bd3c6e9b5908220422e33d6c6fc0"
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--no-run"
+      ],
+      "exit": 0,
+      "seconds": 10.65,
+      "network": "OS network denied",
+      "log": "compile-first.log",
+      "record": "compile-first.json",
+      "log_sha256": "6bfc576d5f6992a99cbf6199e516e8de6e89084fe1fdb0e47b8a0a0480973f71"
+    },
+    {
+      "command": [
+        "rustfmt",
+        "+nightly",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "--check",
+        "crates/router/src/core/required_fields_sync/journal_tests.rs",
+        "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+        "crates/router/src/core/required_fields_sync/recovery.rs",
+        "crates/router/src/core/required_fields_sync/journal.rs",
+        "crates/router/src/core/required_fields_sync/recovery_fixture_tests.rs",
+        "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+        "crates/router/src/core/required_fields_sync/recovery_data.rs",
+        "crates/router/src/core/required_fields_sync/plan.rs",
+        "crates/router/src/core/required_fields_sync/apply_tests.rs",
+        "crates/router/src/core/required_fields_sync/coordination.rs",
+        "crates/router/src/core/required_fields_sync/apply.rs",
+        "crates/router/src/core/required_fields_sync/apply_observation.rs",
+        "crates/router/src/core/required_fields_sync/authority.rs",
+        "crates/router/src/core/required_fields_sync/planner_types.rs",
+        "crates/router/src/core/required_fields_sync/recovery_restore.rs",
+        "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+        "crates/router/src/core/required_fields_sync.rs",
+        "scripts/required_fields_inventory_checks/src/lib.rs"
+      ],
+      "exit": 0,
+      "output": "",
+      "record": "format-check.json"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "plan::tests::apply_tests::recovery_tests::fixture::independent_recovery_after_executor_disappears",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 1.2,
+      "network": "OS network denied",
+      "log": "independent-reader-reviewed.log",
+      "record": "independent-reader-reviewed.json",
+      "log_sha256": "2f4cc992904b6b60fb934d864e47eb5aaf487415a18aed2cac611fb5727dda61"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "plan::tests::apply_tests::recovery_tests::fixture::independent_recovery_after_executor_disappears",
+        "--",
+        "--exact",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 14.46,
+      "network": "OS network denied",
+      "log": "independent-reader.log",
+      "record": "independent-reader.json",
+      "log_sha256": "850740279d297eb33757768bbb060efc79a5ae4a707d4fa07265088a3f984bc2"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 4.39,
+      "network": "OS network denied",
+      "log": "isolated-clippy-final.log",
+      "record": "isolated-clippy-final.json",
+      "log_sha256": "40fc4194d348141ad8d3866fd4cf6027ab3b57a2d5a9878dd780916c42174cd8"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 4.95,
+      "network": "OS network denied",
+      "log": "isolated-clippy-first.log",
+      "record": "isolated-clippy-first.json",
+      "log_sha256": "5a3f1914c00dbfacb9d138c5b1de854ec5307acfe1654a5c983a476815fb70ee"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 6.37,
+      "network": "OS network denied",
+      "log": "isolated-clippy-reviewed.log",
+      "record": "isolated-clippy-reviewed.json",
+      "log_sha256": "40ec335187b0496fc2f0c1920603105c317945266d7108477c9820d55becbdcf"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "recovery_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 17.33,
+      "network": "OS network denied",
+      "log": "recovery-expanded.log",
+      "record": "recovery-expanded.json",
+      "log_sha256": "5b01d21911e4d23dbc84ecd0986b69ba7220cff8f5242a88e19a6baf737727d2"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "recovery_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 6.41,
+      "network": "OS network denied",
+      "log": "recovery-first.log",
+      "record": "recovery-first.json",
+      "log_sha256": "1aafb3c4ef120fe6bc9d1055f048643a36c1b781a6f14c1775db671b65235054"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "recovery_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 6.1,
+      "network": "OS network denied",
+      "log": "recovery-second.log",
+      "record": "recovery-second.json",
+      "log_sha256": "7922a217c69cdb57fb65797c54ae2d49ebb9ca421639f379baf8534a1a7b92af"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "recovery_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 12.87,
+      "network": "OS network denied",
+      "log": "recovery-third.log",
+      "record": "recovery-third.json",
+      "log_sha256": "f7e95a892df0d7fd8fa041cd45d1080e5765d4cdb36d46bb651ea033210e72ca"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 126.15,
+      "network": "OS network denied",
+      "log": "router-check.log",
+      "record": "router-check.json",
+      "log_sha256": "97e63cc8efc18f2980e5958ca7668078fc0f06f0214a9d8e80f878a381ade28c"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 133.13,
+      "network": "OS network denied",
+      "log": "router-clippy-final.log",
+      "record": "router-clippy-final.json",
+      "log_sha256": "72cc03d7b7671397112ff31b74642b01d81a0c1bf10c157cf85635d92629969c"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 22.77,
+      "network": "OS network denied",
+      "log": "suite-final.log",
+      "record": "suite-final.json",
+      "log_sha256": "bd9931a4e2d587562560b7590a3cd1723ad3dd71637366235e3c88761848e260"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 24.7,
+      "network": "OS network denied",
+      "log": "suite-first.log",
+      "record": "suite-first.json",
+      "log_sha256": "4838b433c23c4249bca42738ef99909cd6406865cf2f8832f63dbc3ef2b43c83"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 21.65,
+      "network": "OS network denied",
+      "log": "suite-reviewed.log",
+      "record": "suite-reviewed.json",
+      "log_sha256": "b7655ed4eb495915965ca1809d9e21bcdb35c20e2a18b881d423c1e019bb4585"
+    }
+  ],
+  "results": {
+    "rust_suite": {
+      "passed": 146,
+      "failed": 0,
+      "ignored": 13,
+      "ordinary_recovery_tests": 15
+    },
+    "independent_process": {
+      "parent_passed": 1,
+      "read_only_child_executed": true,
+      "original_executor_dropped": true,
+      "network": "OS denied"
+    },
+    "isolated_clippy": "passed -D warnings; preexisting unreachable uuid method config warning",
+    "router_check": "passed with 3 preexisting warnings",
+    "router_clippy": "passed with 5 preexisting warnings and dependency future-compatibility notice",
+    "format": "passed"
+  },
+  "acceptance": {
+    "T18_T19": "local faults pass; exact-server completion/termination contract pending",
+    "T20_T21": "local owner/lease/drain/gate checks pass; real external-writer enforcement pending",
+    "T22_T24": "local inverse/preservation/metadata/order/prerequisite/experiment checks pass; target contracts pending",
+    "T23": "local immutable/read-back/independent-reader checks pass; real retention/encryption/access pending",
+    "T27": "local pre-feature reader intent and baseline handoff pass; actual retained image/old-reader/platform certification pending",
+    "V1_V2_V3_V4": "mandatory existing gates; all target certification pending"
+  },
+  "material_discrepancies": [
+    "Recovery execution cannot assume its image equals a current serving reader; explicit source/baseline/readers binding required.",
+    "Predecessor exclusion must remain present through the entire successor session, not only acquisition.",
+    "Snapshot schema 2 records a required immutable recovery decision; retained executors must support it."
+  ],
+  "limits": [
+    "Exact first-adoption undo requires the adoption run confirmed after-state; later baseline reference alone cannot prove intervening ownership/history.",
+    "Recreation refuses unknown saved metadata outside the certified create wire and any ordering/projection uncertainty.",
+    "Empty context cannot preserve changed unrelated metadata through a nonempty override wire; deletion refuses.",
+    "No certified retained-image registry or real storage/control/server target is enabled."
+  ],
+  "not_executed": [
+    "hosted restore or app rollback",
+    "real server/platform/retention/image certification",
+    "browser rerun or arbitrary planner-case bridge",
+    "MSRV 1.94.1, release/cross-target/broader features",
+    "Step 13 or any Git staging/commit/push"
+  ],
+  "next_eligible": "Step 13 local wiring only after review and separate request; certification gates remain open",
+  "suggested_commit": "feat: resume and restore required-fields synchronization",
+  "preservation": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "index_unchanged": true,
+      "changed_files": [
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/apply.rs",
+        "crates/router/src/core/required_fields_sync/apply_observation.rs",
+        "crates/router/src/core/required_fields_sync/apply_tests.rs",
+        "crates/router/src/core/required_fields_sync/authority.rs",
+        "crates/router/src/core/required_fields_sync/coordination.rs",
+        "crates/router/src/core/required_fields_sync/coordination_tests.rs",
+        "crates/router/src/core/required_fields_sync/journal.rs",
+        "crates/router/src/core/required_fields_sync/journal_snapshot.rs",
+        "crates/router/src/core/required_fields_sync/journal_tests.rs",
+        "crates/router/src/core/required_fields_sync/plan.rs",
+        "crates/router/src/core/required_fields_sync/planner_types.rs",
+        "crates/router/src/core/required_fields_sync/recovery.rs",
+        "crates/router/src/core/required_fields_sync/recovery_data.rs",
+        "crates/router/src/core/required_fields_sync/recovery_fixture_tests.rs",
+        "crates/router/src/core/required_fields_sync/recovery_restore.rs",
+        "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/questions.md",
+        "docs/required_fields_sync_contracts/recovery-v1/README.md",
+        "docs/required_fields_sync_contracts/recovery-v1/checks.md",
+        "docs/required_fields_sync_contracts/recovery-v1/evidence.json",
+        "docs/superposition_required_fields_sync_implementation_playbook.md",
+        "scripts/required_fields_inventory_checks/README.md",
+        "scripts/required_fields_inventory_checks/src/lib.rs"
+      ],
+      "hashed_files": 4815,
+      "diff_check": 0
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "index_unchanged": true,
+      "changed_files": [],
+      "hashed_files": 588,
+      "diff_check": 0
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "index_unchanged": true,
+      "changed_files": [],
+      "hashed_files": 745,
+      "diff_check": 0
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "index_unchanged": true,
+      "changed_files": [],
+      "hashed_files": 2343,
+      "diff_check": 0
+    }
+  },
+  "document_checks": {
+    "links_checked": 12,
+    "json_and_whitespace": "passed",
+    "original_plan_roadmap_locks_seed": "unchanged per baseline hashes",
+    "unrelated_work": "preserved"
+  },
+  "secret_scan": {
+    "command": [
+      "gitleaks",
+      "dir",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step12-v69hrg85/scan-files",
+      "--no-banner",
+      "--redact",
+      "--ignore-gitleaks-allow",
+      "--gitleaks-ignore-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step12-v69hrg85/absent-ignore",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step12-v69hrg85/gitleaks-report.json"
+    ],
+    "exit": 0,
+    "findings": 0,
+    "files": 25,
+    "configuration": "default rules; no repository config/ignore/baseline; GITLEAKS env absent; allow comments disabled",
+    "scope": "Step 12 changed file contents, not repository history",
+    "network": "OS denied"
+  },
+  "cleanup": {
+    "remaining_recovery_children": [],
+    "user_trees": "never cleanup targets",
+    "retained": "owned command logs, before copies, incremental diff, fixture registration, scan copies and registered build caches"
+  }
+}

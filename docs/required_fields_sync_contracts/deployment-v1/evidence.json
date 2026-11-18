@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "step": 15,
+  "date": "2026-11-18",
+  "scope": "local_disabled_definitions_and_actual_chart_renders_only",
+  "acceptance": "platform_execution_storage_authority_verifier_delivery_and_v1_v4_pending",
+  "hosted_apply": "disabled",
+  "active_registrations": 0,
+  "preservation": {
+    "H": {
+      "head": "68c938724127fe507cdb5b2c365c6f15af1aec1d",
+      "branch": "feat/superposition-required-fields-foundations",
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "starting_files": 59,
+      "starting_files_byte_preserved": 57,
+      "starting_files_removed": [],
+      "step15_files": [
+        "docs/required_fields_sync_contracts/README.md",
+        "docs/required_fields_sync_contracts/deployment-v1/README.md",
+        "docs/required_fields_sync_contracts/deployment-v1/checks.md",
+        "docs/required_fields_sync_contracts/deployment-v1/evidence.json",
+        "docs/required_fields_sync_contracts/questions.md"
+      ]
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "starting_files": 0,
+      "starting_files_byte_preserved": 0,
+      "starting_files_removed": [],
+      "step15_files": [
+        "argo-production/apps/prod/hyperswitch-app.yaml",
+        "argo-sandbox/apps/integ/hyperswitch-app.yaml",
+        "argo-sandbox/apps/sandbox/hyperswitch-app.yaml",
+        "infra-configurations/hyperswitch-app/required-fields-sync-disabled.yaml",
+        "justfile",
+        "required-fields-sync/README.md",
+        "required-fields-sync/check.py",
+        "required-fields-sync/deployment-contract.json",
+        "required-fields-sync/source-lock.json",
+        "required-fields-sync/targets.yaml",
+        "required-fields-sync/test_check.py"
+      ]
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "starting_files": 30,
+      "starting_files_byte_preserved": 30,
+      "starting_files_removed": [],
+      "step15_files": []
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "starting_files": 0,
+      "starting_files_byte_preserved": 0,
+      "starting_files_removed": [],
+      "step15_files": []
+    },
+    "Helm": {
+      "head": "d20ad9bec02603a1fd8d145d45bf74ae6be7a243",
+      "branch": "main",
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "starting_files": 0,
+      "starting_files_byte_preserved": 0,
+      "starting_files_removed": [],
+      "step15_files": [
+        "charts/hyperswitch-app/README.md",
+        "charts/hyperswitch-app/README.md.gotmpl",
+        "charts/hyperswitch-app/REQUIRED_FIELDS_SYNC.md",
+        "charts/hyperswitch-app/templates/_helpers.tpl",
+        "charts/hyperswitch-app/templates/_required-fields.tpl",
+        "charts/hyperswitch-app/templates/required-fields-sync.yaml",
+        "charts/hyperswitch-app/templates/router/_router-shared.tpl",
+        "charts/hyperswitch-app/values.yaml",
+        "tests/required_fields_sync/test_render.py"
+      ]
+    }
+  },
+  "content_sha256": {
+    "H": {
+      "docs/required_fields_sync_contracts/README.md": "a3718ec4d16e669e4081fa9de03d8f94781fa1814edd25c6703a43277548afcd",
+      "docs/required_fields_sync_contracts/deployment-v1/README.md": "b117a86bf1f35ac4078c12cf46864616b2e5af0afbd4d969ab94b4dae2533e65",
+      "docs/required_fields_sync_contracts/deployment-v1/checks.md": "316bb8b45859e0225463c99ef8f9455d285176ad9756e46ac0b8c00673b2dbed",
+      "docs/required_fields_sync_contracts/questions.md": "658e07a01e7b4939cc7711fd70f5a5a1b0930337b5bcc48dc84423a2485c4334"
+    },
+    "I": {
+      "argo-production/apps/prod/hyperswitch-app.yaml": "c27ea80dce280ec000e8f92b2a8fc7503456a5fb262c90e816bcf2975dd94edf",
+      "argo-sandbox/apps/integ/hyperswitch-app.yaml": "39f7e2b9636758175b4e1c088efd759ae552dbdd33a6bf299916b6602be23b25",
+      "argo-sandbox/apps/sandbox/hyperswitch-app.yaml": "bc2d729387238ccd3df1d4640a78b434a3318a2a25669a7c07e555c428f2f776",
+      "infra-configurations/hyperswitch-app/required-fields-sync-disabled.yaml": "3787d5ccc9c9123a60b538122ae816020c86c54ee6740aeed15666ce5d9b1821",
+      "justfile": "a08190d236ad760ead39f283a6c6a49d0daec34dadf5bce26dab74c73355bd1d",
+      "required-fields-sync/README.md": "9123dcbc7f2d7049be35b925800797bb0902f4f27884ba04dc9a05a4fb2239a0",
+      "required-fields-sync/check.py": "80bc2d4c7b71635ab9c122627a305de48528bca769de7a4246ba98e0d94ffe4c",
+      "required-fields-sync/deployment-contract.json": "df4c45f6e0c9e4655abd390c04bb524b3ce41bdbd11d6ea23117c41a73b537c3",
+      "required-fields-sync/source-lock.json": "d4b5bf78c00d0058ddfa0635aa3ba2278605f3da281a46b06ffba8cca86f22bc",
+      "required-fields-sync/targets.yaml": "8b5cf10d38d8a281af0e0abae81f1caff10905f4b07500499bb240592af4880e",
+      "required-fields-sync/test_check.py": "8aab82037e495e3a7bee0fc0c6d3f632fb6f4e99ad705b3946e227cbd227f2ad"
+    },
+    "Helm": {
+      "charts/hyperswitch-app/README.md": "688f4f09ed93bb1209b9fd9e4ba2d265cb63caa89ef2049a0c8442dcaffc8a20",
+      "charts/hyperswitch-app/README.md.gotmpl": "b2f61e8dd0d34470ed79c300ccfd51eff48e1c5edb3674744e9a06a4d5e3c2a5",
+      "charts/hyperswitch-app/REQUIRED_FIELDS_SYNC.md": "3bc8ed6211e4f719ecfd97dece0264a5a6d039e55a5ad4d695dc84cf0def3df9",
+      "charts/hyperswitch-app/templates/_helpers.tpl": "383cfae23dce74b5e09241aa06fccca9b6f83584c2d062f03b7cf6f4405d9f1c",
+      "charts/hyperswitch-app/templates/_required-fields.tpl": "d71697c557dcd867ee34a7951596eff24a50e38cca88d7f7f37247e505c379ad",
+      "charts/hyperswitch-app/templates/required-fields-sync.yaml": "84da4e415ef8c24b6d9f2aa6c0bf347608adf8813ea9ea4bff59092f4231a5d8",
+      "charts/hyperswitch-app/templates/router/_router-shared.tpl": "d207907828fcfc9471ef5cd4a6c458419c89d9e2c9d1e19e2b9e2b75385b9c4e",
+      "charts/hyperswitch-app/values.yaml": "511eb753a850db78024809e858e93be5774c759a15f688370f2cf883c900e4cc",
+      "tests/required_fields_sync/test_render.py": "969a682a26530222e294ce2b7ee909c1b2f8c315e033388cb15194b7c9a0d350"
+    }
+  },
+  "fixture": {
+    "root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step15-rjj4t1z9",
+    "owner": "15cb6def-68f9-48bf-8a10-5e6bdae5adce",
+    "scope": "local_owned_files_only_no_hosted_target",
+    "network": "OS denied during tests/renders/scans",
+    "cleanup": "No servers or pods started. Private source copies, synthetic render fixtures, baseline, evidence and logs retained."
+  },
+  "tools": {
+    "helm": "v3.22.1+gd6c1a0e",
+    "helm_docs": "1.14.2",
+    "yq": "4.53.2"
+  },
+  "selected_sources": {
+    "application_set_files": 16,
+    "release_region_elements": 36,
+    "main_v1_refs": {
+      "app-2026.10.12.0": "598f5beff75f3623d017e303c613f961ac7cfc9e",
+      "app-2026.10.07.0": "dcd8aa902929dff1e30ba0a1c19e8fa8764c71c1",
+      "app-2026.09.30.0-hotfix2": "dbc3a68465dcdc6b2dccf9b518453ff46953e0d0"
+    },
+    "missing_local_tag": "cus-fe774b0b64-v2",
+    "render_method": "current checkout and isolated selected tag archives with scoped local template patch; no reference or dependency version changes",
+    "live_values_rendered": false
+  },
+  "verifier_pins": {
+    "web_revision": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+    "shared_revision": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+    "artifact_sha256": "dde73f3935b9d0b10bca5adc9144539dfc88eff3299fe16314e834757748a8c2",
+    "case_pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e"
+  },
+  "checks": [
+    {
+      "check": "infra-tests",
+      "command": [
+        "python3",
+        "required-fields-sync/test_check.py",
+        "-v"
+      ],
+      "exit": 0,
+      "seconds": 0.12,
+      "log_sha256": "8fd7e6160bd010f8b291057719630a875020031b91c13bbdb50d2d814f795fca",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "infra-definitions",
+      "command": [
+        "python3",
+        "required-fields-sync/check.py",
+        "--hyperswitch",
+        "/Users/deepanshu.bansal/hyperswitch"
+      ],
+      "exit": 0,
+      "seconds": 0.06,
+      "log_sha256": "1277ce09180ed49888680b7060920b51bdd61f03bb36e22a3826e2314bb01225",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "render-current",
+      "command": [
+        "python3",
+        "/Users/deepanshu.bansal/hyperswitch-helm/tests/required_fields_sync/test_render.py",
+        "-v"
+      ],
+      "exit": 0,
+      "seconds": 5.63,
+      "log_sha256": "5a36072619fdc2db59f015bd94f195b2795e5d8b3a75197c4f84981280d9ce17",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "lint-current",
+      "command": [
+        "helm",
+        "lint",
+        "--strict",
+        "/Users/deepanshu.bansal/hyperswitch-helm/charts/hyperswitch-app"
+      ],
+      "exit": 0,
+      "seconds": 0.23,
+      "log_sha256": "95685d60070299b9ad7e4398e28a4ea5a80132d7d8a9149ec4bc61f07d431564",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "render-app-2026.10.12.0",
+      "command": [
+        "python3",
+        "/Users/deepanshu.bansal/hyperswitch-helm/tests/required_fields_sync/test_render.py",
+        "-v"
+      ],
+      "exit": 0,
+      "seconds": 5.64,
+      "log_sha256": "63b9f059c8806ba70b01a0edff59bb376ffd5c3d8e1d70517434fe6003119810",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "lint-app-2026.10.12.0",
+      "command": [
+        "helm",
+        "lint",
+        "--strict",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step15-rjj4t1z9/app-2026.10.12.0/charts/hyperswitch-app"
+      ],
+      "exit": 0,
+      "seconds": 0.25,
+      "log_sha256": "19b8cdad624eb7b550a96f8795b803c476424545e262d38efa3285b54b798fb6",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "render-app-2026.10.07.0",
+      "command": [
+        "python3",
+        "/Users/deepanshu.bansal/hyperswitch-helm/tests/required_fields_sync/test_render.py",
+        "-v"
+      ],
+      "exit": 0,
+      "seconds": 5.6,
+      "log_sha256": "967ee7ede7ba312bc721671f85809b17a16d0d23f880517cebdecb584772defe",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "lint-app-2026.10.07.0",
+      "command": [
+        "helm",
+        "lint",
+        "--strict",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step15-rjj4t1z9/app-2026.10.07.0/charts/hyperswitch-app"
+      ],
+      "exit": 0,
+      "seconds": 0.23,
+      "log_sha256": "3e13de35c3f2ec9ba7b871843179f27886920f81e9cb34019a929be58c77df4b",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "render-app-2026.09.30.0-hotfix2",
+      "command": [
+        "python3",
+        "/Users/deepanshu.bansal/hyperswitch-helm/tests/required_fields_sync/test_render.py",
+        "-v"
+      ],
+      "exit": 0,
+      "seconds": 6.69,
+      "log_sha256": "6e3e07222a9eafc7c46546f388aea5f1798fb1fe859bf29e6da90800eebb3c75",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    },
+    {
+      "check": "lint-app-2026.09.30.0-hotfix2",
+      "command": [
+        "helm",
+        "lint",
+        "--strict",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step15-rjj4t1z9/app-2026.09.30.0-hotfix2/charts/hyperswitch-app"
+      ],
+      "exit": 0,
+      "seconds": 0.42,
+      "log_sha256": "a729843f545b4a7a7eece4f706b1486c5e570d9f5989191298baaf7bb770da20",
+      "network": "OS denied",
+      "scope": "local_static_only"
+    }
+  ],
+  "additional_checks": [
+    {
+      "check": "H diff whitespace",
+      "exit": 0
+    },
+    {
+      "check": "I diff whitespace",
+      "exit": 0
+    },
+    {
+      "check": "Helm diff whitespace",
+      "exit": 0
+    },
+    {
+      "check": "generated chart documentation",
+      "equal": true
+    },
+    {
+      "check": "Python AST syntax",
+      "result": "passed"
+    },
+    {
+      "check": "I just required-fields-check H",
+      "exit": 0,
+      "scope": "local_static_only"
+    },
+    {
+      "check": "scoped gitleaks added-content scan",
+      "exit": 0,
+      "findings": 0,
+      "scope": "only Step 15 additions relative to starting trees"
+    },
+    {
+      "check": "new H deployment Markdown links and final preservation audit",
+      "result": "passed"
+    }
+  ],
+  "ordinary_serving": {
+    "initial_raw_comparison": {
+      "check": "default-serving-render-byte-equality",
+      "equal": false,
+      "before_sha256": "a2d8443cfb829c533fdab9f640d725506814c0ae0decd482e10af1b026902a32",
+      "after_sha256": "a50a03a1b3f1c7e8b6ae8db422601635a033a5e71f55f9be3184aea4068b4fd5"
+    },
+    "raw_difference_reason": "Four existing randomly generated subchart Secret values; no values logged or committed.",
+    "deterministic_synthetic_comparison": {
+      "check": "default-serving-render-deterministic-equality",
+      "equal": true,
+      "synthetic_subchart_random_defaults_fixed": true,
+      "before_sha256": "b3eab24dabf59d8dffc92570c5c0d4a89d3f92c209e2cad74cc09c1a8c258c80",
+      "after_sha256": "b3eab24dabf59d8dffc92570c5c0d4a89d3f92c209e2cad74cc09c1a8c258c80"
+    }
+  },
+  "not_executed": [
+    "hosted reads or writes",
+    "production secret retrieval",
+    "deployment or Argo sync",
+    "Kubernetes effective RBAC/admission/credential/network testing",
+    "real server/writer barrier/lease drills",
+    "effective per-pod settings and shared-reader topology verification",
+    "OCI image/executable/companion provenance certification",
+    "Jenkins intent publication",
+    "durable journal/access/retention and recovery image certification",
+    "V1-V4 target verification and backup publication/startup canary",
+    "report collector/alert delivery",
+    "remote CI/chart release or version selection",
+    "Step 16 adoption"
+  ],
+  "next_eligible": "Review local changes, then complete named contract/platform gates under separate scoped authorization; Step 16 adoption remains blocked."
+}

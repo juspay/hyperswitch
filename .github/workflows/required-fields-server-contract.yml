@@ -1,0 +1,82 @@
+name: Required-fields explicit disposable server contract
+on:
+  workflow_dispatch:
+    inputs:
+      server_image:
+        description: Explicit immutable public Superposition demo image reference (name@sha256)
+        required: true
+        type: string
+      server_version:
+        type: choice
+        options: ["0.102.0", "0.113.0", "0.115.5"]
+        required: true
+      source_revision:
+        description: Exact verified server source revision
+        required: true
+        type: string
+      redis_image:
+        description: Explicit immutable public Redis image reference (name@sha256)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  disposable-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: 1
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Register disposable filesystem paths
+        shell: bash
+        run: |
+          python3 scripts/required_fields_ci/register.py --root "$RUNNER_TEMP/required-fields-contract" --purpose 'Step 14 isolated seed and CI checks'
+          cat >> "$GITHUB_ENV" <<EOF
+          CARGO_TARGET_DIR=$RUNNER_TEMP/required-fields-contract/build
+          TMPDIR=$RUNNER_TEMP/required-fields-contract
+          EOF
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Build the locked contract companion
+        shell: bash
+        run: |
+          cargo build --locked --manifest-path scripts/required_fields_contracts/Cargo.toml
+      - name: Provision explicitly selected immutable images; verify disposable ownership before API writes
+        env:
+          RF_SERVER_IMAGE: ${{ inputs.server_image }}
+          RF_SERVER_VERSION: ${{ inputs.server_version }}
+          RF_SOURCE_REVISION: ${{ inputs.source_revision }}
+          RF_REDIS_IMAGE: ${{ inputs.redis_image }}
+        shell: bash
+        run: |
+          # Manual dispatch selects exact public artifacts. No floating tag or Docker login.
+          python3 - <<'PY'
+          import os, re
+          assert re.fullmatch(r"ghcr.io/juspay/superposition-demo@sha256:[0-9a-f]{64}", os.environ["RF_SERVER_IMAGE"])
+          assert re.fullmatch(r"(?:docker.io/library/)?redis@sha256:[0-9a-f]{64}", os.environ["RF_REDIS_IMAGE"])
+          assert re.fullmatch(r"[0-9a-f]{40}", os.environ["RF_SOURCE_REVISION"])
+          PY
+          export DOCKER_CONFIG="$TMPDIR/docker-config"
+          mkdir "$DOCKER_CONFIG"
+          docker --host unix:///var/run/docker.sock pull "$RF_SERVER_IMAGE"
+          docker --host unix:///var/run/docker.sock pull "$RF_REDIS_IMAGE"
+          docker --host unix:///var/run/docker.sock image inspect -- "$RF_SERVER_IMAGE" > /dev/null
+          docker --host unix:///var/run/docker.sock image inspect -- "$RF_REDIS_IMAGE" > /dev/null
+          python3 scripts/required_fields_contracts/fixture.py run \
+            --docker-host unix:///var/run/docker.sock \
+            --server-image "$RF_SERVER_IMAGE" --server-version "$RF_SERVER_VERSION" \
+            --source-revision "$RF_SOURCE_REVISION" --redis-image "$RF_REDIS_IMAGE" \
+            --probe "$CARGO_TARGET_DIR/debug/required-fields-api-contracts"
+          # The companion remains nonzero until every required capability is certified.
+          # This never calls the repository uploader or accepts a hosted endpoint/token.
+      - name: Retain exact fixture and capability evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: required-fields-disposable-contract-evidence
+          path: ${{ runner.temp }}/required-fields-contract/required-fields-api-*/*.json
+          if-no-files-found: warn # An unavailable image does not produce a contract report.

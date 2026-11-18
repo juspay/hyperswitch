@@ -1,0 +1,1206 @@
+{
+  "schema_version": 1,
+  "step": 7,
+  "date": "2026-11-18",
+  "status": "local_implementation_and_focused_checks_complete_pending_review_and_external_acceptance",
+  "revisions": [
+    {
+      "repository": "H",
+      "head": "6a2e1869643b4008fe6e46cdd4c3b1873712f0c8",
+      "branch": "feat/superposition-required-fields-foundations",
+      "dirty_at_start": true
+    },
+    {
+      "repository": "W",
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "dirty_at_start": true
+    },
+    {
+      "repository": "U",
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "dirty_at_start": false
+    }
+  ],
+  "fixture": {
+    "name": "required-fields-step7-isqz22kf",
+    "owner": "e5bda0db-4a7c-42ea-a643-1e3581ffc767",
+    "purpose": "Step 7 offline CLI checks",
+    "scope": "owned filesystem/in-memory only; no Superposition workspace",
+    "cleanup": {
+      "removed_owned_children": [
+        "cargo-home",
+        "router-target",
+        "isolated-target",
+        "secret-scan-initial"
+      ],
+      "retained": [
+        "review-binary/router",
+        "binary-cli/report.json",
+        "synthetic profiles, unit fixtures, baseline and check logs"
+      ],
+      "binary_dynamic_libraries": "system/Homebrew only; no owned-cache/target dependency",
+      "binary_bytes": 1489345984,
+      "sha256": "958f15588216231424b813e70e7c76b3efbc89d9d55e6ad3db4179c6e77ab282",
+      "owner_verified": true,
+      "shared_caches_or_repositories_removed": false
+    }
+  },
+  "toolchains": {
+    "rustc --version": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+    "cargo --version": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "rustup toolchain list": "stable-aarch64-apple-darwin (active, default)\nstable-x86_64-apple-darwin\nnightly-aarch64-apple-darwin",
+    "gitleaks version": "8.30.1"
+  },
+  "commands": [
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 45,
+      "label": "isolated-first-check"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 47,
+      "label": "isolated-tests"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "command_tests",
+        "--",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 1,
+      "label": "command-tests"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "command_tests",
+        "--",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 34,
+      "label": "command-tests-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--no-default-features",
+        "cli::tests"
+      ],
+      "exit": 0,
+      "seconds": 6,
+      "label": "disabled-parser"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 39,
+      "label": "isolated-clippy-initial"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3,
+      "label": "isolated-clippy"
+    },
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 1150,
+      "label": "router-build"
+    },
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 605,
+      "label": "router-build-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib",
+        "required_fields_renderer"
+      ],
+      "exit": 0,
+      "seconds": 482,
+      "label": "renderer-tests"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "payment_methods",
+        "--features",
+        "v1,required_fields_sync,storage_impl/default,hyperswitch_interfaces/v1",
+        "--lib",
+        "export_router_cli_profiles",
+        "--",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 2,
+      "label": "cli-profile-export"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+        "--root",
+        "<owned-root>",
+        "--router",
+        "<owned-root>/router-target/debug/router"
+      ],
+      "exit": 0,
+      "seconds": 23,
+      "label": "binary-cli"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 456,
+      "label": "router-default-check"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 319,
+      "label": "router-clippy"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 132,
+      "label": "router-clippy-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 474,
+      "label": "router-build-bank-inputs"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+        "--root",
+        "<owned-root>",
+        "--router",
+        "<owned-root>/router-target/debug/router"
+      ],
+      "exit": 0,
+      "seconds": 28,
+      "label": "binary-cli-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 7,
+      "label": "isolated-tests-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "command_tests",
+        "--",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 0,
+      "label": "command-tests-limits"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 2,
+      "label": "isolated-clippy-final"
+    },
+    {
+      "command": [
+        "cargo",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 378,
+      "label": "router-lints-complete"
+    },
+    {
+      "command": [
+        "cargo",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 118,
+      "label": "router-serving-complete"
+    }
+  ],
+  "final_runs": {
+    "isolated_suite": "isolated-tests-final",
+    "command_tests": "command-tests-limits",
+    "feature_disabled_parser": "disabled-parser",
+    "isolated_clippy": "isolated-clippy-final",
+    "router_binary": "router-build-bank-inputs",
+    "renderer_suite": "renderer-tests",
+    "compiled_fixture_export": "cli-profile-export",
+    "actual_cli": "binary-cli-final",
+    "router_clippy": "router-lints-complete",
+    "ordinary_serving_check": "router-serving-complete"
+  },
+  "build_guards": [
+    {
+      "package": "router",
+      "features": [
+        "required_fields_sync"
+      ],
+      "exit": 1,
+      "expected_guard": true
+    },
+    {
+      "package": "router",
+      "features": [
+        "required_fields_sync",
+        "v1",
+        "v2"
+      ],
+      "exit": 1,
+      "expected_guard": true
+    },
+    {
+      "package": "payment_methods",
+      "features": [
+        "required_fields_sync"
+      ],
+      "exit": 1,
+      "expected_guard": true
+    },
+    {
+      "package": "payment_methods",
+      "features": [
+        "required_fields_sync",
+        "v1",
+        "v2"
+      ],
+      "exit": 1,
+      "expected_guard": true
+    }
+  ],
+  "test_counts": {
+    "isolated": {
+      "passed": 75,
+      "ignored": 5
+    },
+    "opt_in_synthetic_commands": {
+      "passed": 4
+    },
+    "feature_disabled_parser": {
+      "passed": 2
+    },
+    "actual_renderer": {
+      "passed": 49,
+      "ignored": 2,
+      "filtered_out": 2
+    },
+    "compiled_profile_export": {
+      "passed": 1
+    },
+    "actual_binary_cases": {
+      "passed": 31
+    }
+  },
+  "actual_binary": {
+    "schema_version": 1,
+    "scope": "actual_router_binary_offline_plumbing_not_server_or_browser_certification",
+    "network": "OS_denied_all_network_verified_before_execution",
+    "binary_sha256": "958f15588216231424b813e70e7c76b3efbc89d9d55e6ad3db4179c6e77ab282",
+    "cases": [
+      {
+        "case": "seed_without_services",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:8b32828b254df71de7c9343c7d29f1584b3679617c4bc974f461f0d0ed4cd1b4",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_ignores_ambient_bank_override",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:8b32828b254df71de7c9343c7d29f1584b3679617c4bc974f461f0d0ed4cd1b4",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "effective_settings_without_services",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:895aacef7120a9074db1e26db5123a237ac15279133fb0c1ae30a9b28bae96d2",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_absent_banks",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:cf9fbbc1261e103c1171f754cd4eb824c7e2a3d443e55988d93194d5a0a3c2b8",
+          "bundle_hash": "sha256:b420da1baca7612876dfa66a93de88c7d1f5958c5af74a0750bac66e6ce5cec4",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_empty_banks",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:9887cc98d12e65dfc50ed60ee30b9acb0efb6f663f40d4a7045029b6f24c5363",
+          "bundle_hash": "sha256:86aa9fe3b115da9e1ca5cf5c39db105cd1f5bf73f03f5f3d950296f153de3019",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_unknown_bank_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "effective_bank_drift_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "settings_mismatch",
+          "phase": "input",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "missing_effective_file_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unapproved_compiled_profile_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "mapping_unresolved",
+          "phase": "render",
+          "detail": null,
+          "diagnostic_counts": {
+            "MalformedOptions": 3,
+            "MissingBinding": 1625
+          },
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "existing_output_preserved",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "output_unavailable",
+          "phase": "output",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "symlink_input_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unregistered_target_before_credentials",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "unsupported_server_contract",
+          "phase": "target",
+          "detail": "CertificationPending",
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "target_identity_mismatch",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "target_mismatch",
+          "phase": "target",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "mode_defaults_disabled",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "disabled",
+          "phase": "target",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unknown_target_override_refused",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "serving_config_conflict",
+        "exit": 1,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_apply",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_seed",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_status",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_resume",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_restore",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_reset",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_force",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_endpoint",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_org",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_workspace",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_header",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_token",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "explicit_profile_required",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "render_help",
+        "exit": 0,
+        "envelope": {
+          "outcome": "help"
+        }
+      },
+      {
+        "case": "plan_help",
+        "exit": 0,
+        "envelope": {
+          "outcome": "help"
+        }
+      }
+    ],
+    "passed": 31,
+    "fixture_owner": "e5bda0db-4a7c-42ea-a643-1e3581ffc767"
+  },
+  "locked_companion_external_dependencies": {
+    "count": 168,
+    "all_match_root_lock": true,
+    "root_manifest_and_lock_preserved": true
+  },
+  "preservation": {
+    "H": {
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "unexpected_baseline_changes": [],
+      "intentional_step7_changed_existing_files": [
+        "docs/required_fields_sync_contracts/questions.md",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "crates/router/src/configs/settings.rs",
+        "docs/superposition_required_fields_sync_implementation_playbook.md",
+        "crates/router/src/bin/router.rs",
+        "docs/required_fields_sync_contracts/README.md",
+        "crates/router/src/core/required_fields_sync/planner_tests.rs",
+        "crates/router/src/configs.rs",
+        "scripts/required_fields_inventory_checks/Cargo.lock",
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/payment_methods/src/configs/required_fields_renderer/render_tests.rs",
+        "scripts/required_fields_inventory_checks/src/lib.rs"
+      ],
+      "new_step7_files": [
+        "crates/router/src/configs/cli.rs",
+        "crates/router/src/configs/cli_tests.rs",
+        "crates/router/src/core/required_fields_sync/command.rs",
+        "crates/router/src/core/required_fields_sync/command_runtime.rs",
+        "crates/router/src/core/required_fields_sync/command_tests.rs",
+        "docs/required_fields_sync_contracts/cli-v1/README.md",
+        "docs/required_fields_sync_contracts/cli-v1/checks.md",
+        "docs/required_fields_sync_contracts/cli-v1/evidence.json",
+        "docs/required_fields_sync_contracts/cli-v1/review-draft.md",
+        "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+        "docs/required_fields_sync_contracts/cli-v1/walkthrough.md"
+      ]
+    },
+    "W": {
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "unexpected_baseline_changes": [],
+      "intentional_step7_changed_existing_files": [],
+      "new_step7_files": []
+    },
+    "U": {
+      "head_unchanged": true,
+      "branch_unchanged": true,
+      "index_unchanged": true,
+      "unexpected_baseline_changes": [],
+      "intentional_step7_changed_existing_files": [],
+      "new_step7_files": []
+    }
+  },
+  "preserved_step6_test_module_only_addition": true,
+  "changed_files": [
+    "crates/payment_methods/src/configs/required_fields_renderer/render_tests.rs",
+    "crates/router/src/bin/router.rs",
+    "crates/router/src/configs.rs",
+    "crates/router/src/configs/cli.rs",
+    "crates/router/src/configs/cli_tests.rs",
+    "crates/router/src/configs/settings.rs",
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/command.rs",
+    "crates/router/src/core/required_fields_sync/command_runtime.rs",
+    "crates/router/src/core/required_fields_sync/command_tests.rs",
+    "crates/router/src/core/required_fields_sync/planner_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/cli-v1/README.md",
+    "docs/required_fields_sync_contracts/cli-v1/checks.md",
+    "docs/required_fields_sync_contracts/cli-v1/evidence.json",
+    "docs/required_fields_sync_contracts/cli-v1/review-draft.md",
+    "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+    "docs/required_fields_sync_contracts/cli-v1/walkthrough.md",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/Cargo.lock",
+    "scripts/required_fields_inventory_checks/Cargo.toml",
+    "scripts/required_fields_inventory_checks/src/lib.rs"
+  ],
+  "source_sha256": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "94d146629105fe6e6ec283fecf3cbc11344792aa70ab72f763d6f2992a3dbf82"
+    },
+    {
+      "path": "crates/payment_methods/Cargo.toml",
+      "sha256": "9b57e93f26708174a3f0b6852f9d8039106decbc8b8d72faec404d38ec313d2f"
+    },
+    {
+      "path": "crates/payment_methods/build.rs",
+      "sha256": "b754cf3ff5acfc024914941a8cab42e3b450715bf7b2418da7fb1546ff1196f5"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/artifacts.rs",
+      "sha256": "383140030eed171557e40189d7773c34fa253920fc32613e15290b5d72e74928"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/artifacts_tests.rs",
+      "sha256": "37ced0b5142c7a9e0e549a32c71a63620131336c742a7f3cd819c654005d0941"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/render.rs",
+      "sha256": "2af1c5501334d5725dd3f46fa3e369e49459ba25445f9f7d9bb14284a044d6ed"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/render_tests.rs",
+      "sha256": "a838e70a847b8b4f94e2ae59cd9316c5ba563636b2cc336a80a120310197c1d7"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/tests.rs",
+      "sha256": "81a388491896e7e415452adfda7fd4fc6910d17d870ef8c0d03428620a805c9e"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/required_fields_renderer/vocabulary.rs",
+      "sha256": "7a9fbe7b781ae25084ad4515a5dc5ae4ae350e1d094fd2c0c5e0b04707767382"
+    },
+    {
+      "path": "crates/payment_methods/src/configs/settings.rs",
+      "sha256": "b382e329691b4054b41b74357a1dbe435f4298634ef52dbe8aeaac6f26d14891"
+    },
+    {
+      "path": "crates/router/Cargo.toml",
+      "sha256": "5439942d93cad1c07473bafbd44d2f96a7db404078322d5dace365b0a8db0aa4"
+    },
+    {
+      "path": "crates/router/build.rs",
+      "sha256": "9582b7506e9bd3168f86d9ae4427e13c156037961277a7ffb82f8b99e43725ce"
+    },
+    {
+      "path": "crates/router/src/bin/router.rs",
+      "sha256": "321cb58a64a5504fceb72598234543d4603c69538daaf9ebf5a7b47a96d16cf3"
+    },
+    {
+      "path": "crates/router/src/configs.rs",
+      "sha256": "e812c25e511bbdfc91fb2d24eaea5af7d352c0604a2c4ffa330783ba0db728b9"
+    },
+    {
+      "path": "crates/router/src/configs/cli.rs",
+      "sha256": "d985e27b5b001bc79b7ad617b580d862f5af6fa50c96bcfc331e59390899c52b"
+    },
+    {
+      "path": "crates/router/src/configs/cli_tests.rs",
+      "sha256": "d8ad9ea4bddc1afc3b2a318eb42308f5616d748752e5a58a9613a7b3d6515705"
+    },
+    {
+      "path": "crates/router/src/configs/settings.rs",
+      "sha256": "8af43f3ca703b6d3ecb85827535add9c9fc6e4b1673cccfbdd977a2a9216a63c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "6bc1159d424246858204d814d5f2e83160860a4d9b4caa46b6fb52dfeea5432c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/administration.rs",
+      "sha256": "39436afd575ffa4f404288293c5698e89d5e3b208f5bdf38b7d438f8ac6e17e8"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/administration_tests.rs",
+      "sha256": "3f71fa23ae627b10498be53758007b78ea52d6adf0ea8d8d99e959949e299a5d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/command.rs",
+      "sha256": "37e6ffe99d7a63276c3a04fa03f1ce738eb38739f8f92e894afcfaba7ff00afc"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/command_runtime.rs",
+      "sha256": "3d75f1be792125bd80c9ae8024f30a7b5f4eecd1c8ffa13ac8e37df50563f27d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/command_tests.rs",
+      "sha256": "bab18f8a5395c6fb204cbc348b4eacf8a2630614e24e211de32bf1015b40990e"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/impact.rs",
+      "sha256": "9d3d0a45867bac9e2f2dbb7e9930629fb657fd857b7f23bfd818e1ccd58f82cf"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/inventory.rs",
+      "sha256": "64001990c29ed696701c9f0662bc757984d52d9ec6a164b28357e4fd4f1ba875"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/inventory_tests.rs",
+      "sha256": "2af3f8633c663b2410bc2832f5ddd99db442694bf4d9dd3af33ec50cdaef666c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/ownership.rs",
+      "sha256": "c1c27ad9cce1d06f2a426d249de3e9b8ebb23eda76e152f50370926f0569e63d"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/plan.rs",
+      "sha256": "76189b695094b49fcca7e074093616f84df57900d6f7ade48f8ff519418915f7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "sha256": "ca512ed059e2a2c10a53d260abf70ace22b34b6121dbf42bdda5abff5137389b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_types.rs",
+      "sha256": "3dfeeb2484a75301595f091af8de3e97bf72653c1c05ffe0ad33cf797e37aa18"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/preflight.rs",
+      "sha256": "ab60ca89651b6a4e0ec0f4032d0399888851faa6b2c36e092da15b246105e913"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/raw_json.rs",
+      "sha256": "d39385f75d2b870a141817e5d54b30576dbe4431935f7d15b1d372109a65ea64"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/tests.rs",
+      "sha256": "7eaa990bddfe94416fbdab18ea207fd4429e4e0dd0f94abb3a48e1acf4ce01ae"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/types.rs",
+      "sha256": "3f093131c824723bed3dcb0849fc3bc0d4e0132e2815faab40b5b96321c117c9"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+      "sha256": "007cec5a61e0231c78edbbbfbf25912225bbb41c342d755edd5755b957ee7b4f"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.lock",
+      "sha256": "9c30e3f9d593bcc1261b0affbef04b01fbaa605aafd3423ccf37b43f40e87148"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/Cargo.toml",
+      "sha256": "2bcd284cade8271eef47943fc1ae9a04165563cfdb4849e535b91add1a2f9878"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "a5b89ef7fe8511f68ec9b722baa853b2c90cd41277c1d1c789d50453f3538c5e"
+    }
+  ],
+  "static_checks": {
+    "targeted_rustfmt": "passed",
+    "python_ast": "passed",
+    "git_diff_check": "passed",
+    "new_file_whitespace": "passed",
+    "relative_document_links": {
+      "result": "passed",
+      "count": 54
+    },
+    "scoped_default_rule_secret_scan": {
+      "result": "passed",
+      "files": 23,
+      "findings": 0,
+      "rules": "Gitleaks 8.30.1 defaults; no external config, baseline, ignore file or inline allow suppression"
+    }
+  },
+  "warnings": {
+    "router_build": [
+      "pre-existing analytics imports (2)",
+      "pre-existing renderer qualification",
+      "macOS linker large unwind section",
+      "existing num-bigint-dig future-compatibility notice"
+    ],
+    "router_clippy": [
+      "pre-existing analytics imports (2)",
+      "pre-existing renderer qualification",
+      "unchanged Step 6 preflight conversions (2)"
+    ],
+    "new_step7_lint_warnings": 0
+  },
+  "open_gates": [
+    "Exact-server read/permission/pagination/identity contracts and real target registration; no CLI reader-token/HTTP/successful real-target plan execution",
+    "Full business profile/catalog/source approval: 1625 missing bindings and 3 malformed-option occurrences remain refused",
+    "Candidate-bound authenticated full-browser receipts; SDK verification remains not_executed",
+    "MSRV 1.94.1, release/image, no-dummy, other TLS/Redis and ordinary-v2 matrix",
+    "Journal, authority/coordination, restoration and V1\u2013V4"
+  ],
+  "hosted_apply": "disabled",
+  "next_step": "Step 8 local journal only after human review and a separate request"
+}

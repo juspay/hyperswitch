@@ -1,0 +1,25 @@
+   Compiling required-fields-api-contracts v0.1.0 (<H>/scripts/required_fields_contracts)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.55s
+     Running tests/isolated.rs (<owned-build>/target/debug/deps/isolated-b33f0ae31ff1c5d3)
+
+running 18 tests
+test ordered_array_identity_is_semantic_even_if_an_external_hash_collides ... ok
+test pagination_refuses_changed_totals_duplicate_missing_partial_and_permission_scoped_rows ... ok
+test prerequisite_and_context_transaction_outcomes_do_not_hide_partial_or_unknown_commits ... ok
+test contract_refuses_missing_metadata_even_when_generated_config_parser_accepts_it ... ok
+test pinned_sdk_serializes_scopes_and_full_replacement_without_sorting_arrays ... ok
+test registrations_reject_hosted_dns_credentials_floating_images_and_existing_workspaces ... ok
+test malformed_success_body_never_becomes_compatible_server_evidence ... ok
+test real_sdk_list_query_is_paginated_and_prefix_is_explicit_only ... ok
+test reports_cannot_promote_mock_missing_or_duplicate_evidence_to_server_certification ... ok
+test same_count_and_version_do_not_hide_changed_full_rows_or_export_order ... ok
+test post_commit_errors_and_dropped_responses_are_unknown_without_observation ... ok
+test bootstrap_never_writes_on_existing_workspace_or_permission_failure ... ok
+test workspace_prerequisite_and_experiment_operations_use_actual_sdk_shapes ... ok
+test page_byte_limit_and_missing_identity_are_not_complete_inventory ... ok
+test bulk_action_and_byte_caps_refuse_before_any_sdk_dispatch_without_batching ... ok
+test caller_timeout_does_not_exclude_a_late_server_commit_or_authorize_retry ... ok
+test command_is_opt_in_and_ignores_ambient_target_configuration ... ok
+test generated_client_read_retries_are_bounded_while_writer_dispatches_once ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s

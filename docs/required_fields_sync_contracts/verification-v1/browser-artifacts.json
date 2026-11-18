@@ -1,0 +1,1772 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "sanitized_file_hash_index_not_the_original_registration",
+  "original_registration": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/verifier-rQnxQT/registration.json",
+  "original_registration_sha256": "0de2b9fb8d79051dadf89c11c2a7d87f75f7c4618b644007fb27c0488f77151a",
+  "artifact_sha256": "eec2f3d9efdf860b1fcf24bf5c7b203b0c701c999af04ebb4ab30b275b698501",
+  "source_revisions": {
+    "web_revision": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+    "utils_revision": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+    "rust_core_version": "0.119.0"
+  },
+  "files": [
+    {
+      "artifact_path": [
+        "node"
+      ],
+      "sha256": "08dad0581f00a0cabf4d49ec92ca1f25fdfd01c2c18fa8e92b35f04d4c24c164"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "ClickToPayAuthenticationSession.js"
+      ],
+      "sha256": "5ed3ce84c366c2efb5503430edd6d6e9de23a83b462213423aca64c529b39a22"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "HyperLoader.js"
+      ],
+      "sha256": "cc41287afd581230226efb6dc2a18f4712b4d5535fdab3a87da0e9066e6caff3"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "app.css"
+      ],
+      "sha256": "4e146b1b7ffb22fe38fba56783cd0948d8adc2ad98bea5a4c6bed80df5a911fb"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "app.js"
+      ],
+      "sha256": "5034e5277d749738fc377838a939a8c45810c29a1c37992063e76d74fc82b48b"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "build.html"
+      ],
+      "sha256": "23166b3b1c6d3d9c6a2487e232633a265823fa8daad6b12bbc00f872e6044deb"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "favicon.ico"
+      ],
+      "sha256": "3d10f7da6c603178340081668c4ac5b3ae9743ca9a262ab0fcd312fbb9f48bdd"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "fullscreenIndex.html"
+      ],
+      "sha256": "94361ff8420015df22a0d139ed7adff38bab79a79af0b0628996ca11abf76bcf"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "fullscreenIndexTemplate.html"
+      ],
+      "sha256": "217262628acf8be9d8e9ae6cf530d8a4a89ed9f5edd0de9087bf90137886cbf8"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "icons/orca.svg"
+      ],
+      "sha256": "90c665c61d7ba703393177fc3ea6816848ebc0472737fd10bab3a6881edda4c8"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "index.html"
+      ],
+      "sha256": "d97ce431e60334ddea27f8ff61183c400dc9c5cc66e2d29aa8c5945a18f386cc"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "node_modules_react-datepicker_dist_react-datepicker_css.js"
+      ],
+      "sha256": "b5480b6a2338bf14826bcaf1365fb2b1e4fbcfe5af07705c87b74677c9b1da9f"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "robots.txt"
+      ],
+      "sha256": "90d24bc3bf698ac1e173739502298ccca72adf1f564fab05f484b8c48d1cadd2"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_BrutalTheme_bs_js.js"
+      ],
+      "sha256": "745feb0a2f6d2aa2fbe1261f160e1c70367a4c338307542b3da2444927e33bcf"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_BubblegumTheme_bs_js.js"
+      ],
+      "sha256": "9ec638bbef14d5fa878d07864d6888a964a1d0f7261c451c6da0f027a54a8762"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_CharcoalTheme_bs_js.js"
+      ],
+      "sha256": "17816259bd1270bc6000c810edc4263eff6f997a0bfbe8626f61d766253530c9"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Components_AddBankAccount_bs_js-src_Components_FullScreenPortal_bs_js-src_Payments_BankDe-63c528.js"
+      ],
+      "sha256": "a1b0f8b326a5a9b0c81371b59adb654c277116f45c84c5aa0cf449f6c8475148"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Components_AddressPaymentInput_bs_js-src_Components_EmailPaymentInput_bs_js-src_Component-ded40b.js"
+      ],
+      "sha256": "d982f883f9ff98c41288affdfd75ec54dba14f2a66c827da37c2c1f639a3a96c"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Components_NicknamePaymentInput_bs_js-src_Components_PayNowButton_bs_js-src_Components_Po-3b5d74.js"
+      ],
+      "sha256": "034c17b781042db11f03f09cf8bf45cad787db6eab48221524f371bd113596e2"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_ArabicLocale_bs_js.js"
+      ],
+      "sha256": "8a0fa04f413e9ff08f0815e9dd199dcbca882acff59bb01c25adf1f338160936"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_BosnianLocale_bs_js.js"
+      ],
+      "sha256": "75179010dc67493dc7d807122c6d87b4b742ce76b2d67923d849418568e420f7"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_CatalanLocale_bs_js.js"
+      ],
+      "sha256": "c176ef3ffcfa6ddeab03c86b9c0782276f026b0e5f714b288045c1dcf5c87673"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_ChineseLocale_bs_js.js"
+      ],
+      "sha256": "e02168a5667407eedd7050d9260d86950bb709a39816666b0265a62cc4123f12"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_CzechLocale_bs_js.js"
+      ],
+      "sha256": "cb015d9ecb39cb151ed76882bc1767d951dd804d033a08d90a7c2fd39dadad56"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_DanishLocale_bs_js.js"
+      ],
+      "sha256": "f33e9684c372cec5dc1a5e34c8cdf329339dea58c972018f21f284522fe6ccf9"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_DeutschLocale_bs_js.js"
+      ],
+      "sha256": "b0d6cd864b5bd2cb82b86f43cf957d7009860f80e79dc410a6fc3038a725e047"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_DutchLocale_bs_js.js"
+      ],
+      "sha256": "b54e27d03202c442a41a6e8234b64850083c02347695f04c49dc69b5c3cb15ed"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_EnglishGBLocale_bs_js.js"
+      ],
+      "sha256": "940edca3a04d1ab09572c201275c394a94164da2591e7c5babcdd19f505100be"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_EstonianLocale_bs_js.js"
+      ],
+      "sha256": "e1a20f094166f954b52a75fd76f6312b07d8649a8aa9f288b6fdfa5958dbcd7f"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_FinnishLocale_bs_js.js"
+      ],
+      "sha256": "40c8844d8b06af9c810dd30e03d14b60652229dbcc2362db6206b25c167f597a"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_FrenchBelgiumLocale_bs_js.js"
+      ],
+      "sha256": "1e6e0ea1a3f32189627a8943235b64fe1aedd98835d5f813991f588cfc4d7118"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_FrenchCanadianLocale_bs_js.js"
+      ],
+      "sha256": "663caa59314fcbe8702d12052f3a5aa7bc648c6330ec63bd3ffde6b407986299"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_FrenchLocale_bs_js.js"
+      ],
+      "sha256": "f9ceea37b517dd349c95acb5a79d5d58fe6138c4768ce4ad869c6f19bbcc7894"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_GreekLocale_bs_js.js"
+      ],
+      "sha256": "2857e089a45827f46bd0009837ffee634fd583c3ccfa7b210191f326c686a505"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_HebrewLocale_bs_js.js"
+      ],
+      "sha256": "d6430c8364c077b64afdfc83f8f3c34cdfa464733a8a6d388237bb33e8847566"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_IcelandicLocale_bs_js.js"
+      ],
+      "sha256": "40128d9392e290c70ea915ed0e44106b8557ba2d94c416b25dfdbe27f465e6e8"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_ItalianLocale_bs_js.js"
+      ],
+      "sha256": "6235648c5a0835aa5a2f19651a018557ff2a43eaae5ee9002028d17e998e611a"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_JapaneseLocale_bs_js.js"
+      ],
+      "sha256": "4fd8960471145210f185c717748b984d8a19bdd8046160afaff7dbdc5d086d40"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_LithuanianLocale_bs_js.js"
+      ],
+      "sha256": "0a1c26592377f8ef7c279363bcdd5a57d30e15c39bcc4c88c63c91c626f646c8"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_MalayLocale_bs_js.js"
+      ],
+      "sha256": "fb877be5a95fdc7f1036ada9913023a263ae2360fe1de668aa95ac863f9b8c9a"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_NorwegianLocale_bs_js.js"
+      ],
+      "sha256": "538850d04093b4732964877e8f68e9127cf534d2e9b4d1a19994e148521907b8"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_PolishLocale_bs_js.js"
+      ],
+      "sha256": "825dc44d12282201918a04f8a055c63e9ab07db343b229e87fe0b9196e79f004"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_PortugueseLocale_bs_js.js"
+      ],
+      "sha256": "afe1d3e26d69c3f7568af5773d897699d375adafb4813aba6ba18ac0a74cb922"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_RussianLocale_bs_js.js"
+      ],
+      "sha256": "f0a78536f6236f60f1a6939893f58e4f8b24ff6383dec80471db1604d00a2c51"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_SlovakLocale_bs_js.js"
+      ],
+      "sha256": "712647b9d1250d7a6abfe9dfe535f5904d4b50edf0e318d5f949218cad249e9b"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_SpanishLocale_bs_js.js"
+      ],
+      "sha256": "0db1a4d89b3fbfab2eec45acee553ecf9ea3d94e2b475f656d05f001e794f84e"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_SwedishLocale_bs_js.js"
+      ],
+      "sha256": "fa194d6cae25e330152dc4c7d297cb43fe465a411f37cf9c36b0b4dc7b83507c"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_TraditionalChineseLocale_bs_js.js"
+      ],
+      "sha256": "6a475a7c43d427e2017b618d0fca21dc2b5113729d06236ae36fba1f8d0e6296"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_TurkishLocale_bs_js.js"
+      ],
+      "sha256": "7eaa77f2060c367333e326cf25d4451471c72b7c5b5c352332a9bf2b9530fa3e"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_LocaleStrings_WelshLocale_bs_js.js"
+      ],
+      "sha256": "33512ea7d1eb705b8f3ec1f1a2df26d908ba695abea7970f5cbe53965b8209b0"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_MidnightTheme_bs_js.js"
+      ],
+      "sha256": "cdec5d7d67ec91ee4d4e9e34b85253f8ba66329f53308ff31ae5800b16af2c4b"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_NoTheme_bs_js.js"
+      ],
+      "sha256": "4fd668cf8676c674caad6942384a902eba6748383551023982eb88fda79aa55d"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_PaymentElementRenderer_bs_js.js"
+      ],
+      "sha256": "1e7fe7bfe49744cca37a799808aabea86c25897052d81fbe836cf39c3d81df3d"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_PaymentManagement_bs_js.js"
+      ],
+      "sha256": "094ff2bf22d3792fcf159ae61007e269fe62575a2cdc2174eb95aa30b0946043"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_ACHBankDebit_bs_js.js"
+      ],
+      "sha256": "9dd5209b430067cf9ecc25b089a18e149da4f0443da4300aae74b4062fca9b64"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_ACHBankTransfer_bs_js.js"
+      ],
+      "sha256": "e3440bba13ac401f8595cc171308c437d2322ceb103a96061e769e073ee38b83"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_ApplePay_bs_js.js"
+      ],
+      "sha256": "8435b0f9b04e0cfbad1abd4b53ce9d612bf919b3e82c366fc28fe7399cf3564d"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_BacsBankDebit_bs_js.js"
+      ],
+      "sha256": "1afb4b753b5e950c3da4823d5f16c0090f8f1ca33263f1878c24e9507e6a50ed"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_BacsBankTransfer_bs_js.js"
+      ],
+      "sha256": "f06123af129beae01eddf92327e06de6944fc2a30033ca6b82de8458fc280a7c"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_BecsBankDebit_bs_js.js"
+      ],
+      "sha256": "6f447f6568e2439862dac3766e51d0db3b4afa06daf8e2772a603fd2410e9a7e"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_Boleto_bs_js.js"
+      ],
+      "sha256": "267eaed04ba7825948bf00e3992b5b526472c956f3d005f71f60c956e46734ce"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_GPay_bs_js.js"
+      ],
+      "sha256": "6c16a5c60561825c4e288e16063c586ed04b7af6f661b9e5ab039095d3acb498"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_InstantBankTransferFinland_bs_js.js"
+      ],
+      "sha256": "1787959f27c06c96174f4addd38a21ad3802fd4a8fd6481df00f3a0180080c53"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_InstantBankTransferPoland_bs_js.js"
+      ],
+      "sha256": "b924102b7e3200570776ad4257ca910a14e4ca8c6a52f270376f8d7a87a1b565"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_InstantBankTransfer_bs_js.js"
+      ],
+      "sha256": "2d82eb772b565323a653db639b87ebbb2e27b69da558e198da2c1d462a7c9c2a"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_KlarnaCheckout_bs_js.js"
+      ],
+      "sha256": "6c000ce2c06913f9f962c95749863b65d645e4ad1a1756166f25f9821072bb6e"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_KlarnaSDK_bs_js.js"
+      ],
+      "sha256": "33d6057c4e16d1c2fdf7c665cee135059afcf58b0cb6b333e106db6d2f414449"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_PayPal_bs_js.js"
+      ],
+      "sha256": "24c1ab22790e5b55bf12bae1893ba851d1b3dbdcdaac971bbfb3e9487958bbec"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_PaymentMethodsWrapper_bs_js.js"
+      ],
+      "sha256": "79671a27b76e8e71b18018c006f5f201cdad2b7294fed9d31939c4269af10ea6"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_PaypalSDK_bs_js.js"
+      ],
+      "sha256": "6a221774e6d2d5a28b29b6095751a1e457c1fed5e8561d6267e4ed6576eafc75"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_SepaBankDebit_bs_js.js"
+      ],
+      "sha256": "a8bed9b812b4b644c03212918011f6094ab01f1f37abda5f02f75989a0a7143b"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Payments_SepaBankTransfer_bs_js.js"
+      ],
+      "sha256": "2ac71a92b7056fececb0157a8ec537770b8f8eeeb3014e8570e87241e5203798"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_SingleLineCardPayment_bs_js.js"
+      ],
+      "sha256": "d9c24b1429eaa404b1bc4614b7ec4fb5986b44b3951f512da3677504d1c253c2"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_SoftTheme_bs_js.js"
+      ],
+      "sha256": "d419900cda0a855fc20f315843a89f7d0ad4c2f77f66e7aadf1b787ba4548591"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_States_json.js"
+      ],
+      "sha256": "fd8741f12fb1bcd2a847a6c6317b1d4efe75f2a7c5f59ca477a6acad18ca4ba1"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "src_Utilities_ClickToPayCardEncryptionHelpers_js.js"
+      ],
+      "sha256": "086d3afac280030de200a7ce9daf9adaea859d73345f245e19ba59e54d16815b"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "vendors-node_modules_react-datepicker_dist_index_es_js-node_modules_react-final-form_dist_rea-027243.js"
+      ],
+      "sha256": "cbe9ff9de2a259eda35d91ca0d4f6e08ce3e61a79500c51b9b310b54b29a7442"
+    },
+    {
+      "artifact_path": [
+        "sdk",
+        "vendors-node_modules_react-datepicker_dist_react-datepicker_css.css"
+      ],
+      "sha256": "25f7cf1bbfc32e85df736951ee022895c90236ed39af41e57e9bea5f06e43371"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "_redirects"
+      ],
+      "sha256": "fc3e5a7d78df13c5ab0c8b657297c33a824aaccbfb2328a57c4c4b21f55a7d24"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "app.js"
+      ],
+      "sha256": "a42aed20127bedfa5cdf508e763bf45cda08a859c43f184abf0b1d79caf7c9b6"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "assets/Successsuccess.svg"
+      ],
+      "sha256": "10f363c516ce86b5ebc6f61d545710ae1a0407a140b47fda1a4ae9099654c0af"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "assets/cap.png"
+      ],
+      "sha256": "2dee38dfdd40eccba47879408cc39fedf9446fb420a43b965968537ca6af4132"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "assets/hyperswitchLogo.svg"
+      ],
+      "sha256": "0cabce10ef4d1999b9772409fddb79b44495d3e876e5a5a0fa790303e582d464"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "assets/shirt.png"
+      ],
+      "sha256": "31c60366a46317caf28666570820ea4373126996683dccaa64dc525d22c3aa58"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "bundle-report.html"
+      ],
+      "sha256": "54519390837c23aec0b3db27b8a857c3f795590d6440f363ebbf5be6206784e6"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "favicon.ico"
+      ],
+      "sha256": "3d10f7da6c603178340081668c4ac5b3ae9743ca9a262ab0fcd312fbb9f48bdd"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "index.html"
+      ],
+      "sha256": "327a83812f0b03eb44e319436040753bce2067489406154da956f4226fcf6c9c"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "manifest.json"
+      ],
+      "sha256": "50b3d8c3903af3f78d871b94557ab14f4e39ca192eaca3d2cfa863c867279a14"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "playgroundIndex.html"
+      ],
+      "sha256": "d791b0b5be470a9c67d28446551b2c1bbf605719e1c6f4a0c9bf8aeb34837d6c"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "public/assets/Successsuccess.svg"
+      ],
+      "sha256": "10f363c516ce86b5ebc6f61d545710ae1a0407a140b47fda1a4ae9099654c0af"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "public/assets/cap.png"
+      ],
+      "sha256": "2dee38dfdd40eccba47879408cc39fedf9446fb420a43b965968537ca6af4132"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "public/assets/hyperswitchLogo.svg"
+      ],
+      "sha256": "0cabce10ef4d1999b9772409fddb79b44495d3e876e5a5a0fa790303e582d464"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "public/assets/shirt.png"
+      ],
+      "sha256": "31c60366a46317caf28666570820ea4373126996683dccaa64dc525d22c3aa58"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "server.js"
+      ],
+      "sha256": "3f624d40bab57519d3afc0dc3b7654aac1e6ec07beefc1bbe39ef31f4157b8c4"
+    },
+    {
+      "artifact_path": [
+        "demo",
+        "widgets.html"
+      ],
+      "sha256": "b763b8115d9aeb2a41ba021a5b4072f44d9fca27ecc66dcb08720a8a300f4b0b"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "fixture.js"
+      ],
+      "sha256": "a84a3efe533ee481fb4ab0ef46ea2c511532639161175e0f87198b0af3dc0e4b"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_BrutalTheme_bs_js.fixture.js"
+      ],
+      "sha256": "65a3251a605a9250b90143dffa70243684ad64cd4cfb55ad53daacae31176bae"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_BubblegumTheme_bs_js.fixture.js"
+      ],
+      "sha256": "efb2eed9a8cab44fc2dd2a32ea3e715ffef76bb042cf29f0096fc5e6b4c3b212"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_CharcoalTheme_bs_js.fixture.js"
+      ],
+      "sha256": "66ffe458980a34bac54d8cae3d5c35f0f1920c4ae94c19bae43bcf73edce0574"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_ArabicLocale_bs_js.fixture.js"
+      ],
+      "sha256": "caebe1387b8db22a0259bd00bd11a04317ad67d1c04d559affc8ccc73688d832"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_BosnianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "0decca42a63ba71ff71d39dc20f7a64e61241bef1ab380570581cdae5186a4ac"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_CatalanLocale_bs_js.fixture.js"
+      ],
+      "sha256": "3ef9346bf394f6ae77136d14e414286aa4e58513003084aee7129f7214f156ae"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_ChineseLocale_bs_js.fixture.js"
+      ],
+      "sha256": "adddf6beccc4a53a27c26f8a0cc2eee613038b99f3caf1d5b2c0bc3ffc68cb03"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_CzechLocale_bs_js.fixture.js"
+      ],
+      "sha256": "1b6d89ce06fe4f0ae1cefd6d9a779e22acef93ae65b859c329631f34a60cbfee"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_DanishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "ef6534da9d8b2d406209b12472f3de9928038afde7a633285f93bad27ad72240"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_DeutschLocale_bs_js.fixture.js"
+      ],
+      "sha256": "7cb692d0b2c31c11fe0286febc1e8afe48eb453ee54d39dd2d529e2adef04a5a"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_DutchLocale_bs_js.fixture.js"
+      ],
+      "sha256": "4f389fd96f9c4a3403eaffd302a60ff2411b1f165ebf7d51294d5fb5105ea4d0"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_EnglishGBLocale_bs_js.fixture.js"
+      ],
+      "sha256": "5c949df50d135d09348adeb16c5ad5a4326c0750886d555315a38a5f258d24c3"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_EstonianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "fc19aff76d7d45ef6f2ba1fe5de01b342e5e21e0aeae19563fcfecbc8316b0d8"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_FinnishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "1eb9fe82a23a7d867d927e6fdf401edaaa1ca12ef38ebcf0ee12dad1e156727f"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_FrenchBelgiumLocale_bs_js.fixture.js"
+      ],
+      "sha256": "62f6c7a616b2e91a59f766498481a706a28f4d51d09d3dfe9f014fb8245ec8a6"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_FrenchCanadianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "2acc00901ffdd789ab145583ce7ee9a34c06fd9001b4fe353fbe3e17079f6b80"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_FrenchLocale_bs_js.fixture.js"
+      ],
+      "sha256": "2746b92dc88d551495eb81c4735f43052efe2e94dace9911bceb15ecef3d1be1"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_GreekLocale_bs_js.fixture.js"
+      ],
+      "sha256": "a6a868e553621d20c27e4e56db0e5c267705cfac493c61ec30b7527c87bddfdb"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_HebrewLocale_bs_js.fixture.js"
+      ],
+      "sha256": "da8f934b19385ebf23149a497a7cb837cc3f1c634664d82be24f33ab9ce969f8"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_IcelandicLocale_bs_js.fixture.js"
+      ],
+      "sha256": "ca151049e756c4e3c80976890256c0e7405afeda32f99b1afe12ee56d541ae2a"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_ItalianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "d963980d908714d046247a0e5651cd3b3e4717323a369e374164552486d9f0bc"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_JapaneseLocale_bs_js.fixture.js"
+      ],
+      "sha256": "7d1c488852327aed71386c80869f7081d43e4b4917325e2314fc773609c2513b"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_LithuanianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "057f293a61c15d3f35626ded81699e2236457431b8095b5d55679f61faa40443"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_MalayLocale_bs_js.fixture.js"
+      ],
+      "sha256": "f69f7bddac0586a2ba1c7de94891a3b0d375ab9e0dd120df3ab0a1385a91b0de"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_NorwegianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "6a39dc8236ff3c5630f6f987535c8e72065e17ce8368b7b2e178e5d3e0239acc"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_PolishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "9b681d952dda8e7b8911156766873ad1998ee75fb715e528854810617e530cec"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_PortugueseLocale_bs_js.fixture.js"
+      ],
+      "sha256": "24f3909a1507b67032552a297e45b46f5c35e3775424db056146be034ecd4268"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_RussianLocale_bs_js.fixture.js"
+      ],
+      "sha256": "e54085f49fa20310a4eb33609ba3bbd7111575d5b6566bb219ff3225c1cfd813"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_SlovakLocale_bs_js.fixture.js"
+      ],
+      "sha256": "06b633720c248038ccde997b2a69c2b42abe85f85d8bc74954a8e3a151e0d331"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_SpanishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "2eb42ea2639e8f2bf2942e15cd253906ce96875350171bb65f3eb9f65e1b32ca"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_SwedishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "c310cb21e26f2ef75a4eb3d3c1cd58496c6d9d7312d1f59f663fe918b0fe789e"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_TraditionalChineseLocale_bs_js.fixture.js"
+      ],
+      "sha256": "e7f34b5779224d9574b9678dc97b4b01317740a30fcbbb93b2bd4ce70eaa0a5f"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_TurkishLocale_bs_js.fixture.js"
+      ],
+      "sha256": "41b5a98042612a9578be67a738e0c62a9f227f803b018b78c05613591af7a4e2"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_LocaleStrings_WelshLocale_bs_js.fixture.js"
+      ],
+      "sha256": "8d04db0f7595217e7d786f8f891ee179246604ae301786d2f715725616db799f"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_MidnightTheme_bs_js.fixture.js"
+      ],
+      "sha256": "e564b0ff996c91e683a2ff6ed4ed24e95e5b6120f29da805bbd87e3913d4a83c"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_NoTheme_bs_js.fixture.js"
+      ],
+      "sha256": "84a3af899083df1a2cf74f503641511d7ec0c01d1ac4aa974c7ed6316fb3a6a1"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "src_SoftTheme_bs_js.fixture.js"
+      ],
+      "sha256": "a3624a9eeff55e9de21796356684eace865ef1e97d29f200c731e71932a9ccf7"
+    },
+    {
+      "artifact_path": [
+        "components",
+        "vendors-node_modules_react-datepicker_dist_react-datepicker_css.fixture.js"
+      ],
+      "sha256": "832f528ed869ae5a25db1815465e1b18000c9f33778a2014d6c554800ad598e0"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/superposition/superposition.js"
+      ],
+      "sha256": "5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/hooks/ConfigurationService.res"
+      ],
+      "sha256": "4bed27b36ad3de18a49476ab37dfb499ec0341227bde005f9dbe9e3ec0fd5ae4"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/utils/SdkConfigParser.res"
+      ],
+      "sha256": "755f71a04df6edf36d837b59c4f6f4341edf8e7dc97ca9bb033e06a84825d5f6"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/utils/SuperpositionHelper.res"
+      ],
+      "sha256": "e6814437891af8d9284320b9546769fbca2f42040f7e7cc64ef0ba90067af021"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/DynamicFieldsUtils.res"
+      ],
+      "sha256": "6aa0bdfe7fb1a08f5688cb3edf0e346284f7a09d355847005555143fbe35eb8a"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Country.res"
+      ],
+      "sha256": "586172b1ac1fc154c1072e9231ae78f2e491ba2fe669642ccb4596a0c0eaf08c"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/States.json"
+      ],
+      "sha256": "c64c8d955673064e1f6d4b8fdced41085c4b57dff09d28bae32ed674345f18eb"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/S3Utils.res"
+      ],
+      "sha256": "c39dcacf7e2b5ee1d26602018f0bc97d6eba7f765cc19f3d57660da785d35494"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "package-lock.json"
+      ],
+      "sha256": "00fc3941d7937310d3924caf17fcf978d67dd29eaa5fc21d5e53192f12fe81ad"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/package-lock.json"
+      ],
+      "sha256": "0a69a352e1dc72444534e986b01a534f1d849585f61f26c32685828341cb5e12"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/utils/CommonUtils.res"
+      ],
+      "sha256": "f3423f8731d5a586a36db64a19c7dd5041e162d2bd284c92dbe1cf1bdae57d1d"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "shared-code/sdk-utils/types/SuperpositionTypes.res"
+      ],
+      "sha256": "3cc26b27f8d46ccdfe371a0d43ad1f74188bea8e7b4d70d04f4cfed36ea37354"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/PaymentUtils.res"
+      ],
+      "sha256": "01a69dba2104b3935258592bd66311910017b342b47114912a00677ffaf4aec1"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/Utils.res"
+      ],
+      "sha256": "799e461415700d2a4c3cd8cb432986084bffae4ca7a8115615547748d738df7a"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/Constants.res"
+      ],
+      "sha256": "fd69d4a089e65baac34fe6e8985d6e26d65b603b9c54a74902190e6d3af6fcf3"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Payments/PaymentMethodsRecord.res"
+      ],
+      "sha256": "027c2120fd53f2731c06418deaa19f3444ebb7e1111ff3e77f816333c00cf893"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Payments/ParentCardComponent.res"
+      ],
+      "sha256": "11a3cb5310e7604a4a294901eaad847aae7abd9537a8ddcbab3aabc65c4e80d2"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/CardBusinessFields.res"
+      ],
+      "sha256": "aa4334a3a47fca29bf730a173e301a3735fee03f1a173dfb130cdcff646e656e"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields.res"
+      ],
+      "sha256": "70de3ded8347943b98dd7855230d68240e28eb11afadca8f1607f0f65c4cb027"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFieldInput.res"
+      ],
+      "sha256": "b3ed3c60d6d613239680654db8ce7ddd9062718224c79f875e0385ded38536a5"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DropdownField.res"
+      ],
+      "sha256": "186d3eea264136f21f1222b90e31efe97a9da98c71e13221a35c78148d054f82"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/CountryStateDataRefs.res"
+      ],
+      "sha256": "7b73531b8fd43c314a19f2a293b08f0653ad2b13761ec844c304269346c29677"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/BankNamesSelectField.res"
+      ],
+      "sha256": "0dd9003bf0daace36014333d9a90f1bbb5fb3c9ca5499d125202e7b25a1df594"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/CardHolderNameField.res"
+      ],
+      "sha256": "15c9f8c6ca79d93fe6dec2baa464ea50184587d64be87f5ce2b062545f17821f"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/CountryDropdownField.res"
+      ],
+      "sha256": "78721ead8fa5b56d39654e1efec0cd6c4d75b7aa5b5c0aa01b952ae59b67db2e"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/EmailField.res"
+      ],
+      "sha256": "41984aa20eb5af6e8224a342d4a39e44f37448b403b485c8a5d1d5bc70c631c4"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/GenericDropdownField.res"
+      ],
+      "sha256": "46fdb96db286730ed7349a1be46d84f2d88c9bcd92d0a27944aec135996429c8"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/GenericInputField.res"
+      ],
+      "sha256": "c42f31bea52d1109a5e3708b7ad18d6f1c3fa6f9d94d6454de3e51dbd738f535"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/PhoneCountryCodeDropdownField.res"
+      ],
+      "sha256": "3be5dc6b71b0dc0f2fb12fb6a6c7368653f95bb0acda15bff1ac74a496ff0522"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/PhoneField.res"
+      ],
+      "sha256": "869e296b3da1160bde1c51218ea65e481825827f5865d633feb2f7c6a2444c5d"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Components/DynamicFields/StateDropdownField.res"
+      ],
+      "sha256": "58ecde54a2139c86c505e2a03b4a77e54e15c4f3499756c7b73ff4a86f69184c"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/browser-entry.js"
+      ],
+      "sha256": "26518ed6640aae13eebc8c42e65c48201d9dff6e333bc4bede4905ce630e3589"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/browser.spec.ts"
+      ],
+      "sha256": "42a72db770fd2413655cafbf77e967c392f14626838fc8ea06454b28c72b8c82"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/contract.cjs"
+      ],
+      "sha256": "23a6baa28d560ed68f91c1e8419dfc4b747eaf73a6e5685a059b3ae46a7a53e6"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/contract.test.cjs"
+      ],
+      "sha256": "9bb3783cf1144fb36234378ae2a4ee7c6859e11a8d3a7d948e8aee0f514a4cca"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/evaluator.cjs"
+      ],
+      "sha256": "e412dc20d36801c4c7f5f4ef48e1269cdf97ed308e9a5d0a4cc77bc277502e1a"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/playwright.config.ts"
+      ],
+      "sha256": "8444e7e55455e8c5352a65775f3dc66d505cd3a8eafdee9a376e57ecda8b6995"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/prepare-fixture.cjs"
+      ],
+      "sha256": "85f84dd4343780ff1195ea9a362dcf4dbba46687dbe253ba0522d85c44753d2a"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/reporter.cjs"
+      ],
+      "sha256": "30a3a407785a3454e70dc3ce23bd9acaa75990119325acf223275b974d295961"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/run-browser.cjs"
+      ],
+      "sha256": "93ff23916c747db8bc9612c8c11528e4a4ae26592a13d720662d73c76cbd4de4"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/run-resolver.cjs"
+      ],
+      "sha256": "977627aeee5949844684af977973f873eb737960cf5de289c8dcd79eae833d68"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/webpack.config.cjs"
+      ],
+      "sha256": "75181425660cfb55e593c16b75a8e8fbc65b965f0ea23239671cf62e0db958c0"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/e2e/required-fields-sync.spec.ts"
+      ],
+      "sha256": "9cc71b06c4c8cdb3adda41f239849916a58172618a91c7b4fa4f8e90da714d0f"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/tsconfig.json"
+      ],
+      "sha256": "d7c41a65a5b8058230aeca32439edd22bc3a88a63ec2b54f3d9d32d0ea5bb16f"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/run-checkout.cjs"
+      ],
+      "sha256": "73f2e64925a8d209b0d297d21b2d26cd5bc597b56954af722368793e99a4c833"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/fixture.cjs"
+      ],
+      "sha256": "217d47d52b1cfa546242d65a1134ce3bc5eecb9e492fc0c1ad82e04257561076"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/checkout-demo.webpack.cjs"
+      ],
+      "sha256": "e2122ad940231ad4e8898f8f82b9c6cb6d488efdf4b742c028ae565ea57ff955"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/checkout.config.ts"
+      ],
+      "sha256": "7a348ac6058e1e82a890ff2da63ff74489348e0e9def1b8d1f9478acde8c8304"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/required-fields-sync/checkout-sdk.webpack.cjs"
+      ],
+      "sha256": "ff35be98084b74821bbadc7ebca474fa54d419cd7a5f29646b61eb7e2128cc53"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "webpack.common.js"
+      ],
+      "sha256": "2f4c016fb2f10b458b873b3e0fae23dce1142e5702765e7068a2040678a9a917"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "tailwind.config.js"
+      ],
+      "sha256": "8ae5d77bf748a3820c4e605b0e131d1f5bbd797cd59b473596c1cd48b9aa10a6"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "index.js"
+      ],
+      "sha256": "33a68534cf929c8a3768d20b0b65000ca30a8f0d3ec2bbfae2e66908829f4a82"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "rescript.json"
+      ],
+      "sha256": "be3f615819c60fd79916a57abd6958c7db66e1d5820308a437ca8f7a5fc3ffcd"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "Hyperswitch-React-Demo-App/package-lock.json"
+      ],
+      "sha256": "dc5d5a164e7c1b60e41ed5152619ac6ce402e403587c19c6fb811c482552c602"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "Hyperswitch-React-Demo-App/webpack.common.js"
+      ],
+      "sha256": "4ae2e72a4fe01c224eb1c50b60193353b7442f6c4e426249d42d2935681f05fe"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "Hyperswitch-React-Demo-App/src/index.js"
+      ],
+      "sha256": "c54bfcf1f2054d619262d5cc813f7095b4d20c2dd8c359a08425da2401924b42"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/index.ts"
+      ],
+      "sha256": "7e403d544e712a4f0d8967e08b15293c7f18b4b43e9e2841120993bc49436d21"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/api.ts"
+      ],
+      "sha256": "0b8d42b98f364d278e9bb2960585baf364e98eebe9c8ad172a73e2eedaeb3a26"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/checkout.ts"
+      ],
+      "sha256": "b5a08f7d1df05f64762702d89a8e472ab4c54ca2e106a1d6e73055570a488a28"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/sdk.ts"
+      ],
+      "sha256": "26fd3402904e6161bbcf0405bae97cf71742ead5552bd9ee8c507948a0e36858"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/env.ts"
+      ],
+      "sha256": "8010b539d28d4663296b475c8119d862c81295027f4759b0bd0b7fcae6b67edf"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/hermetic/engine.ts"
+      ],
+      "sha256": "2c7cd3ba6b35aa04ece2a38294af57540f728eafb175396282c8cbe4c08cd2df"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "playwright-tests/fixtures/demo-shop.ts"
+      ],
+      "sha256": "2db1bf8054bd2f6b0a9ce126e04d720ece3329fc791cb18ecb305be7b953be24"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/PaymentElementRenderer.res"
+      ],
+      "sha256": "ceec000b7854197fe6ba74cc089a6c9ed20a1ca6842a59ff5fc5dc646755e0e2"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/hyper-log-catcher/ErrorBoundary.res"
+      ],
+      "sha256": "cb559555ba795fc4e35c2c7ca846d181e3360487b15680fdff413b3e5e3aa661"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Payments/RawCardCollector.res"
+      ],
+      "sha256": "50c6cdbe0eb042641ea9ed67847bba566897fca4b1958b9db82ef0855b8a0392"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Payments/PaymentMethodsWrapper.res"
+      ],
+      "sha256": "38ad8386e2b9ad131231154b6102ec804f08f2719bac2ef6454441ae16ae023d"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/Utilities/PaymentBody.res"
+      ],
+      "sha256": "69c096a03c0aa58fad8fc8572593c3a1a47374b11c682d9081207b691df3a658"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/CardUtils.res"
+      ],
+      "sha256": "fec15826d3315e4a84c095a099338bf3488971ed858e1f83bd74bb0aa82661df"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "Hyperswitch-React-Demo-App/src/CheckoutForm.js"
+      ],
+      "sha256": "9632c1ca5e97f74fb62bb137b2051b8e574fdb5ee24015f6b789d7a8ecb41d21"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "Hyperswitch-React-Demo-App/src/Payment.js"
+      ],
+      "sha256": "fa9814d0f48802531836c0782904a5361d1208b6e656fcc5fc5a2e87cb8b6f3f"
+    },
+    {
+      "artifact_path": [
+        "sources",
+        "files",
+        "src/LocaleStrings/EnglishLocale.res"
+      ],
+      "sha256": "756fcf3e97a5a4f13ff04e206efd26ee8c22c0bda6245cebac644b5ee1f8fdd7"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "README.md"
+      ],
+      "sha256": "e99f817fa198dd310c44c78cfcf51f772b6b2eefd1da327f3082b63533330235"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "browser.spec.ts"
+      ],
+      "sha256": "c1f25acd8e2008b5b0b4fd89febe2ab98b126c529933010cabe5410e19891c33"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "checkout.config.ts"
+      ],
+      "sha256": "c28f9f4d2453025ee5120fae1b74c70dd2c9eef96d0d93d43510090154a6af18"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "contract.cjs"
+      ],
+      "sha256": "92f9597cf0d60e6209f771a08c17d81df2ed2cefc9c2693e431ab807a4d924c5"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "contract.test.cjs"
+      ],
+      "sha256": "87ca17399b33de2c8853b901710e698471269e78da44378e1d0654b713321318"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "environment.cjs"
+      ],
+      "sha256": "bd942cf01b1830e33e4480e078eb81a902cda6c9a846bb72e8c1beb0edb82b1c"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "fixture-input.cjs"
+      ],
+      "sha256": "320308390f25d16b464809313314d3794c120f076c40ae05b9b047f5a4bb6c8b"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "reporter.cjs"
+      ],
+      "sha256": "2432cb7c44e313d5bce9653cf77a19a38ee5315861576dc6403293b06842e95c"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "run.cjs"
+      ],
+      "sha256": "5c0aefe63559106d8194f807320d5f78e0e30b419d67358efdeef717e4e96367"
+    },
+    {
+      "artifact_path": [
+        "companion",
+        "tsconfig.json"
+      ],
+      "sha256": "4732b47ff966b2b030252e3dc96e20bd35244ef75edd73ed3fd8c664f392ac90"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        ".links/c88d838d32b7e641560927325dcae4e8dc9fc52d"
+      ],
+      "sha256": "b149d1e5a2ee1e9f5358d06a0b15dca97784bc485e1c70f8948b0df76c4fa99d"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/DEPENDENCIES_VALIDATED"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/INSTALLATION_COMPLETE"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/ABOUT"
+      ],
+      "sha256": "34d078ce3003087a8374e7c6156fda374769b8047d6ddaf419d66414aa48edfb"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/LICENSE.headless_shell"
+      ],
+      "sha256": "14561bfc58f207af7ade768e8b95e99f9cf8af6d9aa46b4c0d9ae0b3a97585cc"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/PrivacySandboxAttestationsPreloaded/manifest.json"
+      ],
+      "sha256": "51c311a4ba03140bcd1c827f8d93dba50cadda736925903b26e95609275dbffd"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/PrivacySandboxAttestationsPreloaded/privacy-sandbox-attestations.dat"
+      ],
+      "sha256": "59e345dc13aedee9ea46b92e58300ecaca944aaea9384c7af885400ac2ae8806"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+      ],
+      "sha256": "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/headless_command_resources.pak"
+      ],
+      "sha256": "5dacfe683bbd88ab1c96dfbaa1f375b54821235772cb71dd71273350cdfec867"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/headless_lib_data.pak"
+      ],
+      "sha256": "309027599a54d026f703def73cb121202f05afd467ba482be82a900468b329e7"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/headless_lib_strings.pak"
+      ],
+      "sha256": "71be29b4a93ebe9d1094af70c66efaa692b71d8afd2fffa5feeba5bb05a98a22"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/icudtl.dat"
+      ],
+      "sha256": "a3c6d7824935e87fed17e94c2d84b7683ef360ebc5c4ea92e2ca70f361bc9314"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/libEGL.dylib"
+      ],
+      "sha256": "8b7e5b3ebed9cd5fc1cde7ff1458fd5eb150d496d7474e13f963d43546c08aeb"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/libGLESv2.dylib"
+      ],
+      "sha256": "7765bf768e52ced295a67cb362e3ca9714e64208e6ecea4e67e5b4b85e094934"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/libvk_swiftshader.dylib"
+      ],
+      "sha256": "a992e2126966d15be0345d1bc59abb7ca61cc0072f8bba57e052bd0b6026d81c"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/libvulkan.dylib"
+      ],
+      "sha256": "b2f0778061f6bf9619404ff79c813454175787d562cbf3fb2c7ae7615e0bc1fc"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/resources/accessibility/reading_mode_gdocs_helper/content.js"
+      ],
+      "sha256": "6c0aeaaf9a71ad68aa45764c111e70bb23aa0fbf406644a375b6b709cbbe4b6e"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/resources/accessibility/reading_mode_gdocs_helper/gdocs_script.js"
+      ],
+      "sha256": "d291adabcfcb1a4a4a2ffacdd9d04fdb473ab0d6903556bef7446be9c3646d86"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/resources/accessibility/reading_mode_gdocs_helper_manifest.json"
+      ],
+      "sha256": "1687ef7f1acedeff31d73e9ef9409e58538e6c612dc1da8775cc259f3431a376"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/v8_context_snapshot.arm64.bin"
+      ],
+      "sha256": "f98e96bc94b1e28bb9af13e7efdf52435a481b917559dc1b68e6c9305f6ec720"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/vk_swiftshader_icd.json"
+      ],
+      "sha256": "d717d915e31e7c27948b80b36ab34e2d897888114c5c7d0af835f93eb53e58f5"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "ffmpeg-1011/COPYING.LGPLv2.1"
+      ],
+      "sha256": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "ffmpeg-1011/DEPENDENCIES_VALIDATED"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "ffmpeg-1011/INSTALLATION_COMPLETE"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "artifact_path": [
+        "chromium",
+        "ffmpeg-1011/ffmpeg-mac"
+      ],
+      "sha256": "662398c99429f5493ff0ff40cdcd97ea25132addcbdedafd0741389964147825"
+    }
+  ]
+}

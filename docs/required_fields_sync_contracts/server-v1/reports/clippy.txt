@@ -1,0 +1,2 @@
+    Checking required-fields-api-contracts v0.1.0 (<H>/scripts/required_fields_contracts)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.87s

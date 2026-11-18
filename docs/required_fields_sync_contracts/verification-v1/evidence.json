@@ -1,0 +1,1424 @@
+{
+  "schema_version": 1,
+  "step": 11,
+  "date": "2026-11-18",
+  "scope": "local_synthetic_only",
+  "hosted_apply": "disabled",
+  "target_certification": {
+    "V1": "pending",
+    "V2": "pending",
+    "V3": "pending",
+    "V4": "pending"
+  },
+  "starting_revisions": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "index_hash": "2a0dd819c367ef4fbcd78deb7fa31fdcfedbaae48f5aa8827d7f2bb2ab801db0"
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "index_hash": "501608d743ce8a8f3c4bbed61c36a61fff1d525e572a3bd2127ae08b1130f78b"
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "index_hash": "359a0e540417b9ad420b08981a7f05ad9b808766e90032d80b1f466fd79bf49c"
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "index_hash": "d030d32dd141587618fe67e3a97403e50cf49cd1170caf536b6a7dd33e29f0de"
+    }
+  },
+  "preservation": {
+    "H": {
+      "head": "480e15c04a1524b7c297d1a8df761fcef55be4fa",
+      "branch": "feat/superposition-required-fields-foundations",
+      "index_unchanged": true,
+      "baseline_hashed_files": 4804,
+      "rechecked_files": 4804,
+      "credential_configuration_not_reread": [],
+      "diff_check": 0
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "index_unchanged": true,
+      "baseline_hashed_files": 580,
+      "rechecked_files": 578,
+      "credential_configuration_not_reread": [
+        ".env",
+        "Hyperswitch-React-Demo-App/.env"
+      ],
+      "diff_check": 0
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "index_unchanged": true,
+      "baseline_hashed_files": 745,
+      "rechecked_files": 745,
+      "credential_configuration_not_reread": [],
+      "diff_check": 0
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "index_unchanged": true,
+      "baseline_hashed_files": 2343,
+      "rechecked_files": 2343,
+      "credential_configuration_not_reread": [],
+      "diff_check": 0
+    }
+  },
+  "changed_files": {
+    "H": [
+      "Cargo.lock",
+      "crates/router/Cargo.toml",
+      "crates/router/src/core/required_fields_sync.rs",
+      "crates/router/src/core/required_fields_sync/impact.rs",
+      "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "crates/router/src/core/required_fields_sync/verification.rs",
+      "crates/router/src/core/required_fields_sync/verification_browser.rs",
+      "crates/router/src/core/required_fields_sync/verification_http.rs",
+      "crates/router/src/core/required_fields_sync/verification_provider.rs",
+      "crates/router/src/core/required_fields_sync/verification_tests.rs",
+      "docs/required_fields_sync_contracts/README.md",
+      "docs/required_fields_sync_contracts/questions.md",
+      "docs/required_fields_sync_contracts/verification-v1/README.md",
+      "docs/required_fields_sync_contracts/verification-v1/browser-artifacts.json",
+      "docs/required_fields_sync_contracts/verification-v1/browser-input.json",
+      "docs/required_fields_sync_contracts/verification-v1/browser-report.json",
+      "docs/required_fields_sync_contracts/verification-v1/checks.md",
+      "docs/required_fields_sync_contracts/verification-v1/evidence.json",
+      "docs/superposition_required_fields_sync_implementation_playbook.md",
+      "scripts/required_fields_inventory_checks/Cargo.lock",
+      "scripts/required_fields_inventory_checks/Cargo.toml",
+      "scripts/required_fields_inventory_checks/README.md",
+      "scripts/required_fields_inventory_checks/src/lib.rs",
+      "scripts/required_fields_inventory_checks/src/sdk_wire.rs"
+    ],
+    "W": [
+      "playwright-tests/required-fields-verifier/README.md",
+      "playwright-tests/required-fields-verifier/browser.spec.ts",
+      "playwright-tests/required-fields-verifier/checkout.config.ts",
+      "playwright-tests/required-fields-verifier/contract.cjs",
+      "playwright-tests/required-fields-verifier/contract.test.cjs",
+      "playwright-tests/required-fields-verifier/environment.cjs",
+      "playwright-tests/required-fields-verifier/fixture-input.cjs",
+      "playwright-tests/required-fields-verifier/reporter.cjs",
+      "playwright-tests/required-fields-verifier/run.cjs",
+      "playwright-tests/required-fields-verifier/tsconfig.json"
+    ]
+  },
+  "file_hashes_excluding_this_record": [
+    {
+      "repository": "H",
+      "path": "Cargo.lock",
+      "sha256": "95480ca3b48b4fb6809c934f3b08fe4d2f8cd6dcd32c297ee9e5465f55c2f9e9"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/Cargo.toml",
+      "sha256": "c01bc034e638506e8e44ab8a6420dd3f9747d1ad6595dac22f7e5ae562b3e460"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "sha256": "3b5d69b7e510dfbc0ec6eaf3103168e7c5907234b5fe1829ecdef8ee1f1a1bf3"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/impact.rs",
+      "sha256": "85b98ee9777bf257ba8ef2ad28a6ecbbf723586456741120dd5e228feb93393b"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/planner_tests.rs",
+      "sha256": "e8623c128c8b2a21045bee0a6876de550ab476f3b7f82285e8d4258ffead5b73"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/verification.rs",
+      "sha256": "442c7df97cc1ef630e193a6e2d9f40db24321b392fa02dbf4d656899f2d2f743"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/verification_browser.rs",
+      "sha256": "8d90bb6fdb02f94a0e3843bf3e9be459d9a659558bfa2d55800aba1750e85115"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/verification_http.rs",
+      "sha256": "ec038889cb5dac2c9383d4bbb6f340e002c7c155e46fcb40d1b66ed64a10c359"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/verification_provider.rs",
+      "sha256": "2fde3a3a814c0845ce738bd1c6fbc7022fec746e630da755c18e480088f28dd2"
+    },
+    {
+      "repository": "H",
+      "path": "crates/router/src/core/required_fields_sync/verification_tests.rs",
+      "sha256": "d480c136d31311dea937f4d13c3639b5ee14e0627f6f7b82c3b6e1210a4cd3f5"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/README.md",
+      "sha256": "94481ee6aaa01a08f869c5a6fbe8aa95656dd08316bf0a1fe2aea1705d88c00c"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/questions.md",
+      "sha256": "3d69d276961b10d49b30963c582b54ee06e34635879ddebe51d336579a4c8692"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/verification-v1/README.md",
+      "sha256": "c70eb6dc82fb1c2d6f65046b63c17c5871a4b9630cf44335a41be888b09b928d"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/verification-v1/browser-artifacts.json",
+      "sha256": "a1db4615cb3b66d0502beac9109c006b03eb1c03566536339dac7571e0c24251"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/verification-v1/browser-input.json",
+      "sha256": "f08d104915a1623fe0808d8f6c54ffb55156fe5ce51329fd732ceb1638feabad"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/verification-v1/browser-report.json",
+      "sha256": "5c752a543e56d910f302e2aa500c502e3e054da94854ae5af96472ba30a52832"
+    },
+    {
+      "repository": "H",
+      "path": "docs/required_fields_sync_contracts/verification-v1/checks.md",
+      "sha256": "127d60288aa1da54af45bea11ab119524f122de9620f5fdb996ac46bc383084e"
+    },
+    {
+      "repository": "H",
+      "path": "docs/superposition_required_fields_sync_implementation_playbook.md",
+      "sha256": "c115b444b21e50ba4e4ab0b13e637fec4a5849609117dd47591c0d0caef9a3d4"
+    },
+    {
+      "repository": "H",
+      "path": "scripts/required_fields_inventory_checks/Cargo.lock",
+      "sha256": "a09365bf464e77a2fce7eed95a08c8a0c4ad8ccbbe56734a15b28bedd7f442f8"
+    },
+    {
+      "repository": "H",
+      "path": "scripts/required_fields_inventory_checks/Cargo.toml",
+      "sha256": "33857293747e9958cf9f9fe7c0a02708a88ed9f08ef0b48eeef1f747e58db8f9"
+    },
+    {
+      "repository": "H",
+      "path": "scripts/required_fields_inventory_checks/README.md",
+      "sha256": "96e2204d1f981bee80393754cd642411bbc327e160b4d54e2e261fe264bee432"
+    },
+    {
+      "repository": "H",
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "sha256": "8d2a9d488d369093d21282d23efa0804f1b7412d97c3d5b2ec9d485ee321ed0d"
+    },
+    {
+      "repository": "H",
+      "path": "scripts/required_fields_inventory_checks/src/sdk_wire.rs",
+      "sha256": "8c52af3a8ec2c08b30fc140acffefcb26405372dc5a5c83b73a621585bae5dfd"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/README.md",
+      "sha256": "e99f817fa198dd310c44c78cfcf51f772b6b2eefd1da327f3082b63533330235"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/browser.spec.ts",
+      "sha256": "c1f25acd8e2008b5b0b4fd89febe2ab98b126c529933010cabe5410e19891c33"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/checkout.config.ts",
+      "sha256": "c28f9f4d2453025ee5120fae1b74c70dd2c9eef96d0d93d43510090154a6af18"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/contract.cjs",
+      "sha256": "92f9597cf0d60e6209f771a08c17d81df2ed2cefc9c2693e431ab807a4d924c5"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/contract.test.cjs",
+      "sha256": "87ca17399b33de2c8853b901710e698471269e78da44378e1d0654b713321318"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/environment.cjs",
+      "sha256": "bd942cf01b1830e33e4480e078eb81a902cda6c9a846bb72e8c1beb0edb82b1c"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/fixture-input.cjs",
+      "sha256": "320308390f25d16b464809313314d3794c120f076c40ae05b9b047f5a4bb6c8b"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/reporter.cjs",
+      "sha256": "2432cb7c44e313d5bce9653cf77a19a38ee5315861576dc6403293b06842e95c"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/run.cjs",
+      "sha256": "5c0aefe63559106d8194f807320d5f78e0e30b419d67358efdeef717e4e96367"
+    },
+    {
+      "repository": "W",
+      "path": "playwright-tests/required-fields-verifier/tsconfig.json",
+      "sha256": "4732b47ff966b2b030252e3dc96e20bd35244ef75edd73ed3fd8c664f392ac90"
+    }
+  ],
+  "executed_commands": [
+    {
+      "record": "all-final-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 22.66,
+      "network": "OS network denied",
+      "log": "all-final-tests.log",
+      "log_sha256": "0d25a2bbee79c7db25627b9c4da6864d7cf998a747827937baef34fc02ed3b2d"
+    },
+    {
+      "record": "all-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 21.9,
+      "network": "OS network denied",
+      "log": "all-tests.log",
+      "log_sha256": "d993cbc1b2db22450912cd57752d1812e16d31608685151cb8cc8fd24c069e6a"
+    },
+    {
+      "record": "binding-pass-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 0,
+      "seconds": 14.65,
+      "network": "loopback only",
+      "log_sha256": "dbe5c5dba28623e2a01d212c59dcb5a16db54e424c4c42d7bdb85e9df7a1eb81"
+    },
+    {
+      "record": "browser-install.json",
+      "args": [
+        "node",
+        "playwright-tests/node_modules/@playwright/test/cli.js",
+        "install",
+        "chromium",
+        "--only-shell"
+      ],
+      "exit": 0,
+      "seconds": 28.2,
+      "log_sha256": "637f4e773a28bcd8cff71d9cb1b49890b4dcd01ce71999fecebe5246b34faa5f"
+    },
+    {
+      "record": "canonical-final-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 21.27,
+      "network": "OS network denied",
+      "log": "canonical-final-tests.log",
+      "log_sha256": "d17d1f8ea666c92979bcb1b20fed9450e5a132b8bac74246ce9538905ff657ca"
+    },
+    {
+      "record": "canonical-isolated-clippy.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 3.97,
+      "network": "OS network denied",
+      "log": "canonical-isolated-clippy.log",
+      "log_sha256": "b14234bedb06d9dde5b69bbd0ac604af5330ed78abb797759873f5c9708ff121"
+    },
+    {
+      "record": "check-components-build.json",
+      "args": [
+        "node",
+        "node_modules/webpack-cli/bin/cli.js",
+        "--config",
+        "playwright-tests/required-fields-sync/webpack.config.cjs"
+      ],
+      "exit": 0,
+      "seconds": 1.15,
+      "log_sha256": null
+    },
+    {
+      "record": "check-rescript-initial.json",
+      "args": [
+        "npm",
+        "run",
+        "re:build",
+        "--ignore-scripts"
+      ],
+      "exit": 1,
+      "seconds": 1.23,
+      "log_sha256": null
+    },
+    {
+      "record": "check-rescript.json",
+      "args": [
+        "npm",
+        "run",
+        "re:build",
+        "--ignore-scripts"
+      ],
+      "exit": 0,
+      "seconds": 5.28,
+      "log_sha256": null
+    },
+    {
+      "record": "final-canonical-receipt.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "plan::tests::verification_tests",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.9,
+      "network": "OS network denied",
+      "log": "final-canonical-receipt.log",
+      "log_sha256": "1450093f2e0c64cb073ea0c015268993447984b5e55a8748fe94cbe114b6760f"
+    },
+    {
+      "record": "final-clippy.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 4.56,
+      "network": "OS network denied",
+      "log": "final-clippy.log",
+      "log_sha256": "10c816d5f73ed73d03208110163cf5cce5883aaef5de9859f169e049925837ca"
+    },
+    {
+      "record": "final-complete-suite.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 11.26,
+      "network": "OS network denied",
+      "log": "final-complete-suite.log",
+      "log_sha256": "284a52bbed93c127b00d58381128d4ea96ee05bfdeb377d89b41a9b5238407dc"
+    },
+    {
+      "record": "final-provider-companion.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "plan::tests::verification_tests",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 17.7,
+      "network": "OS network denied",
+      "log": "final-provider-companion.log",
+      "log_sha256": "c89b15821daa6225b4c70d3b930a73a5a6e9f0ed001f158203805632e22fcfaa"
+    },
+    {
+      "record": "final-recovery-reader.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 10.09,
+      "network": "OS network denied",
+      "log": "final-recovery-reader.log",
+      "log_sha256": "4b0c53b98da7ac7885604ea995ade58f2ede34a7b5e47adf8a8dc8b7167da6a5"
+    },
+    {
+      "record": "final-suite-reviewed.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 11.19,
+      "network": "OS network denied",
+      "log": "final-suite-reviewed.log",
+      "log_sha256": "78441fa9f0fadaf994e9fa36029d8266048c71e593e2c39c267b1eab8fd14b05"
+    },
+    {
+      "record": "final-suite.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 101,
+      "seconds": 21.18,
+      "network": "OS network denied",
+      "log": "final-suite.log",
+      "log_sha256": "6229f448a30da7a840e05e6da8a7e85ecf8394a95e4026a6ec0bfdaa47488e80"
+    },
+    {
+      "record": "first-pass-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 0,
+      "seconds": 17.68,
+      "network": "loopback only",
+      "log_sha256": "1dff5dfb1d0634ad5654241b0c09f550b3038eb5e16f232ae54d15823109b757"
+    },
+    {
+      "record": "format.json",
+      "command": [
+        "rustfmt",
+        "+nightly",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "--check",
+        "/Users/deepanshu.bansal/hyperswitch/crates/router/src/core/required_fields_sync/verification_browser.rs",
+        "/Users/deepanshu.bansal/hyperswitch/crates/router/src/core/required_fields_sync/verification_provider.rs",
+        "/Users/deepanshu.bansal/hyperswitch/crates/router/src/core/required_fields_sync/verification.rs",
+        "/Users/deepanshu.bansal/hyperswitch/crates/router/src/core/required_fields_sync/verification_tests.rs",
+        "/Users/deepanshu.bansal/hyperswitch/crates/router/src/core/required_fields_sync/verification_http.rs",
+        "scripts/required_fields_inventory_checks/src/sdk_wire.rs"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "record": "foundation-check.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 101,
+      "seconds": 144.72,
+      "network": "OS network denied",
+      "log": "foundation-check.log",
+      "log_sha256": "e17fd21ad04a54fac15fcc0eaa242605ac5306ad9cb71c1d63a34e462503baa8"
+    },
+    {
+      "record": "initial-secret-scan.json",
+      "command": [
+        "gitleaks",
+        "dir",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/scan-files",
+        "--no-banner",
+        "--redact",
+        "--ignore-gitleaks-allow",
+        "--gitleaks-ignore-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/absent-ignore",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/gitleaks-report.json"
+      ],
+      "exit": 1,
+      "findings": 7,
+      "files": 33,
+      "configuration": "default rules; no repository config/ignore/baseline; GITLEAKS env absent; allow comments disabled",
+      "scope": "Step 11 changed file contents, not repository history",
+      "network": "OS denied",
+      "log_sha256": "c9bd4589453acc09c08a62b4e763e2e084d4072ebdc3791ede8a151df22587c0"
+    },
+    {
+      "record": "initial-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 1,
+      "seconds": 4.75,
+      "network": "loopback only",
+      "log_sha256": "e845a3b91da74890d64182e669bc9626333647ee67cbc3500058102481107d89"
+    },
+    {
+      "record": "isolated-clippy-final.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 4.13,
+      "network": "OS network denied",
+      "log": "isolated-clippy-final.log",
+      "log_sha256": "32192607094cbd5c5aa19c846a3649d4de84b4536ca4fa9beab431c72b315d72"
+    },
+    {
+      "record": "isolated-clippy-reviewed.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 6.24,
+      "network": "OS network denied",
+      "log": "isolated-clippy-reviewed.log",
+      "log_sha256": "73e288b3601cfee17c9f22d313358c56c2df3c2cbe41a3f714e49cc62fea291c"
+    },
+    {
+      "record": "isolated-clippy.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 54.74,
+      "network": "OS network denied",
+      "log": "isolated-clippy.log",
+      "log_sha256": "ca6541e1c4bf8de22476f0b4a872db7a956578f16f5442d9275bf138a5dd7e5e"
+    },
+    {
+      "record": "locked-export-wire.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification_exports_use_locked"
+      ],
+      "exit": 0,
+      "seconds": 10.3,
+      "network": "OS network denied",
+      "log": "locked-export-wire.log",
+      "log_sha256": "a2784c4e52667cd1345d201043a7e55fd83fa327d39067be7bf05f36097463d7"
+    },
+    {
+      "record": "loopback-final-read.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification_http::tests::bounded_registered_reads",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 0.68,
+      "network": "owned loopback only",
+      "log": "loopback-final-read.log",
+      "log_sha256": "8e8f8f572b77b3a4ea8b8788d057a991101468cd87c114fca6ae1b49522d045b"
+    },
+    {
+      "record": "loopback-http.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification_http::tests::bounded_registered_get",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 10.27,
+      "network": "owned loopback only",
+      "log": "loopback-http.log",
+      "log_sha256": "bbd05b3b8f514fcc3a342e6dee2d3ad5dfdc80e8ddc7125419100000e2b6dba3"
+    },
+    {
+      "record": "loopback-reviewed.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification_http::tests::bounded_registered_reads",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 1.05,
+      "network": "owned loopback only",
+      "log": "loopback-reviewed.log",
+      "log_sha256": "816f5620a149084cc6cb82040961102b176b6125003608f1ea64f04c08643183"
+    },
+    {
+      "record": "node-contract-final.json",
+      "command": [
+        "node",
+        "--test",
+        "playwright-tests/required-fields-sync/contract.test.cjs",
+        "playwright-tests/required-fields-verifier/contract.test.cjs"
+      ],
+      "exit": 0,
+      "log_sha256": "550c8fb436dd6ad1b986a26489e3af8f1e5414c5e59f18aaeecbaf41aae73f5c"
+    },
+    {
+      "record": "node-contract.json",
+      "command": [
+        "node",
+        "--test",
+        "playwright-tests/required-fields-sync/contract.test.cjs",
+        "playwright-tests/required-fields-verifier/contract.test.cjs"
+      ],
+      "exit": 0,
+      "log_sha256": "e135345104a0a7ae71f9e22edeaa798cbe677aefa8831f37ac752dbbcbe0f3c4"
+    },
+    {
+      "record": "npm-demo.json",
+      "command": [
+        "npm",
+        "ci",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web/Hyperswitch-React-Demo-App",
+      "exit": 1,
+      "seconds": 21.34,
+      "network": "denied",
+      "log": "npm-demo.log",
+      "log_sha256": "4ffe231e18aaeeb38aac69032e2fd34ae40ae338d1b2b870e40dd6b9ae72545e"
+    },
+    {
+      "record": "npm-public-demo.json",
+      "command": [
+        "npm",
+        "ci",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web/Hyperswitch-React-Demo-App",
+      "exit": 0,
+      "seconds": 3.69,
+      "network": "public locked npm packages only",
+      "log": "npm-public-demo.log",
+      "log_sha256": "1a8e828c803be9e362b6996fd9d4c9b4bb615dd71a65a28693704efbac854549"
+    },
+    {
+      "record": "npm-public-sdk.json",
+      "command": [
+        "npm",
+        "ci",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web",
+      "exit": 0,
+      "seconds": 17.77,
+      "network": "public locked npm packages only",
+      "log": "npm-public-sdk.log",
+      "log_sha256": "cffd1019a5e0e22b13a52b0ae892c087b07fe48dadf1d26e1b3eeeac4efb3c39"
+    },
+    {
+      "record": "npm-public-tests.json",
+      "command": [
+        "npm",
+        "ci",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web/playwright-tests",
+      "exit": 0,
+      "seconds": 2.19,
+      "network": "public locked npm packages only",
+      "log": "npm-public-tests.log",
+      "log_sha256": "573c6d511ac37560bbff184c77b50db6f50af048da57bec97f4e5704287a67b4"
+    },
+    {
+      "record": "npm-sdk.json",
+      "command": [
+        "npm",
+        "ci",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web",
+      "exit": 1,
+      "seconds": 23.23,
+      "network": "denied",
+      "log": "npm-sdk.log",
+      "log_sha256": "015f6388fee468d3e99432a1120b74e44439ebf5edda01009adffdf183a1d55e"
+    },
+    {
+      "record": "npm-tests.json",
+      "command": [
+        "npm",
+        "ci",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--update-notifier=false",
+        "--registry=https://registry.npmjs.org",
+        "--userconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-user.npmrc",
+        "--globalconfig=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-global.npmrc",
+        "--cache=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/npm-cache"
+      ],
+      "cwd": "web/playwright-tests",
+      "exit": 1,
+      "seconds": 19.08,
+      "network": "denied",
+      "log": "npm-tests.log",
+      "log_sha256": "132a640385d707e81f9c3ec5250974bd50c02cf3e84fa55b218f8cf7817b314e"
+    },
+    {
+      "record": "precanonical-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 0,
+      "seconds": 28.33,
+      "network": "loopback only",
+      "log_sha256": "dabaeeacbaa008081cebad6f1d32cfdf66ac22818542f7d7f181c6eb1b81071f"
+    },
+    {
+      "record": "provider-and-receipt.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 13.14,
+      "network": "OS network denied",
+      "log": "provider-and-receipt.log",
+      "log_sha256": "b5416146b56f823969ea918b60864a88db5a063616070c158bba743b6455b7a9"
+    },
+    {
+      "record": "provider-format-cases.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification_actual_provider",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 13.11,
+      "network": "OS network denied",
+      "log": "provider-format-cases.log",
+      "log_sha256": "59c577ead8726a309a9032422d9767cdecb9950fa01ac2ebec49f34058c9f475"
+    },
+    {
+      "record": "reconciled-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification"
+      ],
+      "exit": 101,
+      "seconds": 130.38,
+      "network": "OS network denied",
+      "log": "reconciled-tests.log",
+      "log_sha256": "01e535997a243ba17c8058975cdc3752dcfba07f25d67275d8d1e6e77eeef626"
+    },
+    {
+      "record": "regression-pass-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 0,
+      "seconds": 29.57,
+      "network": "loopback only",
+      "log_sha256": "232a3ccf1cbfd38dcb165a8a3b1b6e1f877eb0ed01ce7313853a30f5502ff006"
+    },
+    {
+      "record": "regression-timeout-verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 1,
+      "seconds": 24.14,
+      "network": "loopback only",
+      "log_sha256": "26b2f66a2e47b878766487fb4a31ac6268140c4cbe105471112ce90f2fe03e23"
+    },
+    {
+      "record": "router-check.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 789.6,
+      "network": "OS network denied",
+      "log": "router-check.log",
+      "log_sha256": "f099f7dbd6b778cff3fd9337739ec7da60fcf9173e4688fbe651054e718aa827"
+    },
+    {
+      "record": "router-clippy-canonical.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 135.57,
+      "network": "OS network denied",
+      "log": "router-clippy-canonical.log",
+      "log_sha256": "cd6b5e46fe8a4ae74ae908165fe17a6d7bfa5d9042ed90f2a33cde10303162e9"
+    },
+    {
+      "record": "router-clippy-final.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 123.11,
+      "network": "OS network denied",
+      "log": "router-clippy-final.log",
+      "log_sha256": "44b8aa0fa5b75a1d919d76703d0db4f977d1eeaa31632ab78b43f66585858c76"
+    },
+    {
+      "record": "router-clippy.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 309.99,
+      "network": "OS network denied",
+      "log": "router-clippy.log",
+      "log_sha256": "c66de8c2c715b056a78530d2a57f42c3b05318390dc28086a88cc24795c30752"
+    },
+    {
+      "record": "rust-resolver.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "docs/required_fields_sync_contracts/sdk-v1/rust-probe/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 86.73,
+      "network": "OS network denied",
+      "log": "rust-resolver.log",
+      "log_sha256": "4c38b998fd849872c8f4356998a64883b7bf63e4e8cf07c797c4fbf87493e546"
+    },
+    {
+      "record": "secret-scan.json",
+      "command": [
+        "gitleaks",
+        "dir",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/scan-files",
+        "--no-banner",
+        "--redact",
+        "--ignore-gitleaks-allow",
+        "--gitleaks-ignore-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/absent-ignore",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/gitleaks-report.json"
+      ],
+      "exit": 0,
+      "findings": 0,
+      "files": 34,
+      "configuration": "default rules; no repository config/ignore/baseline; GITLEAKS env absent; allow comments disabled",
+      "scope": "Step 11 changed file contents, not repository history",
+      "network": "OS denied",
+      "log_sha256": "5aadb186339d0295769559aa4408df680fd86f33ebfe95fe82b8c622c3f76424"
+    },
+    {
+      "record": "sorted-json-feature-graph.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "tree",
+        "--offline",
+        "--manifest-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/sorted-json-check/Cargo.toml",
+        "-e",
+        "features",
+        "-i",
+        "serde_json"
+      ],
+      "exit": 0,
+      "seconds": 0.39,
+      "network": "OS network denied",
+      "log": "sorted-json-feature-graph.log",
+      "log_sha256": "b183370248ed6566c9856786748642b744df525c8af7c94ecb262799774c24f1"
+    },
+    {
+      "record": "sorted-json-features.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "tree",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/sorted-json-check/Cargo.toml",
+        "-e",
+        "features",
+        "-i",
+        "serde_json"
+      ],
+      "exit": 101,
+      "seconds": 0.27,
+      "network": "OS network denied",
+      "log": "sorted-json-features.log",
+      "log_sha256": "9886a56592a608c5ffc977a2845d6674fa40908e92ac4379c15867e625d93cd7"
+    },
+    {
+      "record": "sorted-json-receipt.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/sorted-json-check/Cargo.toml",
+        "--lib",
+        "verification_reads_actual_companion_receipt",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 30.79,
+      "network": "OS network denied",
+      "log": "sorted-json-receipt.log",
+      "log_sha256": "4dfa08126a6e2c6ebc887b65664543432130c733815e7c100bc37752464a8021"
+    },
+    {
+      "record": "typescript-final.json",
+      "command": [
+        "node",
+        "playwright-tests/node_modules/typescript/bin/tsc",
+        "-p",
+        "playwright-tests/required-fields-verifier/tsconfig.json",
+        "--noEmit"
+      ],
+      "exit": 0,
+      "network": "denied",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "record": "typescript.json",
+      "command": [
+        "node",
+        "playwright-tests/node_modules/typescript/bin/tsc",
+        "-p",
+        "playwright-tests/required-fields-verifier/tsconfig.json",
+        "--noEmit"
+      ],
+      "exit": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "record": "verification-final-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification"
+      ],
+      "exit": 0,
+      "seconds": 14.7,
+      "network": "OS network denied",
+      "log": "verification-final-tests.log",
+      "log_sha256": "ef7c2fa913221b5585cc621955004e74453aa307f8598e475d714e747d859eb8"
+    },
+    {
+      "record": "verifier-browser.json",
+      "command": [
+        "node",
+        "playwright-tests/required-fields-verifier/run.cjs"
+      ],
+      "exit": 0,
+      "seconds": 28.22,
+      "network": "loopback only",
+      "log_sha256": "f242bf94dff98a8a9505f848f59b4f3147dbdd7a56ff4d7d0513fea1522e12d9"
+    },
+    {
+      "record": "verifier-tests.json",
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "verification"
+      ],
+      "exit": 101,
+      "seconds": 75.54,
+      "network": "OS network denied",
+      "log": "verifier-tests.log",
+      "log_sha256": "906c3d9ce380caef98211ae6c1da9f34d701dd32592c2b9c8902a93d44e8decd"
+    }
+  ],
+  "final_results": {
+    "rust_ordinary": {
+      "passed": 131,
+      "failed": 0,
+      "ignored": 11
+    },
+    "explicit_provider_and_actual_receipt": {
+      "passed": 2
+    },
+    "sorted_json_actual_receipt": {
+      "result_record": "sorted-json-receipt.json"
+    },
+    "explicit_owned_http": {
+      "passed": 1,
+      "response_shapes": 9
+    },
+    "node_contract": {
+      "passed": 27
+    },
+    "js_resolver": {
+      "passed": 14
+    },
+    "rust_resolver": {
+      "passed": 14
+    },
+    "browser_components_regression": {
+      "passed": 38
+    },
+    "full_checkout_regression": {
+      "passed": 5
+    },
+    "response_bound_browser": {
+      "passed": 7
+    },
+    "router_check": "passed",
+    "router_clippy_final": "passed with five preexisting warnings",
+    "isolated_strict_clippy": "passed with existing invalid-disallowed-method configuration warning",
+    "typescript": "passed",
+    "format": "passed",
+    "secret_scan": "passed; zero findings on sanitized changed-file contents; initial seven file-hash presentation findings retained"
+  },
+  "evidence_checks": {
+    "dependency_identity_checksum_match": {
+      "packages": 408,
+      "mismatches": 0
+    },
+    "locked_source_archives": [
+      {
+        "crate": "superposition_sdk",
+        "version": "0.119.0",
+        "archive_sha256": "3c6e446f7c20cf3d3fdb81c5f8c4cd2c7d02273c4039ba716a2a6aec354860e6",
+        "members_checked": 747,
+        "compiled_cache_members_checked": 747,
+        "differences": 0
+      },
+      {
+        "crate": "superposition_provider",
+        "version": "0.119.0",
+        "archive_sha256": "04c90dd2bee95cceb2c8ffddc6d455708d0b3248bf31de45f29ce41927b3f41e",
+        "members_checked": 27,
+        "compiled_cache_members_checked": 27,
+        "differences": 0
+      },
+      {
+        "crate": "superposition_core",
+        "version": "0.119.0",
+        "archive_sha256": "1a4785ee801dec8da2c8b78a67b72eeaeca2e8408924cfd364e63a284f6ce6bc",
+        "members_checked": 28,
+        "compiled_cache_members_checked": 28,
+        "differences": 0
+      },
+      {
+        "crate": "superposition_types",
+        "version": "0.119.0",
+        "archive_sha256": "7b1e3201d84e8a6b1fd91632db8ca80c42573d5bed0a69b33f8d9e196f0ed9ea",
+        "members_checked": 128,
+        "compiled_cache_members_checked": 128,
+        "differences": 0
+      }
+    ],
+    "browser_bindings": "original raw evidence and sanitized indexes match; scope synthetic_local only",
+    "document_links": "passed",
+    "sorted_json_actual_receipt": {
+      "preserve_order": false,
+      "passed": 1
+    }
+  },
+  "owned_fixture": {
+    "owner": "7cc8ac85-1ccb-420e-beed-b62c332ce188",
+    "purpose": "Step 11 isolated verification checks",
+    "root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm",
+    "cleanup_scope": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm",
+    "hosted_target": null,
+    "server_mutations": false
+  },
+  "browser_execution": {
+    "input": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/verifier-input.json",
+    "registration": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/verifier-rQnxQT/registration.json",
+    "report": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/browser-fixture/verifier-rQnxQT/report.json"
+  },
+  "remaining_gates": [
+    "Exact server/read/permission/cache/ordering certification",
+    "Complete target/pod/co-reader discovery and authenticated direct addressing",
+    "Actual candidate/post-commit responses and arbitrary Step 6 browser matrices",
+    "Deployed Linux companion image, filesystem/process/credential mounts and supported old/mobile artifacts",
+    "Backup target/publication/mount provenance and every-reader startup",
+    "Measured target deadlines, actual retention/access and writer exclusion",
+    "Step 12 restoration and later CLI/deployment/adoption gates",
+    "MSRV 1.94.1, release and broader feature/target matrix"
+  ],
+  "next_eligible": "Step 12 local work after review and a separate request",
+  "not_performed": [
+    "hosted reads",
+    "production secret retrieval",
+    "Superposition mutation",
+    "live payment submission",
+    "lease acquisition",
+    "SDK/source business-data/seed correction",
+    "Git staging/commit/push/branch change",
+    "remote PR update",
+    "deployment"
+  ]
+}

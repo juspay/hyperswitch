@@ -1,0 +1,13 @@
+[package]
+name = "required-fields-sdk-contract-probe"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.94.1"
+publish = false
+
+# Standalone test fixture, deliberately outside the router's feature graph.
+[workspace]
+
+[dev-dependencies]
+serde_json = "=1.0.140"
+superposition_core = "=0.119.0"

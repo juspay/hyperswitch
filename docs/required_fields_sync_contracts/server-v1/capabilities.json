@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "contract_id": "required-fields-server-v1",
+  "client_version": "0.119.0",
+  "certification_status": "pending",
+  "hosted_apply_enabled": false,
+  "candidates": [
+    {
+      "version": "0.102.0",
+      "checked_in_reference": ".github/workflows/cypress-tests-runner.yml",
+      "historical_source_revision": "c4f710436360deac76567c37f5513a8f0aba09ac",
+      "image_digest": null,
+      "source_image_provenance_verified": false,
+      "fixture_registration": null,
+      "capabilities": {
+        "target_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "pagination": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prefix_preservation": {
+          "status": "pending",
+          "evidence": null
+        },
+        "merge_replace_delete": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prerequisites": {
+          "status": "pending",
+          "evidence": null
+        },
+        "bulk_rollback": {
+          "status": "pending",
+          "evidence": null
+        },
+        "versions_order": {
+          "status": "pending",
+          "evidence": null
+        },
+        "ordered_array_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "experiments": {
+          "status": "pending",
+          "evidence": null
+        },
+        "auth_scope": {
+          "status": "pending",
+          "evidence": null
+        },
+        "limits": {
+          "status": "pending",
+          "evidence": null
+        },
+        "post_commit_webhook": {
+          "status": "pending",
+          "evidence": null
+        },
+        "cache_publication": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dropped_response": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dispatch_timeout": {
+          "status": "pending",
+          "evidence": null
+        },
+        "old_request_exclusion": {
+          "status": "pending",
+          "evidence": null
+        }
+      },
+      "blockers": [
+        "No local Docker socket; no Podman machine/connection",
+        "Exact cached image and source/platform provenance uninspected",
+        "Authenticated/fault/limit/exclusion fixtures not supplied"
+      ]
+    },
+    {
+      "version": "0.113.0",
+      "checked_in_reference": "docker-compose.yml",
+      "historical_source_revision": null,
+      "image_digest": null,
+      "source_image_provenance_verified": false,
+      "fixture_registration": null,
+      "capabilities": {
+        "target_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "pagination": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prefix_preservation": {
+          "status": "pending",
+          "evidence": null
+        },
+        "merge_replace_delete": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prerequisites": {
+          "status": "pending",
+          "evidence": null
+        },
+        "bulk_rollback": {
+          "status": "pending",
+          "evidence": null
+        },
+        "versions_order": {
+          "status": "pending",
+          "evidence": null
+        },
+        "ordered_array_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "experiments": {
+          "status": "pending",
+          "evidence": null
+        },
+        "auth_scope": {
+          "status": "pending",
+          "evidence": null
+        },
+        "limits": {
+          "status": "pending",
+          "evidence": null
+        },
+        "post_commit_webhook": {
+          "status": "pending",
+          "evidence": null
+        },
+        "cache_publication": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dropped_response": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dispatch_timeout": {
+          "status": "pending",
+          "evidence": null
+        },
+        "old_request_exclusion": {
+          "status": "pending",
+          "evidence": null
+        }
+      },
+      "blockers": [
+        "No local Docker socket; no Podman machine/connection",
+        "Exact cached image and source/platform provenance uninspected",
+        "Authenticated/fault/limit/exclusion fixtures not supplied"
+      ]
+    },
+    {
+      "version": "0.115.5",
+      "checked_in_reference": "docker-compose-development.yml",
+      "historical_source_revision": "8b8f992127e883deba3048af03aa2389e423cc62",
+      "image_digest": null,
+      "source_image_provenance_verified": false,
+      "fixture_registration": null,
+      "capabilities": {
+        "target_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "pagination": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prefix_preservation": {
+          "status": "pending",
+          "evidence": null
+        },
+        "merge_replace_delete": {
+          "status": "pending",
+          "evidence": null
+        },
+        "prerequisites": {
+          "status": "pending",
+          "evidence": null
+        },
+        "bulk_rollback": {
+          "status": "pending",
+          "evidence": null
+        },
+        "versions_order": {
+          "status": "pending",
+          "evidence": null
+        },
+        "ordered_array_identity": {
+          "status": "pending",
+          "evidence": null
+        },
+        "experiments": {
+          "status": "pending",
+          "evidence": null
+        },
+        "auth_scope": {
+          "status": "pending",
+          "evidence": null
+        },
+        "limits": {
+          "status": "pending",
+          "evidence": null
+        },
+        "post_commit_webhook": {
+          "status": "pending",
+          "evidence": null
+        },
+        "cache_publication": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dropped_response": {
+          "status": "pending",
+          "evidence": null
+        },
+        "dispatch_timeout": {
+          "status": "pending",
+          "evidence": null
+        },
+        "old_request_exclusion": {
+          "status": "pending",
+          "evidence": null
+        }
+      },
+      "blockers": [
+        "No local Docker socket; no Podman machine/connection",
+        "Exact cached image and source/platform provenance uninspected",
+        "Authenticated/fault/limit/exclusion fixtures not supplied"
+      ]
+    }
+  ],
+  "note": "Candidate tags are source leads, not a supported or certified matrix. No mock result is server evidence."
+}

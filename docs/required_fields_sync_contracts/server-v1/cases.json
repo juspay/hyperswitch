@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "contract_id": "required-fields-server-v1",
+  "review": "pending-owner-review",
+  "scope": "Test companion only; not the production planner, journal, coordination or apply implementation.",
+  "client_version": "0.119.0",
+  "bounds": {
+    "request_response_bytes": 1048576,
+    "bulk_actions": 16,
+    "pages": 32,
+    "network_dispatches": 512,
+    "report_bytes": 8388608,
+    "registration_bytes": 16384,
+    "operation_timeout_ms": 8000,
+    "proof_timeout_ms": 5000,
+    "mutation_sdk_attempts": 1,
+    "read_sdk_attempts": 2,
+    "underlying_http_retries": 0
+  },
+  "cases": [
+    {
+      "id": "target_identity",
+      "plan_tests": [
+        "T16"
+      ],
+      "expectation": "A fresh run-owned workspace is absent, created once, read back with exact org/name/synthetic admin, and has no contexts/defaults/experiments; non-404 bootstrap failures dispatch zero writes.",
+      "coverage": "server-driver"
+    },
+    {
+      "id": "pagination",
+      "plan_tests": [
+        "T14",
+        "T16",
+        "T19"
+      ],
+      "expectation": "Two complete inventory passes agree on full rows/order and version fences; page totals/counts, duplicates, missing rows, malformed bodies and byte/page caps refuse. Known fixture IDs are required to prove full scope.",
+      "coverage": "server-driver + isolated"
+    },
+    {
+      "id": "prefix_preservation",
+      "plan_tests": [
+        "T14",
+        "T16"
+      ],
+      "expectation": "Prefix listing is explicitly lossy; full unfiltered rows retain unrelated keys and descriptions and supply replacement inputs.",
+      "coverage": "server-driver"
+    },
+    {
+      "id": "merge_replace_delete",
+      "plan_tests": [
+        "T16"
+      ],
+      "expectation": "Create on existing condition merges; PATCH replacement removes omitted managed key while preserving supplied unrelated fields/description/condition; delete-missing rejects.",
+      "coverage": "server-driver + isolated wire"
+    },
+    {
+      "id": "prerequisites",
+      "plan_tests": [
+        "T16",
+        "T17"
+      ],
+      "expectation": "Dimension enum extension retains other schema properties; defaults retain value/schema/functions/description on conflicts; malformed override rejects and prior separately committed prerequisites remain.",
+      "coverage": "server-driver + isolated wire"
+    },
+    {
+      "id": "bulk_rollback",
+      "plan_tests": [
+        "T17"
+      ],
+      "expectation": "One invalid action rolls back every context action and config version; prior prerequisite commits remain. One dispatched bulk only; no hidden batches.",
+      "coverage": "server-driver"
+    },
+    {
+      "id": "versions_order",
+      "plan_tests": [
+        "T10",
+        "T14",
+        "T16"
+      ],
+      "expectation": "Latest/repeated/version-specific exports agree, expose actual context order, and provide version/Last-Modified metadata independently of SDK defaulting.",
+      "coverage": "server-driver + isolated metadata"
+    },
+    {
+      "id": "ordered_array_identity",
+      "plan_tests": [
+        "T10"
+      ],
+      "expectation": "Otherwise identical overrides with [A,B] and [B,A] are compared by direct rows, server override IDs and exported map; collisions are explicitly unsupported, never sorted away.",
+      "coverage": "server-driver + isolated semantic identity"
+    },
+    {
+      "id": "experiments",
+      "plan_tests": [
+        "T22"
+      ],
+      "expectation": "Active experiment-referenced contexts resist destructive writes; overlap response is observed without assumed universal policy; unrelated experiments remain identical.",
+      "coverage": "server-driver + isolated wire"
+    },
+    {
+      "id": "auth_scope",
+      "plan_tests": [
+        "T14",
+        "T16"
+      ],
+      "expectation": "Exact authenticated fixture identities prove complete reads, denied writes and cross-workspace/org refusal; demo-mode success does not certify deployed permissions.",
+      "coverage": "pending authenticated fixture"
+    },
+    {
+      "id": "limits",
+      "plan_tests": [
+        "T16",
+        "T17"
+      ],
+      "expectation": "Measure configured gateway/server action and byte boundary, including at/over limit, with exact image/config evidence. Local 16-action/1-MiB bounds are refusals, not measured server maxima.",
+      "coverage": "pending server limits fixture; isolated client bounds"
+    },
+    {
+      "id": "post_commit_webhook",
+      "plan_tests": [
+        "T18"
+      ],
+      "expectation": "Inject actual webhook failure after DB commit; observe rows/version without replay. An HTTP 512 alone cannot establish rollback.",
+      "coverage": "pending build-specific injection; isolated SDK error model"
+    },
+    {
+      "id": "cache_publication",
+      "plan_tests": [
+        "T18"
+      ],
+      "expectation": "Inject actual cache-publication failure after DB commit and compare direct rows with versioned/latest cached exports; errors or stale exports cannot certify rollback.",
+      "coverage": "pending build-specific injection; isolated outcome model"
+    },
+    {
+      "id": "dropped_response",
+      "plan_tests": [
+        "T18",
+        "T19"
+      ],
+      "expectation": "Drop a real response after commit and reconcile persisted before/after/divergence; never replay a confirmed write.",
+      "coverage": "pending real fault transport; isolated SDK drop model"
+    },
+    {
+      "id": "dispatch_timeout",
+      "plan_tests": [
+        "T19"
+      ],
+      "expectation": "Count actual SDK and underlying HTTP dispatches with timeout/retry configuration; caller timeout does not prove server cancellation.",
+      "coverage": "pending server/socket instrumentation; isolated SDK retry/timeout"
+    },
+    {
+      "id": "old_request_exclusion",
+      "plan_tests": [
+        "T19"
+      ],
+      "expectation": "Prove old timed-out request completion or termination before a retry is authorized; before-state alone is insufficient. Stopping a disposable test container is not a production exclusion contract.",
+      "coverage": "pending server/platform contract; isolated late-commit counterexample"
+    }
+  ],
+  "unsupported_without_separate_evidence": [
+    "CAS/fencing",
+    "external-writer exclusion",
+    "production authentication scope",
+    "journal crash durability and outcome recording (Step 8/10)",
+    "hosted apply or target V1–V4"
+  ]
+}

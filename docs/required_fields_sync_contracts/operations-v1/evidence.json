@@ -1,0 +1,2664 @@
+{
+  "schema_version": 1,
+  "toolchain": {
+    "rustc": "1.97.1",
+    "target": "aarch64-apple-darwin",
+    "selection": "installed +stable; MSRV not executed"
+  },
+  "step": 13,
+  "date": "2026-11-18",
+  "scope": "local_synthetic_and_offline_binary_checks_only",
+  "hosted_apply": "disabled",
+  "hosted_resume": "disabled",
+  "hosted_restore": "disabled",
+  "starting_revisions": {
+    "H": {
+      "head": "68c938724127fe507cdb5b2c365c6f15af1aec1d",
+      "branch": "feat/superposition-required-fields-foundations",
+      "status": "?? docs/superposition_required_fields_sync_implementation_plan.md\n?? docs/superposition_required_fields_sync_roadmap.md",
+      "index_sha256": "87d0fa9eed8ceb4a2b707552791e5002173d8f80bc1e2796ce4ea8f10b981244"
+    },
+    "W": {
+      "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+      "branch": "main",
+      "status": "?? playwright-tests/e2e/required-fields-sync.spec.ts\n?? playwright-tests/required-fields-sync/\n?? playwright-tests/required-fields-verifier/",
+      "index_sha256": "501608d743ce8a8f3c4bbed61c36a61fff1d525e572a3bd2127ae08b1130f78b"
+    },
+    "U": {
+      "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+      "branch": "",
+      "status": "",
+      "index_sha256": "359a0e540417b9ad420b08981a7f05ad9b808766e90032d80b1f466fd79bf49c"
+    },
+    "I": {
+      "head": "92041e63f025dc838388a489a5511ba74f387590",
+      "branch": "main",
+      "status": "",
+      "index_sha256": "d030d32dd141587618fe67e3a97403e50cf49cd1170caf536b6a7dd33e29f0de"
+    }
+  },
+  "owned_fixture": {
+    "owner": "a5dbef04-2c96-46db-8bc8-a489309a13c3",
+    "purpose": "Step 13 isolated command checks",
+    "root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl",
+    "cleanup_scope": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl",
+    "hosted_target": null
+  },
+  "owned_cache_registration": {
+    "owner_root": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm",
+    "owner": "7cc8ac85-1ccb-420e-beed-b62c332ce188",
+    "targets": [
+      "cargo-home",
+      "target-isolated",
+      "target-router"
+    ],
+    "hosted_target": null
+  },
+  "changed_files": [
+    "crates/router/src/bin/router.rs",
+    "crates/router/src/configs/cli.rs",
+    "crates/router/src/configs/cli_tests.rs",
+    "crates/router/src/configs/secrets_transformers.rs",
+    "crates/router/src/configs/settings.rs",
+    "crates/router/src/core/required_fields_sync.rs",
+    "crates/router/src/core/required_fields_sync/apply.rs",
+    "crates/router/src/core/required_fields_sync/apply_contract.rs",
+    "crates/router/src/core/required_fields_sync/apply_tests.rs",
+    "crates/router/src/core/required_fields_sync/attestation.rs",
+    "crates/router/src/core/required_fields_sync/command.rs",
+    "crates/router/src/core/required_fields_sync/command_runtime.rs",
+    "crates/router/src/core/required_fields_sync/operation.rs",
+    "crates/router/src/core/required_fields_sync/operation_executor.rs",
+    "crates/router/src/core/required_fields_sync/operation_recovery_tests.rs",
+    "crates/router/src/core/required_fields_sync/operation_tests.rs",
+    "crates/router/src/core/required_fields_sync/planner_types.rs",
+    "crates/router/src/core/required_fields_sync/recovery.rs",
+    "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+    "docs/required_fields_sync_contracts/README.md",
+    "docs/required_fields_sync_contracts/operations-v1/README.md",
+    "docs/required_fields_sync_contracts/operations-v1/checks.md",
+    "docs/required_fields_sync_contracts/operations-v1/evidence.json",
+    "docs/required_fields_sync_contracts/operations-v1/startup_probe.rs",
+    "docs/required_fields_sync_contracts/operations-v1/test_cli.py",
+    "docs/required_fields_sync_contracts/questions.md",
+    "docs/superposition_required_fields_sync_implementation_playbook.md",
+    "scripts/required_fields_inventory_checks/README.md",
+    "scripts/required_fields_inventory_checks/src/lib.rs"
+  ],
+  "source_hashes": [
+    {
+      "path": "crates/router/src/bin/router.rs",
+      "starting_sha256": "321cb58a64a5504fceb72598234543d4603c69538daaf9ebf5a7b47a96d16cf3",
+      "sha256": "109c5af89a3f72d986084ce8208d67ab349ac25742314ca86715214dbf041974"
+    },
+    {
+      "path": "crates/router/src/configs/cli.rs",
+      "starting_sha256": "d985e27b5b001bc79b7ad617b580d862f5af6fa50c96bcfc331e59390899c52b",
+      "sha256": "76bc947639b367bd2440d86991d02a613998f6a6f58b7e96322b69057d66baca"
+    },
+    {
+      "path": "crates/router/src/configs/cli_tests.rs",
+      "starting_sha256": "d8ad9ea4bddc1afc3b2a318eb42308f5616d748752e5a58a9613a7b3d6515705",
+      "sha256": "72dc6619e9aeabf829f12a01a10b5a8cb977919655765146364faf2771489998"
+    },
+    {
+      "path": "crates/router/src/configs/secrets_transformers.rs",
+      "starting_sha256": "12c81691cff8c30db9b23980b9bf8948042d960e548c2881b2cdae23896823ea",
+      "sha256": "481af6ca3f71371e486efb1c0cb15651d7bf81755ccafd180c0345ad6b982c69"
+    },
+    {
+      "path": "crates/router/src/configs/settings.rs",
+      "starting_sha256": "8af43f3ca703b6d3ecb85827535add9c9fc6e4b1673cccfbdd977a2a9216a63c",
+      "sha256": "923061691f1c54d7e919c31b89de7159c8259261144793506382d445ff67547c"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync.rs",
+      "starting_sha256": "a6c8dd4b3ef34629e78d602e1f7f16b48160e3cbe6f741ebb2ec3b25c1252bc2",
+      "sha256": "0df86cd49c0fc5caf995829784fb43dee3c74cbd72e02921d5c5e8ee93261767"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply.rs",
+      "starting_sha256": "c109abe2fe0fe7271101720ddf06ac2bb5ad5fde78a3ac02fc9e37613809140c",
+      "sha256": "9c41f4a8d53d875296a925beaeffbffdf66f79d152049be1a59b3a6d0acbe14e"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply_contract.rs",
+      "starting_sha256": "e03f28a4f094bca4df05ed15b96a50f12de94e15c29ef6963b7fefe6b4bbd27e",
+      "sha256": "4f451a33efb7cd2d2d6f0ce011599395b4efcda4e6721d04599007c992c994ce"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/apply_tests.rs",
+      "starting_sha256": "18296f217bb6b55794c88903853f5dc660467f2e375b83627879f5808cc71794",
+      "sha256": "25f761b98fff155c473bdecaa90949fb5b3d0e7f3489d482429602fe38b02548"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/attestation.rs",
+      "starting_sha256": null,
+      "sha256": "83a1e17977373e4afa3b6edd4be7546b84a8e19d814abaf3a4ef82539c4b1b41"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/command.rs",
+      "starting_sha256": "37e6ffe99d7a63276c3a04fa03f1ce738eb38739f8f92e894afcfaba7ff00afc",
+      "sha256": "36bea93475c9f165fb59ce827cfe000b8f99872cb5395d508c0be69ea85e37d7"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/command_runtime.rs",
+      "starting_sha256": "3d75f1be792125bd80c9ae8024f30a7b5f4eecd1c8ffa13ac8e37df50563f27d",
+      "sha256": "d9b6a5534d96697b613eb3b50219cde546324532a094d8ee68817f22b882a85b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/operation.rs",
+      "starting_sha256": null,
+      "sha256": "a8102ac2a1a879d625b69124b6be8f46681f103d0649e2f9ee29ec95e257efd9"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/operation_executor.rs",
+      "starting_sha256": null,
+      "sha256": "f1f05a595aa59b8171e4d2044656b30c77d305b407a4dffc9beacef8d5152e0b"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/operation_recovery_tests.rs",
+      "starting_sha256": null,
+      "sha256": "b0043a3d04134551d45025e1b870a29f01669ca0455212efa6eda7eaf6b95dd6"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/operation_tests.rs",
+      "starting_sha256": null,
+      "sha256": "188cb9fd9b52cfcee43cfe7a787913feed92e4279b62dd3d926e195af8ce71c4"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/planner_types.rs",
+      "starting_sha256": "1cd942ed5d3540e9aaf50afe1ac5fed3ebc362849944d638ef2f7cbed620d1a1",
+      "sha256": "9ed30bb3eb353fb1313d04e0887ba0a0995e685b0d10bd67c1cd633411d637a3"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery.rs",
+      "starting_sha256": "d15ffb2e40b4dc94a5a62d675e4c947bc312eea855b58448e8c0bcc3bc05e96e",
+      "sha256": "2bde2d18cae674bff280a22f2c269b1dfe9f9124012cc6810dba1461b0080acb"
+    },
+    {
+      "path": "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+      "starting_sha256": "0993c6da75208b2fa71dcab36f1d290e6e43b3f6b5b97527e5a5a1d5f99ed5c2",
+      "sha256": "83afb9f55969f92abc6396243aaa64f6369bc41aa6b6cac561d618294d7b3afd"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/README.md",
+      "starting_sha256": "11a2c536805907be1518c64f63c84eb61510884eb3ad1b2d12df02614d8d81ab",
+      "sha256": "17fdbdeabf9e7d2672e5610aadfb800bcfc05c439d2a8b7a14181493375c82af"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/operations-v1/README.md",
+      "starting_sha256": null,
+      "sha256": "d308ae8d1b1c2be8d629a65f85af820c3e1bb4ccc4b3a9e4ab12dabf5421f837"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/operations-v1/checks.md",
+      "starting_sha256": null,
+      "sha256": "3f0fcd574cf2c8061ef97f7eede1f0236c7b592085cb347755d7029266747515"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/operations-v1/startup_probe.rs",
+      "starting_sha256": null,
+      "sha256": "37c4e064427467129ce8c96db9be315d2388ca5763bad830cd9d2c192be54d54"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/operations-v1/test_cli.py",
+      "starting_sha256": null,
+      "sha256": "993877e467b6d8688b12eb889a9103b4251aef5d39bcdb1c31a9b14e16521ff9"
+    },
+    {
+      "path": "docs/required_fields_sync_contracts/questions.md",
+      "starting_sha256": "8d90d4761aab50d759c43bca3fd8f99b548b836de6a0e31930ed34b6a9d3139c",
+      "sha256": "f7b4b933318ec4fb89815ed5c7aca5fee272dc92b815f8ee079b0c3554fbdae0"
+    },
+    {
+      "path": "docs/superposition_required_fields_sync_implementation_playbook.md",
+      "starting_sha256": "abf4479e5a2479802cdb84a52d5c634a8a1877664ea821f0ce0b10c5f7ae929c",
+      "sha256": "8cb185d426d33538c18c37502c64834e90cc4455e76e23f54ee22b0995b71499"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/README.md",
+      "starting_sha256": "ec295fd1019e7f18d5bfa385790b4b82b74dd6dd4532f555dae42f3aecc86074",
+      "sha256": "5cc5065e833f11f695925a7a6356463ea2e26e27419166922aa0d7ea9dc78a90"
+    },
+    {
+      "path": "scripts/required_fields_inventory_checks/src/lib.rs",
+      "starting_sha256": "0eef7ca9dae46fc3a6a88805f194c87bf7c3bd3c6e9b5908220422e33d6c6fc0",
+      "sha256": "6205eef6a0e6b071975458c8d23399d034a7992b177ce0e85d5a4c5ce34ee6be"
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "docs/required_fields_sync_contracts/operations-v1/test_cli.py",
+        "--root",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl",
+        "--router",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/final-binary/router"
+      ],
+      "exit": 0,
+      "seconds": 18.39,
+      "network": "OS network denied",
+      "log": "binary-delivery-final.log",
+      "record": "binary-delivery-final.json",
+      "log_sha256": "0d63b63cbbfb36595621b3bcc7aac9bb22ee75e986ec2adb9f4b46f4477252c8"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/required_fields_sync_contracts/operations-v1/test_cli.py",
+        "--root",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl",
+        "--router",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/review-binary/router-initial"
+      ],
+      "exit": 0,
+      "seconds": 18.72,
+      "log": "binary-initial.log",
+      "record": "binary-initial.json",
+      "log_sha256": "eb3ceb25bb208458abd82093d7a4c395282403442fd3b7cdf92cc42130395382"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/required_fields_sync_contracts/operations-v1/test_cli.py",
+        "--root",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl",
+        "--router",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/review-binary/router-reviewed"
+      ],
+      "exit": 0,
+      "seconds": 18.04,
+      "log": "binary-reviewed.log",
+      "record": "binary-reviewed.json",
+      "log_sha256": "1a1933de22e16c3a79ca06802fce13f2f555f8e415a8643147c1c50fc4e037b2"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 7.76,
+      "network": "OS network denied",
+      "log": "clippy-complete-final.log",
+      "record": "clippy-complete-final.json",
+      "log_sha256": "53d91363137b7c98e967d80038733495147c4ede176cff146d42b667aa18d999"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 6.43,
+      "network": "OS network denied",
+      "log": "clippy-complete.log",
+      "record": "clippy-complete.json",
+      "log_sha256": "0dec9d516237a36aeee6e8ee3814f870b434766ea27c7208cb274cfae47c3466"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 4.58,
+      "network": "OS network denied",
+      "log": "clippy-delivery-final.log",
+      "record": "clippy-delivery-final.json",
+      "log_sha256": "f02b79c050d0f210ed8a533dc3558a5fc06d73804a155dd51a64d36eeaf088dd"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 7.2,
+      "network": "OS network denied",
+      "log": "clippy-first.log",
+      "record": "clippy-first.json",
+      "log_sha256": "f8c8842363f80cc15ded5e78914a579b14db1154f583a9c8fd0fdfb334bbd27d"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 5.46,
+      "network": "OS network denied",
+      "log": "clippy-reviewed.log",
+      "record": "clippy-reviewed.json",
+      "log_sha256": "98231c532afa72d7e6740e48857592dc68306d2e65129a1ee3e334a396abf579"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 101,
+      "seconds": 5.03,
+      "network": "OS network denied",
+      "log": "clippy-second.log",
+      "record": "clippy-second.json",
+      "log_sha256": "5e57c26ab8820fa0da1247c0a248cca5a6530d1a760554d64855eff14c3a86af"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--tests",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "exit": 0,
+      "seconds": 4.96,
+      "network": "OS network denied",
+      "log": "clippy-third.log",
+      "record": "clippy-third.json",
+      "log_sha256": "a70a434df44a5a134ef972f9dc52422a5142b32eef188b11ecd17989003ae1bc"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--no-run"
+      ],
+      "exit": 101,
+      "seconds": 6.3,
+      "network": "OS network denied",
+      "log": "compile-first.log",
+      "record": "compile-first.json",
+      "log_sha256": "82d8c9aaccfd570108d9218455a56f67559c90b07ae46ac270419b5baf451186"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "--no-run"
+      ],
+      "exit": 0,
+      "seconds": 9.46,
+      "network": "OS network denied",
+      "log": "compile-second.log",
+      "record": "compile-second.json",
+      "log_sha256": "676056d0d8035f70292829d62feb980310771e97ae4a27c84199acbcbd3a7bdf"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0,
+      "output": "",
+      "record": "diff-check.json"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/validate.py"
+      ],
+      "exit": 0,
+      "seconds": 0.23,
+      "network": "OS network denied",
+      "log": "documents-final.log",
+      "record": "documents-final.json",
+      "log_sha256": "0041630f79f486b26a68a568ad129ffee272461afd0e63154751c030f07299a3"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/validate.py"
+      ],
+      "exit": 0,
+      "seconds": 0.29,
+      "network": "OS network denied",
+      "log": "documents-interim.log",
+      "record": "documents-interim.json",
+      "log_sha256": "0041630f79f486b26a68a568ad129ffee272461afd0e63154751c030f07299a3"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--no-default-features",
+        "--lib",
+        "cli::tests"
+      ],
+      "exit": 0,
+      "seconds": 14.93,
+      "network": "OS network denied",
+      "log": "feature-off-parser-final.log",
+      "record": "feature-off-parser-final.json",
+      "log_sha256": "1cfe7bcc1e8290516d80e99d8e6564beebb9655d4e643a47604be291b1096a77"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--no-default-features",
+        "--lib",
+        "cli::tests"
+      ],
+      "exit": 0,
+      "seconds": 10.4,
+      "network": "OS network denied",
+      "log": "feature-off-parser.log",
+      "record": "feature-off-parser.json",
+      "log_sha256": "b51508d3148065d2c972eea789f6be278428d80696a658b0856b0fa7f4f69b9f"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "operation_file_contract_and_exported_binary_inputs",
+        "--",
+        "--ignored",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 12.98,
+      "network": "OS network denied",
+      "log": "file-contract.log",
+      "record": "file-contract.json",
+      "log_sha256": "aa084254445843b6b86ef1d0d94f83862c4de70442d538453e4c8a10a1b1c99d"
+    },
+    {
+      "command": [
+        "rustfmt",
+        "+stable",
+        "--check",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "crates/router/src/bin/router.rs",
+        "crates/router/src/configs/cli.rs",
+        "crates/router/src/configs/cli_tests.rs",
+        "crates/router/src/configs/secrets_transformers.rs",
+        "crates/router/src/configs/settings.rs",
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/apply.rs",
+        "crates/router/src/core/required_fields_sync/apply_contract.rs",
+        "crates/router/src/core/required_fields_sync/apply_tests.rs",
+        "crates/router/src/core/required_fields_sync/command.rs",
+        "crates/router/src/core/required_fields_sync/command_runtime.rs",
+        "crates/router/src/core/required_fields_sync/planner_types.rs",
+        "crates/router/src/core/required_fields_sync/recovery.rs",
+        "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+        "scripts/required_fields_inventory_checks/src/lib.rs",
+        "crates/router/src/core/required_fields_sync/attestation.rs",
+        "crates/router/src/core/required_fields_sync/operation.rs",
+        "crates/router/src/core/required_fields_sync/operation_executor.rs",
+        "crates/router/src/core/required_fields_sync/operation_tests.rs",
+        "crates/router/src/core/required_fields_sync/operation_recovery_tests.rs",
+        "docs/required_fields_sync_contracts/operations-v1/startup_probe.rs"
+      ],
+      "exit": 0,
+      "seconds": 0.12,
+      "network": "OS network denied",
+      "log": "format-delivery-final.log",
+      "record": "format-delivery-final.json",
+      "log_sha256": "3cc04999654b7f730e804e9b6142d98d95702b19c8e5e3680a3de77174aa5ea8"
+    },
+    {
+      "command": [
+        "rustfmt",
+        "+stable",
+        "--check",
+        "--edition",
+        "2021",
+        "--config",
+        "skip_children=true",
+        "crates/router/src/bin/router.rs",
+        "crates/router/src/configs/cli.rs",
+        "crates/router/src/configs/cli_tests.rs",
+        "crates/router/src/configs/secrets_transformers.rs",
+        "crates/router/src/configs/settings.rs",
+        "crates/router/src/core/required_fields_sync.rs",
+        "crates/router/src/core/required_fields_sync/apply.rs",
+        "crates/router/src/core/required_fields_sync/apply_contract.rs",
+        "crates/router/src/core/required_fields_sync/apply_tests.rs",
+        "crates/router/src/core/required_fields_sync/command.rs",
+        "crates/router/src/core/required_fields_sync/command_runtime.rs",
+        "crates/router/src/core/required_fields_sync/planner_types.rs",
+        "crates/router/src/core/required_fields_sync/recovery.rs",
+        "crates/router/src/core/required_fields_sync/recovery_tests.rs",
+        "scripts/required_fields_inventory_checks/src/lib.rs",
+        "crates/router/src/core/required_fields_sync/attestation.rs",
+        "crates/router/src/core/required_fields_sync/operation.rs",
+        "crates/router/src/core/required_fields_sync/operation_executor.rs",
+        "crates/router/src/core/required_fields_sync/operation_tests.rs",
+        "crates/router/src/core/required_fields_sync/operation_recovery_tests.rs",
+        "docs/required_fields_sync_contracts/operations-v1/startup_probe.rs"
+      ],
+      "exit": 0,
+      "seconds": 0.17,
+      "network": "OS network denied",
+      "log": "format-final.log",
+      "record": "format-final.json",
+      "log_sha256": "3cc04999654b7f730e804e9b6142d98d95702b19c8e5e3680a3de77174aa5ea8"
+    },
+    {
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+        "--root",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/offline-cli",
+        "--router",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/offline-cli/router-final"
+      ],
+      "exit": 0,
+      "seconds": 15.99,
+      "network": "OS network denied",
+      "log": "offline-binary-delivery-final.log",
+      "record": "offline-binary-delivery-final.json",
+      "log_sha256": "0f36d68370ae4fe099a7b087ee659801cf37879cdc37b9d9821f7090defd7918"
+    },
+    {
+      "command": [
+        "python3",
+        "docs/required_fields_sync_contracts/cli-v1/test_cli.py",
+        "--root",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/offline-cli",
+        "--router",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/offline-cli/router"
+      ],
+      "exit": 0,
+      "seconds": 15.19,
+      "log": "offline-binary.log",
+      "record": "offline-binary.json",
+      "log_sha256": "0f36d68370ae4fe099a7b087ee659801cf37879cdc37b9d9821f7090defd7918"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "command_tests",
+        "--",
+        "--ignored"
+      ],
+      "exit": 0,
+      "seconds": 0.82,
+      "network": "OS network denied",
+      "log": "offline-orchestration.log",
+      "record": "offline-orchestration.json",
+      "log_sha256": "783c142dd7a020f2b6a4287a8a9f6adafc22d5f152ab8c34dbda9d278d8a411d"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "operation_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 101,
+      "seconds": 6.72,
+      "network": "OS network denied",
+      "log": "operation-first.log",
+      "record": "operation-first.json",
+      "log_sha256": "85a075826c9e6e7ff2ca4a49d2bef5f1488fa4649599ae57748cb5151cc1c0f4"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "operation_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 13.48,
+      "network": "OS network denied",
+      "log": "operation-second.log",
+      "record": "operation-second.json",
+      "log_sha256": "8ffb458a8dbd453a2697ecf8c943084b44f8d61d5f28d79699da8d2317759979"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "operation",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 19.47,
+      "network": "OS network denied",
+      "log": "operation-third.log",
+      "record": "operation-third.json",
+      "log_sha256": "57ebda5ef93dfe272b28a23dcce6f3d2398a1117b56a8b84531a9e843ec34488"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib",
+        "operation_recovery_tests",
+        "--",
+        "--nocapture"
+      ],
+      "exit": 0,
+      "seconds": 17.29,
+      "network": "OS network denied",
+      "log": "recovery-plan-reviewed.log",
+      "record": "recovery-plan-reviewed.json",
+      "log_sha256": "e99dd91e136540fd3fb23c08fff31923a3e86247ec3c9341d850b9e25aaac21e"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 337.18,
+      "network": "OS network denied",
+      "log": "router-build-delivery-final.log",
+      "record": "router-build-delivery-final.json",
+      "log_sha256": "f742c3cdb7318b8190dc3ea778ebb0e00d988be5f4995213ffc10684940c29ee"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 362.55,
+      "network": "OS network denied",
+      "log": "router-build-final.log",
+      "record": "router-build-final.json",
+      "log_sha256": "fee45f417cff8a93e73ef3709a1e8a4c9391bf056d3fc332d0594118728aa451"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 711.77,
+      "network": "OS network denied",
+      "log": "router-build-reviewed.log",
+      "record": "router-build-reviewed.json",
+      "log_sha256": "9d6b73befa6178cf6ce3e4ce9cbdb0f12d112ffa3709195e03c1cf618a79e411"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "build",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--bin",
+        "router"
+      ],
+      "exit": 101,
+      "seconds": 536.93,
+      "network": "OS network denied",
+      "log": "router-build.log",
+      "record": "router-build.json",
+      "log_sha256": "01ac0b4a538497d1b4c577a30bdd675377974a30cd4c37d5b1500c7c41631033"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 151.81,
+      "network": "OS network denied",
+      "log": "router-check-first.log",
+      "record": "router-check-first.json",
+      "log_sha256": "24fd214c45031fc74d28e980305d6d2b63aa8ac78dad2ff53782c5f74fcfafa6"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 130.67,
+      "network": "OS network denied",
+      "log": "router-clippy-delivery-final.log",
+      "record": "router-clippy-delivery-final.json",
+      "log_sha256": "fdfbe65da4559b894e904729de7c605db12cfcd5e8faf7982ba52fbdbb90e543"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "clippy",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 132.96,
+      "network": "OS network denied",
+      "log": "router-clippy-final.log",
+      "record": "router-clippy-final.json",
+      "log_sha256": "99fc45067ab30dd12669a2ab922170d512fa6494dee01a3a2fc77dcce10ab4b4"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "check",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--bin",
+        "router"
+      ],
+      "exit": 0,
+      "seconds": 122.24,
+      "network": "OS network denied",
+      "log": "router-plain-check.log",
+      "record": "router-plain-check.json",
+      "log_sha256": "78728cb7f65458abab207f3aafed9c2c0f39753032bfd0ae87e950d27b945612"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync,email",
+        "--lib",
+        "command_runtime::attestation_tests",
+        "--",
+        "--include-ignored"
+      ],
+      "exit": 101,
+      "seconds": 0.63,
+      "network": "OS network denied",
+      "log": "router-startup-email-tests.log",
+      "record": "router-startup-email-tests.json",
+      "log_sha256": "d7746642a94785626700fde3a60ffceb6aa30b23f178fe5c52f53b77a2e57706"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "router",
+        "--features",
+        "required_fields_sync",
+        "--lib",
+        "command_runtime::attestation_tests",
+        "--",
+        "--include-ignored"
+      ],
+      "exit": 101,
+      "seconds": 353.1,
+      "network": "OS network denied",
+      "log": "router-startup-tests.log",
+      "record": "router-startup-tests.json",
+      "log_sha256": "1fa1c31f8bdd936a1d3669d15629f4f6345c60b86efd8c4cc257d2919039b8d5"
+    },
+    {
+      "command": [
+        "gitleaks",
+        "dir",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/source-scan-final",
+        "--no-banner",
+        "--redact",
+        "--ignore-gitleaks-allow",
+        "--gitleaks-ignore-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/absent-ignore",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/gitleaks-final.json"
+      ],
+      "exit": 0,
+      "files": 29,
+      "findings": 0,
+      "seconds": 0.13,
+      "log": "source-scan-final.log",
+      "configuration": "default rules; no repo/inline ignores; cleared environment; OS network denied",
+      "record": "source-scan-final.json",
+      "log_sha256": "ac3b86a0db11880ec2bd7bbd30c61d50dcbc9ded032e6987fc43becbab348f5c"
+    },
+    {
+      "command": [
+        "gitleaks",
+        "dir",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/source-scan",
+        "--no-banner",
+        "--redact",
+        "--ignore-gitleaks-allow",
+        "--gitleaks-ignore-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/absent-ignore",
+        "--report-format",
+        "json",
+        "--report-path",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/gitleaks.json"
+      ],
+      "exit": 0,
+      "files": 27,
+      "findings": 0,
+      "record": "source-scan.json"
+    },
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "--edition=2021",
+        "docs/required_fields_sync_contracts/operations-v1/startup_probe.rs",
+        "--extern",
+        "router=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/deps/librouter-f80999ed4bcdb89a.rlib",
+        "--extern",
+        "serde_json=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/deps/libserde_json-d33359ef3df593c2.rlib",
+        "-L",
+        "dependency=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/deps",
+        "-o",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/startup-probe",
+        "-L",
+        "native=/opt/homebrew/lib/postgresql@14",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/aws-lc-sys-6c7e57fa9b2abdf9/out",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/blake3-943acea55b23bfe7/out",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/openssl-sys-456fd65bc2c705a0/out/openssl-build/install/lib",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/rdkafka-sys-26e9a8b36b9ba693/out/src",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/ring-4eb834588a6dd5f1/out",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/ring-b5de306ee2698ff7/out",
+        "-L",
+        "native=/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/build/zstd-sys-b3aa7e38b27456ea/out"
+      ],
+      "exit": 0,
+      "seconds": 6.99,
+      "network": "OS network denied",
+      "log": "startup-probe-compile.log",
+      "record": "startup-probe-compile.json",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/startup-probe",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl"
+      ],
+      "exit": 0,
+      "seconds": 2.38,
+      "network": "OS network denied",
+      "log": "startup-probe-run.log",
+      "record": "startup-probe-run.json",
+      "log_sha256": "55d7318c2600993469b7d214f86e81701aee5e6609cc3903f29d7be3d75be278"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 11.27,
+      "network": "OS network denied",
+      "log": "suite-complete.log",
+      "record": "suite-complete.json",
+      "log_sha256": "79fbf9cceaed017a126f125b98f48a620263675f4a69b47d0607ce4f875f874d"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 22.55,
+      "network": "OS network denied",
+      "log": "suite-delivery-final.log",
+      "record": "suite-delivery-final.json",
+      "log_sha256": "d68aff48accb13c7d2116dc24c0240338fe2c6cbd4a911bb04884931485f2216"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 23.02,
+      "network": "OS network denied",
+      "log": "suite-final.log",
+      "record": "suite-final.json",
+      "log_sha256": "1468b78fa6f980f8aafabe76cfd1c40efc4ae4dfd96709d9a7c5216228cef6ba"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 25.09,
+      "network": "OS network denied",
+      "log": "suite-first.log",
+      "record": "suite-first.json",
+      "log_sha256": "18880513b818aab95ab2b3a888798f6b6edb2998cfc804512f792b5db5936462"
+    },
+    {
+      "command": [
+        "cargo",
+        "+stable",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "scripts/required_fields_inventory_checks/Cargo.toml",
+        "--lib"
+      ],
+      "exit": 0,
+      "seconds": 25.11,
+      "network": "OS network denied",
+      "log": "suite-reviewed.log",
+      "record": "suite-reviewed.json",
+      "log_sha256": "05e63e22735b7dc29dba1b322878d0fc47c361352bfd3222de70541de36f69f5"
+    }
+  ],
+  "final_checks": {
+    "suite-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "suite-delivery-final.json",
+      "tests": [
+        {
+          "passed": 153,
+          "failed": 0,
+          "ignored": 14
+        }
+      ]
+    },
+    "suite-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "suite-final.json",
+      "tests": [
+        {
+          "passed": 153,
+          "failed": 0,
+          "ignored": 14
+        }
+      ]
+    },
+    "suite-complete": {
+      "exit": 0,
+      "status": "passed",
+      "record": "suite-complete.json",
+      "tests": [
+        {
+          "passed": 153,
+          "failed": 0,
+          "ignored": 14
+        }
+      ]
+    },
+    "suite-reviewed": {
+      "exit": 0,
+      "status": "passed",
+      "record": "suite-reviewed.json",
+      "tests": [
+        {
+          "passed": 153,
+          "failed": 0,
+          "ignored": 14
+        }
+      ]
+    },
+    "recovery-plan-reviewed": {
+      "exit": 0,
+      "status": "passed",
+      "record": "recovery-plan-reviewed.json",
+      "tests": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "file-contract": {
+      "exit": 0,
+      "status": "passed",
+      "record": "file-contract.json",
+      "tests": [
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "offline-orchestration": {
+      "exit": 0,
+      "status": "passed",
+      "record": "offline-orchestration.json",
+      "tests": [
+        {
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "feature-off-parser-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "feature-off-parser-final.json",
+      "tests": [
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "clippy-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "clippy-delivery-final.json"
+    },
+    "clippy-complete-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "clippy-complete-final.json"
+    },
+    "router-build-reviewed": {
+      "exit": 0,
+      "status": "passed",
+      "record": "router-build-reviewed.json"
+    },
+    "router-build-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "router-build-delivery-final.json"
+    },
+    "router-startup-tests": {
+      "exit": 101,
+      "status": "failed",
+      "record": "router-startup-tests.json"
+    },
+    "router-startup-email-tests": {
+      "exit": 101,
+      "status": "failed",
+      "record": "router-startup-email-tests.json"
+    },
+    "startup-probe-compile": {
+      "exit": 0,
+      "status": "passed",
+      "record": "startup-probe-compile.json"
+    },
+    "startup-probe-run": {
+      "exit": 0,
+      "status": "passed",
+      "record": "startup-probe-run.json"
+    },
+    "format-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "format-delivery-final.json"
+    },
+    "router-plain-check": {
+      "exit": 0,
+      "status": "passed",
+      "record": "router-plain-check.json"
+    },
+    "router-clippy-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "router-clippy-delivery-final.json"
+    },
+    "binary-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "binary-delivery-final.json"
+    },
+    "offline-binary-delivery-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "offline-binary-delivery-final.json"
+    },
+    "documents-final": {
+      "exit": 0,
+      "status": "passed",
+      "record": "documents-final.json"
+    }
+  },
+  "feature_guard_results": [
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "--edition=2021",
+        "--cfg",
+        "feature=\"required_fields_sync\"",
+        "crates/router/build.rs",
+        "-o",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/rejected-router-1"
+      ],
+      "exit": 1,
+      "expected_rejection": true,
+      "log": "guard-router-1.log"
+    },
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "--edition=2021",
+        "--cfg",
+        "feature=\"required_fields_sync\"",
+        "--cfg",
+        "feature=\"v1\"",
+        "--cfg",
+        "feature=\"v2\"",
+        "crates/router/build.rs",
+        "-o",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/rejected-router-3"
+      ],
+      "exit": 1,
+      "expected_rejection": true,
+      "log": "guard-router-3.log"
+    },
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "--edition=2021",
+        "--cfg",
+        "feature=\"required_fields_sync\"",
+        "crates/payment_methods/build.rs",
+        "-o",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/rejected-payment_methods-1"
+      ],
+      "exit": 1,
+      "expected_rejection": true,
+      "log": "guard-payment_methods-1.log"
+    },
+    {
+      "command": [
+        "rustc",
+        "+stable",
+        "--edition=2021",
+        "--cfg",
+        "feature=\"required_fields_sync\"",
+        "--cfg",
+        "feature=\"v1\"",
+        "--cfg",
+        "feature=\"v2\"",
+        "crates/payment_methods/build.rs",
+        "-o",
+        "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/rejected-payment_methods-3"
+      ],
+      "exit": 1,
+      "expected_rejection": true,
+      "log": "guard-payment_methods-3.log"
+    }
+  ],
+  "binary_results": {
+    "scope": "actual_binary_denials_only",
+    "owner": "a5dbef04-2c96-46db-8bc8-a489309a13c3",
+    "binary_sha256": "e5e9c2c0396e13c6f8bc07064713f6df6f07ea28489528b6cbd60dc526ac5f0c",
+    "network": "OS denied",
+    "cases": [
+      {
+        "case": "status-uncertified",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "status-existing-output",
+        "exit": 2,
+        "code": "output_unavailable"
+      },
+      {
+        "case": "status--force",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status--host",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status--token",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status--skip-verification",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status-unknown-field",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status-duplicate-json",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status-default-mode",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "status-global-serving-config",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status-malformed-digest",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-uncertified",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "apply-existing-output",
+        "exit": 2,
+        "code": "output_unavailable"
+      },
+      {
+        "case": "apply--force",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply--host",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply--token",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply--skip-verification",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-unknown-field",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-duplicate-json",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-default-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "apply-plan-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "apply-stale-intent",
+        "exit": 3,
+        "code": "not_authoritative"
+      },
+      {
+        "case": "apply-global-serving-config",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-malformed-digest",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-uncertified",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "resume-existing-output",
+        "exit": 2,
+        "code": "output_unavailable"
+      },
+      {
+        "case": "resume--force",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume--host",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume--token",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume--skip-verification",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-unknown-field",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-duplicate-json",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-default-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "resume-plan-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "resume-stale-intent",
+        "exit": 3,
+        "code": "not_authoritative"
+      },
+      {
+        "case": "resume-global-serving-config",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-malformed-digest",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan-uncertified",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "restore-plan-existing-output",
+        "exit": 2,
+        "code": "output_unavailable"
+      },
+      {
+        "case": "restore-plan--force",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan--host",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan--token",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan--skip-verification",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan-unknown-field",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan-duplicate-json",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan-default-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "restore-plan-plan-mode",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "restore-plan-stale-intent",
+        "exit": 3,
+        "code": "not_authoritative"
+      },
+      {
+        "case": "restore-plan-global-serving-config",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-plan-malformed-digest",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply-uncertified",
+        "exit": 2,
+        "code": "certification_pending"
+      },
+      {
+        "case": "restore-apply-existing-output",
+        "exit": 2,
+        "code": "output_unavailable"
+      },
+      {
+        "case": "restore-apply--force",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply--host",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply--token",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply--skip-verification",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply-unknown-field",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply-duplicate-json",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply-default-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "restore-apply-plan-mode",
+        "exit": 2,
+        "code": "disabled"
+      },
+      {
+        "case": "restore-apply-stale-intent",
+        "exit": 3,
+        "code": "not_authoritative"
+      },
+      {
+        "case": "restore-apply-global-serving-config",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-apply-malformed-digest",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "render-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "plan-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "status-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "apply-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "resume-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "seed-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "reset-missing-arguments",
+        "exit": 2,
+        "code": "input_invalid"
+      },
+      {
+        "case": "restore-ambiguous-mode",
+        "exit": 2,
+        "code": "input_invalid"
+      }
+    ],
+    "hosted_target": null,
+    "certification": "pending"
+  },
+  "startup_probe_results": {
+    "cases_passed": 5,
+    "scope": "actual_library_startup_observation_only_not_platform_attestation",
+    "observations": [
+      {
+        "schema_version": 1,
+        "router_features": [
+          "ACCOUNTS_CACHE",
+          "COMMON_DEFAULT",
+          "DEFAULT",
+          "DUMMY_CONNECTOR",
+          "FRM",
+          "KM_FORWARD_X_REQUEST_ID",
+          "KV_STORE",
+          "OLAP",
+          "OLTP",
+          "PARTIAL_AUTH",
+          "PAYOUTS",
+          "PAYOUT_RETRY",
+          "REDIS_RS",
+          "REQUIRED_FIELDS_SYNC",
+          "RETRY",
+          "STRIPE",
+          "TLS",
+          "V1"
+        ],
+        "payment_methods_features": [
+          "DUMMY_CONNECTOR",
+          "PAYOUTS",
+          "REQUIRED_FIELDS_SYNC",
+          "V1"
+        ],
+        "effective_settings": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+        "retained_rules": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+        "profile": null,
+        "build": null,
+        "input_manifest": null,
+        "desired": null,
+        "bundle": null,
+        "desired_state": "profile_not_configured",
+        "image_provenance": "pending_platform_verification",
+        "application_rollout": "not_asserted",
+        "synchronization": "not_executed",
+        "verification": "not_executed"
+      },
+      {
+        "schema_version": 1,
+        "router_features": [
+          "ACCOUNTS_CACHE",
+          "COMMON_DEFAULT",
+          "DEFAULT",
+          "DUMMY_CONNECTOR",
+          "FRM",
+          "KM_FORWARD_X_REQUEST_ID",
+          "KV_STORE",
+          "OLAP",
+          "OLTP",
+          "PARTIAL_AUTH",
+          "PAYOUTS",
+          "PAYOUT_RETRY",
+          "REDIS_RS",
+          "REQUIRED_FIELDS_SYNC",
+          "RETRY",
+          "STRIPE",
+          "TLS",
+          "V1"
+        ],
+        "payment_methods_features": [
+          "DUMMY_CONNECTOR",
+          "PAYOUTS",
+          "REQUIRED_FIELDS_SYNC",
+          "V1"
+        ],
+        "effective_settings": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+        "retained_rules": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+        "profile": "sha256:437b504d130c277d5fce48518051c0a54c7367cf4cf68cd653ddf0cbb2b9a33d",
+        "build": "sha256:c9d7ab60d678ee552c56707f388a6fe1ba6251c7cde97d2b361ef133a054a77b",
+        "input_manifest": "sha256:87257b2450cff294ea16d0a3b9c823cf8652b2f5e95be3adbd39e3c36f2d0cd2",
+        "desired": "sha256:2a0d1d681515db284be70ced52cedcb67360c12712a80f821b748ca1e157972a",
+        "bundle": "sha256:b420da1baca7612876dfa66a93de88c7d1f5958c5af74a0750bac66e6ce5cec4",
+        "desired_state": "observed",
+        "image_provenance": "pending_platform_verification",
+        "application_rollout": "not_asserted",
+        "synchronization": "not_executed",
+        "verification": "not_executed"
+      },
+      {
+        "schema_version": 1,
+        "router_features": [
+          "ACCOUNTS_CACHE",
+          "COMMON_DEFAULT",
+          "DEFAULT",
+          "DUMMY_CONNECTOR",
+          "FRM",
+          "KM_FORWARD_X_REQUEST_ID",
+          "KV_STORE",
+          "OLAP",
+          "OLTP",
+          "PARTIAL_AUTH",
+          "PAYOUTS",
+          "PAYOUT_RETRY",
+          "REDIS_RS",
+          "REQUIRED_FIELDS_SYNC",
+          "RETRY",
+          "STRIPE",
+          "TLS",
+          "V1"
+        ],
+        "payment_methods_features": [
+          "DUMMY_CONNECTOR",
+          "PAYOUTS",
+          "REQUIRED_FIELDS_SYNC",
+          "V1"
+        ],
+        "effective_settings": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+        "retained_rules": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+        "profile": null,
+        "build": null,
+        "input_manifest": null,
+        "desired": null,
+        "bundle": null,
+        "desired_state": "refused",
+        "image_provenance": "pending_platform_verification",
+        "application_rollout": "not_asserted",
+        "synchronization": "not_executed",
+        "verification": "not_executed"
+      },
+      {
+        "schema_version": 1,
+        "router_features": [
+          "ACCOUNTS_CACHE",
+          "COMMON_DEFAULT",
+          "DEFAULT",
+          "DUMMY_CONNECTOR",
+          "FRM",
+          "KM_FORWARD_X_REQUEST_ID",
+          "KV_STORE",
+          "OLAP",
+          "OLTP",
+          "PARTIAL_AUTH",
+          "PAYOUTS",
+          "PAYOUT_RETRY",
+          "REDIS_RS",
+          "REQUIRED_FIELDS_SYNC",
+          "RETRY",
+          "STRIPE",
+          "TLS",
+          "V1"
+        ],
+        "payment_methods_features": [
+          "DUMMY_CONNECTOR",
+          "PAYOUTS",
+          "REQUIRED_FIELDS_SYNC",
+          "V1"
+        ],
+        "effective_settings": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+        "retained_rules": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+        "profile": null,
+        "build": null,
+        "input_manifest": null,
+        "desired": null,
+        "bundle": null,
+        "desired_state": "refused",
+        "image_provenance": "pending_platform_verification",
+        "application_rollout": "not_asserted",
+        "synchronization": "not_executed",
+        "verification": "not_executed"
+      },
+      {
+        "schema_version": 1,
+        "router_features": [
+          "ACCOUNTS_CACHE",
+          "COMMON_DEFAULT",
+          "DEFAULT",
+          "DUMMY_CONNECTOR",
+          "FRM",
+          "KM_FORWARD_X_REQUEST_ID",
+          "KV_STORE",
+          "OLAP",
+          "OLTP",
+          "PARTIAL_AUTH",
+          "PAYOUTS",
+          "PAYOUT_RETRY",
+          "REDIS_RS",
+          "REQUIRED_FIELDS_SYNC",
+          "RETRY",
+          "STRIPE",
+          "TLS",
+          "V1"
+        ],
+        "payment_methods_features": [
+          "DUMMY_CONNECTOR",
+          "PAYOUTS",
+          "REQUIRED_FIELDS_SYNC",
+          "V1"
+        ],
+        "effective_settings": "sha256:1730f53e81b153fe040f06a3c6c43253eec09a41d7e5a849b52812e651fd495a",
+        "retained_rules": "sha256:e9f6fc869613de38f90636c3a808eb75141ae16a81ba41298a70c4f9f7eeeae1",
+        "profile": null,
+        "build": null,
+        "input_manifest": null,
+        "desired": null,
+        "bundle": null,
+        "desired_state": "refused",
+        "image_provenance": "pending_platform_verification",
+        "application_rollout": "not_asserted",
+        "synchronization": "not_executed",
+        "verification": "not_executed"
+      }
+    ]
+  },
+  "startup_probe_linkage": {
+    "router_library": "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step11-3_ea8njm/target-router/debug/deps/librouter-f80999ed4bcdb89a.rlib",
+    "router_library_sha256": "1326d3f65bad49b0c1589447c3677d6a804537dceed0fcfa2bf237d74666f610",
+    "features": [
+      "accounts_cache",
+      "common_default",
+      "default",
+      "dummy_connector",
+      "frm",
+      "km_forward_x_request_id",
+      "kv_store",
+      "olap",
+      "oltp",
+      "partial-auth",
+      "payout_retry",
+      "payouts",
+      "redis-rs",
+      "required_fields_sync",
+      "retry",
+      "stripe",
+      "tls",
+      "v1"
+    ],
+    "source_sha256": "37c4e064427467129ce8c96db9be315d2388ca5763bad830cd9d2c192be54d54",
+    "retained_probe_executable_sha256": "e1eae4642f17bfcd05c45cd59df0c0ee4bc83989d548ab398464d32d04deba84",
+    "scope_note": "Linked reviewed library before final report-delivery indexing cleanup; startup implementation unchanged. Final command binary rebuilt separately."
+  },
+  "offline_binary_results": {
+    "schema_version": 1,
+    "scope": "actual_router_binary_offline_plumbing_not_server_or_browser_certification",
+    "network": "OS_denied_all_network_verified_before_execution",
+    "binary_sha256": "e5e9c2c0396e13c6f8bc07064713f6df6f07ea28489528b6cbd60dc526ac5f0c",
+    "cases": [
+      {
+        "case": "seed_without_services",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:8b32828b254df71de7c9343c7d29f1584b3679617c4bc974f461f0d0ed4cd1b4",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_ignores_ambient_bank_override",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:8b32828b254df71de7c9343c7d29f1584b3679617c4bc974f461f0d0ed4cd1b4",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "effective_settings_without_services",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:895aacef7120a9074db1e26db5123a237ac15279133fb0c1ae30a9b28bae96d2",
+          "bundle_hash": "sha256:3e0b251291efef64e9d601743193a0ef7255af2090e005cd4a653b0fc141f2aa",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_absent_banks",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:cf9fbbc1261e103c1171f754cd4eb824c7e2a3d443e55988d93194d5a0a3c2b8",
+          "bundle_hash": "sha256:b420da1baca7612876dfa66a93de88c7d1f5958c5af74a0750bac66e6ce5cec4",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_empty_banks",
+        "exit": 0,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "rendered_offline",
+          "profile_hash": "sha256:9887cc98d12e65dfc50ed60ee30b9acb0efb6f663f40d4a7045029b6f24c5363",
+          "bundle_hash": "sha256:86aa9fe3b115da9e1ca5cf5c39db105cd1f5bf73f03f5f3d950296f153de3019",
+          "candidate_hash": null,
+          "provisional": true,
+          "sdk_verification": "not_executed",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "seed_unknown_bank_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "input",
+            "refusal": "input_invalid",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "effective_bank_drift_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "settings_mismatch",
+          "phase": "input",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "input",
+            "refusal": "settings_mismatch",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "missing_effective_file_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "input",
+            "refusal": "input_invalid",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "unapproved_compiled_profile_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "mapping_unresolved",
+          "phase": "render",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {
+            "MalformedOptions": 3,
+            "MissingBinding": 1625
+          },
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "render",
+            "refusal": "mapping_unresolved",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "existing_output_preserved",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "output_unavailable",
+          "phase": "output",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "output",
+            "refusal": "output_unavailable",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "symlink_input_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "input",
+            "refusal": "input_invalid",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "unregistered_target_before_credentials",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "unsupported_server_contract",
+          "phase": "target",
+          "exit_code": 2,
+          "detail": "CertificationPending",
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "target",
+            "refusal": "unsupported_server_contract",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "target_identity_mismatch",
+        "exit": 3,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "target_mismatch",
+          "phase": "target",
+          "exit_code": 3,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "target",
+            "refusal": "target_mismatch",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "mode_defaults_disabled",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "disabled",
+          "phase": "target",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "target",
+            "refusal": "disabled",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "unknown_target_override_refused",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "input",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "input",
+            "refusal": "input_invalid",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "serving_config_conflict",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "exit_code": 2,
+          "detail": null,
+          "diagnostic_counts": {},
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled",
+          "application_rollout": "not_asserted",
+          "collector_delivery": "pending_platform_certification",
+          "metrics": {
+            "outcome": "refused",
+            "phase": "arguments",
+            "refusal": "input_invalid",
+            "requests_dispatched": 0,
+            "target_class": "unregistered_or_fixture"
+          }
+        }
+      },
+      {
+        "case": "unavailable_command_apply",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_seed",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_status",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_resume",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_restore",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "unavailable_command_reset",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_force",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_endpoint",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_org",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_workspace",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_header",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "rejected_override_token",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "explicit_profile_required",
+        "exit": 2,
+        "envelope": {
+          "schema_version": 1,
+          "outcome": "refused",
+          "code": "input_invalid",
+          "phase": "arguments",
+          "superposition_mutations_dispatched": 0,
+          "leases_acquired": 0,
+          "hosted_apply": "disabled"
+        }
+      },
+      {
+        "case": "render_help",
+        "exit": 0,
+        "envelope": {
+          "outcome": "help"
+        }
+      },
+      {
+        "case": "plan_help",
+        "exit": 0,
+        "envelope": {
+          "outcome": "help"
+        }
+      }
+    ],
+    "passed": 31,
+    "fixture_owner": "f36c4533-e77d-4770-ac93-932a69e563d9"
+  },
+  "preservation": {
+    "repositories": {
+      "H": {
+        "head": "68c938724127fe507cdb5b2c365c6f15af1aec1d",
+        "branch": "feat/superposition-required-fields-foundations",
+        "index_sha256": "87d0fa9eed8ceb4a2b707552791e5002173d8f80bc1e2796ce4ea8f10b981244",
+        "status": "M crates/router/src/bin/router.rs\n M crates/router/src/configs/cli.rs\n M crates/router/src/configs/cli_tests.rs\n M crates/router/src/configs/secrets_transformers.rs\n M crates/router/src/configs/settings.rs\n M crates/router/src/core/required_fields_sync.rs\n M crates/router/src/core/required_fields_sync/apply.rs\n M crates/router/src/core/required_fields_sync/apply_contract.rs\n M crates/router/src/core/required_fields_sync/apply_tests.rs\n M crates/router/src/core/required_fields_sync/command.rs\n M crates/router/src/core/required_fields_sync/command_runtime.rs\n M crates/router/src/core/required_fields_sync/planner_types.rs\n M crates/router/src/core/required_fields_sync/recovery.rs\n M crates/router/src/core/required_fields_sync/recovery_tests.rs\n M docs/required_fields_sync_contracts/README.md\n M docs/required_fields_sync_contracts/questions.md\n M docs/superposition_required_fields_sync_implementation_playbook.md\n M scripts/required_fields_inventory_checks/README.md\n M scripts/required_fields_inventory_checks/src/lib.rs\n?? crates/router/src/core/required_fields_sync/attestation.rs\n?? crates/router/src/core/required_fields_sync/operation.rs\n?? crates/router/src/core/required_fields_sync/operation_executor.rs\n?? crates/router/src/core/required_fields_sync/operation_recovery_tests.rs\n?? crates/router/src/core/required_fields_sync/operation_tests.rs\n?? docs/required_fields_sync_contracts/operations-v1/\n?? docs/superposition_required_fields_sync_implementation_plan.md\n?? docs/superposition_required_fields_sync_roadmap.md"
+      },
+      "W": {
+        "head": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+        "branch": "main",
+        "index_sha256": "501608d743ce8a8f3c4bbed61c36a61fff1d525e572a3bd2127ae08b1130f78b",
+        "status": "?? playwright-tests/e2e/required-fields-sync.spec.ts\n?? playwright-tests/required-fields-sync/\n?? playwright-tests/required-fields-verifier/"
+      },
+      "U": {
+        "head": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+        "branch": "",
+        "index_sha256": "359a0e540417b9ad420b08981a7f05ad9b808766e90032d80b1f466fd79bf49c",
+        "status": ""
+      },
+      "I": {
+        "head": "92041e63f025dc838388a489a5511ba74f387590",
+        "branch": "main",
+        "index_sha256": "d030d32dd141587618fe67e3a97403e50cf49cd1170caf536b6a7dd33e29f0de",
+        "status": ""
+      }
+    },
+    "original_inputs_and_locks": {
+      "docs/superposition_required_fields_sync_implementation_plan.md": true,
+      "docs/superposition_required_fields_sync_roadmap.md": true,
+      "Cargo.lock": true,
+      "scripts/required_fields_inventory_checks/Cargo.lock": true
+    },
+    "seed_unchanged": true,
+    "source_business_data_and_sdk_unchanged": true
+  },
+  "secret_scan": {
+    "command": [
+      "gitleaks",
+      "dir",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/source-scan-final",
+      "--no-banner",
+      "--redact",
+      "--ignore-gitleaks-allow",
+      "--gitleaks-ignore-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/absent-ignore",
+      "--report-format",
+      "json",
+      "--report-path",
+      "/private/var/folders/3r/5h91zf1d2515z0phtg4mdsv40000gp/T/required-fields-step13-b2l6uynl/gitleaks-final.json"
+    ],
+    "exit": 0,
+    "files": 29,
+    "findings": 0,
+    "seconds": 0.13,
+    "log": "source-scan-final.log",
+    "configuration": "default rules; no repo/inline ignores; cleared environment; OS network denied"
+  },
+  "external_gates": {
+    "real_command_provisioning": "pending: no certified storage/safety/image/collector provisioning implementation; closed registry refuses",
+    "server_contracts": "pending exact disposable builds, permissions, ordering and mutation certification",
+    "image_provenance": "pending platform-pod-image/config attachment; process hash/feature facts are not an OCI certificate",
+    "journal": "pending remote immutability, retention, encryption and access separation",
+    "coordination": "pending actual writer exclusion, request drain, authoritative intent and complete workload/route control",
+    "verification": "all real-target V1-V4 pending; modeled positive receipts are test-only",
+    "collector": "pending durable platform ingestion and failed-Job/unknown/stale-backup alert delivery"
+  },
+  "local_test_blockers": [
+    "Default router unit-test graph references external_services::email without its feature in analytics_report.rs; no selected startup test executed.",
+    "The email-enabled router unit-test attempt requires uncached aws-sdk-sesv2 v1.123.0; offline run refused.",
+    "The independently linked actual-router startup probe passed five cases; it does not change either failed unit-test gate."
+  ],
+  "material_discrepancies": [
+    "Existing CLI definitions are in configs/cli.rs; Settings remains the loader and serving attestation source.",
+    "Early command exit 1 is refined to validation/authority exit 2/3; ordinary serving parser behavior is preserved.",
+    "Restore planning is provisional and uses narrow read capabilities; it does not depend on writer/image/barrier/collector availability.",
+    "Production adapter provisioning cannot be certified or completed from absent platform/storage/image evidence; there is no successful stub or hosted enablement."
+  ],
+  "not_executed": [
+    "hosted or disposable Superposition API certification",
+    "real pod, rollout, external writer or collector checks",
+    "new W/U browser execution",
+    "actual backup/startup environment verification",
+    "MSRV 1.94.1 and release-image/cross-platform/full-workspace/expanded feature matrix",
+    "seed generation or uploader",
+    "staging, commit, push, branch change, remote PR or deployment"
+  ],
+  "next_eligible": "Step 14 local seed/CI only after review and a new request; external target certification is independent",
+  "suggested_commit": "feat: wire required-fields execution and release attestations",
+  "cleanup": "Owned reports, pinned binaries and cache targets retained for review; no shared or repository resources removed"
+}

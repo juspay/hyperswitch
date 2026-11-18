@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "contract_id": "required-fields-sdk-v1",
+  "pack_sha256": "a7b7936786fffac90fcdea0669a739dc28e5ade87e7d5989742d54f31443f95e",
+  "provenance": {
+    "web_revision": "939f45786aee1c3b14e3f0b134bb42cb2cf2dd39",
+    "utils_revision": "1af3e5dabf9d5a17dd864ac7312151ebac4367c6",
+    "rust_core_version": "0.119.0",
+    "files": {
+      "shared-code/sdk-utils/superposition/superposition.js": "5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19",
+      "shared-code/sdk-utils/hooks/ConfigurationService.res": "4bed27b36ad3de18a49476ab37dfb499ec0341227bde005f9dbe9e3ec0fd5ae4",
+      "shared-code/sdk-utils/utils/SdkConfigParser.res": "755f71a04df6edf36d837b59c4f6f4341edf8e7dc97ca9bb033e06a84825d5f6",
+      "shared-code/sdk-utils/utils/SuperpositionHelper.res": "e6814437891af8d9284320b9546769fbca2f42040f7e7cc64ef0ba90067af021",
+      "src/Utilities/DynamicFieldsUtils.res": "6aa0bdfe7fb1a08f5688cb3edf0e346284f7a09d355847005555143fbe35eb8a",
+      "src/Country.res": "586172b1ac1fc154c1072e9231ae78f2e491ba2fe669642ccb4596a0c0eaf08c",
+      "src/States.json": "c64c8d955673064e1f6d4b8fdced41085c4b57dff09d28bae32ed674345f18eb",
+      "src/Utilities/S3Utils.res": "c39dcacf7e2b5ee1d26602018f0bc97d6eba7f765cc19f3d57660da785d35494",
+      "package-lock.json": "00fc3941d7937310d3924caf17fcf978d67dd29eaa5fc21d5e53192f12fe81ad",
+      "playwright-tests/package-lock.json": "0a69a352e1dc72444534e986b01a534f1d849585f61f26c32685828341cb5e12",
+      "shared-code/sdk-utils/utils/CommonUtils.res": "f3423f8731d5a586a36db64a19c7dd5041e162d2bd284c92dbe1cf1bdae57d1d",
+      "shared-code/sdk-utils/types/SuperpositionTypes.res": "3cc26b27f8d46ccdfe371a0d43ad1f74188bea8e7b4d70d04f4cfed36ea37354",
+      "src/Utilities/PaymentUtils.res": "01a69dba2104b3935258592bd66311910017b342b47114912a00677ffaf4aec1",
+      "src/Utilities/Utils.res": "799e461415700d2a4c3cd8cb432986084bffae4ca7a8115615547748d738df7a",
+      "src/Utilities/Constants.res": "fd69d4a089e65baac34fe6e8985d6e26d65b603b9c54a74902190e6d3af6fcf3",
+      "src/Payments/PaymentMethodsRecord.res": "027c2120fd53f2731c06418deaa19f3444ebb7e1111ff3e77f816333c00cf893",
+      "src/Payments/ParentCardComponent.res": "11a3cb5310e7604a4a294901eaad847aae7abd9537a8ddcbab3aabc65c4e80d2",
+      "src/Components/CardBusinessFields.res": "aa4334a3a47fca29bf730a173e301a3735fee03f1a173dfb130cdcff646e656e",
+      "src/Components/DynamicFields.res": "70de3ded8347943b98dd7855230d68240e28eb11afadca8f1607f0f65c4cb027",
+      "src/Components/DynamicFieldInput.res": "b3ed3c60d6d613239680654db8ce7ddd9062718224c79f875e0385ded38536a5",
+      "src/Components/DropdownField.res": "186d3eea264136f21f1222b90e31efe97a9da98c71e13221a35c78148d054f82",
+      "src/CountryStateDataRefs.res": "7b73531b8fd43c314a19f2a293b08f0653ad2b13761ec844c304269346c29677",
+      "src/Components/DynamicFields/BankNamesSelectField.res": "0dd9003bf0daace36014333d9a90f1bbb5fb3c9ca5499d125202e7b25a1df594",
+      "src/Components/DynamicFields/CardHolderNameField.res": "15c9f8c6ca79d93fe6dec2baa464ea50184587d64be87f5ce2b062545f17821f",
+      "src/Components/DynamicFields/CountryDropdownField.res": "78721ead8fa5b56d39654e1efec0cd6c4d75b7aa5b5c0aa01b952ae59b67db2e",
+      "src/Components/DynamicFields/EmailField.res": "41984aa20eb5af6e8224a342d4a39e44f37448b403b485c8a5d1d5bc70c631c4",
+      "src/Components/DynamicFields/GenericDropdownField.res": "46fdb96db286730ed7349a1be46d84f2d88c9bcd92d0a27944aec135996429c8",
+      "src/Components/DynamicFields/GenericInputField.res": "c42f31bea52d1109a5e3708b7ad18d6f1c3fa6f9d94d6454de3e51dbd738f535",
+      "src/Components/DynamicFields/PhoneCountryCodeDropdownField.res": "3be5dc6b71b0dc0f2fb12fb6a6c7368653f95bb0acda15bff1ac74a496ff0522",
+      "src/Components/DynamicFields/PhoneField.res": "869e296b3da1160bde1c51218ea65e481825827f5865d633feb2f7c6a2444c5d",
+      "src/Components/DynamicFields/StateDropdownField.res": "58ecde54a2139c86c505e2a03b4a77e54e15c4f3499756c7b73ff4a86f69184c",
+      "playwright-tests/required-fields-sync/browser-entry.js": "26518ed6640aae13eebc8c42e65c48201d9dff6e333bc4bede4905ce630e3589",
+      "playwright-tests/required-fields-sync/browser.spec.ts": "42a72db770fd2413655cafbf77e967c392f14626838fc8ea06454b28c72b8c82",
+      "playwright-tests/required-fields-sync/contract.cjs": "23a6baa28d560ed68f91c1e8419dfc4b747eaf73a6e5685a059b3ae46a7a53e6",
+      "playwright-tests/required-fields-sync/contract.test.cjs": "9bb3783cf1144fb36234378ae2a4ee7c6859e11a8d3a7d948e8aee0f514a4cca",
+      "playwright-tests/required-fields-sync/evaluator.cjs": "e412dc20d36801c4c7f5f4ef48e1269cdf97ed308e9a5d0a4cc77bc277502e1a",
+      "playwright-tests/required-fields-sync/playwright.config.ts": "8444e7e55455e8c5352a65775f3dc66d505cd3a8eafdee9a376e57ecda8b6995",
+      "playwright-tests/required-fields-sync/prepare-fixture.cjs": "85f84dd4343780ff1195ea9a362dcf4dbba46687dbe253ba0522d85c44753d2a",
+      "playwright-tests/required-fields-sync/reporter.cjs": "30a3a407785a3454e70dc3ce23bd9acaa75990119325acf223275b974d295961",
+      "playwright-tests/required-fields-sync/run-browser.cjs": "93ff23916c747db8bc9612c8c11528e4a4ae26592a13d720662d73c76cbd4de4",
+      "playwright-tests/required-fields-sync/run-resolver.cjs": "977627aeee5949844684af977973f873eb737960cf5de289c8dcd79eae833d68",
+      "playwright-tests/required-fields-sync/webpack.config.cjs": "75181425660cfb55e593c16b75a8e8fbc65b965f0ea23239671cf62e0db958c0",
+      "playwright-tests/e2e/required-fields-sync.spec.ts": "9cc71b06c4c8cdb3adda41f239849916a58172618a91c7b4fa4f8e90da714d0f",
+      "playwright-tests/required-fields-sync/tsconfig.json": "d7c41a65a5b8058230aeca32439edd22bc3a88a63ec2b54f3d9d32d0ea5bb16f",
+      "playwright-tests/required-fields-sync/run-checkout.cjs": "73f2e64925a8d209b0d297d21b2d26cd5bc597b56954af722368793e99a4c833",
+      "playwright-tests/required-fields-sync/fixture.cjs": "217d47d52b1cfa546242d65a1134ce3bc5eecb9e492fc0c1ad82e04257561076",
+      "playwright-tests/required-fields-sync/checkout-demo.webpack.cjs": "e2122ad940231ad4e8898f8f82b9c6cb6d488efdf4b742c028ae565ea57ff955",
+      "playwright-tests/required-fields-sync/checkout.config.ts": "7a348ac6058e1e82a890ff2da63ff74489348e0e9def1b8d1f9478acde8c8304",
+      "playwright-tests/required-fields-sync/checkout-sdk.webpack.cjs": "ff35be98084b74821bbadc7ebca474fa54d419cd7a5f29646b61eb7e2128cc53",
+      "webpack.common.js": "2f4c016fb2f10b458b873b3e0fae23dce1142e5702765e7068a2040678a9a917",
+      "tailwind.config.js": "8ae5d77bf748a3820c4e605b0e131d1f5bbd797cd59b473596c1cd48b9aa10a6",
+      "index.js": "33a68534cf929c8a3768d20b0b65000ca30a8f0d3ec2bbfae2e66908829f4a82",
+      "rescript.json": "be3f615819c60fd79916a57abd6958c7db66e1d5820308a437ca8f7a5fc3ffcd",
+      "Hyperswitch-React-Demo-App/package-lock.json": "dc5d5a164e7c1b60e41ed5152619ac6ce402e403587c19c6fb811c482552c602",
+      "Hyperswitch-React-Demo-App/webpack.common.js": "4ae2e72a4fe01c224eb1c50b60193353b7442f6c4e426249d42d2935681f05fe",
+      "Hyperswitch-React-Demo-App/src/index.js": "c54bfcf1f2054d619262d5cc813f7095b4d20c2dd8c359a08425da2401924b42",
+      "playwright-tests/fixtures/index.ts": "7e403d544e712a4f0d8967e08b15293c7f18b4b43e9e2841120993bc49436d21",
+      "playwright-tests/fixtures/api.ts": "0b8d42b98f364d278e9bb2960585baf364e98eebe9c8ad172a73e2eedaeb3a26",
+      "playwright-tests/fixtures/checkout.ts": "b5a08f7d1df05f64762702d89a8e472ab4c54ca2e106a1d6e73055570a488a28",
+      "playwright-tests/fixtures/sdk.ts": "26fd3402904e6161bbcf0405bae97cf71742ead5552bd9ee8c507948a0e36858",
+      "playwright-tests/fixtures/env.ts": "8010b539d28d4663296b475c8119d862c81295027f4759b0bd0b7fcae6b67edf",
+      "playwright-tests/fixtures/hermetic/engine.ts": "2c7cd3ba6b35aa04ece2a38294af57540f728eafb175396282c8cbe4c08cd2df",
+      "playwright-tests/fixtures/demo-shop.ts": "2db1bf8054bd2f6b0a9ce126e04d720ece3329fc791cb18ecb305be7b953be24",
+      "src/PaymentElementRenderer.res": "ceec000b7854197fe6ba74cc089a6c9ed20a1ca6842a59ff5fc5dc646755e0e2",
+      "src/hyper-log-catcher/ErrorBoundary.res": "cb559555ba795fc4e35c2c7ca846d181e3360487b15680fdff413b3e5e3aa661",
+      "src/Payments/RawCardCollector.res": "50c6cdbe0eb042641ea9ed67847bba566897fca4b1958b9db82ef0855b8a0392",
+      "src/Payments/PaymentMethodsWrapper.res": "38ad8386e2b9ad131231154b6102ec804f08f2719bac2ef6454441ae16ae023d",
+      "src/Utilities/PaymentBody.res": "69c096a03c0aa58fad8fc8572593c3a1a47374b11c682d9081207b691df3a658",
+      "src/CardUtils.res": "fec15826d3315e4a84c095a099338bf3488971ed858e1f83bd74bb0aa82661df",
+      "Hyperswitch-React-Demo-App/src/CheckoutForm.js": "9632c1ca5e97f74fb62bb137b2051b8e574fdb5ee24015f6b789d7a8ecb41d21",
+      "Hyperswitch-React-Demo-App/src/Payment.js": "fa9814d0f48802531836c0782904a5361d1208b6e656fcc5fc5a2e87cb8b6f3f",
+      "src/LocaleStrings/EnglishLocale.res": "756fcf3e97a5a4f13ff04e206efd26ee8c22c0bda6245cebac644b5ee1f8fdd7"
+    }
+  },
+  "stage": "js-resolver",
+  "execution": {
+    "engine": "js-resolver",
+    "artifact_sha256": "5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19",
+    "runtime": "v26.0.0"
+  },
+  "results": [
+    {
+      "id": "R01-explicit-default-options",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R02-omitted-mandate-options",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R03-baseline-after-removal",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R04-explicit-false",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R05-supplied-order",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R06-absent-mandate",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R07-exact-case",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R08-scalar-not-array",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R09-missing-default",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R10-ordered-duplicates",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R11-empty-options",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R12-null-options",
+      "status": "passed",
+      "detail": "SDK behavior observed; contract refuses invalid-options"
+    },
+    {
+      "id": "R13-later-tenant",
+      "status": "passed",
+      "detail": "actual pinned CacReader matches independent expectation"
+    },
+    {
+      "id": "R14-missing-reference",
+      "status": "passed",
+      "detail": "SDK behavior observed; contract refuses missing-override"
+    }
+  ],
+  "status": "passed"
+}

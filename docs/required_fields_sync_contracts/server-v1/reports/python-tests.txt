@@ -1,0 +1,15 @@
+test_cleanup_only_exact_owned_resources_including_lost_create_response (test_fixture.TargetTests.test_cleanup_only_exact_owned_resources_including_lost_create_response) ... ok
+test_cleanup_refuses_unowned_container (test_fixture.TargetTests.test_cleanup_refuses_unowned_container) ... ok
+test_existing_workspace_and_remote_docker_refused (test_fixture.TargetTests.test_existing_workspace_and_remote_docker_refused) ... ok
+test_floating_or_mismatched_image_source_and_version_refused (test_fixture.TargetTests.test_floating_or_mismatched_image_source_and_version_refused) ... ok
+test_hosted_redirectable_and_credential_endpoints_refused (test_fixture.TargetTests.test_hosted_redirectable_and_credential_endpoints_refused) ... ok
+test_mounts_privilege_and_external_network_refused (test_fixture.TargetTests.test_mounts_privilege_and_external_network_refused) ... ok
+test_registered_owned_fixture_is_read_only_verified (test_fixture.TargetTests.test_registered_owned_fixture_is_read_only_verified) ... ok
+test_unknown_registration_fields_do_not_supply_a_force_bypass (test_fixture.TargetTests.test_unknown_registration_fields_do_not_supply_a_force_bypass) ... ok
+test_unregistered_peer_or_exposed_port_refused (test_fixture.TargetTests.test_unregistered_peer_or_exposed_port_refused) ... ok
+test_wrong_owner_or_stopped_container_refused (test_fixture.TargetTests.test_wrong_owner_or_stopped_container_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.001s
+
+OK

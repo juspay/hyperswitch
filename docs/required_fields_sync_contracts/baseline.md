@@ -1,0 +1,64 @@
+# Step 0 source baseline — 2026-11-17
+
+Scope: playbook Step 0, plan §3–4 and §12–14. Changes since the recorded source baseline were inspected locally. No old checkout, fetch, submodule update or environment access was needed. The [plan](../superposition_required_fields_sync_implementation_plan.md) remains the design specification; its October line numbers/dependency statements are historical where this refresh differs.
+
+## Repository state and instructions
+
+| Label | Local checkout | Current revision / branch | Starting state |
+|---|---|---|---|
+| H | `/Users/deepanshu.bansal/hyperswitch` | `82fe5dfd3ac527fd4a1e03dc01fbb5be13e3198b`, `main` | No tracked changes; plan, playbook and roadmap untracked |
+| W | `/Users/deepanshu.bansal/Desktop/hyperswitch-web` | `939f45786aee1c3b14e3f0b134bb42cb2cf2dd39`, `main` | Clean |
+| U | W `shared-code/` | `1af3e5dabf9d5a17dd864ac7312151ebac4367c6`, detached HEAD | Clean; exactly W's recorded gitlink |
+| I | `/Users/deepanshu.bansal/Desktop/hyperswitch-infra` | `92041e63f025dc838388a489a5511ba74f387590`, `main` | Clean |
+
+H was compared against `f237029208a1812aa27281dc9ee5f69fa8c89f84`. W/U/I revisions and tracked contents are unchanged from the plan, so their entire historical investigations were not repeated. No applicable `AGENTS.md` was found in H/W/U or inspected ancestors; I's root `AGENTS.md` was read and no additional nested file was found. Its chart-creation workflow does not apply to this documentation-only step. H [CONTRIBUTING](../../docs/CONTRIBUTING.md) was inspected; its generic all-features advice conflicts with the current justfile's explicit v1/v2 separation (see [checks](checks.md)). No skill or sub-agent workflow was needed.
+
+## Existing implementation and current entry points
+
+Source searches covered `crates`, `config`, `scripts` and `.github` for `required_fields_sync`, `required_fields_renderer`, `RequiredFieldsSync`, `RequiredFieldsRenderer`, `render_required_fields`, `DesiredStateBundle`, `CompleteInventory` and `CommitUnknown`. No matches were found. Existing module registrations and CLI/features were inspected too. This is a scoped absence finding, not proof that no differently named implementation exists anywhere.
+
+The compiled `RequiredFields`, legacy merge, SDK-config read routes/provider, generic Superposition writes, seed uploader and two existing required-field tests already exist. They are reuse points, not an implemented reconciliation feature. No renderer, sync CLI/feature, complete-inventory adapter, journal or target coordination was found in those surfaces.
+
+Current H references (line numbers at the revision above):
+
+| Surface | Current source reference and consequence |
+|---|---|
+| Rule types | `crates/payment_methods/src/configs/settings.rs:13–49`: v1 map groups versus v2 optional vectors remain distinct; bank settings use a `HashSet`. |
+| Rule construction | `payment_connector_required_fields.rs` under that same directory is now 4,486 lines; `to_tuple:216`, `fields:1084`, `RequiredFields::new:1140`, `Default:1422`, EPS lookup `:2512–2539`. Default still uses empty bank settings. |
+| Field contracts | `crates/api_models/src/payment_methods.rs:2698–2723` (`RequiredFieldInfo`, `for_config`); `crates/api_models/src/enums.rs:378–504` (`FieldType`, custom equality). Relevant definitions are unchanged apart from line shifts. |
+| Settings and CLI | `crates/router/src/configs/settings.rs:71–76,1528–1600`: clap `CmdLineConf` still has only config path; settings precedence remains defaults → file → `ROUTER__…`, then v1 reconstruction from effective `bank_config`. `crates/router_env/src/logger/config.rs:173–201` selects paths. |
+| Executable/errors | `crates/router/src/bin/router.rs:1–111`, declared at `crates/router/Cargo.toml:376–382`; **not** `src/main.rs`. Serving initializes/validates settings and then starts services. Reuse `ApplicationResult`/error-stack (`crates/router/src/core/errors.rs:39`) and existing clap conventions in later steps. |
+| Legacy consumer | `crates/router/src/core/payment_methods/cards.rs:4358` (`get_banks`), `:5139–5158` (common plus mandate/non-mandate), `:5497–5514` (CIT/payment type). These remain separate from browser final resolution. |
+| SDK routes and response | `crates/router/src/routes/app.rs:3581–3597`; auth in `routes/superposition_sdk_config.rs:52–125`; filters/response in `core/superposition_sdk_config.rs:288–349,399–462`. Both prefixes, `raw_configs`, `resolved_configs: None` and connector arrays remain. Provider scope was added; see D3 below. |
+| Provider/writes | `crates/external_services/src/superposition.rs:733–832,981–1042,1056–1117`: provider construction, cached filtering, existing generic `create_context` write and accessors. These do not prove effective permissions or a mutation-safe sync transport. |
+
+## Material discrepancies and follow-up proposals
+
+The **source evidence** and **proposed response** below are distinct. No affected runtime behavior was implemented, approved or certified here.
+
+| ID | Refreshed source evidence | Proposed follow-up / dependent gates |
+|---|---|---|
+| D1 — Rust/client versions | H `Cargo.toml:5` now declares MSRV **1.94.1**, not 1.85.0; offline metadata reports **41** workspace members, not 40. `Cargo.lock:9597–9687` locks core/provider/SDK/types at **0.119.0**, not 0.115.5. Router direct reqwest is **0.13.5**; clap **4.5.38** and error-stack **0.4.1** remain (`crates/router/Cargo.toml:210–253`). Other reqwest/error-stack versions still exist transitively. | Amend new contract/build inputs to the current lock and feature graph. Do not carry 0.115.5 API/client conclusions into Step 2 certification. Certify 0.119.0 against each selected actual server digest; no server upgrade is implied. Q2/Q9, Steps 2/3/5/10/11. |
+| D2 — Timing keys and provider behavior | H `crates/external_services/src/superposition/types.rs:70–102` now uses `polling_interval_milliseconds` / `request_timeout_milliseconds`, with defaults 15,000 / None and no old-name aliases. `config/development.toml:1782–1789` uses 300,000 ms. I `deployment-configs/hyperswitch-app/{integ-values-dep.yaml:766–767,sandbox-values.yaml:778–779,prod-values.yaml:699–700}` still uses old keys with 15 / 60; v2 values do too. Cached provider 0.119.0 now wraps refresh in `tokio::time::timeout` (`local_provider.rs:282–315`) and polling calls that path (`:433–440`). | The plan §3.2 timeout-not-wired finding is historical for 0.115.5. **Inference:** unchanged old keys deserialized into H's current defaulted struct will not set the new fields, leaving the timeout unset unless other effective inputs supply it. Rendered/live inputs were not inspected. Propose a separate I settings migration with seconds→milliseconds conversion and deserialization/rollout evidence; do not fix it incidentally here. Refresh bounds do not certify initialization or write-request bounds. Q2/Q5/Q9; T19/T28/T33/T34. |
+| D3 — Provider scope on router reads | H `crates/router/src/core/superposition_sdk_config.rs:300–310,409–419` adds `provider_merchant_id` to both partial filters and returned `context_used`. W `src/Utilities/DynamicFieldsUtils.res:172–190` still copies only profile/processor/organization; U `sdk-utils/utils/SdkConfigParser.res:70–77,103–107` exposes that triple. | Extend Step 1 cases to distinguish router filtering from browser dimensions: provider scope is now sent by H, but is still absent from this W constructor. Do not add it artificially to verifier inputs or change SDK behavior. Q1; T09/T29/T35. |
+| D4 — Compiled rule changes | H `payment_connector_required_fields.rs:1583–1585` adds GlobalpaymentsRealex with `fields(vec![], card_basic(), vec![])`; `:3101–3106` adds Betterpayment/Wero with empty groups. Constructor/type design otherwise remains the same. The Nordea comma-country value persists at `:3854`; bank-type source cases persist at `:3723–3724,3767–3768,3987–3988`. | Future independent fixtures/rendering must use current compiled input. Empty groups confer no generated contribution. Do not forecast additions from old source/seed counts, approve aliases implicitly, or repair business data here. Q1/Q11; Steps 1/4. |
+| D5 — Seed changes outside managed fields | Parsed current seed: **8,889 lines**, **1,704 defaults**, **23 dimensions**, **912 overrides**. Compared with baseline: 16 default names added, 1 removed (net +15); `flow_name` dimension added. All 1,634 `dynamic_fields.*` defaults and all override rows are semantically unchanged. | Preserve the unrelated defaults and dimension during future Step 14 generation. The plan's 1,689/22/8,871 totals are historical. Unchanged override equality supports retaining historical structural counts, not a live adoption forecast or renderer result. |
+| D6 — Storage integration moved | `crates/external_services/src/file_storage/aws_s3.rs` now delegates to `crates/cloud_services/src/storage/s3.rs`; the interface at `file_storage.rs:89–145` also includes multipart and presigned operations. Direct external-services AWS dependency references in the plan are stale. The inspected upload still uses an ordinary `put_object` (`cloud_services/src/storage/s3.rs:117–127`); no immutable-create/retention contract is exposed by this interface. | Reuse current cloud/error/client conventions when designing Step 8, but Q6 remains open. Multipart completion's optional expiry description is not an immutable journal receipt or demonstrated retention. |
+
+The current core 0.119.0 resolver still iterates matching contexts in supplied order and logs/omits overrides absent from defaults (`superposition_core/src/config.rs:161–236`). It now exposes different evaluation signatures including dimensions/excluded prefixes and evaluates local cohorts (`:60–140`); do not copy old function signatures. The existing JS divergence therefore remains source-supported, but neither current Rust behavior nor Rust/JS cases were executed here.
+
+Cached 0.119.0 package `.cargo_vcs_info.json` files for core/provider/SDK/types all name `82255fe00892a704565713583c392b53e774e657`. Their declared MSRVs are 1.82.0 except SDK 1.91.1. Sources were read from the existing Cargo registry cache; no package/server source was downloaded. Package source identity is separate from server image identity and operational certification.
+
+## Unchanged inputs carried forward with limits
+
+- W remains version 0.134.0 with Node >=20.11.0. U's bundled evaluator SHA-256 was recalculated as `5db572c0540ecf067beb78537f69215d9d0cc538e28b8bdd44685fcef1f91a19`, matching the historical probes. W/U's Card/Debit, first-descriptor-per-write-path, ordered options, missing dimensions, asset and retained-snapshot findings remain source/historical evidence only. No mobile, emitted/served bundle or full browser result was obtained.
+- Parsed H development/integration/sandbox/production source TOMLs still each contain 27 Stripe EPS bank entries. Effective deployed inputs are not inferred from these files.
+- Checked-in server tags remain development Compose **0.115.5** (`docker-compose-development.yml:68`), main Compose **0.113.0** (`docker-compose.yml:81`), and five Cypress **0.102.0** references (`cypress-tests-runner.yml:306,868,1308,1498,1731`). I Superposition integ/sandbox values select **0.115.5**, production values **0.102.0**. None is an inspected running server or a declaration that every tag is supported.
+- I main application manifests select external `charts/hyperswitch-app`; production v2 selects `charts/incubator/hyperswitch-app`. Those selected external templates are not present in the inspected I chart tree. I Jenkins build inputs still select `v1,redis-rs` / `v2,redis-rs`; H Dockerfile still builds release plus selected features. Release features now include GCS object storage. Build/rollout/image evidence remains Q5/Q9, and Docker's base Rust tag remains floating.
+- I still configures the 30-minute backup workflow using `superposition:config-backup.0.17`; no backup implementation, image digest or successful fallback artifact was inspected. Target sharing, permissions, external-writer exclusion and InfraSwitch rollout claims remain open, not refreshed from live state.
+
+## Assumptions and decisions not made
+
+The plan's v1 opt-in writer, pure renderer, read-only first slice, one bounded context transaction and mandatory journal/coordination/restoration/V1–V4 constraints remain the proposed design. No team approval, named accountable owner, business migration, exclusion, supported server matrix, target authority, retention setting or hosted grant was invented. All Q items remain open at their dependent gates; see [questions](questions.md).
+
+The original roadmap SHA-256 remains `3804a70b038d7d744fb6aee9c76b18d959539b1b7af7e5a050ecc29f3edf2d24`. Current seed SHA-256 is `674055f400256ef6ac9734c10c13e9b987642f4858eea0926f24e136bb8cba17`. Both were preserved by this step.
