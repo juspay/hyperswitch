@@ -1,4 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
+import { isCI } from "../../../utils/RequestBodyUtils";
 import State from "../../../utils/State";
 import getConnectorDetails, {
   should_continue_further,
@@ -57,10 +58,26 @@ const runFingerprintFlow = (flowKey, retrieveAfterFailedConfirm = false) => {
 };
 
 describe("Card - Payment fingerprint generation", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (isCI()) {
+          cy.task(
+            "cli_log",
+            "Skipping fingerprint spec in CI - the CI router has no vault signing key or vault, so fingerprints cannot be generated"
+          );
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
