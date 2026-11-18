@@ -107,7 +107,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -128,7 +128,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -146,7 +146,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -202,7 +202,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -221,7 +221,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -239,7 +239,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -257,7 +257,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -369,7 +369,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -404,7 +404,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -455,7 +455,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
@@ -479,7 +479,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "4",
+          error_message: "Access to this functionality has been denied",
           error_code: "4",
         },
       },
