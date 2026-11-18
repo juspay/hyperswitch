@@ -191,6 +191,7 @@ impl super::behaviour::Conversion for Subscription {
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait SubscriptionInterface {
     type Error;

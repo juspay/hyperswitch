@@ -274,9 +274,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
         state: &SessionState,
         payment_data: &mut payments::PaymentIntentData<F>,
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
-        let db = &state.store;
         let profile_id = business_profile.get_id();
-        let all_connector_accounts = db
+        let all_connector_accounts = state
+            .accounts_store
             .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 platform.get_processor().get_account().get_id(),
                 profile_id,

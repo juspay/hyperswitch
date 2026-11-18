@@ -30,6 +30,7 @@ use hyperswitch_domain_models::{
         MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
     },
     payment_address::PaymentAddress,
+    refunds::RefundAmountDetails,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
     router_request_types,
@@ -67,7 +68,7 @@ use crate::{
         payment_methods,
         payments::PaymentData,
     },
-    db::StorageInterface,
+    db::AccountsStorageInterface,
     routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
@@ -409,6 +410,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             webhook_url: Some(webhook_url),
             browser_info,
             funds_transfer_type: payouts.funds_transfer_type,
+            purpose: payouts.purpose,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
@@ -576,8 +578,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .map(api_models::payments::FeatureMetadata::foreign_from),
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,
@@ -812,8 +816,10 @@ pub async fn construct_refund_router_data<'a, F>(
                 .attach_printable("Failed to parse payment feature metadata")?,
             feature_metadata: refund.feature_metadata.clone(),
             connector_transaction_id: refund.get_connector_transaction_id().clone(),
-            refund_amount: refund.refund_amount.get_amount_as_i64(),
-            minor_refund_amount: refund.refund_amount,
+            refund_amount: RefundAmountDetails::from(refund)
+                .get_net_refund_amount()
+                .get_amount_as_i64(),
+            minor_refund_amount: RefundAmountDetails::from(refund).get_net_refund_amount(),
             currency,
             payment_amount: payment_amount.get_amount_as_i64(),
             minor_payment_amount: payment_amount,
@@ -923,18 +929,16 @@ pub async fn build_platform_from_refund_core(
     state: &SessionState,
     refund_core: &diesel_refund::RefundCoreWorkflow,
 ) -> RouterResult<domain::Platform> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let provider_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &refund_core.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&refund_core.merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for provider merchant")?;
 
     let provider_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -945,18 +949,16 @@ pub async fn build_platform_from_refund_core(
         .as_ref()
         .unwrap_or(&refund_core.merchant_id);
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let processor_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            processor_merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(processor_merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
         .attach_printable("Error while fetching the key store for processor merchant")?;
 
     let processor_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
@@ -1223,7 +1225,10 @@ pub async fn construct_accept_dispute_router_data<'a>(
     payment_attempt: &storage::PaymentAttempt,
     processor: &domain::Processor,
     dispute: &storage::Dispute,
-) -> RouterResult<types::AcceptDisputeRouterData> {
+) -> RouterResult<(
+    types::AcceptDisputeRouterData,
+    helpers::MerchantConnectorAccountType,
+)> {
     let profile_id = payment_intent
         .profile_id
         .as_ref()
@@ -1329,7 +1334,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_returned_payment_method_details: None,
         customer_date_of_birth: None,
     };
-    Ok(router_data)
+    Ok((router_data, merchant_connector_account))
 }
 
 #[cfg(feature = "v1")]
@@ -1341,7 +1346,10 @@ pub async fn construct_submit_evidence_router_data<'a>(
     processor: &domain::Processor,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
-) -> RouterResult<types::SubmitEvidenceRouterData> {
+) -> RouterResult<(
+    types::SubmitEvidenceRouterData,
+    helpers::MerchantConnectorAccountType,
+)> {
     let connector_id = &dispute.connector;
     let profile_id = payment_intent
         .profile_id
@@ -1444,7 +1452,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_returned_payment_method_details: None,
         customer_date_of_birth: None,
     };
-    Ok(router_data)
+    Ok((router_data, merchant_connector_account))
 }
 
 #[cfg(feature = "v1")]
@@ -2339,7 +2347,7 @@ pub fn get_payout_connector_customer_id(
 
 /// Validate whether the profile_id exists and is associated with the merchant_id
 pub async fn validate_and_get_business_profile(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     processor: &domain::Processor,
     profile_id: Option<&common_utils::id_type::ProfileId>,
 ) -> RouterResult<Option<domain::Profile>> {
@@ -2408,7 +2416,7 @@ pub async fn get_profile_from_business_details(
     business_label: Option<&String>,
     processor: &domain::Processor,
     request_profile_id: Option<&common_utils::id_type::ProfileId>,
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
 ) -> RouterResult<domain::Profile> {
     match request_profile_id.or(processor.get_account().default_profile.as_ref()) {
         Some(profile_id) => db

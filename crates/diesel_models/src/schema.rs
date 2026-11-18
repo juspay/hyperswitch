@@ -1613,6 +1613,8 @@ diesel::table! {
         #[max_length = 64]
         funds_transfer_type -> Nullable<Varchar>,
         sender_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        purpose -> Nullable<Varchar>,
     }
 }
 
@@ -1715,6 +1717,7 @@ diesel::table! {
         feature_metadata -> Nullable<Jsonb>,
         refund_surcharge_amount -> Nullable<Int8>,
         net_refund_amount -> Nullable<Int8>,
+        external_surcharge_refund_details -> Nullable<Jsonb>,
     }
 }
 

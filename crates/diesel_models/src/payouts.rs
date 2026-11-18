@@ -43,6 +43,7 @@ pub struct Payouts {
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     pub sender_details: Option<Encryption>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
 }
 
 #[derive(
@@ -90,6 +91,7 @@ pub struct PayoutsNew {
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
     pub sender_details: Option<Encryption>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +107,7 @@ pub enum PayoutsUpdate {
         entity_type: storage_enums::PayoutEntityType,
         metadata: Option<pii::SecretSerdeValue>,
         funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+        purpose: Option<storage_enums::PayoutPurpose>,
         sender_details: Option<Encryption>,
         profile_id: Option<common_utils::id_type::ProfileId>,
         status: Option<storage_enums::PayoutStatus>,
@@ -149,6 +152,7 @@ pub struct PayoutsUpdateInternal {
     pub entity_type: Option<storage_enums::PayoutEntityType>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub funds_transfer_type: Option<storage_enums::PayoutFundsTransferType>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
     /// Sender identity supplied with the payout request; normalized at the domain boundary.
     /// Encrypted at rest with the merchant key.
     pub sender_details: Option<Encryption>,
@@ -177,6 +181,7 @@ impl Default for PayoutsUpdateInternal {
             entity_type: None,
             metadata: None,
             funds_transfer_type: None,
+            purpose: None,
             sender_details: None,
             payout_method_id: None,
             profile_id: None,
@@ -206,6 +211,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type,
                 metadata,
                 funds_transfer_type,
+                purpose,
                 sender_details,
                 profile_id,
                 status,
@@ -225,6 +231,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 entity_type: Some(entity_type),
                 metadata,
                 funds_transfer_type,
+                purpose,
                 sender_details,
                 profile_id,
                 status,

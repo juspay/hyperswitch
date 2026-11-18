@@ -7,6 +7,7 @@ use time::PrimitiveDateTime;
 
 use crate::{metrics, scheduler::Store};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ProcessTrackerInterface: Send + Sync + 'static {
     async fn reinitialize_limbo_processes(
@@ -140,7 +141,8 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         schedule_time: PrimitiveDateTime,
     ) -> CustomResult<(), errors::StorageError> {
-        self.update_process(
+        ProcessTrackerInterface::update_process(
+            self,
             this,
             storage::ProcessTrackerUpdate::StatusRetryUpdate {
                 status: storage_enums::ProcessTrackerStatus::New,
@@ -159,7 +161,8 @@ impl ProcessTrackerInterface for Store {
     ) -> CustomResult<(), errors::StorageError> {
         metrics::TASK_RETRIED.add(1, &[]);
         let retry_count = this.retry_count + 1;
-        self.update_process(
+        ProcessTrackerInterface::update_process(
+            self,
             this,
             storage::ProcessTrackerUpdate::StatusRetryUpdate {
                 status: storage_enums::ProcessTrackerStatus::Pending,
@@ -176,7 +179,8 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         business_status: &'static str,
     ) -> CustomResult<(), errors::StorageError> {
-        self.update_process(
+        ProcessTrackerInterface::update_process(
+            self,
             this,
             storage::ProcessTrackerUpdate::StatusUpdate {
                 status: storage_enums::ProcessTrackerStatus::Finish,
@@ -194,7 +198,7 @@ impl ProcessTrackerInterface for Store {
         this: storage::ProcessTracker,
         update: storage::ProcessTrackerUpdate,
     ) -> CustomResult<(), errors::StorageError> {
-        self.update_process(this, update)
+        ProcessTrackerInterface::update_process(self, this, update)
             .await
             .attach_printable("Failed to finish process with update")?;
         metrics::TASK_FINISHED.add(1, &[]);

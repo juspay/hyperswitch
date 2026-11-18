@@ -1,1 +1,3 @@
-pub use hyperswitch_domain_models::merchant_account::{self, MerchantAccountInterface};
+pub use hyperswitch_domain_models::merchant_account::{
+    self, MerchantAccountInterface, TrackedMerchantAccountInterface,
+};

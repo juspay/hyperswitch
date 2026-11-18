@@ -5,6 +5,7 @@ use diesel_models::configs as storage;
 /// reads are served from (and populate) the config cache, and writes redact the
 /// cached entry across all instances. Direct database access is intentionally
 /// not exposed here.
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ConfigInterface {
     type Error;

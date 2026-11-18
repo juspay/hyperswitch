@@ -1111,7 +1111,7 @@ pub async fn decide_payout_connector(
 
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
-        state.store.as_ref(),
+        state.accounts_store.as_ref(),
         processor,
         Some(&payout_attempt.profile_id),
     )
@@ -1520,6 +1520,7 @@ pub async fn update_payouts_and_payout_attempt(
     // Update DB with new data
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
+    let purpose = req.purpose.or(payouts.purpose);
     let sender_details = req
         .sender_details
         .clone()
@@ -1565,6 +1566,7 @@ pub async fn update_payouts_and_payout_attempt(
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
         funds_transfer_type,
+        purpose,
         sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
