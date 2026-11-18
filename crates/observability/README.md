@@ -413,7 +413,8 @@ query errors are reported per rule when evaluated.
 - Each rule compares its configured statistic's newest complete sample within a five-minute window.
   A longer metric period uses one complete period. Critical takes priority over warning, then info.
   Every breached evaluation sends ALARM, including repeated evaluations of the same breach.
-- Successful empty/all-null windows report `level: "nodata"` without sending; actual query/auth/
+- Successful empty/all-null windows report `level: "nodata"` without sending (Loki counts them as
+  0, see below); actual query/auth/
   timeout/response failures report an error and send RULE ERROR to that rule's highest-priority
   configured threshold destination. Delivery failures remain in the report; later rules continue.
 - There is no stored lifecycle, previous-window recomputation, M-of-N, missing-slot filling or
@@ -431,19 +432,26 @@ query errors are reported per rule when evaluated.
 ### Loki application alerts
 
 A `grafana_loki` rule holds a LogQL metric `expr`, its bucket `period`
-in seconds, optional `end_offset_seconds` (default 180) and optional `context` lines shown in the
-message (for example `Service`, `Flow`, `Route`, `Error code`). The query runs as a Grafana range
-query with `step` equal to `period`, so write the range selector to match it, for example
-`sum(count_over_time({app="router"} |= "error" [1m]))` with `period: 60`. Loki stamps each point at
-the end of its bucket; the provider restamps it at the bucket start so the same newest-complete-bucket
-selection as CloudWatch applies. The query start is snapped onto the period grid.
-A query may group by bounded labels, for example `sum by (app, container) (...)`. The threshold
-applies to the total across series, and the message lists the top ten series for the breaching
-bucket. No matching logs is `NoData` without a notification. Query failures send RULE ERROR exactly
-as for CloudWatch.
-An optional `logs` LogQL log query, for example `{app="router"} |= "error"`, is run only when the
-rule breaches, over the breaching bucket; its three newest lines (each cut at 300 characters) are
-shown under `Latest logs`. A failed log query is logged and the ALARM is still sent without lines.
+in seconds, optional `end_offset_seconds` (default 60) and optional `context` lines shown in the
+message (for example `Service`, `Flow`, `Route`, `Error code`). Each run sends one Grafana instant
+query at the end of the newest complete period, so write the range selector to match `period`, for
+example `sum(count_over_time({app="router"} |= "error" [1m]))` with `period: 60`. With the default
+offset a run at 10:34:20 queries the minute 10:33 to 10:34. Loki stamps the value at the end of the
+period; the provider restamps it at the period start, as for CloudWatch.
+Each returned series is a separate alert instance: it is checked against the thresholds on its own
+and a breaching instance sends its own ALARM titled with its labels, for example
+`Router 5xx (flow=PaymentsConfirm)`. Group only by bounded labels, for example
+`sum by (app, flow) (...)`; every breaching label set sends a message every minute, so a
+high-cardinality label such as `merchant_id` floods the channel (cap it with `topk` in the query).
+Loki returns no series for a minute without matching logs; that counts as one unlabelled instance
+with value 0. Logs that reach Loki after the query run are not counted; raise
+`end_offset_seconds` if the scheduler fires right on the minute. Query failures send RULE ERROR
+exactly as for CloudWatch.
+An optional `logs` LogQL log query, for example `{app="router"} |= "error"`, is run once when any
+instance breaches, over the evaluated minute; its three newest lines
+are shown under `Latest logs` on every breaching instance of the rule. A JSON log line shows
+its `extra.error` report, else its `message`, else the raw line, cut at 500 characters. A failed log query is logged
+and the ALARM is still sent without lines.
 
 Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"` or `"grafana_loki"`. Remove the old version,
 classification, evaluation-period/datapoint/missing-slot fields and global `[evaluator.destinations]`.
@@ -453,7 +461,14 @@ fields from registry values. No legacy configuration aliases are provided.
 The Grafana plugin wire type remains `cloudwatch`. Update the infrastructure CronJob URL from
 `/alerts/cloudwatch/notify` to `/alerts/grafana/notify` in coordination with service rollout;
 there is no old-route alias. Separate JSONB table consumers need their own storage conversion
-before integration. This foundation has no new database dependency or migration.
+before integration. This evaluator adds no database migration or persisted evaluation state.
+
+An external scheduler must call the notify endpoint every minute; the server has no built-in
+polling loop. GET is dry-run only. HTTP 200 does not prove delivery: inspect each rule's status,
+level, delivery result and error fields. A rule returns one entry per alert instance with the same
+`id` and the instance's `labels` (CloudWatch entries carry the metric's dimensions). Rules run
+concurrently, responses retain configured order,
+and one rule's query or delivery failure does not cancel independent rules.
 
 ## Layout
 

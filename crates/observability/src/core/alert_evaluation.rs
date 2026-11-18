@@ -42,7 +42,7 @@ where
         query: &Q,
         datasource_uid: &str,
         now: PrimitiveDateTime,
-    ) -> EvaluatorResult<Evaluation>;
+    ) -> EvaluatorResult<Vec<Evaluation>>;
 }
 
 pub async fn evaluate(
@@ -59,12 +59,18 @@ pub async fn evaluate(
             .map(|rule| {
                 let state = &state;
                 async move {
-                    let run = evaluate_rule(state, rule, now).await;
-                    AlertRuleEvaluationResponse::from((rule, run, None))
+                    evaluate_rule(state, rule, now)
+                        .await
+                        .into_iter()
+                        .map(|run| AlertRuleEvaluationResponse::from((rule, run, None)))
+                        .collect::<Vec<_>>()
                 }
             }),
     )
-    .await;
+    .await
+    .into_iter()
+    .flatten()
+    .collect();
     Ok(AlertEvaluationResponse {
         evaluated_at: now,
         rules,
@@ -85,20 +91,28 @@ pub async fn notify(
             .map(|rule| {
                 let state = state.clone();
                 async move {
-                    let run = evaluate_rule(&state, rule, now).await;
-                    let notification = match &run {
-                        RuleRun::Evaluated { notification, .. } => notification.as_ref(),
-                        RuleRun::Failed { notification, .. } => Some(notification),
-                    };
-                    let delivery = match notification {
-                        Some(notification) => Some(deliver_notification(state, notification).await),
-                        None => None,
-                    };
-                    AlertRuleEvaluationResponse::from((rule, run, delivery))
+                    let mut responses = Vec::new();
+                    for run in evaluate_rule(&state, rule, now).await {
+                        let notification = match &run {
+                            RuleRun::Evaluated { notification, .. } => notification.as_ref(),
+                            RuleRun::Failed { notification, .. } => Some(notification),
+                        };
+                        let delivery = match notification {
+                            Some(notification) => {
+                                Some(deliver_notification(state.clone(), notification).await)
+                            }
+                            None => None,
+                        };
+                        responses.push(AlertRuleEvaluationResponse::from((rule, run, delivery)));
+                    }
+                    responses
                 }
             }),
     )
-    .await;
+    .await
+    .into_iter()
+    .flatten()
+    .collect();
     Ok(AlertEvaluationResponse {
         evaluated_at: now,
         rules,
@@ -159,7 +173,7 @@ fn alarm(
     rule: &RuleDefinition,
     evaluation: Evaluation,
     now: PrimitiveDateTime,
-) -> EvaluatorResult<(AlertEvaluationLevel, Option<Notification>)> {
+) -> EvaluatorResult<RuleRun> {
     let notification = match (&evaluation.breach, evaluation.latest_point.as_ref()) {
         (Some(threshold), Some(point)) => Some(chat::create_notification(
             rule,
@@ -176,11 +190,19 @@ fn alarm(
         }
         (None, _) => None,
     };
-    Ok((evaluation.level, notification))
+    Ok(RuleRun::Evaluated {
+        level: evaluation.level,
+        labels: evaluation.labels,
+        notification,
+    })
 }
 
 #[allow(clippy::expect_used)]
-async fn evaluate_rule(state: &AppState, rule: &RuleDefinition, now: PrimitiveDateTime) -> RuleRun {
+async fn evaluate_rule(
+    state: &AppState,
+    rule: &RuleDefinition,
+    now: PrimitiveDateTime,
+) -> Vec<RuleRun> {
     let settings = state.conf.alert.get_inner();
     let result = match &rule.config.query {
         AlertQuery::GrafanaCloudwatch(query) => {
@@ -193,12 +215,14 @@ async fn evaluate_rule(state: &AppState, rule: &RuleDefinition, now: PrimitiveDa
             evaluate_with(&provider, state, rule, query, now).await
         }
     }
-    .and_then(|evaluation| alarm(rule, evaluation, now));
+    .and_then(|evaluations| {
+        evaluations
+            .into_iter()
+            .map(|evaluation| alarm(rule, evaluation, now))
+            .collect::<EvaluatorResult<Vec<_>>>()
+    });
     match result {
-        Ok((level, notification)) => RuleRun::Evaluated {
-            level,
-            notification,
-        },
+        Ok(runs) => runs,
         Err(error) => {
             let error = format_error_report(&error);
             logger::error!(tag = "evaluator_rule_error", rule_id = %rule.id, error = %error, "Rule evaluation failed");
@@ -215,10 +239,10 @@ async fn evaluate_rule(state: &AppState, rule: &RuleDefinition, now: PrimitiveDa
                     destination,
                 },
             );
-            RuleRun::Failed {
+            vec![RuleRun::Failed {
                 error,
                 notification,
-            }
+            }]
         }
     }
 }
@@ -229,7 +253,7 @@ async fn evaluate_with<Q: Send + Sync>(
     rule: &RuleDefinition,
     query: &Q,
     now: PrimitiveDateTime,
-) -> EvaluatorResult<Evaluation> {
+) -> EvaluatorResult<Vec<Evaluation>> {
     let datasource = state
         .conf
         .alert
@@ -255,10 +279,10 @@ fn evaluate_series(
             )),
         );
     }
-    let points = series
+    let (points, labels) = series
         .into_iter()
         .next()
-        .map(|series| series.points)
+        .map(|series| (series.points, series.labels))
         .unwrap_or_default();
     let latest = points
         .iter()
@@ -272,7 +296,7 @@ fn evaluate_series(
             datapoints: points,
             breach: None,
             window,
-            breakdown: Vec::new(),
+            labels,
             logs: Vec::new(),
         });
     };
@@ -294,7 +318,7 @@ fn evaluate_series(
                 datapoints: points,
                 breach: Some(threshold.clone()),
                 window,
-                breakdown: Vec::new(),
+                labels,
                 logs: Vec::new(),
             });
         }
@@ -305,7 +329,7 @@ fn evaluate_series(
         datapoints: points,
         breach: None,
         window,
-        breakdown: Vec::new(),
+        labels,
         logs: Vec::new(),
     })
 }

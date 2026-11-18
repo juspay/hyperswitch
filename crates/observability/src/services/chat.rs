@@ -23,8 +23,7 @@ pub(crate) enum ChatBody<'a> {
     },
 }
 
-const SERIES_ROWS: usize = 10;
-const LOG_LINE_CHARS: usize = 300;
+const LOG_LINE_CHARS: usize = 500;
 
 pub(crate) fn create_notification(
     rule: &RuleDefinition,
@@ -151,31 +150,6 @@ fn loki_notification(
             threshold,
             point,
         } => {
-            let labelled = evaluation
-                .breakdown
-                .iter()
-                .filter(|(labels, _)| !labels.is_empty())
-                .collect::<Vec<_>>();
-            let mut series = labelled
-                .iter()
-                .take(SERIES_ROWS)
-                .map(|(labels, value)| {
-                    let labels = labels
-                        .iter()
-                        .map(|(name, value)| format!("{name}={value}"))
-                        .collect::<Vec<_>>()
-                        .join(", ");
-                    format!("{labels} | {value}")
-                })
-                .collect::<Vec<_>>();
-            if labelled.len() > SERIES_ROWS {
-                series.push(format!("and {} more", labelled.len() - SERIES_ROWS));
-            }
-            let series = if series.is_empty() {
-                "None".to_owned()
-            } else {
-                series.join("\n")
-            };
             let logs = if evaluation.logs.is_empty() {
                 "None".to_owned()
             } else {
@@ -186,7 +160,7 @@ fn loki_notification(
                         format!(
                             "{} UTC | {}",
                             log.timestamp,
-                            log.line
+                            log_text(&log.line)
                                 .trim()
                                 .chars()
                                 .take(LOG_LINE_CHARS)
@@ -202,7 +176,7 @@ fn loki_notification(
                 message: format!(
                     include_str!("chat/assets/loki_alert.txt"),
                     heading = "ALARM",
-                    rule_name = rule.name,
+                    rule_name = instance_name(&rule.name, &evaluation.labels),
                     rule_id = rule.id,
                     severity = evaluation.level,
                     evaluated_at = evaluated_at,
@@ -218,7 +192,7 @@ fn loki_notification(
                         "{} UTC to {} UTC",
                         evaluation.window.from, evaluation.window.to
                     ),
-                    series = series,
+                    labels = key_value_lines(&evaluation.labels),
                     logs = logs,
                     error = "None",
                 ),
@@ -240,12 +214,39 @@ fn loki_notification(
                 period = query.period,
                 value = "Unavailable",
                 range = "Unavailable",
-                series = "Unavailable: rule evaluation failed",
+                labels = "Unavailable: rule evaluation failed",
                 logs = "Unavailable: rule evaluation failed",
                 error = error,
             ),
         },
     }
+}
+
+fn instance_name(name: &str, labels: &BTreeMap<String, String>) -> String {
+    if labels.is_empty() {
+        name.to_owned()
+    } else {
+        format!(
+            "{name} ({})",
+            labels
+                .iter()
+                .map(|(label, value)| format!("{label}={value}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
+fn log_text(line: &str) -> String {
+    serde_json::from_str::<serde_json::Value>(line)
+        .ok()
+        .and_then(|log| {
+            log.pointer("/extra/error")
+                .and_then(serde_json::Value::as_str)
+                .or_else(|| log.get("message").and_then(serde_json::Value::as_str))
+                .map(str::to_owned)
+        })
+        .unwrap_or_else(|| line.to_owned())
 }
 
 fn key_value_lines(entries: &BTreeMap<String, String>) -> String {
@@ -333,7 +334,7 @@ mod tests {
                     from: datetime!(2026-03-18 10:01:00),
                     to: datetime!(2026-03-18 10:06:00),
                 },
-                breakdown: Vec::new(),
+                labels: BTreeMap::new(),
                 logs: Vec::new(),
             };
             let notification = create_notification(
@@ -383,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn loki_alarm_lists_context_series_and_latest_logs_without_the_query() {
+    fn loki_alarm_names_its_instance_and_lists_context_and_latest_logs_without_the_query() {
         let rule: RuleDefinition = serde_json::from_value(json!({
             "id": "router-errors",
             "name": "Router errors",
@@ -425,15 +426,10 @@ mod tests {
                 from: datetime!(2026-03-18 10:00:00),
                 to: datetime!(2026-03-18 10:05:00),
             },
-            breakdown: (0..12)
-                .map(|index| {
-                    (
-                        BTreeMap::from([("app".to_owned(), format!("router-{index}"))]),
-                        f64::from(12 - index),
-                    )
-                })
-                .chain([(BTreeMap::new(), 1.0)])
-                .collect(),
+            labels: BTreeMap::from([
+                ("extra_status_code".to_owned(), "500".to_owned()),
+                ("flow".to_owned(), "PaymentsConfirm".to_owned()),
+            ]),
             logs: vec![
                 LogLine {
                     timestamp: datetime!(2026-03-18 10:04:41),
@@ -442,6 +438,15 @@ mod tests {
                 LogLine {
                     timestamp: datetime!(2026-03-18 10:04:12),
                     line: "é".repeat(LOG_LINE_CHARS + 1),
+                },
+                LogLine {
+                    timestamp: datetime!(2026-03-18 10:04:05),
+                    line: json!({
+                        "level": "ERROR",
+                        "message": "[SERVER_WRAP_UTIL - EVENT] router::core",
+                        "extra": {"error": "Failed to parse URL\n╰╴at crates/router/src/services/api/client.rs:146:14"}
+                    })
+                    .to_string(),
                 },
             ],
         };
@@ -456,7 +461,9 @@ mod tests {
         );
         assert_eq!(alarm.heading, "ALARM");
         assert_eq!(alarm.destination, "oncall");
-        assert!(alarm.message.starts_with("ALARM: Router errors\n"));
+        assert!(alarm
+            .message
+            .starts_with("ALARM: Router errors (extra_status_code=500, flow=PaymentsConfirm)\n"));
         assert!(alarm
             .message
             .contains("Context:\nService: hyperswitch-router\n"));
@@ -464,8 +471,7 @@ mod tests {
         assert!(alarm.message.contains("Latest value: 42\n"));
         assert!(alarm
             .message
-            .contains("Series — labels | value:\napp=router-0 | 12\napp=router-1 | 11\n"));
-        assert!(alarm.message.contains("app=router-9 | 3\nand 2 more\n"));
+            .contains("Labels:\nextra_status_code: 500\nflow: PaymentsConfirm\n"));
         assert!(alarm.message.contains(&format!(
             "Latest logs:\n{} UTC | ERROR payment failed\n",
             datetime!(2026-03-18 10:04:41)
@@ -476,10 +482,15 @@ mod tests {
             "é".repeat(LOG_LINE_CHARS)
         )));
         assert!(!alarm.message.contains(&"é".repeat(LOG_LINE_CHARS + 1)));
+        assert!(alarm.message.contains(&format!(
+            "{} UTC | Failed to parse URL\n╰╴at crates/router/src/services/api/client.rs:146:14\n",
+            datetime!(2026-03-18 10:04:05)
+        )));
+        assert!(!alarm.message.contains("SERVER_WRAP_UTIL"));
         assert!(!alarm.message.contains("count_over_time"));
 
         let unlabelled = Evaluation {
-            breakdown: vec![(BTreeMap::new(), 42.0)],
+            labels: BTreeMap::new(),
             ..evaluation.clone()
         };
         let alarm = create_notification(
@@ -491,7 +502,8 @@ mod tests {
                 point: &point,
             },
         );
-        assert!(alarm.message.contains("Series — labels | value:\nNone\n"));
+        assert!(alarm.message.starts_with("ALARM: Router errors\n"));
+        assert!(alarm.message.contains("Labels:\nNone\n"));
 
         let error = create_notification(
             &rule,
