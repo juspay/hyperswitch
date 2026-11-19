@@ -1617,10 +1617,33 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Webhook verification secret. Must contain at least one non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Optional additional secret. When supplied, must contain a non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+impl MerchantConnectorWebhookDetails {
+    /// Validate newly supplied secrets without changing stored values or deserialization.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.merchant_secret.peek().trim().is_empty() {
+            return Err(
+                "connector_webhook_details.merchant_secret must not be empty or whitespace-only"
+                    .to_string(),
+            );
+        }
+        if let Some(secret) = &self.additional_secret {
+            if secret.peek().trim().is_empty() {
+                return Err(
+                    "connector_webhook_details.additional_secret must not be empty or whitespace-only"
+                        .to_string(),
+                );
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -4108,6 +4131,100 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn connector_webhook_secret_legacy_blank_values_remain_readable() {
+        for field in ["merchant_secret", "additional_secret"] {
+            for secret in ["", " ", "\t\r\n", "\u{2003}\u{00a0}"] {
+                let mut value = serde_json::json!({
+                    "merchant_secret": "secret",
+                    "additional_secret": "public_key"
+                });
+                value[field] = serde_json::json!(secret);
+                let details: MerchantConnectorWebhookDetails =
+                    serde_json::from_value(value.clone()).expect("legacy details remain readable");
+                assert_eq!(
+                    serde_json::to_value(&details).expect("serialize details"),
+                    value
+                );
+                assert!(details.validate().is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn connector_webhook_secret_preserves_nonblank_values() {
+        let secret = " \twebhook secret\n ";
+        for additional_secret in [None, Some(secret)] {
+            let details: MerchantConnectorWebhookDetails =
+                serde_json::from_value(serde_json::json!({
+                    "merchant_secret": secret,
+                    "additional_secret": additional_secret
+                }))
+                .expect("valid webhook details");
+            assert!(details.validate().is_ok());
+            assert_eq!(details.merchant_secret.peek(), secret);
+            assert_eq!(
+                details
+                    .additional_secret
+                    .as_ref()
+                    .map(|value| value.peek().as_str()),
+                additional_secret
+            );
+        }
+    }
+
+    #[cfg(any(feature = "v1", feature = "v2"))]
+    #[test]
+    fn connector_webhook_secret_is_validated_on_create_and_update() {
+        let mut create = serde_json::json!({
+            "connector_type": "payment_processor",
+            "connector_name": "checkout",
+            "profile_id": "pro_test",
+        });
+        let mut update = serde_json::json!({"connector_type": "payment_processor"});
+        #[cfg(feature = "v2")]
+        {
+            update["merchant_id"] = serde_json::json!("merchant_test");
+        }
+        let omitted_create = serde_json::from_value::<MerchantConnectorCreate>(create.clone())
+            .expect("create without webhook details");
+        let omitted_update = serde_json::from_value::<MerchantConnectorUpdate>(update.clone())
+            .expect("update without webhook details");
+        assert!(omitted_create.connector_webhook_details.is_none());
+        assert!(omitted_update.connector_webhook_details.is_none());
+        for field in ["merchant_secret", "additional_secret"] {
+            for secret in ["", " \t\n", "\u{2003}", " secret\n"] {
+                let mut details = serde_json::json!({
+                    "merchant_secret": "secret",
+                    "additional_secret": "public_key"
+                });
+                details[field] = serde_json::json!(secret);
+                create["connector_webhook_details"] = details.clone();
+                update["connector_webhook_details"] = details;
+                let create = serde_json::from_value::<MerchantConnectorCreate>(create.clone())
+                    .expect("request deserializes independently of validation");
+                let update = serde_json::from_value::<MerchantConnectorUpdate>(update.clone())
+                    .expect("request deserializes independently of validation");
+                assert_eq!(
+                    create
+                        .connector_webhook_details
+                        .expect("supplied details")
+                        .validate()
+                        .is_ok(),
+                    !secret.trim().is_empty()
+                );
+                assert_eq!(
+                    update
+                        .connector_webhook_details
+                        .expect("supplied details")
+                        .validate()
+                        .is_ok(),
+                    !secret.trim().is_empty()
+                );
+            }
+        }
+    }
 
     #[test]
     fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {

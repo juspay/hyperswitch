@@ -12,6 +12,8 @@ use hyperswitch_domain_models::{
     router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "v1")]
+use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::tracing::instrument;
 
@@ -375,6 +377,10 @@ fn build_connector_webhook_details_with_secret(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     secret: Secret<String>,
 ) -> RouterResult<common_utils::pii::SecretSerdeValue> {
+    if secret.peek().trim().is_empty() {
+        return Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Connector generated an empty or whitespace-only webhook secret");
+    }
     let existing_additional_secret = merchant_connector_account
         .connector_webhook_details
         .as_ref()
