@@ -8,7 +8,7 @@ use common_utils::{
     fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit, UnifiedCode, UnifiedMessage,
+        UnifiedCode, UnifiedMessage,
     },
 };
 #[cfg(feature = "v1")]
@@ -1480,28 +1480,14 @@ pub async fn update_payouts_and_payout_attempt(
         state,
         &payout_cap_dimensions,
         profile_id,
-        Some(req.amount.unwrap_or(payouts.amount.into())),
-        Some(req.currency.unwrap_or(payouts.destination_currency)),
+        Some(payouts.amount.into()),
+        Some(payouts.destination_currency),
     )
     .await?;
 
-    // Fetch customer details from request and create new or else use existing customer that was attached
-    let customer = get_customer_details_from_request(req);
-    let customer_id = if customer.customer_id.is_some()
-        || customer.name.is_some()
-        || customer.email.is_some()
-        || customer.phone.is_some()
-        || customer.phone_country_code.is_some()
-    {
-        payout_data.customer_details =
-            get_or_create_customer_details(state, &customer, platform).await?;
-        payout_data
-            .customer_details
-            .as_ref()
-            .map(|customer| customer.get_id().clone())
-    } else {
-        payout_data.payouts.customer_id.clone()
-    };
+    // Keep the customer chosen at creation, including when contact details are supplied
+    // without an ID. Resolving those details here could attach a newly created customer.
+    let customer_id = payouts.customer_id.clone();
 
     let (billing_address, address_id) = resolve_billing_address_for_payout(
         state,
@@ -1518,7 +1504,6 @@ pub async fn update_payouts_and_payout_attempt(
     payout_data.billing_address = billing_address;
 
     // Update DB with new data
-    let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
     let purpose = req.purpose.or(payouts.purpose);
     let sender_details = req
@@ -1540,12 +1525,9 @@ pub async fn update_payouts_and_payout_attempt(
         .attach_printable("Unable to encrypt payout sender details")?
         .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
-        amount,
-        destination_currency: req
-            .currency
-            .to_owned()
-            .unwrap_or(payouts.destination_currency),
-        source_currency: req.currency.to_owned().unwrap_or(payouts.source_currency),
+        amount: payouts.amount,
+        destination_currency: payouts.destination_currency,
+        source_currency: payouts.source_currency,
         description: req
             .description
             .to_owned()

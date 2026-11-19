@@ -94,6 +94,31 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
+/// Update and confirm share the same immutable payout value and customer identity fields.
+pub(super) fn validate_payout_mutation_request(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    if req.amount.is_some() {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "amount cannot be updated through this payout API".to_owned(),
+        }));
+    }
+
+    if req.currency.is_some() {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "currency cannot be updated through this payout API".to_owned(),
+        }));
+    }
+
+    if req.get_customer_id().is_some() {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "customer_id cannot be updated through this payout API".to_owned(),
+        }));
+    }
+
+    Ok(())
+}
+
 /// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
