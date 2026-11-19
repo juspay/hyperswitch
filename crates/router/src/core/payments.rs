@@ -10379,7 +10379,8 @@ async fn decide_payment_method_tokenize_action(
     let is_stripe_split_payment = matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) && connector_name == router_types::Connector::Stripe.to_string();
+    ) && connector_name
+        == router_types::Connector::Stripe.to_string();
 
     if is_stripe_split_payment {
         match pm_parent_token {
