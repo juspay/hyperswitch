@@ -2024,7 +2024,9 @@ jobs:
         shell: bash
         run: |
           status=0
+          scanned_logs=0
           while IFS= read -r -d '' server_log; do
+            scanned_logs=$((scanned_logs + 1))
             echo "Checking $server_log"
             duplicate_log="${server_log%/*}/duplicate-read-logs.txt"
             if ! bash scripts/check_duplicate_reads.sh "$server_log" "$duplicate_log"; then
@@ -2034,4 +2036,8 @@ jobs:
               fi
             fi
           done < <(find duplicate-read-sources -type f -name 'server-logs.txt' -print0)
+          if (( scanned_logs == 0 )); then
+            echo "::error::No Cypress server logs were available to check for duplicate database reads."
+            exit 1
+          fi
           exit "$status"
