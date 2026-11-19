@@ -13,8 +13,9 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{
         additional_info::{self as payment_additional_types},
-        InstallmentRequest, RequestSurchargeDetails,
+        AddressDetails, InstallmentRequest, RequestSurchargeDetails,
     },
+    sender::{CorporateSenderDetails, IndividualSenderDetails, SenderDetails},
 };
 use base64::Engine;
 use common_enums::{enums::ExecutionMode, ConnectorType, UcsAvailability, WalletDecryptedToken};
@@ -8434,7 +8435,7 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
 
 /// Validates that the names identifying an account funded transaction sender are not blank.
 pub fn validate_sender_details(
-    sender_details: Option<&api_models::sender::SenderDetails>,
+    sender_details: Option<&SenderDetails>,
 ) -> Result<(), errors::ApiErrorResponse> {
     sender_details
         .map(|sender_details| sender_details.get_name_fields())
@@ -8451,14 +8452,9 @@ pub fn validate_sender_details(
 /// Fills in the sender of an account funded transaction from the billing address of the payment
 /// method.
 pub fn get_sender_details_with_billing_fallback(
-    sender_details: Option<api_models::sender::SenderDetails>,
+    sender_details: Option<SenderDetails>,
     billing: Option<&hyperswitch_domain_models::address::Address>,
-) -> Option<api_models::sender::SenderDetails> {
-    use api_models::{
-        payments::AddressDetails,
-        sender::{IndividualSenderDetails, SenderDetails},
-    };
-
+) -> Option<SenderDetails> {
     let billing_details = billing.and_then(|billing| billing.address.as_ref());
     // Only the location is taken from billing; the sender's name is resolved separately below.
     let billing_address = billing_details
@@ -8527,7 +8523,7 @@ pub fn get_sender_details_with_billing_fallback(
             }))
         }
         Some(SenderDetails::Corporate(corporate)) => Some(SenderDetails::Corporate(
-            api_models::sender::CorporateSenderDetails {
+            CorporateSenderDetails {
                 address: resolve_address(corporate.address),
                 ..corporate
             },
@@ -8539,7 +8535,7 @@ pub fn get_sender_details_with_billing_fallback(
 }
 
 /// Whether a sender address carries any location field
-fn has_sender_address_location(address: &api_models::payments::AddressDetails) -> bool {
+fn has_sender_address_location(address: &AddressDetails) -> bool {
     address.line1.is_some()
         || address.line2.is_some()
         || address.line3.is_some()

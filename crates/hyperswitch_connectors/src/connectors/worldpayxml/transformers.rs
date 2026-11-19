@@ -1,4 +1,4 @@
-use api_models::payments::PaymentConnectorInvokeDDCMetadata;
+use api_models::{payments::PaymentConnectorInvokeDDCMetadata, sender::SenderDetails};
 #[cfg(feature = "payouts")]
 use api_models::payouts::{ApplePayDecrypt, CardPayout, GooglePayDecrypt};
 use base64::Engine;
@@ -54,8 +54,9 @@ use crate::{
     },
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
-        ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, PhoneDetailsData, RouterData as _,
+        ForeignTryFrom, IndividualSenderDetailsData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsSyncRequestData, PhoneDetailsData,
+        RouterData as _, SenderAddressDetailsData, SenderDetailsData,
     },
 };
 
@@ -1553,7 +1554,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
 /// In an account funded transaction, the sender's email takes precedence as the shopper's email.
 fn get_aft_sender_email(
     is_account_funded_transaction: Option<bool>,
-    sender_details: Option<&api_models::sender::SenderDetails>,
+    sender_details: Option<&SenderDetails>,
 ) -> Option<pii::Email> {
     is_account_funded_transaction
         .unwrap_or(false)
@@ -1840,23 +1841,13 @@ fn get_worldpayxml_company_full_name(
 fn build_worldpayxml_sender_funding_address(
     address: &api_models::payments::AddressDetails,
 ) -> Result<FundingAddress, error_stack::Report<errors::ConnectorError>> {
-    let country_code = address
-        .country
-        .ok_or_else(connector_utils::missing_field_err(
-            "sender_details.address.country",
-        ))?;
+    let country_code = address.get_sender_country()?;
 
     let state = match country_code {
         common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
-            let state = address
-                .state
-                .clone()
-                .ok_or_else(connector_utils::missing_field_err(
-                    "sender_details.address.state",
-                ))?;
             Some(
                 AddressDetails {
-                    state: Some(state),
+                    state: Some(address.get_sender_state()?),
                     country: Some(country_code),
                     ..Default::default()
                 }
@@ -1867,21 +1858,11 @@ fn build_worldpayxml_sender_funding_address(
     };
 
     Ok(FundingAddress {
-        address1: address
-            .line1
-            .clone()
-            .ok_or_else(connector_utils::missing_field_err(
-                "sender_details.address.line1",
-            ))?,
+        address1: address.get_sender_line1()?,
         address2: address.line2.clone(),
         address3: address.line3.clone(),
         postal_code: address.zip.clone(),
-        city: address
-            .city
-            .clone()
-            .ok_or_else(connector_utils::missing_field_err(
-                "sender_details.address.city",
-            ))?,
+        city: address.get_sender_city()?,
         state,
         country_code,
     })
@@ -1891,29 +1872,22 @@ fn build_worldpayxml_sender_funding_address(
 /// details of the payment method when the merchant does not send them.
 fn build_worldpayxml_sender_party<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
-    sender_details: Option<&api_models::sender::SenderDetails>,
+    sender_details: Option<&SenderDetails>,
     card_number: Secret<String>,
 ) -> Result<FundingParty, error_stack::Report<errors::ConnectorError>> {
-    use api_models::sender::SenderDetails;
-
     let sender_details =
         sender_details.ok_or_else(connector_utils::missing_field_err("sender_details"))?;
 
-    let funding_address = sender_details
-        .get_address()
-        .ok_or_else(connector_utils::missing_field_err("sender_details.address"))
-        .and_then(build_worldpayxml_sender_funding_address)?;
+    let funding_address =
+        build_worldpayxml_sender_funding_address(sender_details.get_sender_address()?)?;
+    let telephone_number = sender_details.get_optional_sender_phone_number();
 
     let (full_name, funding_data) = match sender_details {
         SenderDetails::Individual(individual) => (
             FullName {
-                first: individual.first_name.clone().ok_or_else(
-                    connector_utils::missing_field_err("sender_details.first_name"),
-                )?,
+                first: individual.get_sender_first_name()?,
                 middle: None,
-                last: individual.last_name.clone().ok_or_else(
-                    connector_utils::missing_field_err("sender_details.last_name"),
-                )?,
+                last: individual.get_sender_last_name()?,
             },
             Some(FundingData {
                 // For backward compatibility, fall back to the customer's date of birth, which was
@@ -1923,23 +1897,16 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
                     .clone()
                     .or_else(|| router_data.get_optional_customer_date_of_birth())
                     .map(BirthDate::from),
-                telephone_number: individual
-                    .phone
-                    .as_ref()
-                    .and_then(|phone| phone.number.clone())
+                telephone_number: telephone_number
                     .or_else(|| router_data.get_optional_billing_phone_number()),
             }),
         ),
         SenderDetails::Corporate(corporate) => (
             get_worldpayxml_company_full_name(&corporate.company_name)?,
-            corporate
-                .phone
-                .as_ref()
-                .and_then(|phone| phone.number.clone())
-                .map(|telephone_number| FundingData {
-                    birth_date: None,
-                    telephone_number: Some(telephone_number),
-                }),
+            telephone_number.map(|telephone_number| FundingData {
+                birth_date: None,
+                telephone_number: Some(telephone_number),
+            }),
         ),
     };
 
@@ -2061,7 +2028,7 @@ fn get_worldpayxml_sender_account_number(
 fn build_worldpayxml_funding_transfer<F, Req, Res>(
     router_data: &RouterData<F, Req, Res>,
     card_number: Secret<String>,
-    sender_details: Option<&api_models::sender::SenderDetails>,
+    sender_details: Option<&SenderDetails>,
     recipient_details: Option<&api_models::payments::RecipientDetails>,
     business_country: Option<common_enums::CountryAlpha2>,
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,

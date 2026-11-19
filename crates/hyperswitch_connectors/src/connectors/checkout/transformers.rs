@@ -1,3 +1,4 @@
+use api_models::sender::SenderDetails;
 use common_enums::{
     enums::{self, AttemptStatus, PaymentChannel},
     CountryAlpha2,
@@ -42,8 +43,9 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
-        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, CardData, IndividualSenderDetailsData, PaymentsAuthorizeRequestData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RouterData as OtherRouterData,
+        SenderAddressDetailsData, SenderDetailsData, WalletData as OtherWalletData,
     },
 };
 
@@ -593,35 +595,18 @@ fn build_checkout_recipient(
 fn build_checkout_sender_address(
     address: &api_models::payments::AddressDetails,
 ) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
-    let country = address
-        .country
-        .ok_or_else(utils::missing_field_err("sender_details.address.country"))?;
+    let country = address.get_sender_country()?;
 
     Ok(CheckoutAddress {
-        address_line1: Some(
-            address
-                .line1
-                .clone()
-                .ok_or_else(utils::missing_field_err("sender_details.address.line1"))?,
-        ),
+        address_line1: Some(address.get_sender_line1()?),
         address_line2: address.line2.clone(),
-        city: Some(
-            address
-                .city
-                .clone()
-                .ok_or_else(utils::missing_field_err("sender_details.address.city"))?,
-        ),
+        city: Some(address.get_sender_city()?),
         state: get_checkout_aft_state(
             address.state.clone(),
             country,
             "sender_details.address.state",
         )?,
-        zip: Some(
-            address
-                .zip
-                .clone()
-                .ok_or_else(utils::missing_field_err("sender_details.address.zip"))?,
-        ),
+        zip: Some(address.get_sender_zip()?),
         country: Some(country),
     })
 }
@@ -629,8 +614,6 @@ fn build_checkout_sender_address(
 fn build_checkout_sender(
     router_data: &PaymentsAuthorizeRouterData,
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
-    use api_models::sender::SenderDetails;
-
     // The sender details are filled in from the billing address of the payment method in core,
     // so any field missing here is missing from both.
     let sender_details = router_data
@@ -639,21 +622,12 @@ fn build_checkout_sender(
         .as_ref()
         .ok_or_else(utils::missing_field_err("sender_details"))?;
 
-    let address = sender_details
-        .get_address()
-        .ok_or_else(utils::missing_field_err("sender_details.address"))
-        .and_then(build_checkout_sender_address)?;
+    let address = build_checkout_sender_address(sender_details.get_sender_address()?)?;
 
     match sender_details {
         SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
-            first_name: individual
-                .first_name
-                .clone()
-                .ok_or_else(utils::missing_field_err("sender_details.first_name"))?,
-            last_name: individual
-                .last_name
-                .clone()
-                .ok_or_else(utils::missing_field_err("sender_details.last_name"))?,
+            first_name: individual.get_sender_first_name()?,
+            last_name: individual.get_sender_last_name()?,
             // For backward compatibility, fall back to the customer's date of birth, which was
             // the only source of the sender's date of birth before sender details were added.
             // The error names the sender field, since that is where the merchant should send it.
