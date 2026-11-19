@@ -684,6 +684,10 @@ pub struct CheckoutThreeDS {
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
+    // Checkout's 3dsRequestThirdParty.status carries the external ACS/DS transaction status.
+    // https://api-reference.checkout.com/v1/swagger.json
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status: Option<enums::TransactionStatus>,
     challenge_indicator: CheckoutChallengeIndicator,
 }
 
@@ -1158,6 +1162,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 cryptogram: Some(auth.cavv.clone()),
                 xid: auth.threeds_server_transaction_id.clone(),
                 version: auth.message_version.clone().map(|v| v.to_string()),
+                status: auth.transaction_status.clone(),
                 challenge_indicator: CheckoutChallengeIndicator::NoPreference,
             }
         } else {
@@ -1169,6 +1174,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     cryptogram: None,
                     xid: None,
                     version: None,
+                    status: None,
                     challenge_indicator,
                 },
                 enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
@@ -1178,6 +1184,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     cryptogram: None,
                     xid: None,
                     version: None,
+                    status: None,
                     challenge_indicator: CheckoutChallengeIndicator::NoPreference,
                 },
             }
