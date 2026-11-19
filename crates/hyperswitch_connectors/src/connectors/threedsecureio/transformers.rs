@@ -530,7 +530,7 @@ pub struct ThreedsecureioAuthenticationRequest {
     pub acs_end_protocol_version: String,
     pub three_dsserver_trans_id: String,
     pub acct_number: cards::CardNumber,
-    pub notification_url: String,
+    pub notification_url: Secret<String>,
     pub three_dscomp_ind: ThreeDSecureIoThreeDsCompletionIndicator,
     pub three_dsrequestor_url: String,
     pub acquirer_bin: String,

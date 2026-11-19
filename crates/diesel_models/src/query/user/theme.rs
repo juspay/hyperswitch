@@ -1,22 +1,16 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::types::user::ThemeLineage;
 use diesel::{
     associations::HasTable,
-    debug_query,
     pg::Pg,
     result::Error as DieselError,
     sql_types::{Bool, Nullable},
     BoolExpressionMethods, ExpressionMethods, NullableExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
-use router_env::logger;
 
 use crate::{
     errors::DatabaseError,
-    query::generics::{
-        self,
-        db_metrics::{track_database_call, DatabaseOperation},
-    },
+    query::generics::{self, db_metrics::DatabaseOperation},
     schema::themes::dsl,
     user::theme::{Theme, ThemeNew, ThemeUpdate, ThemeUpdateInternal},
     DatabaseConnectionWithContext, StorageResult,
@@ -145,15 +139,9 @@ impl Theme {
                     query
                 });
 
-        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
-        let data: Vec<Self> = match track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            DatabaseOperation::Filter,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        let data: Vec<Self> = match conn
+            .track_get_results::<Self, _, _>(DatabaseOperation::Filter, query)
+            .await
         {
             Ok(value) => Ok(value),
             Err(err) => match err {
@@ -227,15 +215,9 @@ impl Theme {
 
         let query = crate::list::into_boxed_list(<Self as HasTable>::table().filter(filter));
 
-        logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
-
-        match track_database_call::<Self, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            DatabaseOperation::Filter,
-            query.get_results_async(conn.raw_connection()),
-        )
-        .await
+        match conn
+            .track_get_results::<Self, _, _>(DatabaseOperation::Filter, query)
+            .await
         {
             Ok(themes) => Ok(themes),
             Err(err) => match err {

@@ -1,0 +1,182 @@
+---
+title: "Decide"
+description: "Curl example for /decide, the routing decision for a single payment."
+---
+
+# Decide
+
+`POST /decide` routes one payment. It evaluates the merchant's active routing rule, ranks the result by success rate, cost and volume commitments, and answers with the connectors to try in order. [`/routing/hybrid`](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid) exposes the same evaluation under a different request and response.
+
+Authenticate with `Authorization: Bearer <token>` or `x-api-key: <key>`.
+
+## Merchant
+
+The merchant is named by the `x-connected-merchant-id` header, never the request body.
+
+| Caller | Without the header | With the header |
+| --- | --- | --- |
+| Session or API key | Its own merchant | Its own merchant, or one of its sub-merchants |
+| Service credential (`x-admin-secret`) | Not accepted, as it has no merchant of its own | The merchant named |
+
+`x-request-id` identifies the call. One is generated if absent, and it comes back as a response header. `merchant_reference_id` is your own reference for the payment and is echoed in the response.
+
+## Request
+
+```bash
+curl --location "$BASE_URL/decide" \
+  --header "$AUTH_HEADER" \
+  --header "x-connected-merchant-id: pro_demo" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "payment_id": "pay_demo",
+    "merchant_reference_id": "order_demo",
+    "amount": 1000,
+    "currency": "USD",
+    "payment_method_type": "card",
+    "payment_method_sub_type": "credit",
+    "billing_country": "US",
+    "card": {
+      "card_isin": "001234",
+      "card_extended_bin": "00123456",
+      "card_network": "Visa",
+      "card_type": "credit",
+      "card_issuing_country_code": "US"
+    },
+    "metadata": {
+      "segment": "premium"
+    },
+    "routing_config": {
+      "algorithm_for": "payment",
+      "decision_arm": "control",
+      "eligible_connectors": [
+        { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
+        { "connector": "checkout", "merchant_connector_id": "mca_cko" }
+      ]
+    }
+  }'
+```
+
+The required fields are `payment_id`, `amount`, `currency`, `routing_config.algorithm_for` and `routing_config.eligible_connectors`. Other fields may be omitted or null, and unknown fields are rejected.
+
+- `amount` is an unsigned integer in minor units.
+- Country codes are ISO 3166 alpha-2. `billing_country`, then `business_country`, supplies the country the decider scores on.
+- BINs are strings, so leading zeros are kept.
+- A connector needs a nonempty `connector`. `merchant_connector_id` is optional and, when sent, nonempty. A connector named without an account is matched and scored by its name alone.
+- `metadata` adds custom rule parameters. It cannot overwrite a payment field or a configured rule key.
+- `payment_type` (`non_mandate`, `setup_mandate`, `ppt_mandate` and so on) routes mandate payments, such as a processor-token charge to the processor holding the token. A rule that tests it matches only when it is sent, and it does not set the decider's transaction type.
+- `authentication_type` is both matched by rules and scored by the decider.
+- `routing_config.decision_arm` names the arm the caller assigned, `control` or `variant`. It is kept in the request audit and does not override Decision Engine's own experiment assignment.
+- `routing_config` also carries `preferred_connectors`, `ranking_algorithm`, `elimination_enabled` and `enable_multi_objective`, which the decider applies where the merchant's feature and experiment gates allow it.
+
+## Rule keys
+
+Most fields are matched under their own name, and `metadata` entries under their own keys. These are matched under a different key, so write rules against the key rather than the field name.
+
+| Request field | Rule key |
+| --- | --- |
+| `amount` | `amount` and `payment_amount` |
+| `payment_method_type` | `payment_method` |
+| `payment_method_sub_type` | `payment_method_type` |
+| `card.card_isin` | `card_bin` |
+| `card.card_extended_bin` | `extended_card_bin` |
+| `card.card_issuer` | `issuer_name` |
+| `card.card_issuing_country_code` | `issuer_country` |
+
+Country codes are matched as the configured country names, which the adapter derives from the alpha-2 code. Other enum values match exactly where the configuration defines the value, otherwise case-insensitively.
+
+## Response
+
+```json
+{
+  "id": "dec_1234",
+  "payment_id": "pay_demo",
+  "merchant_reference_id": "order_demo",
+  "created_at": "2026-10-30T09:12:44.518Z",
+  "connectors": [
+    { "connector": "checkout", "merchant_connector_id": "mca_cko" },
+    { "connector": "worldpay", "merchant_connector_id": "mca_wp" }
+  ],
+  "outcome": {
+    "type": "routed",
+    "strategy": "cost",
+    "reason": "cost_optimized",
+    "message": "checkout has higher expected value than SR head worldpay"
+  },
+  "rule": {
+    "status": "matched",
+    "output": {
+      "type": "priority",
+      "connectors": [
+        { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
+        { "connector": "checkout", "merchant_connector_id": "mca_cko" }
+      ]
+    },
+    "selected": [
+      { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
+      { "connector": "checkout", "merchant_connector_id": "mca_cko" }
+    ],
+    "eligible": [
+      { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
+      { "connector": "checkout", "merchant_connector_id": "mca_cko" }
+    ]
+  },
+  "success_rate": {
+    "status": "applied",
+    "approach": "sr_selection_multi_objective",
+    "scores": [
+      { "connector": "worldpay", "merchant_connector_id": "mca_wp", "score": 0.98 },
+      { "connector": "checkout", "merchant_connector_id": "mca_cko", "score": 0.97 }
+    ],
+    "diagnostics": {
+      "head_before_downtime_check": { "connector": "worldpay", "merchant_connector_id": "mca_wp" },
+      "reset_approach": "no_reset",
+      "dimension": { "value": "ORDER_PAYMENT, CREDIT, CARD", "level": "PM_LEVEL" },
+      "filter_wise_connectors": null,
+      "priority_logic": { "tag": null, "output": null },
+      "dynamic_mga_enabled": false,
+      "connector_mga_id_map": null,
+      "rust_based_decider": true,
+      "latency_ms": 4
+    }
+  },
+  "cost": {
+    "status": "cost_won",
+    "message": "checkout has higher expected value than SR head worldpay",
+    "cost_saved_bps": 1480.0,
+    "qualified_count": 2,
+    "margin": 1.0,
+    "ev_gap_top2": 0.1351,
+    "ranked": [
+      { "connector": "checkout", "merchant_connector_id": "mca_cko", "auth_rate": 0.97, "cost_bps": 20.0,
+        "cost_source": "in_house", "cost_model": null, "ev": 0.9681, "is_sr_head": false, "is_chosen": true },
+      { "connector": "worldpay", "merchant_connector_id": "mca_wp", "auth_rate": 0.98, "cost_bps": 1500.0,
+        "cost_source": "in_house", "cost_model": null, "ev": 0.833, "is_sr_head": true, "is_chosen": false }
+    ]
+  },
+  "volume_steering": null,
+  "debit_routing": null,
+  "warnings": []
+}
+```
+
+`connectors` is the order to try. The first is the choice and the rest the retry order. Every connector in the response, in every section, has the same `{connector, merchant_connector_id}` shape, and `merchant_connector_id` is null for a connector named without an account.
+
+`outcome` says how the order was reached:
+
+| `type` | Meaning |
+| --- | --- |
+| `routed` | The configured routing produced the order. |
+| `fallback` | Routing could not apply, so the candidates in request order, or the rule output unranked, answered. |
+| `no_connector` | No connector is left to try. `connectors` is empty and the call still succeeds. |
+
+`strategy` names the layer that set the order (`rule`, `success_rate`, `cost`, `volume_commitment`, `debit_network`, `candidate_order`, `none`) and `reason` the specific case, for example `rule_matched`, `success_rate_ranked`, `cost_optimized`, `no_active_rule`, `rule_output_not_eligible`, `rule_input_invalid`, or `success_rate_unavailable`. New values may be added to these enums. `message` is for people reading logs, so branch on `reason`.
+
+Each routing layer has a section, null when that layer did not run: `rule` (null when the rule layer failed), `success_rate` (null when the `sr-routing` setting is off or the A/B arm has no SR layer, with `status: failed` when the decider failed and the order fell back), `cost`, `volume_steering`, and `debit_routing`. `success_rate.diagnostics` carries the decider's internals for support and is not covered by compatibility guarantees.
+
+`warnings` lists problems the decision routed around: `rule_input_invalid` (a request value the routing configuration does not allow, where `param` names the request field such as `card.card_network`, and there is one warning per invalid value), `rule_evaluation_failed` (the rule could not be evaluated for another reason), `rule_output_not_eligible` and `rule_output_partially_eligible` (the rule chose connectors outside `eligible_connectors`), and `success_rate_failed`. Routing problems never fail the call.
+
+`id` is unique per decision, so a retried payment's decisions stay apart. Analytics record the request and response under the route name `decide`.
+
+## Feedback
+
+Report the outcome with [`POST /update-gateway-score`](/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score), naming the connector as `"connector:merchant_connector_id"`, or `connector` alone when it was named without an account.

@@ -7,7 +7,7 @@ use common_utils::id_type::CardIssuerId;
 async fn card_issuer_success() {
     Box::pin(utils::setup()).await;
 
-    let admin_api_key = ("api-key", "test_admin");
+    let admin_api_key = ("Authorization", "admin-api-key=test_admin");
     let issuer_name = "STATE BANK OF INDIA";
     let updated_name = "STATE BANK OF INDIA UPDATED";
 
@@ -125,7 +125,7 @@ async fn card_issuer_success() {
 async fn card_issuer_failure() {
     Box::pin(utils::setup()).await;
 
-    let admin_api_key = ("api-key", "test_admin");
+    let admin_api_key = ("Authorization", "admin-api-key=test_admin");
     let issuer_name = "HDFC BANK";
 
     let create_request = serde_json::json!({

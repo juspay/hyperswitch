@@ -3,6 +3,7 @@ use crate::core::errors::{self, CustomResult};
 use crate::db::MockDb;
 
 #[cfg(feature = "v2")]
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentMethodsSessionInterface {
     async fn insert_payment_methods_session(
@@ -34,6 +35,7 @@ pub trait PaymentMethodsSessionInterface {
 }
 
 #[cfg(feature = "v1")]
+#[router_derive::track_async_interface]
 pub trait PaymentMethodsSessionInterface {}
 
 #[cfg(feature = "v1")]

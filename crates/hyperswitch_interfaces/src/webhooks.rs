@@ -188,17 +188,22 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let message = self
             .get_webhook_body_decoding_message(request)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let secret = self
-            .get_webhook_source_verification_merchant_secret(
+        // Ordinary bodies can be decoded before the merchant connector account is resolved.
+        let secret = if algorithm.requires_secret() {
+            self.get_webhook_source_verification_merchant_secret(
                 merchant_id,
                 connector_name,
                 connector_webhook_details,
             )
             .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+            .secret
+        } else {
+            Vec::new()
+        };
 
         algorithm
-            .decode_message(&secret.secret, message.into())
+            .decode_message(&secret, message.into())
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 
@@ -210,7 +215,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Box::new(crypto::NoAlgorithm))
     }
 
-    /// fn get_webhook_source_verification_merchant_secret
+    /// Get the merchant's configured webhook verification secrets.
+    /// Returns an error when webhook details are not configured.
     async fn get_webhook_source_verification_merchant_secret(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -219,8 +225,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let debug_suffix =
             format!("For merchant_id: {merchant_id:?}, and connector_name: {connector_name}");
-        let default_secret = "default_secret".to_string();
-        let merchant_secret = match connector_webhook_details {
+        //need to fetch merchant secret from config table with caching in future for enhanced performance
+        match connector_webhook_details {
             Some(merchant_connector_webhook_details) => {
                 let connector_webhook_details = merchant_connector_webhook_details
                     .parse_value::<api_models::admin::MerchantConnectorWebhookDetails>(
@@ -232,26 +238,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}",
                         )
                     })?;
-                api_models::webhooks::ConnectorWebhookSecrets {
+                Ok(api_models::webhooks::ConnectorWebhookSecrets {
                     secret: connector_webhook_details
                         .merchant_secret
                         .expose()
                         .into_bytes(),
                     additional_secret: connector_webhook_details.additional_secret,
-                }
+                })
             }
 
-            None => api_models::webhooks::ConnectorWebhookSecrets {
-                secret: default_secret.into_bytes(),
-                additional_secret: None,
-            },
-        };
-
-        //need to fetch merchant secret from config table with caching in future for enhanced performance
-
-        //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
-        //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret)
+            None => Err(errors::ConnectorError::WebhookVerificationSecretNotFound)
+                .attach_printable_lazy(|| {
+                    format!("Merchant connector webhook details not configured {debug_suffix}")
+                }),
+        }
     }
 
     /// fn get_webhook_source_verification_signature

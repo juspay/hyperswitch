@@ -96,6 +96,7 @@ impl_api_event_type!(Miscellaneous, (GenericLinkFormData));
 #[derive(Debug, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
+    pub callback_url: Option<hyperswitch_masking::Secret<String>>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: String,
     pub currency: String,

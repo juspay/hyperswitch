@@ -1,5 +1,8 @@
 //! Constants that are used in the domain level.
 
+/// Placeholder when the surcharge connector does not return a transaction ID.
+pub const NO_SURCHARGE_ID_FOUND: &str = "NO_SURCHARGE_ID_FOUND";
+
 /// Base value for converting percentage to decimal (e.g., 12% → 0.12)
 pub const PERCENTAGE_BASE: f64 = 100.0;
 

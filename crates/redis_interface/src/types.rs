@@ -36,7 +36,7 @@ pub struct RedisSettings {
     pub username: Option<String>,
     /// Password for Redis `AUTH` / ACL authentication.
     /// When unset, the connection handshake is unauthenticated.
-    pub password: Option<Secret<String>>,
+    pub primary_password: Option<Secret<String>>,
     /// When `true`, connect over TLS (the `rediss://` scheme). Required by
     /// most managed Redis offerings, e.g. AWS ElastiCache with encryption in
     /// transit, Azure Cache for Redis, or Redis Cloud with TLS enabled.
@@ -102,7 +102,7 @@ impl RedisSettings {
     ///
     /// Emptiness is enforced by [`Self::validate`], not here.
     pub(crate) fn auth_password(&self) -> Option<&str> {
-        self.password
+        self.primary_password
             .as_ref()
             .map(|password| password.peek().as_str())
     }
@@ -147,12 +147,12 @@ impl RedisSettings {
         )?;
 
         when(
-            self.password
+            self.primary_password
                 .as_ref()
                 .is_some_and(|password| password.is_default_or_empty()),
             || {
                 Err(errors::RedisError::InvalidConfiguration(
-                    "Redis `password` must not be empty when specified".into(),
+                    "Redis `primary_password` must not be empty when specified".into(),
                 ))
             },
         )?;
@@ -161,7 +161,7 @@ impl RedisSettings {
             self.auth_username().is_some() && self.auth_password().is_none(),
             || {
                 Err(errors::RedisError::InvalidConfiguration(
-                    "Redis `password` must be specified when `username` is set".into(),
+                    "Redis `primary_password` must be specified when `username` is set".into(),
                 ))
             },
         )?;
@@ -226,7 +226,7 @@ impl Default for RedisSettings {
             host: "127.0.0.1".to_string(),
             port: 6379,
             username: None,
-            password: None,
+            primary_password: None,
             tls_enabled: false,
             tls_ca_certificate_path: None,
             cluster_enabled: false,
@@ -592,7 +592,7 @@ mod tests {
     fn test_redis_settings_validate_username_without_password() {
         let settings = RedisSettings {
             username: Some("app_user".to_string()),
-            password: None,
+            primary_password: None,
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_err());
@@ -602,7 +602,7 @@ mod tests {
     fn test_redis_settings_validate_username_with_password() {
         let settings = RedisSettings {
             username: Some("app_user".to_string()),
-            password: Some("secret".to_string().into()),
+            primary_password: Some("secret".to_string().into()),
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_ok());
@@ -611,7 +611,7 @@ mod tests {
     #[test]
     fn test_redis_settings_validate_password_only() {
         let settings = RedisSettings {
-            password: Some("secret".to_string().into()),
+            primary_password: Some("secret".to_string().into()),
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_ok());
@@ -621,7 +621,7 @@ mod tests {
     fn test_redis_settings_validate_empty_username_rejected() {
         let settings = RedisSettings {
             username: Some(String::new()),
-            password: Some("secret".to_string().into()),
+            primary_password: Some("secret".to_string().into()),
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_err());
@@ -631,7 +631,7 @@ mod tests {
     fn test_redis_settings_validate_whitespace_username_rejected() {
         let settings = RedisSettings {
             username: Some("   ".to_string()),
-            password: Some("secret".to_string().into()),
+            primary_password: Some("secret".to_string().into()),
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_err());
@@ -640,7 +640,7 @@ mod tests {
     #[test]
     fn test_redis_settings_validate_empty_password_rejected() {
         let settings = RedisSettings {
-            password: Some(String::new().into()),
+            primary_password: Some(String::new().into()),
             ..RedisSettings::default()
         };
         assert!(settings.validate().is_err());
@@ -724,7 +724,7 @@ mod tests {
     #[test]
     fn test_redis_settings_password_masked_in_debug() {
         let settings = RedisSettings {
-            password: Some("super_secret".to_string().into()),
+            primary_password: Some("super_secret".to_string().into()),
             ..RedisSettings::default()
         };
         let debug_output = format!("{settings:?}");

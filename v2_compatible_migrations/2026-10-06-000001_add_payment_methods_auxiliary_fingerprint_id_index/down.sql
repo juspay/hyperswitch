@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS payment_methods_customer_id_merchant_id_auxiliary_fingerprint_id_index;

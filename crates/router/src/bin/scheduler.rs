@@ -15,10 +15,7 @@ use router::{
     services::{self, api},
     workflows,
 };
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 use scheduler::{
     consumer::workflows::ProcessTrackerWorkflow, errors::ProcessTrackerError,
     workflows::ProcessTrackerWorkflows, SchedulerSessionState,
@@ -381,6 +378,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
                 }
+                storage::ProcessTrackerRunner::RecoveryRequestWorkflow => Ok(Box::new(
+                    workflows::recovery_request::RecoveryRequestWorkflow,
+                )),
                 storage::ProcessTrackerRunner::PayoutSyncWorkFlow => {
                     Ok(Box::new(workflows::payout_sync::PayoutSyncWorkFlow))
                 }

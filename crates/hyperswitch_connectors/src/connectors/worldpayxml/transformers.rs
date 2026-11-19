@@ -685,7 +685,8 @@ struct FundingAddress {
     address1: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     address2: Option<Secret<String>>,
-    postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
     city: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
@@ -1745,12 +1746,7 @@ fn build_worldpayxml_recipient_party(
                     "recipient_details.address.line1",
                 ))?,
             address2: address.line2.clone(),
-            postal_code: address
-                .zip
-                .clone()
-                .ok_or_else(connector_utils::missing_field_err(
-                    "recipient_details.address.zip",
-                ))?,
+            postal_code: address.zip.clone(),
             city: address
                 .city
                 .clone()
@@ -1810,7 +1806,7 @@ fn build_worldpayxml_sender_party<F, Req, Res>(
         funding_address: FundingAddress {
             address1: router_data.get_billing_line1()?,
             address2: router_data.get_optional_billing_line2(),
-            postal_code: router_data.get_billing_zip()?,
+            postal_code: router_data.get_optional_billing_zip(),
             city: router_data.get_billing_city()?,
             state: match country_code {
                 common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
@@ -2623,7 +2619,7 @@ struct ChallengeJwt {
     #[serde(rename = "OrgUnitId")]
     org_unit_id: Secret<String>,
     #[serde(rename = "ReturnUrl")]
-    return_url: String,
+    return_url: Secret<String>,
     #[serde(rename = "Payload")]
     payload: Payload,
     #[serde(rename = "ObjectifyPayload")]
@@ -2726,7 +2722,7 @@ fn generate_challenge_jwt(
     acs_url: String,
     payload: String,
     transaction_id: String,
-    return_url: String,
+    return_url: Secret<String>,
     metadata_for_jwt: WorldpayxmlConnectorMetadataObject,
 ) -> Result<String, errors::ConnectorError> {
     let iat: u64 = common_utils::date_time::now_unix_timestamp()
@@ -4327,6 +4323,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::GooglePay) => {
             AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4344,6 +4341,7 @@ fn get_connector_response_data(
         Some(enums::PaymentMethodType::ApplePay) => {
             AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code: Some(auth_code),
+                payment_checks: None,
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype,
@@ -4694,8 +4692,10 @@ impl TryFrom<&WorldpayXmlWebhookBody> for DisputePayload {
 fn get_mandate_type(mit_category: Option<common_enums::MitCategory>) -> MandateType {
     match mit_category {
         Some(common_enums::MitCategory::Installment) => MandateType::Instalment,
-        Some(common_enums::MitCategory::Recurring) => MandateType::Recurring,
-        Some(common_enums::MitCategory::Unscheduled) | None => MandateType::Unscheduled,
-        _ => MandateType::Unscheduled,
+        Some(common_enums::MitCategory::Recurring | common_enums::MitCategory::Subscription) => {
+            MandateType::Recurring
+        }
+        Some(common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission)
+        | None => MandateType::Unscheduled,
     }
 }

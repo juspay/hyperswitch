@@ -26,11 +26,10 @@ use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     core::{
-        payments::gateway::context::RouterGatewayContext,
-        unified_connector_service::{self, frm as ucs_frm},
+        fraud_check::access_token, payments::gateway::context::RouterGatewayContext,
+        unified_connector_service,
     },
     routes::SessionState,
-    services::logger,
     types::transformers::ForeignTryFrom,
 };
 
@@ -80,22 +79,8 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        // Bearer-authenticated providers (Kount) need an OAuth token in
-        // `state.access_token`; static-key providers (nSure) get `None` and
-        // ignore it. Failure here is non-fatal — the connector surfaces a
-        // clear auth error rather than us guessing.
         let mut router_data = router_data.clone();
-        if router_data.access_token.is_none() {
-            router_data.access_token = ucs_frm::get_frm_access_token(state, &router_data, &context)
-                .await
-                .unwrap_or_else(|err| {
-                    logger::warn!(
-                        error = ?err,
-                        "Failed to obtain an FRM access token; continuing without one"
-                    );
-                    None
-                });
-        }
+        access_token::add_access_token_for_frm(&mut router_data);
 
         let pre_risk_check_request =
             payments_grpc::FrmServicePreRiskCheckRequest::foreign_try_from(&router_data)

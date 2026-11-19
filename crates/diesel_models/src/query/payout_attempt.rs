@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
     associations::HasTable,
     query_dsl::methods::{DistinctDsl, FilterDsl, SelectDsl},
@@ -8,7 +7,7 @@ use diesel::{
 };
 use error_stack::{report, ResultExt};
 
-use super::generics;
+use super::generics::{self, db_metrics::DatabaseOperation};
 use crate::{
     enums,
     errors::DatabaseError,
@@ -239,11 +238,11 @@ impl PayoutAttempt {
             .into_iter()
             .collect();
 
-        let filter_connector = filter
-            .clone()
-            .select(dsl::connector)
-            .distinct()
-            .get_results_async::<Option<String>>(conn.raw_connection())
+        let filter_connector = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<String>>(
+                DatabaseOperation::Filter,
+                filter.clone().select(dsl::connector).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
@@ -251,22 +250,28 @@ impl PayoutAttempt {
             .flatten()
             .collect::<Vec<String>>();
 
-        let filter_currency = payouts_filter
-            .clone()
-            .select(payout_dsl::destination_currency)
-            .distinct()
-            .get_results_async::<enums::Currency>(conn.raw_connection())
+        let filter_currency = conn
+            .track_get_results::<<Payouts as HasTable>::Table, _, enums::Currency>(
+                DatabaseOperation::Filter,
+                payouts_filter
+                    .clone()
+                    .select(payout_dsl::destination_currency)
+                    .distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
             .into_iter()
             .collect::<Vec<enums::Currency>>();
 
-        let filter_payout_method = payouts_filter
-            .clone()
-            .select(payout_dsl::payout_type)
-            .distinct()
-            .get_results_async::<Option<enums::PayoutType>>(conn.raw_connection())
+        let filter_payout_method = conn
+            .track_get_results::<<Payouts as HasTable>::Table, _, Option<enums::PayoutType>>(
+                DatabaseOperation::Filter,
+                payouts_filter
+                    .clone()
+                    .select(payout_dsl::payout_type)
+                    .distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?

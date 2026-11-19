@@ -1,7 +1,7 @@
 use common_utils::{errors::CustomResult, types::keymanager};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::MockDb;
 
 use crate::{

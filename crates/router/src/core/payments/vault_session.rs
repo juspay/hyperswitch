@@ -241,10 +241,10 @@ async fn call_internal_pm_session_create_for_vault(
     // (provider) merchant whose profile carries the external vault configuration.
     let merchant_id = &profile.merchant_id;
     let profile_id = profile.get_id();
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
 
     let mut headers = Headers::new();
     headers.insert((
@@ -461,7 +461,7 @@ where
             if should_call_connector {
                 // Create customer at connector and update the customer table to store this data
                 let router_data = payment_data
-                    .construct_router_data(
+                    .construct_router_data_with_callbacks(
                         state,
                         connector.connector.id(),
                         processor,

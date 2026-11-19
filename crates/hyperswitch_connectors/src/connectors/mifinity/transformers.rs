@@ -67,7 +67,7 @@ pub struct MifinityPaymentsRequest {
     description: String,
     destination_account_number: Secret<String>,
     brand_id: Secret<String>,
-    return_url: String,
+    return_url: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     language_preference: Option<String>,
 }

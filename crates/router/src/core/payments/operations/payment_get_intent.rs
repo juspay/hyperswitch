@@ -91,7 +91,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentIntentData<F>, Payme
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<operations::GetTrackerResponse<payments::PaymentIntentData<F>>> {
         let db = &*state.store;
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
         let payment_intent = db
             .find_payment_intent_by_id(
                 &request.id,
@@ -147,10 +147,10 @@ impl<F: Send + Clone + Sync>
     for PaymentGetIntent
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsGetIntentRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
