@@ -281,6 +281,58 @@ export const connectorDetails = {
         },
       },
     },
+    PostCaptureVoidFull: {
+      Request: {},
+      Response: {
+        status: 200,
+        connectorReferenceIdRequired: true,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+          amount_capturable: 0,
+          "state_metadata.post_capture_void.status": "succeeded",
+          "state_metadata.post_capture_void.description": null,
+        },
+      },
+    },
+    PostCaptureVoidPartial: {
+      Request: {},
+      Response: {
+        status: 200,
+        connectorReferenceIdRequired: true,
+        body: {
+          status: "partially_captured",
+          amount: 6000,
+          amount_received: 2000,
+          amount_capturable: 0,
+          "state_metadata.post_capture_void.status": "succeeded",
+          "state_metadata.post_capture_void.description": null,
+        },
+      },
+    },
+    PostCaptureVoidUncaptured: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          "error.code": "IR_16",
+          "error.message":
+            "You cannot cancel_post_capture this payment because it has status requires_payment_method",
+        },
+      },
+    },
+    PostCaptureVoidDuplicate: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          "error.code": "IR_16",
+          "error.message":
+            "Multiple post capture void requests are not allowed for a payment",
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
