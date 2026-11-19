@@ -200,6 +200,8 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    #[serde(default)]
+    pub superposition_proxy: SuperpositionProxySettings,
     pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
@@ -569,6 +571,21 @@ impl TenantConfig {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct L2L3DataConfig {
     pub enabled: bool,
+}
+
+/// Settings for the Superposition proxy used by the control center.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct SuperpositionProxySettings {
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub allowed_config_keys: HashSet<String>,
+}
+
+impl SuperpositionProxySettings {
+    /// Whether `key` is on the allowlist.
+    pub fn is_allowed_key(&self, key: &str) -> bool {
+        self.allowed_config_keys.contains(key)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1729,6 +1746,8 @@ impl Settings<SecuredSecret> {
             .get_inner()
             .validate()
             .map_err(|err| ApplicationError::InvalidConfigurationValueError(err.to_string()))?;
+
+        self.superposition_proxy.validate()?;
 
         Ok(())
     }

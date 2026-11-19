@@ -439,6 +439,58 @@ pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
 /// Superposition configuration keys
 pub mod superposition {
+    /// Config keys the Superposition proxy lets the control center read and write, unless
+    /// `superposition_proxy.allowed_config_keys` overrides them. Every other key is rejected in
+    /// requests and hidden in responses.
+    pub const PROXY_ALLOWED_CONFIG_KEYS: &[&str] = &[
+        "dynamic_fields.billing.address.city._default_label_text",
+        "dynamic_fields.billing.address.city._default_placeholder_text",
+        "dynamic_fields.billing.address.city._label_localization_key",
+        "dynamic_fields.billing.address.city._placeholder_localization_key",
+        "dynamic_fields.billing.address.country._default_label_text",
+        "dynamic_fields.billing.address.country._default_placeholder_text",
+        "dynamic_fields.billing.address.country._label_localization_key",
+        "dynamic_fields.billing.address.country._placeholder_localization_key",
+        "dynamic_fields.billing.address.first_name._default_label_text",
+        "dynamic_fields.billing.address.first_name._default_placeholder_text",
+        "dynamic_fields.billing.address.first_name._label_localization_key",
+        "dynamic_fields.billing.address.first_name._placeholder_localization_key",
+        "dynamic_fields.billing.address.last_name._default_label_text",
+        "dynamic_fields.billing.address.last_name._default_placeholder_text",
+        "dynamic_fields.billing.address.last_name._label_localization_key",
+        "dynamic_fields.billing.address.last_name._placeholder_localization_key",
+        "dynamic_fields.billing.address.line1._default_label_text",
+        "dynamic_fields.billing.address.line1._default_placeholder_text",
+        "dynamic_fields.billing.address.line1._label_localization_key",
+        "dynamic_fields.billing.address.line1._placeholder_localization_key",
+        "dynamic_fields.billing.address.line2._default_label_text",
+        "dynamic_fields.billing.address.line2._default_placeholder_text",
+        "dynamic_fields.billing.address.line2._label_localization_key",
+        "dynamic_fields.billing.address.line2._placeholder_localization_key",
+        "dynamic_fields.billing.address.state._default_label_text",
+        "dynamic_fields.billing.address.state._default_placeholder_text",
+        "dynamic_fields.billing.address.state._label_localization_key",
+        "dynamic_fields.billing.address.state._placeholder_localization_key",
+        "dynamic_fields.billing.address.zip._default_label_text",
+        "dynamic_fields.billing.address.zip._default_placeholder_text",
+        "dynamic_fields.billing.address.zip._label_localization_key",
+        "dynamic_fields.billing.address.zip._placeholder_localization_key",
+        "dynamic_fields.billing.email._default_label_text",
+        "dynamic_fields.billing.email._default_placeholder_text",
+        "dynamic_fields.billing.email._label_localization_key",
+        "dynamic_fields.billing.email._placeholder_localization_key",
+        "dynamic_fields.billing.phone.number._default_label_text",
+        "dynamic_fields.billing.phone.number._default_placeholder_text",
+        "dynamic_fields.billing.phone.number._label_localization_key",
+        "dynamic_fields.billing.phone.number._placeholder_localization_key",
+        "dynamic_fields.email._default_label_text",
+        "dynamic_fields.email._default_placeholder_text",
+        "dynamic_fields.email._label_localization_key",
+        "dynamic_fields.email._placeholder_localization_key",
+    ];
+    /// Most operations accepted in one proxied bulk-operations request. Every REPLACE and
+    /// DELETE costs a context lookup for the scope check before the batch is forwarded.
+    pub const MAX_BULK_OPERATIONS: usize = 50;
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
     pub const OFFER_ENGINE_ENABLED: &str = "offer_engine.enabled";
     /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config, `"merchant"` uses per-merchant credentials.

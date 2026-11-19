@@ -844,6 +844,7 @@ pub(crate) async fn fetch_raw_secrets(
         internal_services: conf.internal_services,
         micro_services,
         superposition,
+        superposition_proxy: conf.superposition_proxy,
         offer_engine,
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,

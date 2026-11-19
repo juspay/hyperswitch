@@ -814,6 +814,12 @@ pub enum Flow {
     SuperpositionGetDefaultConfig,
     /// Superposition Proxy Create Context flow
     SuperpositionCreateContext,
+    /// Superposition Proxy Update Context Override flow
+    SuperpositionUpdateContextOverride,
+    /// Superposition Proxy Delete Context flow
+    SuperpositionDeleteContext,
+    /// Superposition Proxy Bulk Context Operations flow
+    SuperpositionBulkOperations,
     /// Superposition Proxy Resolve Detailed Config flow
     SuperpositionResolveDetailedConfig,
     /// Superposition Proxy Resolve Config Explanation flow

@@ -20,6 +20,17 @@ impl Default for super::settings::Server {
     }
 }
 
+impl Default for super::settings::SuperpositionProxySettings {
+    fn default() -> Self {
+        Self {
+            allowed_config_keys: crate::consts::superposition::PROXY_ALLOWED_CONFIG_KEYS
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+        }
+    }
+}
+
 impl Default for super::settings::CorsSettings {
     fn default() -> Self {
         Self {
