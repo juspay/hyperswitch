@@ -141,6 +141,9 @@ client_id = ""     # OIDC client identifier for the relying party (Generate usin
 client_secret = "" # Client secret used to authenticate the client (Generate using: openssl rand -hex 32)
 redirect_uri = ""  # Redirect URI registered for the OIDC client 
 
+[proxy]
+bypass_proxy_hosts = "localhost, 127.0.0.1"
+
 [locker]
 host = ""
 mock_locker = true

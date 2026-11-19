@@ -109,6 +109,9 @@ pub enum ApiClientError {
     GatewayTimeoutReceived,
     #[error("Server responded with unexpected response")]
     UnexpectedServerResponse,
+
+    #[error("Destination resolves to a non-public address")]
+    DestinationNotAllowed,
 }
 impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {

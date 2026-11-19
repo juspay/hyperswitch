@@ -1,8 +1,8 @@
 use std::{collections::HashMap, sync::RwLock, time::Duration};
 
 use base64::Engine;
-use common_utils::consts::BASE64_ENGINE;
 pub use common_utils::errors::CustomResult;
+use common_utils::{consts::BASE64_ENGINE, request::EgressScope};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use hyperswitch_masking::ExposeInterface;
@@ -12,9 +12,11 @@ static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
+static INTERNET_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+
 use router_env::logger;
 
-use super::metrics;
+use super::{metrics, outbound_destination::GlobalOnlyResolver};
 
 trait ProxyClientCacheKey {
     fn cache_key(&self) -> Option<Proxy>;
@@ -29,6 +31,23 @@ pub fn create_client(
     client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
     ca_certificate: Option<hyperswitch_masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
+    create_scoped_client(
+        proxy_config,
+        EgressScope::Intranet,
+        client_certificate,
+        client_certificate_key,
+        ca_certificate,
+    )
+}
+
+#[allow(missing_docs)]
+pub fn create_scoped_client(
+    proxy_config: &Proxy,
+    egress_scope: EgressScope,
+    client_certificate: Option<hyperswitch_masking::Secret<String>>,
+    client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
+    ca_certificate: Option<hyperswitch_masking::Secret<String>>,
+) -> CustomResult<reqwest::Client, HttpClientError> {
     // Case 1: Mutual TLS with client certificate and key
     if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
         (client_certificate.clone(), client_certificate_key.clone())
@@ -38,8 +57,7 @@ pub fn create_client(
         }
 
         logger::debug!("Creating HTTP client with mutual TLS (client cert + key)");
-        let client_builder =
-            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config);
+        let client_builder = scoped_client_builder(proxy_config, egress_scope)?;
 
         let identity = create_identity_from_certificate_and_key(
             encoded_certificate.clone(),
@@ -67,8 +85,7 @@ pub fn create_client(
             .change_context(HttpClientError::ClientConstructionFailed)
             .attach_printable("Failed to parse CA certificate PEM block")?;
         let client_builder =
-            apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config)
-                .add_root_certificate(cert);
+            scoped_client_builder(proxy_config, egress_scope)?.add_root_certificate(cert);
         return client_builder
             .use_rustls_tls()
             .build()
@@ -78,7 +95,7 @@ pub fn create_client(
 
     // Case 3: Default client (no certs)
     logger::debug!("Creating default HTTP client (no client or CA certificates)");
-    get_base_client(proxy_config)
+    get_base_client_for_scope(proxy_config, egress_scope)
 }
 
 #[allow(missing_docs)]
@@ -208,6 +225,46 @@ impl ProxyClientCacheKey for Proxy {
             None
         }
     }
+}
+
+fn scoped_client_builder(
+    proxy_config: &Proxy,
+    egress_scope: EgressScope,
+) -> CustomResult<reqwest::ClientBuilder, HttpClientError> {
+    let client_builder = apply_mitm_certificate(get_client_builder(proxy_config)?, proxy_config);
+
+    Ok(match egress_scope {
+        EgressScope::Intranet => client_builder,
+        EgressScope::Internet => client_builder.dns_resolver(GlobalOnlyResolver::new(proxy_config)),
+    })
+}
+
+fn get_base_client_for_scope(
+    proxy_config: &Proxy,
+    egress_scope: EgressScope,
+) -> CustomResult<reqwest::Client, HttpClientError> {
+    match egress_scope {
+        EgressScope::Intranet => get_base_client(proxy_config),
+        EgressScope::Internet => get_internet_client(proxy_config),
+    }
+}
+
+fn get_internet_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
+    let metrics_tag = router_env::metric_attributes!(("client_type", "internet"));
+
+    let client = INTERNET_CLIENT
+        .get_or_try_init(|| {
+            logger::info!("Initializing INTERNET_CLIENT");
+            metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+            scoped_client_builder(proxy_config, EgressScope::Internet)?
+                .build()
+                .change_context(HttpClientError::ClientConstructionFailed)
+                .attach_printable("Failed to construct internet client")
+        })?
+        .clone();
+
+    metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+    Ok(client)
 }
 
 fn get_or_create_proxy_client(

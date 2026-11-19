@@ -135,7 +135,7 @@ async fn call_decision_service<T: ErasedMaskSerialize + Send + 'static>(
     rule: T,
     method: common_utils::request::Method,
 ) -> CustomResult<(), ApiClientError> {
-    let mut request = common_utils::request::Request::new(
+    let mut request = common_utils::request::Request::new_intranet(
         method,
         &(decision_config.base_url.clone() + DECISION_ENDPOINT),
     );

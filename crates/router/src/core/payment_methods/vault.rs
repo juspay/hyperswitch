@@ -2266,7 +2266,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     let mut url = locker.host.to_owned();
     url.push_str(R::get_vaulting_request_url());
 
-    let mut request = request::Request::new(services::Method::Post, &url);
+    let mut request = request::Request::new_intranet(services::Method::Post, &url);
 
     // Add query param for write mode if specified
     write_mode
