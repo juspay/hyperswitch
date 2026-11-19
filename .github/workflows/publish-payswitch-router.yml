@@ -1,0 +1,43 @@
+name: Publish Payswitch router
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency: publish-payswitch-router
+
+jobs:
+  publish:
+    if: github.repository == 'agPayeed/hyperswitch' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, transactly-router-builder]
+    env:
+      IMAGE: ghcr.io/agpayeed/payswitch-hyperswitch-router
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build router image
+        run: |
+          docker build \
+            --build-arg CARGO_BUILD_PROFILE=release-fast \
+            --build-arg 'EXTRA_FEATURES=--bin router' \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --tag "$IMAGE:$GITHUB_SHA" \
+            --tag "$IMAGE:main" .
+
+      - name: Publish router image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG
+          DOCKER_CONFIG=$(mktemp -d "$RUNNER_TEMP/ghcr.XXXXXX")
+          trap 'docker logout ghcr.io >/dev/null' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$GITHUB_SHA"
+          docker push "$IMAGE:main"
+          printf 'Published `%s:%s`\n' "$IMAGE" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
