@@ -283,7 +283,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
                 .map(domain::PaymentMethodData::from));
 
         let payment_data = payments::PaymentData {
-            card_info: helpers::ResolvedCardInfo::for_payment_method(&*state.store, None).await,
+            card_info: None,
             capture_feature_metadata,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

@@ -5950,24 +5950,30 @@ pub fn is_manual_retry_allowed(
 
 pub use hyperswitch_domain_models::cards_info::ResolvedCardInfo;
 
+/// Return enriched payment data together with any BIN lookup result for the caller to reuse.
+/// A completed lookup with no matching record is also reused without querying again.
 #[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
-    card_info: &ResolvedCardInfo,
+    card_info: Option<&ResolvedCardInfo>,
     superposition_service: &external_services::superposition::SuperpositionClient,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<
-    Option<api_models::payments::AdditionalPaymentData>,
+    (
+        Option<api_models::payments::AdditionalPaymentData>,
+        Option<ResolvedCardInfo>,
+    ),
     error_stack::Report<errors::ApiErrorResponse>,
 > {
     let enable_extended_bin = dimensions
         .get_enable_extended_card_bin(db, superposition_service, customer_id)
         .await;
 
-    match pm_data {
+    let mut card_info = card_info.cloned();
+    let additional_payment_data: RouterResult<_> = match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
@@ -6050,7 +6056,15 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                if card_info.is_none() {
+                    card_info = db
+                        .get_card_info(&card_data.card_number.get_card_isin())
+                        .await
+                        .map_err(|error| logger::warn!(card_info_error=?error))
+                        .ok();
+                }
+                let card_info = card_info.as_ref().and_then(ResolvedCardInfo::as_ref);
+                let card_info = card_info.cloned().map(|card_info| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: card_info.card_issuer,
@@ -6189,7 +6203,15 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                if card_info.is_none() {
+                    card_info = db
+                        .get_card_info(&card_data.card_number.get_card_isin())
+                        .await
+                        .map_err(|error| logger::warn!(card_info_error=?error))
+                        .ok();
+                }
+                let card_info = card_info.as_ref().and_then(ResolvedCardInfo::as_ref);
+                let card_info = card_info.cloned().map(|card_info| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: card_info.card_issuer,
@@ -6248,18 +6270,21 @@ pub async fn get_additional_payment_data(
             }
         }
         domain::PaymentMethodData::CardWithNetworkTokenDetails(card_with_network_token_details) => {
-            Box::pin(get_additional_payment_data(
-                &domain::PaymentMethodData::CardWithOptionalCVC(
-                    card_with_network_token_details.card_details.clone(),
-                ),
-                db,
-                card_info,
-                superposition_service,
-                dimensions,
-                customer_id,
-                payment_method_token,
-            ))
-            .await
+            let (additional_payment_data, resolved_card_info) =
+                Box::pin(get_additional_payment_data(
+                    &domain::PaymentMethodData::CardWithOptionalCVC(
+                        card_with_network_token_details.card_details.clone(),
+                    ),
+                    db,
+                    card_info.as_ref(),
+                    superposition_service,
+                    dimensions,
+                    customer_id,
+                    payment_method_token,
+                ))
+                .await?;
+            card_info = resolved_card_info;
+            Ok(additional_payment_data)
         }
         domain::PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
             domain::BankRedirectData::Eps { bank_name, .. } => Ok(Some(
@@ -6618,7 +6643,15 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                if card_info.is_none() {
+                    card_info = db
+                        .get_card_info(&card_data.card_number.get_card_isin())
+                        .await
+                        .map_err(|error| logger::warn!(card_info_error=?error))
+                        .ok();
+                }
+                let card_info = card_info.as_ref().and_then(ResolvedCardInfo::as_ref);
+                let card_info = card_info.cloned().map(|card_info| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: card_info.card_issuer,
@@ -6726,7 +6759,15 @@ pub async fn get_additional_payment_data(
                     }),
                 )))
             } else {
-                let card_info = card_info.as_ref().cloned().map(|card_info| {
+                if card_info.is_none() {
+                    card_info = db
+                        .get_card_info(&card_with_limited_details.card_number.get_card_isin())
+                        .await
+                        .map_err(|error| logger::warn!(card_info_error=?error))
+                        .ok();
+                }
+                let card_info = card_info.as_ref().and_then(ResolvedCardInfo::as_ref);
+                let card_info = card_info.cloned().map(|card_info| {
                     api_models::payments::AdditionalPaymentData::Card(Box::new(
                         api_models::payments::AdditionalCardInfo {
                             card_issuer: card_info.card_issuer,
@@ -6811,7 +6852,9 @@ pub async fn get_additional_payment_data(
                 decrypted_wallet_token_with_ntid.to_owned().into(),
             )),
         )),
-    }
+    };
+
+    Ok((additional_payment_data?, card_info))
 }
 
 #[cfg(feature = "v1")]

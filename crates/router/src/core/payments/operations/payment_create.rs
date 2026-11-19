@@ -1500,7 +1500,7 @@ impl PaymentCreate {
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
-        helpers::ResolvedCardInfo,
+        Option<helpers::ResolvedCardInfo>,
     )> {
         let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
@@ -1524,18 +1524,13 @@ impl PaymentCreate {
                     .map(domain::PaymentMethodData::from)
             })
             .or(payment_method_recurring_details);
-        let card_info = helpers::ResolvedCardInfo::for_payment_method(
-            &*state.store,
-            enrichment_payment_method_data.as_ref(),
-        )
-        .await;
-        let mut additional_pm_data = enrichment_payment_method_data
+        let (mut additional_pm_data, card_info) = enrichment_payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    &card_info,
+                    None,
                     state.superposition_service.as_ref(),
                     &dimensions,
                     customer_id,
@@ -1545,7 +1540,7 @@ impl PaymentCreate {
             })
             .await
             .transpose()?
-            .flatten();
+            .unwrap_or_default();
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object

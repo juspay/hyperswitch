@@ -193,18 +193,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // record/replay comparison reads a transposition as a behaviour change.
         let additional_pm_data_fut = tokio::spawn(
             async move {
-                let card_info = helpers::ResolvedCardInfo::for_payment_method(
-                    &*store,
-                    n_request_payment_method_data.as_ref(),
-                )
-                .await;
-                let card_info_ref = &card_info;
                 let additional_pm_info = n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            card_info_ref,
+                            None,
                             superposition_service.as_ref(),
                             &mandate_dimensions,
                             None,
@@ -213,7 +207,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .await
                     })
                     .await;
-                Ok((additional_pm_info, card_info))
+                Ok(additional_pm_info)
             }
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
@@ -280,7 +274,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("mandate_details")),
         );
 
-        let ((mandate_details, _), (additional_pm_info, card_info), payment_method_billing) = tokio::try_join!(
+        let ((mandate_details, _), additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),
@@ -304,7 +298,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request_payment_method_data.payment_method_data.clone()
                 });
 
-        let additional_pm_data = additional_pm_info.transpose()?.flatten();
+        let (additional_pm_data, card_info) = additional_pm_info.transpose()?.unwrap_or_default();
         let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)

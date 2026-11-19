@@ -598,18 +598,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
-                let card_info = helpers::ResolvedCardInfo::for_payment_method(
-                    &*store,
-                    n_request_payment_method_data.as_ref(),
-                )
-                .await;
-                let card_info_ref = &card_info;
                 let additional_pm_info = n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            card_info_ref,
+                            None,
                             superposition_service.as_ref(),
                             &additional_pm_data_dimensions,
                             customer_id.as_ref(),
@@ -618,7 +612,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         .await
                     })
                     .await;
-                Ok((additional_pm_info, card_info))
+                Ok(additional_pm_info)
             }
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
@@ -729,13 +723,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         // Parallel calls - level 2
-        let ((mandate_details, _), (additional_pm_info, card_info), payment_method_billing) = tokio::try_join!(
+        let ((mandate_details, _), additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),
         )?;
 
-        let additional_pm_data = additional_pm_info.transpose()?.flatten();
+        let (additional_pm_data, card_info) = additional_pm_info.transpose()?.unwrap_or_default();
 
         let m_helpers::MandateGenericData {
             token,
@@ -2930,14 +2924,14 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let dimensions = dimensions.with_profile_id(profile_id.clone());
-        let additional_pm_data = payment_data
+        let (additional_pm_data, card_info) = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    &payment_data.card_info,
+                    payment_data.card_info.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
                     customer_id,
@@ -2947,7 +2941,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             })
             .await
             .transpose()?
-            .flatten();
+            .unwrap_or_else(|| (None, payment_data.card_info.clone()));
+        payment_data.card_info = card_info;
 
         let encoded_additional_pm_data = additional_pm_data
             .as_ref()
