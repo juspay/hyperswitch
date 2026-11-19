@@ -798,9 +798,7 @@ pub async fn save_payout_data_to_locker(
             platform.get_initiator(),
         )
         .await?;
-        if let Some(customer) = updated_customer {
-            payout_data.customer_details = Some(customer);
-        }
+        payout_data.customer_details = Some(updated_customer);
         payout_data.payment_method = Some(created_payment_method);
     }
 

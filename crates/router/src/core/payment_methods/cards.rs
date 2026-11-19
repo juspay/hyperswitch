@@ -151,10 +151,8 @@ impl PaymentMethodsController for PmCards<'_> {
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::CustomResult<
-        (domain::PaymentMethod, Option<domain::Customer>),
-        errors::ApiErrorResponse,
-    > {
+    ) -> errors::CustomResult<(domain::PaymentMethod, domain::Customer), errors::ApiErrorResponse>
+    {
         let db = &*self.state.store;
         let use_merchant_reference_id =
             payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
@@ -163,7 +161,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(customer_id),
             )
             .await;
-        let customer = db
+        let mut customer = db
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
@@ -246,18 +244,18 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
-        let updated_customer =
-            if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
-                self.set_default_payment_method(merchant_id, customer, &response, initiator)
-                    .await
-                    .map_err(|error| {
-                        logger::error!(?error, "Failed to set the payment method as default")
-                    })
-                    .ok()
-            } else {
-                None
-            };
-        Ok((response, updated_customer))
+        if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
+            match self
+                .set_default_payment_method(merchant_id, customer.clone(), &response, initiator)
+                .await
+            {
+                Ok(updated_customer) => customer = updated_customer,
+                Err(error) => {
+                    logger::error!(?error, "Failed to set the payment method as default");
+                }
+            }
+        }
+        Ok((response, customer))
     }
     #[cfg(feature = "v1")]
     fn store_default_payment_method(
@@ -545,7 +543,7 @@ impl PaymentMethodsController for PmCards<'_> {
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<(domain::PaymentMethod, Option<domain::Customer>)> {
+    ) -> errors::RouterResult<(domain::PaymentMethod, domain::Customer)> {
         let pm_card_details = match &resp.card {
             Some(card) => Some(PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
                 card.clone(),
@@ -628,7 +626,7 @@ impl PaymentMethodsController for PmCards<'_> {
         connector_mandate_details: Option<serde_json::Value>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: Option<Encryption>,
-    ) -> errors::RouterResult<(domain::PaymentMethod, Option<domain::Customer>)> {
+    ) -> errors::RouterResult<(domain::PaymentMethod, domain::Customer)> {
         todo!()
     }
 
@@ -2094,7 +2092,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     .await?;
 
                 resp.client_secret = pm.client_secret.clone();
-                updated_customer = customer;
+                updated_customer = Some(customer);
                 updated_payment_method = Some(pm);
             }
         }

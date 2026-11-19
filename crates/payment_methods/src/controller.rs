@@ -63,7 +63,7 @@ pub trait PaymentMethodsController {
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<(
         payment_methods::PaymentMethod,
-        Option<hyperswitch_domain_models::customer::Customer>,
+        hyperswitch_domain_models::customer::Customer,
     )>;
 
     #[cfg(feature = "v1")]
@@ -89,7 +89,7 @@ pub trait PaymentMethodsController {
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<(
         payment_methods::PaymentMethod,
-        Option<hyperswitch_domain_models::customer::Customer>,
+        hyperswitch_domain_models::customer::Customer,
     )>;
 
     #[cfg(feature = "v2")]
@@ -109,7 +109,7 @@ pub trait PaymentMethodsController {
         payment_method_billing_address: Option<encryption::Encryption>,
     ) -> errors::PmResult<(
         payment_methods::PaymentMethod,
-        Option<hyperswitch_domain_models::customer::Customer>,
+        hyperswitch_domain_models::customer::Customer,
     )>;
 
     #[cfg(feature = "v1")]
