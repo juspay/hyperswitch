@@ -14,7 +14,7 @@ jobs:
     if: github.repository == 'agPayeed/hyperswitch' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, transactly-router-builder]
     env:
-      IMAGE: ghcr.io/agpayeed/payswitch-hyperswitch-router
+      IMAGE: ghcr.io/agpayeed/payswitch-server-router-ver-1.0.1
     steps:
       - uses: actions/checkout@v7
         with:

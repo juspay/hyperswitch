@@ -120,7 +120,7 @@ services:
 
   ### Application services
   hyperswitch-server:
-    image: ghcr.io/agpayeed/payswitch-hyperswitch-router:${PAYSWITCH_ROUTER_TAG:-main}
+    image: ghcr.io/agpayeed/payswitch-server-router-ver-1.0.1:${PAYSWITCH_ROUTER_TAG:-main}
     pull_policy: always
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
