@@ -89,6 +89,13 @@ pub enum CurrentFlowInfo {
     },
     /// Connector execute flow.
     Execute,
+    /// Payment-method-scoped connector mandate revoke flow information.
+    ConnectorMandateRevoke {
+        /// Payment-method type associated with the stored connector mandate.
+        payment_method_type: Option<common_enums::PaymentMethodType>,
+        /// Present when the flow is scoped to a stored payment method.
+        payment_method_id: Option<String>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -102,6 +109,7 @@ impl CurrentFlowInfo {
             Self::PreAuthorizeVoid { .. } => None,
             Self::ConnectorWebhookRegister { .. } => None,
             Self::Execute => None,
+            Self::ConnectorMandateRevoke { .. } => None,
         }
     }
 }
@@ -1833,8 +1841,9 @@ pub struct VerifyWebhookSourceRequestData {
 
 #[derive(Debug, Clone)]
 pub struct MandateRevokeRequestData {
-    pub mandate_id: String,
+    pub mandate_id: Option<String>,
     pub connector_mandate_id: Option<String>,
+    pub payment_method_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

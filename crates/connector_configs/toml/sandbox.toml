@@ -6427,7 +6427,6 @@ key1="Client Id"
 api_key="Client Secret"
 
 [santander_payout]
-webhook_url_type="mtls"
 [[santander_payout.bank_transfer]]
   payment_method_type = "pix"
 [[santander_payout.bank_transfer]]
@@ -7951,7 +7950,6 @@ type = "Select"
 options = []
 
 [santander]
-webhook_url_type="mtls"
 [[santander.bank_transfer]]
 payment_method_type = "pix_qr"
 [[santander.bank_transfer]]

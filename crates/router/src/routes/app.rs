@@ -1919,6 +1919,10 @@ impl PaymentMethods {
                         .route(web::post().to(payment_methods::payment_method_update_api)),
                 )
                 .service(
+                    web::resource("/{payment_method_id}/connector_tokens/revoke")
+                        .route(web::post().to(payment_methods::connector_mandate_revoke)),
+                )
+                .service(
                     web::resource("/{payment_method_id}/save")
                         .route(web::post().to(payment_methods::save_payment_method_api)),
                 )

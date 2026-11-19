@@ -306,7 +306,8 @@ impl api::ConnectorSpecifications for Paydotcom {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 
@@ -335,7 +336,8 @@ impl api::ConnectorSpecifications for Paydotcom {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 }

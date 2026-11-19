@@ -685,7 +685,8 @@ impl ConnectorSpecifications for Ilixium {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 }

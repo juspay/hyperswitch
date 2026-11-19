@@ -1097,7 +1097,8 @@ impl ConnectorSpecifications for Xendit {
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
             | api::CurrentFlowInfo::Execute
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::PreAuthorizeVoid { .. } => false,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

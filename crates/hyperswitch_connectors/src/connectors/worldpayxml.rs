@@ -1643,6 +1643,7 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
             | api::CurrentFlowInfo::Execute => false,
+            api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 
