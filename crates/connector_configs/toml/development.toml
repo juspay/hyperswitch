@@ -2046,6 +2046,8 @@ type="Text"
 [checkout_payout]
 [[checkout_payout.wallet]]
 payment_method_type = "apple_pay"
+[[checkout_payout.wallet]]
+payment_method_type = "google_pay"
 [checkout_payout.connector_auth.SignatureKey]
 api_key = "Checkout Public Key"
 key1 = "Processing Channel ID"

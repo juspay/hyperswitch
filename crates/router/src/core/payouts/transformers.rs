@@ -91,6 +91,7 @@ impl
             recurring: payout.recurring,
             metadata: payout.metadata,
             funds_transfer_type: payout.funds_transfer_type,
+            purpose: payout.purpose,
             sender_details,
             status: payout_attempt.status,
             error_message: payout_attempt.error_message,
