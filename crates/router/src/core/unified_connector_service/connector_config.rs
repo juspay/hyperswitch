@@ -286,6 +286,17 @@ pub struct JuspayMetadata {
     pub card_sync_key_id: String,
 }
 
+/// Netcetera authentication-connector metadata, keyed as the Netcetera MCA form stores it.
+#[derive(Debug, serde::Deserialize)]
+pub struct NetceteraMetadata {
+    pub mcc: Option<String>,
+    pub merchant_country_code: Option<String>,
+    pub merchant_name: Option<String>,
+    pub three_ds_requestor_name: Option<String>,
+    pub three_ds_requestor_id: Option<String>,
+    pub merchant_configuration_id: Option<String>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -915,6 +926,19 @@ pub enum ConnectorSpecificConfig {
         juspay_encryption_public_key: Secret<String>,
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
+    },
+    /// Netcetera 3DS Server configuration. The mTLS certificate pair is optional because an
+    /// external vault may terminate TLS on the outbound route instead.
+    Netcetera {
+        certificate: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        merchant_configuration_id: Option<String>,
+        three_ds_requestor_id: Option<String>,
+        three_ds_requestor_name: Option<String>,
+        // UCS's `NetceteraConfig` proto message requires this field even when unset; omitting
+        // it here fails deserialization on the UCS side and silently falls back to legacy
+        // headers, dropping merchant_configuration_id/three_ds_requestor_id/name too.
+        base_url: Option<String>,
     },
     /// Santander payout connector configuration
     Santander {
@@ -2307,6 +2331,36 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
+            Connector::Netcetera => {
+                let netcetera_meta = metadata
+                    .map(|m| {
+                        serde_json::from_value::<NetceteraMetadata>(m.clone())
+                            .map_err(|_| err("Invalid Netcetera metadata format"))
+                    })
+                    .transpose()?;
+                // The certificate pair is absent when an external vault terminates TLS.
+                let (certificate, private_key) = match auth {
+                    ConnectorAuthType::CertificateAuth {
+                        certificate,
+                        private_key,
+                    } => (Some(certificate.clone()), Some(private_key.clone())),
+                    _ => (None, None),
+                };
+                Ok(Self::Netcetera {
+                    certificate,
+                    private_key,
+                    merchant_configuration_id: netcetera_meta
+                        .as_ref()
+                        .and_then(|m| m.merchant_configuration_id.clone()),
+                    three_ds_requestor_id: netcetera_meta
+                        .as_ref()
+                        .and_then(|m| m.three_ds_requestor_id.clone()),
+                    three_ds_requestor_name: netcetera_meta
+                        .as_ref()
+                        .and_then(|m| m.three_ds_requestor_name.clone()),
+                    base_url: None,
+                })
+            }
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
@@ -2400,15 +2454,6 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    // Netcetera has no connector-specific config on the wire: connector-service's
-    // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
-    // this header makes UCS hard-error on deserialization instead of falling back
-    // to the legacy auth header. Suppress it here so UCS takes the legacy-header
-    // path (`x-auth` / `x-api-key` / `x-key1`), which does work for Netcetera.
-    if matches!(connector, Connector::Netcetera) {
-        return Ok(None);
-    }
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
