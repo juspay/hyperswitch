@@ -1258,6 +1258,7 @@ pub async fn payment_method_delete_api(
             }
             .delete_payment_method(req, auth.platform.get_initiator())
             .await
+            .map(|result| result.response)
         },
         &auth::HeaderAuth(api_auth),
         api_locking::LockAction::NotApplicable,
@@ -1426,6 +1427,7 @@ pub async fn default_payment_method_set_api(
                 auth.platform.get_initiator(),
             )
             .await
+            .map(|result| result.response)
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -1492,6 +1494,7 @@ pub async fn default_payment_method_set_api(
                         auth.platform.get_initiator(),
                     )
                     .await
+                    .map(|result| result.response)
                 })
                 .await
             }

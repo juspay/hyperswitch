@@ -3893,7 +3893,7 @@ pub(crate) async fn insert_deferred_payment_method(
         "Created deferred payment method on terminal success"
     );
 
-    Ok(payment_method)
+    Ok(payment_method.payment_method)
 }
 
 #[cfg(feature = "v1")]

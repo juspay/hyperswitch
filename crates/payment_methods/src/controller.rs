@@ -34,6 +34,25 @@ pub enum DataDuplicationCheck {
     MetaDataChanged,
 }
 
+/// A payment-method record and any customer record updated while creating it.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub struct PaymentMethodWithCustomer {
+    pub payment_method: payment_methods::PaymentMethod,
+    /// The updated customer, when creating the method also changes its default.
+    pub customer: Option<hyperswitch_domain_models::customer::Customer>,
+}
+
+/// Keep records changed by a controller operation alongside its API response.
+/// These records are internal state and are not serialized into the response.
+#[cfg(any(feature = "v1", feature = "v2"))]
+pub struct PaymentMethodOperationResponse<T> {
+    pub response: hyperswitch_domain_models::api::ApplicationResponse<T>,
+    /// Present when the operation updates the customer record.
+    pub customer: Option<hyperswitch_domain_models::customer::Customer>,
+    /// The latest live method record; absent when none is obtained or the method is deleted.
+    pub payment_method: Option<payment_methods::PaymentMethod>,
+}
+
 #[async_trait::async_trait]
 pub trait PaymentMethodsController {
     #[cfg(feature = "v1")]
@@ -61,7 +80,7 @@ pub trait PaymentMethodsController {
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResult<payment_methods::PaymentMethod>;
+    ) -> errors::PmResult<PaymentMethodWithCustomer>;
 
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
@@ -84,7 +103,7 @@ pub trait PaymentMethodsController {
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResult<payment_methods::PaymentMethod>;
+    ) -> errors::PmResult<PaymentMethodWithCustomer>;
 
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
@@ -101,14 +120,14 @@ pub trait PaymentMethodsController {
         connector_mandate_details: Option<serde_json::Value>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: Option<encryption::Encryption>,
-    ) -> errors::PmResult<payment_methods::PaymentMethod>;
+    ) -> errors::PmResult<PaymentMethodWithCustomer>;
 
     #[cfg(feature = "v1")]
     async fn add_payment_method(
         &self,
         req: &api::PaymentMethodCreate,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResponse<api::PaymentMethodResponse>;
+    ) -> errors::PmResult<PaymentMethodOperationResponse<api::PaymentMethodResponse>>;
 
     #[cfg(feature = "v1")]
     async fn retrieve_payment_method(
@@ -121,7 +140,7 @@ pub trait PaymentMethodsController {
         &self,
         pm_id: api::PaymentMethodId,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
+    ) -> errors::PmResult<PaymentMethodOperationResponse<api::PaymentMethodDeleteResponse>>;
 
     #[cfg(feature = "v1")]
     async fn add_card_hs(
@@ -218,7 +237,7 @@ pub trait PaymentMethodsController {
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResult<payment_methods::PaymentMethod>;
+    ) -> errors::PmResult<PaymentMethodWithCustomer>;
 
     #[cfg(feature = "v2")]
     async fn get_or_insert_payment_method(
@@ -227,7 +246,7 @@ pub trait PaymentMethodsController {
         _resp: &mut api::PaymentMethodResponse,
         _customer_id: &id_type::CustomerId,
         _key_store: &merchant_key_store::MerchantKeyStore,
-    ) -> errors::PmResult<payment_methods::PaymentMethod> {
+    ) -> errors::PmResult<PaymentMethodWithCustomer> {
         todo!()
     }
 
@@ -279,7 +298,7 @@ pub trait PaymentMethodsController {
         network_token_requestor_ref_id: String,
         pm_id: String,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResult<bool>;
+    ) -> errors::PmResult<Option<payment_methods::PaymentMethod>>;
 
     #[cfg(any(feature = "v1", feature = "v2"))]
     /// Set the default using existing records without fetching either record again.
@@ -289,7 +308,11 @@ pub trait PaymentMethodsController {
         customer: hyperswitch_domain_models::customer::Customer,
         payment_method: &payment_methods::PaymentMethod,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
+    ) -> errors::PmResult<
+        PaymentMethodOperationResponse<
+            api_models::payment_methods::CustomerDefaultPaymentMethodResponse,
+        >,
+    >;
 
     #[cfg(feature = "v1")]
     async fn add_payment_method_status_update_task(

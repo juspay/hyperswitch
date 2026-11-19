@@ -647,5 +647,6 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             platform.get_initiator(),
         )
         .await
+        .map(|result| result.payment_method)
     }
 }

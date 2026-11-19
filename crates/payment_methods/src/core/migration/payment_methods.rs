@@ -163,7 +163,8 @@ pub async fn migrate_payment_method(
                     .await
                     .map_err(|err| logger::error!(?err, "Failed to save network token"))
                     .ok()
-                    .unwrap_or_default(),
+                    .flatten()
+                    .is_some(),
             )
         }
         None => {
@@ -234,7 +235,7 @@ async fn migrate_payment_method_data(
         .add_payment_method(&payment_method_create, platform.get_initiator())
         .await?;
 
-    let payment_method_response = match res {
+    let payment_method_response = match res.response {
         ApplicationResponse::Json(response) => response,
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the payment method response")?,
@@ -598,6 +599,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         //card is not migrated in this case
         migration_status.card_migrated(false);
 
+        let res = res.payment_method;
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             controller
                 .add_payment_method_status_update_task(
@@ -856,5 +858,5 @@ pub async fn save_migration_payment_method(
                     .and_then(|val| (!val.0.is_empty()).then_some(false))
             }),
     );
-    Ok(res)
+    Ok(res.response)
 }
