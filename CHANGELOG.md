@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.19.0
+
+### Features
+
+- **connector:** [worldpayvantiv] support processor payment tokens for MIT payments ([#15293](https://github.com/juspay/hyperswitch/pull/15293)) ([`43f806b`](https://github.com/juspay/hyperswitch/commit/43f806b2fdaafb3303cd521021d7918ad3aa4da7))
+
+### Bug Fixes
+
+- **ucs:** Honor Superposition configuration for incoming webhooks ([#15292](https://github.com/juspay/hyperswitch/pull/15292)) ([`dd0011b`](https://github.com/juspay/hyperswitch/commit/dd0011b87dfee74fbaa85c59a376528f5e647a2d))
+- **webhooks:** Validate merchant connector accounts in core ([#15286](https://github.com/juspay/hyperswitch/pull/15286)) ([`1c59562`](https://github.com/juspay/hyperswitch/commit/1c59562922239acfb58f4766f5de44534a874e84))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.19.0`](https://github.com/juspay/hyperswitch/compare/2026.11.18.0...2026.11.19.0)
+
+- - -
+
 ## 2026.11.18.0
 
 ### Features
