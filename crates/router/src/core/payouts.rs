@@ -3974,13 +3974,6 @@ pub async fn make_payout_data(
         .validate_persisted_execution_kind(req)?;
 
     let customer_id = payouts.customer_id.as_ref();
-    // Update/confirm skip create validation; check before locker writes.
-    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
-        validator::validate_customer_for_payout_method(
-            customer_id,
-            request.payout_method_data.as_ref(),
-        )?;
-    }
 
     // We have to do this because the function that is being used to create / get address is from payments
     // which expects a payment_id

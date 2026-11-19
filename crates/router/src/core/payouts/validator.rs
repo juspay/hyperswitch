@@ -100,31 +100,13 @@ async fn get_and_validate_payout_customer(
     platform: &domain::Platform,
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<Option<domain::Customer>> {
-    let customer = match req.get_customer_id() {
-        Some(customer_id) => {
-            Some(helpers::get_existing_customer_details(state, customer_id, platform).await?)
-        }
-        None => None,
-    };
-
-    validate_customer_for_payout_method(
-        customer.as_ref().map(|customer| customer.get_id()),
-        req.payout_method_data.as_ref(),
-    )?;
-
-    Ok(customer)
-}
-
-#[cfg(feature = "v1")]
-pub(super) fn validate_customer_for_payout_method(
-    customer_id: Option<&id_type::CustomerId>,
-    payout_method_data: Option<&payouts::PayoutMethodData>,
-) -> RouterResult<()> {
-    match (payout_method_data, customer_id) {
-        (Some(_), None) => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "customer_id when payout_method_data is provided".into(),
+    match req.get_customer_id() {
+        Some(customer_id) => helpers::get_existing_customer_details(state, customer_id, platform)
+            .await
+            .map(Some),
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id".into(),
         })),
-        _ => Ok(()),
     }
 }
 
