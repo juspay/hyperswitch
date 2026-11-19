@@ -722,6 +722,7 @@ export const CONNECTOR_LISTS = {
       "adyen",
       "checkout",
       "stripe",
+      "nmi",
       "nuvei",
       "trustpay",
       "finix",

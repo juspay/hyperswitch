@@ -8,6 +8,19 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const billingDescriptor = {
+  statement_descriptor: "Test Descriptor",
+  phone: "1234567890",
+  city: "San Francisco",
+};
+
+const expectedBillingDescriptor = {
+  ...billingDescriptor,
+  name: null,
+  statement_descriptor_suffix: null,
+  reference: null,
+};
+
 const failedNoThreeDsCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "10",
@@ -64,6 +77,37 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: billingDescriptor,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          billing_descriptor: expectedBillingDescriptor,
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: billingDescriptor,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: expectedBillingDescriptor,
         },
       },
     },
@@ -124,6 +168,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        billing_descriptor: billingDescriptor,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -131,6 +176,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          billing_descriptor: expectedBillingDescriptor,
         },
       },
     },
@@ -301,12 +347,14 @@ export const connectorDetails = {
         amount: 0,
         setup_future_usage: "off_session",
         currency: "USD",
+        billing_descriptor: billingDescriptor,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+          billing_descriptor: expectedBillingDescriptor,
         },
       },
     },
@@ -319,6 +367,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing_descriptor: billingDescriptor,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -327,6 +376,7 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           setup_future_usage: "off_session",
+          billing_descriptor: expectedBillingDescriptor,
         },
       },
     },

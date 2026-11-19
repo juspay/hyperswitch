@@ -5102,6 +5102,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
     allKeysRequired = false,
+    assertStripeBillingTokenization = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -5149,6 +5150,30 @@ Cypress.Commands.add(
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (assertStripeBillingTokenization) {
+            const connectorId = globalState.get("connectorId");
+            if (connectorId === "stripe") {
+              const billingAddress = response.body.billing?.address;
+              expect(billingAddress?.zip, "billing.address.zip").to.equal(
+                "10001"
+              );
+              expect(
+                billingAddress?.country,
+                "billing.address.country"
+              ).to.equal("US");
+
+              // Stripe exposes the postal-code tokenization check only for
+              // non-3DS card responses.
+              if (response.body.authentication_type === "no_three_ds") {
+                expect(
+                  response.body.payment_method_data?.card?.payment_checks
+                    ?.address_postal_code_check,
+                  "address_postal_code_check"
+                ).to.equal("pass");
+              }
+            }
+          }
 
           if (
             resData.body &&
@@ -5392,6 +5417,38 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("retrieveNmiBillingDescriptorCallTest", (globalState) => {
+  const payment_id = globalState.get("paymentID");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    storeRequestId(response.headers["x-request-id"], globalState);
+
+    cy.wrap(response).then(() => {
+      expect(response.status, "status_code").to.equal(200);
+      expect(
+        response.body.billing_descriptor,
+        "billing_descriptor"
+      ).to.deep.equal({
+        name: null,
+        city: "San Francisco",
+        phone: "1234567890",
+        statement_descriptor: "Test Descriptor",
+        statement_descriptor_suffix: null,
+        reference: null,
+      });
+    });
+  });
+});
 
 Cypress.Commands.add(
   "retrievePaymentCallAutoRetryTest",

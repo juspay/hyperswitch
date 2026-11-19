@@ -75,7 +75,11 @@ describe("Card - NoThreeDS payment flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: confirmData,
+          assertStripeBillingTokenization: true,
+        });
       });
     });
   });
@@ -111,7 +115,11 @@ describe("Card - NoThreeDS payment flow test", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.retrievePaymentCallTest({ globalState, data });
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          assertStripeBillingTokenization: true,
+        });
       });
     });
   });

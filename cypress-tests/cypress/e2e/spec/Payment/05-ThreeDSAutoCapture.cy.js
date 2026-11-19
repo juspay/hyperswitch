@@ -16,7 +16,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
-    it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
+    it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection -> retrieve payment and assert connector-specific billing data", () => {
       let shouldContinue = true;
 
       cy.step("create payment intent", () => {
@@ -73,6 +73,30 @@ describe("Card - ThreeDS payment flow test", () => {
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
+      });
+
+      cy.step("assert connector-specific billing data", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: assert connector-specific billing data"
+          );
+          return;
+        }
+
+        if (!["stripe", "nmi"].includes(globalState.get("connectorId"))) {
+          return;
+        }
+
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["3DSAutoCapture"];
+
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: confirmData,
+          assertStripeBillingTokenization: true,
+        });
       });
     });
   });

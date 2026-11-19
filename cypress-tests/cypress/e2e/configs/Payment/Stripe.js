@@ -13,6 +13,18 @@ const successfulNo3DSCardDetails = {
   card_cvc: "737",
 };
 
+const billingAddressWithZipAndCountry = {
+  address: {
+    line1: "123 Main Street",
+    city: "New York",
+    state: "New York",
+    zip: "10001",
+    country: "US",
+    first_name: "John",
+    last_name: "Doe",
+  },
+};
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000002500003155",
   card_exp_month: "10",
@@ -353,6 +365,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
+        billing: billingAddressWithZipAndCountry,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -392,6 +405,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing: billingAddressWithZipAndCountry,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
