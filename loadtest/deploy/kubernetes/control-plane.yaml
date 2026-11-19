@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: {name: loadtest-control-plane}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: loadtest-control-data}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: {requests: {storage: 100Gi}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: loadtest-control-plane}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: loadtest-control-plane}}
+  template:
+    metadata: {labels: {app: loadtest-control-plane}}
+    spec:
+      serviceAccountName: loadtest-control-plane
+      containers:
+        - name: control-plane
+          # Build loadtest/console/Dockerfile.cloud so gcloud and kubectl are present.
+          image: hyperswitch-loadtest-console-cloud:latest
+          ports: [{name: http, containerPort: 4174}]
+          env:
+            - {name: LOADTEST_WORKER_ENROLLMENT_TOKEN, valueFrom: {secretKeyRef: {name: loadtest-worker-enrollment, key: token}}}
+            - {name: ADMIN_PASSWORD_HASH, valueFrom: {secretKeyRef: {name: loadtest-console-admin, key: password-hash}}}
+          volumeMounts: [{name: data, mountPath: /data}]
+          readinessProbe: {httpGet: {path: /health, port: http}, initialDelaySeconds: 5, periodSeconds: 5}
+      volumes: [{name: data, persistentVolumeClaim: {claimName: loadtest-control-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: loadtest-control-plane}
+spec:
+  selector: {app: loadtest-control-plane}
+  ports: [{name: http, port: 4174, targetPort: http}]
