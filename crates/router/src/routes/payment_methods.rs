@@ -45,6 +45,7 @@ use crate::{
         domain,
         storage::payment_method::PaymentTokenData,
     },
+    utils::OptionExt,
 };
 
 /// Records `PAYMENT_METHOD_SESSION_OPERATION_DURATION`/`PAYMENT_METHOD_SESSION_OPS_COUNT` around a
@@ -1258,7 +1259,12 @@ pub async fn payment_method_delete_api(
             }
             .delete_payment_method(req, auth.platform.get_initiator())
             .await
-            .map(|result| result.response)
+            .map(|(payment_method, _)| {
+                services::ApplicationResponse::Json(payment_methods::PaymentMethodDeleteResponse {
+                    payment_method_id: payment_method.payment_method_id,
+                    deleted: true,
+                })
+            })
         },
         &auth::HeaderAuth(api_auth),
         api_locking::LockAction::NotApplicable,
@@ -1416,7 +1422,7 @@ pub async fn default_payment_method_set_api(
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-            cards::PmCards {
+            let updated_customer = cards::PmCards {
                 state: &state,
                 provider,
             }
@@ -1426,8 +1432,17 @@ pub async fn default_payment_method_set_api(
                 &payment_method,
                 auth.platform.get_initiator(),
             )
-            .await
-            .map(|result| result.response)
+            .await?;
+            Ok(services::ApplicationResponse::Json(
+                payment_methods::CustomerDefaultPaymentMethodResponse {
+                    customer_id: updated_customer.get_id().clone(),
+                    default_payment_method_id: updated_customer.default_payment_method_id,
+                    payment_method_type: payment_method.get_payment_method_subtype(),
+                    payment_method: payment_method
+                        .get_payment_method_type()
+                        .get_required_value("payment_method")?,
+                },
+            ))
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -1483,7 +1498,7 @@ pub async fn default_payment_method_set_api(
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-                    cards::PmCards {
+                    let updated_customer = cards::PmCards {
                         state: &state,
                         provider,
                     }
@@ -1493,8 +1508,17 @@ pub async fn default_payment_method_set_api(
                         &payment_method,
                         auth.platform.get_initiator(),
                     )
-                    .await
-                    .map(|result| result.response)
+                    .await?;
+                    Ok(services::ApplicationResponse::Json(
+                        payment_methods::CustomerDefaultPaymentMethodResponse {
+                            customer_id: updated_customer.id,
+                            default_payment_method_id: updated_customer.default_payment_method_id,
+                            payment_method_subtype: payment_method.get_payment_method_subtype(),
+                            payment_method_type: payment_method
+                                .get_payment_method_type()
+                                .get_required_value("payment_method")?,
+                        },
+                    ))
                 })
                 .await
             }

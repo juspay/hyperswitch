@@ -702,7 +702,7 @@ where
                                                 platform.get_initiator(),
                                             )
                                             .await
-                                            .map(|result| result.payment_method)
+                                            .map(|(payment_method, _)| payment_method)
                                     } else {
                                         Err(err)
                                             .change_context(
@@ -849,7 +849,7 @@ where
                                                     platform.get_initiator(),
                                                 )
                                                 .await
-                                                .map(|result| result.payment_method)
+                                                .map(|(payment_method, _)| payment_method)
                                         } else {
                                             Err(err)
                                                 .change_context(

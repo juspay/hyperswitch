@@ -231,11 +231,11 @@ async fn migrate_payment_method_data(
 
     let network_transaction_id = payment_method_create.network_transaction_id.clone();
 
-    let res = controller
+    let (res, _, _) = controller
         .add_payment_method(&payment_method_create, platform.get_initiator())
         .await?;
 
-    let payment_method_response = match res.response {
+    let payment_method_response = match res {
         ApplicationResponse::Json(response) => response,
         _ => Err(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the payment method response")?,
@@ -599,7 +599,7 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         //card is not migrated in this case
         migration_status.card_migrated(false);
 
-        let res = res.payment_method;
+        let (res, _) = res;
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             controller
                 .add_payment_method_status_update_task(
@@ -843,7 +843,7 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    let res = controller.add_payment_method(&req, initiator).await?;
+    let (res, _, _) = controller.add_payment_method(&req, initiator).await?;
 
     migration_status.card_migrated(true);
     migration_status.network_transaction_id_migrated(
@@ -858,5 +858,5 @@ pub async fn save_migration_payment_method(
                     .and_then(|val| (!val.0.is_empty()).then_some(false))
             }),
     );
-    Ok(res.response)
+    Ok(res)
 }

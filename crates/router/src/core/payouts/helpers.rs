@@ -770,7 +770,7 @@ pub async fn save_payout_data_to_locker(
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-        let created_payment_method = cards::PmCards {
+        let (created_payment_method, updated_customer) = cards::PmCards {
             state,
             provider: platform.get_provider(),
         }
@@ -798,10 +798,10 @@ pub async fn save_payout_data_to_locker(
             platform.get_initiator(),
         )
         .await?;
-        if let Some(customer) = created_payment_method.customer {
+        if let Some(customer) = updated_customer {
             payout_data.customer_details = Some(customer);
         }
-        payout_data.payment_method = Some(created_payment_method.payment_method);
+        payout_data.payment_method = Some(created_payment_method);
     }
 
     /*  1. Delete from locker
