@@ -67,7 +67,8 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
-        PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
+        BrowserInformationData, PaymentMethodPredicates, PaymentsAuthorizeRequestData,
+        SplitPaymentData,
     },
 };
 pub mod auth_headers {
@@ -196,19 +197,16 @@ pub struct StripeMandateRequest {
 /// Online mandate details, taking the ip address and user agent from the browser info when
 /// the customer acceptance doesn't carry them
 fn get_online_mandate_type(
-    online_mandate: Option<&common_types::payments::OnlineMandate>,
+    customer_acceptance: &common_types::payments::CustomerAcceptance,
     browser_info: Option<&BrowserInformation>,
 ) -> Option<StripeMandateType> {
-    let ip_address = online_mandate
-        .and_then(|online_mandate| online_mandate.ip_address.clone())
-        .or_else(|| {
-            browser_info
-                .and_then(|browser_info| browser_info.ip_address)
-                .map(|ip_address| Secret::new(ip_address.to_string()))
-        });
-    let user_agent = online_mandate
-        .map(|online_mandate| online_mandate.user_agent.clone())
-        .or_else(|| browser_info.and_then(|browser_info| browser_info.user_agent.clone()));
+    let ip_address = customer_acceptance
+        .get_ip_address()
+        .map(Secret::new)
+        .or_else(|| browser_info.and_then(BrowserInformationData::get_optional_ip_address));
+    let user_agent = customer_acceptance
+        .get_user_agent()
+        .or_else(|| browser_info.and_then(BrowserInformationData::get_optional_user_agent));
     ip_address
         .zip(user_agent)
         .map(|(ip_address, user_agent)| StripeMandateType::Online {
@@ -224,21 +222,19 @@ impl TryFrom<&common_types::payments::CustomerAcceptance> for StripeMandateReque
     ) -> Result<Self, Self::Error> {
         let mandate_type = match customer_acceptance.acceptance_type {
             AcceptanceType::Online => {
-                let online_mandate = customer_acceptance
-                    .online
-                    .clone()
-                    .get_required_value("online")
-                    .change_context(ConnectorError::MissingRequiredField {
+                let user_agent = customer_acceptance.get_user_agent().ok_or(
+                    ConnectorError::MissingRequiredField {
                         field_name: "online".into(),
-                    })?;
+                    },
+                )?;
+                let ip_address = customer_acceptance.get_ip_address().ok_or(
+                    ConnectorError::MissingRequiredField {
+                        field_name: "ip_address".into(),
+                    },
+                )?;
                 StripeMandateType::Online {
-                    ip_address: online_mandate
-                        .ip_address
-                        .get_required_value("ip_address")
-                        .change_context(ConnectorError::MissingRequiredField {
-                            field_name: "ip_address".into(),
-                        })?,
-                    user_agent: online_mandate.user_agent,
+                    ip_address: Secret::new(ip_address),
+                    user_agent,
                 }
             }
             AcceptanceType::Offline => StripeMandateType::Offline,
@@ -255,9 +251,7 @@ impl StripeMandateRequest {
         browser_info: Option<&BrowserInformation>,
     ) -> Option<Self> {
         let mandate_type = match customer_acceptance.acceptance_type {
-            AcceptanceType::Online => {
-                get_online_mandate_type(customer_acceptance.online.as_ref(), browser_info)
-            }
+            AcceptanceType::Online => get_online_mandate_type(customer_acceptance, browser_info),
             AcceptanceType::Offline => Some(StripeMandateType::Offline),
         };
         mandate_type.map(|mandate_type| Self { mandate_type })

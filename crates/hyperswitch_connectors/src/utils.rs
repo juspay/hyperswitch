@@ -3397,6 +3397,8 @@ pub trait BrowserInformationData {
     fn get_java_enabled(&self) -> Result<bool, Error>;
     fn get_java_script_enabled(&self) -> Result<bool, Error>;
     fn get_ip_address(&self) -> Result<Secret<String, IpAddress>, Error>;
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_os_type(&self) -> Result<String, Error>;
     fn get_os_version(&self) -> Result<String, Error>;
     fn get_device_model(&self) -> Result<String, Error>;
@@ -3408,6 +3410,13 @@ impl BrowserInformationData for BrowserInformation {
             .ip_address
             .ok_or_else(missing_field_err("browser_info.ip_address"))?;
         Ok(Secret::new(ip_address.to_string()))
+    }
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>> {
+        self.ip_address
+            .map(|ip_address| Secret::new(ip_address.to_string()))
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.user_agent.clone()
     }
     fn get_accept_header(&self) -> Result<String, Error> {
         self.accept_header
