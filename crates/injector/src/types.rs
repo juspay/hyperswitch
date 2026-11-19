@@ -2,8 +2,8 @@ pub mod models {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::{pii::SecretSerdeValue, request::ConnectorContentType};
-    use hyperswitch_masking::{ExposeInterface, Secret};
+    use common_utils::{fp_utils::when, pii::SecretSerdeValue, request::ConnectorContentType};
+    use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
@@ -188,11 +188,34 @@ pub mod models {
         ///
         /// Extracts the single shared token from `specific_token_data.card_number`
         /// (HyperswitchVault uses a single token for all fields).
+        ///
+        /// Rejects a body the Hyperswitch vault proxy would reject, before the network call:
+        /// it must be JSON (also when no Content-Type is declared) or XML, per the same
+        /// [`ConnectorContentType::kind`] rule. GET and DELETE send no body.
         pub fn try_from_injector_request(
             processed_payload: &str,
             connection_config: &ConnectionConfig,
             token_data: &TokenData,
         ) -> Result<Self, InjectorError> {
+            let supported_body = matches!(
+                connection_config.http_method,
+                HttpMethod::GET | HttpMethod::DELETE
+            ) || connection_config
+                .headers
+                .iter()
+                .filter(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+                .all(|(_, value)| {
+                    ConnectorContentType::parse(value.peek())
+                        .as_ref()
+                        .and_then(ConnectorContentType::kind)
+                        .is_some()
+                });
+            when(!supported_body, || {
+                Err(InjectorError::InvalidTemplate(
+                    "Unsupported connector Content-Type; only JSON and XML are supported".into(),
+                ))
+            })?;
+
             // Extract the single token from card_number field in specific_token_data
             let vault_data = token_data.specific_token_data.clone().expose();
             let token = vault_data
@@ -208,7 +231,7 @@ pub mod models {
                 })?;
 
             // Parse the processed payload as JSON value.
-            // The template may be JSON or form-urlencoded; wrap non-JSON as a string value.
+            // The template is JSON, or XML which is sent as a string value.
             let request_body = serde_json::from_str::<Value>(processed_payload)
                 .unwrap_or_else(|_| Value::String(processed_payload.to_string()));
 

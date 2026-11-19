@@ -255,7 +255,6 @@ logs/
 monitoring/*.tmp/
 config/sandbox.toml
 config/production.toml
-!loadtest/.env
 loadtest/*.tmp/
 
 # Nix output
