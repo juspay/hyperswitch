@@ -352,7 +352,7 @@ errors are reported per rule when evaluated.
   `grafana_loki` rules. Each route evaluates only its own datasource's rules.
   All require the existing `X-Internal-Api-Key` authentication.
 - CloudWatch alerts use simple text containing the rule, metric/value, threshold, severity, evaluation time and period. ALARM messages also include the UTC query range and actual returned timestamp/value datapoints in chronological order. Exactly one point is marked `SELECTED / BREACHING`; all other returned points are `CONTEXT / NOT EVALUATED` and do not affect the result. RULE ERROR messages mark the range and datapoints unavailable rather than inventing values or missing slots.
-  Loki messages use the same layout with the rule context and the alert instance's labels in place
+  Loki messages use a similar layout with the rule context and the alert instance's labels in place
   of the metric details; the LogQL query is not included.
   Banner colors, attachment blocks and decorative templates are deferred.
 - Each CloudWatch rule compares its configured statistic's newest complete sample within a
@@ -395,8 +395,7 @@ unlabelled instance with value 0. Logs that reach Loki after the query run are n
 exactly as for CloudWatch. For one alert per distinct application error, group by the error itself
 and cap it, for example `topk(30, sum by (extra_error) (count_over_time({app="router"} | json |
 level="ERROR" | extra_error != "" [1m])))`. A label value longer than 60 characters or spanning
-lines stays out of the title and is shown in full under `Labels`. The earlier `logs` field is
-removed; a Loki rule that still sets it fails startup.
+lines stays out of the title and is shown in full under `Labels`.
 
 Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"` or `"grafana_loki"`. Remove the
 old version, classification, evaluation-period/datapoint/missing-slot fields and global

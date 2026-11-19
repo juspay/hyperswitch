@@ -110,17 +110,7 @@ impl GrafanaClient {
         response: GrafanaMetricsResponse,
         status: reqwest::StatusCode,
     ) -> MetricsResult<Vec<MetricSeries>> {
-        self.take_frames(response.results, status)?
-            .into_iter()
-            .map(parse_frame)
-            .collect()
-    }
-
-    fn take_frames<F>(
-        &self,
-        mut results: Option<HashMap<String, QueryResult<F>>>,
-        status: reqwest::StatusCode,
-    ) -> MetricsResult<Vec<F>> {
+        let mut results = response.results;
         if let Some(reason) = results
             .as_ref()
             .and_then(|results| results.values().find_map(|result| result.error.as_deref()))
@@ -152,7 +142,12 @@ impl GrafanaClient {
             .remove(QUERY_REF_ID)
             .ok_or(MetricsError::MalformedResponse)
             .attach_printable_lazy(|| format!("response is missing query result {QUERY_REF_ID}"))?;
-        Ok(result.frames.unwrap_or_default())
+        result
+            .frames
+            .unwrap_or_default()
+            .into_iter()
+            .map(parse_frame)
+            .collect()
     }
 }
 
@@ -169,12 +164,12 @@ struct GrafanaDatasource {
 
 #[derive(Debug, Deserialize)]
 pub struct GrafanaMetricsResponse {
-    results: Option<HashMap<String, QueryResult<Frame>>>,
+    results: Option<HashMap<String, QueryResult>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct QueryResult<F> {
-    frames: Option<Vec<F>>,
+struct QueryResult {
+    frames: Option<Vec<Frame>>,
     error: Option<String>,
 }
 

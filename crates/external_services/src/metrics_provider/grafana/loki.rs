@@ -51,13 +51,7 @@ impl MetricsProvider for GrafanaLoki {
     ) -> MetricsResult<Self::MetricsRequest> {
         let period = i64::from(query.period);
         Ok(LokiMetricsRequest {
-            from: epoch_millis(
-                range
-                    .to
-                    .checked_sub(Duration::seconds(period))
-                    .ok_or(MetricsError::MalformedResponse)
-                    .attach_printable("query range start is out of range")?,
-            ),
+            from: epoch_millis(range.from),
             to: epoch_millis(range.to),
             queries: [GrafanaLokiQuery {
                 ref_id: QUERY_REF_ID,
@@ -190,7 +184,7 @@ mod tests {
                 period: 60,
             },
             MetricRange {
-                from: at(1_700_000_000),
+                from: at(1_700_000_240),
                 to: at(1_700_000_300),
             },
         )

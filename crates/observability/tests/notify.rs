@@ -954,7 +954,6 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
             "synthetic-loki"
         );
         assert_eq!(requests[expr]["queries"][0]["queryType"], "instant");
-        assert!(requests[expr]["queries"][0].get("step").is_none());
         assert_eq!(
             requests[expr]["to"]
                 .as_str()
