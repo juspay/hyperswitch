@@ -134,10 +134,10 @@ pub enum Flow {
     CustomersGetMandates,
     /// Customers global id migration flow.
     CustomersGlobalIdMigration,
-    /// Create an Ephemeral Key.
-    EphemeralKeyCreate,
-    /// Delete an Ephemeral Key.
-    EphemeralKeyDelete,
+    /// Create a v2 client secret.
+    ClientSecretCreate,
+    /// Delete a v2 client secret.
+    ClientSecretDelete,
     /// Mandates retrieve flow.
     MandatesRetrieve,
     /// Mandates revoke flow.

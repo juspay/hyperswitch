@@ -3,6 +3,8 @@ use hyperswitch_domain_models::mandates;
 mod tests;
 mod transformers;
 pub mod utils;
+#[cfg(feature = "v1")]
+pub(super) mod wallet_issuer;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use std::collections::hash_map;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -55,7 +57,7 @@ use rand::distributions::{self, Distribution};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use rand::SeedableRng;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use rustc_hash::FxHashMap;
 use storage_impl::redis::cache::CacheKey;
 
@@ -2384,7 +2386,7 @@ pub async fn refresh_cgraph_cache(
     // reusing a caller-supplied snapshot, so the cached graph is always built from
     // live data and cannot be poisoned by a stale pre-eviction snapshot.
     let mut merchant_connector_accounts = state
-        .store
+        .accounts_store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             &key_store.merchant_id,
             profile_id,
@@ -4476,7 +4478,7 @@ pub async fn get_active_merchant_connector_accounts(
     profile_id: &common_utils::id_type::ProfileId,
 ) -> RoutingResult<domain::MerchantConnectorAccountsWithoutEncrypted> {
     state
-        .store
+        .accounts_store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             &key_store.merchant_id,
             profile_id,

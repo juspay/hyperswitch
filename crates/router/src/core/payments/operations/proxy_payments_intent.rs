@@ -126,10 +126,10 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, ProxyPaymentsRequest, PaymentCon
     for PaymentProxyIntent
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &ProxyPaymentsRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         let validate_result = operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -230,8 +230,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
-
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
                 .shipping_address
@@ -250,14 +248,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
         let mandate_data_input = mandates::MandateIds {
             mandate_id: None,
             mandate_reference_id: Some(mandates::MandateReferenceId::ConnectorMandateId(
-                mandates::ConnectorMandateReferenceId::new(
-                    Some(processor_payment_token),
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                ),
+                mandates::ConnectorMandateReferenceId::from(&request.recurring_details),
             )),
         };
 

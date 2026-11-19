@@ -233,7 +233,7 @@ pub async fn payment_method_delete_api() {}
     ),
     tag = "Payment Methods",
     operation_id = "Set the Payment Method as Default",
-    security(("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 #[cfg(feature = "v1")]
 pub async fn default_payment_method_set_api() {}

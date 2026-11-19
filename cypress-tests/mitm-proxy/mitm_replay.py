@@ -19,8 +19,10 @@ import os
 import threading
 from collections import defaultdict
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import parse_qs, urlsplit
 
 from mitmproxy import http
+from callback_urls import CallbackUrlStore
 
 
 # ───── config ─────
@@ -104,6 +106,7 @@ class CassetteStore:
 
 
 _store = CassetteStore(CAPTURE_DIR)
+_callbacks = CallbackUrlStore()
 
 
 # ───── response materialisation ─────
@@ -140,13 +143,24 @@ def _strict_block(reason: str, tag: str) -> http.Response:
 
 # ───── admin server ─────
 class AdminHandler(BaseHTTPRequestHandler):
-    """Cypress /test/start resets cursors for that test's rids; /test/end is a no-op."""
+    """Expose current callbacks and reset a test's replay state on retries."""
 
     def _send(self, code, payload):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(json.dumps(payload).encode())
+
+    def do_GET(self):
+        path = urlsplit(self.path)
+        if path.path != "/callbacks":
+            self._send(404, {"error": "unknown admin endpoint"})
+            return
+        query = parse_qs(path.query)
+        payment_id = query.get("payment_id", [""])[0]
+        merchant_id = query.get("merchant_id", [""])[0]
+        self._send(200, {"urls": _callbacks.for_payment(payment_id, merchant_id)})
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -161,6 +175,8 @@ class AdminHandler(BaseHTTPRequestHandler):
             connector = (body.get("connector") or "").strip()
             tag = f"[{connector}] " if connector else ""
             reset = _store.reset_for_hash(test_id_hash) if test_id_hash else 0
+            if test_id_hash:
+                _callbacks.reset_for_hash(test_id_hash)
             suffix = f" (reset {reset} rid cursors)" if reset else ""
             print(f"[replay] ▶ {tag}{title}{suffix}")
 
@@ -195,6 +211,9 @@ def request(flow: http.HTTPFlow) -> None:
         return
 
     rid = flow.request.headers.get("x-request-id", "").strip()
+    _callbacks.capture(
+        flow.request.url, flow.request.get_text(strict=False), hash_from_rid(rid),
+    )
     method = flow.request.method
     path = flow.request.path.split("?", 1)[0]
 

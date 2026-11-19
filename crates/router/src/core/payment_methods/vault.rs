@@ -25,7 +25,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v2")]
 use payment_methods::controller::DeleteCardResp;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]

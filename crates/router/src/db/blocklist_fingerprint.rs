@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::MockDb;
 
 use super::Store;
@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait BlocklistFingerprintInterface {
     async fn insert_blocklist_fingerprint_entry(
@@ -80,9 +81,11 @@ impl BlocklistFingerprintInterface for KafkaStore {
         &self,
         pm_fingerprint_new: storage::BlocklistFingerprintNew,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        self.diesel_store
-            .insert_blocklist_fingerprint_entry(pm_fingerprint_new)
-            .await
+        BlocklistFingerprintInterface::insert_blocklist_fingerprint_entry(
+            &self.diesel_store,
+            pm_fingerprint_new,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -91,8 +94,11 @@ impl BlocklistFingerprintInterface for KafkaStore {
         merchant_id: &common_utils::id_type::MerchantId,
         fingerprint: &str,
     ) -> CustomResult<storage::BlocklistFingerprint, errors::StorageError> {
-        self.diesel_store
-            .find_blocklist_fingerprint_by_merchant_id_fingerprint_id(merchant_id, fingerprint)
-            .await
+        BlocklistFingerprintInterface::find_blocklist_fingerprint_by_merchant_id_fingerprint_id(
+            &self.diesel_store,
+            merchant_id,
+            fingerprint,
+        )
+        .await
     }
 }

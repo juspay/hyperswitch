@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -212,13 +212,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 );
             if should_validate_pm_or_token_given {
                 helpers::validate_pm_or_token_given(
-                    &request.payment_method,
+                    request.payment_method,
                     &request
                         .payment_method_data
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.clone()),
-                    &request.payment_method_type,
-                    &mandate_type,
+                    request.payment_method_type,
+                    mandate_type,
                     &token,
                     &request.ctp_service_details,
                 )?;
@@ -350,7 +350,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,

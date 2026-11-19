@@ -8,7 +8,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateTransactionType, payment_method_data::ApiPaymentMethodDataMandateIds,
 };
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -126,7 +126,7 @@ impl<F: Send + Clone + Sync>
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = state
-            .store
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,

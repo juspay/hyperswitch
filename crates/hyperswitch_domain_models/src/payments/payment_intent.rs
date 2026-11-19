@@ -44,6 +44,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{errors, RemoteStorageObject};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     type Error;

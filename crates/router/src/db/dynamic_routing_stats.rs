@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use storage_impl::MockDb;
 
 use super::Store;
@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait DynamicRoutingStatsInterface {
     async fn insert_dynamic_routing_stat_entry(
@@ -108,9 +109,11 @@ impl DynamicRoutingStatsInterface for KafkaStore {
         &self,
         dynamic_routing_stat: storage::DynamicRoutingStatsNew,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        self.diesel_store
-            .insert_dynamic_routing_stat_entry(dynamic_routing_stat)
-            .await
+        DynamicRoutingStatsInterface::insert_dynamic_routing_stat_entry(
+            &self.diesel_store,
+            dynamic_routing_stat,
+        )
+        .await
     }
 
     async fn find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
@@ -118,9 +121,12 @@ impl DynamicRoutingStatsInterface for KafkaStore {
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Option<storage::DynamicRoutingStats>, errors::StorageError> {
-        self.diesel_store
-            .find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(attempt_id, merchant_id)
-            .await
+        DynamicRoutingStatsInterface::find_dynamic_routing_stats_optional_by_attempt_id_merchant_id(
+            &self.diesel_store,
+            attempt_id,
+            merchant_id,
+        )
+        .await
     }
 
     async fn update_dynamic_routing_stats(
@@ -129,8 +135,12 @@ impl DynamicRoutingStatsInterface for KafkaStore {
         merchant_id: &common_utils::id_type::MerchantId,
         data: storage::DynamicRoutingStatsUpdate,
     ) -> CustomResult<storage::DynamicRoutingStats, errors::StorageError> {
-        self.diesel_store
-            .update_dynamic_routing_stats(attempt_id, merchant_id, data)
-            .await
+        DynamicRoutingStatsInterface::update_dynamic_routing_stats(
+            &self.diesel_store,
+            attempt_id,
+            merchant_id,
+            data,
+        )
+        .await
     }
 }

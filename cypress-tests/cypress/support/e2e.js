@@ -1,5 +1,6 @@
 import "cypress-mochawesome-reporter/register";
 import "./commands";
+import "./security-commands";
 import "./redirectionHandler";
 
 Cypress.on("window:before:load", (win) => {

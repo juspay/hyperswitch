@@ -296,9 +296,56 @@ pub struct SantanderPixVoidResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrReceiverResponse {
+    pub agencia: Option<Secret<String>>,
+    pub conta: Secret<String>,
+    #[serde(rename = "tipoConta", skip_serializing_if = "Option::is_none")]
+    pub tipo_conta: Option<requests::SantanderAccountType>,
+    pub cnpj: Secret<String>,
+    pub nome: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrDebtorResponse {
+    pub email: Option<Secret<String>>,
+    pub logradouro: Option<Secret<String>>,
+    pub cidade: Option<Secret<String>>,
+    pub uf: Option<Secret<String>>,
+    pub cep: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrVoidResponse {
+    pub id_rec: Secret<String>,
+    pub txid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info_adicional: Option<String>,
+    pub calendario: SantanderPixAutomaticoCobrCalendarResponse,
+    pub valor: requests::SantanderPixAutomaticoCobrValor,
+    pub ajuste_dia_util: bool,
+    pub recebedor: SantanderPixAutomaticoCobrReceiverResponse,
+    pub status: SantanderPixAutomaticoCobrStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub politica_retentativa: Option<String>,
+    pub devedor: SantanderPixAutomaticoCobrDebtorResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pix: Option<Vec<SantanderCobrSyncPix>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderCobrSyncStatusUpdate>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tentativas: Option<Vec<SantanderCobrSyncTentativa>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderVoidResponse {
+pub enum SantanderPreAuthorizeVoidResponse {
     Pix(Box<SantanderPixVoidResponse>),
+    PixAutomaticoCobr(Box<SantanderPixAutomaticoCobrVoidResponse>),
     Boleto(Box<SantanderBoletoVoidResponse>),
 }
 

@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use crate::{
     connection,
@@ -9,6 +9,7 @@ use crate::{
     types::storage::{self, PaymentLinkDbExt},
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentLinkInterface {
     async fn find_payment_link_by_payment_link_id(
