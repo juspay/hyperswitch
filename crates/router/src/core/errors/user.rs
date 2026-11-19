@@ -130,6 +130,8 @@ pub enum UserErrors {
     SavedViewNotFound,
     #[error("InvalidSavedViewName")]
     InvalidSavedViewName,
+    #[error("SignupDisabled")]
+    SignupDisabled,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -293,9 +295,6 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::ThemeNotFound => {
                 AER::NotFound(ApiError::new(sub_code, 53, self.get_error_message(), None))
             }
-            Self::InvalidThemeAssetName => {
-                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
-            }
             Self::ThemeAlreadyExists => {
                 AER::BadRequest(ApiError::new(sub_code, 54, self.get_error_message(), None))
             }
@@ -334,6 +333,12 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             }
             Self::InvalidSavedViewName => {
                 AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
+            }
+            Self::InvalidThemeAssetName => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
+            Self::SignupDisabled => {
+                AER::BadRequest(ApiError::new(sub_code, 67, self.get_error_message(), None))
             }
         }
     }
@@ -426,6 +431,7 @@ impl UserErrors {
             Self::InvalidSavedViewName => {
                 "The saved view name cannot be empty or contain only whitespace".to_string()
             }
+            Self::SignupDisabled => "Sign up is disabled".to_string(),
         }
     }
 }
