@@ -1014,8 +1014,7 @@ pub trait MerchantConnectorAccountInterface {
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        mca: &MerchantConnectorAccount,
     ) -> CustomResult<bool, Self::Error>;
 
     #[cfg(feature = "v2")]

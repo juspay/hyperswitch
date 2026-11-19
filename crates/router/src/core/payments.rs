@@ -850,6 +850,7 @@ where
             platform,
             &feature_config,
             profile_id_from_auth_layer.as_ref(),
+            payment_pre_fetched_info.as_ref(),
         )
         .await?;
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
@@ -3360,6 +3361,7 @@ where
             &platform,
             &feature_config,
             profile_id_from_auth_layer.as_ref(),
+            None,
         )
         .await?;
 

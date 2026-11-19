@@ -47,8 +47,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-        _profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
+        profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -65,15 +65,37 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let payment_intent = db
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &processor_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let (payment_intent, mut payment_attempt) = match payment_pre_fetched_info {
+            Some(prefetched) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    prefetched.payment_intent.profile_id.as_ref(),
+                )?;
+                (prefetched.payment_intent, prefetched.payment_attempt)
+            }
+            None => {
+                let payment_intent = db
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        &processor_merchant_id,
+                        platform.get_processor().get_key_store(),
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let payment_attempt = db
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_intent.payment_id,
+                        &processor_merchant_id,
+                        payment_intent.active_attempt.get_id().as_str(),
+                        storage_scheme,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                (payment_intent, payment_attempt)
+            }
+        };
 
         helpers::validate_payment_status_against_allowed_statuses(
             payment_intent.status,
@@ -83,17 +105,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             ],
             "cancel_post_capture",
         )?;
-
-        let mut payment_attempt = db
-            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                &payment_intent.payment_id,
-                &processor_merchant_id,
-                payment_intent.active_attempt.get_id().as_str(),
-                storage_scheme,
-                platform.get_processor().get_key_store(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_by_id(
             state,

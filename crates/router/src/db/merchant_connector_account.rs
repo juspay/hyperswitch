@@ -289,14 +289,8 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let delete_call = || async {
-            db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-                &merchant_id,
-                &common_utils::id_type::MerchantConnectorAccountId::wrap(
-                    merchant_connector_id.to_string(),
-                )
-                .unwrap(),
-            )
-            .await
+            db.delete_merchant_connector_account_by_merchant_id_merchant_connector_id(&mca)
+                .await
         };
 
         cache::publish_and_redact(

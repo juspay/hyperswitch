@@ -238,10 +238,9 @@ impl ApiKeyInterface for KafkaStore {
 
     async fn revoke_api_key(
         &self,
-        merchant_id: &id_type::MerchantId,
-        key_id: &id_type::ApiKeyId,
+        api_key: &storage::ApiKey,
     ) -> CustomResult<bool, errors::StorageError> {
-        self.diesel_store.revoke_api_key(merchant_id, key_id).await
+        self.diesel_store.revoke_api_key(api_key).await
     }
 
     async fn find_api_key_by_merchant_id_key_id_optional(
@@ -1627,14 +1626,10 @@ impl MerchantConnectorAccountInterface for KafkaStore {
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &id_type::MerchantId,
-        merchant_connector_id: &id_type::MerchantConnectorAccountId,
+        mca: &domain::MerchantConnectorAccount,
     ) -> CustomResult<bool, errors::StorageError> {
         self.diesel_store
-            .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-                merchant_id,
-                merchant_connector_id,
-            )
+            .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(mca)
             .await
     }
 
