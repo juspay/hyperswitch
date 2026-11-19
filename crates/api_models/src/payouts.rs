@@ -36,7 +36,7 @@ pub enum PayoutRequest {
 #[derive(
     Default, Debug, Deserialize, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema,
 )]
-#[generate_schemas(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
+#[generate_schemas(PayoutsCreateRequest, PayoutConfirmRequest)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateRequest {
     /// Payout identifier; optional for normal creates and required for external-vault proxy creates.
@@ -46,12 +46,12 @@ pub struct PayoutCreateRequest {
         max_length = 30,
         example = "187282ab-40ef-47a9-9206-5099ba31e432"
     )]
-    #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
+    #[remove_in(PayoutsCreateRequest, PayoutConfirmRequest)]
     pub payout_id: Option<id_type::PayoutId>,
 
-    /// This is an identifier for the merchant account. This is inferred from the API key provided during the request, **not required to be included in the Payout Create/Update Request.**
+    /// This is an identifier for the merchant account, inferred from the API key provided during the request.
     #[schema(max_length = 255, value_type = Option<String>, example = "merchant_1668273825")]
-    #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
+    #[remove_in(PayoutsCreateRequest, PayoutConfirmRequest)]
     pub merchant_id: Option<id_type::MerchantId>,
 
     /// Your unique identifier for this payout or order. This ID helps you reconcile payouts on your system. If provided, it is passed to the connector if supported.
@@ -82,12 +82,12 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<Vec<PayoutConnectors>>, max_length = 255, example = json!(["wise", "adyen"]))]
     pub connector: Option<Vec<api_enums::PayoutConnectors>>,
 
-    /// This field is used when merchant wants to confirm the payout, thus useful for the payout _Confirm_ request. Ideally merchants should _Create_ a payout, _Update_ it (if required), then _Confirm_ it.
+    /// Set to true to confirm the payout during creation.
     #[schema(value_type = Option<bool>, example = true, default = false)]
     #[remove_in(PayoutConfirmRequest)]
     pub confirm: Option<bool>,
 
-    /// The payout_type of the payout request can be specified here, this is a mandatory field to _Confirm_ the payout, i.e., should be passed in _Create_ request, if not then should be updated in the payout _Update_ request, then only it can be confirmed.
+    /// The payout type is required to confirm the payout. Provide it in the create or confirm request.
     #[schema(value_type = Option<PayoutType>, example = "card")]
     pub payout_type: Option<api_enums::PayoutType>,
 
@@ -130,7 +130,7 @@ pub struct PayoutCreateRequest {
 
     /// Deprecated. Payout execution requires an API key; this value is not used for authentication.
     #[schema(deprecated, value_type = Option<String>, example = "pay_U42c409qyHwOkWo3vK60_secret_el9ksDkiB8hi6j9N78yo")]
-    #[remove_in(PayoutsCreateRequest, PayoutUpdateRequest, PayoutConfirmRequest)]
+    #[remove_in(PayoutsCreateRequest, PayoutConfirmRequest)]
     pub client_secret: Option<String>,
 
     /// The URL to redirect after the completion of the operation
@@ -191,7 +191,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
 
-    /// Whether to get the payout link (if applicable). Merchant need to specify this during the Payout _Create_, this field can not be updated during Payout _Update_.
+    /// Whether to generate a payout link (if applicable). Specify this when creating the payout.
     #[schema(default = false, example = true, value_type = Option<bool>)]
     pub payout_link: Option<bool>,
 

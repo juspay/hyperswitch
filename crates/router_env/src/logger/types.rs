@@ -242,9 +242,6 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Payouts retrieve flow.
     PayoutsRetrieve,
-    #[cfg(feature = "payouts")]
-    /// Payouts update flow.
-    PayoutsUpdate,
     /// Payouts confirm flow.
     PayoutsConfirm,
     #[cfg(feature = "payouts")]

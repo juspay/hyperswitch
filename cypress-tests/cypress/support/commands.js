@@ -8066,41 +8066,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "updatePayoutCallTest",
-  (payoutConfirmBody, data, auto_fulfill, globalState) => {
-    const { Response: resData } = data || {};
-
-    payoutConfirmBody.confirm = true;
-    payoutConfirmBody.auto_fulfill = auto_fulfill;
-
-    cy.request({
-      method: "PUT",
-      url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body: payoutConfirmBody,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-
-        if (response.status === 200) {
-          for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
-    });
-  }
-);
-
 // Fetches the current payout and asserts against an `expected` shape:
 // - top-level or one-level-nested (e.g. `frm_message.frm_status`) keys are
 //   compared with `.to.equal`

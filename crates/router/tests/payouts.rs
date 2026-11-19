@@ -8,7 +8,7 @@ async fn payouts_todo() {
     let mut response;
     let mut response_body;
     let get_endpoints = vec!["retrieve", "accounts"];
-    let post_endpoints = vec!["create", "update", "reverse", "cancel"];
+    let post_endpoints = vec!["create", "reverse", "cancel"];
 
     for endpoint in get_endpoints {
         response = client

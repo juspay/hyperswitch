@@ -342,10 +342,6 @@ Cypress.Commands.add("ompRetrievePayout", (payoutId, auth, globalState) =>
   ompCall("GET", `/payouts/${payoutId}`, auth, undefined, globalState)
 );
 
-Cypress.Commands.add("ompUpdatePayout", (payoutId, auth, body, globalState) =>
-  ompCall("PUT", `/payouts/${payoutId}`, auth, body, globalState)
-);
-
 Cypress.Commands.add("ompConfirmPayout", (payoutId, auth, body, globalState) =>
   ompCall("POST", `/payouts/${payoutId}/confirm`, auth, body, globalState)
 );

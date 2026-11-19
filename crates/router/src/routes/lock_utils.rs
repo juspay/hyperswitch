@@ -216,7 +216,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TelephoneOrderCharge => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
-            | Flow::PayoutsUpdate
             | Flow::PayoutsCancel
             | Flow::PayoutsFulfill
             | Flow::PayoutsList

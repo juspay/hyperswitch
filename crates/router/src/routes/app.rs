@@ -1763,11 +1763,7 @@ impl Payouts {
                 );
         }
         route = route
-            .service(
-                web::resource("/{payout_id}")
-                    .route(web::get().to(payouts_retrieve))
-                    .route(web::put().to(payouts_update)),
-            )
+            .service(web::resource("/{payout_id}").route(web::get().to(payouts_retrieve)))
             .service(web::resource("/{payout_id}/confirm").route(web::post().to(payouts_confirm)))
             .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
             .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));

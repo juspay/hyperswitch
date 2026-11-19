@@ -214,7 +214,6 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for payouts
         routes::payouts::payouts_create,
         routes::payouts::payouts_retrieve,
-        routes::payouts::payouts_update,
         routes::payouts::payouts_cancel,
         routes::payouts::payouts_fulfill,
         routes::payouts::payouts_list,
@@ -959,7 +958,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::TrustlyBankTransfer,
         api_models::payouts::TrustlyBankTransferData,
         api_models::payouts::PayoutsCreateRequest,
-        api_models::payouts::PayoutUpdateRequest,
         api_models::payouts::PayoutConfirmRequest,
         api_models::payouts::PayoutCancelRequest,
         api_models::payouts::PayoutFulfillRequest,

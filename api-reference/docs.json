@@ -143,7 +143,6 @@
                     "group": "Payouts",
                     "pages": [
                       "v1/payouts/payouts--create",
-                      "v1/payouts/payouts--update",
                       "v1/payouts/payouts--cancel",
                       "v1/payouts/payouts--fulfill",
                       "v1/payouts/payouts--confirm",

@@ -133,54 +133,6 @@ pub async fn payouts_retrieve(
     ))
     .await
 }
-/// Payouts - Update
-#[instrument(skip_all, fields(flow = ?Flow::PayoutsUpdate))]
-pub async fn payouts_update(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<id_type::PayoutId>,
-    json_payload: web::Json<payout_types::PayoutCreateRequest>,
-) -> HttpResponse {
-    let flow = Flow::PayoutsUpdate;
-    let payout_id = path.into_inner();
-    let locking_action = get_payout_locking_action(&payout_id, flow.clone());
-    let mut payout_update_payload = json_payload.into_inner();
-    payout_update_payload.payout_id = Some(payout_id);
-
-    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
-        Ok(headers) => headers,
-        Err(err) => return api::log_and_return_error_response(err),
-    };
-    if let Err(err) =
-        populate_browser_info_for_payouts(&req, &mut payout_update_payload, &header_payload)
-    {
-        return api::log_and_return_error_response(err);
-    }
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payout_update_payload,
-        |state, auth: auth::AuthenticationData, req, _| {
-            let profile_id = get_authenticated_profile_id(&auth);
-            payouts_update_core(
-                state,
-                auth.platform,
-                profile_id,
-                req,
-                header_payload.clone(),
-            )
-        },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
-            allow_platform_self_operation: false,
-        }),
-        locking_action,
-    ))
-    .await
-}
-
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsConfirm))]
 pub async fn payouts_confirm(
     state: web::Data<AppState>,

@@ -124,7 +124,6 @@ where
                         Flow::PayoutsCancel,
                         Flow::PayoutsRetrieve,
                         Flow::PayoutLinkInitiate,
-                        Flow::PayoutsUpdate,
                         Flow::PayoutsCancel,
                     ],
                 )

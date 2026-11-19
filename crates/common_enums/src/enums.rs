@@ -9401,7 +9401,7 @@ impl PayoutStatus {
     }
 }
 
-/// The payout_type of the payout request is a mandatory field for confirming the payouts. It should be specified in the Create request. If not provided, it must be updated in the Payout Update request before it can be confirmed.
+/// The payout type is required to confirm the payout. Provide it in the create or confirm request.
 #[derive(
     Clone,
     Copy,
