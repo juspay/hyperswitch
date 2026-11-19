@@ -1,0 +1,270 @@
+{
+  "info": {
+    "name": "cost-router",
+    "description": "Manual testing of cost-router (cost-aware routing in front of Hyperswitch).\n\n1. `npm run up` (starts the Hyperswitch stack).\n2. `npm run serve` (creates a merchant with fauxpay + stripe_test, starts cost-router on :3100 and prints profile_id).\n3. Set the collection variable `profile_id` to the printed value (or import `cost-router/.serve/postman_environment.json`), then run the \"1. cost-router\" folder in order.\n\nScenario B (reliability floor, retries off): stop serve and start it again with `AUTO_RETRY=off MIN_SUCCESS_RATE=0.85 npm run serve`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "cr_url", "value": "http://localhost:3100" },
+    { "key": "hs_url", "value": "http://localhost:8080" },
+    { "key": "profile_id", "value": "" },
+    { "key": "payment_id", "value": "" },
+    { "key": "good_payment_id", "value": "" },
+    { "key": "last_payment_id", "value": "" },
+    { "key": "admin_api_key", "value": "test_admin" },
+    { "key": "merchant_id", "value": "" },
+    { "key": "api_key", "value": "" },
+    { "key": "mca_fauxpay", "value": "" },
+    { "key": "mca_stripe_test", "value": "" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every payment request needs profile_id (printed by `npm run serve`).",
+          "if (pm.request.url.toString().includes('/payments') && pm.request.method === 'POST' && !pm.variables.get('profile_id')) {",
+          "  throw new Error('Set the profile_id variable first: run `npm run serve` and copy the profile_id it prints.');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Start here: run `npm run serve` first",
+      "description": "Run `npm run up`, then `npm run serve` in cost-router/. It prints merchant_id, profile_id and the cost-router URL. Put profile_id into the collection variable `profile_id` (or import `.serve/postman_environment.json`). The Setup folder at the bottom is an alternative that creates a merchant by hand; it still needs a cost-router config for those connector ids, which `npm run serve` writes for you.",
+      "item": [
+        {
+          "name": "cost-router health",
+          "request": { "method": "GET", "url": "{{cr_url}}/health", "description": "Expect {\"status\":\"ok\"}. If it fails, `npm run serve` is not running." }
+        },
+        {
+          "name": "Hyperswitch health",
+          "request": { "method": "GET", "url": "{{hs_url}}/health", "description": "Expect `health is good`. If it fails, run `npm run up`." }
+        }
+      ]
+    },
+    {
+      "name": "1. cost-router",
+      "description": "Run in order. The good-card payment is cheapest-first (fauxpay). The flaky card fails on fauxpay and Hyperswitch retries on stripe_test; after it, the ranking prefers stripe_test.",
+      "item": [
+        {
+          "name": "Pay: good card 4242 (cheapest first)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('payment_id', 'pm_good_' + Date.now());"] } },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('good_payment_id', pm.collectionVariables.get('payment_id'));",
+                  "pm.collectionVariables.set('last_payment_id', pm.collectionVariables.get('payment_id'));",
+                  "console.log(r.routing && r.routing.decision && r.routing.decision.trace && r.routing.decision.trace.summary);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{payment_id}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"authentication_type\": \"no_three_ds\",\n  \"profile_id\": \"{{profile_id}}\",\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_data\": { \"card\": { \"card_number\": \"4242424242424242\", \"card_exp_month\": \"12\", \"card_exp_year\": \"2030\", \"card_holder_name\": \"Demo\", \"card_cvc\": \"123\" } },\n  \"billing\": { \"address\": { \"line1\": \"1 Main St\", \"city\": \"San Francisco\", \"state\": \"CA\", \"zip\": \"94000\", \"country\": \"US\", \"first_name\": \"A\", \"last_name\": \"B\" } }\n}"
+            },
+            "url": "{{cr_url}}/payments",
+            "description": "Response: routing.decision (what we asked for: order, fees, s_hat, scores) and routing.execution (what Hyperswitch did)."
+          }
+        },
+        {
+          "name": "Replay: same key, same body (no second payment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('replayed', () => pm.expect(pm.response.json().replayed).to.eql(true));"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{good_payment_id}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"authentication_type\": \"no_three_ds\",\n  \"profile_id\": \"{{profile_id}}\",\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_data\": { \"card\": { \"card_number\": \"4242424242424242\", \"card_exp_month\": \"12\", \"card_exp_year\": \"2030\", \"card_holder_name\": \"Demo\", \"card_cvc\": \"123\" } },\n  \"billing\": { \"address\": { \"line1\": \"1 Main St\", \"city\": \"San Francisco\", \"state\": \"CA\", \"zip\": \"94000\", \"country\": \"US\", \"first_name\": \"A\", \"last_name\": \"B\" } }\n}"
+            },
+            "url": "{{cr_url}}/payments"
+          }
+        },
+        {
+          "name": "Conflict: same key, different amount (409)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('409', () => pm.response.to.have.status(409));"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{good_payment_id}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10001,\n  \"currency\": \"USD\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"authentication_type\": \"no_three_ds\",\n  \"profile_id\": \"{{profile_id}}\",\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_data\": { \"card\": { \"card_number\": \"4242424242424242\", \"card_exp_month\": \"12\", \"card_exp_year\": \"2030\", \"card_holder_name\": \"Demo\", \"card_cvc\": \"123\" } },\n  \"billing\": { \"address\": { \"line1\": \"1 Main St\", \"city\": \"San Francisco\", \"state\": \"CA\", \"zip\": \"94000\", \"country\": \"US\", \"first_name\": \"A\", \"last_name\": \"B\" } }\n}"
+            },
+            "url": "{{cr_url}}/payments"
+          }
+        },
+        {
+          "name": "Pay: flaky card 9995 (fauxpay fails, retry on stripe_test)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('payment_id', 'pm_flaky_' + Date.now());"] } },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('last_payment_id', pm.collectionVariables.get('payment_id'));",
+                  "const e = pm.response.json().routing.execution;",
+                  "console.log('final', e && e.finalConnector, 'attempts', JSON.stringify(e && e.attempts));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Idempotency-Key", "value": "{{payment_id}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"currency\": \"USD\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"authentication_type\": \"no_three_ds\",\n  \"profile_id\": \"{{profile_id}}\",\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_data\": { \"card\": { \"card_number\": \"4000000000009995\", \"card_exp_month\": \"12\", \"card_exp_year\": \"2030\", \"card_holder_name\": \"Demo\", \"card_cvc\": \"123\" } },\n  \"billing\": { \"address\": { \"line1\": \"1 Main St\", \"city\": \"San Francisco\", \"state\": \"CA\", \"zip\": \"94000\", \"country\": \"US\", \"first_name\": \"A\", \"last_name\": \"B\" } }\n}"
+            },
+            "url": "{{cr_url}}/payments",
+            "description": "With auto-retry on, execution.finalConnector is stripe_test and both attempts are listed. Send the good card again afterwards to see the ranking flip to stripe_test first."
+          }
+        },
+        {
+          "name": "Routing trace (last payment)",
+          "request": { "method": "GET", "url": "{{cr_url}}/payments/{{last_payment_id}}/routing-trace" }
+        },
+        {
+          "name": "Routing trace via /v1 (path named in the assignment)",
+          "request": { "method": "GET", "url": "{{cr_url}}/v1/payments/{{last_payment_id}}/routing-trace" }
+        },
+        {
+          "name": "Prometheus metrics",
+          "request": { "method": "GET", "url": "{{cr_url}}/metrics" }
+        }
+      ]
+    },
+    {
+      "name": "Setup (alternative to npm run serve)",
+      "description": "Creates a merchant, API key, the two dummy connectors, the GSM retry rule and profile auto-retry directly on Hyperswitch. cost-router still needs a config with these connector ids and HYPERSWITCH_API_KEY={{api_key}} (see README 'Using it by hand'); `npm run serve` does all of this in one step.",
+      "item": [
+        {
+          "name": "Create merchant",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('merchant_id', 'merchant_pm_' + Date.now());"] } },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.collectionVariables.set('profile_id', pm.response.json().default_profile);"]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "admin-api-key={{admin_api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"merchant_id\": \"{{merchant_id}}\",\n  \"merchant_name\": \"CostRouter Postman\",\n  \"primary_business_details\": [{ \"country\": \"US\", \"business\": \"default\" }]\n}" },
+            "url": "{{hs_url}}/accounts"
+          }
+        },
+        {
+          "name": "Create API key",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('api_key', pm.response.json().api_key);"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "admin-api-key={{admin_api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"name\": \"postman\", \"description\": \"postman\", \"expiration\": \"never\" }" },
+            "url": "{{hs_url}}/api_keys/{{merchant_id}}"
+          }
+        },
+        {
+          "name": "Create connector fauxpay",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('mca_fauxpay', pm.response.json().merchant_connector_id);"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "api-key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"connector_type\": \"payment_processor\",\n  \"connector_name\": \"fauxpay\",\n  \"connector_account_details\": { \"auth_type\": \"HeaderKey\", \"api_key\": \"dummy\" },\n  \"test_mode\": true,\n  \"disabled\": false,\n  \"payment_methods_enabled\": [{ \"payment_method\": \"card\", \"payment_method_types\": [{ \"payment_method_type\": \"credit\", \"card_networks\": [\"Visa\", \"Mastercard\"], \"minimum_amount\": 0, \"maximum_amount\": 99999999, \"recurring_enabled\": true, \"installment_payment_enabled\": true }] }]\n}" },
+            "url": "{{hs_url}}/account/{{merchant_id}}/connectors"
+          }
+        },
+        {
+          "name": "Create connector stripe_test",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('mca_stripe_test', pm.response.json().merchant_connector_id);"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "api-key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"connector_type\": \"payment_processor\",\n  \"connector_name\": \"stripe_test\",\n  \"connector_account_details\": { \"auth_type\": \"HeaderKey\", \"api_key\": \"dummy\" },\n  \"test_mode\": true,\n  \"disabled\": false,\n  \"payment_methods_enabled\": [{ \"payment_method\": \"card\", \"payment_method_types\": [{ \"payment_method_type\": \"credit\", \"card_networks\": [\"Visa\", \"Mastercard\"], \"minimum_amount\": 0, \"maximum_amount\": 99999999, \"recurring_enabled\": true, \"installment_payment_enabled\": true }] }]\n}" },
+            "url": "{{hs_url}}/account/{{merchant_id}}/connectors"
+          }
+        },
+        {
+          "name": "GSM retry rule for fauxpay DC_08 (400 if it already exists is fine)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "admin-api-key={{admin_api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"connector\": \"fauxpay\", \"flow\": \"Payment\", \"sub_flow\": \"Authorize\", \"code\": \"DC_08\",\n  \"message\": \"Payment declined: Internal Server Error from Connector, Please try again later\",\n  \"status\": \"failure\", \"decision\": \"retry\", \"step_up_possible\": false, \"clear_pan_possible\": false, \"feature\": \"retry\",\n  \"feature_data\": { \"retry\": { \"step_up_possible\": false, \"clear_pan_possible\": false, \"alternate_network_possible\": false, \"decision\": \"retry\" } }\n}" },
+            "url": "{{hs_url}}/gsm"
+          }
+        },
+        {
+          "name": "Enable profile auto-retry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "api-key", "value": "{{api_key}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{ \"is_auto_retries_enabled\": true, \"max_auto_retries_enabled\": 2 }" },
+            "url": "{{hs_url}}/account/{{merchant_id}}/business_profile/{{profile_id}}"
+          }
+        }
+      ]
+    }
+  ]
+}

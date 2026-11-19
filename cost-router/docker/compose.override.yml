@@ -1,0 +1,18 @@
+# Used with: docker compose -f docker-compose.yml -f cost-router/docker/compose.override.yml ...
+# The prebuilt :standalone image is older than the repo's config/docker_compose.toml (it does not know the `ecommpay`
+# connector), so we mount upstream's config folder unchanged and lay one patched docker_compose.toml over it
+# (`ecommpay` removed from two connector lists; nothing else differs).
+services:
+  hyperswitch-server:
+    pull_policy: never
+    volumes: !override
+      - ./config:/local/config
+      - ./files:/local/bin/files
+      - ./cost-router/docker/docker_compose.toml:/local/config/docker_compose.toml:ro
+  superposition-init:
+    volumes: !override
+      - ./config/superposition_seed.toml:/seed.toml:ro
+      # Identical to upstream scripts/seed_superposition.sh; kept here so cost-router/.gitattributes forces LF
+      # (a Windows checkout of the upstream copy gets CRLF, which breaks bash inside the Linux container).
+      - ./cost-router/docker/seed_superposition.sh:/seed_superposition.sh:ro
+    command: sh -c "apk add --no-cache bash curl jq yq && bash /seed_superposition.sh"

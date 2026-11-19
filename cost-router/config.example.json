@@ -1,0 +1,23 @@
+{
+  "port": 3100,
+  "state_file": "data/state.json",
+  "hyperswitch": { "base_url": "http://localhost:8080" },
+  "candidates": [
+    { "connector": "stripe", "merchant_connector_id": "REPLACE_ME_mca_1" },
+    { "connector": "adyen", "merchant_connector_id": "REPLACE_ME_mca_2" }
+  ],
+  "routing": {
+    "fee_table": {
+      "stripe": [{ "match": { "currency": "INR" }, "bps": 200, "fixed": 300 }],
+      "adyen": [
+        { "match": { "currency": "INR" }, "bps": 150, "fixed": 200, "min": 300 },
+        { "match": { "currency": "INR", "card_type": "debit" }, "bps": 0, "fixed": 0 }
+      ]
+    },
+    "failure_penalty_pct": 20,
+    "min_sample_size": 20,
+    "window_minutes": 60,
+    "min_success_rate": 0.85,
+    "issuer_decline_codes": []
+  }
+}
