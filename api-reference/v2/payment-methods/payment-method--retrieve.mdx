@@ -1,13 +1,3 @@
 ---
 openapi: get /v2/payment-methods/{id}
 ---
-
-## One-time Apple Pay cryptogram
-
-To retrieve the cryptogram from an Apple Pay session confirmation, pass that confirmation's `associated_payment_methods[].payment_method_token.data` as `id` and set `fetch_raw_detail=true`. Existing raw-data authorization rules still apply.
-
-The first authorized raw retrieval includes the cryptogram and ECI in `raw_payment_method_data.wallet.apple_pay_decrypted_data.payment_data`. The cryptogram is encrypted separately in Redis, with the profile's order-fulfillment TTL, and is never stored in the persistent wallet payload.
-
-Retrieval atomically consumes the cryptogram. Successful raw responses without an available cryptogram, including replay and retrieval by a payment-method ID rather than the confirmation's session token, return `payment_data: null`. An expired confirmation token is rejected instead of returning raw credentials. Masked retrieval does not consume the cryptogram. Distinct confirmation tokens have independent cryptograms even when they reference the same saved payment method.
-
-Consumption happens before the response is delivered: an interrupted response cannot be retried to recover the cryptogram. Redis or cryptogram-decryption failures return an error rather than pretending that the secret was absent.

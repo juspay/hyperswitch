@@ -1,13 +1,3 @@
 ---
 openapi: post /v2/payment-method-sessions/{id}/confirm
 ---
-
-## Apple Pay
-
-Create a payment-method session before confirming it. The merchant handles the Apple Pay button and Apple Pay session, then submits the resulting encrypted token under `payment_method_data.wallet.apple_pay`. Its `payment_data` field is a base64-encoded Apple Pay token string; send the existing `payment_method` metadata and `transaction_identifier` alongside it. Decrypted Apple Pay input is not accepted by session confirm.
-
-The certificate and private key must already be configured on the business profile or merchant account. Confirm uses the profile configuration first and falls back to the merchant only when profile configuration is absent. It does not require an MCA, try every certificate, or retry with the merchant certificate after decryption fails. Certificate onboarding/linking is a separate setup step.
-
-Confirm decrypts the token and uses the existing vaulting flow, respecting session storage and customer-consent rules. The response contains `payment_method_data.wallet.apple_pay` metadata, including last four digits, not the full card/network-token number or cryptogram.
-
-For the one-time cryptogram, use the returned `associated_payment_methods[].payment_method_token.data` with [raw payment-method retrieval](/v2/payment-methods/payment-method--retrieve). Confirming a payment-method session does not itself charge the customer.
