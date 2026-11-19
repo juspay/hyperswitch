@@ -19789,6 +19789,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payload",
           "payme",
           "paynearme",
@@ -40631,6 +40632,14 @@
             ],
             "nullable": true
           },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
           "sender_details": {
             "allOf": [
               {
@@ -40960,6 +40969,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
               }
             ],
             "nullable": true
@@ -41517,6 +41534,31 @@
         ],
         "description": "The payout method information for response"
       },
+      "PayoutPurpose": {
+        "type": "string",
+        "description": "The purpose for which a payout is being carried out.",
+        "enum": [
+          "donations",
+          "education",
+          "emergency_need",
+          "expatriation",
+          "family_support",
+          "financial_services",
+          "gifts",
+          "income",
+          "insurance",
+          "investment",
+          "it_services",
+          "leisure",
+          "loan_payment",
+          "medical_treatment",
+          "pension",
+          "royalties",
+          "savings",
+          "travel_and_tourism",
+          "other"
+        ]
+      },
       "PayoutRetrieveBody": {
         "type": "object",
         "properties": {
@@ -41775,6 +41817,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
               }
             ],
             "nullable": true
@@ -42055,6 +42105,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
               }
             ],
             "nullable": true
@@ -46726,6 +46784,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payme",
           "paynearme",
           "payload",

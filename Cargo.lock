@@ -2290,7 +2290,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4205,7 +4205,7 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#d749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "axum 0.8.4",
  "bytes",
@@ -8212,7 +8212,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#d749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "grpc-api-types",
 ]
@@ -10846,7 +10846,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#d749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "bytes",
  "error-stack 0.4.1",
@@ -10862,7 +10862,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#d749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10873,7 +10873,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=feat%2Faft-sender-details#2ba8a0f1c3c5cc085f9410c6febdd332c78bb3ea"
+source = "git+https://github.com/juspay/connector-service?tag=2026.11.18.2#749cf381e986e1014619823f69d209eb3837a86d"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

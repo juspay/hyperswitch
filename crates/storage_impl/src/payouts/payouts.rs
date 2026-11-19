@@ -107,6 +107,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     entity_type: new.entity_type,
                     metadata: new.metadata.clone(),
                     funds_transfer_type: new.funds_transfer_type,
+                    purpose: new.purpose,
                     sender_details: new.sender_details.clone(),
                     created_at: new.created_at,
                     last_modified_at: new.last_modified_at,
@@ -1112,6 +1113,7 @@ impl Conversion for Payouts {
             entity_type: self.entity_type,
             metadata: self.metadata,
             funds_transfer_type: self.funds_transfer_type,
+            purpose: self.purpose,
             sender_details: self.sender_details.map(Encryption::from),
             created_at: self.created_at,
             last_modified_at: self.last_modified_at,
@@ -1151,6 +1153,7 @@ impl DataModelExt for Payouts {
             entity_type: self.entity_type,
             metadata: self.metadata,
             funds_transfer_type: self.funds_transfer_type,
+            purpose: self.purpose,
             sender_details: self.sender_details.map(Encryption::from),
             created_at: self.created_at,
             last_modified_at: self.last_modified_at,
@@ -1186,6 +1189,7 @@ impl DataModelExt for Payouts {
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
             funds_transfer_type: storage_model.funds_transfer_type,
+            purpose: storage_model.purpose,
             // `sender_details` holds ciphertext in storage; it is populated by the
             // async decryption step in the `PayoutsInterface` implementations.
             sender_details: None,
@@ -1228,6 +1232,7 @@ impl DataModelExt for PayoutsNew {
             entity_type: self.entity_type,
             metadata: self.metadata,
             funds_transfer_type: self.funds_transfer_type,
+            purpose: self.purpose,
             sender_details: self.sender_details.map(Encryption::from),
             created_at: self.created_at,
             last_modified_at: self.last_modified_at,
@@ -1263,6 +1268,7 @@ impl DataModelExt for PayoutsNew {
             entity_type: storage_model.entity_type,
             metadata: storage_model.metadata,
             funds_transfer_type: storage_model.funds_transfer_type,
+            purpose: storage_model.purpose,
             // `sender_details` holds ciphertext in storage; it is populated by the
             // async decryption step in the `PayoutsInterface` implementations.
             sender_details: None,
@@ -1299,6 +1305,7 @@ impl DataModelExt for PayoutsUpdate {
                 entity_type,
                 metadata,
                 funds_transfer_type,
+                purpose,
                 sender_details,
                 profile_id,
                 status,
@@ -1318,6 +1325,7 @@ impl DataModelExt for PayoutsUpdate {
                 entity_type,
                 metadata,
                 funds_transfer_type,
+                purpose,
                 sender_details,
                 profile_id,
                 status,

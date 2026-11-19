@@ -3055,34 +3055,49 @@ pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
     superposition_key: &str,
     context: Option<external_services::superposition::ConfigContext>,
 ) -> RouterResult<RolloutExecutionResult> {
+    let mut execution_result = should_execute_based_on_rollout_from_superposition::<
+        RolloutConfig,
+        RolloutExecutionResult,
+    >(state, superposition_key, context.as_ref())
+    .await?;
+    if execution_result.should_execute {
+        execution_result.proxy_override = build_rollout_proxy_override(state);
+    }
+    Ok(execution_result)
+}
+
+/// Fetches and evaluates a Superposition rollout config, preserving the config's result type.
+/// Missing or invalid configuration defaults to not executing, without falling back to DB.
+pub async fn should_execute_based_on_rollout_from_superposition<C, R>(
+    state: &SessionState,
+    superposition_key: &str,
+    context: Option<&external_services::superposition::ConfigContext>,
+) -> RouterResult<R>
+where
+    C: DeserializeOwned,
+    R: From<C> + Default,
+{
     match state
         .superposition_service
-        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
+        .get_config_value::<serde_json::Value>(superposition_key, context, None)
         .await
     {
-        Ok(json_value) => {
-            let mut execution_result = json_value
-                .parse_value::<RolloutConfig>("RolloutConfig")
-                .map(RolloutExecutionResult::from)
-                .map_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to parse superposition rollout config. Defaulting to not execute."
-                    );
-                    RolloutExecutionResult::default()
-                })
-                .unwrap_or_default();
-            if execution_result.should_execute {
-                execution_result.proxy_override = build_rollout_proxy_override(state);
-            }
-            Ok(execution_result)
-        }
+        Ok(json_value) => Ok(json_value
+            .parse_value::<C>("RolloutConfig")
+            .map(R::from)
+            .unwrap_or_else(|err| {
+                logger::error!(
+                    error = ?err,
+                    "Failed to parse superposition rollout config. Defaulting to not execute."
+                );
+                R::default()
+            })),
         Err(err) => {
             logger::error!(
                 error = ?err,
                 "Failed to fetch rollout config from superposition. Defaulting to not execute."
             );
-            Ok(RolloutExecutionResult::default())
+            Ok(R::default())
         }
     }
 }

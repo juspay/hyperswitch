@@ -1791,6 +1791,8 @@ type = "Text"
 [checkout_payout]
 [[checkout_payout.wallet]]
 payment_method_type = "apple_pay"
+[[checkout_payout.wallet]]
+payment_method_type = "google_pay"
 [checkout_payout.connector_auth.SignatureKey]
 api_key = "Checkout Public Key"
 key1 = "Processing Channel ID"
@@ -9252,3 +9254,12 @@ key1 = "API Password"
 [betterpayment.connector_webhook_details]
 merchant_secret = "Webhook Secret"
 additional_secret = "Incoming Webhook Key"
+
+[payhound]
+[[payhound.crypto]]
+  payment_method_type = "crypto_currency"
+[payhound.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Secret"
+[payhound.connector_webhook_details]
+merchant_secret="Source verification key"

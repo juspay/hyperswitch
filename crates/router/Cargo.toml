@@ -259,8 +259,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = "3.1.5"
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", branch = "feat/aft-sender-details",package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", branch = "feat/aft-sender-details", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.11.18.2", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.11.18.2", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",
@@ -307,7 +307,9 @@ api_models = { version = "0.1.0", path = "../api_models", features = [
     "control_center_theme",
 ] }
 cards = { version = "0.1.0", path = "../cards" }
-common_enums = { version = "0.1.0", path = "../common_enums", features = ["diesel"] }
+common_enums = { version = "0.1.0", path = "../common_enums", features = [
+    "diesel",
+] }
 common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "signals",
     "async_ext",
@@ -316,7 +318,9 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
     "diesel",
 ] }
-common_types = { version = "0.1.0", path = "../common_types", features = ["diesel"] }
+common_types = { version = "0.1.0", path = "../common_types", features = [
+    "diesel",
+] }
 deja = { git = "https://github.com/juspay/deja", rev = "3fe15f88537c4bf4375504de4582217ba4e2d8e0", optional = true, default-features = false }
 deja-core = { git = "https://github.com/juspay/deja", rev = "3fe15f88537c4bf4375504de4582217ba4e2d8e0", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
