@@ -8522,12 +8522,12 @@ pub fn get_sender_details_with_billing_fallback(
                 ..individual
             }))
         }
-        Some(SenderDetails::Corporate(corporate)) => Some(SenderDetails::Corporate(
-            CorporateSenderDetails {
+        Some(SenderDetails::Corporate(corporate)) => {
+            Some(SenderDetails::Corporate(CorporateSenderDetails {
                 address: resolve_address(corporate.address),
                 ..corporate
-            },
-        )),
+            }))
+        }
     };
 
     // Names are compared with billing after trimming, so they are sent trimmed as well.

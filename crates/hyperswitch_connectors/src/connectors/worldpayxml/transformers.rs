@@ -1,6 +1,6 @@
-use api_models::{payments::PaymentConnectorInvokeDDCMetadata, sender::SenderDetails};
 #[cfg(feature = "payouts")]
 use api_models::payouts::{ApplePayDecrypt, CardPayout, GooglePayDecrypt};
+use api_models::{payments::PaymentConnectorInvokeDDCMetadata, sender::SenderDetails};
 use base64::Engine;
 use common_enums::enums;
 use common_types::payments::GpayTokenizationData;
@@ -1844,16 +1844,14 @@ fn build_worldpayxml_sender_funding_address(
     let country_code = address.get_sender_country()?;
 
     let state = match country_code {
-        common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => {
-            Some(
-                AddressDetails {
-                    state: Some(address.get_sender_state()?),
-                    country: Some(country_code),
-                    ..Default::default()
-                }
-                .to_state_code()?,
-            )
-        }
+        common_enums::CountryAlpha2::US | common_enums::CountryAlpha2::CA => Some(
+            AddressDetails {
+                state: Some(address.get_sender_state()?),
+                country: Some(country_code),
+                ..Default::default()
+            }
+            .to_state_code()?,
+        ),
         _ => address.state.clone(),
     };
 
