@@ -3763,13 +3763,6 @@ function threeDsRedirection(
             });
           break;
 
-        case "novalnet":
-          cy.get("form", { timeout: constants.WAIT_TIME })
-            .should("exist")
-            .then(() => {
-              cy.get('input[id="submit"]').click();
-            });
-          break;
         case "nuvei":
           cy.get("#btn1", { timeout: constants.WAIT_TIME })
             .should("be.visible")
@@ -3807,6 +3800,7 @@ function threeDsRedirection(
             });
           break;
 
+        case "novalnet":
         case "worldpay":
         case "worldpayxml":
           cy.get("iframe", { timeout: constants.WAIT_TIME })
