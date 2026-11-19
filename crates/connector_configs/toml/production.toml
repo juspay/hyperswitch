@@ -1797,6 +1797,8 @@ payment_method_type = "google_pay"
 api_key = "Checkout Public Key"
 key1 = "Processing Channel ID"
 api_secret = "Checkout API Secret Key"
+[checkout_payout.connector_webhook_details]
+merchant_secret = "Source verification key"
 [checkout_payout.metadata.connector_currency_account_id]
 name = "connector_currency_account_id"
 label = "Checkout Currency Account ID"
