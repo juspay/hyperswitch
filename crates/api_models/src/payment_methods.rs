@@ -827,7 +827,6 @@ pub enum RawWalletDetail {
         #[schema(value_type = String)]
         expiry_year: hyperswitch_masking::Secret<String>,
         /// Available once for the session token; null after consumption or expiry.
-        #[serde(default)]
         #[schema(value_type = Option<ApplePayCryptogramData>)]
         payment_data: Option<common_types::payments::ApplePayCryptogramData>,
     },
