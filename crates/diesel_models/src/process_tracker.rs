@@ -337,6 +337,10 @@ pub mod business_status {
     /// recorded on it, so the recovery request is not decided and the invoice needs a manual check
     pub const RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC: &str = "RECOVERY_REQUEST_INVOICE_OUT_OF_SYNC";
 
+    /// The grace window of the invoice cannot be worked out, so no retry is decided
+    pub const RECOVERY_REQUEST_GRACE_WINDOW_UNRESOLVED: &str =
+        "RECOVERY_REQUEST_GRACE_WINDOW_UNRESOLVED";
+
     /// A reported transaction was recorded and decided, but the merchant was not told: outgoing
     /// webhooks are off, or the profile has no webhook URL
     pub const RECOVERY_REQUEST_WEBHOOK_DISABLED: &str = "RECOVERY_REQUEST_WEBHOOK_DISABLED";
