@@ -209,7 +209,12 @@ enum FrameValues {
 fn parse_frame(frame: Frame) -> MetricsResult<MetricSeries> {
     let labels = frame
         .schema
-        .and_then(|schema| schema.fields.into_iter().find_map(|field| field.labels))
+        .and_then(|schema| {
+            schema
+                .fields
+                .into_iter()
+                .find_map(|field| field.labels.filter(|labels| !labels.is_empty()))
+        })
         .unwrap_or_default();
     let values = frame
         .data

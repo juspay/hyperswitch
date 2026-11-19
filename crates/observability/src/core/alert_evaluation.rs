@@ -169,7 +169,7 @@ async fn fetch_window<P: MetricsProvider>(
     Ok((series, window, last))
 }
 
-fn alarm(
+fn rule_run(
     rule: &RuleDefinition,
     evaluation: Evaluation,
     now: PrimitiveDateTime,
@@ -204,21 +204,30 @@ async fn evaluate_rule(
     now: PrimitiveDateTime,
 ) -> Vec<RuleRun> {
     let settings = state.conf.alert.get_inner();
-    let result = match &rule.config.query {
-        AlertQuery::GrafanaCloudwatch(query) => {
-            let provider =
-                GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
-            evaluate_with(&provider, state, rule, query, now).await
-        }
-        AlertQuery::GrafanaLoki(query) => {
-            let provider = GrafanaLoki::new(settings.grafana.clone(), state.conf.proxy.clone());
-            evaluate_with(&provider, state, rule, query, now).await
+    let result = async {
+        let uid = &settings
+            .datasources
+            .get(&rule.config.query.metric_source())
+            .ok_or(EvaluatorError::UnexpectedResponse)
+            .attach_printable("rule metric source is not configured")?
+            .uid;
+        match &rule.config.query {
+            AlertQuery::GrafanaCloudwatch(query) => {
+                let provider =
+                    GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
+                AlertEvaluator::evaluate(&provider, rule, query, uid, now).await
+            }
+            AlertQuery::GrafanaLoki(query) => {
+                let provider = GrafanaLoki::new(settings.grafana.clone(), state.conf.proxy.clone());
+                AlertEvaluator::evaluate(&provider, rule, query, uid, now).await
+            }
         }
     }
+    .await
     .and_then(|evaluations| {
         evaluations
             .into_iter()
-            .map(|evaluation| alarm(rule, evaluation, now))
+            .map(|evaluation| rule_run(rule, evaluation, now))
             .collect::<EvaluatorResult<Vec<_>>>()
     });
     match result {
@@ -245,24 +254,6 @@ async fn evaluate_rule(
             }]
         }
     }
-}
-
-async fn evaluate_with<Q: Send + Sync>(
-    evaluator: &impl AlertEvaluator<Q>,
-    state: &AppState,
-    rule: &RuleDefinition,
-    query: &Q,
-    now: PrimitiveDateTime,
-) -> EvaluatorResult<Vec<Evaluation>> {
-    let datasource = state
-        .conf
-        .alert
-        .get_inner()
-        .datasources
-        .get(&rule.config.query.metric_source())
-        .ok_or(EvaluatorError::UnexpectedResponse)
-        .attach_printable("rule metric source is not configured")?;
-    evaluator.evaluate(rule, query, &datasource.uid, now).await
 }
 
 fn evaluate_series(
@@ -297,7 +288,6 @@ fn evaluate_series(
             breach: None,
             window,
             labels,
-            logs: Vec::new(),
         });
     };
     if points
@@ -319,7 +309,6 @@ fn evaluate_series(
                 breach: Some(threshold.clone()),
                 window,
                 labels,
-                logs: Vec::new(),
             });
         }
     }
@@ -330,7 +319,6 @@ fn evaluate_series(
         breach: None,
         window,
         labels,
-        logs: Vec::new(),
     })
 }
 

@@ -87,7 +87,6 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
 enum MetricReply {
     Value(f64),
     Series(&'static [(&'static str, f64)]),
-    Logs(&'static str),
     NoData,
     Failure,
 }
@@ -185,16 +184,6 @@ async fn metric_server(
                             })
                             .collect::<Vec<_>>();
                         ("200 OK", json!({"results":{"A":{"frames":frames}}}))
-                    }
-                    MetricReply::Logs(line) => {
-                        let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
-                        (
-                            "200 OK",
-                            json!({"results":{"A":{"frames":[{
-                                "schema":{"fields":[{"name":"labels"},{"name":"Time"},{"name":"Line"}]},
-                                "data":{"values":[[{"app":"router"}],[to - 30_000],[line]]}
-                            }]}}}),
-                        )
                     }
                     MetricReply::NoData => ("200 OK", json!({"results":{"A":{"frames":[]}}})),
                     MetricReply::Failure => (
@@ -889,16 +878,9 @@ fn refused_failed_and_successful_deliveries_are_isolated_and_ordered() {
 fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert() {
     EVALUATOR_RUNTIME.block_on(async {
         let expr = r#"sum(count_over_time({app="router"} |= "error" [1m]))"#;
-        let logs = r#"{app="router"} |= "error""#;
         let (base_url, mut events, _) = metric_server(
-            2,
-            HashMap::from([
-                (expr.to_owned(), MetricReply::Value(7.0)),
-                (
-                    logs.to_owned(),
-                    MetricReply::Logs("ERROR payment <pay_1> failed"),
-                ),
-            ]),
+            1,
+            HashMap::from([(expr.to_owned(), MetricReply::Value(7.0))]),
             false,
         )
         .await;
@@ -915,8 +897,7 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
                             "datasource": "grafana_loki",
                             "expr": expr,
                             "period": 60,
-                            "context": {"Service": "hyperswitch-router"},
-                            "logs": logs
+                            "context": {"Service": "hyperswitch-router"}
                         },
                         "thresholds": {"severities": {"critical": {
                             "threshold": 0,
@@ -951,11 +932,10 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
         assert!(message.contains("Context:\nService: hyperswitch-router\n"));
         assert!(message.contains("Condition: value > 0\n"));
         assert!(message.contains("Latest value: 7\n"));
-        assert!(message.contains(" UTC | ERROR payment <pay_1> failed\n"));
         assert!(message.ends_with("Definition: loki-rule\n"));
         assert!(!message.contains(expr));
         let mut requests = HashMap::new();
-        while requests.len() < 2 {
+        while requests.is_empty() {
             if let MetricEvent::Started(query, request) = event(&mut events).await {
                 requests.insert(query, request);
             }
@@ -973,21 +953,6 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
                 .parse::<i64>()
                 .unwrap()
                 - requests[expr]["from"]
-                    .as_str()
-                    .unwrap()
-                    .parse::<i64>()
-                    .unwrap(),
-            60_000
-        );
-        assert_eq!(requests[logs]["queries"][0]["direction"], "backward");
-        assert_eq!(requests[logs]["queries"][0]["maxLines"], 3);
-        assert_eq!(
-            requests[logs]["to"]
-                .as_str()
-                .unwrap()
-                .parse::<i64>()
-                .unwrap()
-                - requests[logs]["from"]
                     .as_str()
                     .unwrap()
                     .parse::<i64>()
@@ -1074,76 +1039,6 @@ fn loki_each_series_is_its_own_instance_and_only_breaching_instances_alert() {
                 "ALARM: Router 5xx (flow={})\n",
                 rule["labels"]["flow"].as_str().unwrap()
             ))));
-    });
-}
-
-#[test]
-fn loki_logs_are_fetched_only_on_breach_and_a_failed_log_query_still_alerts() {
-    EVALUATOR_RUNTIME.block_on(async {
-        let expr = r#"sum(count_over_time({app="router"} |= "error" [1m]))"#;
-        let logs = r#"{app="router"} |= "error""#;
-        for (threshold, requests, level) in [(0.0, 2, "critical"), (100.0, 1, "normal")] {
-            let (base_url, mut events, _) = metric_server(
-                requests,
-                HashMap::from([
-                    (expr.to_owned(), MetricReply::Value(7.0)),
-                    (logs.to_owned(), MetricReply::Failure),
-                ]),
-                false,
-            )
-            .await;
-            let (state, calls) = evaluator_state(
-                &base_url,
-                vec![json!({
-                    "id": "loki-rule",
-                    "name": "Router errors",
-                    "config": {
-                        "interval_seconds": 60,
-                        "query": {
-                            "datasource": "grafana_loki",
-                            "expr": expr,
-                            "period": 60,
-                            "logs": logs
-                        },
-                        "thresholds": {"severities": {"critical": {
-                            "threshold": threshold,
-                            "comparison_operator": "GreaterThanThreshold",
-                            "description": "Router logged errors",
-                            "destination": "oncall"
-                        }}}
-                    }
-                })],
-                &[("oncall", ChatReply::Delivered)],
-            )
-            .await;
-            let body = serde_json::to_value(
-                observability::core::alert_evaluation::notify(state, MetricSource::GrafanaLoki)
-                    .await
-                    .unwrap(),
-            )
-            .unwrap();
-            assert_eq!(body["rules"][0]["status"], "evaluated");
-            assert_eq!(body["rules"][0]["level"], level);
-            let mut started = Vec::new();
-            while let Ok(event) = events.try_recv() {
-                if let MetricEvent::Started(query, _) = event {
-                    started.push(query);
-                }
-            }
-            if requests == 2 {
-                assert_eq!(body["rules"][0]["delivered"], true);
-                assert!(body["rules"][0]["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains("Latest logs:\nNone\n"));
-                assert_eq!(started, [expr, logs]);
-                assert_eq!(calls["oncall"].lock().unwrap().len(), 1);
-            } else {
-                assert!(body["rules"][0].get("delivered").is_none());
-                assert_eq!(started, [expr]);
-                assert!(calls["oncall"].lock().unwrap().is_empty());
-            }
-        }
     });
 }
 
