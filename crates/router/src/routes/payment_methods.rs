@@ -1434,7 +1434,7 @@ pub async fn default_payment_method_set_api(
             )
             .await?;
             Ok(services::ApplicationResponse::Json(
-                payment_methods::CustomerDefaultPaymentMethodResponse {
+                api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
                     customer_id: updated_customer.get_id().clone(),
                     default_payment_method_id: updated_customer.default_payment_method_id,
                     payment_method_type: payment_method.get_payment_method_subtype(),
@@ -1510,7 +1510,7 @@ pub async fn default_payment_method_set_api(
                     )
                     .await?;
                     Ok(services::ApplicationResponse::Json(
-                        payment_methods::CustomerDefaultPaymentMethodResponse {
+                        api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
                             customer_id: updated_customer.id,
                             default_payment_method_id: updated_customer.default_payment_method_id,
                             payment_method_subtype: payment_method.get_payment_method_subtype(),
