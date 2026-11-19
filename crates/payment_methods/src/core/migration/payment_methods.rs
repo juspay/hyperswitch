@@ -785,12 +785,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = controller
-            .set_default_payment_method(
-                &merchant_id,
-                &customer_id,
-                payment_method_id.to_owned(),
-                initiator,
-            )
+            .set_default_payment_method(&merchant_id, customer, &response, initiator)
             .await
             .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }

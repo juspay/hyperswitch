@@ -25,13 +25,13 @@ use router_env::{instrument, logger, Flow};
 use super::app::{AppState, SessionState};
 #[cfg(feature = "v2")]
 use super::metrics;
-#[cfg(feature = "v1")]
-use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use crate::core::{
     customers,
     payment_methods::{batch_retrieve, tokenize},
 };
+#[cfg(feature = "v1")]
+use crate::core::{payments::helpers as payments_helpers, utils::validate_legacy_endpoint_access};
 use crate::{
     core::{
         api_locking,
@@ -1387,14 +1387,42 @@ pub async fn default_payment_method_set_api(
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             // TODO: Enable it back once combined PML API is provisioned
             // validate_legacy_endpoint_access(&state, &auth.platform).await?;
+            let provider = auth.platform.get_provider();
+            let merchant_id = provider.get_account().get_id();
+            let db = state.store.as_ref();
+            let use_merchant_reference_id =
+                payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                    &state,
+                    provider,
+                    Some(customer_id),
+                )
+                .await;
+            let customer = db
+                .find_customer_by_customer_id_merchant_id(
+                    customer_id,
+                    merchant_id,
+                    provider.get_key_store(),
+                    provider.get_account().storage_scheme,
+                    use_merchant_reference_id,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+            let payment_method = db
+                .find_payment_method(
+                    provider.get_key_store(),
+                    &default_payment_method.payment_method_id,
+                    provider.get_account().storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
             cards::PmCards {
                 state: &state,
-                provider: auth.platform.get_provider(),
+                provider,
             }
             .set_default_payment_method(
-                auth.platform.get_provider().get_account().get_id(),
-                customer_id,
-                default_payment_method.payment_method_id,
+                merchant_id,
+                customer,
+                &payment_method,
                 auth.platform.get_initiator(),
             )
             .await
@@ -1432,19 +1460,39 @@ pub async fn default_payment_method_set_api(
                 default_payment_method.payment_method_id.clone(),
             );
             async move {
-                record_payment_method_metrics(
-                    "set_default",
+                record_payment_method_metrics("set_default", async {
+                    let provider = auth.platform.get_provider();
+                    let merchant_id = provider.get_account().get_id();
+                    let db = state.store.as_ref();
+                    let customer = db
+                        .find_customer_by_global_id_merchant_id(
+                            &customer_id,
+                            merchant_id,
+                            provider.get_key_store(),
+                            provider.get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+                    let payment_method = db
+                        .find_payment_method(
+                            provider.get_key_store(),
+                            &payment_method_id,
+                            provider.get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                     cards::PmCards {
                         state: &state,
-                        provider: auth.platform.get_provider(),
+                        provider,
                     }
                     .set_default_payment_method(
-                        auth.platform.get_provider().get_account().get_id(),
-                        &customer_id,
-                        &payment_method_id,
+                        merchant_id,
+                        customer,
+                        &payment_method,
                         auth.platform.get_initiator(),
-                    ),
-                )
+                    )
+                    .await
+                })
                 .await
             }
         },

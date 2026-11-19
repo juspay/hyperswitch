@@ -281,21 +281,13 @@ pub trait PaymentMethodsController {
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<bool>;
 
-    #[cfg(feature = "v1")]
+    #[cfg(any(feature = "v1", feature = "v2"))]
+    /// Set the default using existing records without fetching either record again.
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
-        customer_id: &id_type::CustomerId,
-        payment_method_id: String,
-        initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
-    ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
-
-    #[cfg(feature = "v2")]
-    async fn set_default_payment_method(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        customer_id: &id_type::GlobalCustomerId,
-        payment_method_id: &id_type::GlobalPaymentMethodId,
+        customer: hyperswitch_domain_models::customer::Customer,
+        payment_method: &payment_methods::PaymentMethod,
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>;
 
