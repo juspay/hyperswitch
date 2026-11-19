@@ -11,12 +11,12 @@ use hyperswitch_masking::PeekInterface;
 
 use crate::{
     domain::notifier::{
-        chat::{ChatFileOutcome, ChatFileUpload, ChatNotification, ChatOutcome},
+        chat::{ChatFileOutcome, ChatFileUpload, ChatNotification, ChatOutcome, ChatUpdate},
         email::{EmailNotification, EmailOutcome},
     },
     errors::{ObservabilityApiResult, ObservabilityError},
     state::AppState,
-    types::{ChatNotifyRequest, ChatUploadRequest, EmailNotifyRequest},
+    types::{ChatNotifyRequest, ChatUpdateRequest, ChatUploadRequest, EmailNotifyRequest},
 };
 
 /// Deliver a chat message to the named destination.
@@ -25,6 +25,11 @@ pub async fn notify_chat(
     destination: &str,
     request: ChatNotifyRequest,
 ) -> ObservabilityApiResult<ChatOutcome> {
+    // An alert's body sits in a block the provider refuses when empty.
+    if request.alert.is_some() && request.text.peek().trim().is_empty() {
+        Err(report!(ObservabilityError::InvalidRequest))?
+    }
+
     state
         .chat
         .get(destination)
@@ -36,6 +41,38 @@ pub async fn notify_chat(
         .notify(ChatNotification {
             text: request.text,
             reply_to: request.reply_to,
+            alert: request.alert,
+        })
+        .await
+}
+
+/// Replace the content of an earlier message at the named destination.
+pub async fn update_chat(
+    state: AppState,
+    destination: &str,
+    request: ChatUpdateRequest,
+) -> ObservabilityApiResult<ChatOutcome> {
+    if request.message_id.trim().is_empty()
+        // `resolved` recolours an alert's rail; a plain message has none.
+        || (request.resolved && request.alert.is_none())
+        || (request.alert.is_some() && request.text.peek().trim().is_empty())
+    {
+        Err(report!(ObservabilityError::InvalidRequest))?
+    }
+
+    state
+        .chat
+        .get(destination)
+        .ok_or_else(|| {
+            report!(ObservabilityError::UnknownDestination {
+                destination: destination.to_owned(),
+            })
+        })?
+        .update(ChatUpdate {
+            message_id: request.message_id,
+            text: request.text,
+            alert: request.alert,
+            resolved: request.resolved,
         })
         .await
 }
