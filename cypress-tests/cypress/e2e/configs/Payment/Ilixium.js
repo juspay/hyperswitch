@@ -20,6 +20,12 @@ const threeDsCardDetails = {
   card_cvc: "111",
 };
 
+// Message Ilixium returns (as `error_message`) for the declined-access
+// responses, shared by every failing flow below. The reason code ("4") is
+// returned separately as `error_code`.
+const ACCESS_DENIED_ERROR_MESSAGE =
+  "Access to this functionality has been denied";
+
 // Ilixium requires the customer's date of birth (schema-mandatory on
 // accounts that enforce it; omitting it gets rejected with `VA8`). The
 // connector reads it from the standard top-level `customer.date_of_birth`
@@ -107,7 +113,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -128,7 +134,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -146,7 +152,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -202,7 +208,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -221,7 +227,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -239,7 +245,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -257,7 +263,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -369,7 +375,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -404,7 +410,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -455,7 +461,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
@@ -479,7 +485,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_message: "Access to this functionality has been denied",
+          error_message: ACCESS_DENIED_ERROR_MESSAGE,
           error_code: "4",
         },
       },
