@@ -91,21 +91,30 @@ pub async fn notify(
             .map(|rule| {
                 let state = state.clone();
                 async move {
-                    let mut responses = Vec::new();
-                    for run in evaluate_rule(&state, rule, now).await {
-                        let notification = match &run {
-                            RuleRun::Evaluated { notification, .. } => notification.as_ref(),
-                            RuleRun::Failed { notification, .. } => Some(notification),
-                        };
-                        let delivery = match notification {
-                            Some(notification) => {
-                                Some(deliver_notification(state.clone(), notification).await)
-                            }
-                            None => None,
-                        };
-                        responses.push(AlertRuleEvaluationResponse::from((rule, run, delivery)));
-                    }
-                    responses
+                    join_all(
+                        evaluate_rule(&state, rule, now)
+                            .await
+                            .into_iter()
+                            .map(|run| {
+                                let state = state.clone();
+                                async move {
+                                    let notification = match &run {
+                                        RuleRun::Evaluated { notification, .. } => {
+                                            notification.as_ref()
+                                        }
+                                        RuleRun::Failed { notification, .. } => Some(notification),
+                                    };
+                                    let delivery = match notification {
+                                        Some(notification) => {
+                                            Some(deliver_notification(state, notification).await)
+                                        }
+                                        None => None,
+                                    };
+                                    AlertRuleEvaluationResponse::from((rule, run, delivery))
+                                }
+                            }),
+                    )
+                    .await
                 }
             }),
     )
@@ -127,8 +136,15 @@ pub async fn evaluate_metrics<P: MetricsProvider>(
     thresholds: &AlertThresholds,
     now: PrimitiveDateTime,
 ) -> EvaluatorResult<Evaluation> {
-    let (series, window, last) =
-        fetch_window(provider, metrics_query, period, end_offset_seconds, now).await?;
+    let (series, window, last) = fetch_window(
+        provider,
+        metrics_query,
+        period,
+        end_offset_seconds,
+        LOOKBACK_SECONDS,
+        now,
+    )
+    .await?;
     evaluate_series(series, thresholds, window, last)
 }
 
@@ -137,6 +153,7 @@ async fn fetch_window<P: MetricsProvider>(
     metrics_query: P::MetricsQuery,
     period: u32,
     end_offset_seconds: u32,
+    lookback_seconds: u32,
     now: PrimitiveDateTime,
 ) -> EvaluatorResult<(Vec<MetricSeries>, MetricRange, PrimitiveDateTime)> {
     if period == 0 || end_offset_seconds > 3600 {
@@ -155,7 +172,7 @@ async fn fetch_window<P: MetricsProvider>(
         .map(convert_to_pdt)
         .change_context(EvaluatorError::InvalidTimeRange)?;
     let (from, last) = to
-        .checked_sub(Duration::seconds(i64::from(LOOKBACK_SECONDS).max(period)))
+        .checked_sub(Duration::seconds(i64::from(lookback_seconds).max(period)))
         .zip(to.checked_sub(Duration::seconds(period)))
         .ok_or(EvaluatorError::InvalidTimeRange)
         .attach_printable("query evaluation time range is outside supported bounds")?;

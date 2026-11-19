@@ -30,13 +30,10 @@ impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
             },
             query.period,
             query.end_offset_seconds,
+            0,
             now,
         )
         .await?;
-        let window = MetricRange {
-            from: last,
-            ..window
-        };
         evaluate_instances(series, &rule.config.thresholds, window, last)
     }
 }
