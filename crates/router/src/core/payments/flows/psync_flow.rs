@@ -19,32 +19,15 @@ use crate::{
     types::{self, api, domain},
 };
 
-/// Keep an in-progress capture or void when an authorization or processing webhook reports authorization.
+/// Keep an in-progress capture or void when a webhook reports authorization.
 /// `current_status` must come from the payment attempt read under the payment lock.
 pub fn reconcile_webhook_payment_status(
     current_status: common_enums::AttemptStatus,
     reported_status: common_enums::AttemptStatus,
-    action: &payments::CallConnectorAction,
-    response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> common_enums::AttemptStatus {
-    use common_enums::{AttemptStatus, IncomingWebhookEventType};
+    use common_enums::AttemptStatus;
 
-    if response.is_ok()
-        && matches!(
-            action,
-            payments::CallConnectorAction::HandleResponse {
-                event_type: Some(
-                    IncomingWebhookEventType::PaymentIntentAuthorizationSuccess
-                        | IncomingWebhookEventType::PaymentIntentProcessing
-                ),
-                ..
-            } | payments::CallConnectorAction::UCSConsumeResponse {
-                event_type: IncomingWebhookEventType::PaymentIntentAuthorizationSuccess
-                    | IncomingWebhookEventType::PaymentIntentProcessing,
-                ..
-            }
-        )
-        && reported_status == AttemptStatus::Authorized
+    if reported_status == AttemptStatus::Authorized
         && matches!(
             current_status,
             AttemptStatus::CaptureInitiated | AttemptStatus::VoidInitiated
@@ -157,6 +140,11 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         // router data from `PaymentFlowData`, which does not carry this flag.
         let accept_amount_mismatch = self.accept_amount_mismatch;
         let current_status = self.status;
+        let is_webhook = matches!(
+            &call_connector_action,
+            payments::CallConnectorAction::HandleResponse { .. }
+                | payments::CallConnectorAction::UCSConsumeResponse(_)
+        );
         let mut new_router_data = match (self.request.sync_type.clone(), capture_sync_method_result)
         {
             (
@@ -166,7 +154,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 self.execute_connector_processing_step_for_each_capture(
                     state,
                     pending_connector_capture_id_list,
-                    call_connector_action.clone(),
+                    call_connector_action,
                     connector_integration,
                     return_raw_connector_response,
                     gateway_context,
@@ -180,7 +168,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     state,
                     connector_integration,
                     &self,
-                    call_connector_action.clone(),
+                    call_connector_action,
                     connector_request,
                     return_raw_connector_response,
                     gateway_context,
@@ -195,12 +183,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             &new_router_data.response,
             accept_amount_mismatch,
         );
-        new_router_data.status = reconcile_webhook_payment_status(
-            current_status,
-            new_router_data.status,
-            &call_connector_action,
-            &new_router_data.response,
-        );
+        if is_webhook && new_router_data.response.is_ok() {
+            new_router_data.status =
+                reconcile_webhook_payment_status(current_status, new_router_data.status);
+        }
 
         Ok(new_router_data)
     }

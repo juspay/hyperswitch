@@ -945,10 +945,7 @@ async fn payments_incoming_webhook_flow(
                 }
             }
             super::gateway::WebhookContent::UnifiedConnectorService(_) => {
-                payments::CallConnectorAction::UCSConsumeResponse {
-                    resource_object,
-                    event_type: event_type.into(),
-                }
+                payments::CallConnectorAction::UCSConsumeResponse(resource_object)
             }
         }
     } else {

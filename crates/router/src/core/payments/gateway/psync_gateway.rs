@@ -72,10 +72,7 @@ where
         ConnectorError,
     > {
         match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse {
-                resource_object: transform_data_bytes,
-                ..
-            } => {
+            CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
                 let webhook_content: payments_grpc::EventContent =
                     serde_json::from_slice(&transform_data_bytes)
                         .change_context(ConnectorError::ResponseHandlingFailed)

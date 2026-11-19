@@ -345,10 +345,6 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
 impl From<IncomingWebhookEvent> for common_enums::IncomingWebhookEventType {
     fn from(value: IncomingWebhookEvent) -> Self {
         match value {
-            IncomingWebhookEvent::PaymentIntentAuthorizationSuccess => {
-                Self::PaymentIntentAuthorizationSuccess
-            }
-            IncomingWebhookEvent::PaymentIntentProcessing => Self::PaymentIntentProcessing,
             IncomingWebhookEvent::PaymentIntentCaptureFailure => Self::PaymentIntentCaptureFailure,
             _ => Self::Other,
         }
