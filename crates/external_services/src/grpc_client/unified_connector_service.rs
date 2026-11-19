@@ -102,6 +102,27 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+    /// Set to "database" to use the configs table, or "superposition" to use
+    /// the Superposition service. Allows runtime switching without redeployment.
+    #[serde(default = "default_config_source")]
+    pub config_source: UcsConfigSource,
+}
+
+/// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum UcsConfigSource {
+    /// Read UCS config from the `configs` database table (legacy behavior).
+    #[default]
+    Database,
+    /// Read UCS config from Superposition service.
+    Superposition,
+}
+
+fn default_config_source() -> UcsConfigSource {
+    UcsConfigSource::Database
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
@@ -337,7 +358,7 @@ impl UnifiedConnectorServiceClient {
         };
 
         let uri: Uri = ucs_config.base_url.get_string_repr().parse().map_err(
-            |err: tonic::codegen::http::uri::InvalidUri| {
+            |err: http::uri::InvalidUri| {
                 logger::error!(error = ?err, "Failed to parse URI for Unified Connector Service");
                 UcsClientBuildError::InvalidUri(err.to_string())
             },
@@ -883,9 +904,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .capture(request)
+        Box::pin(self.payment_service_client.clone().capture(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1010,6 +1029,41 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Post Capture Void (Reverse)
+    pub async fn payment_reverse(
+        &self,
+        payment_reverse_request: payments_grpc::PaymentServiceReverseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PaymentServiceReverseResponse>>
+    {
+        let mut request = tonic::Request::new(payment_reverse_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.payment_service_client
+            .clone()
+            .reverse(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_reverse",
+                    connector_name=?connector_name,
+                    "UCS payment reverse gRPC call failed"
+                )
+            })
+    }
+
     /// Incoming webhook handle
     pub async fn incoming_webhook_handle_event(
         &self,
@@ -1051,6 +1105,7 @@ impl UnifiedConnectorServiceClient {
     /// `WebhookEventType`, without requiring credentials or making any outbound connector
     /// call. The caller uses the returned reference to resolve the merchant-connector
     /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    /// Sends `x-webhook-connector` as provider identity alongside the legacy connector metadata.
     pub async fn incoming_webhook_parse_event(
         &self,
         incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
@@ -1061,8 +1116,14 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
+        let mut metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let webhook_connector = connector_name.parse::<MetadataValue<_>>().change_context(
+            UnifiedConnectorServiceError::HeaderInjectionFailed(
+                consts::UCS_HEADER_WEBHOOK_CONNECTOR.to_string(),
+            ),
+        )?;
+        metadata.insert(consts::UCS_HEADER_WEBHOOK_CONNECTOR, webhook_connector);
         *request.metadata_mut() = metadata;
 
         self.event_service_client
@@ -1182,6 +1243,112 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Accepts (concedes) a dispute via DisputeService.Accept
+    pub async fn dispute_accept(
+        &self,
+        dispute_accept_request: payments_grpc::DisputeServiceAcceptRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::DisputeServiceAcceptResponse>>
+    {
+        let mut request = tonic::Request::new(dispute_accept_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .accept(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_accept",
+                    connector_name=?connector_name,
+                    "UCS dispute accept gRPC call failed"
+                )
+            })
+    }
+
+    /// Submits dispute evidence via DisputeService.SubmitEvidence
+    pub async fn dispute_submit_evidence(
+        &self,
+        dispute_submit_evidence_request: payments_grpc::DisputeServiceSubmitEvidenceRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::DisputeServiceSubmitEvidenceResponse>,
+    > {
+        let mut request = tonic::Request::new(dispute_submit_evidence_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .submit_evidence(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_submit_evidence",
+                    connector_name=?connector_name,
+                    "UCS dispute submit evidence gRPC call failed"
+                )
+            })
+    }
+
+    /// Defends a dispute via DisputeService.Defend
+    pub async fn dispute_defend(
+        &self,
+        dispute_defend_request: payments_grpc::DisputeServiceDefendRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::DisputeServiceDefendResponse>>
+    {
+        let mut request = tonic::Request::new(dispute_defend_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.dispute_service_client
+            .clone()
+            .defend(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="dispute_defend",
+                    connector_name=?connector_name,
+                    "UCS dispute defend gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payout Create
     pub async fn payout_create(
         &self,
@@ -1281,9 +1448,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payout_service_client
-            .clone()
-            .transfer(request)
+        // Box the transfer future: the merged UCS proto request types are large enough
+        // to trip clippy::large_futures when this is awaited inline.
+        Box::pin(self.payout_service_client.clone().transfer(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1571,6 +1738,60 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Initiate a surcharge refund using the original surcharge transaction ID.
+    pub async fn surcharge_refund_init(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundInitRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundInitResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_init(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+    }
+
+    /// Complete a surcharge refund using the ID returned by Init.
+    pub async fn surcharge_refund_complete(
+        &self,
+        data: payments_grpc::SurchargeServiceSurchargeRefundCompleteRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::SurchargeServiceSurchargeRefundCompleteResponse>,
+    > {
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let mut request = tonic::Request::new(data);
+        *request.metadata_mut() = build_unified_connector_service_grpc_headers_for_surcharge(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+        self.surcharge_service_client
+            .clone()
+            .surcharge_refund_complete(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+    }
+
     /// Performs a pre-authorization risk check via the FRM Service.
     pub async fn frm_pre_risk_check(
         &self,
@@ -1592,9 +1813,7 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.frm_service_client
-            .clone()
-            .pre_risk_check(request)
+        Box::pin(self.frm_service_client.clone().pre_risk_check(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1673,9 +1892,10 @@ fn build_unified_connector_service_grpc_headers_for_authentication(
 
 #[cfg(test)]
 mod authentication_header_tests {
+    use std::borrow::Cow;
+
     use super::*;
     use crate::grpc_client::LineageIds;
-    use std::borrow::Cow;
 
     #[test]
     fn authentication_headers_preserve_config_and_vault_routing() {

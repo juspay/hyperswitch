@@ -3,7 +3,10 @@
 use std::collections::HashMap;
 
 use common_enums::enums;
-use common_utils::{impl_to_sql_from_sql_json, types::MinorUnit};
+#[cfg(feature = "diesel")]
+use common_utils::impl_to_sql_from_sql_json;
+use common_utils::types::MinorUnit;
+#[cfg(feature = "diesel")]
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::Secret;
@@ -11,19 +14,9 @@ use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Fee information for Split Payments to be charged on the payment being collected for Adyen
@@ -35,21 +28,12 @@ pub struct AdyenSplitData {
     #[smithy(value_type = "Vec<AdyenSplitItem>")]
     pub split_items: Vec<AdyenSplitItem>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AdyenSplitData);
 
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// Data for the split items
@@ -72,22 +56,13 @@ pub struct AdyenSplitItem {
     #[smithy(value_type = "Option<String>")]
     pub description: Option<String>,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AdyenSplitItem);
 
 /// Fee information to be charged on the payment being collected for sub-merchant via xendit
-#[derive(
-    Serialize,
-    Deserialize,
-    Debug,
-    Clone,
-    PartialEq,
-    Eq,
-    FromSqlRow,
-    AsExpression,
-    ToSchema,
-    SmithyModel,
-)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, ToSchema, SmithyModel)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(deny_unknown_fields)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct XenditSplitSubMerchantData {
@@ -95,6 +70,7 @@ pub struct XenditSplitSubMerchantData {
     #[smithy(value_type = "String")]
     pub for_user_id: String,
 }
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
 
 /// Acquirer configuration
@@ -123,8 +99,9 @@ pub struct AcquirerConfig {
     pub acquirer_country_code: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs
 pub struct AcquirerConfigBucket {
     /// The default acquirer config id
@@ -146,6 +123,7 @@ pub struct AcquirerConfigBucket {
     pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(AcquirerConfigBucket);
 
 /// Merchant connector details
@@ -174,8 +152,9 @@ pub struct ConnectorResponseData {
     pub raw_connector_response: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 #[serde(rename_all = "snake_case")]
 /// Contains the data relevant to the specified GSM feature, if applicable.
 /// For example, if the `feature` is `Retry`, this will include configuration
@@ -186,8 +165,9 @@ pub enum GsmFeatureData {
 }
 
 /// Represents the data associated with a retry feature in GSM.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, AsExpression, ToSchema)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 pub struct RetryFeatureData {
     /// indicates if step_up retry is possible
     pub step_up_possible: bool,
@@ -200,7 +180,9 @@ pub struct RetryFeatureData {
     pub decision: common_enums::GsmDecision,
 }
 
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(GsmFeatureData);
+#[cfg(feature = "diesel")]
 impl_to_sql_from_sql_json!(RetryFeatureData);
 
 impl GsmFeatureData {

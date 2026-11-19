@@ -524,15 +524,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
         let workflow = ForwardCompatWorkflowBuilder::new().load_tracking_data(tracking_data);
 
         let merchant_id = workflow.merchant_id()?.clone();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await?;
 
-        let merchant_account = db
+        let merchant_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
         let workflow = workflow.load_context(key_store, merchant_account);
@@ -557,12 +556,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                 "Finished payment method modular compatibility PT; already forward compatible"
             );
         } else {
-            workflow
-                .prepare_db_compat()?
-                .apply_locker_compat(state, &process.id)
-                .await?
-                .mark_complete(db)
-                .await?;
+            Box::pin(
+                workflow
+                    .prepare_db_compat()?
+                    .apply_locker_compat(state, &process.id),
+            )
+            .await?
+            .mark_complete(db)
+            .await?;
 
             db.as_scheduler()
                 .finish_process_with_business_status(process, "COMPLETED_BY_PT")

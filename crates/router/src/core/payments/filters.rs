@@ -6,8 +6,6 @@ use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use strum::IntoEnumIterator;
 
-#[cfg(feature = "v1")]
-use crate::types::storage::enums as storage_enums;
 use crate::{
     core::{
         admin,
@@ -43,7 +41,8 @@ pub async fn get_platform_payment_filters(
     let db = state.store.as_ref();
 
     // Every connected merchant lives under the platform's organization.
-    let merchant_accounts = db
+    let merchant_accounts = state
+        .accounts_store
         .list_merchant_accounts_by_organization_id(
             platform.get_provider().get_account().get_org_id(),
         )
@@ -60,11 +59,10 @@ pub async fn get_platform_payment_filters(
         account.merchant_account_type == common_enums::MerchantAccountType::Connected
     }) {
         let merchant_id = connected_account.get_id().clone();
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -168,10 +166,10 @@ pub async fn get_filters_for_payments(
     let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &time_range,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -179,9 +177,9 @@ pub async fn get_filters_for_payments(
     let filters = db
         .get_filters_for_payments(
             pi.as_slice(),
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             // since OLAP doesn't have KV. Force to get the data from PSQL.
-            storage_enums::MerchantStorageScheme::PostgresOnly,
+            domain::ProcessorStorageScheme::postgres_only(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -298,7 +296,7 @@ pub async fn get_aggregates_for_payments(
     let db = state.store.as_ref();
     let intent_status_with_count = db
         .get_intent_status_with_count(
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             profile_id_list,
             &time_range,
         )

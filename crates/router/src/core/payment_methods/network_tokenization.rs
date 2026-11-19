@@ -21,6 +21,7 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
+use hyperswitch_interfaces::consts::USER_AGENT;
 use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 use josekit::jwe;
 
@@ -99,6 +100,7 @@ async fn call_network_token_service(
             .clone()
             .into_masked(),
     );
+    request.add_header(headers::USER_AGENT, USER_AGENT.to_string().into());
     request.add_default_headers();
 
     if let Some(body_content) = body {
@@ -417,7 +419,7 @@ pub async fn make_card_network_tokenization_request(
 
     let payload_bytes = payload.as_bytes();
     if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
-        record_operation_time(
+        Box::pin(record_operation_time(
             async {
                 mk_tokenization_req(
                     state,
@@ -432,7 +434,7 @@ pub async fn make_card_network_tokenization_request(
             },
             &metrics::GENERATE_NETWORK_TOKEN_TIME,
             router_env::metric_attributes!(("locker", "rust")),
-        )
+        ))
         .await
     } else {
         Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
@@ -469,7 +471,7 @@ pub async fn make_card_network_tokenization_request(
         )),
     }?;
 
-    let (resp, network_token_req_ref_id) = record_operation_time(
+    let (resp, network_token_req_ref_id) = Box::pin(record_operation_time(
         async {
             generate_network_token(
                 state,
@@ -482,7 +484,7 @@ pub async fn make_card_network_tokenization_request(
         },
         &metrics::GENERATE_NETWORK_TOKEN_TIME,
         router_env::metric_attributes!(("locker", "rust")),
-    )
+    ))
     .await?;
 
     let network_token_details = NetworkTokenDetails {
@@ -1294,7 +1296,7 @@ pub async fn get_altid_for_card(
                 auth_ref_number,
             };
 
-            let altid_response = record_operation_time(
+            let altid_response = Box::pin(record_operation_time(
                 async {
                     fetch_altid_and_cryptogram(
                         state,
@@ -1307,7 +1309,7 @@ pub async fn get_altid_for_card(
                 },
                 &metrics::FETCH_ALTID_TIME,
                 router_env::metric_attributes!(("service", "altid")),
-            )
+            ))
             .await?;
 
             Ok(altid_response.into())
@@ -1332,11 +1334,13 @@ pub async fn evaluate_and_fetch_altid(
         (payment_method_data, currency, is_guest_checkout)
     {
         match AltIdDecision::evaluate(state, card, business_profile, *connector) {
-            AltIdDecision::Proceed => get_altid_for_card(state, card, amount, currency, None)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch Alt-ID for guest checkout")
-                .map(Some),
+            AltIdDecision::Proceed => {
+                Box::pin(get_altid_for_card(state, card, amount, currency, None))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch Alt-ID for guest checkout")
+                    .map(Some)
+            }
             AltIdDecision::Skip => Ok(None),
             AltIdDecision::Error => Err(report!(errors::ApiErrorResponse::InternalServerError))
                 .attach_printable(

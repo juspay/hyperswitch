@@ -449,12 +449,11 @@ impl NewUserMerchant {
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
+        let merchant_id = self.get_merchant_id();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         if state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &self.get_merchant_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .is_ok()
         {
@@ -545,18 +544,19 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
@@ -593,18 +593,19 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.id,
                 &merchant_key_store,
@@ -929,12 +930,10 @@ impl NewUser {
                         platform_merchant_id: merchant_id.clone(),
                     };
 
+                let organization_id = self.new_merchant.new_organization.get_organization_id();
                 state
                     .accounts_store
-                    .update_organization_by_org_id(
-                        &self.new_merchant.new_organization.get_organization_id(),
-                        org_update,
-                    )
+                    .update_organization_by_org_id(&organization_id, org_update)
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to update organization with platform_merchant_id")?;
@@ -997,7 +996,8 @@ impl NewUser {
 // runs live (collides with the record-phase user, rolling signup back).
 #[cfg_attr(
     feature = "deja",
-    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,)
+    deja::id(component = "router::user", operation = "generate_user_id", codec = SerdeCodec,
+        on_miss = { use common_utils::synth_shape::Synthesize as _; __deja_miss.uuid().to_string() },)
 )]
 fn generate_user_id() -> String {
     common_utils::generate_uuid_v4().to_string()
@@ -1403,6 +1403,23 @@ impl RecoveryCodes {
             component = "router::user",
             operation = "generate_recovery_codes",
             codec = SerdeCodec,
+            // Codes shaped as the body builds them: two alphanumeric halves joined
+            // by a hyphen. One carved draw keeps the codes distinct.
+            on_miss = {
+                use common_utils::synth_shape::Synthesize as _;
+                __deja_miss
+                    .alphanumeric_words(
+                        consts::user::RECOVERY_CODES_COUNT,
+                        consts::user::RECOVERY_CODE_LENGTH,
+                    )
+                    .into_iter()
+                    .map(|word| {
+                        let (head, tail) =
+                            word.split_at(consts::user::RECOVERY_CODE_LENGTH / 2);
+                        format!("{head}-{tail}")
+                    })
+                    .collect()
+            },
         )
     )]
     fn generate_new_inner() -> Vec<String> {

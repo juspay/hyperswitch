@@ -68,6 +68,7 @@ use crate::{consts, types::payment_methods as pm_types};
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
     pub payment_intent: Option<storage::PaymentIntent>,
+    pub business_profile: Option<domain::Profile>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -78,6 +79,7 @@ impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
@@ -90,6 +92,7 @@ impl PaymentMethodFetchData {
     ) -> Self {
         Self {
             payment_intent: None,
+            business_profile: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
@@ -721,7 +724,7 @@ pub fn generate_payment_method_response(
                     }
                     Some(common_enums::PaymentMethodType::Paypal) => Some(
                         api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
-                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                            Box::new(api_models::payments::PaypalRedirection::from(info)),
                         )),
                     ),
                     _ => None,
@@ -788,6 +791,7 @@ pub fn generate_payment_method_response(
         raw_payment_method_data,
         billing,
         acknowledgement_status,
+        fingerprint_id: None,
     };
 
     Ok(resp)
@@ -997,12 +1001,7 @@ impl
             Option<id_type::GlobalPaymentMethodId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1029,20 +1028,20 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1096,22 +1095,19 @@ impl
     transformers::ForeignTryFrom<(
         domain::PaymentMethod,
         Option<id_type::GlobalPaymentMethodId>,
+        Option<id_type::CustomerId>,
     )> for PaymentMethodResponseItem
 {
     type Error = error_stack::Report<errors::ValidationError>;
 
     fn foreign_try_from(
-        (item, default_payment_method_id): (
+        (item, default_payment_method_id, merchant_customer_reference_id): (
             domain::PaymentMethod,
             Option<id_type::GlobalPaymentMethodId>,
+            Option<id_type::CustomerId>,
         ),
     ) -> Result<Self, Self::Error> {
-        // For payment methods that are active we should always have the payment method subtype
-        let payment_method_subtype =
-            item.payment_method_subtype
-                .ok_or(errors::ValidationError::MissingRequiredField {
-                    field_name: "payment_method_subtype".into(),
-                })?;
+        let payment_method_subtype = item.payment_method_subtype;
 
         // For payment methods that are active we should always have the payment method type
         let payment_method_type =
@@ -1138,20 +1134,20 @@ impl
                 ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
-                        api_enums::PaymentMethodType::ApplePay => {
+                        Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::ApplePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::GooglePay => {
+                        Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::GooglePay(Box::new(info)),
                             ))
                         }
-                        api_enums::PaymentMethodType::Paypal => {
+                        Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
                                 WalletPaymentMethodData::PayPal(Box::new(
-                                    api_models::payments::PaypalRedirection { email: info.email },
+                                    api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
                         }
@@ -1222,6 +1218,7 @@ impl
                 .change_context(errors::ValidationError::MissingRequiredField {
                     field_name: "customer_id".into(),
                 })?,
+            merchant_customer_reference_id,
             payment_method_type,
             payment_method_subtype,
             created: item.created_at,
@@ -1406,7 +1403,7 @@ pub async fn call_modular_payment_method_update(
         state
             .conf
             .internal_merchant_id_profile_id_auth
-            .internal_api_key
+            .outbound_api_key()
             .clone()
             .expose()
             .to_string()
@@ -2155,10 +2152,10 @@ pub async fn retrieve_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_fetch_req: RetrievePaymentMethodV1Request,
 ) -> CustomResult<RetrievePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2425,10 +2422,10 @@ pub async fn list_customer_payment_methods_from_modular_service(
     customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),
@@ -2486,10 +2483,10 @@ pub async fn create_pm_modular_service_call(
     profile_id: &id_type::ProfileId,
     payment_method_create_req: CreatePaymentMethodV1Request,
 ) -> CustomResult<CreatePaymentMethodResponse, errors::ApiErrorResponse> {
-    let internal_api_key = &state
+    let internal_api_key = state
         .conf
         .internal_merchant_id_profile_id_auth
-        .internal_api_key;
+        .outbound_api_key();
     let mut parent_headers = Headers::new();
     parent_headers.insert((
         headers::X_PROFILE_ID.to_string(),

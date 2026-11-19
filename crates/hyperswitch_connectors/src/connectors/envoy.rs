@@ -710,6 +710,10 @@ static ENVOY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static ENVOY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Envoy {
+    fn is_webhook_ip_verification_required(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ENVOY_CONNECTOR_INFO)
     }

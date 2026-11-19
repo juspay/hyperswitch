@@ -1,5 +1,6 @@
 //! Common types to be used in payment methods
 
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -17,9 +18,10 @@ use utoipa::ToSchema;
 // This is a performance optimization to avoid json validation at database level.
 // jsonb enables faster querying on json columns, but it doesn't justify here since we are not querying on this column.
 // https://docs.rs/diesel/latest/diesel/sql_types/struct.Jsonb.html
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Json)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Json))]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -30,6 +32,7 @@ pub struct PaymentMethodsEnabled {
 }
 
 // Custom FromSql implementation to handle deserialization of v1 data format
+#[cfg(feature = "diesel")]
 impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn from_sql(bytes: <diesel::pg::Pg as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
         let helper: PaymentMethodsEnabledHelper = serde_json::from_slice(bytes.as_bytes())
@@ -39,6 +42,7 @@ impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
 }
 
 // In this ToSql implementation, we are directly serializing the PaymentMethodsEnabled struct to JSON
+#[cfg(feature = "diesel")]
 impl ToSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn to_sql<'b>(
         &'b self,
@@ -106,6 +110,21 @@ impl PaymentMethodsEnabled {
     }
 }
 
+/// Whether to exchange the payment method data for a connector single-use token before authorize / setup mandate
+#[derive(
+    Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum PayViaSingleUseToken {
+    /// Hyperswitch decides whether to make the payment via a single-use token, based on the connector's default requirement
+    #[default]
+    Default,
+    /// Create a single-use token for subsequent authorization or mandate setup.
+    Enabled,
+    /// Don't create a single-use token before authorization or mandate setup
+    Disabled,
+}
+
 /// Details of a specific payment method subtype enabled for the connector for the given merchant account
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 pub struct RequestPaymentMethodTypes {
@@ -154,6 +173,11 @@ pub struct RequestPaymentMethodTypes {
     /// Indicates whether the payment method is eligible for installment payments (e.g., EMI, BNPL). Optional.
     #[schema(example = true)]
     pub installment_payment_enabled: Option<bool>,
+
+    /// Indicates whether the payment should be made via a single-use token.
+    /// `None` is treated as `default`, the default behaviour is followed (the current behaviour).
+    #[schema(value_type = Option<PayViaSingleUseToken>)]
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 
 impl From<RequestPaymentMethodTypesV1> for RequestPaymentMethodTypes {
@@ -168,6 +192,7 @@ impl From<RequestPaymentMethodTypesV1> for RequestPaymentMethodTypes {
             maximum_amount: value.maximum_amount,
             recurring_enabled: value.recurring_enabled,
             installment_payment_enabled: value.installment_payment_enabled,
+            pay_via_single_use_token: value.pay_via_single_use_token,
         }
     }
 }
@@ -183,6 +208,7 @@ struct RequestPaymentMethodTypesV1 {
     pub maximum_amount: Option<common_utils::types::MinorUnit>,
     pub recurring_enabled: Option<bool>,
     pub installment_payment_enabled: Option<bool>,
+    pub pay_via_single_use_token: Option<PayViaSingleUseToken>,
 }
 
 impl RequestPaymentMethodTypes {
@@ -234,6 +260,7 @@ pub enum AcceptedCurrencies {
     AllAccepted,
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<Jsonb, DB> for PaymentMethodsEnabled
 where
     DB: Backend,

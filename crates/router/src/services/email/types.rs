@@ -1,6 +1,7 @@
 use api_models::user::dashboard_metadata::ProdIntent;
 use common_enums::{EntityType, MerchantProductType};
-use common_utils::{errors::CustomResult, pii, types::user::EmailThemeConfig};
+use common_types::user::theme::EmailThemeConfig;
+use common_utils::{errors::CustomResult, pii};
 use diesel_models::organization::OrganizationBridge;
 use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
@@ -91,6 +92,15 @@ pub enum EmailBody {
         entity_logo_url: String,
         background_color: String,
         foreground_color: String,
+    },
+    AnalyticsReport {
+        report_name: String,
+        noun: String,
+        covers: String,
+        start: String,
+        end: String,
+        download_url: String,
+        expiry: String,
     },
 }
 
@@ -275,6 +285,24 @@ Email         : {user_email}
                     foreground_color = foreground_color
                 )
             }
+            EmailBody::AnalyticsReport {
+                report_name,
+                noun,
+                covers,
+                start,
+                end,
+                download_url,
+                expiry,
+            } => format!(
+                include_str!("assets/analytics_report.html"),
+                report_name = report_name,
+                noun = noun,
+                covers = covers,
+                start = start,
+                end = end,
+                download_url = download_url,
+                expiry = expiry,
+            ),
         }
     }
 }
@@ -384,20 +412,24 @@ impl EmailData for VerifyEmail {
 
         let body = html::get_html_body(EmailBody::Verify {
             link: verify_email_link,
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Welcome to the {} community!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -434,20 +466,24 @@ impl EmailData for ResetPassword {
         let body = html::get_html_body(EmailBody::Reset {
             link: reset_password_link,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Get back to {} - Reset Your Password Now!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -484,20 +520,24 @@ impl EmailData for MagicLink {
         let body = html::get_html_body(EmailBody::MagicLink {
             link: magic_link_login,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "Unlock {}: Use Your Magic Link to Sign In",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -534,20 +574,24 @@ impl EmailData for InviteUser {
         let body = html::get_html_body(EmailBody::AcceptInviteFromEmail {
             link: invite_user_link,
             user_name: self.user_name.clone().get_secret().expose(),
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            primary_color: self.theme_config.primary_color.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!(
                 "You have been invited to join {} Community!",
-                self.theme_config.entity_name
+                self.theme_config.entity_name.as_str()
             ),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -570,7 +614,7 @@ impl EmailData for ReconActivation {
         Ok(EmailContents {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -642,7 +686,7 @@ impl EmailData for BizEmailProd {
         Ok(EmailContents {
             subject: "New Prod Intent".to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -673,7 +717,7 @@ impl EmailData for ProFeatureRequest {
         Ok(EmailContents {
             subject: self.subject.clone(),
             body: external_services::email::IntermediateString::new(body),
-            recipient,
+            recipients: recipient.into(),
         })
     }
 }
@@ -702,7 +746,7 @@ impl EmailData for ApiKeyExpiryReminder {
         Ok(EmailContents {
             subject: self.subject.to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient,
+            recipients: recipient.into(),
         })
     }
 }
@@ -719,7 +763,7 @@ impl EmailData for WelcomeToCommunity {
         Ok(EmailContents {
             subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
         })
     }
 }
@@ -772,16 +816,60 @@ impl EmailData for RoleDeleted {
             role_name: self.role_name.clone(),
             entity_type: format!("{:?}", self.entity_type),
             lineage_info,
-            entity_name: self.theme_config.entity_name.clone(),
-            entity_logo_url: self.theme_config.entity_logo_url.clone(),
-            background_color: self.theme_config.background_color.clone(),
-            foreground_color: self.theme_config.foreground_color.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
 
         Ok(EmailContents {
             subject: format!("Access Removed - {} Role Revoked", self.role_name),
             body: external_services::email::IntermediateString::new(body),
-            recipient: self.recipient_email.clone().into_inner(),
+            recipients: self.recipient_email.clone().into_inner().into(),
+        })
+    }
+}
+
+/// A finished analytics report's download link, sent once to all its recipients.
+pub struct AnalyticsReportEmail {
+    pub recipients: external_services::email::EmailRecipients,
+    /// Names the report, with the environment, e.g. "Sandbox Payments".
+    pub report_name: String,
+    /// The report, as the body names it: "the refund report".
+    pub noun: String,
+    /// The rows, as the body describes them, e.g. "refunds made by your customers".
+    pub covers: String,
+    pub start: String,
+    pub end: String,
+    pub download_url: String,
+    /// How long the link lasts, e.g. "7 days".
+    pub expiry: String,
+}
+
+#[async_trait::async_trait]
+impl EmailData for AnalyticsReportEmail {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::AnalyticsReport {
+            report_name: self.report_name.clone(),
+            noun: self.noun.clone(),
+            covers: self.covers.clone(),
+            start: self.start.clone(),
+            end: self.end.clone(),
+            download_url: self.download_url.clone(),
+            expiry: self.expiry.clone(),
+        });
+
+        Ok(EmailContents {
+            subject: format!(
+                "Your {} Report: {} - {}",
+                self.report_name, self.start, self.end
+            ),
+            body: external_services::email::IntermediateString::new(body),
+            recipients: self.recipients.clone(),
         })
     }
 }

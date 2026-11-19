@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::{connector_enums::Connector, PaymentMethodType, PayoutRetryType};
+use common_enums::{connector_enums::Connector, Currency, PaymentMethodType, PayoutRetryType};
 use common_utils::id_type;
 use external_services::superposition;
 use heck::ToPascalCase;
@@ -115,6 +115,7 @@ pub struct Dimensions<Pm, M, O, P, Cn, PRT, Ev, Pmt> {
     payout_retry_type: Option<PayoutRetryType>,
     incoming_webhook_event: Option<IncomingWebhookEvent>,
     payment_method_type: Option<PaymentMethodType>,
+    currency: Option<Currency>,
     _phantom: DimensionMarkers<Pm, M, O, P, Cn, PRT, Ev, Pmt>,
 }
 
@@ -140,6 +141,7 @@ impl
             payout_retry_type: None,
             incoming_webhook_event: None,
             payment_method_type: None,
+            currency: None,
             _phantom: PhantomData,
         }
     }
@@ -160,6 +162,7 @@ impl<M, O, P, Cn, PRT, Ev, Pmt> Dimensions<NoProviderMerchantId, M, O, P, Cn, PR
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -180,6 +183,7 @@ impl<Pm, O, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn,
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -200,6 +204,7 @@ impl<Pm, M, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, NoOrgId, P, Cn, PRT, Ev, Pmt>
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -220,6 +225,7 @@ impl<Pm, M, O, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, O, NoProfileId, Cn, PRT, Ev, 
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -240,6 +246,7 @@ impl<Pm, M, O, P, PRT, Ev, Pmt> Dimensions<Pm, M, O, P, NoConnector, PRT, Ev, Pm
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -260,6 +267,7 @@ impl<Pm, M, O, P, Cn, Ev, Pmt> Dimensions<Pm, M, O, P, Cn, NoPayoutRetryType, Ev
             payout_retry_type: Some(retry_type),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -280,6 +288,7 @@ impl<Pm, M, O, P, Cn, PRT, Pmt> Dimensions<Pm, M, O, P, Cn, PRT, NoWebhookEvent,
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: Some(event),
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -300,6 +309,25 @@ impl<Pm, M, O, P, Cn, PRT, Ev> Dimensions<Pm, M, O, P, Cn, PRT, Ev, NoPaymentMet
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: Some(payment_method_type),
+            currency: self.currency,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<Pm, M, O, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, O, P, Cn, PRT, Ev, Pmt> {
+    /// Adds currency to the Superposition context.
+    pub fn with_currency(&self, currency: Currency) -> Self {
+        Self {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            payout_retry_type: self.payout_retry_type.clone(),
+            incoming_webhook_event: self.incoming_webhook_event,
+            payment_method_type: self.payment_method_type,
+            currency: Some(currency),
             _phantom: PhantomData,
         }
     }
@@ -319,6 +347,7 @@ impl<M, O, P, Cn, PRT, Ev, Pmt> Dimensions<HasProviderMerchantId, M, O, P, Cn, P
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -338,6 +367,7 @@ impl<Pm, O, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -355,6 +385,7 @@ impl<Pm, M, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, HasOrgId, P, Cn, PRT, Ev, Pmt
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -372,6 +403,7 @@ impl<Pm, M, O, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, O, HasProfileId, Cn, PRT, Ev,
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -389,6 +421,7 @@ impl<Pm, M, O, P, PRT, Ev, Pmt> Dimensions<Pm, M, O, P, HasConnector, PRT, Ev, P
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: self.incoming_webhook_event,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -408,6 +441,7 @@ impl<Pm, M, O, P, Cn, PRT, Pmt> Dimensions<Pm, M, O, P, Cn, PRT, HasWebhookEvent
             payout_retry_type: self.payout_retry_type.clone(),
             incoming_webhook_event: None,
             payment_method_type: self.payment_method_type,
+            currency: self.currency,
             _phantom: PhantomData,
         }
     }
@@ -545,6 +579,10 @@ impl<Pm, M, O, P, Cn, PRT, Ev, Pmt> Dimensions<Pm, M, O, P, Cn, PRT, Ev, Pmt> {
             );
         }
 
+        if let Some(currency) = self.currency {
+            ctx = ctx.with("currency", currency.to_string().as_str());
+        }
+
         Some(ctx)
     }
 }
@@ -643,6 +681,17 @@ pub type DimensionsGlobal = Dimensions<
     NoOrgId,
     NoProfileId,
     NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+    NoPaymentMethodType,
+>;
+
+pub type DimensionsWithConnector = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
     NoPayoutRetryType,
     NoWebhookEvent,
     NoPaymentMethodType,
@@ -766,6 +815,16 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId = Dime
     NoWebhookEvent,
     NoPaymentMethodType,
 >;
+pub type DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    HasProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+    NoPaymentMethodType,
+>;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType = Dimensions<
     HasProviderMerchantId,
     HasProcessorMerchantId,
@@ -796,3 +855,76 @@ pub type DimensionsWithProcessorMerchantIdAndPaymentMethodType = Dimensions<
     NoWebhookEvent,
     HasPaymentMethodType,
 >;
+
+/// Dimensions for configs that can be targeted down to a single merchant connector account.
+///
+/// `merchant_connector_id` is not part of the generic [`Dimensions`] state, so this wraps a
+/// profile-scoped dimension state and adds the connector and the merchant connector account to
+/// the Superposition context.
+#[derive(Clone)]
+pub struct DimensionsWithMerchantConnectorAccount {
+    dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    connector: Option<Connector>,
+    merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
+
+impl DimensionsWithMerchantConnectorAccount {
+    pub fn new(
+        dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        connector: Option<Connector>,
+        merchant_connector_id: id_type::MerchantConnectorAccountId,
+    ) -> Self {
+        Self {
+            dimensions,
+            connector,
+            merchant_connector_id,
+        }
+    }
+}
+
+impl DimensionsBase for DimensionsWithMerchantConnectorAccount {
+    fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
+        let mut ctx = self.dimensions.to_superposition_context()?;
+
+        if let Some(connector) = self.connector {
+            ctx = ctx.with("connector", connector.to_string().as_str());
+        }
+
+        Some(ctx.with(
+            "merchant_connector_id",
+            self.merchant_connector_id.get_string_repr(),
+        ))
+    }
+
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_provider_merchant_id()
+    }
+
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_processor_merchant_id()
+    }
+
+    fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
+        self.dimensions.get_organization_id()
+    }
+
+    fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
+        self.dimensions.get_profile_id()
+    }
+
+    fn get_connector(&self) -> Option<Connector> {
+        self.connector
+    }
+
+    fn get_payout_retry_type(&self) -> Option<&PayoutRetryType> {
+        self.dimensions.get_payout_retry_type()
+    }
+
+    fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
+        self.dimensions.get_incoming_webhook_event()
+    }
+
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.dimensions.get_payment_method_type()
+    }
+}

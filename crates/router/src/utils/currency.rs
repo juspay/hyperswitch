@@ -11,7 +11,7 @@ use currency_conversion::types::{CurrencyFactors, ExchangeRates};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use redis_interface::DelReply;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use rust_decimal::Decimal;
 use strum::IntoEnumIterator;
 use tokio::sync::RwLock;

@@ -17,7 +17,10 @@ use utoipa::ToSchema;
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "lowercase")]
 pub enum ElementPosition {
     Left,
@@ -37,7 +40,10 @@ pub enum ElementPosition {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, strum::Display, strum::EnumString, ToSchema)]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 pub enum ElementSize {
     Variants(SizeVariants),
     Percentage(u32),
@@ -58,7 +64,10 @@ pub enum ElementSize {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum SizeVariants {
@@ -81,7 +90,10 @@ pub enum SizeVariants {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum PaymentLinkDetailsLayout {
@@ -104,7 +116,10 @@ pub enum PaymentLinkDetailsLayout {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum PaymentLinkSdkLabelType {
@@ -128,7 +143,10 @@ pub enum PaymentLinkSdkLabelType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum PaymentLinkShowSdkTerms {

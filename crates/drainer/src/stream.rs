@@ -1,5 +1,5 @@
 use redis_interface as redis;
-use router_env::{logger, tracing};
+use router_env::logger;
 
 use crate::{errors, metrics, Store};
 

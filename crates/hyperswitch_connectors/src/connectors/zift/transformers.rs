@@ -300,7 +300,13 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item.router_data.get_billing_full_name()?,
+                        holder_name: card
+                            .card_holder_name
+                            .clone()
+                            .or_else(|| item.router_data.get_optional_billing_full_name())
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "payment_method_data.billing.address.first_name".into(),
+                            })?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
                         holder_type: HolderType::Personal,
@@ -322,7 +328,13 @@ impl TryFrom<&ZiftRouterData<&PaymentsAuthorizeRouterData>> for ZiftPaymentsRequ
                         account_accessory: card.get_expiry_date_as_mmyy()?,
                         transaction_industry_type: TransactionIndustryType::Ecommerce,
                         transaction_category_code: TransactionCategoryCode::Ecommerce,
-                        holder_name: item.router_data.get_billing_full_name()?,
+                        holder_name: card
+                            .card_holder_name
+                            .clone()
+                            .or_else(|| item.router_data.get_optional_billing_full_name())
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "payment_method_data.billing.address.first_name".into(),
+                            })?,
                         amount: item.amount.to_owned(),
                         account_type: AccountType::PaymentCard,
                         holder_type: HolderType::Personal,
@@ -395,10 +407,10 @@ impl ResponseCodeExt for String {
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ZiftErrorResponse {
-    pub response_code: String,
-    pub response_message: String,
-    pub failure_code: String,
-    pub failure_message: String,
+    pub response_code: Option<String>,
+    pub response_message: Option<String>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -976,30 +988,40 @@ impl TryFrom<&SetupMandateRouterData> for ZiftSetupMandateRequest {
         }
         let auth = ZiftAuthType::try_from(&item.connector_auth_type)?;
 
-        let (transaction_industry_type, transaction_category_code, payment_method_details) =
-            match &item.request.payment_method_data {
-                PaymentMethodData::Card(card) => (
-                    TransactionIndustryType::Ecommerce,
-                    TransactionCategoryCode::Ecommerce,
-                    SetupMandatePaymentMethod::Card(CardVerificationDetails {
-                        account_type: AccountType::PaymentCard,
-                        account_number: card.card_number.clone(),
-                        account_accessory: card.get_expiry_date_as_mmyy()?,
-                        csc: card.card_cvc.clone(),
-                    }),
-                ),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Only card supported for mandate setup".to_string(),
-                    connector: "Zift".into(),
-                })?,
-            };
+        let (
+            transaction_industry_type,
+            transaction_category_code,
+            payment_method_details,
+            card_holder_name,
+        ) = match &item.request.payment_method_data {
+            PaymentMethodData::Card(card) => (
+                TransactionIndustryType::Ecommerce,
+                TransactionCategoryCode::Ecommerce,
+                SetupMandatePaymentMethod::Card(CardVerificationDetails {
+                    account_type: AccountType::PaymentCard,
+                    account_number: card.card_number.clone(),
+                    account_accessory: card.get_expiry_date_as_mmyy()?,
+                    csc: card.card_cvc.clone(),
+                }),
+                card.card_holder_name.clone(),
+            ),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Only card supported for mandate setup".to_string(),
+                connector: "Zift".into(),
+            })?,
+        };
 
         Ok(Self {
             request_type: RequestType::AccountVerification,
             auth,
             transaction_industry_type,
             transaction_category_code,
-            holder_name: item.get_billing_full_name()?,
+            holder_name: card_holder_name
+                .clone()
+                .or_else(|| item.get_optional_billing_full_name())
+                .ok_or(errors::ConnectorError::MissingRequiredField {
+                    field_name: "payment_method_data.billing.address.first_name".into(),
+                })?,
             holder_type: HolderType::Personal,
             transaction_code: item.connector_request_reference_id.clone(),
             payment_method_details,

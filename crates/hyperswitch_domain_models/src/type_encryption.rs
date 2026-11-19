@@ -10,7 +10,7 @@ use common_utils::{
 };
 use encrypt::TypeEncryption;
 use hyperswitch_masking::{PeekInterface, Secret};
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 use rustc_hash::FxHashMap;
 
 mod encrypt {
@@ -31,7 +31,7 @@ mod encrypt {
     use error_stack::ResultExt;
     use http::Method;
     use hyperswitch_masking::{PeekInterface, Secret};
-    use router_env::{instrument, logger, tracing};
+    use router_env::{instrument, logger};
     use rustc_hash::FxHashMap;
 
     use super::{decrypt_resolving_format_ambiguity, metrics, EncryptedJsonType};

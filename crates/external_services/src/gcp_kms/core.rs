@@ -1,112 +1,44 @@
 //! Interactions with the GCP Cloud KMS SDK
+//!
+//! Hyperswitch adapter over the shared [`cloud_services::kms::gcp`] client: it adds logging,
+//! metrics and `error-stack` reports on top of the plain client.
 
 use std::time::Instant;
 
-use base64::Engine;
+use cloud_services::kms::gcp as shared;
+pub use cloud_services::kms::gcp::{GcpKmsConfig, GcpKmsError};
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
-use google_cloud_kms::{
-    client::{Client, ClientConfig},
-    grpc::kms::v1::{DecryptRequest, EncryptRequest},
-};
 use router_env::logger;
 
-use crate::{consts, metrics};
-
-/// Configuration parameters required for constructing a [`GcpKmsClient`].
-#[derive(Clone, Debug, Default, serde::Deserialize)]
-#[serde(default)]
-pub struct GcpKmsConfig {
-    /// The GCP project ID that owns the KMS key ring.
-    pub project_id: String,
-
-    /// The location ID (e.g. `"global"`, `"us-east1"`) of the KMS key ring.
-    pub location_id: String,
-
-    /// The ID of the KMS key ring.
-    pub key_ring_id: String,
-
-    /// The ID of the KMS key used to encrypt or decrypt data.
-    pub key_id: String,
-}
-
-impl GcpKmsConfig {
-    /// Verifies that the [`GcpKmsConfig`] is valid.
-    pub fn validate(&self) -> Result<(), &'static str> {
-        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
-
-        when(self.project_id.is_default_or_empty(), || {
-            Err("GCP KMS project ID must not be empty")
-        })?;
-
-        when(self.location_id.is_default_or_empty(), || {
-            Err("GCP KMS location ID must not be empty")
-        })?;
-
-        when(self.key_ring_id.is_default_or_empty(), || {
-            Err("GCP KMS key ring ID must not be empty")
-        })?;
-
-        when(self.key_id.is_default_or_empty(), || {
-            Err("GCP KMS key ID must not be empty")
-        })
-    }
-}
+use crate::{metrics, report_with_cause};
 
 /// Client for GCP Cloud KMS operations.
 #[derive(Clone, Debug)]
 pub struct GcpKmsClient {
-    inner_client: Client,
-    key_name: String,
+    inner: shared::GcpKmsClient,
 }
 
 impl GcpKmsClient {
     /// Constructs a new GCP KMS client with ambient credentials, targeting the KMS key
     /// identified by the provided [`GcpKmsConfig`].
     pub async fn new(config: &GcpKmsConfig) -> CustomResult<Self, GcpKmsError> {
-        let client_config = ClientConfig::default()
-            .with_auth()
+        let inner = shared::GcpKmsClient::new(config)
             .await
-            .change_context(GcpKmsError::ClientCreationFailed)?;
-        let inner_client = Client::new(client_config)
-            .await
-            .change_context(GcpKmsError::ClientCreationFailed)?;
-        Ok(Self {
-            inner_client,
-            key_name: format!(
-                "projects/{}/locations/{}/keyRings/{}/cryptoKeys/{}",
-                config.project_id, config.location_id, config.key_ring_id, config.key_id
-            ),
-        })
+            .map_err(report_with_cause)?;
+        Ok(Self { inner })
     }
 
     /// Decrypts base64-encoded ciphertext via GCP Cloud KMS.
     pub async fn decrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, GcpKmsError> {
         let start = Instant::now();
-        let ciphertext = consts::BASE64_ENGINE
-            .decode(data)
-            .change_context(GcpKmsError::Base64DecodingFailed)?;
 
-        let request = DecryptRequest {
-            name: self.key_name.clone(),
-            ciphertext,
-            additional_authenticated_data: Vec::new(),
-            ciphertext_crc32c: None,
-            additional_authenticated_data_crc32c: None,
-        };
-
-        let response = self
-            .inner_client
-            .decrypt(request, None)
-            .await
-            .inspect_err(|error| {
-                logger::error!(gcp_kms_error=?error, "Failed to GCP KMS decrypt data");
+        let output = self.inner.decrypt(data).await.map_err(|error| {
+            if let GcpKmsError::DecryptionFailed(status) = &error {
+                logger::error!(gcp_kms_error=?status, "Failed to GCP KMS decrypt data");
                 metrics::GCP_KMS_DECRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(GcpKmsError::DecryptionFailed)?;
-
-        let output = String::from_utf8(response.plaintext)
-            .change_context(GcpKmsError::Utf8DecodingFailed)?;
+            }
+            report_with_cause(error)
+        })?;
 
         let time_taken = start.elapsed();
         metrics::GCP_KMS_DECRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
@@ -118,55 +50,19 @@ impl GcpKmsClient {
     pub async fn encrypt(&self, data: impl AsRef<[u8]>) -> CustomResult<String, GcpKmsError> {
         let start = Instant::now();
 
-        let request = EncryptRequest {
-            name: self.key_name.clone(),
-            plaintext: data.as_ref().to_vec(),
-            additional_authenticated_data: Vec::new(),
-            plaintext_crc32c: None,
-            additional_authenticated_data_crc32c: None,
-        };
-
-        let response = self
-            .inner_client
-            .encrypt(request, None)
-            .await
-            .inspect_err(|error| {
-                logger::error!(gcp_kms_error=?error, "Failed to GCP KMS encrypt data");
+        let output = self.inner.encrypt(data).await.map_err(|error| {
+            if let GcpKmsError::EncryptionFailed(status) = &error {
+                logger::error!(gcp_kms_error=?status, "Failed to GCP KMS encrypt data");
                 metrics::GCP_KMS_ENCRYPTION_FAILURES.add(1, &[]);
-            })
-            .change_context(GcpKmsError::EncryptionFailed)?;
-
-        let output = consts::BASE64_ENGINE.encode(response.ciphertext);
+            }
+            report_with_cause(error)
+        })?;
 
         let time_taken = start.elapsed();
         metrics::GCP_KMS_ENCRYPT_TIME.record(time_taken.as_secs_f64(), &[]);
 
         Ok(output)
     }
-}
-
-/// Errors that could occur during GCP KMS operations.
-#[derive(Debug, thiserror::Error)]
-pub enum GcpKmsError {
-    /// An error occurred when base64 decoding the input data.
-    #[error("Failed to base64 decode input data")]
-    Base64DecodingFailed,
-
-    /// An error occurred when GCP KMS decrypting the input data.
-    #[error("Failed to GCP KMS decrypt input data")]
-    DecryptionFailed,
-
-    /// An error occurred when GCP KMS encrypting the input data.
-    #[error("Failed to GCP KMS encrypt input data")]
-    EncryptionFailed,
-
-    /// An error occurred UTF-8 decoding the GCP KMS decrypted output.
-    #[error("Failed UTF-8 decode of GCP KMS decrypted output")]
-    Utf8DecodingFailed,
-
-    /// An error occurred when creating the GCP KMS client.
-    #[error("Failed to create GCP KMS client")]
-    ClientCreationFailed,
 }
 
 #[cfg(test)]
@@ -226,6 +122,21 @@ mod tests {
             key_id: "key".to_string(),
         };
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn reports_keep_the_underlying_cause() {
+        #[allow(clippy::expect_used)]
+        let utf8_error = String::from_utf8(vec![0xff]).expect_err("0xff is not UTF-8");
+        let printed = format!(
+            "{:?}",
+            report_with_cause(GcpKmsError::Utf8DecodingFailed(utf8_error))
+        );
+        assert!(
+            printed.contains("Failed UTF-8 decode of GCP KMS decrypted output"),
+            "{printed}"
+        );
+        assert!(printed.contains("invalid utf-8 sequence"), "{printed}");
     }
 
     #[tokio::test]

@@ -1,3 +1,8 @@
 ---
 openapi: put /v1/payment-methods/{id}/update-saved-payment-method
 ---
+
+Pass `"update_last_used_at": true` to set `last_used_at` to the current server UTC time.
+Passing `false`, `null`, or omitting the field leaves the timestamp unchanged.
+The flag can be sent on its own or alongside other payment method updates.
+The response returns the stored `last_used_at` timestamp.

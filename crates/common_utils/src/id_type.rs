@@ -26,6 +26,7 @@ mod webhook_endpoint;
 
 use std::{borrow::Cow, fmt::Debug};
 
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -130,8 +131,9 @@ impl AlphaNumericId {
 }
 
 /// A common type of id that can be used for reference ids with length constraint
-#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq, AsExpression)]
-#[diesel(sql_type = sql_types::Text)]
+#[derive(Debug, Clone, Serialize, Hash, PartialEq, Eq)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = sql_types::Text))]
 pub(crate) struct LengthId<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(AlphaNumericId);
 
 /// Error generated from violation of constraints for MerchantReferenceId
@@ -221,6 +223,7 @@ impl<'de, const MAX_LENGTH: u8, const MIN_LENGTH: u8> Deserialize<'de>
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> ToSql<sql_types::Text, DB>
     for LengthId<MAX_LENGTH, MIN_LENGTH>
 where
@@ -232,6 +235,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB, const MAX_LENGTH: u8, const MIN_LENGTH: u8> FromSql<sql_types::Text, DB>
     for LengthId<MAX_LENGTH, MIN_LENGTH>
 where

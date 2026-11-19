@@ -8,7 +8,7 @@ use common_enums::Currency;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::authentication;
-use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::errors::StorageErrorExt;
 use crate::{
@@ -17,7 +17,10 @@ use crate::{
         errors::ApiErrorResponse, payment_methods::vault, payments as payments_core,
         unified_connector_service,
     },
-    routes::SessionState,
+    routes::{
+        payments::callback_routes::{ConnectorCallbackPath, PaymentCallbackRoute},
+        SessionState,
+    },
     types::{
         self as core_types, api,
         domain::{self},
@@ -43,7 +46,7 @@ pub async fn perform_authentication(
     message_category: api::authentication::MessageCategory,
     device_channel: payments::DeviceChannel,
     authentication_data: authentication::Authentication,
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     sdk_information: Option<payments::SdkInformation>,
     threeds_method_comp_ind: payments::ThreeDsCompletionIndicator,
     email: Option<common_utils::pii::Email>,
@@ -218,7 +221,7 @@ pub async fn perform_post_authentication(
 
     let authentication_store =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication: authentication_update,
         };
 
@@ -424,17 +427,15 @@ where
 
     if let Some(execution_mode) = execution_mode {
         let provider_merchant_id = payment_data.payment_intent.merchant_id.clone();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let provider_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &provider_merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&provider_merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store for provider merchant")?;
         let provider_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&provider_merchant_id, &provider_key_store)
             .await
             .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -443,7 +444,7 @@ where
             provider_account,
             provider_key_store,
             processor.get_account().clone(),
-            processor.get_key_store().clone(),
+            processor.get_key_store().inner().clone(),
             initiator.cloned(),
         );
         let provider_business_profile =
@@ -457,7 +458,7 @@ where
         let external_vault_merchant_connector_account =
             payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
                 state
-                    .store
+                    .accounts_store
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                         platform.get_provider().get_account().get_id(),
                         &external_vault_mca_id,
@@ -577,8 +578,8 @@ async fn call_ucs_pre_authenticate_proxy(
                     connector_authentication_id: threeds_server_transaction_id.clone(),
                     threeds_server_transaction_id,
                     maximum_supported_3ds_version: message_version.clone(),
-                    three_ds_method_data,
-                    three_ds_method_url,
+                    three_ds_method_data: three_ds_method_data.map(ExposeInterface::expose),
+                    three_ds_method_url: three_ds_method_url.map(ExposeInterface::expose),
                     message_version,
                     connector_metadata: None,
                     directory_server_id,
@@ -648,7 +649,11 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         capture_method: payment_data.payment_attempt.get_effective_capture_method(),
         currency: payment_data.payment_intent.currency,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
-        router_return_url: payment_data.payment_intent.return_url.clone(),
+        router_return_url: payment_data
+            .payment_intent
+            .return_url
+            .clone()
+            .map(Into::into),
         complete_authorize_url: None,
         browser_info: None,
         enrolled_for_3ds: true,
@@ -897,7 +902,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             .clone()
             .map(|tds| {
                 hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
-                    params: Some(hyperswitch_masking::Secret::new(tds)),
+                    params: Some(Secret::new(tds)),
                     payload: None,
                 }
             }),
@@ -1063,7 +1068,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 > {
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let authentication = state
         .store
@@ -1072,7 +1077,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1155,7 +1160,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
             None,
             key_store,
             authentication_info,
-            storage_scheme,
+            storage_scheme.inner(),
         ))
         .await?
     } else {
@@ -1175,7 +1180,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 
     Ok(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-            cavv: tokenized_data.map(|data| hyperswitch_masking::Secret::new(data.value1)),
+            cavv: tokenized_data.map(|data| Secret::new(data.value1)),
             authentication,
         },
     )
@@ -1218,8 +1223,8 @@ async fn call_ucs_authenticate_proxy(
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
-    let storage_scheme = processor.get_account().storage_scheme;
-    let processor_merchant_id = processor.get_account().get_id();
+    let storage_scheme = processor.get_storage_scheme();
+    let processor_merchant_id = processor.get_processor_merchant_id();
 
     let payment_token = payment_attempt
         .payment_token
@@ -1247,7 +1252,7 @@ async fn call_ucs_authenticate_proxy(
     let external_vault_merchant_connector_account =
         payments_core::helpers::MerchantConnectorAccountType::DbVal(Box::new(
             state
-                .store
+                .accounts_store
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     platform.get_provider().get_account().get_id(),
                     &external_vault_mca_id,
@@ -1285,11 +1290,11 @@ async fn call_ucs_authenticate_proxy(
     let authentication = state
         .store
         .find_authentication_by_processor_merchant_id_authentication_id(
-            processor_merchant_id,
+            &processor_merchant_id,
             &authentication_id,
             key_store,
             &key_manager_state,
-            storage_scheme,
+            storage_scheme.inner(),
         )
         .await
         .to_not_found_response(ApiErrorResponse::InternalServerError)
@@ -1345,6 +1350,7 @@ async fn call_ucs_authenticate_proxy(
                 .force_3ds_challenge
                 .unwrap_or(business_profile.force_3ds_challenge),
         ),
+        router_return_url: None,
     };
 
     let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
@@ -1418,12 +1424,23 @@ async fn call_ucs_authenticate_proxy(
         business_profile.get_id().clone(),
     );
 
-    // UCS maps `return_url` to the AReq `notificationURL` the ACS posts the CRes back to.
-    let return_url = Some(payments_core::helpers::create_authorize_url(
+    let notification_url = PaymentCallbackRoute::authorize_url(
         &state.base_url,
-        payment_attempt,
-        &psp_connector_name,
-    ));
+        state.payment_callback_config().await?.mode,
+        &ConnectorCallbackPath {
+            payment_id: payment_attempt.payment_id.clone(),
+            merchant_id: payment_attempt.processor_merchant_id.clone(),
+            connector: psp_connector_name.to_string(),
+        },
+    )
+    .persist(state)
+    .await?;
+    // UCS maps `return_url` to the AReq `notificationURL` the ACS posts the CRes back to.
+    let return_url = Some(
+        url::Url::parse(notification_url.peek())
+            .change_context(ApiErrorResponse::InternalServerError)?
+            .to_string(),
+    );
 
     // Prefer acquirer details set directly on the PSP connector's own metadata; fall back to the
     // profile's card-network-keyed acquirer config the same way
@@ -1578,7 +1595,7 @@ fn parse_ucs_authenticate_response(
     let authentication_type = common_enums::DecoupledAuthenticationType::from(trans_status.clone());
 
     let acs_url = acs_url
-        .map(|url| url::Url::parse(&url))
+        .map(|url| url::Url::parse(url.peek()))
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("acs_url returned by UCS authenticate is not a valid URL")?;
@@ -1588,7 +1605,7 @@ fn parse_ucs_authenticate_response(
             hyperswitch_domain_models::router_request_types::authentication::AuthNFlowType::Challenge(Box::new(
                 hyperswitch_domain_models::router_request_types::authentication::ChallengeParams {
                     acs_url: acs_url.clone(),
-                    challenge_request: challenge_request.clone(),
+                    challenge_request: challenge_request.clone().map(ExposeInterface::expose),
                     challenge_request_key: None,
                     acs_reference_number: acs_reference_number.clone(),
                     acs_trans_id: acs_trans_id.clone(),
@@ -1629,7 +1646,7 @@ fn parse_ucs_authenticate_response(
         authentication_type,
         trans_status,
         acs_url,
-        challenge_request,
+        challenge_request: challenge_request.map(ExposeInterface::expose),
         acs_reference_number,
         acs_trans_id,
         three_ds_server_transaction_id,
@@ -1659,7 +1676,7 @@ pub async fn perform_authentication_proxy(
 ) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
-    let storage_scheme = processor.get_account().storage_scheme;
+    let storage_scheme = processor.get_storage_scheme();
 
     let AuthenticateProxyContext {
         authenticate_router_data,
@@ -1752,7 +1769,7 @@ pub async fn perform_authentication_proxy(
         None,
         key_store,
         authentication_info,
-        storage_scheme,
+        storage_scheme.inner(),
     ))
     .await?;
 
@@ -1762,7 +1779,7 @@ pub async fn perform_authentication_proxy(
         external_threeds_authentication_type: Some(authentication_type),
         authentication_connector: authentication.authentication_connector.clone(),
         authentication_id: Some(authentication_id),
-        updated_by: storage_scheme.to_string(),
+        updated_by: storage_scheme.inner().to_string(),
     };
     state
         .store

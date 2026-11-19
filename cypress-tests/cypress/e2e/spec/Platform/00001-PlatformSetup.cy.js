@@ -85,8 +85,8 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Create Connected Merchant 2 using Platform API Key", () => {
     it("create-connected-merchant-2-using-platform-api-key", () => {
-      const savedAdminApiKey = globalState.get("adminApiKey");
-      globalState.set("adminApiKey", globalState.get("apiKey"));
+      const savedManagementApiKey = globalState.get("managementApiKey");
+      globalState.set("managementApiKey", globalState.get("apiKey"));
 
       const merchantCreateBody = {
         ...fixtures.merchantCreateBody,
@@ -104,16 +104,16 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       });
 
       cy.then(() => {
-        globalState.set("adminApiKey", savedAdminApiKey);
+        globalState.set("managementApiKey", savedManagementApiKey);
       });
     });
 
     it("create-api-key-for-connected-merchant-2-platform-key", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
-      const savedAdminApiKey = globalState.get("adminApiKey");
+      const savedManagementApiKey = globalState.get("managementApiKey");
       globalState.set("merchantId", globalState.get("connectedMerchantId2"));
-      globalState.set("adminApiKey", savedApiKey);
+      globalState.set("managementApiKey", savedApiKey);
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
@@ -121,7 +121,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         globalState.set("apiKeyCm2", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
-        globalState.set("adminApiKey", savedAdminApiKey);
+        globalState.set("managementApiKey", savedManagementApiKey);
       });
     });
   });
@@ -159,8 +159,8 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
 
   context("Create Standard Merchant using Platform API Key", () => {
     it("create-standard-merchant-using-platform-api-key", () => {
-      const savedAdminApiKey = globalState.get("adminApiKey");
-      globalState.set("adminApiKey", globalState.get("apiKey"));
+      const savedManagementApiKey = globalState.get("managementApiKey");
+      globalState.set("managementApiKey", globalState.get("apiKey"));
 
       const merchantCreateBody = {
         ...fixtures.merchantCreateBody,
@@ -176,19 +176,19 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
       });
 
       cy.then(() => {
-        globalState.set("adminApiKey", savedAdminApiKey);
+        globalState.set("managementApiKey", savedManagementApiKey);
       });
     });
 
     it("create-api-key-for-standard-merchant-platform-key", () => {
       const savedMerchantId = globalState.get("merchantId");
       const savedApiKey = globalState.get("apiKey");
-      const savedAdminApiKey = globalState.get("adminApiKey");
+      const savedManagementApiKey = globalState.get("managementApiKey");
       globalState.set(
         "merchantId",
         globalState.get("standardMerchantIdPlatformKey")
       );
-      globalState.set("adminApiKey", savedApiKey);
+      globalState.set("managementApiKey", savedApiKey);
 
       cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
 
@@ -196,7 +196,7 @@ describe("Platform Setup & Connected Merchant Onboarding", () => {
         globalState.set("apiKeySmPlatformKey", globalState.get("apiKey"));
         globalState.set("merchantId", savedMerchantId);
         globalState.set("apiKey", savedApiKey);
-        globalState.set("adminApiKey", savedAdminApiKey);
+        globalState.set("managementApiKey", savedManagementApiKey);
       });
     });
   });

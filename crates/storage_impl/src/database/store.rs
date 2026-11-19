@@ -1,9 +1,11 @@
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
 use common_utils::{
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    id_type,
+    request_context::RequestContext,
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
@@ -14,6 +16,7 @@ use error_stack::ResultExt;
 use crate::{
     config::Database,
     errors::{StorageError, StorageResult},
+    metrics,
 };
 
 pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
@@ -22,26 +25,39 @@ pub type RawPgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnect
 pub struct PgPool {
     pub pg_pool: RawPgPool,
     pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    pub tenant_id: id_type::TenantId,
+    pub pool_metrics: super::pool_metrics::PgPoolMetrics,
 }
 
 impl PgPool {
-    pub fn new(pg_pool: RawPgPool, event_emitter: Arc<dyn ExternalServiceEventEmitter>) -> Self {
+    pub fn new(
+        pg_pool: RawPgPool,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+        tenant_id: id_type::TenantId,
+        pool_metrics: super::pool_metrics::PgPoolMetrics,
+    ) -> Self {
         Self {
             pg_pool,
             event_emitter,
+            tenant_id,
+            pool_metrics,
         }
     }
 
-    pub fn new_without_event_emitter(pool: RawPgPool) -> Self {
-        Self::new(pool, Arc::new(NoOpEventEmitter))
+    pub fn new_without_event_emitter(
+        pool: RawPgPool,
+        tenant_id: id_type::TenantId,
+        pool_metrics: super::pool_metrics::PgPoolMetrics,
+    ) -> Self {
+        Self::new(pool, Arc::new(NoOpEventEmitter), tenant_id, pool_metrics)
     }
 }
 
 /// Shared database-pool ownership.
 ///
-/// Request context is intentionally not part of this trait. Request-scoped wrappers such as
-/// `RouterStore` and `KVRouterStore` implement `RequestContext` separately, and the connection
-/// helpers in `crate::connection` combine the two when leasing a connection.
+/// Request-scoped wrappers such as `RouterStore` and `KVRouterStore` implement
+/// `RequestContext` separately. Connection helpers require that context when leasing
+/// a connection, while pool-only stores can implement this trait without it.
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
@@ -56,6 +72,81 @@ pub trait DatabaseStore: Clone + Send + Sync {
     fn get_replica_pool(&self) -> &PgPool;
     fn get_accounts_master_pool(&self) -> &PgPool;
     fn get_accounts_replica_pool(&self) -> &PgPool;
+
+    /// Lease an accounts read connection with request and read-ledger context.
+    async fn pg_accounts_connection_read(&self) -> StorageResult<DatabaseConnectionWithContext<'_>>
+    where
+        Self: RequestContext,
+    {
+        // If only OLAP is enabled, get the replica pool.
+        #[cfg(all(feature = "olap", not(feature = "oltp")))]
+        let (pool, db_pool_label) = (
+            self.get_accounts_replica_pool(),
+            super::pool_metrics::DbPool::AccountsReplica,
+        );
+
+        // If either one of these is true, get the master pool:
+        //  1. Only OLTP is enabled.
+        //  2. Both OLAP and OLTP are enabled.
+        //  3. Both OLAP and OLTP are disabled.
+        #[cfg(any(
+            all(not(feature = "olap"), feature = "oltp"),
+            all(feature = "olap", feature = "oltp"),
+            all(not(feature = "olap"), not(feature = "oltp"))
+        ))]
+        let (pool, db_pool_label) = (
+            self.get_accounts_master_pool(),
+            super::pool_metrics::DbPool::AccountsMaster,
+        );
+        let tenant_id = pool.tenant_id.get_string_repr();
+
+        #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+        let mut connection = metrics::record_db_connection_acquire_duration(
+            pool.pg_pool.get(),
+            db_pool_label,
+            tenant_id,
+        )
+        .await
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+        #[cfg(feature = "deja")]
+        crate::utils::deja_route_replay_schema(&mut connection, self).await;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            self.request_id().map(str::to_owned),
+            pool.event_emitter.clone(),
+            self.read_ledger().cloned(),
+        ))
+    }
+
+    /// Lease an accounts-master write connection with request and read-ledger context.
+    async fn pg_accounts_connection_write(&self) -> StorageResult<DatabaseConnectionWithContext<'_>>
+    where
+        Self: RequestContext,
+    {
+        let pool = self.get_accounts_master_pool();
+        let tenant_id = pool.tenant_id.get_string_repr();
+
+        #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+        let mut connection = metrics::record_db_connection_acquire_duration(
+            pool.pg_pool.get(),
+            super::pool_metrics::DbPool::AccountsMaster,
+            tenant_id,
+        )
+        .await
+        .change_context(StorageError::DatabaseConnectionError)?;
+
+        #[cfg(feature = "deja")]
+        crate::utils::deja_route_replay_schema(&mut connection, self).await;
+
+        Ok(DatabaseConnectionWithContext::new(
+            connection,
+            self.request_id().map(str::to_owned),
+            pool.event_emitter.clone(),
+            self.read_ledger().cloned(),
+        ))
+    }
 
     /// Request correlation used by deja replay to route database connections to
     /// the active replay schema. Stores without request identity return `None`.
@@ -89,6 +180,8 @@ impl DatabaseStore for Store {
                 tenant_config.get_schema(),
                 test_transaction,
                 Arc::clone(&event_emitter),
+                super::pool_metrics::DbPool::Master,
+                tenant_config.get_tenant_id(),
             )
             .await?,
             accounts_pool: diesel_make_pg_pool(
@@ -96,6 +189,8 @@ impl DatabaseStore for Store {
                 tenant_config.get_accounts_schema(),
                 test_transaction,
                 event_emitter,
+                super::pool_metrics::DbPool::AccountsMaster,
+                tenant_config.get_tenant_id(),
             )
             .await?,
         })
@@ -144,6 +239,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::Master,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create master pool")?;
@@ -152,6 +249,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_accounts_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::AccountsMaster,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create accounts master pool")?;
@@ -160,6 +259,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_schema(),
             test_transaction,
             Arc::clone(&event_emitter),
+            super::pool_metrics::DbPool::Replica,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create replica pool")?;
@@ -169,6 +270,8 @@ impl DatabaseStore for ReplicaStore {
             tenant_config.get_accounts_schema(),
             test_transaction,
             event_emitter,
+            super::pool_metrics::DbPool::AccountsReplica,
+            tenant_config.get_tenant_id(),
         )
         .await
         .attach_printable("failed to create accounts pool")?;
@@ -202,6 +305,8 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
     test_transaction: bool,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    db_pool: super::pool_metrics::DbPool,
+    tenant_id: &id_type::TenantId,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
     let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
@@ -254,22 +359,34 @@ pub async fn diesel_make_pg_pool(
         }
     }
 
-    Ok(PgPool::new(raw_pool, event_emitter))
+    let pool_metrics =
+        super::pool_metrics::PgPoolMetrics::new(raw_pool.clone(), db_pool, tenant_id);
+
+    Ok(PgPool::new(
+        raw_pool,
+        event_emitter,
+        tenant_id.clone(),
+        pool_metrics,
+    ))
 }
 
 #[derive(Debug)]
 struct TestTransaction;
 
-#[async_trait::async_trait]
 impl CustomizeConnection<RawPgConnection, ConnectionError> for TestTransaction {
     #[allow(clippy::unwrap_used)]
-    async fn on_acquire(&self, conn: &mut RawPgConnection) -> Result<(), ConnectionError> {
-        use diesel::Connection;
+    fn on_acquire<'a>(
+        &'a self,
+        conn: &'a mut RawPgConnection,
+    ) -> Pin<Box<dyn Future<Output = Result<(), ConnectionError>> + Send + 'a>> {
+        Box::pin(async move {
+            use diesel::Connection;
 
-        conn.run(|conn| {
-            conn.begin_test_transaction().unwrap();
-            Ok(())
+            conn.run(|conn| {
+                conn.begin_test_transaction().unwrap();
+                Ok(())
+            })
+            .await
         })
-        .await
     }
 }

@@ -46,7 +46,8 @@ pub use hyperswitch_domain_models::router_flow_types::payments::{
     IncrementalAuthorization, InitPayment, PSync, PaymentCreateIntent, PaymentGetIntent,
     PaymentMethodToken, PaymentUpdateIntent, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
     PostSessionTokens, PreAuthorizeVoid, PushNotification, RecordAttempt, Reject, SdkSessionUpdate,
-    Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+    Session, SetupMandate, SurchargeRefundComplete as SurchargeRefundCompleteFlow,
+    SurchargeRefundInit as SurchargeRefundInitFlow, UpdateMetadata, UpdatePostConfirm, Void,
 };
 pub use hyperswitch_interfaces::api::payments::{
     ConnectorCustomer, MandateSetup, Payment, PaymentApprove, PaymentAuthorize,
@@ -55,7 +56,8 @@ pub use hyperswitch_interfaces::api::payments::{
     PaymentSession, PaymentSessionUpdate, PaymentSync, PaymentToken, PaymentUpdate,
     PaymentUpdateMetadata, PaymentVoid, PaymentsCompleteAuthorize, PaymentsCreateOrder,
     PaymentsGenerateQr, PaymentsPostProcessing, PaymentsPushNotification, SurchargeCalculation,
-    SurchargeComplete, SurchargeRefund, TaxCalculation,
+    SurchargeComplete, SurchargeRefund, SurchargeRefundComplete, SurchargeRefundInit,
+    TaxCalculation,
 };
 pub use mandates::MandateTransactionType;
 
@@ -89,12 +91,12 @@ impl PaymentIdTypeExt for PaymentIdType {
     ) -> errors::CustomResult<common_utils::id_type::PaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_)
-            | Self::PaymentAttemptId(_)
-            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id".into(),
-            })
-            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
+                Err(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "payment_id".into(),
+                })
+                .attach_printable("Expected payment intent ID but got connector transaction ID")
+            }
         }
     }
 
@@ -104,12 +106,12 @@ impl PaymentIdTypeExt for PaymentIdType {
     ) -> errors::CustomResult<common_utils::id_type::GlobalPaymentId, errors::ValidationError> {
         match self {
             Self::PaymentIntentId(id) => Ok(id.clone()),
-            Self::ConnectorTransactionId(_)
-            | Self::PaymentAttemptId(_)
-            | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id".into(),
-            })
-            .attach_printable("Expected payment intent ID but got connector transaction ID"),
+            Self::ConnectorTransactionId(_) | Self::PaymentAttemptId(_) => {
+                Err(errors::ValidationError::IncorrectValueProvided {
+                    field_name: "payment_id".into(),
+                })
+                .attach_printable("Expected payment intent ID but got connector transaction ID")
+            }
         }
     }
 }

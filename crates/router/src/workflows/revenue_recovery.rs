@@ -37,10 +37,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
@@ -72,7 +69,10 @@ use crate::{
     consts,
     core::{
         payments,
-        revenue_recovery::{self as pcr},
+        revenue_recovery::{
+            self as pcr,
+            card_selection::{self, CardAvailability, CardSelection},
+        },
     },
     db::StorageInterface,
     errors::StorageError,
@@ -205,22 +205,24 @@ pub(crate) async fn extract_data_and_perform_action(
 ) -> Result<pcr_storage_types::RevenueRecoveryPaymentData, errors::ProcessTrackerError> {
     let db = &state.store;
 
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &tracking_data.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&tracking_data.merchant_id, &key_store_master_key)
         .await?;
 
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
         .await?;
 
-    let profile = db
+    let profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(&key_store, &tracking_data.profile_id)
         .await?;
 
-    let billing_mca = db
+    let billing_mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(&tracking_data.billing_mca_id, &key_store)
         .await?;
 
@@ -242,13 +244,32 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
     dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
-    retry_count: i32,
+    retry_count: u32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
         .get_pt_mapping_pcr_retries(db, superposition_client, None)
         .await;
 
     let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+
+    scheduler_utils::get_time_from_delta(time_delta)
+}
+
+/// Static ladder time, for the variants that treat the ladder as a ceiling on the model's time.
+/// Read at the ladder position rather than the invoice's overall retry count, because
+/// `pt_mapping_adaptive_retries` is the mapping built for rung semantics.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_schedule_time_to_retry_adaptive_payments(
+    db: &dyn StorageInterface,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    queried_rung: u32,
+) -> Option<time::PrimitiveDateTime> {
+    let mapping = dimensions
+        .get_pt_mapping_adaptive_retries(db, superposition_client, None)
+        .await;
+
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, queried_rung);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -622,6 +643,8 @@ pub enum PaymentProcessorTokenResponse {
     /// Token can be retried at this specific time
     ScheduledTime {
         scheduled_time: time::PrimitiveDateTime,
+        /// The card picked for the retry, which the EXECUTE task pays with
+        payment_processor_token: String,
     },
 
     /// Token locked or unavailable, next attempt possible
@@ -695,11 +718,11 @@ async fn get_retry_time_for_error_code(
 async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     remaining_grace_days: u32,
     remaining_budget: u32,
     // Both needed only to assign an implementation to an invoice that arrives without one
-    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
+    merchant_context: pcr_storage_types::RecoveryMerchantContext<'_>,
     ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
 ) -> (
     Option<time::PrimitiveDateTime>,
@@ -734,7 +757,7 @@ async fn get_ab_routed_retry_time(
                     .feature_metadata
                     .as_ref()
                     .map(api_models::payments::FeatureMetadata::foreign_from),
-                revenue_recovery_payment_data,
+                merchant_context,
                 ab_dimensions,
             )
             .await
@@ -744,7 +767,7 @@ async fn get_ab_routed_retry_time(
     let schedule_time = get_retry_time_for_error_code(
         state,
         assigned_algorithm,
-        tracking_data.prev_attempt_error_code,
+        prev_attempt_error_code,
         remaining_grace_days,
         remaining_budget,
     )
@@ -759,72 +782,89 @@ async fn get_ab_routed_retry_time(
     (schedule_time, assigned_algorithm)
 }
 
+/// When a retry runs, as the algorithm decides it. Which card it is made with is decided apart
+/// from this, by the card selection.
 #[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
-    state: &SessionState,
-    connector_customer_id: &str,
-    payment_intent: &PaymentIntent,
-    billing_connector: common_enums::connector_enums::Connector,
-    retry_algorithm_type: RevenueRecoveryAlgorithmType,
-    retry_count: i32,
-    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
-    static_ladder_progress: &pcr::schedule::StaticLadderProgress,
+pub(crate) enum RetryTiming {
+    /// One time for the invoice, from the cascading ladder or the retry model, with the ladder
+    /// position to carry back if a retry is scheduled at it and the A/B arm the invoice ran.
+    At {
+        retry_time: time::PrimitiveDateTime,
+        next_static_ladder_progress: Option<pcr::schedule::StaticLadderProgress>,
+        assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    },
+    /// The decider's time, asked of each card the selection admits.
+    Decider,
+    /// The algorithm does not retry invoices.
+    NoRetries,
+    /// The cascading ladder has no slot left for this invoice.
+    LadderExhausted,
+}
+
+/// What the retry time of an invoice is worked out from, whoever triggers the retry.
+#[cfg(feature = "v2")]
+pub(crate) struct RetryTimingParams<'a> {
+    pub payment_intent: &'a PaymentIntent,
+    pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
+    pub retry_count: u32,
+    pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
+    pub remaining_grace_days: u32,
+    pub remaining_budget: u32,
     // Needed only to resolve the A/B gate
-    provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
-    remaining_grace_days: u32,
-    remaining_budget: u32,
+    pub provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
     // Needed only to assign an implementation to an invoice that arrives without one
-    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
-) -> CustomResult<
-    (
-        PaymentProcessorTokenResponse,
-        Option<pcr::schedule::StaticLadderProgress>,
-    ),
-    errors::ProcessTrackerError,
-> {
-    let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
-    // Ladder position to write back onto the CALCULATE row. `None` leaves the stored count alone,
-    // which is the case for every outcome but one — see where it is set.
-    let mut next_static_ladder_progress = None;
-    match retry_algorithm_type {
+    pub merchant_context: pcr_storage_types::RecoveryMerchantContext<'a>,
+}
+
+/// When the next retry of an invoice runs, under the retry algorithm.
+#[cfg(feature = "v2")]
+pub(crate) async fn get_retry_timing(
+    state: &SessionState,
+    params: RetryTimingParams<'_>,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+) -> CustomResult<RetryTiming, errors::ProcessTrackerError> {
+    let RetryTimingParams {
+        payment_intent,
+        retry_algorithm_type,
+        retry_count,
+        prev_attempt_error_code,
+        static_ladder_progress,
+        remaining_grace_days,
+        remaining_budget,
+        provider_merchant_id,
+        merchant_context,
+    } = params;
+
+    let retry_timing = match retry_algorithm_type {
         RevenueRecoveryAlgorithmType::Monitoring => {
             logger::error!("Monitoring type found for Revenue Recovery retry payment");
+            RetryTiming::NoRetries
         }
 
         RevenueRecoveryAlgorithmType::Cascading => {
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_connector(billing_connector);
             let schedule_time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
-                &dimensions,
+                dimensions,
                 retry_count,
             )
             .await;
 
-            // Distinct from `None` below, which means "no token right now, come back later" and
-            // keeps the calculate job alive.
-            let Some(time) = schedule_time else {
-                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None));
-            };
-
-            payment_processor_token_response = get_token_availability_for_schedule_time(
-                state,
-                connector_customer_id,
-                payment_intent,
-                time,
-            )
-            .await?;
+            match schedule_time {
+                Some(time) => RetryTiming::At {
+                    retry_time: time,
+                    next_static_ladder_progress: None,
+                    assigned_ab_algorithm: None,
+                },
+                None => {
+                    logger::info!(retry_count, "Retry ladder exhausted for this invoice");
+                    RetryTiming::LadderExhausted
+                }
+            }
         }
 
         RevenueRecoveryAlgorithmType::Smart => {
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_connector(billing_connector);
-
             let adaptive_retry_enabled = dimensions
                 .get_adaptive_retry_enabled(
                     state.store.as_ref(),
@@ -835,7 +875,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             let ab_dimensions = crate::core::configs::dimension_state::Dimensions::new()
                 .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_provider_merchant_id(provider_merchant_id)
+                .with_provider_merchant_id(provider_merchant_id.clone())
                 .with_organization_id(payment_intent.organization_id.clone())
                 .with_profile_id(payment_intent.profile_id.clone());
 
@@ -849,27 +889,28 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 
             if ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
-                // token. The addition is the model's candidate, which decides outright whenever
-                // it has one; the cascading ladder covers only the decisions it declines.
+                // token. The addition is the model's candidate, and the variant says both how it
+                // is produced and whether the static ladder bounds it; the cascading ladder covers
+                // only what every source in play declines.
                 //
-                // Enrolled and unenrolled invoices differ ONLY in which variant produces that
-                // candidate. The allowances it works against arrive as arguments, and everything
-                // after it — the fallback, the decision, the token — is shared, so enrolling an
-                // invoice cannot change whether it gets retried at all.
+                // Enrolled and unenrolled invoices differ ONLY in that variant. The allowances it
+                // works against arrive as arguments, and everything after it — the fallback, the
+                // decision, the token — is shared, so enrolling an invoice cannot change whether
+                // it gets retried at all.
                 let (model_time, assigned_algorithm) = if ab_enabled {
                     let (time, algorithm) = get_ab_routed_retry_time(
                         state,
                         payment_intent,
-                        tracking_data,
+                        prev_attempt_error_code,
                         remaining_grace_days,
                         remaining_budget,
-                        revenue_recovery_payment_data,
+                        merchant_context,
                         &ab_dimensions,
                     )
                     .await;
                     (time, Some(algorithm))
                 } else {
-                    let time = match tracking_data.prev_attempt_error_code {
+                    let time = match prev_attempt_error_code {
                         // Not enrolled in A/B routing, so this runs the baseline pairing.
                         Some(error_code) => compute_model_retry_time(
                             state,
@@ -900,36 +941,87 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     (time, None)
                 };
 
-                // The MIT cascading ladder is the global fallback for everything the model
-                // declines, indexed by the invoice's overall retry count. Resolved only on the
-                // decline path, so the Superposition read costs nothing when the model decides —
-                // `None` here means "not consulted", not "nothing to offer".
-                let fallback_time = match model_time {
-                    Some(_) => None,
-                    None => {
+                let ladder_role = assigned_algorithm.map_or_else(
+                    || RetryModelVariant::default().ladder,
+                    |arm| RetryModelVariant::from(arm).ladder,
+                );
+                let queried_rung = static_ladder_progress.next_rung();
+
+                // Read only where it can win, and only while the merchant's configured length
+                // still has the rung being asked for. Rungs run 1..=max.
+                let static_time = match ladder_role {
+                    pcr::schedule::StaticLadderRole::Standby => None,
+                    pcr::schedule::StaticLadderRole::Ceiling => {
+                        let max_hybrid_cascading_retry_count = {
+                            let dimensions =
+                                crate::core::configs::dimension_state::Dimensions::new()
+                                    .with_processor_merchant_id(
+                                        payment_intent.merchant_id.clone().into(),
+                                    )
+                                    .with_provider_merchant_id(provider_merchant_id)
+                                    .with_profile_id(payment_intent.profile_id.clone());
+                            dimensions
+                                .get_recovery_max_hybrid_cascading_retry_count(
+                                    state.store.as_ref(),
+                                    state.superposition_service.as_ref(),
+                                    None,
+                                )
+                                .await
+                        };
+
+                        if queried_rung <= max_hybrid_cascading_retry_count {
+                            get_schedule_time_to_retry_adaptive_payments(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                dimensions,
+                                queried_rung,
+                            )
+                            .await
+                        } else {
+                            logger::info!(
+                                queried_rung,
+                                max_hybrid_cascading_retry_count,
+                                "hybrid ladder spent for this invoice — the merchant's configured \
+                                 length is reached, so the model's time stands unbounded"
+                            );
+                            None
+                        }
+                    }
+                };
+
+                // The global fallback for everything the sources above decline, indexed by the
+                // invoice's overall retry count. `None` means "not consulted", not "nothing left".
+                let fallback_time = match (model_time, static_time) {
+                    (None, None) => {
                         get_schedule_time_to_retry_mit_payments(
                             state.store.as_ref(),
                             state.superposition_service.as_ref(),
-                            &dimensions,
+                            dimensions,
                             retry_count,
                         )
                         .await
                     }
+                    _ => None,
                 };
 
                 let decision = pcr::schedule::decide_next_retry(
                     static_ladder_progress,
+                    ladder_role,
+                    queried_rung,
                     model_time,
+                    static_time,
                     fallback_time,
                 )
                 .ok_or_else(|| {
                     logger::error!(
                         retry_count = retry_count,
-                        error_code = ?tracking_data.prev_attempt_error_code,
+                        queried_rung = queried_rung,
+                        ladder_role = ?ladder_role,
+                        error_code = ?prev_attempt_error_code,
                         remaining_grace_days = remaining_grace_days,
                         remaining_budget = remaining_budget,
-                        "No retry time available — the model declined and the MIT cascading \
-                         ladder had nothing left"
+                        "No retry time available — every source in play declined and the MIT \
+                         cascading ladder had nothing left"
                     );
                     // Counted, not just logged: an arm that loses invoices at a different rate
                     // from another is measuring its own drop rate rather than retry quality, and
@@ -950,9 +1042,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 logger::info!(
                     source = ?decision.source,
                     retry_count = retry_count,
+                    ladder_role = ?ladder_role,
+                    queried_rung = queried_rung,
                     model_time = ?model_time,
+                    static_time = ?static_time,
                     fallback_time = ?fallback_time,
-                    error_code = ?tracking_data.prev_attempt_error_code,
+                    consumed_rungs = decision.next_progress.consumed_rungs,
+                    error_code = ?prev_attempt_error_code,
                     remaining_grace_days = remaining_grace_days,
                     remaining_budget = remaining_budget,
                     ab_enabled = ab_enabled,
@@ -960,40 +1056,136 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                     "Retry decision"
                 );
 
-                payment_processor_token_response = get_token_availability_for_schedule_time(
-                    state,
-                    connector_customer_id,
-                    payment_intent,
-                    decision.schedule_time,
-                )
-                .await?;
-
-                // The ladder position is carried back only when a retry is genuinely scheduled.
-                // The other responses finish or reschedule the CALCULATE job without an attempt.
-                if matches!(
-                    payment_processor_token_response,
-                    PaymentProcessorTokenResponse::ScheduledTime { .. }
-                ) {
-                    next_static_ladder_progress = Some(decision.next_progress);
+                RetryTiming::At {
+                    retry_time: decision.schedule_time,
+                    next_static_ladder_progress: Some(decision.next_progress),
+                    assigned_ab_algorithm: assigned_algorithm,
                 }
             } else {
-                payment_processor_token_response = get_best_psp_token_available_for_smart_retry(
-                    state,
-                    connector_customer_id,
-                    payment_intent,
-                )
-                .await
-                .change_context(errors::ProcessTrackerError::EApiErrorResponse)?;
+                RetryTiming::Decider
             }
         }
-    }
+    };
+
+    Ok(retry_timing)
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
+    state: &SessionState,
+    connector_customer_id: &str,
+    payment_intent: &PaymentIntent,
+    billing_connector: common_enums::connector_enums::Connector,
+    retry_algorithm_type: RevenueRecoveryAlgorithmType,
+    retry_count: u32,
+    tracking_data: &pcr_storage_types::RevenueRecoveryWorkflowTrackingData,
+    static_ladder_progress: &pcr::schedule::StaticLadderProgress,
+    // Needed only to resolve the A/B gate
+    provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+    // Needed only to assign an implementation to an invoice that arrives without one
+    revenue_recovery_payment_data: &pcr_storage_types::RevenueRecoveryPaymentData,
+) -> CustomResult<
+    (
+        PaymentProcessorTokenResponse,
+        Option<pcr::schedule::StaticLadderProgress>,
+    ),
+    errors::ProcessTrackerError,
+> {
+    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+        .with_connector(billing_connector);
+
+    // The algorithm below decides only when the retry runs. Which card it is made with is settled
+    // here by the card switching flag alone, so it is the same whichever algorithm runs.
+    let card_selection = CardSelection::from_card_switching_enabled(
+        dimensions
+            .get_card_switching_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await,
+    );
+
+    let retry_timing = Box::pin(get_retry_timing(
+        state,
+        RetryTimingParams {
+            payment_intent,
+            retry_algorithm_type,
+            retry_count,
+            prev_attempt_error_code: tracking_data.prev_attempt_error_code,
+            static_ladder_progress,
+            remaining_grace_days,
+            remaining_budget,
+            provider_merchant_id,
+            merchant_context: revenue_recovery_payment_data.get_merchant_context(),
+        },
+        &dimensions,
+    ))
+    .await?;
+
+    // Ladder position to write back onto the CALCULATE row. `None` leaves the stored count alone,
+    // which is the case for every outcome but one — see where it is set.
+    let (mut payment_processor_token_response, next_static_ladder_progress) = match retry_timing {
+        RetryTiming::NoRetries => return Ok((PaymentProcessorTokenResponse::None, None)),
+
+        // Distinct from `None`, which means "no token right now, come back later" and keeps the
+        // calculate job alive.
+        RetryTiming::LadderExhausted => {
+            return Ok((PaymentProcessorTokenResponse::RetriesExhausted, None))
+        }
+
+        RetryTiming::At {
+            retry_time,
+            next_static_ladder_progress,
+            assigned_ab_algorithm: _,
+        } => {
+            let payment_processor_token_response = get_token_availability_for_schedule_time(
+                state,
+                connector_customer_id,
+                payment_intent,
+                card_selection,
+                retry_time,
+            )
+            .await?;
+
+            // The ladder position is carried back only when a retry is genuinely scheduled.
+            // The other responses finish or reschedule the CALCULATE job without an attempt.
+            let next_static_ladder_progress = next_static_ladder_progress.filter(|_| {
+                matches!(
+                    payment_processor_token_response,
+                    PaymentProcessorTokenResponse::ScheduledTime { .. }
+                )
+            });
+
+            (
+                payment_processor_token_response,
+                next_static_ladder_progress,
+            )
+        }
+
+        RetryTiming::Decider => (
+            get_best_psp_token_available_for_smart_retry(
+                state,
+                connector_customer_id,
+                payment_intent,
+                card_selection,
+            )
+            .await
+            .change_context(errors::ProcessTrackerError::EApiErrorResponse)?,
+            None,
+        ),
+    };
 
     match &mut payment_processor_token_response {
         PaymentProcessorTokenResponse::HardDecline => {
             logger::debug!("Token is hard declined");
         }
 
-        PaymentProcessorTokenResponse::ScheduledTime { scheduled_time } => {
+        PaymentProcessorTokenResponse::ScheduledTime { scheduled_time, .. } => {
             // Add random delay to schedule time
             *scheduled_time = add_random_delay_to_schedule_time(state, *scheduled_time);
 
@@ -1050,16 +1242,17 @@ pub(crate) fn get_invoice_payment_processor_token(
         })
 }
 
-/// Check the invoice's payment processor token against a schedule time already decided.
+/// Pick the card for a schedule time already decided, from the cards the selection admits.
 /// Shared by the cascading and model paths so both gate on the same conditions
 #[cfg(feature = "v2")]
 async fn get_token_availability_for_schedule_time(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    card_selection: CardSelection,
     scheduled_time: time::PrimitiveDateTime,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
-    let payment_processor_token = get_invoice_payment_processor_token(payment_intent);
+    let invoice_token = get_invoice_payment_processor_token(payment_intent);
 
     let payment_processor_tokens_details =
         RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
@@ -1071,46 +1264,46 @@ async fn get_token_availability_for_schedule_time(
             errors::RedisError::RedisConnectionError.into(),
         ))?;
 
-    // Get the token info from redis
-    let payment_processor_tokens_details_with_retry_info = payment_processor_token
-        .as_ref()
-        .and_then(|token| payment_processor_tokens_details.get(token));
+    let payment_processor_token_response = match card_selection::pick_card_for_retry_time(
+        card_selection,
+        &payment_processor_tokens_details,
+        invoice_token.as_deref(),
+    ) {
+        CardAvailability::Ready {
+            payment_processor_token,
+        } => PaymentProcessorTokenResponse::ScheduledTime {
+            scheduled_time,
+            payment_processor_token,
+        },
+        CardAvailability::WaitHours(retry_wait_time_hours) => {
+            let utc_schedule_time: time::OffsetDateTime = common_utils::date_time::now()
+                .assume_utc()
+                + time::Duration::hours(retry_wait_time_hours);
+            let next_available_time =
+                time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
 
-    // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
-    let payment_processor_token_response = match payment_processor_tokens_details_with_retry_info {
-        None => {
+            PaymentProcessorTokenResponse::NextAvailableTime {
+                next_available_time,
+            }
+        }
+        CardAvailability::HardDecline => PaymentProcessorTokenResponse::HardDecline,
+        CardAvailability::NoCard => {
             logger::debug!("No payment processor token found for retry");
             PaymentProcessorTokenResponse::None
-        }
-        Some(payment_token) => {
-            if payment_token.token_status.is_hard_decline.unwrap_or(false) {
-                PaymentProcessorTokenResponse::HardDecline
-            } else if payment_token.retry_wait_time_hours > 0 {
-                let utc_schedule_time: time::OffsetDateTime = common_utils::date_time::now()
-                    .assume_utc()
-                    + time::Duration::hours(payment_token.retry_wait_time_hours);
-                let next_available_time = time::PrimitiveDateTime::new(
-                    utc_schedule_time.date(),
-                    utc_schedule_time.time(),
-                );
-
-                PaymentProcessorTokenResponse::NextAvailableTime {
-                    next_available_time,
-                }
-            } else {
-                PaymentProcessorTokenResponse::ScheduledTime { scheduled_time }
-            }
         }
     };
 
     Ok(payment_processor_token_response)
 }
 
+/// The decider's path: the customer's invoices take turns under the customer lock, and the lock
+/// holder asks the decider for a time on every card the selection admits.
 #[cfg(feature = "v2")]
 pub async fn get_best_psp_token_available_for_smart_retry(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    card_selection: CardSelection,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     //  Lock using payment_id
     let locked_acquired = RedisTokenManager::lock_connector_customer_status(
@@ -1129,11 +1322,14 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                 state,
                 payment_intent,
                 connector_customer_id,
+                card_selection,
             )
             .await?;
             Ok(payment_processor_token_response)
         }
         (false, _) => {
+            let invoice_token = get_invoice_payment_processor_token(payment_intent);
+
             let token_details =
                 RedisTokenManager::get_payment_processor_metadata_for_connector_customer(
                     state,
@@ -1149,10 +1345,17 @@ pub async fn get_best_psp_token_available_for_smart_retry(
                 .values()
                 .find(|info| info.token_status.scheduled_at.is_some());
 
-            // Check for hard decline if info is none
-            let hard_decline_status = token_details
-                .values()
-                .all(|token| token.token_status.is_hard_decline.unwrap_or(false));
+            // Check for hard decline if info is none. No admitted card at all is not a hard
+            // decline, the same as on the lock holder's path.
+            let mut admitted_tokens = token_details
+                .iter()
+                .filter(|(token_id, token)| {
+                    card_selection.admits(token_id, &token.token_status, invoice_token.as_deref())
+                })
+                .peekable();
+            let hard_decline_status = admitted_tokens.peek().is_some()
+                && admitted_tokens
+                    .all(|(_, token)| token.token_status.is_hard_decline.unwrap_or(false));
 
             let mut payment_processor_token_response = PaymentProcessorTokenResponse::None;
 
@@ -1180,7 +1383,10 @@ async fn get_payment_processor_token_by_calling_decider(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     connector_customer_id: &str,
+    card_selection: CardSelection,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
+    let invoice_token = get_invoice_payment_processor_token(payment_intent);
+
     // Get existing tokens from Redis
     let existing_tokens = RedisTokenManager::get_connector_customer_payment_processor_tokens(
         state,
@@ -1191,12 +1397,14 @@ async fn get_payment_processor_token_by_calling_decider(
         errors::RedisError::RedisConnectionError.into(),
     ))?;
 
-    let active_tokens: HashMap<_, _> = existing_tokens
+    let admitted_tokens: HashMap<_, _> = existing_tokens
         .into_iter()
-        .filter(|(_, token_status)| token_status.is_active != Some(false))
+        .filter(|(token_id, token_status)| {
+            card_selection.admits(token_id, token_status, invoice_token.as_deref())
+        })
         .collect();
 
-    let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &active_tokens);
+    let result = RedisTokenManager::get_tokens_with_retry_metadata(state, &admitted_tokens);
 
     let payment_processor_token_response =
         call_decider_for_payment_processor_tokens_select_closest_time(
@@ -1451,6 +1659,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
 
             payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
                 scheduled_time: token.retry_decision.retry_time,
+                payment_processor_token: token.token_details.payment_processor_token,
             };
         }
     }
@@ -1466,6 +1675,10 @@ pub async fn check_hard_decline(
         .error
         .as_ref()
         .map(|details| details.code.clone());
+    let network_decline_code = payment_attempt
+        .error
+        .as_ref()
+        .and_then(|details| details.network_decline_code.clone());
 
     let connector_name = payment_attempt
         .connector
@@ -1495,8 +1708,8 @@ pub async fn check_hard_decline(
         consts::DEFAULT_SUBFLOW_STR,
         error_code,
         error_message,
-        None, // issuer_error_code not available in recovery context
-        None, // card_network
+        network_decline_code,
+        payment_attempt.extract_card_network(),
     )
     .await;
 
@@ -1680,8 +1893,9 @@ pub enum DaySelection {
     SystematicK,
 }
 
-/// Which combine and which sampler this call runs. Independent axes on purpose: a combine change
-/// and a sampler change are separately attributable only if they can be varied separately.
+/// Which combine, which sampler and what the static ladder is to the result. Independent axes on
+/// purpose: a combine change, a sampler change and a scheduling-rule change are separately
+/// attributable only if they can be varied separately.
 ///
 /// Public because the arm an invoice gets is an experiment-assignment decision, which belongs above
 /// this layer — this module only executes the variant it is handed. `Default` is the baseline an
@@ -1692,14 +1906,18 @@ pub enum DaySelection {
 pub struct RetryModelVariant {
     pub combine: DayCombine,
     pub selection: DaySelection,
+    pub ladder: pcr::schedule::StaticLadderRole,
 }
 
+/// The pairing production ran before systematic sampling landed, which is what an invoice outside
+/// the experiment gets. Not the control arm, which is pinned separately.
 #[cfg(feature = "v2")]
 impl Default for RetryModelVariant {
     fn default() -> Self {
         Self {
-            combine: DayCombine::MaxAtScore,
-            selection: DaySelection::SystematicK,
+            combine: DayCombine::MaxAtSoftmax,
+            selection: DaySelection::PerTick,
+            ladder: pcr::schedule::StaticLadderRole::Ceiling,
         }
     }
 }
@@ -1720,14 +1938,22 @@ impl From<common_enums::RevenueRecoveryABAlgorithm> for RetryModelVariant {
             common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry => Self {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
+                ladder: pcr::schedule::StaticLadderRole::Standby,
+            },
+            common_enums::RevenueRecoveryABAlgorithm::HybridAdaptiveRetry => Self {
+                combine: DayCombine::MaxAtSoftmax,
+                selection: DaySelection::PerTick,
+                ladder: pcr::schedule::StaticLadderRole::Ceiling,
             },
             common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtSoftmax => Self {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::SystematicK,
+                ladder: pcr::schedule::StaticLadderRole::Standby,
             },
             common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore => Self {
                 combine: DayCombine::MaxAtScore,
                 selection: DaySelection::SystematicK,
+                ladder: pcr::schedule::StaticLadderRole::Standby,
             },
         }
     }
@@ -2457,28 +2683,29 @@ mod retry_model_tests {
         (a - b).abs() <= tol
     }
 
-    // Every combine x selection pairing. The contract tests below run over all four, because the
-    // guarantees they assert (in-window, never panics, declines only when it should) must not depend
-    // on which variant an invoice was bucketed into.
-    fn all_variants() -> [RetryModelVariant; 4] {
+    // Every combine x selection x ladder-role triple. The contract tests below run over all eight,
+    // because the guarantees they assert (in-window, never panics, declines only when it should)
+    // must not depend on which variant an invoice was bucketed into.
+    fn all_variants() -> [RetryModelVariant; 8] {
+        use pcr::schedule::StaticLadderRole::{Ceiling, Standby};
+        use DayCombine::{MaxAtScore, MaxAtSoftmax};
+        use DaySelection::{PerTick, SystematicK};
+
         [
-            RetryModelVariant {
-                combine: DayCombine::MaxAtSoftmax,
-                selection: DaySelection::PerTick,
-            },
-            RetryModelVariant {
-                combine: DayCombine::MaxAtSoftmax,
-                selection: DaySelection::SystematicK,
-            },
-            RetryModelVariant {
-                combine: DayCombine::MaxAtScore,
-                selection: DaySelection::PerTick,
-            },
-            RetryModelVariant {
-                combine: DayCombine::MaxAtScore,
-                selection: DaySelection::SystematicK,
-            },
+            (MaxAtSoftmax, PerTick, Standby),
+            (MaxAtSoftmax, PerTick, Ceiling),
+            (MaxAtSoftmax, SystematicK, Standby),
+            (MaxAtSoftmax, SystematicK, Ceiling),
+            (MaxAtScore, PerTick, Standby),
+            (MaxAtScore, PerTick, Ceiling),
+            (MaxAtScore, SystematicK, Standby),
+            (MaxAtScore, SystematicK, Ceiling),
         ]
+        .map(|(combine, selection, ladder)| RetryModelVariant {
+            combine,
+            selection,
+            ladder,
+        })
     }
 
     #[test]
@@ -2942,32 +3169,56 @@ mod retry_model_tests {
             RetryModelVariant {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
+                ladder: pcr::schedule::StaticLadderRole::Standby,
+            }
+        );
+    }
+
+    #[test]
+    fn the_unenrolled_default_is_the_pairing_production_ran_before_systematic_sampling() {
+        // This `Default` is the only thing selecting an unenrolled invoice's algorithm, so moving
+        // it re-points every invoice outside the experiment.
+        assert_eq!(
+            RetryModelVariant::default(),
+            RetryModelVariant {
+                combine: DayCombine::MaxAtSoftmax,
+                selection: DaySelection::PerTick,
+                ladder: pcr::schedule::StaticLadderRole::Ceiling,
             }
         );
     }
 
     #[test]
     fn each_arm_varies_at_most_one_axis_from_its_reference() {
-        // Attributability: SystematicKMaxAtSoftmax moves only the sampler from control, and
-        // SystematicKMaxAtScore only the combine from it. An arm moving both against both
-        // references leaves nothing able to say which change caused a result.
+        // Attributability: SystematicKMaxAtSoftmax moves only the sampler from control,
+        // SystematicKMaxAtScore only the combine from it, and HybridAdaptiveRetry only the
+        // ladder's role. An arm moving two axes leaves nothing able to say which change caused
+        // a result.
         use common_enums::RevenueRecoveryABAlgorithm as Arm;
         let control = RetryModelVariant::from(Arm::AdaptiveRetry);
+        let hybrid = RetryModelVariant::from(Arm::HybridAdaptiveRetry);
         let softmax_k = RetryModelVariant::from(Arm::SystematicKMaxAtSoftmax);
         let score_k = RetryModelVariant::from(Arm::SystematicKMaxAtScore);
 
         let axes_differing = |a: RetryModelVariant, b: RetryModelVariant| {
-            usize::from(a.combine != b.combine) + usize::from(a.selection != b.selection)
+            usize::from(a.combine != b.combine)
+                + usize::from(a.selection != b.selection)
+                + usize::from(a.ladder != b.ladder)
         };
         assert_eq!(
             axes_differing(control, softmax_k),
             1,
-            "sampler comparison must hold the combine fixed"
+            "sampler comparison must hold the combine and the ladder fixed"
         );
         assert_eq!(
             axes_differing(softmax_k, score_k),
             1,
-            "combine comparison must hold the sampler fixed"
+            "combine comparison must hold the sampler and the ladder fixed"
+        );
+        assert_eq!(
+            axes_differing(control, hybrid),
+            1,
+            "ladder comparison must hold the combine and the sampler fixed"
         );
     }
 
@@ -2993,6 +3244,7 @@ mod retry_model_tests {
         use common_enums::RevenueRecoveryABAlgorithm as Arm;
         for (arm, expected) in [
             (Arm::AdaptiveRetry, "adaptive_retry"),
+            (Arm::HybridAdaptiveRetry, "hybrid_adaptive_retry"),
             (Arm::SystematicKMaxAtSoftmax, "systematic_k_max_at_softmax"),
             (Arm::SystematicKMaxAtScore, "systematic_k_max_at_score"),
         ] {

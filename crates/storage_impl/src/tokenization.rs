@@ -16,8 +16,10 @@ use crate::{connection, errors};
 use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
+#[router_derive::track_async_interface]
 pub trait TokenizationInterface {}
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 pub trait TokenizationInterface {
@@ -126,9 +128,12 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        self.router_store
-            .insert_tokenization(tokenization, merchant_key_store)
-            .await
+        TokenizationInterface::insert_tokenization(
+            &self.router_store,
+            tokenization,
+            merchant_key_store,
+        )
+        .await
     }
 
     async fn get_entity_id_vault_id_by_token_id(
@@ -137,9 +142,12 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        self.router_store
-            .get_entity_id_vault_id_by_token_id(token, merchant_key_store)
-            .await
+        TokenizationInterface::get_entity_id_vault_id_by_token_id(
+            &self.router_store,
+            token,
+            merchant_key_store,
+        )
+        .await
     }
 
     async fn update_tokenization_record(
@@ -149,13 +157,13 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<hyperswitch_domain_models::tokenization::Tokenization, errors::StorageError>
     {
-        self.router_store
-            .update_tokenization_record(
-                tokenization_record,
-                tokenization_update,
-                merchant_key_store,
-            )
-            .await
+        TokenizationInterface::update_tokenization_record(
+            &self.router_store,
+            tokenization_record,
+            tokenization_update,
+            merchant_key_store,
+        )
+        .await
     }
 }
 

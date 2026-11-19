@@ -9,6 +9,8 @@ pub mod blocklist;
 pub mod cache;
 pub mod card_issuer;
 pub mod cards_info;
+#[cfg(feature = "v2")]
+pub mod client_secret;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
@@ -18,7 +20,6 @@ pub mod customers;
 pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
-pub mod ephemeral_key;
 pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
@@ -49,6 +50,8 @@ pub mod profile_acquirer;
 pub mod profiles;
 pub mod refunds;
 #[cfg(feature = "v2")]
+pub mod revenue_recovery;
+#[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_redis;
@@ -58,6 +61,8 @@ pub mod routing;
 pub mod subscription;
 pub mod superposition_proxy;
 pub mod superposition_sdk_config;
+#[cfg(feature = "v1")]
+pub mod telephone_order;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "olap")]
@@ -90,17 +95,15 @@ pub mod proxy;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
-#[cfg(feature = "v2")]
-pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, ExternalService,
-    FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount,
-    MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll,
-    ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay,
-    RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule, User,
+    Configs, ConnectorOnboarding, Customers, Disputes, Embedded, ExternalService, FeatureMatrix,
+    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
+    OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker,
+    ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
+    SdkConfig, SessionState, SuperpositionProxy, TelephoneOrder, ThreeDsDecisionRule, User,
     UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
@@ -108,10 +111,12 @@ pub use self::app::{
     Blocklist, HierarchicalResources, Organization, Routing, Subscription, UnifiedConnectorService,
     Verify, WebhookEvents,
 };
+#[cfg(feature = "v2")]
+pub use self::app::{ClientSecret, PaymentMethodSession};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]
-pub use self::app::{RecoveryDataBackfill, Tokenization};
+pub use self::app::{RevenueRecovery, Tokenization};
 #[cfg(all(feature = "stripe", feature = "v1"))]
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]

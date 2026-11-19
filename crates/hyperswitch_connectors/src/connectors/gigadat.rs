@@ -57,7 +57,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{Mask, PeekInterface};
 use lazy_static::lazy_static;
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use transformers as gigadat;
 
 #[cfg(feature = "payouts")]
@@ -166,27 +166,41 @@ impl ConnectorCommon for Gigadat {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: gigadat::GigadatErrorResponse = res
-            .response
-            .parse_struct("GigadatErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: Result<
+            gigadat::GigadatErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("GigadatErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.err.clone(),
-            message: response.err.clone(),
-            reason: Some(response.err).clone(),
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.err.clone(),
+                    message: response.err.clone(),
+                    reason: Some(response.err).clone(),
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_message) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_message);
+                utils::handle_json_response_deserialization_failure(res, "gigadat")
+            }
+        }
     }
 }
 

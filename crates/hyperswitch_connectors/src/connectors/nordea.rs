@@ -1145,6 +1145,7 @@ impl ConnectorSpecifications for Nordea {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                connector_meta_data: _,
             } => matches!(
                 &request_data.payment_method_data,
                 payment_method_data::PaymentMethodData::BankDebit(_)
@@ -1153,7 +1154,9 @@ impl ConnectorSpecifications for Nordea {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 

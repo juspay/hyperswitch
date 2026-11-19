@@ -632,12 +632,12 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                 .get_string_repr()
                 .to_owned();
 
-            let legacy_card_exists = match cards::get_card_from_locker(
+            let legacy_card_exists = match Box::pin(cards::get_card_from_locker(
                 state,
                 &customer_id,
                 platform.get_provider().get_account().get_id(),
                 &card_reference,
-            )
+            ))
             .await
             {
                 Ok(_) => {
@@ -756,6 +756,7 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
 
                 if older_locker_id.as_deref() != Some(updated_card_reference.as_str()) {
                     let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                        last_used_at: None,
                         payment_method_data: None,
                         status: None,
                         locker_id: Some(updated_card_reference.clone()),
@@ -816,15 +817,14 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
     let db = &*state.store;
     let workflow = BackwardCompatWorkflowBuilder::new().load_tracking_data(tracking_data);
     let merchant_id = workflow.merchant_id()?.clone();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await?;
 
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await?;
     let workflow = workflow.load_context(key_store, merchant_account);
@@ -859,12 +859,14 @@ pub async fn run_payment_method_modular_backward_compat_backfill(
             "Skipping modular backward compatibility backfill because legacy PM is not forward compatible"
         );
     } else {
-        workflow
-            .prepare_db_compat()?
-            .apply_locker_compat(state, db, process_id)
-            .await?
-            .mark_complete(db)
-            .await?;
+        Box::pin(
+            workflow
+                .prepare_db_compat()?
+                .apply_locker_compat(state, db, process_id),
+        )
+        .await?
+        .mark_complete(db)
+        .await?;
     }
 
     Ok(())

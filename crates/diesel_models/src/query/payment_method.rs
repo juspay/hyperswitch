@@ -1,11 +1,8 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 #[cfg(feature = "v2")]
 use diesel::PgExpressionMethods;
 #[cfg(feature = "v1")]
 use diesel::Table;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -159,13 +156,9 @@ impl PaymentMethod {
             ),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            filter.get_result_async::<i64>(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -183,13 +176,9 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            query.get_result_async::<i64>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::Others)
@@ -243,7 +232,7 @@ impl PaymentMethod {
         conn: &DatabaseConnectionWithContext<'_>,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -252,7 +241,7 @@ impl PaymentMethod {
             conn,
             dsl::payment_method_id.eq(self.payment_method_id.to_owned()),
             payment_method,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -335,6 +324,27 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn find_by_auxiliary_fingerprint_id_and_status(
+        conn: &DatabaseConnectionWithContext<'_>,
+        customer_id: &common_utils::id_type::GlobalCustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        auxiliary_fingerprint_id: &str,
+        status: storage_enums::PaymentMethodStatus,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::auxiliary_fingerprint_id.eq(auxiliary_fingerprint_id.to_owned()))
+                .and(dsl::status.eq(status)),
+            None,
+            None,
+            Some(dsl::created_at.desc()),
+        )
+        .await
+    }
+
     pub async fn find_by_global_customer_id(
         conn: &DatabaseConnectionWithContext<'_>,
         customer_id: &common_utils::id_type::GlobalCustomerId,
@@ -401,13 +411,9 @@ impl PaymentMethod {
                 .and(dsl::status.eq(status.to_owned())),
         );
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
-
-        generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             generics::db_metrics::DatabaseOperation::Count,
-            query.get_result_async::<i64>(conn.raw_connection()),
+            query,
         )
         .await
         .change_context(errors::DatabaseError::Others)

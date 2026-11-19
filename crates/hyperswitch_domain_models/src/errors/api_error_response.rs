@@ -222,8 +222,6 @@ pub enum ApiErrorResponse {
         current_value: String,
         states: String,
     },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_15", message = "Invalid Ephemeral Key for the customer")]
-    InvalidEphemeralKey,
     /// Typically used when information involving multiple fields or previously provided information doesn't satisfy a condition.
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_16", message = "{message}")]
     PreconditionFailed { message: String },
@@ -334,6 +332,8 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_06", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
     WebhookInvalidMerchantSecret,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_07", message = "Too many unverified webhooks received")]
+    WebhookRateLimited,
     #[error(error_type = ErrorType::ServerNotAvailable, code = "IE", message = "{reason} as data mismatched for {field_names}")]
     IntegrityCheckFailed {
         payment_id: Option<common_utils::id_type::PaymentId>,
@@ -623,7 +623,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 current_value,
                 states,
             } => AER::BadRequest(ApiError::new("IR", 14, format!("This Payment could not be {current_flow} because it has a {field_name} of {current_value}. The expected state is {states}"), None)),
-            Self::InvalidEphemeralKey => AER::Unauthorized(ApiError::new("IR", 15, "Invalid Ephemeral Key for the customer", None)),
             Self::PreconditionFailed { message } => {
                 AER::BadRequest(ApiError::new("IR", 16, message.to_string(), None))
             }
@@ -741,6 +740,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::WebhookInvalidMerchantSecret => {
                 AER::BadRequest(ApiError::new("WE", 6, "Merchant Secret set for webhook source verification is invalid", None))
+            }
+            Self::WebhookRateLimited => {
+                AER::TooManyRequests(ApiError::new("WE", 7, "Too many unverified webhooks received", None))
             }
             Self::IntegrityCheckFailed {
                 reason,
