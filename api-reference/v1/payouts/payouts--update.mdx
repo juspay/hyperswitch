@@ -2,6 +2,4 @@
 openapi: post /payouts/{payout_id}
 ---
 
-Payout updates use the customer ID stored on the payout. The customer association is fixed at creation and cannot be changed by an update. Both `customer_id` and `customer.id` in the update request are ignored, including unknown IDs.
-
-All inline customer details, including the deprecated top-level customer details, are ignored and never create or update a customer. To attach a customer, create it separately using `POST /customers` and supply its ID when creating the payout. Existing customer requirements for the selected payout flow still apply.
+Updates keep the customer assigned at payout creation. Request customer IDs and inline details are ignored.

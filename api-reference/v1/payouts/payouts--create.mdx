@@ -6,23 +6,11 @@ Create a payout with `payout_method_data` (including raw card details) or a save
 
 ## Customer creation
 
-Create the customer separately using `POST /customers`, then pass the returned ID in `customer.id` or `customer_id` when creating the payout:
+Create the customer with `POST /customers`, then pass its ID as `customer.id` or `customer_id`. Unknown IDs return `CustomerNotFound` (HTTP 404). Inline customer attributes are ignored.
 
-```json
-{
-  "amount": 1000,
-  "currency": "USD",
-  "customer": {
-    "id": "cus_y3oqhf46pyzuxjbcn2giaqnb44"
-  }
-}
-```
+The customer association is fixed at creation. Update and confirm use the stored ID and ignore supplied IDs.
 
-Payouts never create customers. An unknown customer ID returns `CustomerNotFound` (HTTP 404), even when customer details are included. Inline customer details other than `customer.id`, including the deprecated top-level customer details, are ignored and never create or update a customer. Use the Customers API to manage those details.
-
-The customer association is fixed when the payout is created. Update and confirm use the customer ID stored on the payout and ignore any customer IDs supplied in those requests.
-
-Without a customer ID, the payout remains customerless even if inline customer details are supplied. Customerless drafts remain supported where the payout flow permits them. Operations that require a customer, including supplying raw `payout_method_data`, require an existing customer ID. To create a payout link, pass the existing customer ID in the top-level `customer_id` field.
+Customerless drafts are supported where permitted. Raw `payout_method_data` requires an existing customer ID; payout links require the top-level `customer_id`.
 
 ## External-vault card payouts
 

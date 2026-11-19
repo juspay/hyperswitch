@@ -120,11 +120,13 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// For create, identifier of an existing customer created through the Customers API; an unknown ID returns CustomerNotFound. Omit the ID to create a draft without a customer where supported. The customer association is fixed at creation: update and confirm ignore request customer IDs and use the customer stored on the payout. Inline customer details are ignored and never create or update a customer. Proxy creates require this or customer.id owning payout_method_id. Payout links require customer_id. _Deprecated: Use customer.id instead._
+    /// Existing customer ID used at creation. Ignored on update and confirm.
+    /// _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// On create, attach an existing customer using customer.id after creating the customer separately through the Customers API. Update and confirm ignore this entire object, including customer.id, and use the customer stored on the payout. All other inline customer details are ignored during create as well and never create or update a customer. Create remains customerless without an ID where supported.
+    /// On create, attach an existing customer using customer.id.
+    /// Other details are ignored. Update and confirm keep the stored customer.
     #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<payments::CustomerDetails>,
 
@@ -199,19 +201,19 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<u32>, example = 900)]
     pub session_expiry: Option<u32>,
 
-    /// Legacy customer email. Ignored during payouts; never creates or updates a customer. _Deprecated: Manage customer details through the Customers API._
+    /// Ignored. _Deprecated: Manage customer details through the Customers API._
     #[schema(deprecated, max_length = 255, value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<Email>,
 
-    /// Legacy customer name. Ignored during payouts; never creates or updates a customer. _Deprecated: Manage customer details through the Customers API._
+    /// Ignored. _Deprecated: Manage customer details through the Customers API._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "John Test")]
     pub name: Option<Secret<String>>,
 
-    /// Legacy customer phone. Ignored during payouts; never creates or updates a customer. _Deprecated: Manage customer details through the Customers API._
+    /// Ignored. _Deprecated: Manage customer details through the Customers API._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "9123456789")]
     pub phone: Option<Secret<String>>,
 
-    /// Legacy customer phone country code. Ignored during payouts; never creates or updates a customer. _Deprecated: Manage customer details through the Customers API._
+    /// Ignored. _Deprecated: Manage customer details through the Customers API._
     #[schema(deprecated, max_length = 255, example = "+1")]
     pub phone_country_code: Option<String>,
 
@@ -940,11 +942,11 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = bool, example = true, default = false)]
     pub auto_fulfill: bool,
 
-    /// The identifier of the existing customer attached to the payout, if any. _Deprecated: Use customer.id instead._
+    /// Attached customer ID, if any. _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// Details of the existing customer attached to the payout, if any.
+    /// Attached customer details, if any.
     #[schema(value_type = Option<CustomerDetailsResponse>)]
     pub customer: Option<payments::CustomerDetailsResponse>,
 

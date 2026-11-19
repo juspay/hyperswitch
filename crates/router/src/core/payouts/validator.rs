@@ -94,7 +94,6 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
-/// Only attach an existing customer; inline attributes never create or update one.
 #[cfg(feature = "v1")]
 async fn get_and_validate_payout_customer(
     state: &SessionState,
@@ -116,7 +115,6 @@ async fn get_and_validate_payout_customer(
     Ok(customer)
 }
 
-/// Validate before request-driven writes, using the intent's customer ID for existing payouts.
 #[cfg(feature = "v1")]
 pub(super) fn validate_customer_for_payout_method(
     customer_id: Option<&id_type::CustomerId>,
@@ -177,7 +175,6 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -214,8 +211,7 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before customer lookup so the cap applies to the
-    // exact merchant/profile context that will own the payout.
+    // Resolve the profile before checking its payout limit.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -270,7 +266,6 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before resolving customers or payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),

@@ -918,7 +918,6 @@ pub(super) async fn get_existing_customer_details(
     todo!()
 }
 
-/// Resolve a payout customer without creating or updating the internal customer record.
 #[cfg(feature = "v1")]
 pub(super) async fn get_existing_customer_details(
     state: &SessionState,
@@ -1351,7 +1350,7 @@ pub async fn update_payouts_and_payout_attempt(
     )
     .await?;
 
-    // Retain the intent's customer ID even when its optional customer lookup was empty.
+    // Update and confirm retain the stored customer.
     let customer_id = payouts.customer_id.clone();
 
     let (billing_address, address_id) = resolve_billing_address_for_payout(

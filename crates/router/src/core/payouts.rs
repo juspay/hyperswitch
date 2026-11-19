@@ -3971,10 +3971,8 @@ pub async fn make_payout_data(
         .execution_kind
         .validate_persisted_execution_kind(req)?;
 
-    // The customer association is fixed at creation; update/confirm cannot replace it.
     let customer_id = payouts.customer_id.as_ref();
-    // Update/confirm reuse this request variant but do not run create validation.
-    // Validate here before source-bank or payout-method writes below.
+    // Update/confirm skip create validation; check before locker writes.
     if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
         validator::validate_customer_for_payout_method(
             customer_id,
