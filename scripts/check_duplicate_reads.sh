@@ -9,8 +9,10 @@ if [[ ! -f "$server_log" ]]; then
   exit 1
 fi
 
+exec 3> "$duplicate_log"
 grep_status=0
-grep -F 'Duplicate database reads in session' "$server_log" > "$duplicate_log" || grep_status=$?
+grep -F 'Duplicate database reads in session' "$server_log" >&3 || grep_status=$?
+exec 3>&-
 if (( grep_status > 1 )); then
   echo "::error::Could not scan router server log: $server_log"
   exit "$grep_status"
