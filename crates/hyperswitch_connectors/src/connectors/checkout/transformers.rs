@@ -663,8 +663,6 @@ pub struct CheckoutThreeDS {
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
-    // Checkout's 3dsRequestThirdParty.status carries the external ACS/DS transaction status.
-    // https://api-reference.checkout.com/v1/swagger.json
     #[serde(skip_serializing_if = "Option::is_none")]
     status: Option<enums::TransactionStatus>,
     challenge_indicator: CheckoutChallengeIndicator,
