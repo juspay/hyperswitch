@@ -1063,6 +1063,37 @@ impl DatabaseBackedConfig for RoutingResultSource {
     }
 }
 
+/// Superposition-only endpoint rollout, scoped by processor/provider merchant and profile.
+pub struct DecisionEngineDecideEnabled;
+
+impl superposition::Config for DecisionEngineDecideEnabled {
+    type Output = bool;
+    type TargetingKey = id_type::ProfileId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::DECISION_ENGINE_DECIDE_ENABLED;
+
+    fn default_value() -> Self::Output {
+        false
+    }
+}
+
+impl dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId {
+    pub async fn get_decision_engine_decide_enabled(
+        &self,
+        superposition_client: &superposition::SuperpositionClient,
+    ) -> bool {
+        use superposition::Config;
+
+        // There is no DB fallback: absent or unavailable rollout config keeps hybrid.
+        DecisionEngineDecideEnabled::fetch(
+            superposition_client,
+            self.to_superposition_context().as_ref(),
+            self.get_profile_id(),
+        )
+        .await
+        .unwrap_or_else(|_| DecisionEngineDecideEnabled::default_value())
+    }
+}
+
 config! {
     superposition_key = THREEDS_ROUTING_REGION_UAS,
     output = common_enums::RoutingRegion,
@@ -1480,4 +1511,83 @@ config! {
 
 impl DatabaseBackedConfig for AcceptPaymentAmountMismatch {
     const KEY: &'static str = "accept_payment_amount_mismatch";
+}
+
+#[cfg(test)]
+mod decision_engine_decide_config_tests {
+    use external_services::superposition::Config as SuperpositionConfig;
+
+    use super::{dimension_state, id_type, DecisionEngineDecideEnabled};
+
+    fn dimensions(
+        profile_id: &str,
+    ) -> dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId {
+        dimension_state::Dimensions::new()
+            .with_processor_merchant_id(
+                id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_processor"))
+                    .expect("valid processor merchant")
+                    .into(),
+            )
+            .with_provider_merchant_id(dimension_state::ProviderMerchantId::new(
+                id_type::MerchantId::try_from(std::borrow::Cow::Borrowed("merchant_provider"))
+                    .expect("valid provider merchant"),
+            ))
+            .with_profile_id(profile_id.parse().expect("valid profile"))
+    }
+
+    #[test]
+    fn defaults_and_seed_keep_hybrid_until_superposition_enables_decide() {
+        assert!(!DecisionEngineDecideEnabled::default_value());
+
+        let seed: serde_json::Value = ::config::Config::builder()
+            .add_source(::config::File::from_str(
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../config/superposition_seed.toml"
+                )),
+                ::config::FileFormat::Toml,
+            ))
+            .build()
+            .expect("valid Superposition seed")
+            .try_deserialize()
+            .expect("seed JSON");
+        let config = &seed["default-configs"][DecisionEngineDecideEnabled::SUPERPOSITION_KEY];
+
+        assert_eq!(config["value"], false);
+        assert_eq!(config["schema"]["type"], "boolean");
+        for dimension in [
+            "processor_merchant_id",
+            "provider_merchant_id",
+            "profile_id",
+        ] {
+            assert!(seed["dimensions"].get(dimension).is_some());
+        }
+    }
+
+    #[test]
+    fn profile_rollout_context_preserves_processor_and_provider_merchants() {
+        let first_dimensions = dimensions("pro_first");
+        let first = first_dimensions
+            .to_superposition_context()
+            .expect("profile config context");
+        let second = dimensions("pro_second")
+            .to_superposition_context()
+            .expect("second profile config context");
+
+        assert_eq!(first.get("profile_id"), Some("pro_first"));
+        assert_eq!(second.get("profile_id"), Some("pro_second"));
+        assert_eq!(
+            first.get("processor_merchant_id"),
+            Some("merchant_processor")
+        );
+        assert_eq!(first.get("provider_merchant_id"), Some("merchant_provider"));
+        assert_eq!(
+            first.get("processor_merchant_id"),
+            second.get("processor_merchant_id")
+        );
+        assert_eq!(
+            first.get("provider_merchant_id"),
+            second.get("provider_merchant_id")
+        );
+    }
 }

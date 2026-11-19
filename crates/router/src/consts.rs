@@ -579,6 +579,8 @@ pub mod superposition {
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
     /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
     pub const ROUTING_RESULT_SOURCE: &str = "routing.routing_result_source";
+    /// Select `/decide` for DE-routed payments, with merchant/profile overrides and hybrid rollback.
+    pub const DECISION_ENGINE_DECIDE_ENABLED: &str = "routing.decision_engine_decide_enabled";
     /// 3DS routing region configuration key for UAS
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector

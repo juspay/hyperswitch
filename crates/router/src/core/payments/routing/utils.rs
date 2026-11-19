@@ -103,6 +103,7 @@ impl HybridRoutingOutcome {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DecisionEngineEndpoint {
+    Decide,
     DecideGateway,
     UpdateGatewayScore,
     RoutingEvaluate,
@@ -117,6 +118,7 @@ enum DecisionEngineEndpoint {
 }
 
 impl DecisionEngineEndpoint {
+    const DECIDE_PATH: &'static str = "decide";
     const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
     const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
     const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
@@ -128,6 +130,7 @@ impl DecisionEngineEndpoint {
     const ROUTING_LIST_PATH: &'static str = "routing/list";
     const RULE_PATH: &'static str = "rule";
 
+    const DECIDE_LABEL: &'static str = "decide";
     const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
     const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
     const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
@@ -143,6 +146,7 @@ impl DecisionEngineEndpoint {
     fn from_path(path: &str) -> Self {
         let path = path.split('?').next().unwrap_or(path).trim_matches('/');
         match path {
+            Self::DECIDE_PATH => Self::Decide,
             Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
             Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
             Self::ROUTING_EVALUATE_BATCH_PATH => Self::RoutingEvaluateBatch,
@@ -159,6 +163,7 @@ impl DecisionEngineEndpoint {
 
     fn as_label(self) -> &'static str {
         match self {
+            Self::Decide => Self::DECIDE_LABEL,
             Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
             Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
             Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
@@ -176,6 +181,47 @@ impl DecisionEngineEndpoint {
 
 const DECISION_ENGINE_ADMIN_SECRET_HEADER: &str = "x-admin-secret";
 
+pub(super) fn build_decision_engine_http_request<Req>(
+    config: &crate::configs::settings::OpenRouter,
+    http_method: services::Method,
+    path: &str,
+    request_body: Option<Req>,
+    profile_id: Option<&id_type::ProfileId>,
+) -> RoutingResult<common_utils::request::Request>
+where
+    Req: Serialize + Send + Sync + 'static + Clone,
+{
+    let url = format!("{}/{path}", config.url.trim_end_matches('/'));
+    let mut request_builder = services::RequestBuilder::new()
+        .method(http_method)
+        .url(&url);
+
+    if !config.admin_secret.peek().is_empty() {
+        request_builder = request_builder.headers(vec![(
+            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
+            config.admin_secret.clone().into_masked(),
+        )]);
+    }
+
+    if DecisionEngineEndpoint::from_path(path) == DecisionEngineEndpoint::Decide {
+        // DE merchants are HS profiles. The service credential authenticates HS; this
+        // header identifies the profile whose rules and scoring configuration apply.
+        let profile_id = profile_id.ok_or(errors::RoutingError::OpenRouterError(
+            "decision_engine: /decide requires a connected profile".to_string(),
+        ))?;
+        request_builder =
+            request_builder.header("x-connected-merchant-id", profile_id.get_string_repr());
+    }
+
+    if let Some(body_content) = request_body {
+        request_builder = request_builder.set_body(common_utils::request::RequestContent::Json(
+            Box::new(body_content),
+        ));
+    }
+
+    Ok(request_builder.build())
+}
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -190,32 +236,15 @@ where
     Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone + 'static,
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
-    let decision_engine_base_url = &state.conf.open_router.url;
-    let url = format!("{decision_engine_base_url}/{path}");
+    let http_request = build_decision_engine_http_request(
+        &state.conf.open_router,
+        http_method,
+        path,
+        request_body,
+        events_wrapper.as_ref().map(|wrapper| &wrapper.profile_id),
+    )?;
+    let url = http_request.url.clone();
     logger::debug!(decision_engine_api_call_url = %url, decision_engine_request_path = %path, http_method = ?http_method, "decision_engine: Initiating decision_engine API call ({})", context_message);
-
-    let mut request_builder = services::RequestBuilder::new()
-        .method(http_method)
-        .url(&url);
-
-    // The Decision Engine authenticates Hyperswitch via a shared admin secret: its admin
-    // endpoints (merchant provisioning, SSO code mint) verify the header in the handler, and
-    // its protected router accepts it as service-to-service auth. Attach it on every call
-    // when configured; an empty secret omits the header.
-    let admin_secret = &state.conf.open_router.admin_secret;
-    if !admin_secret.peek().is_empty() {
-        request_builder = request_builder.headers(vec![(
-            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
-            admin_secret.clone().into_masked(),
-        )]);
-    }
-
-    if let Some(body_content) = request_body {
-        let body = common_utils::request::RequestContent::Json(Box::new(body_content));
-        request_builder = request_builder.set_body(body);
-    }
-
-    let http_request = request_builder.build();
     let should_parse_response = events_wrapper
         .as_ref()
         .map(|wrapper| wrapper.parse_response)
@@ -573,6 +602,61 @@ impl DecisionEngineErrorsInterface for HybridErrorResponse {
             Self::Dynamic(error) => error.get_error_data(),
         }
     }
+}
+
+#[cfg(feature = "v1")]
+pub(super) async fn decision_engine_decide_routing(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    request: super::decide::DecideRequest,
+) -> RoutingResult<HybridRoutingOutcome> {
+    let routing_events_wrapper = RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+        payment_id,
+        business_profile.get_id().to_owned(),
+        business_profile.merchant_id.to_owned(),
+        "DecisionEngine: Routing".to_string(),
+        Some(request.clone()),
+        true,
+        false,
+    );
+
+    let event_response = build_and_send_decision_engine_http_request::<
+        _,
+        super::decide::DecideResponse,
+        DeErrorResponse,
+    >(
+        state,
+        services::Method::Post,
+        "decide",
+        Some(request),
+        Some(EUCLID_API_TIMEOUT),
+        "parsing decide response",
+        Some(routing_events_wrapper),
+    )
+    .await?;
+
+    let response = event_response
+        .response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "decision_engine: response from /decide is empty".to_string(),
+        ))?;
+    let outcome = super::decide::normalize_decide_routing_response(&response)?;
+    let mut routing_event =
+        event_response
+            .event
+            .ok_or(errors::RoutingError::RoutingEventsError {
+                message: "decision_engine: routing event not found in decide response".to_string(),
+                status_code: 500,
+            })?;
+
+    routing_event.set_routing_approach(outcome.routing_approach.to_string());
+    routing_event.set_routable_connectors(outcome.connectors.clone());
+    state.event_handler().log_event(&routing_event);
+
+    Ok(outcome)
 }
 
 pub async fn decision_engine_hybrid_routing(
