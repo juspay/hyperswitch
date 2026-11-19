@@ -1055,13 +1055,18 @@ pub enum CallConnectorAction {
         resource_object: Vec<u8>,
         event_type: Option<IncomingWebhookEventType>,
     },
-    UCSConsumeResponse(Vec<u8>),
+    UCSConsumeResponse {
+        resource_object: Vec<u8>,
+        event_type: IncomingWebhookEventType,
+    },
     HandleResponseWithoutBuildRequest,
 }
 
 /// For denoting the webhook event type in CallConnectorAction,
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum IncomingWebhookEventType {
+    PaymentIntentAuthorizationSuccess,
+    PaymentIntentProcessing,
     PaymentIntentCaptureFailure,
     Other,
 }

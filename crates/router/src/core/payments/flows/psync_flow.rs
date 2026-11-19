@@ -19,7 +19,7 @@ use crate::{
     types::{self, api, domain},
 };
 
-/// Keep an in-progress capture or void when a successful webhook reports authorization.
+/// Keep an in-progress capture or void when an authorization or processing webhook reports authorization.
 /// `current_status` must come from the payment attempt read under the payment lock.
 pub fn reconcile_webhook_payment_status(
     current_status: common_enums::AttemptStatus,
@@ -27,13 +27,22 @@ pub fn reconcile_webhook_payment_status(
     action: &payments::CallConnectorAction,
     response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> common_enums::AttemptStatus {
-    use common_enums::AttemptStatus;
+    use common_enums::{AttemptStatus, IncomingWebhookEventType};
 
     if response.is_ok()
         && matches!(
             action,
-            payments::CallConnectorAction::HandleResponse { .. }
-                | payments::CallConnectorAction::UCSConsumeResponse(_)
+            payments::CallConnectorAction::HandleResponse {
+                event_type: Some(
+                    IncomingWebhookEventType::PaymentIntentAuthorizationSuccess
+                        | IncomingWebhookEventType::PaymentIntentProcessing
+                ),
+                ..
+            } | payments::CallConnectorAction::UCSConsumeResponse {
+                event_type: IncomingWebhookEventType::PaymentIntentAuthorizationSuccess
+                    | IncomingWebhookEventType::PaymentIntentProcessing,
+                ..
+            }
         )
         && reported_status == AttemptStatus::Authorized
         && matches!(

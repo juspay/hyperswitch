@@ -352,6 +352,7 @@ async fn incoming_webhooks_core(
                         profile,
                         webhook_details,
                         source_verified,
+                        event_type,
                     ))
                     .await
                     .attach_printable("Incoming webhook flow for payments failed")?,
@@ -433,11 +434,12 @@ async fn payments_incoming_webhook_flow(
     profile: domain::Profile,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
+    event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
         payments::CallConnectorAction::HandleResponse {
             resource_object: webhook_details.resource_object,
-            event_type: None,
+            event_type: Some(event_type.into()),
         }
     } else {
         payments::CallConnectorAction::Trigger

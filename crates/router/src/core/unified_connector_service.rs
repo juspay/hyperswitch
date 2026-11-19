@@ -1291,7 +1291,7 @@ async fn resolve_ucs_execution_decision(
     let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
     {
         match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_) => {
+            CallConnectorAction::UCSConsumeResponse { .. } => {
                 Err(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. This action is only valid in UCS gateway")?
             }
@@ -1306,7 +1306,7 @@ async fn resolve_ucs_execution_decision(
         }
     } else {
         match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_) => {
+            CallConnectorAction::UCSConsumeResponse { .. } => {
                 router_env::logger::info!(
                     request_id = %request_id,
                     "CallConnectorAction UCSConsumeResponse received, using UCS gateway"
@@ -1491,7 +1491,7 @@ fn is_kill_switch_applicable(
         ConnectorIntegrationType::UcsConnector
     ) && !matches!(
         call_connector_action,
-        CallConnectorAction::UCSConsumeResponse(_)
+        CallConnectorAction::UCSConsumeResponse { .. }
     )
 }
 
