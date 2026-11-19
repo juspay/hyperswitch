@@ -3204,6 +3204,19 @@ fn get_setup_intent_billing_address(
     }
 }
 
+/// Browser info is sent as `payment_method_data[ip]` and `payment_method_data[user_agent]`, so it
+/// goes only with inline payment method data. Next to a tokenized `payment_method` Stripe rejects
+/// it for the missing `payment_method_data[type]`; the payment method already carries the ip and
+/// user agent from the tokenization call
+fn get_setup_intent_browser_info(
+    item: &SetupMandateRouterData,
+    payment_data: Option<&StripePaymentMethodData>,
+) -> Option<StripeBrowserInformation> {
+    payment_data
+        .and(item.request.browser_info.clone())
+        .map(StripeBrowserInformation::from)
+}
+
 /// Customer acceptance sent so Stripe creates the mandate along with the SetupIntent. It is sent
 /// only when complete, so an incomplete acceptance doesn't fail the setup mandate; Stripe doesn't
 /// require it to set up a payment method (Klarna included)
@@ -3235,8 +3248,10 @@ impl TryFrom<&SetupMandateRouterData> for StripePaymentMethodType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
         // Stripe takes `card` for every other mandate payment method (cards, wallets)
-        Ok(get_pay_later_payment_method_type(&item.request.payment_method_data)?
-            .unwrap_or(Self::Card))
+        Ok(
+            get_pay_later_payment_method_type(&item.request.payment_method_data)?
+                .unwrap_or(Self::Card),
+        )
     }
 }
 
@@ -3257,11 +3272,7 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             item.connector_request_reference_id.clone(),
         ));
 
-        let browser_info = item
-            .request
-            .browser_info
-            .clone()
-            .map(StripeBrowserInformation::from);
+        let browser_info = get_setup_intent_browser_info(item, payment_data.as_ref());
 
         let is_moto = get_stripe_moto_flag(
             &item.request.payment_method_data,
