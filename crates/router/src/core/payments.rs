@@ -10,6 +10,8 @@ pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "olap")]
 pub mod list;
+#[cfg(feature = "v1")]
+mod mandate_currency;
 pub mod multi_currency_processing;
 pub mod operations;
 pub mod session_token;
@@ -12964,6 +12966,7 @@ where
         chosen_connector_routing_data.clone(),
         payment_data,
         &payment_method_info,
+        &state.conf.cross_currency_mit,
     )?;
 
     routing_data.routed_through = Some(
@@ -12992,6 +12995,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
+    cross_currency_mit: &crate::configs::settings::CrossCurrencyMitConfig,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -13034,15 +13038,13 @@ where
                 mandate_reference_record,
             )?;
 
-            if let Some(mandate_currency) =
-                mandate_reference_record.original_payment_authorized_currency
-            {
-                if mandate_currency != payment_data.get_currency() {
-                    return Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                        reason: "Cross currency mandates not supported".into(),
-                    }));
-                }
-            }
+            mandate_currency::validate_connector_mandate_currency(
+                cross_currency_mit,
+                connector_routing_data.connector_data.connector_name,
+                payment_method_info.get_payment_method_type(),
+                mandate_reference_record.original_payment_authorized_currency,
+                payment_data.get_currency(),
+            )?;
 
             payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
@@ -13113,16 +13115,12 @@ where
                                 mandate_reference_record,
                             )?;
 
-                            common_utils::fp_utils::when(
-                                mandate_reference_record
-                                    .original_payment_authorized_currency
-                                    .map(|mandate_currency| mandate_currency != payment_data.get_currency())
-                                    .unwrap_or(false),
-                                || {
-                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                                        reason: "cross currency mandates not supported".into()
-                                    }))
-                                },
+                            mandate_currency::validate_connector_mandate_currency(
+                                &state.conf.cross_currency_mit,
+                                connector_data.connector_name,
+                                payment_method_info.get_payment_method_type(),
+                                mandate_reference_record.original_payment_authorized_currency,
+                                payment_data.get_currency(),
                             )?;
                             let mandate_reference_id = Some(mandates::MandateReferenceId::ConnectorMandateId(
                                 mandates::ConnectorMandateReferenceId::new(

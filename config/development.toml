@@ -1442,6 +1442,9 @@ connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,n
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
 
+[cross_currency_mit]
+connector_list = []
+
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 
