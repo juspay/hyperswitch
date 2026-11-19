@@ -10,6 +10,8 @@ use external_services::metrics_provider::{
 };
 use serde::Deserialize;
 
+use crate::domain::notifier::chat::AlertSeverity;
+
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RuleDefinition {
@@ -73,6 +75,9 @@ impl From<Severity> for AlertEvaluationLevel {
 pub struct Notification {
     pub heading: String,
     pub destination: String,
+    pub title: String,
+    pub severity: AlertSeverity,
+    pub region: String,
     pub message: String,
 }
 

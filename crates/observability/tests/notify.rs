@@ -31,7 +31,7 @@ use observability::{
     domain::notifier::{
         chat::{
             ChatFileOutcome, ChatFileUpload, ChatNotification, ChatNotifier, ChatOutcome,
-            ChatReceipt, LogChatNotifier,
+            ChatReceipt, ChatUpdate, LogChatNotifier,
         },
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
@@ -255,6 +255,13 @@ impl ChatNotifier for RecordingChatNotifier {
         _upload: ChatFileUpload,
     ) -> observability::errors::ObservabilityApiResult<ChatFileOutcome> {
         unreachable!("evaluator tests never upload files")
+    }
+
+    async fn update(
+        &self,
+        _update: ChatUpdate,
+    ) -> observability::errors::ObservabilityApiResult<ChatOutcome> {
+        unreachable!("evaluator tests never update messages")
     }
 }
 
@@ -548,7 +555,7 @@ fn repeated_current_breach_sends_alarm_on_every_notify() {
             assert!(body["rules"][0]["message"]
                 .as_str()
                 .unwrap()
-                .starts_with("ALARM: repeated-rule\n"));
+                .starts_with("Severity: `CRITICAL`\n"));
         }
         assert_eq!(calls["oncall"].lock().unwrap().len(), 2);
     });
@@ -655,32 +662,32 @@ fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_atte
             .unwrap()
             .contains("data source request failed"));
         let error_message = body["rules"][0]["message"].as_str().unwrap();
-        assert!(error_message.starts_with("RULE ERROR: Failed `{raw}` <&>\n"));
+        assert!(error_message.starts_with("Severity: `Not evaluated`\n"));
         assert!(error_message.contains("State: RULE ERROR\n"));
-        assert!(error_message.contains("Severity: Not evaluated\n"));
-        assert!(error_message.contains("Condition: Not evaluated\n"));
-        assert!(error_message.contains("Evaluation: Failed\n"));
-        assert!(error_message.contains("Latest value: Unavailable\n"));
-        assert!(error_message.contains("Query range: Unavailable\n"));
+        assert!(error_message.contains("Severity: `Not evaluated`\n"));
+        assert!(error_message.contains("Condition: `Not evaluated`\n"));
+        assert!(error_message.contains("Evaluation: `Failed`\n"));
+        assert!(error_message.contains("Latest value: `Unavailable`\n"));
+        assert!(error_message.contains("Query range: `Unavailable`\n"));
         assert!(error_message.contains(
-            "Datapoints — timestamp | value | evaluation:\nUnavailable: rule evaluation failed\n"
+            "Datapoints — timestamp | value | evaluation:\n```\nUnavailable: rule evaluation failed\n```\n"
         ));
         assert!(!error_message.contains("SELECTED / BREACHING"));
-        assert!(error_message.contains("Metric: fails\n"));
+        assert!(error_message.contains("Metric: `fails`\n"));
         assert!(error_message.contains("data source request failed"));
-        assert!(error_message.ends_with("Definition: failed-rule\n"));
+        assert!(error_message.ends_with("Definition: `failed-rule`\n"));
         assert_eq!(body["rules"][0]["delivered"], true);
         assert_eq!(body["rules"][1]["id"], "breach-rule");
         assert_eq!(body["rules"][1]["status"], "evaluated");
         assert_eq!(body["rules"][1]["level"], "critical");
         let alarm_message = body["rules"][1]["message"].as_str().unwrap();
-        assert!(alarm_message.starts_with("ALARM: Breach `{raw}` <&>\n"));
-        assert!(alarm_message.contains("Severity: CRITICAL\n"));
+        assert!(alarm_message.starts_with("Severity: `CRITICAL`\n"));
+        assert!(alarm_message.contains("Severity: `CRITICAL`\n"));
         assert!(alarm_message.contains("State: ALARM\n"));
-        assert!(alarm_message.contains("Metric: breaches\n"));
-        assert!(alarm_message.contains("Condition: Sum >= 1\n"));
-        assert!(alarm_message.contains("Evaluation: 1 of 1 datapoints\n"));
-        assert!(alarm_message.contains("Latest value: 10\n"));
+        assert!(alarm_message.contains("Metric: `breaches`\n"));
+        assert!(alarm_message.contains("Condition: `Sum >= 1`\n"));
+        assert!(alarm_message.contains("Evaluation: `1 of 1 datapoints`\n"));
+        assert!(alarm_message.contains("Latest value: `10`\n"));
         let request = loop {
             if let MetricEvent::Started(metric, request) = event(&mut events).await {
                 if metric == "breaches" {
@@ -700,14 +707,16 @@ fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_atte
             )
             .unwrap(),
         );
-        assert!(alarm_message.contains(&format!("Query range: {from} UTC to {to} UTC\n")));
+        assert!(alarm_message.contains(&format!("Query range: `{} UTC to {} UTC`\n",
+            from,
+            to)));
         assert!(alarm_message.contains(&format!(
             "{} UTC | 10 | SELECTED / BREACHING\n",
             to - time::Duration::seconds(60),
         )));
         assert_eq!(alarm_message.matches("SELECTED / BREACHING").count(), 1);
         assert!(alarm_message.contains("Error:\nNone\n"));
-        assert!(alarm_message.ends_with("Definition: breach-rule\n"));
+        assert!(alarm_message.ends_with("Definition: `breach-rule`\n"));
         assert_eq!(calls["critical-errors"].lock().unwrap().len(), 1);
         assert!(calls["info-errors"].lock().unwrap().is_empty());
         assert_eq!(calls["alarm"].lock().unwrap().len(), 1);
