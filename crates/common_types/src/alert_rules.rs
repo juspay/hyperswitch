@@ -56,8 +56,6 @@ pub struct GrafanaLokiQuery {
     pub end_offset_seconds: u32,
     #[serde(default)]
     pub context: BTreeMap<String, String>,
-    #[serde(default)]
-    pub logs: Option<String>,
 }
 
 const DEFAULT_END_OFFSET_SECONDS: fn() -> u32 = || 180;

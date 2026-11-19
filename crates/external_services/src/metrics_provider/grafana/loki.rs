@@ -1,14 +1,11 @@
-use std::{cmp::Reverse, collections::HashMap};
-
-use common_utils::date_time::convert_to_pdt;
-use error_stack::{Report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Proxy;
-use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use serde::Serialize;
+use time::Duration;
 
 use super::{
     epoch_millis, GrafanaClient, GrafanaConfig, GrafanaDatasource, GrafanaMetricsResponse,
-    QueryResult, QUERY_REF_ID,
+    QUERY_REF_ID,
 };
 use crate::metrics_provider::{
     MetricPoint, MetricRange, MetricSeries, MetricsError, MetricsProvider, MetricsResult,
@@ -33,61 +30,11 @@ pub struct LokiMetricsRequest {
     queries: [GrafanaLokiQuery; 1],
 }
 
-#[derive(Debug, Clone)]
-pub struct LokiLogsQuery {
-    pub datasource_uid: String,
-    pub expr: String,
-    pub limit: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LogLine {
-    pub timestamp: PrimitiveDateTime,
-    pub line: String,
-}
-
 impl GrafanaLoki {
     pub fn new(config: GrafanaConfig, proxy: Proxy) -> Self {
         Self {
             client: GrafanaClient { config, proxy },
         }
-    }
-
-    pub async fn fetch_logs(
-        &self,
-        query: LokiLogsQuery,
-        range: MetricRange,
-    ) -> MetricsResult<Vec<LogLine>> {
-        let (status, response) = self
-            .client
-            .execute::<LokiLogsRequest, GrafanaLogsResponse>(LokiLogsRequest {
-                from: epoch_millis(range.from),
-                to: epoch_millis(range.to),
-                queries: [GrafanaLokiLogsQuery {
-                    ref_id: QUERY_REF_ID,
-                    datasource: GrafanaDatasource {
-                        kind: "loki",
-                        uid: query.datasource_uid,
-                    },
-                    expr: query.expr,
-                    query_type: QueryType::Range,
-                    max_lines: query.limit,
-                    direction: Direction::Backward,
-                }],
-            })
-            .await?;
-        let mut lines = self
-            .client
-            .take_frames(response.results, status)?
-            .into_iter()
-            .map(parse_log_frame)
-            .collect::<MetricsResult<Vec<_>>>()?
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        lines.sort_by_key(|line| Reverse(line.timestamp));
-        lines.truncate(usize::try_from(query.limit).unwrap_or(usize::MAX));
-        Ok(lines)
     }
 }
 
@@ -104,7 +51,13 @@ impl MetricsProvider for GrafanaLoki {
     ) -> MetricsResult<Self::MetricsRequest> {
         let period = i64::from(query.period);
         Ok(LokiMetricsRequest {
-            from: epoch_millis(range.to - Duration::seconds(period)),
+            from: epoch_millis(
+                range
+                    .to
+                    .checked_sub(Duration::seconds(period))
+                    .ok_or(MetricsError::MalformedResponse)
+                    .attach_printable("query range start is out of range")?,
+            ),
             to: epoch_millis(range.to),
             queries: [GrafanaLokiQuery {
                 ref_id: QUERY_REF_ID,
@@ -164,96 +117,7 @@ impl MetricsProvider for GrafanaLoki {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum QueryType {
-    Range,
     Instant,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-enum Direction {
-    Backward,
-}
-
-#[derive(Debug, Serialize)]
-struct LokiLogsRequest {
-    from: String,
-    to: String,
-    queries: [GrafanaLokiLogsQuery; 1],
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct GrafanaLokiLogsQuery {
-    ref_id: &'static str,
-    datasource: GrafanaDatasource,
-    expr: String,
-    query_type: QueryType,
-    max_lines: u32,
-    direction: Direction,
-}
-
-#[derive(Debug, Deserialize)]
-struct GrafanaLogsResponse {
-    results: Option<HashMap<String, QueryResult<LogFrame>>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LogFrame {
-    schema: Option<LogFrameSchema>,
-    data: Option<LogFrameData>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LogFrameSchema {
-    fields: Vec<LogFrameField>,
-}
-
-#[derive(Debug, Deserialize)]
-struct LogFrameField {
-    name: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct LogFrameData {
-    values: Option<Vec<Vec<serde_json::Value>>>,
-}
-
-fn parse_log_frame(frame: LogFrame) -> MetricsResult<Vec<LogLine>> {
-    let column = |name: &str| {
-        frame
-            .schema
-            .as_ref()
-            .and_then(|schema| schema.fields.iter().position(|field| field.name == name))
-            .ok_or(MetricsError::MalformedResponse)
-            .attach_printable_lazy(|| format!("log frame is missing the {name} field"))
-    };
-    let (time, line) = (column("Time")?, column("Line")?);
-    let values = frame.data.and_then(|data| data.values).unwrap_or_default();
-    let (Some(times), Some(lines)) = (values.get(time), values.get(line)) else {
-        return Ok(Vec::new());
-    };
-    times
-        .iter()
-        .zip(lines)
-        .map(|(time, line)| {
-            let milliseconds = time
-                .as_i64()
-                .ok_or(MetricsError::MalformedResponse)
-                .attach_printable("log frame time is not an integer")?;
-            let timestamp =
-                OffsetDateTime::from_unix_timestamp_nanos(i128::from(milliseconds) * 1_000_000)
-                    .change_context(MetricsError::MalformedResponse)
-                    .attach_printable("log frame contains an out-of-range timestamp")?;
-            Ok(LogLine {
-                timestamp: convert_to_pdt(timestamp),
-                line: line
-                    .as_str()
-                    .ok_or_else(|| Report::new(MetricsError::MalformedResponse))
-                    .attach_printable("log frame line is not a string")?
-                    .to_owned(),
-            })
-        })
-        .collect()
 }
 
 #[derive(Debug, Serialize)]
@@ -270,8 +134,10 @@ struct GrafanaLokiQuery {
 mod tests {
     use std::collections::BTreeMap;
 
+    use common_utils::date_time::convert_to_pdt;
     use hyperswitch_masking::Secret;
     use serde_json::json;
+    use time::{OffsetDateTime, PrimitiveDateTime};
     use wiremock::{
         matchers::{body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,
@@ -338,73 +204,6 @@ mod tests {
                     value: 5.0,
                 }],
             }]
-        );
-    }
-
-    #[tokio::test]
-    async fn fetch_logs_posts_a_backward_log_query_and_returns_the_newest_lines() {
-        let server = MockServer::start().await;
-        Mock::given(method("POST"))
-            .and(path("/api/ds/query"))
-            .and(body_json(json!({
-                "from": "1700000000000",
-                "to": "1700000060000",
-                "queries": [{
-                    "refId": "A",
-                    "datasource": {"type": "loki", "uid": "loki-main"},
-                    "expr": "{app=\"router\"} |= \"error\"",
-                    "queryType": "range",
-                    "maxLines": 2,
-                    "direction": "backward"
-                }]
-            })))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "results": {"A": {"frames": [{
-                    "schema": {"fields": [
-                        {"name": "labels"}, {"name": "Time"}, {"name": "Line"}, {"name": "tsNs"}
-                    ]},
-                    "data": {"values": [
-                        [{"app": "router"}, {"app": "router"}, {"app": "router"}],
-                        [1_700_000_010_000_i64, 1_700_000_050_000_i64, 1_700_000_030_000_i64],
-                        ["first", "newest", "middle"],
-                        ["1700000010000000000", "1700000050000000000", "1700000030000000000"]
-                    ]}
-                }]}}
-            })))
-            .mount(&server)
-            .await;
-        let provider = GrafanaLoki::new(
-            GrafanaConfig {
-                base_url: Some(server.uri().parse().unwrap()),
-                api_token: Secret::new("loki-test-token".to_owned()),
-            },
-            Proxy::default(),
-        );
-        assert_eq!(
-            provider
-                .fetch_logs(
-                    LokiLogsQuery {
-                        datasource_uid: "loki-main".to_owned(),
-                        expr: "{app=\"router\"} |= \"error\"".to_owned(),
-                        limit: 2,
-                    },
-                    MetricRange {
-                        from: at(1_700_000_000),
-                        to: at(1_700_000_060),
-                    },
-                )
-                .await
-                .unwrap(),
-            vec![
-                LogLine {
-                    timestamp: at(1_700_000_050),
-                    line: "newest".to_owned(),
-                },
-                LogLine {
-                    timestamp: at(1_700_000_030),
-                    line: "middle".to_owned(),
-                },
-            ]
         );
     }
 }

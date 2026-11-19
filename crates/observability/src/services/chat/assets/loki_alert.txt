@@ -19,9 +19,6 @@ Missing data policy: no matching logs counts as 0
 Latest value: {value}
 Query range: {range}
 
-Latest logs:
-{logs}
-
 Error:
 {error}
 

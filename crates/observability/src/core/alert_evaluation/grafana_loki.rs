@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use common_types::alert_rules::{AlertThresholds, GrafanaLokiQuery};
 use external_services::metrics_provider::{
-    grafana::loki::{GrafanaLoki, LokiLogsQuery, LokiMetricsQuery},
+    grafana::loki::{GrafanaLoki, LokiMetricsQuery},
     MetricPoint, MetricRange, MetricSeries,
 };
 use time::PrimitiveDateTime;
@@ -10,10 +10,7 @@ use time::PrimitiveDateTime;
 use crate::{
     core::alert_evaluation::{evaluate_series, fetch_window, AlertEvaluator},
     domain_models::evaluator::{Evaluation, EvaluatorResult, RuleDefinition},
-    logger,
 };
-
-const LOG_LINES: u32 = 3;
 
 #[async_trait::async_trait]
 impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
@@ -40,33 +37,7 @@ impl AlertEvaluator<GrafanaLokiQuery> for GrafanaLoki {
             from: last,
             ..window
         };
-        let mut evaluations = evaluate_instances(series, &rule.config.thresholds, window, last)?;
-        if let Some(logs) = query.logs.as_ref().filter(|_| {
-            evaluations
-                .iter()
-                .any(|evaluation| evaluation.breach.is_some())
-        }) {
-            match self
-                .fetch_logs(
-                    LokiLogsQuery {
-                        datasource_uid: datasource_uid.to_owned(),
-                        expr: logs.clone(),
-                        limit: LOG_LINES,
-                    },
-                    window,
-                )
-                .await
-            {
-                Ok(lines) => evaluations
-                    .iter_mut()
-                    .filter(|evaluation| evaluation.breach.is_some())
-                    .for_each(|evaluation| evaluation.logs = lines.clone()),
-                Err(error) => {
-                    logger::warn!(tag = "evaluator_logs", rule_id = %rule.id, error = ?error, "Sample log lines unavailable")
-                }
-            }
-        }
-        Ok(evaluations)
+        evaluate_instances(series, &rule.config.thresholds, window, last)
     }
 }
 

@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt};
 
 use common_types::alert_rules::{AlertRuleConfig, Severity, SeverityThreshold};
 use common_utils::errors::CustomResult;
-use external_services::metrics_provider::{grafana::loki::LogLine, MetricPoint, MetricRange};
+use external_services::metrics_provider::{MetricPoint, MetricRange};
 use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
@@ -76,7 +76,6 @@ pub struct Evaluation {
     pub breach: Option<SeverityThreshold>,
     pub window: MetricRange,
     pub labels: BTreeMap<String, String>,
-    pub logs: Vec<LogLine>,
 }
 
 #[derive(Debug, thiserror::Error)]
