@@ -10,6 +10,7 @@
 pub mod alerts_info;
 pub mod blacklist;
 pub mod dictionary;
+pub mod evaluator;
 pub mod lifecycle_events;
 pub mod metadata;
 pub mod rule_toggles;
