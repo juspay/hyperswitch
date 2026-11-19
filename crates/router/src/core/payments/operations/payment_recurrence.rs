@@ -167,15 +167,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .map(|mcd| mcd.creds_identifier.to_owned());
 
-        let n_request_payment_method_data = payment_method_with_raw_data
+        let n_request_payment_method_data = request
+            .payment_method_data
             .as_ref()
-            .and_then(|pm| pm.raw_payment_method_data.clone())
+            .and_then(|pmd| pmd.payment_method_data.clone())
+            .map(domain::PaymentMethodData::from)
             .or_else(|| {
-                request
-                    .payment_method_data
+                payment_method_with_raw_data
                     .as_ref()
-                    .and_then(|pmd| pmd.payment_method_data.clone())
-                    .map(domain::PaymentMethodData::from)
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
             });
 
         let store = state.clone().store;
@@ -193,12 +193,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // record/replay comparison reads a transposition as a behaviour change.
         let additional_pm_data_fut = tokio::spawn(
             async move {
-                let additional_pm_info = n_request_payment_method_data
+                Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            None,
                             superposition_service.as_ref(),
                             &mandate_dimensions,
                             None,
@@ -206,8 +205,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         )
                         .await
                     })
-                    .await;
-                Ok(additional_pm_info)
+                    .await)
             }
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
@@ -298,7 +296,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request_payment_method_data.payment_method_data.clone()
                 });
 
-        let (additional_pm_data, card_info) = additional_pm_info.transpose()?.unwrap_or_default();
+        let additional_pm_data = additional_pm_info.transpose()?.flatten();
         let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
@@ -369,7 +367,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
 
         let payment_data = PaymentData {
-            card_info,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

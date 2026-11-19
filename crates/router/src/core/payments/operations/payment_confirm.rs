@@ -573,17 +573,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .clone()
             .or(payment_attempt.business_sub_label);
 
-        let n_request_payment_method_data = payment_method_with_raw_data
+        let n_request_payment_method_data = request
+            .payment_method_data
             .as_ref()
-            .and_then(|pm| pm.raw_payment_method_data.clone())
+            .and_then(|pmd| pmd.payment_method_data.clone())
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details.clone())
             .or_else(|| {
-                request
-                    .payment_method_data
+                payment_method_with_raw_data
                     .as_ref()
-                    .and_then(|pmd| pmd.payment_method_data.clone())
-                    .map(domain::PaymentMethodData::from)
-            })
-            .or(payment_method_recurring_details.clone());
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
@@ -598,12 +598,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
-                let additional_pm_info = n_request_payment_method_data
+                Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            None,
                             superposition_service.as_ref(),
                             &additional_pm_data_dimensions,
                             customer_id.as_ref(),
@@ -611,8 +610,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         )
                         .await
                     })
-                    .await;
-                Ok(additional_pm_info)
+                    .await)
             }
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
@@ -729,7 +727,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             utils::flatten_join_error(payment_method_billing_future),
         )?;
 
-        let (additional_pm_data, card_info) = additional_pm_info.transpose()?.unwrap_or_default();
+        let additional_pm_data = additional_pm_info.transpose()?.flatten();
 
         let m_helpers::MandateGenericData {
             token,
@@ -1001,7 +999,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         payment_attempt.installment_data = request.installment_data.clone().map(Into::into);
 
         let payment_data = PaymentData {
-            card_info,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -2924,14 +2921,13 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let dimensions = dimensions.with_profile_id(profile_id.clone());
-        let (additional_pm_data, card_info) = payment_data
+        let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    payment_data.card_info.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions,
                     customer_id,
@@ -2941,8 +2937,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             })
             .await
             .transpose()?
-            .unwrap_or_else(|| (None, payment_data.card_info.clone()));
-        payment_data.card_info = card_info;
+            .flatten();
 
         let encoded_additional_pm_data = additional_pm_data
             .as_ref()

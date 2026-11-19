@@ -553,12 +553,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .net_amount
             .set_order_tax_amount(order_tax_amount);
 
-        let payment_method_data = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into));
         let payment_data = PaymentData {
-            card_info: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -579,7 +574,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 business_profile.use_billing_as_payment_method_billing,
             ),
             confirm: request.confirm,
-            payment_method_data,
+            payment_method_data: request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone().map(Into::into)),
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
@@ -1139,7 +1137,7 @@ impl PaymentUpdate {
         state: &SessionState,
         processor: &domain::Processor,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-        mut payment_data: PaymentData<F>,
+        payment_data: PaymentData<F>,
         request: &PaymentDataUpdateRequestFields,
     ) -> RouterResult<(
         PaymentData<F>,
@@ -1160,14 +1158,13 @@ impl PaymentUpdate {
             .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_data.payment_intent.customer_id.as_ref();
 
-        let (additional_pm_data, card_info) = payment_data
+        let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    payment_data.card_info.as_ref(),
                     state.superposition_service.as_ref(),
                     &dimensions.with_profile_id(profile_id.clone()),
                     customer_id,
@@ -1177,8 +1174,7 @@ impl PaymentUpdate {
             })
             .await
             .transpose()?
-            .unwrap_or_else(|| (None, payment_data.card_info.clone()));
-        payment_data.card_info = card_info;
+            .flatten();
 
         let encoded_pm_data = additional_pm_data
             .as_ref()

@@ -3862,7 +3862,7 @@ pub(crate) async fn insert_deferred_payment_method(
     };
 
     let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-    let (payment_method, _) = payment_methods::cards::PmCards { state, provider }
+    let payment_method = payment_methods::cards::PmCards { state, provider }
         .create_payment_method(
             &payment_method_create_request,
             customer_id,

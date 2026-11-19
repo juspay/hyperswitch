@@ -280,8 +280,7 @@ impl CardsInfoInterface for KafkaStore {
     async fn get_card_info(
         &self,
         card_iin: &str,
-    ) -> CustomResult<hyperswitch_domain_models::cards_info::ResolvedCardInfo, errors::StorageError>
-    {
+    ) -> CustomResult<Option<storage::CardInfo>, errors::StorageError> {
         self.diesel_store.get_card_info(card_iin).await
     }
 

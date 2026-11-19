@@ -156,7 +156,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
             })?;
 
         let payment_data = PaymentData {
-            card_info: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

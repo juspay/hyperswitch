@@ -351,7 +351,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 ),
             };
 
-        let (payment_attempt_new, additional_payment_data, card_info) = Self::make_payment_attempt(
+        let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             platform,
             money,
@@ -719,7 +719,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .flatten();
 
         let payment_data = PaymentData {
-            card_info,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),
@@ -1500,7 +1499,6 @@ impl PaymentCreate {
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
-        Option<helpers::ResolvedCardInfo>,
     )> {
         let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
@@ -1515,22 +1513,20 @@ impl PaymentCreate {
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
-        let enrichment_payment_method_data = modular_raw_payment_method_data
-            .or_else(|| {
-                request
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|data| data.payment_method_data.clone())
-                    .map(domain::PaymentMethodData::from)
-            })
-            .or(payment_method_recurring_details);
-        let (mut additional_pm_data, card_info) = enrichment_payment_method_data
+        let mut additional_pm_data = request
+            .payment_method_data
             .as_ref()
-            .async_map(|payment_method_data| async {
+            .and_then(|payment_method_data_request| {
+                payment_method_data_request.payment_method_data.clone()
+            })
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details)
+            .or(modular_raw_payment_method_data)
+            .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
+            .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
-                    payment_method_data,
+                    &payment_method_data,
                     &*state.store,
-                    None,
                     state.superposition_service.as_ref(),
                     &dimensions,
                     customer_id,
@@ -1540,7 +1536,7 @@ impl PaymentCreate {
             })
             .await
             .transpose()?
-            .unwrap_or_default();
+            .flatten();
 
         if additional_pm_data.is_none() {
             // If recurring payment is made using payment_method_id, then fetch payment_method_data from retrieved payment_method object
@@ -1809,7 +1805,6 @@ impl PaymentCreate {
                 active_frm_id: None,
             },
             additional_pm_data,
-            card_info,
 
         ))
     }

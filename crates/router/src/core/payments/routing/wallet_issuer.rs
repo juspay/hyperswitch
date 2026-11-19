@@ -93,7 +93,7 @@ pub(crate) async fn enrich_wallet_issuer_country(
                 .store
                 .get_card_info(&bin)
                 .await
-                .map(|record| record.into_record().and_then(|record| record.country_code))
+                .map(|record| record.and_then(|record| record.country_code))
         })
         .await;
     }

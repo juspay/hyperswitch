@@ -164,7 +164,6 @@ impl<F: Send + Clone + Sync>
                 .map(domain::PaymentMethodData::from));
 
         let payment_data = payments::PaymentData {
-            card_info: None,
             capture_feature_metadata: None,
             flow: PhantomData,
             previous_db_records: (payment_attempt.clone(), payment_intent.clone()),

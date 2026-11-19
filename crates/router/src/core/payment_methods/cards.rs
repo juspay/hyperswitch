@@ -151,8 +151,7 @@ impl PaymentMethodsController for PmCards<'_> {
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::CustomResult<(domain::PaymentMethod, domain::Customer), errors::ApiErrorResponse>
-    {
+    ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
         let use_merchant_reference_id =
             payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
@@ -161,7 +160,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 Some(customer_id),
             )
             .await;
-        let mut customer = db
+        let customer = db
             .find_customer_by_customer_id_merchant_id(
                 customer_id,
                 merchant_id,
@@ -245,17 +244,19 @@ impl PaymentMethodsController for PmCards<'_> {
             .attach_printable("Failed to add payment method in db")?;
 
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
-            match self
-                .set_default_payment_method(merchant_id, customer.clone(), &response, initiator)
+            let _ = self
+                .set_default_payment_method(
+                    merchant_id,
+                    customer_id,
+                    payment_method_id.to_owned(),
+                    initiator,
+                )
                 .await
-            {
-                Ok(updated_customer) => customer = updated_customer,
-                Err(error) => {
-                    logger::error!(?error, "Failed to set the payment method as default");
-                }
-            }
+                .map_err(|error| {
+                    logger::error!(?error, "Failed to set the payment method as default")
+                });
         }
-        Ok((response, customer))
+        Ok(response)
     }
     #[cfg(feature = "v1")]
     fn store_default_payment_method(
@@ -374,7 +375,6 @@ impl PaymentMethodsController for PmCards<'_> {
                         initiator,
                     )
                     .await
-                    .map(|(payment_method, _)| payment_method)
                 } else {
                     Err(err)
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -405,7 +405,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_requestor_ref_id: String,
         pm_id: String,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<Option<domain::PaymentMethod>> {
+    ) -> errors::RouterResult<bool> {
         let payment_method_create_request =
             api::PaymentMethodCreate::get_payment_method_create_from_payment_method_migrate(
                 network_token_data.network_token_number.clone(),
@@ -498,26 +498,25 @@ impl PaymentMethodsController for PmCards<'_> {
                 )
                 .await;
 
-                let updated_payment_method = db
-                    .update_payment_method(
-                        key_store,
-                        existing_pm,
-                        pm_update,
-                        self.provider.get_account().storage_scheme,
-                        compat_action,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(format!(
-                        "Failed to update payment method for existing pm_id: {pm_id:?} in db",
-                    ))?;
+                db.update_payment_method(
+                    key_store,
+                    existing_pm,
+                    pm_update,
+                    self.provider.get_account().storage_scheme,
+                    compat_action,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!(
+                    "Failed to update payment method for existing pm_id: {pm_id:?} in db",
+                ))?;
 
                 logger::debug!("Network token added to locker and payment method updated");
-                Ok(Some(updated_payment_method))
+                Ok(true)
             }
             Err(err) => {
                 logger::debug!("Network token added to locker failed {:?}", err);
-                Ok(None)
+                Ok(false)
             }
         }
     }
@@ -543,7 +542,7 @@ impl PaymentMethodsController for PmCards<'_> {
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<(domain::PaymentMethod, domain::Customer)> {
+    ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = match &resp.card {
             Some(card) => Some(PaymentMethodsData::Card(CardDetailsPaymentMethod::from((
                 card.clone(),
@@ -626,7 +625,7 @@ impl PaymentMethodsController for PmCards<'_> {
         connector_mandate_details: Option<serde_json::Value>,
         network_transaction_id: Option<String>,
         payment_method_billing_address: Option<Encryption>,
-    ) -> errors::RouterResult<(domain::PaymentMethod, domain::Customer)> {
+    ) -> errors::RouterResult<domain::PaymentMethod> {
         todo!()
     }
 
@@ -1266,14 +1265,41 @@ impl PaymentMethodsController for PmCards<'_> {
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
-        customer: domain::Customer,
-        payment_method: &domain::PaymentMethod,
+        customer_id: &id_type::CustomerId,
+        payment_method_id: String,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<domain::Customer> {
+    ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
+    {
         let db = &*self.state.store;
-        let customer_id = customer.get_id().clone();
-        let payment_method_id = payment_method.get_id().clone();
-        payment_method
+        // check for the customer
+        // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
+        let use_merchant_reference_id =
+            payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+                self.state,
+                self.provider,
+                Some(customer_id),
+            )
+            .await;
+        let customer = db
+            .find_customer_by_customer_id_merchant_id(
+                customer_id,
+                merchant_id,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+                use_merchant_reference_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        // check for the presence of payment_method
+        let payment_method = db
+            .find_payment_method(
+                self.provider.get_key_store(),
+                &payment_method_id,
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        let pm = payment_method
             .get_payment_method_type()
             .get_required_value("payment_method")?;
 
@@ -1283,7 +1309,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .get_required_value("customer_id")?;
 
         utils::when(
-            pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
+            &pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "The payment_method_id is not valid".to_string(),
@@ -1299,6 +1325,8 @@ impl PaymentMethodsController for PmCards<'_> {
                 })
             },
         )?;
+
+        let customer_id = customer.get_id().clone();
 
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
@@ -1321,21 +1349,49 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update the default payment method id for the customer")?;
 
-        Ok(updated_customer_details)
+        let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
+            default_payment_method_id: updated_customer_details.default_payment_method_id,
+            customer_id,
+            payment_method_type: payment_method.get_payment_method_subtype(),
+            payment_method: pm,
+        };
+
+        Ok(services::ApplicationResponse::Json(resp))
     }
 
     #[cfg(feature = "v2")]
     async fn set_default_payment_method(
         &self,
         merchant_id: &id_type::MerchantId,
-        customer: domain::Customer,
-        payment_method: &domain::PaymentMethod,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_id: &id_type::GlobalPaymentMethodId,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<domain::Customer> {
+    ) -> errors::RouterResponse<api_models::payment_methods::CustomerDefaultPaymentMethodResponse>
+    {
         let db = &*self.state.store;
-        let customer_id = customer.id.clone();
-        let payment_method_id = payment_method.get_id().clone();
-        payment_method
+        // check for the customer
+        // TODO: customer need not be checked again here, this function can take an optional customer and check for existence of customer based on the optional value
+        let customer = db
+            .find_customer_by_global_id_merchant_id(
+                customer_id,
+                merchant_id,
+                self.provider.get_key_store(),
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+        // check for the presence of payment_method
+        let payment_method = db
+            .find_payment_method(
+                self.provider.get_key_store(),
+                payment_method_id,
+                self.provider.get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        let pm = payment_method
             .get_payment_method_type()
             .get_required_value("payment_method")?;
 
@@ -1345,7 +1401,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .get_required_value("customer_id")?;
 
         utils::when(
-            pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
+            &pm_customer_id != customer_id || payment_method.merchant_id != *merchant_id,
             || {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "The payment_method_id is not valid".to_string(),
@@ -1371,6 +1427,8 @@ impl PaymentMethodsController for PmCards<'_> {
             },
         )?;
 
+        let customer_id = customer.id.clone();
+
         let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
             default_payment_method_id: Some(Some(payment_method_id.to_owned())),
             last_modified_by: initiator
@@ -1391,7 +1449,14 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to update the default payment method id for the customer")?;
 
-        Ok(updated_customer_details)
+        let resp = api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
+            default_payment_method_id: updated_customer_details.default_payment_method_id,
+            customer_id,
+            payment_method_subtype: payment_method.get_payment_method_subtype(),
+            payment_method_type: pm,
+        };
+
+        Ok(services::ApplicationResponse::Json(resp))
     }
 
     #[cfg(feature = "v1")]
@@ -1645,7 +1710,7 @@ impl PaymentMethodsController for PmCards<'_> {
         &self,
         pm_id: api::PaymentMethodId,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<(domain::PaymentMethod, Option<domain::Customer>)> {
+    ) -> errors::RouterResponse<api::PaymentMethodDeleteResponse> {
         let db = self.state.store.as_ref();
         let key = db
             .find_payment_method(
@@ -1718,44 +1783,41 @@ impl PaymentMethodsController for PmCards<'_> {
             }
         }
 
-        let deleted_payment_method = db
-            .delete_payment_method_by_merchant_id_payment_method_id(
+        db.delete_payment_method_by_merchant_id_payment_method_id(
+            self.provider.get_key_store(),
+            self.provider.get_account().get_id(),
+            pm_id.payment_method_id.as_str(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+
+        if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
+            let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
+                default_payment_method_id: Some(None),
+                last_modified_by: initiator
+                    .as_ref()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
+            };
+            db.update_customer_by_customer_id_merchant_id(
+                customer_id,
+                key.merchant_id,
+                customer,
+                customer_update,
                 self.provider.get_key_store(),
-                self.provider.get_account().get_id(),
-                pm_id.payment_method_id.as_str(),
+                self.provider.get_account().storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update the default payment method id for the customer")?;
+        };
 
-        let updated_customer =
-            if customer.default_payment_method_id.as_ref() == Some(&pm_id.payment_method_id) {
-                let customer_update = CustomerUpdate::UpdateDefaultPaymentMethod {
-                    default_payment_method_id: Some(None),
-                    last_modified_by: initiator
-                        .as_ref()
-                        .and_then(|initiator| initiator.to_created_by())
-                        .map(|last_modified_by| last_modified_by.to_string()),
-                };
-                let updated_customer = db
-                    .update_customer_by_customer_id_merchant_id(
-                        customer_id,
-                        key.merchant_id,
-                        customer,
-                        customer_update,
-                        self.provider.get_key_store(),
-                        self.provider.get_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to update the default payment method id for the customer",
-                    )?;
-                Some(updated_customer)
-            } else {
-                None
-            };
-
-        Ok((deleted_payment_method, updated_customer))
+        Ok(services::ApplicationResponse::Json(
+            api::PaymentMethodDeleteResponse {
+                payment_method_id: key.payment_method_id.clone(),
+                deleted: true,
+            },
+        ))
     }
 
     #[cfg(feature = "v1")]
@@ -1764,11 +1826,7 @@ impl PaymentMethodsController for PmCards<'_> {
         &self,
         req: &api::PaymentMethodCreate,
         initiator: Option<&domain::Initiator>,
-    ) -> errors::RouterResult<(
-        services::ApplicationResponse<api::PaymentMethodResponse>,
-        domain::Customer,
-        Option<domain::PaymentMethod>,
-    )> {
+    ) -> errors::RouterResponse<api::PaymentMethodResponse> {
         req.validate()?;
         let db = &*self.state.store;
         let merchant_id = self.provider.get_account().get_id();
@@ -1898,7 +1956,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let (mut resp, duplication_check) = response?;
 
-        let (customer, payment_method) = match duplication_check {
+        match duplication_check {
             Some(duplication_check) => match duplication_check {
                 payment_methods::DataDuplicationCheck::Duplicated => {
                     let existing_pm = self
@@ -1911,8 +1969,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         )
                         .await?;
 
-                    resp.client_secret = existing_pm.client_secret.clone();
-                    (customer_obj, Some(existing_pm))
+                    resp.client_secret = existing_pm.client_secret;
                 }
                 payment_methods::DataDuplicationCheck::MetaDataChanged => {
                     if let Some(card) = req.card.clone() {
@@ -2038,22 +2095,18 @@ impl PaymentMethodsController for PmCards<'_> {
                         )
                         .await;
 
-                        let payment_method = db
-                            .update_payment_method(
-                                self.provider.get_key_store(),
-                                existing_pm,
-                                pm_update,
-                                self.provider.get_account().storage_scheme,
-                                compat_action,
-                            )
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to add payment method in db")?;
+                        db.update_payment_method(
+                            self.provider.get_key_store(),
+                            existing_pm,
+                            pm_update,
+                            self.provider.get_account().storage_scheme,
+                            compat_action,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to add payment method in db")?;
 
                         resp.client_secret = client_secret;
-                        (customer_obj, Some(payment_method))
-                    } else {
-                        (customer_obj, None)
                     }
                 }
             },
@@ -2069,7 +2122,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     None
                 };
                 resp.payment_method_id = generate_id(consts::ID_LENGTH, "pm");
-                let (pm, customer) = self
+                let pm = self
                     .insert_payment_method(
                         &resp,
                         req,
@@ -2091,18 +2144,13 @@ impl PaymentMethodsController for PmCards<'_> {
                     )
                     .await?;
 
-                resp.client_secret = pm.client_secret.clone();
-                (customer, Some(pm))
+                resp.client_secret = pm.client_secret;
             }
-        };
+        }
 
         let api_resp = api::PaymentMethodResponse::foreign_from(resp);
 
-        Ok((
-            services::ApplicationResponse::Json(api_resp),
-            customer,
-            payment_method,
-        ))
+        Ok(services::ApplicationResponse::Json(api_resp))
     }
 }
 
@@ -2396,9 +2444,7 @@ pub async fn get_client_secret_or_add_payment_method(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     if condition {
-        Box::pin(cards.add_payment_method(&req, initiator))
-            .await
-            .map(|(response, _, _)| response)
+        Box::pin(cards.add_payment_method(&req, initiator)).await
     } else {
         let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
 
@@ -2428,7 +2474,6 @@ pub async fn get_client_secret_or_add_payment_method(
             )
             .await?;
 
-        let (res, _) = res;
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             add_payment_method_status_update_task(
                 &*state.store,
@@ -2611,7 +2656,7 @@ pub async fn add_payment_method_data(
 
                         let card_info = db
                             .get_card_info(card_isin.as_str())
-                            .await.map(|resolved| resolved.into_record())
+                            .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to get card info")?;
 
@@ -2684,7 +2729,7 @@ pub async fn add_payment_method_data(
                         )
                         .await;
 
-                        let updated_payment_method = db.update_payment_method(
+                        db.update_payment_method(
                             provider.get_key_store(),
                             payment_method,
                             pm_update,
@@ -2699,8 +2744,8 @@ pub async fn add_payment_method_data(
                             let _ = cards
                                 .set_default_payment_method(
                                     provider.get_account().get_id(),
-                                    customer,
-                                    &updated_payment_method,
+                                    &customer_id,
+                                    pm_id,
                                     initiator.as_ref(),
                                 )
                                 .await

@@ -352,7 +352,6 @@ where
 
         db.get_card_info(&card_number.get_card_isin())
             .await
-            .map(|resolved| resolved.into_record())
             .attach_printable("Failed to perform BIN lookup")
             .change_context(errors::ApiErrorResponse::InternalServerError)?
             .map(|card_info| {

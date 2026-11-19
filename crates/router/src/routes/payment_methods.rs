@@ -25,13 +25,13 @@ use router_env::{instrument, logger, Flow};
 use super::app::{AppState, SessionState};
 #[cfg(feature = "v2")]
 use super::metrics;
+#[cfg(feature = "v1")]
+use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use crate::core::{
     customers,
     payment_methods::{batch_retrieve, tokenize},
 };
-#[cfg(feature = "v1")]
-use crate::core::{payments::helpers as payments_helpers, utils::validate_legacy_endpoint_access};
 use crate::{
     core::{
         api_locking,
@@ -45,7 +45,6 @@ use crate::{
         domain,
         storage::payment_method::PaymentTokenData,
     },
-    utils::OptionExt,
 };
 
 /// Records `PAYMENT_METHOD_SESSION_OPERATION_DURATION`/`PAYMENT_METHOD_SESSION_OPS_COUNT` around a
@@ -1259,12 +1258,6 @@ pub async fn payment_method_delete_api(
             }
             .delete_payment_method(req, auth.platform.get_initiator())
             .await
-            .map(|(payment_method, _)| {
-                services::ApplicationResponse::Json(payment_methods::PaymentMethodDeleteResponse {
-                    payment_method_id: payment_method.payment_method_id,
-                    deleted: true,
-                })
-            })
         },
         &auth::HeaderAuth(api_auth),
         api_locking::LockAction::NotApplicable,
@@ -1394,55 +1387,17 @@ pub async fn default_payment_method_set_api(
         |state, auth: auth::AuthenticationData, default_payment_method, _| async move {
             // TODO: Enable it back once combined PML API is provisioned
             // validate_legacy_endpoint_access(&state, &auth.platform).await?;
-            let provider = auth.platform.get_provider();
-            let merchant_id = provider.get_account().get_id();
-            let db = state.store.as_ref();
-            let use_merchant_reference_id =
-                payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
-                    &state,
-                    provider,
-                    Some(customer_id),
-                )
-                .await;
-            let customer = db
-                .find_customer_by_customer_id_merchant_id(
-                    customer_id,
-                    merchant_id,
-                    provider.get_key_store(),
-                    provider.get_account().storage_scheme,
-                    use_merchant_reference_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-            let payment_method = db
-                .find_payment_method(
-                    provider.get_key_store(),
-                    &default_payment_method.payment_method_id,
-                    provider.get_account().storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-            let updated_customer = cards::PmCards {
+            cards::PmCards {
                 state: &state,
-                provider,
+                provider: auth.platform.get_provider(),
             }
             .set_default_payment_method(
-                merchant_id,
-                customer,
-                &payment_method,
+                auth.platform.get_provider().get_account().get_id(),
+                customer_id,
+                default_payment_method.payment_method_id,
                 auth.platform.get_initiator(),
             )
-            .await?;
-            Ok(services::ApplicationResponse::Json(
-                api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
-                    customer_id: updated_customer.get_id().clone(),
-                    default_payment_method_id: updated_customer.default_payment_method_id,
-                    payment_method_type: payment_method.get_payment_method_subtype(),
-                    payment_method: payment_method
-                        .get_payment_method_type()
-                        .get_required_value("payment_method")?,
-                },
-            ))
+            .await
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -1477,49 +1432,19 @@ pub async fn default_payment_method_set_api(
                 default_payment_method.payment_method_id.clone(),
             );
             async move {
-                record_payment_method_metrics("set_default", async {
-                    let provider = auth.platform.get_provider();
-                    let merchant_id = provider.get_account().get_id();
-                    let db = state.store.as_ref();
-                    let customer = db
-                        .find_customer_by_global_id_merchant_id(
-                            &customer_id,
-                            merchant_id,
-                            provider.get_key_store(),
-                            provider.get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
-                    let payment_method = db
-                        .find_payment_method(
-                            provider.get_key_store(),
-                            &payment_method_id,
-                            provider.get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
-                    let updated_customer = cards::PmCards {
+                record_payment_method_metrics(
+                    "set_default",
+                    cards::PmCards {
                         state: &state,
-                        provider,
+                        provider: auth.platform.get_provider(),
                     }
                     .set_default_payment_method(
-                        merchant_id,
-                        customer,
-                        &payment_method,
+                        auth.platform.get_provider().get_account().get_id(),
+                        &customer_id,
+                        &payment_method_id,
                         auth.platform.get_initiator(),
-                    )
-                    .await?;
-                    Ok(services::ApplicationResponse::Json(
-                        api_models::payment_methods::CustomerDefaultPaymentMethodResponse {
-                            customer_id: updated_customer.id,
-                            default_payment_method_id: updated_customer.default_payment_method_id,
-                            payment_method_subtype: payment_method.get_payment_method_subtype(),
-                            payment_method_type: payment_method
-                                .get_payment_method_type()
-                                .get_required_value("payment_method")?,
-                        },
-                    ))
-                })
+                    ),
+                )
                 .await
             }
         },

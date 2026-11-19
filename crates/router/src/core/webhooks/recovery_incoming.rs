@@ -705,7 +705,6 @@ impl RevenueRecoveryAttempt {
                     .store
                     .get_card_info(card_isin.as_str())
                     .await
-                    .map(|resolved| resolved.into_record())
                     .map_err(|error| services::logger::warn!(card_info_error=?error))
                     .ok()
             })
@@ -1073,7 +1072,6 @@ impl RevenueRecoveryAttempt {
                     .store
                     .get_card_info(issuer_identifier_number.as_str())
                     .await
-                    .map(|resolved| resolved.into_record())
                     .map_err(|error| services::logger::warn!(card_info_error=?error))
                     .ok()
             })

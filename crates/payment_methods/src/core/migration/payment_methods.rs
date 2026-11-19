@@ -163,8 +163,7 @@ pub async fn migrate_payment_method(
                     .await
                     .map_err(|err| logger::error!(?err, "Failed to save network token"))
                     .ok()
-                    .flatten()
-                    .is_some(),
+                    .unwrap_or_default(),
             )
         }
         None => {
@@ -231,7 +230,7 @@ async fn migrate_payment_method_data(
 
     let network_transaction_id = payment_method_create.network_transaction_id.clone();
 
-    let (res, _, _) = controller
+    let res = controller
         .add_payment_method(&payment_method_create, platform.get_initiator())
         .await?;
 
@@ -321,7 +320,6 @@ pub async fn populate_bin_details_for_masked_card(
         let card_info = db
             .get_card_info(&card_isin)
             .await
-            .map(|resolved| resolved.into_record())
             .map_err(|error| logger::error!(card_info_error=?error))
             .ok()
             .flatten();
@@ -599,7 +597,6 @@ pub async fn get_client_secret_or_add_payment_method_for_migration(
         //card is not migrated in this case
         migration_status.card_migrated(false);
 
-        let (res, _) = res;
         if res.status == enums::PaymentMethodStatus::AwaitingData {
             controller
                 .add_payment_method_status_update_task(
@@ -787,7 +784,12 @@ pub async fn skip_locker_call_and_migrate_payment_method(
 
     if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
         let _ = controller
-            .set_default_payment_method(&merchant_id, customer, &response, initiator)
+            .set_default_payment_method(
+                &merchant_id,
+                &customer_id,
+                payment_method_id.to_owned(),
+                initiator,
+            )
             .await
             .map_err(|error| logger::error!(?error, "Failed to set the payment method as default"));
     }
@@ -843,7 +845,7 @@ pub async fn save_migration_payment_method(
 
     let network_transaction_id = req.network_transaction_id.clone();
 
-    let (res, _, _) = controller.add_payment_method(&req, initiator).await?;
+    let res = controller.add_payment_method(&req, initiator).await?;
 
     migration_status.card_migrated(true);
     migration_status.network_transaction_id_migrated(

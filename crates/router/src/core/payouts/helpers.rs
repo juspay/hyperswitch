@@ -647,7 +647,6 @@ pub async fn save_payout_data_to_locker(
                 .async_and_then(|card_isin| async move {
                     db.get_card_info(&card_isin)
                         .await
-                        .map(|resolved| resolved.into_record())
                         .map_err(|error| services::logger::warn!(card_info_error=?error))
                         .ok()
                 })
@@ -770,36 +769,36 @@ pub async fn save_payout_data_to_locker(
     // Insert new entry in payment_methods table
     if should_insert_in_pm_table {
         let payment_method_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
-        let (created_payment_method, updated_customer) = cards::PmCards {
-            state,
-            provider: platform.get_provider(),
-        }
-        .create_payment_method(
-            &new_payment_method,
-            customer_id,
-            &payment_method_id,
-            Some(stored_resp.card_reference.clone()),
-            platform.get_processor().get_account().get_id(),
-            None,
-            None,
-            card_details_encrypted.clone(),
-            connector_mandate_details,
-            None,
-            None,
-            payment_method_billing_address,
-            None,
-            None,
-            None,
-            None,
-            None,
-            Default::default(),
-            None,
-            None,
-            platform.get_initiator(),
-        )
-        .await?;
-        payout_data.customer_details = Some(updated_customer);
-        payout_data.payment_method = Some(created_payment_method);
+        payout_data.payment_method = Some(
+            cards::PmCards {
+                state,
+                provider: platform.get_provider(),
+            }
+            .create_payment_method(
+                &new_payment_method,
+                customer_id,
+                &payment_method_id,
+                Some(stored_resp.card_reference.clone()),
+                platform.get_processor().get_account().get_id(),
+                None,
+                None,
+                card_details_encrypted.clone(),
+                connector_mandate_details,
+                None,
+                None,
+                payment_method_billing_address,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Default::default(),
+                None,
+                None,
+                platform.get_initiator(),
+            )
+            .await?,
+        );
     }
 
     /*  1. Delete from locker
@@ -1735,7 +1734,6 @@ pub async fn get_additional_payout_data(
                 .async_and_then(|card_isin| async move {
                     db.get_card_info(&card_isin)
                         .await
-                        .map(|resolved| resolved.into_record())
                         .map_err(|error| services::logger::warn!(card_info_error=?error))
                         .ok()
                 })

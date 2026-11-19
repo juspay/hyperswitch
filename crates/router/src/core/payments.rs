@@ -10858,8 +10858,6 @@ where
     pub force_sync: Option<bool>,
     pub all_keys_required: Option<bool>,
     pub payment_method_data: Option<domain::PaymentMethodData>,
-    /// BIN lookup result returned by enrichment, reused by subsequent payment operations.
-    pub card_info: Option<helpers::ResolvedCardInfo>,
     pub payment_method_token: Option<PaymentMethodToken>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub refunds: Vec<diesel_refund::Refund>,
