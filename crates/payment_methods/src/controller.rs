@@ -119,7 +119,7 @@ pub trait PaymentMethodsController {
         initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
     ) -> errors::PmResult<(
         hyperswitch_domain_models::api::ApplicationResponse<api::PaymentMethodResponse>,
-        Option<hyperswitch_domain_models::customer::Customer>,
+        hyperswitch_domain_models::customer::Customer,
         Option<payment_methods::PaymentMethod>,
     )>;
 

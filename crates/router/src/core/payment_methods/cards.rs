@@ -1766,7 +1766,7 @@ impl PaymentMethodsController for PmCards<'_> {
         initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResult<(
         services::ApplicationResponse<api::PaymentMethodResponse>,
-        Option<domain::Customer>,
+        domain::Customer,
         Option<domain::PaymentMethod>,
     )> {
         req.validate()?;
@@ -1898,9 +1898,7 @@ impl PaymentMethodsController for PmCards<'_> {
 
         let (mut resp, duplication_check) = response?;
 
-        let mut updated_customer = None;
-        let mut updated_payment_method = None;
-        match duplication_check {
+        let (customer, payment_method) = match duplication_check {
             Some(duplication_check) => match duplication_check {
                 payment_methods::DataDuplicationCheck::Duplicated => {
                     let existing_pm = self
@@ -1914,7 +1912,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         .await?;
 
                     resp.client_secret = existing_pm.client_secret.clone();
-                    updated_payment_method = Some(existing_pm);
+                    (customer_obj, Some(existing_pm))
                 }
                 payment_methods::DataDuplicationCheck::MetaDataChanged => {
                     if let Some(card) = req.card.clone() {
@@ -2052,8 +2050,10 @@ impl PaymentMethodsController for PmCards<'_> {
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to add payment method in db")?;
 
-                        updated_payment_method = Some(payment_method);
                         resp.client_secret = client_secret;
+                        (customer_obj, Some(payment_method))
+                    } else {
+                        (customer_obj, None)
                     }
                 }
             },
@@ -2092,17 +2092,16 @@ impl PaymentMethodsController for PmCards<'_> {
                     .await?;
 
                 resp.client_secret = pm.client_secret.clone();
-                updated_customer = Some(customer);
-                updated_payment_method = Some(pm);
+                (customer, Some(pm))
             }
-        }
+        };
 
         let api_resp = api::PaymentMethodResponse::foreign_from(resp);
 
         Ok((
             services::ApplicationResponse::Json(api_resp),
-            updated_customer,
-            updated_payment_method,
+            customer,
+            payment_method,
         ))
     }
 }
