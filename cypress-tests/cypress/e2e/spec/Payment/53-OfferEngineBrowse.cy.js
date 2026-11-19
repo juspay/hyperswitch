@@ -4,7 +4,7 @@ let globalState;
 
 // PR #13999: POST /offer_engine/offers/list — a merchant-dashboard browse
 // endpoint, separate from the payment-flow eligibility endpoint covered by
-// 54-OfferEngine.cy.js. No payment intent is involved; it just surfaces
+// 53-OfferEngine.cy.js. No payment intent is involved; it just surfaces
 // whatever offers this merchant currently has configured and eligible.
 describe("Offer Engine - Browse Offers", () => {
   before("seed global state and verify Offer Engine connectivity", function () {
