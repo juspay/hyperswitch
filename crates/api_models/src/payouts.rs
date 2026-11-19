@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{BankNames, CardNetwork, PayoutFundsTransferType};
+use common_enums::{BankNames, CardNetwork, PayoutFundsTransferType, PayoutPurpose};
 use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
@@ -172,6 +172,10 @@ pub struct PayoutCreateRequest {
     /// The category of funds transfer to use when processing the payout.
     #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
     pub funds_transfer_type: Option<PayoutFundsTransferType>,
+
+    /// The purpose for which the payout is being carried out.
+    #[schema(value_type = Option<PayoutPurpose>, example = "family_support")]
+    pub purpose: Option<PayoutPurpose>,
 
     /// Identity of the party providing the funds. Persisted on the payout and echoed
     #[schema(value_type = Option<SenderDetails>)]
@@ -989,6 +993,10 @@ pub struct PayoutCreateResponse {
     /// The category of funds transfer used for the payout.
     #[schema(value_type = Option<PayoutFundsTransferType>, example = "account_to_account")]
     pub funds_transfer_type: Option<PayoutFundsTransferType>,
+
+    /// The purpose for which the payout is being carried out.
+    #[schema(value_type = Option<PayoutPurpose>, example = "family_support")]
+    pub purpose: Option<PayoutPurpose>,
 
     /// Identity of the party providing the funds, as supplied in the payout request
     #[schema(value_type = Option<SenderDetails>)]
