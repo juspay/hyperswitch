@@ -8028,6 +8028,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Update",
+        "description": "Updates payout details while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Update a Payout",
         "parameters": [
           {
@@ -8063,6 +8064,9 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -8128,6 +8132,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Fulfill",
+        "description": "Fulfills the existing payout using the payout_id from the URL. Request body fields are ignored.",
         "operationId": "Fulfill a Payout",
         "parameters": [
           {
@@ -8140,16 +8145,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutFulfillRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Payout fulfilled",
@@ -8300,6 +8295,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Confirm",
+        "description": "Confirms the existing payout while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Confirm a Payout",
         "parameters": [
           {
@@ -8335,6 +8331,9 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -40345,22 +40344,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "routing": {
             "allOf": [
               {
@@ -40419,14 +40402,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -41527,22 +41502,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "routing": {
             "allOf": [
               {
@@ -41608,14 +41567,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -41825,7 +41776,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.",
             "minimum": 0
           },
           "currency": {
@@ -41899,7 +41850,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. Set during creation; it cannot be changed in update or confirm requests. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,

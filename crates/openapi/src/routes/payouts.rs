@@ -61,6 +61,8 @@ pub async fn payouts_create() {}
 pub async fn payouts_retrieve() {}
 
 /// Payouts - Update
+///
+/// Updates payout details while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}",
@@ -70,7 +72,8 @@ pub async fn payouts_retrieve() {}
     request_body=PayoutUpdateRequest,
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields"),
+        (status = 422, description = "Request contains fields that cannot be updated")
     ),
     tag = "Payouts",
     operation_id = "Update a Payout",
@@ -97,13 +100,14 @@ pub async fn payouts_update() {}
 pub async fn payouts_cancel() {}
 
 /// Payouts - Fulfill
+///
+/// Fulfills the existing payout using the payout_id from the URL. Request body fields are ignored.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/fulfill",
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutFulfillRequest,
     responses(
         (status = 200, description = "Payout fulfilled", body = PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -203,6 +207,8 @@ pub async fn payouts_list_by_filter() {}
 pub async fn payouts_list_by_filter_profile() {}
 
 /// Payouts - Confirm
+///
+/// Confirms the existing payout while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/confirm",
@@ -212,7 +218,8 @@ pub async fn payouts_list_by_filter_profile() {}
     request_body=PayoutConfirmRequest,
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing Mandatory fields"),
+        (status = 422, description = "Request contains fields that cannot be updated")
     ),
     tag = "Payouts",
     operation_id = "Confirm a Payout",

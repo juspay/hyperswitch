@@ -58,17 +58,17 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "merchant_order_ref_123")]
     pub merchant_order_reference_id: Option<String>,
 
-    /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    /// The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.
     #[schema(value_type = Option<u64>, example = 1000)]
     #[mandatory_in(PayoutsCreateRequest = u64)]
-    #[remove_in(PayoutsConfirmRequest)]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     #[serde(default, deserialize_with = "payments::amount::deserialize_option")]
     pub amount: Option<payments::Amount>,
 
-    /// The currency of the payout request can be specified here
+    /// The currency of the payout. Set during creation; it cannot be changed in update or confirm requests.
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[mandatory_in(PayoutsCreateRequest = Currency)]
-    #[remove_in(PayoutsConfirmRequest)]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     pub currency: Option<api_enums::Currency>,
 
     /// Specifies routing algorithm for selecting a connector
@@ -120,11 +120,14 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._
+    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. Set during creation; it cannot be changed in update or confirm requests. _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     pub customer_id: Option<id_type::CustomerId>,
 
-    /// Passing this object creates a new customer or attaches an existing customer to the payout
+    /// During creation, creates a new customer or attaches an existing customer to the payout.
+    /// Update and confirm preserve the existing customer and ignore supplied contact details.
+    /// Omit customer.id in update and confirm requests.
     #[schema(value_type = Option<CustomerDetails>)]
     pub customer: Option<payments::CustomerDetails>,
 
