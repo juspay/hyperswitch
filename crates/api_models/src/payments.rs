@@ -25,7 +25,7 @@ use common_utils::{
     consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     crypto,
     errors::ValidationError,
-    ext_traits::{ConfigExt, Encode, ValueExt},
+    ext_traits::{ConfigExt, Encode, SecretStringExt, ValueExt},
     hashing::HashedString,
     id_type,
     new_type::MaskedBankAccount,
@@ -6909,6 +6909,15 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
+    /// The address with surrounding whitespace removed from the first and last names.
+    pub fn with_trimmed_names(self) -> Self {
+        Self {
+            first_name: self.first_name.and_then(SecretStringExt::trim_to_non_empty),
+            last_name: self.last_name.and_then(SecretStringExt::trim_to_non_empty),
+            ..self
+        }
+    }
+
     pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
