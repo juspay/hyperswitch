@@ -1,0 +1,17 @@
+**
+!loadtest/
+!loadtest/worker/
+!loadtest/worker/*.mjs
+!loadtest/k6/
+!loadtest/k6/scenario-mix/
+!loadtest/k6/scenario-mix/*.mjs
+!loadtest/k6/scenario-mix/scenario-mix.js
+!loadtest/k6/scenario-mix/recording-client.js
+!loadtest/k6/scenario-mix/recorder/
+!loadtest/k6/scenario-mix/recorder/**
+!loadtest/console/
+!loadtest/console/src/
+!loadtest/console/src/connector-config.mjs
+!loadtest/console/src/connector-catalog.json
+!loadtest/console/src/payment-flows.mjs
+!loadtest/console/src/environments.mjs
