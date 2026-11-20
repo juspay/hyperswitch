@@ -790,7 +790,7 @@ function logRequestId(xRequestId) {
 // retrieve): the fields, the match with what eligibility returned when there
 // was an eligibility step, and net_amount = amount + surcharge + tax on the
 // surcharge + shipping cost + order tax (PaymentsResponse docs).
-function assertPaymentSurcharge(paymentBody, globalState) {
+function assertPaymentSurcharge(paymentBody, globalState, expectation) {
   const surchargeDetails = paymentBody.surcharge_details;
   expect(surchargeDetails, "surcharge_details").to.be.an("object");
   expect(
@@ -803,6 +803,15 @@ function assertPaymentSurcharge(paymentBody, globalState) {
     surchargeDetails.surcharge_percentage,
     "surcharge_details.surcharge_percentage"
   ).to.be.a("number");
+
+  // The config may pin the percentage (ExpectSurcharge: { surcharge_percentage }).
+  const expectedPercentage = expectation?.surcharge_percentage;
+  if (expectedPercentage !== undefined) {
+    expect(
+      surchargeDetails.surcharge_percentage,
+      "surcharge_details.surcharge_percentage"
+    ).to.equal(expectedPercentage);
+  }
 
   if (globalState.get("surchargeAmount") !== undefined) {
     expect(
@@ -3683,7 +3692,7 @@ Cypress.Commands.add(
           }
         } else if (response.status === 200) {
           if (expectSurcharge) {
-            assertPaymentSurcharge(response.body, globalState);
+            assertPaymentSurcharge(response.body, globalState, expectSurcharge);
           }
           if (response.body.next_action?.redirect_to_url) {
             globalState.set(
@@ -5271,7 +5280,11 @@ Cypress.Commands.add(
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (resData.body && resData.body.surcharge_details) {
-            assertPaymentSurcharge(response.body, globalState);
+            assertPaymentSurcharge(
+              response.body,
+              globalState,
+              resData.body.surcharge_details
+            );
           }
 
           if (
@@ -9460,6 +9473,25 @@ Cypress.Commands.add(
               surchargeDetails.display_surcharge_amount +
                 surchargeDetails.display_tax_on_surcharge_amount,
               0.001
+            );
+
+            const expectedPercentage =
+              resData.body.surcharge_details.surcharge_percentage;
+            if (expectedPercentage !== undefined) {
+              expect(
+                surchargeDetails.surcharge_percentage,
+                "surcharge_details.surcharge_percentage"
+              ).to.equal(expectedPercentage);
+            }
+            // The fee is the percentage of the payment amount, to the minor unit.
+            expect(
+              surchargeDetails.surcharge.value,
+              "surcharge value is the percentage of the amount"
+            ).to.be.closeTo(
+              (globalState.get("paymentAmount") *
+                surchargeDetails.surcharge_percentage) /
+                100,
+              1
             );
 
             globalState.set(

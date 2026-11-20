@@ -2413,7 +2413,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           surcharge_details: {
-            surcharge_percentage: 0,
+            surcharge_percentage: 3,
           },
         },
       },
@@ -2450,7 +2450,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           surcharge_details: {
-            surcharge_percentage: 0,
+            surcharge_percentage: 3,
           },
         },
       },
