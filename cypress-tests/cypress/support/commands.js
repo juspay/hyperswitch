@@ -786,6 +786,44 @@ function logRequestId(xRequestId) {
   }
 }
 
+// Checks the external surcharge a payment response carries (confirm and
+// retrieve): the fields, the match with what eligibility returned when there
+// was an eligibility step, and net_amount = amount + surcharge + tax on the
+// surcharge + shipping cost + order tax (PaymentsResponse docs).
+function assertPaymentSurcharge(paymentBody, globalState) {
+  const surchargeDetails = paymentBody.surcharge_details;
+  expect(surchargeDetails, "surcharge_details").to.be.an("object");
+  expect(
+    surchargeDetails.surcharge_amount,
+    "surcharge_details.surcharge_amount"
+  )
+    .to.be.a("number")
+    .and.to.be.at.least(0);
+  expect(
+    surchargeDetails.surcharge_percentage,
+    "surcharge_details.surcharge_percentage"
+  ).to.be.a("number");
+
+  if (globalState.get("surchargeAmount") !== undefined) {
+    expect(
+      surchargeDetails.surcharge_amount,
+      "surcharge_amount matches the surcharge from before"
+    ).to.equal(globalState.get("surchargeAmount"));
+    expect(
+      surchargeDetails.surcharge_percentage,
+      "surcharge_percentage matches the surcharge from before"
+    ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
+  }
+
+  expect(paymentBody.net_amount, "net_amount").to.equal(
+    paymentBody.amount +
+      surchargeDetails.surcharge_amount +
+      (surchargeDetails.tax_amount ?? 0) +
+      (paymentBody.shipping_cost ?? 0) +
+      (paymentBody.order_tax_amount ?? 0)
+  );
+}
+
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
     expect(response.body.error_message, "error_message").to.be.null;
@@ -2514,34 +2552,83 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   });
 });
 
-Cypress.Commands.add("deleteSurchargeConnector", (globalState) => {
-  const surchargeMcaId = globalState.get("surchargeConnectorId");
-
-  if (!surchargeMcaId) {
-    cy.task("cli_log", "No surchargeConnectorId found, skipping delete");
-    return;
-  }
-
+// Points the profile at the surcharge connector. calculate_external_surcharge
+// resolves the surcharge connector only from business_profile
+// .surcharge_connector_details; if it is unset, surcharge_details silently comes
+// back None even with an active surcharge_processor connector.
+Cypress.Commands.add("linkSurchargeConnectorToProfile", (globalState) => {
   const merchantId = globalState.get("merchantId");
-  const baseUrl = globalState.get("baseUrl");
-  const adminApiKey = globalState.get("adminApiKey");
+  const profileId = globalState.get("profileId");
+  const surchargeConnectorId = globalState.get("surchargeConnectorId");
 
   cy.request({
-    method: "DELETE",
-    url: `${baseUrl}/account/${merchantId}/connectors/${surchargeMcaId}`,
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
     headers: {
-      Accept: "application/json",
-      "api-key": adminApiKey,
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      surcharge_connector_details: {
+        surcharge_connector_id: surchargeConnectorId,
+      },
     },
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    cy.task(
-      "cli_log",
-      "Surcharge processor connector delete status: " + response.status
-    );
+    expect(response.status, "status_code").to.equal(200);
+    expect(
+      response.body.surcharge_connector_details.surcharge_connector_id,
+      "surcharge_details.surcharge_connector_id"
+    ).to.equal(surchargeConnectorId);
   });
 });
+
+// Clears the profile's surcharge connector. A profile that points at one makes
+// every off-session (MIT) payment on it calculate a surcharge, so the surcharge
+// specs unlink it when they finish.
+Cypress.Commands.add("unlinkSurchargeConnectorFromProfile", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      surcharge_connector_details: {
+        surcharge_connector_id: null,
+      },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status, "status_code").to.equal(200);
+    expect(
+      response.body.surcharge_connector_details?.surcharge_connector_id ?? null,
+      "surcharge_connector_details.surcharge_connector_id"
+    ).to.be.null;
+  });
+});
+
+// Yields whether creds.json has an entry for the connector.
+Cypress.Commands.add(
+  "connectorCredentialsAvailable",
+  (connectorName, globalState) => {
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
+        );
+        return Boolean(authDetails);
+      }
+    );
+  }
+);
 
 Cypress.Commands.add(
   "connectorUpdateCall",
@@ -3498,6 +3585,7 @@ Cypress.Commands.add(
       Configs: configs = {},
       Request: reqData,
       Response: resData,
+      ExpectSurcharge: expectSurcharge,
     } = data || {};
 
     const apiKey = globalState.get("publishableKey");
@@ -3594,6 +3682,9 @@ Cypress.Commands.add(
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
+          if (expectSurcharge) {
+            assertPaymentSurcharge(response.body, globalState);
+          }
           if (response.body.next_action?.redirect_to_url) {
             globalState.set(
               "nextActionUrl",
@@ -5180,39 +5271,7 @@ Cypress.Commands.add(
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (resData.body && resData.body.surcharge_details) {
-            expect(response.body, "surcharge_details").to.have.property(
-              "surcharge_details"
-            );
-            const surchargeDetails = response.body.surcharge_details;
-            expect(surchargeDetails, "surcharge_details.surcharge_percentage")
-              .to.have.property("surcharge_percentage")
-              .to.be.a("number");
-            expect(
-              surchargeDetails.surcharge_amount,
-              "surcharge_details.surcharge_amount"
-            ).to.be.a("number");
-
-            // The payment must carry the surcharge returned by eligibility.
-            if (globalState.get("surchargeAmount") !== undefined) {
-              expect(
-                surchargeDetails.surcharge_amount,
-                "surcharge_details.surcharge_amount matches eligibility"
-              ).to.equal(globalState.get("surchargeAmount"));
-              expect(
-                surchargeDetails.surcharge_percentage,
-                "surcharge_details.surcharge_percentage matches eligibility"
-              ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
-            }
-
-            // net_amount = amount + surcharge + tax on surcharge + shipping cost
-            // + order tax amount (PaymentsResponse docs).
-            expect(response.body.net_amount, "net_amount").to.equal(
-              response.body.amount +
-                surchargeDetails.surcharge_amount +
-                (surchargeDetails.tax_amount ?? 0) +
-                (response.body.shipping_cost ?? 0) +
-                (response.body.order_tax_amount ?? 0)
-            );
+            assertPaymentSurcharge(response.body, globalState);
           }
 
           if (
@@ -5668,99 +5727,6 @@ Cypress.Commands.add(
           expect(response.body.payment_id).to.equal(payment_id);
         } else {
           defaultErrorHandler(response, resData);
-        }
-      });
-    });
-  }
-);
-
-// Refund on a payment that carries an external surcharge. The surcharge refund
-// is calculated by the surcharge connector, so only checks that hold for any
-// amount are made: net_amount = amount + surcharge_refund_amount, the surcharge
-// refunded so far never exceeds the surcharge charged, and once the whole order
-// amount is refunded the whole surcharge has been refunded too.
-Cypress.Commands.add(
-  "surchargeRefundCallTest",
-  (requestBody, data, globalState, refundStateKey) => {
-    const { Request: reqData, Response: resData } = data || {};
-    const paymentId = globalState.get("paymentID");
-    const body = { ...requestBody, ...reqData, payment_id: paymentId };
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/refunds`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-      body,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-        if (response.status !== 200) {
-          defaultErrorHandler(response, resData);
-          return;
-        }
-
-        const refund = response.body;
-        expect(refund.payment_id, "payment_id").to.equal(paymentId);
-        for (const key in resData.body) {
-          expect(refund[key], key).to.equal(resData.body[key]);
-        }
-        expect(refund.amount, "amount").to.equal(body.amount);
-        expect(refund.surcharge_refund_amount, "surcharge_refund_amount")
-          .to.be.a("number")
-          .and.to.be.at.least(0);
-        expect(refund.net_amount, "net_amount").to.equal(
-          refund.amount + refund.surcharge_refund_amount
-        );
-
-        const surchargeRefunded =
-          (globalState.get("surchargeRefunded") ?? 0) +
-          refund.surcharge_refund_amount;
-        const orderAmountRefunded =
-          (globalState.get("orderAmountRefunded") ?? 0) + refund.amount;
-        expect(surchargeRefunded, "surcharge refunded so far").to.be.at.most(
-          globalState.get("surchargeAmount")
-        );
-        if (orderAmountRefunded === globalState.get("paymentAmount")) {
-          expect(surchargeRefunded, "surcharge refunded in total").to.equal(
-            globalState.get("surchargeAmount")
-          );
-        }
-
-        globalState.set("surchargeRefunded", surchargeRefunded);
-        globalState.set("orderAmountRefunded", orderAmountRefunded);
-        globalState.set(refundStateKey, refund);
-      });
-    });
-  }
-);
-
-// Retrieving a refund returns the same amounts it was created with.
-Cypress.Commands.add(
-  "surchargeRefundRetrieveTest",
-  (refundStateKey, globalState) => {
-    const created = globalState.get(refundStateKey);
-
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/refunds/${created.refund_id}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.status, "status_code").to.equal(200);
-        for (const key of ["amount", "surcharge_refund_amount", "net_amount"]) {
-          expect(response.body[key], key).to.equal(created[key]);
         }
       });
     });
@@ -9496,10 +9462,6 @@ Cypress.Commands.add(
               0.001
             );
 
-            // Refund bookkeeping for the surcharge refund tests starts again for every
-            // eligibility check.
-            globalState.set("surchargeRefunded", 0);
-            globalState.set("orderAmountRefunded", 0);
             globalState.set(
               "surchargeAmount",
               surchargeDetails.surcharge.value
