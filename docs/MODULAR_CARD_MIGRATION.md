@@ -148,6 +148,7 @@ unresolved. Hosted sandbox payment and delayed-card-commit checks remain pending
 earlier local results do not establish integration readiness for the latest build.
 
 PR #14589 supplies the merchant-reference resolution used by the intended v1
-payment flow. It is still open against main, and was reported separately deployed
-as an EU hotfix. Verify its availability in the actual target builds. No customer
-API authentication change or new key-management endpoint is required.
+payment flow. It merged on 22 October 2026 and is included in the
+`2026.11.11.1-hotfix7` backport base. Live payment behavior still requires
+verification in the target deployment. No customer API authentication change or
+new key-management endpoint is required.
