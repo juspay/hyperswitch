@@ -180,6 +180,9 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "53-OfferEngine.cy.js": ["card"],
   "54-ConnectorAgnosticMandates.cy.js": ["card"],
   "54-CardHolderNameBillingFallback.cy.js": ["card"],
+  "53-ExternalSurchargePayments.cy.js": ["card"],
+  "53-ExternalSurchargeRefunds.cy.js": ["card"],
+  "53-ExternalSurchargeMits.cy.js": ["card"],
 });
 
 /**

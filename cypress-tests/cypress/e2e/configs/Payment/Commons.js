@@ -2373,6 +2373,205 @@ export const connectorDetails = {
     }),
   },
   card_pm: {
+    ExternalSurchargePaymentIntent: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    // InterPayments (surcharge_processor) computes the surcharge on this card at
+    // eligibility time. surcharge_percentage is supplied by the live connector, so
+    // only its presence/type is asserted, not an exact value.
+    ExternalSurchargeEligibility: {
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Fransico",
+              state: "California",
+              zip: "94122",
+              country: "US",
+              first_name: "John",
+              last_name: "Doe",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          surcharge_details: {
+            surcharge_percentage: 0,
+          },
+        },
+      },
+    },
+    ExternalSurchargeConfirm: {
+      ExpectSurcharge: true,
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // Capturing with no amount captures the whole charged total, surcharge included.
+    ExternalSurchargeManualCapture: {
+      Request: {
+        amount_to_capture: undefined,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ExternalSurchargeRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          surcharge_details: {
+            surcharge_percentage: 0,
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // No amount is sent, so the whole charged total is refunded in one call.
+    ExternalSurchargeRefundWholeOrder: {
+      Request: {
+        amount: undefined,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      WholeOrder: true,
+    },
+    ExternalSurchargeRefundBeforeCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundOverOrderAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Requested refund amount is greater than the original order amount.",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundExceedsCaptured: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundZeroAmount: {
+      Request: {
+        amount: 0,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount contains invalid data. Expected format is positive integer",
+            code: "IR_05",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundNegativeAmount: {
+      Request: {
+        amount: -100,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount contains invalid data. Expected format is positive integer",
+            code: "IR_05",
+          },
+        },
+      },
+    },
+    // A merchant-initiated payment on the saved card calculates the surcharge at
+    // confirm; there is no eligibility step.
+    ExternalSurchargeMITAutoCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ExpectSurcharge: true,
+    },
+    ExternalSurchargeMITManualCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+      ExpectSurcharge: true,
+    },
     PaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
