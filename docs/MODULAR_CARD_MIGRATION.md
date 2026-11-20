@@ -2,9 +2,10 @@
 
 This is the optional branch of `POST /payment_methods/migrate-batch`. Omitted or
 false `use_modular_customer_creation` keeps the existing legacy implementation
-and response unchanged. The hotfix PR targets `hotfix-2026.09.30.0`; the matching
-main PR contains the same migration changes. Confirm the actual deployed EU
-image and complete the remaining local/CUG checks before deployment.
+and response unchanged. This backport targets `hotfix-2026.11.11.1`, starting at
+`2026.11.11.1-hotfix7`, and carries the migration changes from main PR #14764.
+Confirm the actual deployed EU image and complete service integration checks
+before running a migration.
 
 ## Request and storage
 
@@ -20,7 +21,9 @@ separate from customer name. All supplied billing fields and card nickname/netwo
 are preserved. Expiry is normalized to a two-digit month and four-digit year.
 
 Card storage uses the existing modular PM service URL/prefix and internal
-merchant/profile authentication. Its payload always uses the generated modular
+merchant/profile authentication. Internal credentials follow the release's
+`outbound_api_key()` selection, including primary keys and explicitly configured
+legacy outbound keys during rotation. Its payload always uses the generated modular
 customer ID and `storage_type=persistent`. CVC is absent; it is never fabricated.
 No change to customer API authentication is needed.
 
@@ -95,7 +98,7 @@ lock expired or a saved-card list was empty.
   OLTP-enabled modular service. Listing is also gated by the OLAP build feature;
   a replica-only instance is unsuitable for confirming writes.
 - Confirm internal service credentials, tenant propagation, billing/cardholder
-  round trips, and temporary key mint/revoke in local/CUG.
+  round trips, and temporary key mint/revoke against the intended deployment.
 - Both customer and card Redis attempt records must survive restarts/failover and must not be evicted.
   The configured lock lease must exceed the bounded per-stage execution budget.
   Loss of pending records removes protection against unresolved older writes.
