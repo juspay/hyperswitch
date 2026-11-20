@@ -62,8 +62,6 @@ impl Alerts {
                     .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
                     .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
             )
-
-
     }
 }
 

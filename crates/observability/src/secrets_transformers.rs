@@ -114,7 +114,7 @@ pub async fn fetch_raw_secrets(
     secret_management_client: &dyn SecretManagementInterface,
 ) -> Settings<RawSecret> {
     #[allow(clippy::expect_used)]
-    let (auth, chat, alert, database) = futures::try_join!(
+    let (auth, chat, alert) = futures::try_join!(
         AuthSettings::convert_to_raw_secret(conf.auth, secret_management_client)
             .map_err(|error| error.attach_printable("Failed to decrypt auth internal api key")),
         ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client).map_err(|error| {
@@ -122,8 +122,6 @@ pub async fn fetch_raw_secrets(
         }),
         AlertSettings::convert_to_raw_secret(conf.alert, secret_management_client)
             .map_err(|error| error.attach_printable("Failed to decrypt the alert API token")),
-        Database::convert_to_raw_secret(conf.database, secret_management_client)
-            .map_err(|error| error.attach_printable("Failed to decrypt the database password")),
     )
     .expect("Failed to decrypt observability credentials");
 
@@ -193,16 +191,15 @@ mod tests {
             "alert": { "grafana": {
                 "base_url": "http://127.0.0.1:1",
                 "api_token": "grafana-handle"
-            } },
-            "database": { "password": "database-handle" }
+            } }
         }))
         .expect("valid secured configuration");
         let client = ConcurrentSecrets {
-            barrier: Barrier::new(5),
+            barrier: Barrier::new(4),
         };
         let raw = timeout(Duration::from_secs(2), fetch_raw_secrets(conf, &client))
             .await
-            .expect("all five independent lookups must overlap before any can complete");
+            .expect("all four independent lookups must overlap before any can complete");
         assert_eq!(
             raw.auth.get_inner().internal_api_key.peek(),
             "test_internal_key"
@@ -211,7 +208,6 @@ mod tests {
             raw.alert.get_inner().grafana.api_token.peek(),
             "grafana-handle"
         );
-        assert_eq!(raw.database.get_inner().password.peek(), "database-handle");
         match raw.chat.get_inner().destinations.get("xyne") {
             Some(ChatDestination::Xyne(config)) => assert_eq!(config.app_jwt.peek(), "xyne-handle"),
             _ => panic!("resolved Xyne destination is missing"),

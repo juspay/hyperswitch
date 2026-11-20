@@ -89,7 +89,6 @@ impl AppState {
         }
 
         #[allow(clippy::expect_used)]
-
         let router_transport =
             raw_conf.router.as_ref().and_then(|config| {
                 match RouterClient::new(config.base_url.clone(), &config.tenant_id, &raw_conf.proxy)

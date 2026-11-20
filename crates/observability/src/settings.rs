@@ -430,7 +430,7 @@ mod tests {
         )
         .is_err());
         assert!(serde_json::from_str::<Settings<SecuredSecret>>(
-            r#"{"router":{"base_url":"http://localhost:8080"}}"#,
+            r#"{"router":{"base_url":"http://localhost:8080","tenant_id":"public"}}"#,
         )
         .is_ok());
     }

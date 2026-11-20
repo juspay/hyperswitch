@@ -83,20 +83,6 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
     }
 }
 
-/// A store that never connects. No idle connections are opened at build, and the notify routes
-/// never ask for one, so these tests need no database.
-async fn lazy_store() -> Store {
-    Store::new(&Database {
-        username: "unused".to_owned(),
-        host: "localhost".to_owned(),
-        dbname: "unused".to_owned(),
-        min_idle_pool_size: 0,
-        ..Default::default()
-    })
-    .await
-    .expect("a pool with no idle connections builds without a database")
-}
-
 #[derive(Clone, Copy)]
 enum MetricReply {
     Value(f64),
