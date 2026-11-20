@@ -1,3 +1,5 @@
+pub mod stored;
+
 use std::{collections::BTreeMap, fmt};
 
 use serde::{Deserialize, Serialize};

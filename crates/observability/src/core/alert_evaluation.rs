@@ -14,13 +14,17 @@ use crate::{
         chat::{AlertState, ChatAlert},
         Outcome,
     },
-    domain_models::evaluator::{
-        AlertEvaluationLevel, Delivery, EvaluatorError, EvaluatorResult, Notification,
-        RuleDefinition, RuleRun,
+    domain_models::{
+        alert_rules::next_run_after,
+        evaluator::{
+            AlertEvaluationLevel, Delivery, EvaluatorError, EvaluatorResult, Notification,
+            RuleDefinition, RuleRun,
+        },
     },
-    errors::ObservabilityApiResult,
+    errors::{ObservabilityApiResult, ObservabilityError},
     logger,
     services::chat,
+    settings::evaluator::RuleSource,
     state::AppState,
     types::{AlertEvaluationResponse, AlertRuleEvaluationResponse, ChatNotifyRequest},
 };
@@ -47,7 +51,19 @@ pub async fn evaluate(state: AppState, _: ()) -> ObservabilityApiResult<AlertEva
     let settings = state.conf.alert.get_inner();
     let now = date_time::now();
     let provider = GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
-    let rules = join_all(settings.rules.iter().map(|rule| {
+    let definitions = match settings.rule_source {
+        RuleSource::Config => settings.rules.clone(),
+        RuleSource::Database => state
+            .store
+            .list_active_alert_rules()
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to list active alert rules")?
+            .into_iter()
+            .map(RuleDefinition::from)
+            .collect(),
+    };
+    let rules = join_all(definitions.iter().map(|rule| {
         let provider = &provider;
         let state = &state;
         async move {
@@ -66,7 +82,11 @@ pub async fn notify(state: AppState, _: ()) -> ObservabilityApiResult<AlertEvalu
     let settings = state.conf.alert.get_inner();
     let now = date_time::now();
     let provider = GrafanaCloudwatch::new(settings.grafana.clone(), state.conf.proxy.clone());
-    let rules = join_all(settings.rules.iter().map(|rule| {
+    let definitions = match settings.rule_source {
+        RuleSource::Config => settings.rules.clone(),
+        RuleSource::Database => claim_due_rules(&state, now).await?,
+    };
+    let rules = join_all(definitions.iter().map(|rule| {
         let provider = &provider;
         let state = state.clone();
         async move {
@@ -136,6 +156,37 @@ async fn evaluate_rule(
             }
         }
     }
+}
+
+/// The due rules from the table that this call claimed. Claiming moves a rule's `next_run_at`
+/// first, so another replica or an overlapping tick that read the same rule skips it.
+async fn claim_due_rules(
+    state: &AppState,
+    now: PrimitiveDateTime,
+) -> ObservabilityApiResult<Vec<RuleDefinition>> {
+    let due = state
+        .store
+        .list_due_alert_rules(now)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to list due alert rules")?;
+
+    let mut claimed = Vec::with_capacity(due.len());
+    for rule in due {
+        let seen = rule.next_run_at;
+        let definition = RuleDefinition::from(rule);
+        let next = next_run_after(now, definition.config.interval_seconds);
+        if state
+            .store
+            .claim_alert_rule(&definition.id, seen, next)
+            .await
+            .change_context(ObservabilityError::InternalServerError)
+            .attach_printable("Failed to claim alert rule")?
+        {
+            claimed.push(definition);
+        }
+    }
+    Ok(claimed)
 }
 
 async fn deliver_notification(state: AppState, notification: &Notification) -> Delivery {
