@@ -3018,8 +3018,7 @@ where
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
                                     field_name: "browser_info.ip_address".into(),
                                 })?
-                                .clone()
-                                .expose()
+                                .peek()
                                 .as_str()
                                 .ok_or(errors::ConnectorError::MissingRequiredField {
                                     field_name: "browser_info.ip_address".into(),
