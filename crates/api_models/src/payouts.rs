@@ -65,7 +65,7 @@ pub struct PayoutCreateRequest {
     #[serde(default, deserialize_with = "payments::amount::deserialize_option")]
     pub amount: Option<payments::Amount>,
 
-    /// The currency of the payout. Set during creation; it cannot be changed in update or confirm requests.
+    /// The currency of the payout.
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[mandatory_in(PayoutsCreateRequest = Currency)]
     #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
@@ -120,7 +120,7 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. Set during creation; it cannot be changed in update or confirm requests. _Deprecated: Use customer.id instead._
+    /// Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     pub customer_id: Option<id_type::CustomerId>,
