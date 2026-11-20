@@ -1128,6 +1128,62 @@ export const refundStatusFilterMap = {
   review: "manual_review",
 };
 
+// The InterPayments sandbox returns 3% on the test card. The percentage comes
+// from the live connector, so it moves with the account's pricing.
+const externalSurchargePercentage = 3;
+
+const externalSurchargeResponse = {
+  status: 200,
+  body: {
+    surcharge_details: {
+      surcharge_percentage: externalSurchargePercentage,
+    },
+  },
+};
+
+const succeededResponse = {
+  status: 200,
+  body: {
+    status: "succeeded",
+  },
+};
+
+const requiresCaptureResponse = {
+  status: 200,
+  body: {
+    status: "requires_capture",
+  },
+};
+
+const externalSurchargeConfirm = {
+  ExpectSurcharge: true,
+  Request: {
+    payment_method: "card",
+    payment_method_data: { card: successfulNo3DSCardDetails },
+    setup_future_usage: "off_session",
+    customer_acceptance: customerAcceptance,
+  },
+  Response: succeededResponse,
+};
+
+const invalidRefundAmountResponse = {
+  status: 422,
+  body: {
+    error: {
+      type: "invalid_request",
+      message:
+        "amount contains invalid data. Expected format is positive integer",
+      code: "IR_05",
+    },
+  },
+};
+
+// A merchant-initiated payment has no eligibility step to compare with, so the
+// percentage is pinned.
+const expectedMitSurcharge = {
+  surcharge_percentage: externalSurchargePercentage,
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2373,6 +2429,11 @@ export const connectorDetails = {
     }),
   },
   card_pm: {
+    ExternalSurchargeConfirm: externalSurchargeConfirm,
+    ExternalSurchargeManualConfirm: {
+      ...externalSurchargeConfirm,
+      Response: requiresCaptureResponse,
+    },
     ExternalSurchargePaymentIntent: {
       Request: {
         currency: "USD",
@@ -2409,71 +2470,27 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          surcharge_details: {
-            surcharge_percentage: 3,
-          },
-        },
-      },
-    },
-    ExternalSurchargeConfirm: {
-      ExpectSurcharge: true,
-      Request: {
-        payment_method: "card",
-        payment_method_data: { card: successfulNo3DSCardDetails },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: externalSurchargeResponse,
     },
     // Capturing with no amount captures the whole charged total, surcharge included.
     ExternalSurchargeManualCapture: {
       Request: {
         amount_to_capture: undefined,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: succeededResponse,
     },
     ExternalSurchargeRetrieve: {
-      Response: {
-        status: 200,
-        body: {
-          surcharge_details: {
-            surcharge_percentage: 3,
-          },
-        },
-      },
+      Response: externalSurchargeResponse,
     },
     ExternalSurchargeRefund: {
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: succeededResponse,
     },
     // No amount is sent, so the whole charged total is refunded in one call.
     ExternalSurchargeRefundWholeOrder: {
       Request: {
         amount: undefined,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: succeededResponse,
       WholeOrder: true,
     },
     ExternalSurchargeRefundBeforeCapture: {
@@ -2518,33 +2535,13 @@ export const connectorDetails = {
       Request: {
         amount: 0,
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "amount contains invalid data. Expected format is positive integer",
-            code: "IR_05",
-          },
-        },
-      },
+      Response: invalidRefundAmountResponse,
     },
     ExternalSurchargeRefundNegativeAmount: {
       Request: {
         amount: -100,
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "amount contains invalid data. Expected format is positive integer",
-            code: "IR_05",
-          },
-        },
-      },
+      Response: invalidRefundAmountResponse,
     },
     // A merchant-initiated payment on the saved card calculates the surcharge at
     // confirm; there is no eligibility step.
@@ -2552,25 +2549,15 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ExpectSurcharge: { surcharge_percentage: 3 },
+      Response: succeededResponse,
+      ExpectSurcharge: expectedMitSurcharge,
     },
     ExternalSurchargeMITManualCapture: {
       Request: {
         amount: 6000,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-      ExpectSurcharge: { surcharge_percentage: 3 },
+      Response: requiresCaptureResponse,
+      ExpectSurcharge: expectedMitSurcharge,
     },
     PaymentIntent: getCustomExchange({
       Request: {
