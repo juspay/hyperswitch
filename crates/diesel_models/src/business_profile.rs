@@ -100,6 +100,8 @@ pub struct Profile {
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
     pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -169,6 +171,8 @@ pub struct ProfileNew {
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub order_fulfillment_time: Option<i64>,
     pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -242,6 +246,8 @@ pub struct ProfileUpdateInternal {
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
     pub auto_fallback_capture_method: Option<common_enums::AutoFallbackCaptureMethod>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -339,6 +345,8 @@ pub struct Profile {
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
     pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 impl Profile {
@@ -423,6 +431,8 @@ pub struct ProfileNew {
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -491,6 +501,8 @@ pub struct ProfileUpdateInternal {
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
