@@ -1,7 +1,8 @@
 //! Per-request logic for alert rules.
 
 use api_models::observability::alert_manager::alert_rules::{
-    AlertRuleDeleteResponse, AlertRuleListResponse, AlertRuleResponse, AlertRuleUpsertRequest,
+    AlertRuleCreateRequest, AlertRuleDeleteResponse, AlertRuleListResponse, AlertRuleResponse,
+    AlertRuleUpdateRequest,
 };
 use common_types::alert_rules::{AlertQuery, AlertRuleConfig, MetricSource};
 use common_utils::date_time;
@@ -37,25 +38,61 @@ pub async fn get(state: AppState, id: String) -> ObservabilityApiResult<AlertRul
         .ok_or_else(|| report!(ObservabilityError::AlertRuleNotFound { id }))
 }
 
-/// Create or replace a rule. Either way it is due on the evaluator's next tick.
-pub async fn upsert(
+/// Create a rule. It is due on the evaluator's next tick.
+pub async fn create(
     state: AppState,
-    (id, request): (String, AlertRuleUpsertRequest),
+    request: AlertRuleCreateRequest,
 ) -> ObservabilityApiResult<AlertRuleResponse> {
-    let new = AlertRuleNew::try_from_request(id, request, date_time::now())?;
+    let AlertRuleCreateRequest {
+        id,
+        name,
+        status,
+        alerts_configuration,
+    } = request;
+    let new = AlertRuleNew::try_from_request(
+        id,
+        AlertRuleUpdateRequest {
+            name,
+            status,
+            alerts_configuration,
+        },
+        date_time::now(),
+    )?;
     check_against_settings(
         &state,
         &AlertRuleConfig::from(new.alerts_configuration().clone()),
     )?;
 
-    let rule = state
+    let id = new.id().to_owned();
+    state
         .store
-        .upsert_alert_rule(new)
+        .insert_alert_rule(new)
         .await
         .change_context(ObservabilityError::InternalServerError)
-        .attach_printable("Failed to store alert rule")?;
+        .attach_printable("Failed to create alert rule")?
+        .map(AlertRuleResponse::from)
+        .ok_or_else(|| invalid(format!("id `{id}` is already in use")))
+}
 
-    Ok(AlertRuleResponse::from(rule))
+/// Replace a rule. It is then due on the evaluator's next tick.
+pub async fn update(
+    state: AppState,
+    (id, request): (String, AlertRuleUpdateRequest),
+) -> ObservabilityApiResult<AlertRuleResponse> {
+    let new = AlertRuleNew::try_from_request(id.clone(), request, date_time::now())?;
+    check_against_settings(
+        &state,
+        &AlertRuleConfig::from(new.alerts_configuration().clone()),
+    )?;
+
+    state
+        .store
+        .update_alert_rule(new)
+        .await
+        .change_context(ObservabilityError::InternalServerError)
+        .attach_printable("Failed to update alert rule")?
+        .map(AlertRuleResponse::from)
+        .ok_or_else(|| report!(ObservabilityError::AlertRuleNotFound { id }))
 }
 
 pub async fn delete(

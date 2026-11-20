@@ -11,10 +11,17 @@ pub trait AlertRulesInterface {
 
     async fn find_alert_rule(&self, id: &str) -> StorageResult<Option<domain::AlertRule>>;
 
-    async fn upsert_alert_rule(
+    /// `None` when a rule already has this id.
+    async fn insert_alert_rule(
         &self,
         new: domain::AlertRuleNew,
-    ) -> StorageResult<domain::AlertRule>;
+    ) -> StorageResult<Option<domain::AlertRule>>;
+
+    /// Replace the rule with `new`'s id. `None` when no rule has it.
+    async fn update_alert_rule(
+        &self,
+        new: domain::AlertRuleNew,
+    ) -> StorageResult<Option<domain::AlertRule>>;
 
     /// `false` when no rule has this id.
     async fn delete_alert_rule(&self, id: &str) -> StorageResult<bool>;
@@ -51,14 +58,24 @@ impl AlertRulesInterface for Store {
             .map(|row| row.map(domain::AlertRule::from))
     }
 
-    async fn upsert_alert_rule(
+    async fn insert_alert_rule(
         &self,
         new: domain::AlertRuleNew,
-    ) -> StorageResult<domain::AlertRule> {
+    ) -> StorageResult<Option<domain::AlertRule>> {
         storage::AlertRuleNew::from(new)
-            .upsert(&self.connection().await?)
+            .insert(&self.connection().await?)
             .await
-            .map(domain::AlertRule::from)
+            .map(|row| row.map(domain::AlertRule::from))
+    }
+
+    async fn update_alert_rule(
+        &self,
+        new: domain::AlertRuleNew,
+    ) -> StorageResult<Option<domain::AlertRule>> {
+        storage::AlertRuleNew::from(new)
+            .update(&self.connection().await?)
+            .await
+            .map(|row| row.map(domain::AlertRule::from))
     }
 
     async fn delete_alert_rule(&self, id: &str) -> StorageResult<bool> {

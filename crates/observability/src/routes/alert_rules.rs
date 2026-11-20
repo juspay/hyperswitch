@@ -1,7 +1,9 @@
 //! Authenticated alert rule handlers.
 
 use actix_web::{web, HttpRequest, HttpResponse};
-use api_models::observability::alert_manager::alert_rules::AlertRuleUpsertRequest;
+use api_models::observability::alert_manager::alert_rules::{
+    AlertRuleCreateRequest, AlertRuleUpdateRequest,
+};
 
 use crate::{auth, core, services, state::AppState};
 
@@ -31,17 +33,32 @@ pub async fn get(
     .await
 }
 
-pub async fn upsert(
+pub async fn create(
+    state: web::Data<AppState>,
+    request: HttpRequest,
+    payload: web::Json<AlertRuleCreateRequest>,
+) -> HttpResponse {
+    services::server_wrap(
+        state.get_ref().clone(),
+        &request,
+        payload.into_inner(),
+        core::alert_rules::create,
+        &auth::InternalApiKeyAuth,
+    )
+    .await
+}
+
+pub async fn update(
     state: web::Data<AppState>,
     request: HttpRequest,
     id: web::Path<String>,
-    payload: web::Json<AlertRuleUpsertRequest>,
+    payload: web::Json<AlertRuleUpdateRequest>,
 ) -> HttpResponse {
     services::server_wrap(
         state.get_ref().clone(),
         &request,
         (id.into_inner(), payload.into_inner()),
-        core::alert_rules::upsert,
+        core::alert_rules::update,
         &auth::InternalApiKeyAuth,
     )
     .await

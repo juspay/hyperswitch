@@ -6,8 +6,9 @@
 //! readers accept every version still listed here. A new optional field (with a default) needs no
 //! new version; a new datasource is a new [`AlertQuery`] variant with its own versions.
 //!
-//! The evaluator works on [`AlertRuleConfig`], the current shape without versions. A stored
-//! configuration converts into it, so a new version changes that conversion, not the evaluator.
+//! The evaluator and the API work on [`AlertRuleConfig`], the current shape without versions. A
+//! stored configuration converts into it and back, so a new version changes those conversions,
+//! not the evaluator or the API.
 
 use std::{collections::BTreeMap, str::FromStr};
 
@@ -349,6 +350,48 @@ impl From<AlertConfiguration> for AlertRuleConfig {
     }
 }
 
+/// What the API sends, stored at the newest version.
+impl From<AlertRuleConfig> for AlertConfiguration {
+    fn from(configuration: AlertRuleConfig) -> Self {
+        let query = match configuration.query {
+            super::AlertQuery::GrafanaCloudwatch(query) => {
+                AlertQuery::Cloudwatch(CloudwatchQuery::V1(CloudwatchQueryV1 {
+                    region: query.region,
+                    namespace: query.namespace,
+                    metric_name: query.metric_name,
+                    dimensions: query.dimensions,
+                    statistic: query.statistic,
+                    period: query.period,
+                    end_offset_seconds: query.end_offset_seconds,
+                }))
+            }
+        };
+
+        let severities = configuration
+            .thresholds
+            .severities
+            .into_iter()
+            .map(|(severity, threshold)| {
+                (
+                    severity,
+                    ThresholdV1 {
+                        threshold: threshold.threshold,
+                        comparison_operator: threshold.comparison_operator,
+                        description: threshold.description,
+                        destination: threshold.destination,
+                    },
+                )
+            })
+            .collect();
+
+        Self::V1(AlertConfigurationV1 {
+            interval_seconds: configuration.interval_seconds,
+            query,
+            thresholds: AlertThresholds::V1(AlertThresholdsV1 { severities }),
+        })
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
@@ -654,6 +697,15 @@ mod tests {
                     }
                 }
             })
+        );
+    }
+
+    #[test]
+    fn the_evaluator_shape_is_stored_as_the_newest_version_unchanged() {
+        let stored = configuration(stored());
+        assert_eq!(
+            AlertConfiguration::from(AlertRuleConfig::from(stored.clone())),
+            stored
         );
     }
 

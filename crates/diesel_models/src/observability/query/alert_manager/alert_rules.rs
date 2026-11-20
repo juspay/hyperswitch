@@ -93,25 +93,46 @@ impl AlertRule {
 }
 
 impl AlertRuleNew {
-    /// Create the rule, or replace everything but `created_at` of an existing one.
-    pub async fn upsert(
+    /// Create the rule. `None` when a rule already has this id.
+    pub async fn insert(
         self,
         conn: &DatabaseConnectionWithContext<'_>,
-    ) -> StorageResult<AlertRule> {
+    ) -> StorageResult<Option<AlertRule>> {
         diesel::insert_into(alert_rules::table)
             .values(self)
             .on_conflict(dsl::id)
-            .do_update()
+            .do_nothing()
+            .returning(AlertRule::as_returning())
+            .get_result_async(conn.raw_connection())
+            .await
+            .optional()
+            .map_err(|error| report!(error).change_context(DatabaseError::Others))
+    }
+
+    /// Replace everything but `created_at` of the rule with this id. `None` when no rule has it.
+    pub async fn update(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<Option<AlertRule>> {
+        let Self {
+            id,
+            name,
+            status,
+            alerts_configuration,
+            next_run_at,
+        } = self;
+        diesel::update(dsl::alert_rules.filter(dsl::id.eq(id)))
             .set((
-                dsl::name.eq(diesel::upsert::excluded(dsl::name)),
-                dsl::status.eq(diesel::upsert::excluded(dsl::status)),
-                dsl::alerts_configuration.eq(diesel::upsert::excluded(dsl::alerts_configuration)),
-                dsl::next_run_at.eq(diesel::upsert::excluded(dsl::next_run_at)),
-                dsl::last_updated_at.eq(diesel::upsert::excluded(dsl::last_updated_at)),
+                dsl::name.eq(name),
+                dsl::status.eq(status),
+                dsl::alerts_configuration.eq(alerts_configuration),
+                dsl::next_run_at.eq(next_run_at),
+                dsl::last_modified_at.eq(diesel::dsl::now),
             ))
             .returning(AlertRule::as_returning())
             .get_result_async(conn.raw_connection())
             .await
+            .optional()
             .map_err(|error| report!(error).change_context(DatabaseError::Others))
     }
 }

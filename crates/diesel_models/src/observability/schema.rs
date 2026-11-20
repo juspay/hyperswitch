@@ -84,7 +84,7 @@ diesel::table! {
         alerts_configuration -> Jsonb,
         next_run_at -> Timestamp,
         created_at -> Timestamp,
-        last_updated_at -> Timestamp,
+        last_modified_at -> Timestamp,
     }
 }
 

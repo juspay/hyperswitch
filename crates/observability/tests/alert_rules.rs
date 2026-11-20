@@ -12,7 +12,7 @@ use actix_web::{
     test::{self, TestRequest},
     App,
 };
-use common_types::alert_rules::stored::AlertRuleStatus;
+use common_types::alert_rules::{stored::AlertRuleStatus, AlertRuleConfig};
 use common_utils::date_time;
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_models::{
@@ -33,7 +33,7 @@ use observability::{
     domain::notifier::{
         chat::{
             ChatFileOutcome, ChatFileUpload, ChatNotification, ChatNotifier, ChatOutcome,
-            ChatReceipt, LogChatNotifier,
+            ChatReceipt, ChatUpdate, LogChatNotifier,
         },
         Outcome, Registry,
     },
@@ -103,25 +103,36 @@ impl AlertRulesInterface for MemoryStore {
             .cloned())
     }
 
-    async fn upsert_alert_rule(&self, new: AlertRuleNew) -> StorageResult<AlertRule> {
+    async fn insert_alert_rule(&self, new: AlertRuleNew) -> StorageResult<Option<AlertRule>> {
         let new = storage::AlertRuleNew::from(new);
         let mut rules = self.rules.lock().unwrap();
-        let created_at = rules
-            .iter()
-            .find(|rule| rule.id == new.id)
-            .map_or(STORED_AT, |rule| rule.created_at);
-        rules.retain(|rule| rule.id != new.id);
+        if rules.iter().any(|rule| rule.id == new.id) {
+            return Ok(None);
+        }
         let rule = AlertRule {
             id: new.id,
             name: new.name,
             status: new.status,
             alerts_configuration: new.alerts_configuration,
             next_run_at: new.next_run_at,
-            created_at,
-            last_updated_at: STORED_AT,
+            created_at: STORED_AT,
+            last_modified_at: STORED_AT,
         };
         rules.push(rule.clone());
-        Ok(rule)
+        Ok(Some(rule))
+    }
+
+    async fn update_alert_rule(&self, new: AlertRuleNew) -> StorageResult<Option<AlertRule>> {
+        let new = storage::AlertRuleNew::from(new);
+        let mut rules = self.rules.lock().unwrap();
+        Ok(rules.iter_mut().find(|rule| rule.id == new.id).map(|rule| {
+            rule.name = new.name;
+            rule.status = new.status;
+            rule.alerts_configuration = new.alerts_configuration;
+            rule.next_run_at = new.next_run_at;
+            rule.last_modified_at = STORED_AT;
+            rule.clone()
+        }))
     }
 
     async fn delete_alert_rule(&self, id: &str) -> StorageResult<bool> {
@@ -315,11 +326,9 @@ fn rule(name: &str) -> Value {
         "name": name,
         "status": "active",
         "alerts_configuration": {
-            "version": "v1",
             "interval_seconds": 60,
             "query": {
-                "datasource": "cloudwatch",
-                "version": "v1",
+                "datasource": "grafana_cloudwatch",
                 "region": "us-east-1",
                 "namespace": "AWS/RDS",
                 "metric_name": "CPUUtilization",
@@ -327,7 +336,6 @@ fn rule(name: &str) -> Value {
                 "period": 60
             },
             "thresholds": {
-                "version": "v1",
                 "severities": {
                     "critical": {
                         "threshold": 80.0,
@@ -339,6 +347,13 @@ fn rule(name: &str) -> Value {
             }
         }
     })
+}
+
+/// A `POST /alerts/rules` body.
+fn new_rule(id: &str, name: &str) -> Value {
+    let mut body = rule(name);
+    body["id"] = json!(id);
+    body
 }
 
 fn set(mut value: Value, pointer: &str, replacement: Value) -> Value {
@@ -373,16 +388,16 @@ async fn call(
 }
 
 #[actix_web::test]
-async fn a_rule_is_created_read_listed_replaced_and_deleted() {
+async fn a_rule_is_created_read_listed_updated_and_deleted() {
     let state = state();
     let uri = "/alerts/rules/rds-writer-cpu";
 
     let (status, created) = call(
         state.clone(),
-        Method::PUT,
-        uri,
+        Method::POST,
+        "/alerts/rules",
         Some(API_KEY),
-        Some(rule("RDS writer CPU")),
+        Some(new_rule("rds-writer-cpu", "RDS writer CPU")),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
@@ -398,8 +413,29 @@ async fn a_rule_is_created_read_listed_replaced_and_deleted() {
         created["alerts_configuration"]["query"]["dimensions"],
         json!({})
     );
+    // Stored with versions, but none reach the API.
+    assert!(created["alerts_configuration"].get("version").is_none());
+    assert!(created["alerts_configuration"]["query"]
+        .get("version")
+        .is_none());
     assert!(created["next_run_at"].is_string());
     assert_eq!(created["created_at"], "2026-10-22T09:00:00.000Z");
+
+    // Creating does not replace a rule that already has the id.
+    let (status, taken) = call(
+        state.clone(),
+        Method::POST,
+        "/alerts/rules",
+        Some(API_KEY),
+        Some(new_rule("rds-writer-cpu", "Another rule")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(taken["error"]["code"], "IR_04");
+    assert_eq!(
+        taken["error"]["message"],
+        "id `rds-writer-cpu` is already in use"
+    );
 
     let (status, read) = call(state.clone(), Method::GET, uri, Some(API_KEY), None).await;
     assert_eq!(status, StatusCode::OK);
@@ -437,8 +473,13 @@ async fn a_rule_is_created_read_listed_replaced_and_deleted() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(deleted, json!({ "ok": true, "id": "rds-writer-cpu" }));
 
-    for method in [Method::GET, Method::DELETE] {
-        let (status, missing) = call(state.clone(), method, uri, Some(API_KEY), None).await;
+    // Updating does not create.
+    for (method, payload) in [
+        (Method::GET, None),
+        (Method::PUT, Some(rule("RDS writer CPU"))),
+        (Method::DELETE, None),
+    ] {
+        let (status, missing) = call(state.clone(), method, uri, Some(API_KEY), payload).await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(missing["error"]["code"], "IR_09");
     }
@@ -448,6 +489,7 @@ async fn a_rule_is_created_read_listed_replaced_and_deleted() {
 async fn every_route_needs_the_api_key() {
     for (method, uri, payload) in [
         (Method::GET, "/alerts/rules", None),
+        (Method::POST, "/alerts/rules", Some(new_rule("rule", "n"))),
         (Method::GET, "/alerts/rules/rule", None),
         (Method::PUT, "/alerts/rules/rule", Some(rule("n"))),
         (Method::DELETE, "/alerts/rules/rule", None),
@@ -463,39 +505,40 @@ async fn every_route_needs_the_api_key() {
 async fn an_invalid_rule_is_rejected_with_its_reason() {
     let critical = "/alerts_configuration/thresholds/severities/critical";
     let cases = [
-        ("/alerts/rules/RDS", rule("n"), "id must be"),
-        ("/alerts/rules/rule", rule("  "), "name must be"),
+        (Method::POST, new_rule("RDS", "n"), "id must be"),
+        (Method::POST, new_rule("rule", "  "), "name must be"),
         (
-            "/alerts/rules/rule",
+            Method::POST,
             set(
-                rule("n"),
+                new_rule("rule", "n"),
                 "/alerts_configuration/interval_seconds",
                 json!(90),
             ),
             "alerts_configuration.interval_seconds",
         ),
         (
-            "/alerts/rules/rule",
+            Method::POST,
             set(
-                rule("n"),
+                new_rule("rule", "n"),
                 &format!("{critical}/destination"),
                 json!("nowhere"),
             ),
             "alerts_configuration.thresholds.severities.critical.destination `nowhere` is not a \
              configured chat destination",
         ),
+        // An update is checked the same way.
+        (Method::PUT, rule("  "), "name must be"),
     ];
 
     let state = state();
-    for (uri, payload, reason) in cases {
-        let (status, response) = call(
-            state.clone(),
-            Method::PUT,
-            uri,
-            Some(API_KEY),
-            Some(payload),
-        )
-        .await;
+    for (method, payload, reason) in cases {
+        let uri = if method == Method::POST {
+            "/alerts/rules"
+        } else {
+            "/alerts/rules/rule"
+        };
+        let (status, response) =
+            call(state.clone(), method, uri, Some(API_KEY), Some(payload)).await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{reason}");
         assert_eq!(response["error"]["code"], "IR_04");
         let message = response["error"]["message"].as_str().unwrap();
@@ -509,10 +552,10 @@ async fn an_invalid_rule_is_rejected_with_its_reason() {
     let unconfigured = state_with(Arc::new(MemoryStore::default()), json!({}));
     let (status, response) = call(
         unconfigured,
-        Method::PUT,
-        "/alerts/rules/rule",
+        Method::POST,
+        "/alerts/rules",
         Some(API_KEY),
-        Some(rule("n")),
+        Some(new_rule("rule", "n")),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -524,10 +567,14 @@ async fn an_invalid_rule_is_rejected_with_its_reason() {
     // A body that does not parse gets the service's usual answer, which does not echo it.
     let (status, response) = call(
         state.clone(),
-        Method::PUT,
-        "/alerts/rules/rule",
+        Method::POST,
+        "/alerts/rules",
         Some(API_KEY),
-        Some(set(rule("n"), "/alerts_configuration/version", json!("v9"))),
+        Some(set(
+            new_rule("rule", "n"),
+            "/alerts_configuration/query/datasource",
+            json!("victoria_metrics"),
+        )),
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
@@ -582,19 +629,30 @@ async fn postgres_repository_stores_replaces_claims_and_deletes_rules() {
 
     let (status, created) = call(
         state.clone(),
-        Method::PUT,
-        uri,
+        Method::POST,
+        "/alerts/rules",
         Some(API_KEY),
-        Some(rule("RDS writer CPU")),
+        Some(new_rule("rds-writer-cpu", "RDS writer CPU")),
     )
     .await;
     assert_eq!(status, StatusCode::OK);
+
+    // A second create with the same id changes nothing.
+    let (status, _) = call(
+        state.clone(),
+        Method::POST,
+        "/alerts/rules",
+        Some(API_KEY),
+        Some(new_rule("rds-writer-cpu", "Another rule")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
 
     // The stored configuration reads back as it was written.
     let (_, read) = call(state.clone(), Method::GET, uri, Some(API_KEY), None).await;
     assert_eq!(read, created);
 
-    // Replacing keeps `created_at` and makes the rule due again.
+    // Updating keeps `created_at` and makes the rule due again.
     let (_, replaced) = call(
         state.clone(),
         Method::PUT,
@@ -605,6 +663,22 @@ async fn postgres_repository_stores_replaces_claims_and_deletes_rules() {
     .await;
     assert_eq!(replaced["created_at"], created["created_at"]);
     assert_eq!(replaced["name"], "RDS writer CPU, renamed");
+
+    // Updating a rule that does not exist does not create it.
+    let (status, _) = call(
+        state.clone(),
+        Method::PUT,
+        "/alerts/rules/missing-rule",
+        Some(API_KEY),
+        Some(rule("n")),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(store
+        .find_alert_rule("missing-rule")
+        .await
+        .unwrap()
+        .is_none());
 
     // Due once its time has come; a claim succeeds once for the time it was read at.
     let rule = store
@@ -696,6 +770,10 @@ impl ChatNotifier for RecordingChatNotifier {
         Ok(Outcome::Delivered(ChatReceipt {
             message_id: Some("synthetic-message".to_owned()),
         }))
+    }
+
+    async fn update(&self, _update: ChatUpdate) -> ObservabilityApiResult<ChatOutcome> {
+        Err(report!(ObservabilityError::InternalServerError))
     }
 
     async fn upload_file(
@@ -827,17 +905,20 @@ fn stored_rule(
         id: id.to_owned(),
         name: id.to_owned(),
         status,
-        alerts_configuration: serde_json::from_value(request["alerts_configuration"].clone())
-            .unwrap(),
+        alerts_configuration: serde_json::from_value::<AlertRuleConfig>(
+            request["alerts_configuration"].clone(),
+        )
+        .unwrap()
+        .into(),
         next_run_at,
         created_at: STORED_AT,
-        last_updated_at: STORED_AT,
+        last_modified_at: STORED_AT,
     }
 }
 
 async fn notify(state: AppState) -> Value {
     serde_json::to_value(
-        observability::core::evaluator::notify(state, ())
+        observability::core::alert_evaluation::notify(state, ())
             .await
             .unwrap(),
     )
@@ -866,7 +947,9 @@ fn only_due_active_rules_run_and_each_moves_to_its_next_minute() {
         assert_eq!(response["rules"][0]["level"], "critical");
         assert_eq!(response["rules"][0]["delivered"], true);
         assert_eq!(*queried.lock().unwrap(), ["due"]);
-        assert!(messages.lock().unwrap()[0].starts_with("ALARM: due-rule\n"));
+        let message = messages.lock().unwrap()[0].clone();
+        assert!(message.starts_with("Severity: `CRITICAL`\n"), "{message}");
+        assert!(message.contains("Definition: `due-rule`"), "{message}");
 
         // Next due at the start of a minute, one interval (60s) after the run.
         let next = store.next_run_at("due-rule");
@@ -919,7 +1002,7 @@ fn the_dry_run_checks_every_active_rule_and_claims_nothing() {
         let (state, messages) = database_state(&grafana_url, Arc::clone(&store), None);
 
         let response = serde_json::to_value(
-            observability::core::evaluator::evaluate(state, ())
+            observability::core::alert_evaluation::evaluate(state, ())
                 .await
                 .unwrap(),
         )

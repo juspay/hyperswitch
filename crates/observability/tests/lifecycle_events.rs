@@ -62,10 +62,17 @@ macro_rules! impl_unused_alert_rules {
                 Err(report!(DatabaseError::Others))
             }
 
-            async fn upsert_alert_rule(
+            async fn insert_alert_rule(
                 &self,
                 _new: observability::domain_models::alert_rules::AlertRuleNew,
-            ) -> StorageResult<observability::domain_models::alert_rules::AlertRule> {
+            ) -> StorageResult<Option<observability::domain_models::alert_rules::AlertRule>> {
+                Err(report!(DatabaseError::Others))
+            }
+
+            async fn update_alert_rule(
+                &self,
+                _new: observability::domain_models::alert_rules::AlertRuleNew,
+            ) -> StorageResult<Option<observability::domain_models::alert_rules::AlertRule>> {
                 Err(report!(DatabaseError::Others))
             }
 

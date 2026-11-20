@@ -89,11 +89,15 @@ impl Alerts {
             .service(
                 web::resource("/rule_toggles/{rule_id}").route(web::put().to(rule_toggles::set)),
             )
-            .service(web::resource("/rules").route(web::get().to(alert_rules::list)))
+            .service(
+                web::resource("/rules")
+                    .route(web::get().to(alert_rules::list))
+                    .route(web::post().to(alert_rules::create)),
+            )
             .service(
                 web::resource("/rules/{id}")
                     .route(web::get().to(alert_rules::get))
-                    .route(web::put().to(alert_rules::upsert))
+                    .route(web::put().to(alert_rules::update))
                     .route(web::delete().to(alert_rules::delete)),
             )
             .service(

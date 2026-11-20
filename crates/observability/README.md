@@ -90,7 +90,7 @@ Delivery, metric evaluation, alert rule and monitoring endpoints:
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
 | `GET` | `/alerts/grafana/cloudwatch/evaluate` | `X-Internal-Api-Key`; never sends |
 | `POST` | `/alerts/grafana/cloudwatch/notify` | `X-Internal-Api-Key`; evaluates and delivers |
-| `GET` | `/alerts/rules` | `X-Internal-Api-Key` |
+| `GET`, `POST` | `/alerts/rules` | `X-Internal-Api-Key` |
 | `GET`, `PUT`, `DELETE` | `/alerts/rules/{id}` | `X-Internal-Api-Key` |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
@@ -445,27 +445,29 @@ and one rule's query or delivery failure does not cancel independent rules.
 | Method | Path | |
 |---|---|---|
 | `GET` | `/alerts/rules` | every rule, by id |
+| `POST` | `/alerts/rules` | create; a `400` names the failing field, or says the `id` is already in use |
 | `GET` | `/alerts/rules/{id}` | one rule; `404` if there is none |
-| `PUT` | `/alerts/rules/{id}` | create or replace; a `400` names the failing field |
+| `PUT` | `/alerts/rules/{id}` | replace; `404` if there is none, and a `400` names the failing field |
 | `DELETE` | `/alerts/rules/{id}` | delete; `404` if there is none. To pause a rule, `PUT` it with `"status": "inactive"` |
 
-`alerts_configuration` is stored as sent. It carries a `version` on the configuration, on its query
-and on its thresholds, so each can change format on its own (`common_types::alert_rules::stored`):
+`alerts_configuration` takes the evaluator's shape, the same JSON as a config rule's `config`, with
+no versions. It is stored with a `version` on the configuration, on its query and on its
+thresholds, so the stored format can change without changing the API
+(`common_types::alert_rules::stored`):
 
 ```http
-PUT /alerts/rules/rds-writer-cpu
+POST /alerts/rules
 X-Internal-Api-Key: <key>
 Content-Type: application/json
 
 {
+  "id": "rds-writer-cpu",
   "name": "RDS writer CPU",
   "status": "active",
   "alerts_configuration": {
-    "version": "v1",
     "interval_seconds": 60,
     "query": {
-      "datasource": "cloudwatch",
-      "version": "v1",
+      "datasource": "grafana_cloudwatch",
       "region": "us-east-1",
       "namespace": "AWS/RDS",
       "metric_name": "CPUUtilization",
@@ -475,7 +477,6 @@ Content-Type: application/json
       "end_offset_seconds": 180
     },
     "thresholds": {
-      "version": "v1",
       "severities": {
         "critical": {
           "threshold": 80.0,
@@ -489,14 +490,14 @@ Content-Type: application/json
 }
 ```
 
-`dimensions` and `end_offset_seconds` may be left out (`{}` and `180`). `interval_seconds` is any
+A `PUT /alerts/rules/{id}` body is the same without `id`. `dimensions` and `end_offset_seconds` may be left out (`{}` and `180`). `interval_seconds` is any
 whole number of minutes up to a day. Besides its own checks, a rule must name chat destinations and
 a datasource this deployment has configured. The APIs work whatever `rule_source` is, so rules can
 be loaded before switching.
 
 Scheduling applies to database rules only; config rules run on every tick.
 
-- A created, replaced or reactivated rule is due on the next tick.
+- A created, updated or reactivated rule is due on the next tick.
 - `POST /alerts/grafana/cloudwatch/notify` runs the active rules whose `next_run_at` has passed. Each
   is claimed first: its `next_run_at` moves to the start of the current minute plus
   `interval_seconds`, only if nobody moved it since it was read, so two replicas or overlapping ticks
@@ -507,7 +508,7 @@ Scheduling applies to database rules only; config rules run on every tick.
 - `GET /alerts/grafana/cloudwatch/evaluate` runs every active rule and moves nothing.
 
 To switch a deployment to the database without an alerting gap: deploy with `rule_source` unset, load
-the rules with `PUT /alerts/rules/{id}`, then set `OBSERVABILITY__ALERT__RULE_SOURCE=database`, clear
+the rules with `POST /alerts/rules`, then set `OBSERVABILITY__ALERT__RULE_SOURCE=database`, clear
 `OBSERVABILITY__ALERT__RULES` and roll out.
 
 ## Layout

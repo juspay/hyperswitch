@@ -29,7 +29,7 @@ pub struct AlertRule {
     /// When the rule is next due for evaluation (UTC).
     pub next_run_at: PrimitiveDateTime,
     pub created_at: PrimitiveDateTime,
-    pub last_updated_at: PrimitiveDateTime,
+    pub last_modified_at: PrimitiveDateTime,
 }
 
 /// A rule ready to store (create or replace).
@@ -50,7 +50,7 @@ impl AlertRuleNew {
     /// failing field.
     pub fn try_from_request(
         id: String,
-        request: api::AlertRuleUpsertRequest,
+        request: api::AlertRuleUpdateRequest,
         now: PrimitiveDateTime,
     ) -> ObservabilityApiResult<Self> {
         validate_id(&id).map_err(invalid)?;
@@ -62,13 +62,14 @@ impl AlertRuleNew {
             )));
         }
 
-        request.alerts_configuration.validate().map_err(invalid)?;
+        let alerts_configuration = AlertConfiguration::from(request.alerts_configuration);
+        alerts_configuration.validate().map_err(invalid)?;
 
         Ok(Self {
             id,
             name,
             status: request.status,
-            alerts_configuration: request.alerts_configuration,
+            alerts_configuration,
             next_run_at: now,
         })
     }
@@ -136,7 +137,7 @@ impl From<storage::AlertRule> for AlertRule {
             alerts_configuration: row.alerts_configuration,
             next_run_at: row.next_run_at,
             created_at: row.created_at,
-            last_updated_at: row.last_updated_at,
+            last_modified_at: row.last_modified_at,
         }
     }
 }
@@ -158,10 +159,10 @@ impl From<AlertRule> for api::AlertRuleResponse {
             id: rule.id,
             name: rule.name,
             status: rule.status,
-            alerts_configuration: rule.alerts_configuration,
+            alerts_configuration: rule.alerts_configuration.into(),
             next_run_at: rule.next_run_at,
             created_at: rule.created_at,
-            last_updated_at: rule.last_updated_at,
+            last_modified_at: rule.last_modified_at,
         }
     }
 }
@@ -206,11 +207,11 @@ mod tests {
     fn request(
         name: &str,
         alerts_configuration: AlertConfiguration,
-    ) -> api::AlertRuleUpsertRequest {
-        api::AlertRuleUpsertRequest {
+    ) -> api::AlertRuleUpdateRequest {
+        api::AlertRuleUpdateRequest {
             name: name.to_owned(),
             status: AlertRuleStatus::Active,
-            alerts_configuration,
+            alerts_configuration: alerts_configuration.into(),
         }
     }
 
@@ -322,7 +323,7 @@ mod tests {
             alerts_configuration: new.alerts_configuration.clone(),
             next_run_at: new.next_run_at,
             created_at: new.next_run_at,
-            last_updated_at: new.next_run_at,
+            last_modified_at: new.next_run_at,
         });
 
         assert_eq!(definition.id, "rds-writer-cpu");
@@ -347,7 +348,7 @@ mod tests {
             alerts_configuration: stored.alerts_configuration,
             next_run_at: datetime!(2026-10-21 09:00:00),
             created_at: datetime!(2026-10-21 09:00:00),
-            last_updated_at: datetime!(2026-10-21 09:00:00),
+            last_modified_at: datetime!(2026-10-21 09:00:00),
         });
 
         assert_eq!(read.name, new.name);
