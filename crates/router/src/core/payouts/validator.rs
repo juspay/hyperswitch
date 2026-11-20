@@ -98,25 +98,21 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
 pub(super) fn validate_payout_mutation_request(
     req: &payouts::PayoutCreateRequest,
 ) -> RouterResult<()> {
-    if req.amount.is_some() {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "amount cannot be updated through this payout API".to_owned(),
-        }));
-    }
+    let invalid_field = [
+        req.amount.is_some().then_some("amount"),
+        req.currency.is_some().then_some("currency"),
+        req.get_customer_id().is_some().then_some("customer_id"),
+    ]
+    .into_iter()
+    .flatten()
+    .next();
 
-    if req.currency.is_some() {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "currency cannot be updated through this payout API".to_owned(),
-        }));
+    match invalid_field {
+        Some(field) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("{field} cannot be updated through this payout API"),
+        })),
+        None => Ok(()),
     }
-
-    if req.get_customer_id().is_some() {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "customer_id cannot be updated through this payout API".to_owned(),
-        }));
-    }
-
-    Ok(())
 }
 
 /// Validate payout ID uniqueness within the merchant's storage scheme.
