@@ -615,6 +615,10 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
     VOID_PAYMENT_SYNC: ["zift"],
+    // Spec 54's saved-card client-list assertions run only where the
+    // environment is verified to surface saved cards (the mock fiuu env
+    // does not); extend as connector runs prove support.
+    SAVED_CARD_FILTERING: ["bankofamerica"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [
