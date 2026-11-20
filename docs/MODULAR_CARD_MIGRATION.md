@@ -91,7 +91,7 @@ lock expired or a saved-card list was empty.
 
 ## Deployment checks still required
 
-- CUG must expose create, saved-PM listing with `include_new=true`, and raw-detail retrieval on an
+- The target modular service must expose create, saved-PM listing with `include_new=true`, and raw-detail retrieval on an
   OLTP-enabled modular service. Listing is also gated by the OLAP build feature;
   a replica-only instance is unsuitable for confirming writes.
 - Confirm internal service credentials, tenant propagation, billing/cardholder
@@ -109,7 +109,11 @@ lock expired or a saved-card list was empty.
   synthetic fixtures, fault proxies and the exact local/CUG sequence. Live
   end-to-end testing still precedes any production run.
 
-## Milestone validation
+## Historical validation (October 2026)
+
+The results below describe the original implementation. A backport must rerun
+the regression and contract tests against its target release; these historical
+results do not establish that a new deployment is ready.
 
 The combined review passed 51 focused v1 tests, two v2 request-contract tests and
 three API-key expiration serialization tests. It covers

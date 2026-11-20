@@ -233,6 +233,9 @@ hyperswitch_interfaces::impl_microservice_flow!(
     path_params = CreateMigrationPaymentMethod::path
 );
 
+#[cfg(test)]
+mod tests;
+
 /// Reconciliation must include freshly vaulted `New` cards, which have not yet been used.
 /// Ordinary saved-card listings keep their existing default behavior.
 #[derive(Debug)]
