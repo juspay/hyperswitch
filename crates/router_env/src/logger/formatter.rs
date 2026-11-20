@@ -206,7 +206,6 @@ where
     }
 
     /// Serialize common for both span and event entries.
-    #[allow(clippy::print_stderr)]
     fn common_serialize<S>(
         &self,
         map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
@@ -253,8 +252,6 @@ where
         #[cfg(feature = "log_custom_entries_to_extra")]
         let mut extra = serde_json::Map::default();
         let mut explicit_entries_set: HashSet<&str> = HashSet::default();
-        // This code runs from inside a tracing subscriber callback. Diagnostics must bypass the
-        // tracing subscriber to avoid recursively re-entering every layer.
         // Write down explicit event's entries.
         for (key, value) in storage.values.iter() {
             if is_extra_implicit(key) {
@@ -268,8 +265,10 @@ where
                 map_serializer.serialize_entry(key, value)?;
                 explicit_entries_set.insert(key);
             } else {
-                eprintln!(
-                    "Attempting to log a reserved entry. It won't be added to the logs. key={key:?} value={value:?}"
+                tracing::warn!(
+                    ?key,
+                    ?value,
+                    "Attempting to log a reserved entry. It won't be added to the logs"
                 );
             }
         }
@@ -282,22 +281,19 @@ where
         // Write down entries from the span, if it exists.
         if let Some(span_storage) = span_storage {
             for (key, value) in &span_storage.values {
-                // Explicit event entries take precedence over values inherited from the span.
-                if explicit_entries_set.contains(key) {
-                    continue;
-                }
-
-                if is_extra_implicit(key) {
+                if is_extra_implicit(key) && !explicit_entries_set.contains(key) {
                     #[cfg(feature = "log_extra_implicit_fields")]
                     map_serializer.serialize_entry(key, value)?;
-                } else if is_extra(key) {
+                } else if is_extra(key) && !explicit_entries_set.contains(key) {
                     #[cfg(feature = "log_custom_entries_to_extra")]
                     extra.insert(key.to_string(), value.clone());
                     #[cfg(not(feature = "log_custom_entries_to_extra"))]
                     map_serializer.serialize_entry(key, value)?;
                 } else {
-                    eprintln!(
-                        "Attempting to log a reserved entry. It won't be added to the logs. key={key:?} value={value:?}"
+                    tracing::warn!(
+                        ?key,
+                        ?value,
+                        "Attempting to log a reserved entry. It won't be added to the logs"
                     );
                 }
             }
