@@ -2354,9 +2354,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         .attach_printable("Failed to get response from vault")?;
 
     #[cfg(feature = "v2")]
-    let is_jws_response = locker.jws_fingerprint_response
-        && V::supports_jws_response()
-        && is_jws_vault_response(&response);
+    let is_jws_response = V::supports_jws_response() && is_jws_vault_response(&response);
     #[cfg(not(feature = "v2"))]
     let is_jws_response = false;
 
@@ -2579,7 +2577,7 @@ fn batch_fingerprint_entry<D: serde::Serialize>(
 }
 
 #[cfg(feature = "v2")]
-fn fingerprint_response_headers(state: &routes::SessionState) -> Option<HashMap<String, String>> {
+fn fingerprint_request_headers(state: &routes::SessionState) -> Option<HashMap<String, String>> {
     state.conf.locker.jws_fingerprint_response.then(|| {
         HashMap::from([(
             consts::V2_VAULT_FP_RESPONSE_ENCODING_HEADER.to_string(),
@@ -2605,7 +2603,7 @@ async fn get_fingerprint_ids_from_vault_batch(
         state,
         payload,
         None,
-        fingerprint_response_headers(state),
+        fingerprint_request_headers(state),
     )
     .await
     .change_context(errors::VaultError::VaultAPIError)
@@ -2639,7 +2637,7 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         state,
         payload,
         None,
-        fingerprint_response_headers(state),
+        fingerprint_request_headers(state),
     )
     .await
     .change_context(errors::VaultError::VaultAPIError)
