@@ -20,11 +20,14 @@ const threeDsCardDetails = {
   card_cvc: "111",
 };
 
-// Message Ilixium returns (as `error_message`) for the declined-access
-// responses, shared by every failing flow below. The reason code ("4") is
-// returned separately as `error_code`.
-const ACCESS_DENIED_ERROR_MESSAGE =
-  "Access to this functionality has been denied";
+// Response body Ilixium returns for the declined-access flows, shared by every
+// failing flow below. The message is returned as `error_message` and the
+// reason code ("4") separately as `error_code`.
+const ACCESS_DENIED_RESPONSE_BODY = {
+  status: "failed",
+  error_message: "Access to this functionality has been denied",
+  error_code: "4",
+};
 
 // Ilixium requires the customer's date of birth (schema-mandatory on
 // accounts that enforce it; omitting it gets rejected with `VA8`). The
@@ -111,11 +114,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     No3DSAutoCapture: getCustomExchange({
@@ -132,11 +131,7 @@ export const connectorDetails = {
       // Creds we currently have only supports manual capture. Therefore mapped error code for auto capture.
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     PaymentConfirmWithShippingCost: getCustomExchange({
@@ -150,11 +145,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     Capture: getCustomExchange({
@@ -206,11 +197,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     SaveCardUseNo3DSAutoCapture: getCustomExchange({
@@ -225,11 +212,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
@@ -243,11 +226,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     SaveCardUse3DSAutoCaptureOffSession: getCustomExchange({
@@ -261,11 +240,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     SaveCardUseNo3DSManualCapture: getCustomExchange({
@@ -373,11 +348,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     PaymentMethodIdMandateNo3DSManualCapture: getCustomExchange({
@@ -408,11 +379,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     }),
     PaymentMethodIdMandate3DSManualCapture: getCustomExchange({
@@ -459,11 +426,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     },
     AppliedOfferOnRetrieve: getCustomExchange({
@@ -483,11 +446,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          status: "failed",
-          error_message: ACCESS_DENIED_ERROR_MESSAGE,
-          error_code: "4",
-        },
+        body: ACCESS_DENIED_RESPONSE_BODY,
       },
     },
     // The "save a card" step earlier in this scenario (card_pm.
