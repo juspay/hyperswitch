@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix7
+
+### Bug Fixes
+
+- **connector:** Pass external 3DS transaction status to Checkout ([#15321](https://github.com/juspay/hyperswitch/pull/15321)) ([`a53fdc3`](https://github.com/juspay/hyperswitch/commit/a53fdc32560ecea4aa994b948ccaf06c4a04215c))
+
+**Full Changelog:** [`2026.11.11.1-hotfix6...2026.11.11.1-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix6...2026.11.11.1-hotfix7)
+
+- - -
+
 ## 2026.11.11.1-hotfix6
 
 ### Features
