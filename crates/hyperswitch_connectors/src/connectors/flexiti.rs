@@ -729,7 +729,7 @@ static FLEXITI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
 
     flexiti_supported_payment_methods.add(
         enums::PaymentMethod::PayLater,
-        enums::PaymentMethodType::Klarna,
+        enums::PaymentMethodType::Flexiti,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::NotSupported,

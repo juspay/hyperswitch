@@ -121,18 +121,7 @@ fn build_payment_method_wise_feature_details(
         .iter()
         .map(|(payment_method_type, feature_metadata)| {
             let payment_method_type_config =
-                state
-                    .conf
-                    .pm_filters
-                    .0
-                    .get(connector_name)
-                    .and_then(|selected_connector| {
-                        selected_connector.0.get(
-                            &settings::PaymentMethodFilterKey::PaymentMethodType(
-                                *payment_method_type,
-                            ),
-                        )
-                    });
+                get_pm_filter(&state.conf.pm_filters, connector_name, *payment_method_type);
 
             let supported_countries = payment_method_type_config.and_then(|config| {
                 config.country.clone().map(|set| {
@@ -158,4 +147,76 @@ fn build_payment_method_wise_feature_details(
             }
         })
         .collect()
+}
+
+/// Retrieves the payment-method-type level filter (country/currency market
+/// restrictions) configured under `[pm_filters.<connector>]` for the connector.
+fn get_pm_filter<'a>(
+    pm_filters: &'a settings::ConnectorFilters,
+    connector_name: &str,
+    payment_method_type: enums::PaymentMethodType,
+) -> Option<&'a settings::CurrencyCountryFlowFilter> {
+    pm_filters
+        .0
+        .get(connector_name)
+        .and_then(|selected_connector| {
+            selected_connector
+                .0
+                .get(&settings::PaymentMethodFilterKey::PaymentMethodType(
+                    payment_method_type,
+                ))
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::connector::Flexiti;
+
+    fn flexiti_pm_filters() -> settings::ConnectorFilters {
+        config::Config::builder()
+            .add_source(config::File::from_str(
+                "[flexiti]\nflexiti = { country = \"CA\", currency = \"CAD\" }\n",
+                config::FileFormat::Toml,
+            ))
+            .build()
+            .expect("valid pm_filters toml")
+            .try_deserialize()
+            .expect("valid ConnectorFilters")
+    }
+
+    #[test]
+    fn flexiti_declares_flexiti_type_not_klarna() {
+        let supported = Flexiti::new()
+            .get_supported_payment_methods()
+            .expect("Flexiti declares supported payment methods");
+        let pay_later = supported
+            .get(&enums::PaymentMethod::PayLater)
+            .expect("Flexiti declares PayLater");
+        assert!(pay_later.contains_key(&enums::PaymentMethodType::Flexiti));
+        assert!(!pay_later.contains_key(&enums::PaymentMethodType::Klarna));
+    }
+
+    #[test]
+    fn flexiti_market_filters_resolve_for_declared_type() {
+        let filters = flexiti_pm_filters();
+
+        let filter = get_pm_filter(&filters, "flexiti", enums::PaymentMethodType::Flexiti)
+            .expect("filter must resolve for the declared payment method type");
+        assert!(filter
+            .currency
+            .clone()
+            .unwrap_or_default()
+            .contains(&enums::Currency::CAD));
+        assert!(filter
+            .country
+            .clone()
+            .unwrap_or_default()
+            .contains(&enums::CountryAlpha2::CA));
+
+        // The original defect (#14611): the declared Klarna type had no
+        // matching key under [pm_filters.flexiti], so the feature matrix
+        // rendered empty country/currency cells.
+        assert!(get_pm_filter(&filters, "flexiti", enums::PaymentMethodType::Klarna).is_none());
+    }
 }
