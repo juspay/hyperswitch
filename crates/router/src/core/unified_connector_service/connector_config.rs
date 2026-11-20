@@ -3,7 +3,7 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::{collections::HashMap, fmt::Write};
+use std::collections::HashMap;
 
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
@@ -2431,24 +2431,6 @@ pub fn build_connector_config_header(
     let config_string = serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
-
-    // gRPC metadata and the UCS header parser require ASCII values.
-    let config_string = if config_string.is_ascii() {
-        config_string
-    } else {
-        let mut ascii_config = String::with_capacity(config_string.len());
-        for character in config_string.chars() {
-            if character.is_ascii() {
-                ascii_config.push(character);
-            } else {
-                for unit in character.encode_utf16(&mut [0; 2]) {
-                    write!(&mut ascii_config, "\\u{unit:04x}")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
-                }
-            }
-        }
-        ascii_config
-    };
 
     Ok(Some(config_string))
 }

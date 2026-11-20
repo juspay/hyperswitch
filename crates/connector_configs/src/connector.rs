@@ -155,6 +155,7 @@ pub enum MerchantIdConfig {
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
     pub country_of_incorporation: Option<InputData>,
+    pub statement_descriptor: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
     pub account_type: Option<InputData>,
