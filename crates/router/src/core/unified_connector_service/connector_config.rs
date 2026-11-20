@@ -3,7 +3,7 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Write};
 
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
@@ -241,6 +241,7 @@ pub struct GlobalpayMetadata {
 #[derive(Debug, serde::Deserialize)]
 pub struct RapydMetadata {
     country_of_incorporation: Option<common_enums::CountryAlpha2>,
+    statement_descriptor: Option<Secret<String>>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for RapydMetadata {
@@ -259,6 +260,7 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for RapydMetadata {
                 }),
             None => Ok(Self {
                 country_of_incorporation: None,
+                statement_descriptor: None,
             }),
         }
     }
@@ -520,6 +522,8 @@ pub enum ConnectorSpecificConfig {
         secret_key: Secret<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         country_of_incorporation: Option<i32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        statement_descriptor: Option<Secret<String>>,
     },
     /// Payu connector configuration
     Payu {
@@ -1368,6 +1372,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         })
                         .transpose()?;
                     let country_of_incorporation = rapyd_meta
+                        .as_ref()
                         .and_then(|meta| meta.country_of_incorporation)
                         .map(|country| {
                             unified_connector_service_client::payments::CountryAlpha2::from_str_name(
@@ -1381,6 +1386,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         access_key: api_key.clone(),
                         secret_key: key1.clone(),
                         country_of_incorporation,
+                        statement_descriptor: rapyd_meta.and_then(|metadata| metadata.statement_descriptor),
                     })
                 }
                 _ => Err(err("Rapyd requires BodyKey auth type")),
@@ -2425,6 +2431,24 @@ pub fn build_connector_config_header(
     let config_string = serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
+
+    // gRPC metadata and the UCS header parser require ASCII values.
+    let config_string = if config_string.is_ascii() {
+        config_string
+    } else {
+        let mut ascii_config = String::with_capacity(config_string.len());
+        for character in config_string.chars() {
+            if character.is_ascii() {
+                ascii_config.push(character);
+            } else {
+                for unit in character.encode_utf16(&mut [0; 2]) {
+                    write!(&mut ascii_config, "\\u{unit:04x}")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                }
+            }
+        }
+        ascii_config
+    };
 
     Ok(Some(config_string))
 }
