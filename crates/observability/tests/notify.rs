@@ -466,6 +466,7 @@ fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
         let provider = GrafanaCloudwatch::new(
             GrafanaConfig {
                 base_url: Some(base_url.parse().unwrap()),
+                ui_url: None,
                 api_token: Secret::new("test-token".to_owned()),
             },
             Default::default(),

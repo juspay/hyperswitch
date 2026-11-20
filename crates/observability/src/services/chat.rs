@@ -3,8 +3,10 @@ use std::collections::BTreeMap;
 use common_types::alert_rules::{
     AlertQuery, GrafanaCloudwatchQuery, GrafanaLokiQuery, SeverityThreshold,
 };
-use external_services::metrics_provider::MetricPoint;
+use external_services::metrics_provider::{MetricPoint, MetricRange};
+use serde_json::json;
 use time::PrimitiveDateTime;
+use url::Url;
 
 use crate::{
     domain::notifier::chat::AlertSeverity,
@@ -29,13 +31,77 @@ pub(crate) fn create_notification(
     rule: &RuleDefinition,
     evaluated_at: PrimitiveDateTime,
     body: ChatBody<'_>,
+    explore: Option<(&Url, &str)>,
 ) -> Notification {
-    match &rule.config.query {
+    let link = match (&body, explore) {
+        (ChatBody::Alarm { evaluation, .. }, Some((grafana, uid))) => {
+            explore_link(grafana, uid, &rule.config.query, evaluation.window)
+        }
+        _ => None,
+    };
+    let mut notification = match &rule.config.query {
         AlertQuery::GrafanaCloudwatch(query) => {
             cloudwatch_notification(rule, query, evaluated_at, body)
         }
         AlertQuery::GrafanaLoki(query) => loki_notification(rule, query, evaluated_at, body),
+    };
+    if let Some(link) = link {
+        let at = notification
+            .message
+            .find("Evaluated:")
+            .and_then(|start| {
+                notification.message[start..]
+                    .find('\n')
+                    .map(|end| start + end)
+            })
+            .unwrap_or(notification.message.len());
+        notification.message.insert_str(
+            at,
+            &format!("\n*Grafana:* <{link}|Open in Grafana Explore>"),
+        );
     }
+    notification
+}
+
+fn explore_link(grafana: &Url, uid: &str, query: &AlertQuery, window: MetricRange) -> Option<Url> {
+    let target = match query {
+        AlertQuery::GrafanaCloudwatch(query) => json!({
+            "refId": "A",
+            "datasource": {"type": "cloudwatch", "uid": uid},
+            "queryMode": "Metrics",
+            "region": query.region,
+            "namespace": query.namespace,
+            "metricName": query.metric_name,
+            "dimensions": query
+                .dimensions
+                .iter()
+                .map(|(name, value)| (name.clone(), vec![value.clone()]))
+                .collect::<BTreeMap<_, _>>(),
+            "statistic": query.statistic.to_string(),
+            "period": query.period.to_string(),
+            "matchExact": true
+        }),
+        AlertQuery::GrafanaLoki(query) => json!({
+            "refId": "A",
+            "datasource": {"type": "loki", "uid": uid},
+            "expr": query.expr,
+            "queryType": "range"
+        }),
+    };
+    let millis = |timestamp: PrimitiveDateTime| {
+        (timestamp.assume_utc().unix_timestamp_nanos() / 1_000_000).to_string()
+    };
+    let panes = json!({"a": {
+        "datasource": uid,
+        "queries": [target],
+        "range": {"from": millis(window.from), "to": millis(window.to)}
+    }});
+    let mut url = grafana.join("explore").ok()?;
+    url.query_pairs_mut()
+        .append_pair("schemaVersion", "1")
+        .append_pair("orgId", "1")
+        .append_pair("panes", &panes.to_string());
+    Some(url)
 }
 
 fn cloudwatch_notification(
@@ -333,6 +399,7 @@ mod tests {
                     threshold,
                     point: &point,
                 },
+                None,
             );
             assert_eq!(notification.title, "Raw `{name}` <&>");
             assert_eq!(notification.severity, AlertSeverity::Sev1);
@@ -427,6 +494,7 @@ mod tests {
                 threshold,
                 point: &point,
             },
+            None,
         );
         assert_eq!(alarm.heading, "ALARM");
         assert_eq!(alarm.destination, "oncall");
@@ -443,6 +511,54 @@ mod tests {
         assert!(alarm.message.contains("Latest value: `42`\n"));
         assert!(!alarm.message.contains("count_over_time"));
 
+        let grafana = Url::parse("https://grafana.example.com/").unwrap();
+        let linked = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &evaluation,
+                threshold,
+                point: &point,
+            },
+            Some((&grafana, "loki-uid")),
+        );
+        let link = linked
+            .message
+            .split_once(" UTC`\n*Grafana:* <")
+            .and_then(|(_, rest)| rest.split_once("|Open in Grafana Explore>\n"))
+            .map(|(link, _)| link)
+            .map(|link| Url::parse(link).unwrap())
+            .unwrap();
+        assert_eq!(link.host_str(), Some("grafana.example.com"));
+        assert_eq!(link.path(), "/explore");
+        let panes: serde_json::Value = serde_json::from_str(
+            &link
+                .query_pairs()
+                .find(|(key, _)| key == "panes")
+                .unwrap()
+                .1,
+        )
+        .unwrap();
+        assert_eq!(
+            panes.pointer("/a/queries/0/datasource/uid"),
+            Some(&serde_json::json!("loki-uid"))
+        );
+        let AlertQuery::GrafanaLoki(query) = &rule.config.query else {
+            panic!("expected a Loki rule")
+        };
+        assert_eq!(
+            panes.pointer("/a/queries/0/expr"),
+            Some(&serde_json::json!(query.expr))
+        );
+        assert_eq!(
+            panes.pointer("/a/range/from"),
+            Some(&serde_json::json!("1773828000000"))
+        );
+        assert_eq!(
+            panes.pointer("/a/range/to"),
+            Some(&serde_json::json!("1773828300000"))
+        );
+
         let unlabelled = Evaluation {
             labels: BTreeMap::new(),
             ..evaluation.clone()
@@ -455,6 +571,7 @@ mod tests {
                 threshold,
                 point: &point,
             },
+            None,
         );
         assert_eq!(alarm.title, "Router errors");
         assert!(!alarm.message.contains("flow:"));
@@ -478,6 +595,7 @@ mod tests {
                 threshold,
                 point: &point,
             },
+            None,
         );
         assert!(alarm.message.contains("app: `router`\n"));
         assert_eq!(alarm.title, "Router errors (app=router)");
@@ -493,6 +611,7 @@ mod tests {
                 error: "data source request failed",
                 destination: "oncall",
             },
+            None,
         );
         assert_eq!(error.heading, "RULE ERROR");
         assert_eq!(error.title, "RULE ERROR · Router errors");

@@ -11,6 +11,7 @@ use external_services::metrics_provider::{
 use futures::future::join_all;
 use hyperswitch_masking::Secret;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use url::Url;
 
 use crate::{
     core::notifier,
@@ -190,6 +191,7 @@ fn rule_run(
     rule: &RuleDefinition,
     evaluation: Evaluation,
     now: PrimitiveDateTime,
+    explore: Option<(&Url, &str)>,
 ) -> EvaluatorResult<RuleRun> {
     let notification = match (&evaluation.breach, evaluation.latest_point.as_ref()) {
         (Some(threshold), Some(point)) => Some(chat::create_notification(
@@ -200,6 +202,7 @@ fn rule_run(
                 threshold,
                 point,
             },
+            explore,
         )),
         (Some(_), None) => {
             return Err(Report::new(EvaluatorError::UnexpectedResponse)
@@ -221,10 +224,14 @@ async fn evaluate_rule(
     now: PrimitiveDateTime,
 ) -> Vec<RuleRun> {
     let settings = state.conf.alert.get_inner();
+    let datasource = settings.datasources.get(&rule.config.query.metric_source());
+    let explore = settings
+        .grafana
+        .ui_url
+        .as_ref()
+        .zip(datasource.map(|datasource| datasource.uid.as_str()));
     let result = async {
-        let uid = &settings
-            .datasources
-            .get(&rule.config.query.metric_source())
+        let uid = &datasource
             .ok_or(EvaluatorError::UnexpectedResponse)
             .attach_printable("rule metric source is not configured")?
             .uid;
@@ -244,7 +251,7 @@ async fn evaluate_rule(
     .and_then(|evaluations| {
         evaluations
             .into_iter()
-            .map(|evaluation| rule_run(rule, evaluation, now))
+            .map(|evaluation| rule_run(rule, evaluation, now, explore))
             .collect::<EvaluatorResult<Vec<_>>>()
     });
     match result {
@@ -264,6 +271,7 @@ async fn evaluate_rule(
                     error: &error,
                     destination,
                 },
+                None,
             );
             vec![RuleRun::Failed {
                 error,

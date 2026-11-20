@@ -173,6 +173,7 @@ mod tests {
         let provider = GrafanaLoki::new(
             GrafanaConfig {
                 base_url: Some(server.uri().parse().unwrap()),
+                ui_url: None,
                 api_token: Secret::new("loki-test-token".to_owned()),
             },
             Proxy::default(),
