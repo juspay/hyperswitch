@@ -244,6 +244,7 @@ impl PaymentAttemptBatchNew {
             currency: self.currency,
             save_to_locker: self.save_to_locker,
             connector: self.connector,
+            account_information: None,
             error_message: self.error_message,
             offer_amount: self.offer_amount,
             surcharge_amount: self.surcharge_amount,

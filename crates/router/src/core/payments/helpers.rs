@@ -5658,6 +5658,7 @@ impl AttemptType {
             save_to_locker: old_payment_attempt.save_to_locker,
 
             connector: None,
+            account_information: None,
 
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,

@@ -154,6 +154,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     let payment_attempt_update =
                         hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
+                            account_information: payment_data.payment_attempt.account_information.clone(),
                             status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,

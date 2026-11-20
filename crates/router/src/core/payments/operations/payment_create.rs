@@ -1143,6 +1143,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
     {
         let storage_scheme = processor.get_storage_scheme();
         let key_store = processor.get_key_store();
+
         let status = match payment_data.payment_intent.status {
             IntentStatus::RequiresPaymentMethod => match payment_data.payment_method_data {
                 Some(_) => Some(IntentStatus::RequiresConfirmation),
@@ -1161,6 +1162,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let payment_token = payment_data.token.clone();
         let connector = payment_data.payment_attempt.connector.clone();
+        let account_information = payment_data.payment_attempt.account_information.clone();
         let straight_through_algorithm = payment_data
             .payment_attempt
             .straight_through_algorithm
@@ -1191,6 +1193,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 storage::PaymentAttemptUpdate::UpdateTrackers {
                     payment_token,
                     connector,
+                    account_information,
                     straight_through_algorithm,
                     amount_capturable: match payment_data.confirm.unwrap_or(true) {
                         true => Some(authorized_amount),
@@ -1733,6 +1736,7 @@ impl PaymentCreate {
                 ),
                 save_to_locker: None,
                 connector: None,
+                account_information: None,
                 error_message: None,
                 offer_amount: None,
                 payment_method_id: payment_method_info

@@ -283,6 +283,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         let (payment_intent, mut payment_attempt) = match needs_new_attempt {
             true => {
                 let previous_connector = active_payment_attempt.connector.clone();
+                let previous_account_information =
+                    active_payment_attempt.account_information.clone();
                 let previous_merchant_connector_id =
                     active_payment_attempt.merchant_connector_id.clone();
 
@@ -301,6 +303,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
                 // The manual retry helper clears both, but the network transaction ID was issued
                 // by the connector that declined, so the fallback has to stay on it.
                 payment_attempt.connector = previous_connector;
+                payment_attempt.account_information = previous_account_information;
                 payment_attempt.merchant_connector_id = previous_merchant_connector_id;
 
                 (payment_intent, payment_attempt)
@@ -565,6 +568,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
         let key_store = processor.get_key_store();
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let account_information = payment_data.payment_attempt.account_information.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
 
         let payment_method = payment_data.payment_attempt.payment_method;
@@ -653,6 +657,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     capture_method: payment_data.payment_attempt.capture_method,
                     browser_info: payment_data.payment_attempt.browser_info.clone(),
                     connector,
+                    account_information,
                     payment_token: payment_data.token.clone(),
                     payment_method_data: None,
                     payment_method_type: payment_data.payment_attempt.payment_method_type,

@@ -2893,6 +2893,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             };
 
         let connector = payment_data.payment_attempt.connector.clone();
+        let account_information = payment_data.payment_attempt.account_information.clone();
         let merchant_connector_id = payment_data.payment_attempt.merchant_connector_id.clone();
         let connector_request_reference_id = payment_data
             .payment_attempt
@@ -3067,6 +3068,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         capture_method: m_capture_method,
                         browser_info: m_browser_info,
                         connector: m_connector,
+                        account_information,
                         payment_token: m_payment_token,
                         payment_method_data: m_additional_pm_data,
                         payment_method_type,

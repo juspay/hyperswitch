@@ -163,6 +163,7 @@ impl PaymentAttemptInterface for MockDb {
             currency: payment_attempt.currency,
             save_to_locker: payment_attempt.save_to_locker,
             connector: payment_attempt.connector,
+            account_information: payment_attempt.account_information,
             error_message: payment_attempt.error_message,
             offer_amount: payment_attempt.offer_amount,
             payment_method_id: payment_attempt.payment_method_id,

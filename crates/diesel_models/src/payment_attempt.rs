@@ -41,6 +41,17 @@ impl ConnectorMandateReferenceId {
         self.connector_mandate_id.clone()
     }
 }
+#[cfg(feature = "v1")]
+common_utils::impl_to_sql_from_sql_json!(AccountInformation);
+#[cfg(feature = "v1")]
+#[derive(
+    Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+pub struct AccountInformation {
+    pub connector_label: Option<String>,
+}
+
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
 #[derive(
     Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
@@ -220,6 +231,7 @@ pub struct PaymentAttempt {
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
+    pub account_information: Option<AccountInformation>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -496,6 +508,7 @@ pub struct PaymentAttemptNew {
     // pub auto_capture: Option<bool>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
+    pub account_information: Option<AccountInformation>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -616,6 +629,7 @@ pub enum PaymentAttemptUpdate {
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
@@ -639,6 +653,7 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<serde_json::Value>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         payment_token: Option<String>,
         payment_method_data: Option<serde_json::Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -712,6 +727,7 @@ pub enum PaymentAttemptUpdate {
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         connector_transaction_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         network_transaction_id: Option<String>,
@@ -748,6 +764,7 @@ pub enum PaymentAttemptUpdate {
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         connector_transaction_id: Option<String>,
         payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
@@ -763,6 +780,7 @@ pub enum PaymentAttemptUpdate {
     },
     ErrorUpdate {
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
@@ -805,6 +823,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         updated_by: String,
     },
@@ -1105,6 +1124,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub connector_transaction_id: Option<ConnectorTransactionId>,
     pub amount_to_capture: Option<MinorUnit>,
     pub connector: Option<Option<String>>,
+    pub account_information: Option<Option<AccountInformation>>,
     pub authentication_type: Option<storage_enums::AuthenticationType>,
     pub payment_method: Option<storage_enums::PaymentMethod>,
     pub error_message: Option<Option<String>>,
@@ -2553,6 +2573,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 net_amount: None,
                 connector_transaction_id: None,
                 connector: None,
+                account_information: None,
                 error_message: None,
                 payment_method_id: None,
                 cancellation_reason: None,
@@ -2624,6 +2645,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 payment_method: None,
                 error_message: None,
                 payment_method_id: None,
@@ -2704,6 +2726,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_method,
                 browser_info,
                 connector,
+                account_information,
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2752,6 +2775,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 browser_info,
                 connector: connector.map(Some),
+                account_information: account_information.map(Some),
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2839,6 +2863,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -2926,6 +2951,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 payment_method_id: None,
@@ -3005,6 +3031,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: common_utils::date_time::now(),
                 error_code,
                 connector: Some(None),
+                account_information: Some(None),
                 error_message,
                 updated_by,
                 merchant_connector_id: Some(None),
@@ -3096,6 +3123,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -3180,6 +3208,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -3264,6 +3293,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -3337,6 +3367,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
+                account_information,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -3379,6 +3410,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 Self {
                     status: Some(status),
                     connector: connector.map(Some),
+                    account_information: account_information.map(Some),
                     connector_transaction_id,
                     authentication_type,
                     payment_method_id,
@@ -3460,6 +3492,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             }
             PaymentAttemptUpdate::ErrorUpdate {
                 connector,
+                account_information,
                 status,
                 error_code,
                 error_message,
@@ -3486,6 +3519,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                         .unwrap_or((None, None));
                 Self {
                     connector: connector.map(Some),
+                    account_information: account_information.map(Some),
                     status: Some(status),
                     error_message,
                     error_code,
@@ -3576,6 +3610,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -3650,6 +3685,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
+                account_information,
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -3662,6 +3698,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 modified_at: common_utils::date_time::now(),
                 connector: connector.map(Some),
+                account_information: account_information.map(Some),
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -3742,6 +3779,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
                 connector,
+                account_information,
                 connector_transaction_id,
                 payment_method_id,
                 error_code,
@@ -3760,6 +3798,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 Self {
                     status: Some(status),
                     connector: connector.map(Some),
+                    account_information: account_information.map(Some),
                     connector_transaction_id,
                     payment_method_id,
                     modified_at: common_utils::date_time::now(),
@@ -3868,6 +3907,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     currency: None,
                     amount_to_capture: None,
                     connector: None,
+                    account_information: None,
                     authentication_type: None,
                     payment_method: None,
                     error_message: None,
@@ -3950,6 +3990,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 status: None,
                 connector_transaction_id: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -4035,6 +4076,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -4110,6 +4152,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                account_information,
                 updated_by,
                 charges,
             } => {
@@ -4123,6 +4166,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     encoded_data,
                     connector_transaction_id,
                     connector: connector.map(Some),
+                    account_information: account_information.map(Some),
                     modified_at: common_utils::date_time::now(),
                     updated_by,
                     processor_transaction_data,
@@ -4213,6 +4257,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 error_message: None,
@@ -4307,6 +4352,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 error_message: None,
                 payment_method_id: None,
@@ -4404,6 +4450,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     currency: None,
                     amount_to_capture: None,
                     connector: None,
+                    account_information: None,
                     authentication_type: None,
                     payment_method: None,
                     payment_method_id: None,
@@ -4488,6 +4535,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 payment_method_id: None,
@@ -4577,6 +4625,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 payment_method_id: None,
@@ -4661,6 +4710,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_transaction_id: None,
                 amount_to_capture: None,
                 connector: None,
+                account_information: None,
                 authentication_type: None,
                 payment_method: None,
                 payment_method_id: None,
