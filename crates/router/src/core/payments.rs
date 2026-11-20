@@ -13039,7 +13039,6 @@ where
             helpers::validate_connector_mandate_currency(
                 cross_currency_mit_supported_connectors,
                 connector_routing_data.connector_data.connector_name,
-                payment_method_info.get_payment_method_type(),
                 mandate_reference_record.original_payment_authorized_currency,
                 payment_data.get_currency(),
             )?;
@@ -13116,7 +13115,6 @@ where
                             helpers::validate_connector_mandate_currency(
                                 &state.conf.cross_currency_mit_supported_connectors,
                                 connector_data.connector_name,
-                                payment_method_info.get_payment_method_type(),
                                 mandate_reference_record.original_payment_authorized_currency,
                                 payment_data.get_currency(),
                             )?;

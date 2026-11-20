@@ -842,7 +842,7 @@ pub struct CardOnlyMitSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
-/// Connectors for which card connector mandates may be reused across currencies.
+/// Connectors for which connector mandates may be reused across currencies.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct CrossCurrencyMitSupportedConnectors {

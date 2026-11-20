@@ -1586,9 +1586,9 @@ connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,s
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
 
-# Empty by default. Opted-in connectors allow cross-currency card connector mandates
+# Empty by default. Opted-in connectors allow cross-currency connector mandates
 # for all merchants using this deployment. Confirm processor/account support first.
-# This does not relax bank-debit or legacy amount-limited mandate validation.
+# Legacy mandate amount and currency validation remains unchanged.
 [cross_currency_mit_supported_connectors]
 connector_list = [] # Example: ["stripe"]
 
