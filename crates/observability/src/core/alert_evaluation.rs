@@ -54,8 +54,7 @@ pub async fn evaluate(
     let now = date_time::now();
     let rules = join_all(
         settings
-            .rules
-            .iter()
+            .all_rules()
             .filter(|rule| rule.config.query.metric_source() == source)
             .map(|rule| {
                 let state = &state;
@@ -86,8 +85,7 @@ pub async fn notify(
     let now = date_time::now();
     let rules = join_all(
         settings
-            .rules
-            .iter()
+            .all_rules()
             .filter(|rule| rule.config.query.metric_source() == source)
             .map(|rule| {
                 let state = state.clone();
