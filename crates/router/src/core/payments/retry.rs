@@ -616,10 +616,7 @@ where
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
                 connector: None,
-                account_information: payment_data
-                    .get_payment_attempt()
-                    .account_information
-                    .clone(),
+                account_information: None,
                 connector_transaction_id: match resource_id {
                     types::ResponseId::NoResponseId => None,
                     types::ResponseId::ConnectorTransactionId(id)
@@ -734,10 +731,7 @@ where
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
-                account_information: payment_data
-                    .get_payment_attempt()
-                    .account_information
-                    .clone(),
+                account_information: None,
                 error_code: Some(Some(error_response.code.clone())),
                 error_message: Some(Some(error_response.message.clone())),
                 status: storage_enums::AttemptStatus::Failure,

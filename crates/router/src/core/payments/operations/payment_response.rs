@@ -2792,10 +2792,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            account_information: payment_data
-                                .payment_attempt
-                                .account_information
-                                .clone(),
+                            account_information: None,
                             status,
                             error_message: Some(Some(err.message.clone())),
                             error_code: Some(Some(err.code.clone())),
@@ -2855,10 +2852,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
-                            account_information: payment_data
-                                .payment_attempt
-                                .account_information
-                                .clone(),
+                            account_information: None,
                             status: enums::AttemptStatus::IntegrityFailure,
                             error_message: Some(Some("Integrity Check Failed!".to_string())),
                             error_code: Some(Some("IE".to_string())),
@@ -3121,10 +3115,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     Some(storage::PaymentAttemptUpdate::ResponseUpdate {
                                         status: updated_attempt_status,
                                         connector: None,
-                                        account_information: payment_data
-                                            .payment_attempt
-                                            .account_information
-                                            .clone(),
+                                        account_information: None,
                                         connector_transaction_id: connector_transaction_id.cloned(),
                                         authentication_type: auth_update,
                                         amount_capturable: router_data
@@ -3215,10 +3206,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 Some(storage::PaymentAttemptUpdate::UnresolvedResponseUpdate {
                                     status: updated_attempt_status,
                                     connector: None,
-                                    account_information: payment_data
-                                        .payment_attempt
-                                        .account_information
-                                        .clone(),
+                                    account_information: None,
                                     connector_transaction_id,
                                     payment_method_id: payment_data
                                         .payment_attempt
