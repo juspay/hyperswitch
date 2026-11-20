@@ -244,6 +244,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        provider_details: None,
                         email: None,
                     };
 
@@ -271,6 +272,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        provider_details: None,
                         email: None,
                     };
 
@@ -293,6 +295,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 ) => Ok(Self::Wallet(WalletPaymentMethodData::PayPal(Box::new(
                     payments::PaypalRedirection {
                         email: paypal.email,
+                        payer_id: paypal.payer_id,
                     },
                 )))),
                 _ => Err(MicroserviceClientError {

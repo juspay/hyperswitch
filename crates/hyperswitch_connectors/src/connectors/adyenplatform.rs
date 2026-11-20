@@ -58,7 +58,7 @@ use hyperswitch_masking::{Mask as _, Maskable, Secret};
 #[cfg(feature = "payouts")]
 use ring::hmac;
 #[cfg(feature = "payouts")]
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "payouts")]
 use transformers::get_adyen_payout_webhook_event;
 

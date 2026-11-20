@@ -28,6 +28,22 @@ pub mod superposition;
 /// deserializers module_path
 pub mod utils;
 
+/// Builds a report from a shared [`cloud_services`] client error, attaching the error's cause as
+/// text: `error-stack` prints only a context's own message, so the cause would otherwise be
+/// missing from logged reports.
+#[cfg(any(feature = "aws_kms", feature = "gcp_kms", feature = "email"))]
+fn report_with_cause<E>(error: E) -> error_stack::Report<E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
+    let cause = error.source().map(ToString::to_string);
+    let report = error_stack::Report::new(error);
+    match cause {
+        Some(cause) => report.attach_printable(cause),
+        None => report,
+    }
+}
+
 #[cfg(feature = "revenue_recovery")]
 /// date_time module
 pub mod date_time {
@@ -83,13 +99,11 @@ pub mod consts {
     /// service. OS-level backstop for the HTTP/2 PING keepalive.
     pub(crate) const DEFAULT_UCS_TCP_KEEPALIVE_SECS: u64 = 60;
 
-    /// General purpose base64 engine
-    #[cfg(any(feature = "aws_kms", feature = "gcp_kms"))]
-    pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =
-        base64::engine::general_purpose::STANDARD;
-
     /// Header key used to specify the connector name in UCS requests.
     pub(crate) const UCS_HEADER_CONNECTOR: &str = "x-connector";
+
+    /// Provider identity for UCS webhook event parsing, independent of the resource family.
+    pub(crate) const UCS_HEADER_WEBHOOK_CONNECTOR: &str = "x-webhook-connector";
 
     /// Header key used to specify the payout connector name in UCS requests.
     pub(crate) const UCS_HEADER_PAYOUT_CONNECTOR: &str = "x-payout-connector";

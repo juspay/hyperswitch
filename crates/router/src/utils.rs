@@ -48,22 +48,21 @@ use subscriptions::{subscription_handler::SubscriptionHandler, workflows::Invoic
 use tracing_futures::Instrument;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
+#[cfg(feature = "v1")]
+use crate::types::storage;
 use crate::{
     consts,
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments as payments_core,
+        payments as payments_core, webhooks as webhooks_core,
     },
-    db::StorageInterface,
     headers::ACCEPT_LANGUAGE,
     logger,
     routes::{metrics, SessionState},
     services::{self, authentication::get_header_value_by_key},
     types::{self, domain, transformers::ForeignInto},
 };
-#[cfg(feature = "v1")]
-use crate::{core::webhooks as webhooks_core, types::storage};
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -189,27 +188,27 @@ pub async fn find_payment_intent_from_payment_id_type(
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_processor_merchant_id(
                 &payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
         payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
             let attempt = db
                 .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
-                    platform.get_processor().get_account().get_id(),
+                    &platform.get_processor().get_processor_merchant_id(),
                     &connector_transaction_id,
-                    platform.get_processor().get_account().storage_scheme,
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -218,17 +217,17 @@ pub async fn find_payment_intent_from_payment_id_type(
             let attempt = db
                 .find_payment_attempt_by_attempt_id_processor_merchant_id(
                     &attempt_id,
-                    platform.get_processor().get_account().get_id(),
-                    platform.get_processor().get_account().storage_scheme,
+                    &platform.get_processor().get_processor_merchant_id(),
+                    platform.get_processor().get_storage_scheme(),
                     platform.get_processor().get_key_store(),
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
             db.find_payment_intent_by_payment_id_processor_merchant_id(
                 &attempt.payment_id,
-                platform.get_processor().get_account().get_id(),
+                &platform.get_processor().get_processor_merchant_id(),
                 platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_storage_scheme(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -266,18 +265,18 @@ pub async fn find_payment_intent_from_refund_id_type(
     let attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &refund.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &refund.attempt_id,
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
     db.find_payment_intent_by_payment_id_processor_merchant_id(
         &attempt.payment_id,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -313,9 +312,9 @@ pub async fn find_payment_intent_from_mandate_id_type(
             .original_payment_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("original_payment_id not present in mandate record")?,
-        platform.get_processor().get_account().get_id(),
+        &platform.get_processor().get_processor_merchant_id(),
         platform.get_processor().get_key_store(),
-        platform.get_processor().get_account().storage_scheme,
+        platform.get_processor().get_storage_scheme(),
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -358,17 +357,17 @@ pub async fn find_mca_from_authentication_id_type(
             .merchant_connector_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("merchant_connector_id not present in authentication record")?;
-        db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            platform.get_processor().get_account().get_id(),
-            &mca_id,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+        state
+            .accounts_store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                platform.get_processor().get_account().get_id(),
+                &mca_id,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: mca_id.get_string_repr().to_string(),
-            },
-        )
+            })
     }
     #[cfg(feature = "v2")]
     //get mca using id
@@ -392,9 +391,9 @@ pub async fn get_mca_from_payment_intent(
     let payment_attempt = db
         .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            platform.get_processor().get_account().get_id(),
+            &platform.get_processor().get_processor_merchant_id(),
             &payment_intent.active_attempt.get_id(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
             platform.get_processor().get_key_store(),
         )
         .await
@@ -416,17 +415,19 @@ pub async fn get_mca_from_payment_intent(
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &merchant_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
+                state
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &merchant_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.get_string_repr().to_string(),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -449,20 +450,22 @@ pub async fn get_mca_from_payment_intent(
 
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            profile_id.get_string_repr()
-                        ),
-                    },
-                )
+                state
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        &profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {connector_name}",
+                                profile_id.get_string_repr()
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -503,17 +506,19 @@ pub async fn get_mca_from_payout_attempt(
         Some(merchant_connector_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    platform.get_processor().get_account().get_id(),
-                    &merchant_connector_id,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: merchant_connector_id.get_string_repr().to_string(),
-                    },
-                )
+                state
+                    .accounts_store
+                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                        platform.get_processor().get_account().get_id(),
+                        &merchant_connector_id,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_connector_id.get_string_repr().to_string(),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -527,21 +532,23 @@ pub async fn get_mca_from_payout_attempt(
         None => {
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    &payout.profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {}",
-                            payout.profile_id.get_string_repr(),
-                            connector_name
-                        ),
-                    },
-                )
+                state
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        &payout.profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {}",
+                                payout.profile_id.get_string_repr(),
+                                connector_name
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
@@ -558,8 +565,6 @@ pub async fn get_mca_from_object_reference_id(
     platform: &domain::Platform,
     connector_name: &str,
 ) -> CustomResult<domain::MerchantConnectorAccount, errors::ApiErrorResponse> {
-    let db = &*state.store;
-
     #[cfg(feature = "v1")]
     let default_profile_id = platform
         .get_processor()
@@ -574,24 +579,25 @@ pub async fn get_mca_from_object_reference_id(
         Some(profile_id) => {
             #[cfg(feature = "v1")]
             {
-                db.find_merchant_connector_account_by_profile_id_connector_name(
-                    profile_id,
-                    connector_name,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!(
-                            "profile_id {} and connector_name {connector_name}",
-                            profile_id.get_string_repr()
-                        ),
-                    },
-                )
+                state
+                    .accounts_store
+                    .find_merchant_connector_account_by_profile_id_connector_name(
+                        profile_id,
+                        connector_name,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: format!(
+                                "profile_id {} and connector_name {connector_name}",
+                                profile_id.get_string_repr()
+                            ),
+                        },
+                    )
             }
             #[cfg(feature = "v2")]
             {
-                let _db = db;
                 let _profile_id = profile_id;
                 todo!()
             }
@@ -1159,21 +1165,81 @@ pub fn check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
 }
 
 #[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
-pub async fn trigger_payments_webhook<F, Op, D>(
+pub async fn trigger_payments_webhook<F, D, Res>(
     platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
-    customer: Option<domain::Customer>,
+    payments_response: &services::ApplicationResponse<Res>,
     state: &SessionState,
-    operation: Op,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
-    Op: Debug,
     D: payments_core::OperationSessionGetters<F>,
+    Res: Clone + Into<api_models::payments::PaymentsResponse>,
 {
-    todo!()
+    let status = payment_data.get_payment_intent().status;
+
+    // Trigger an outgoing webhook regardless of the current payment intent status if nothing is
+    // configured in the profile.
+    let should_trigger_webhook = business_profile
+        .get_configured_payment_webhook_statuses()
+        .map(|statuses| statuses.contains(&status))
+        .unwrap_or(true);
+
+    if !should_trigger_webhook {
+        return Ok(());
+    }
+
+    let event_type: Option<diesel_models::enums::EventType> = status.into();
+    let Some(event_type) = event_type else {
+        logger::warn!(
+            ?status,
+            "Outgoing webhook not sent because of missing event type status mapping"
+        );
+        return Ok(());
+    };
+
+    let services::ApplicationResponse::JsonWithHeaders((payments_response, _)) = payments_response
+    else {
+        logger::warn!("Unexpected application response variant for outgoing payment webhook");
+        return Ok(());
+    };
+
+    let payment_id = payment_data.get_payment_intent().get_id().to_owned();
+    let created_by = payment_data.get_payment_attempt().created_by.clone();
+    let webhook_recipient = webhooks_core::utils::resolve_webhook_recipient_from_created_by(
+        state,
+        platform,
+        &business_profile,
+        created_by.as_ref(),
+    )
+    .await?;
+
+    let cloned_state = state.clone();
+    let cloned_platform = platform.clone();
+    let payments_response = payments_response.clone().into();
+    let primary_object_created_at = payments_response.created;
+
+    // Persisting and delivering the webhook should not add latency to the payment API response.
+    tokio::spawn(
+        async move {
+            Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
+                cloned_state,
+                cloned_platform,
+                event_type,
+                diesel_models::enums::EventClass::Payments,
+                payment_id.get_string_repr().to_owned(),
+                common_enums::EventObjectType::PaymentDetails,
+                webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
+                primary_object_created_at,
+                webhook_recipient,
+            ))
+            .await
+        }
+        .in_current_span(),
+    );
+
+    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -1211,11 +1277,14 @@ where
         let payment_id = payment_data.get_payment_intent().get_id().to_owned();
         let payment_attempt = payment_data.get_payment_attempt().clone();
         let created_by = payment_attempt.created_by.clone();
+        let mut sdk_callback_urls =
+            crate::core::payments::callback_urls::SdkCallbackUrls::default();
         let payments_response = crate::core::payments::transformers::payments_to_payments_response(
             payment_data,
             captures,
             services::AuthFlow::Merchant,
             &state.base_url,
+            state.payment_callback_config().await?.mode,
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,
@@ -1223,7 +1292,9 @@ where
             None,
             platform.get_processor(),
             platform.get_initiator(),
+            &mut sdk_callback_urls,
         )?;
+        sdk_callback_urls.persist(state).await?;
 
         let event_type = status.into();
 
@@ -1304,7 +1375,7 @@ pub async fn trigger_refund_outgoing_webhook(
     let refund_status = refund.refund_status;
 
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -1322,7 +1393,9 @@ pub async fn trigger_refund_outgoing_webhook(
         let refund_response: api_models::refunds::RefundResponse = refund.clone().foreign_into();
         let refund_id = refund_response.refund_id.clone();
         let cloned_state = state.clone();
-        let cloned_payment_attempt = payment_attempt.clone();
+        let webhook_resource_data = Some(WebhookResourceData::Refund {
+            payment_attempt: payment_attempt.clone(),
+        });
         let primary_object_created_at = refund_response.created_at;
         if let Some(outgoing_event_type) = event_type {
             let created_by = refund
@@ -1340,9 +1413,6 @@ pub async fn trigger_refund_outgoing_webhook(
             let cloned_platform = platform.clone();
             tokio::spawn(
                 async move {
-                    let webhook_resource_data = WebhookResourceData::Refund {
-                        payment_attempt: cloned_payment_attempt,
-                    };
                     Box::pin(webhooks_core::create_event_and_trigger_outgoing_webhook(
                         cloned_state,
                         cloned_platform,
@@ -1353,7 +1423,7 @@ pub async fn trigger_refund_outgoing_webhook(
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
                         webhook_recipient,
-                        Some(webhook_resource_data),
+                        webhook_resource_data,
                         business_profile,
                     ))
                     .await
@@ -1377,6 +1447,17 @@ pub async fn trigger_refund_outgoing_webhook(
     todo!()
 }
 
+/// Checks that a resource fetched by id alone belongs to the authenticated merchant and profile
+#[cfg(feature = "v2")]
+pub fn is_owned_by_merchant_and_profile(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    merchant_id == platform.get_processor().get_account().get_id() && profile_id == profile.get_id()
+}
+
 pub fn get_locale_from_header(headers: &actix_web::http::header::HeaderMap) -> String {
     get_header_value_by_key(ACCEPT_LANGUAGE.into(), headers)
         .ok()
@@ -1394,7 +1475,7 @@ pub async fn trigger_payouts_webhook(
 ) -> RouterResult<()> {
     let profile_id = &payout_response.profile_id;
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -1522,7 +1603,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
 }
 
 pub async fn get_payment_response_hash_key(
-    store: &dyn StorageInterface,
+    state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     auth: &AuthInfo,
 ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
@@ -1533,7 +1614,8 @@ pub async fn get_payment_response_hash_key(
             ..
         } => {
             let profile_id = profile_ids.first().ok_or(AnalyticsError::UnknownError)?;
-            let profile = store
+            let profile = state
+                .accounts_store
                 .find_business_profile_by_merchant_id_profile_id(key_store, merchant_id, profile_id)
                 .await
                 .change_context(AnalyticsError::UnknownError)?;
@@ -1543,7 +1625,8 @@ pub async fn get_payment_response_hash_key(
             #[cfg(feature = "v1")]
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
-                let merchant = store
+                let merchant = state
+                    .accounts_store
                     .find_merchant_account_by_merchant_id(merchant_id, key_store)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;
@@ -1552,7 +1635,8 @@ pub async fn get_payment_response_hash_key(
             #[cfg(feature = "v2")]
             {
                 let merchant_id = merchant_ids.first().ok_or(AnalyticsError::UnknownError)?;
-                let profiles = store
+                let profiles = state
+                    .accounts_store
                     .list_profile_by_merchant_id(key_store, merchant_id)
                     .await
                     .change_context(AnalyticsError::UnknownError)?;

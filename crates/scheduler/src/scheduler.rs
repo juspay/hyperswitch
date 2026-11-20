@@ -12,7 +12,7 @@ use super::env::logger::error;
 pub use crate::{
     configs::settings::SchedulerSettings,
     consumer::{self, workflows},
-    db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
+    db::{process_tracker::TrackedProcessTrackerInterface, queue::QueueInterface},
     errors,
     flow::SchedulerFlow,
     producer,
@@ -40,7 +40,7 @@ impl<T: SchedulerInterface> AsSchedulerInterface for T {
 
 #[async_trait::async_trait]
 pub trait SchedulerInterface:
-    ProcessTrackerInterface + QueueInterface + AsSchedulerInterface
+    TrackedProcessTrackerInterface + QueueInterface + AsSchedulerInterface + 'static
 {
 }
 
@@ -53,10 +53,12 @@ impl SchedulerInterface for MockDb {}
 #[async_trait::async_trait]
 pub trait SchedulerAppState: Send + Sync + Clone {
     fn get_tenants(&self) -> Vec<id_type::TenantId>;
+    fn get_application_source(&self) -> diesel_models::enums::ApplicationSource;
 }
 #[async_trait::async_trait]
 pub trait SchedulerSessionState: Send + Sync + Clone {
     fn get_application_source(&self) -> diesel_models::enums::ApplicationSource;
+    fn get_tenant_id(&self) -> &id_type::TenantId;
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
     fn get_request_id(&self) -> Option<router_env::RequestId>;
     fn add_request_id(&mut self, request_id: router_env::RequestId);

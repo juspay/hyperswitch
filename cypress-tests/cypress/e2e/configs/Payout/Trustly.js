@@ -25,6 +25,12 @@ const bank_payout_method_data = {
   },
 };
 
+// Malformed (non-numeric) Swedish account number. Verified behavior against
+// integ: the UCS intake transformer cannot map an unmappable account string
+// to a recipient, so it demands raw payout_connector_metadata and the create
+// is rejected up front with a 400. Well-formed numbers map inline and settle
+// as "success" in the sandbox (e.g. "99999999" completes), so the intake
+// rejection is the only observable invalid-account rejection path.
 const invalid_bank_payout_method_data = {
   bank: {
     country_code: "SE",
@@ -103,11 +109,18 @@ export const connectorDetails = {
           billing: billing,
         },
         Response: {
-          status: 200,
+          status: 400,
           body: {
-            status: "failed",
-            error_code: "624",
-            error_message: "ERROR_INVALID_BANK_ACCOUNT_NUMBER",
+            error: {
+              type: "invalid_request",
+              // Intake-phase rejection of the unmappable account number.
+              // The message is asserted as well; defaultErrorHandler
+              // compares strings whitespace-tolerant because trailing
+              // whitespace in this UCS-generated text drifts.
+              message:
+                "Missing required param: Missing required field: payout_connector_metadata. Trustly Payout Transfer - missing required field",
+              code: "IR_04",
+            },
           },
         },
       },

@@ -1,12 +1,9 @@
 #[cfg(feature = "v1")]
 use std::collections::HashSet;
 
-use async_bb8_diesel::AsyncRunQueryDsl;
 #[cfg(feature = "v1")]
 use diesel::Table;
-use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
-};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use error_stack::{report, ResultExt};
 
 use super::generics;
@@ -361,11 +358,11 @@ impl PaymentAttempt {
             .into_iter()
             .collect();
 
-        let filter_connector = filter
-            .clone()
-            .select(dsl::connector)
-            .distinct()
-            .get_results_async::<Option<String>>(conn.raw_connection())
+        let filter_connector = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<String>>(
+                db_metrics::DatabaseOperation::Filter,
+                filter.clone().select(dsl::connector).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
@@ -373,11 +370,11 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<String>>();
 
-        let filter_currency = filter
-            .clone()
-            .select(dsl::currency)
-            .distinct()
-            .get_results_async::<Option<enums::Currency>>(conn.raw_connection())
+        let filter_currency = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<enums::Currency>>(
+                db_metrics::DatabaseOperation::Filter,
+                filter.clone().select(dsl::currency).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
@@ -385,11 +382,11 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::Currency>>();
 
-        let filter_payment_method = filter
-            .clone()
-            .select(dsl::payment_method)
-            .distinct()
-            .get_results_async::<Option<enums::PaymentMethod>>(conn.raw_connection())
+        let filter_payment_method = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<enums::PaymentMethod>>(
+                db_metrics::DatabaseOperation::Filter,
+                filter.clone().select(dsl::payment_method).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payment method")?
@@ -397,11 +394,11 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::PaymentMethod>>();
 
-        let filter_payment_method_type = filter
-            .clone()
-            .select(dsl::payment_method_type)
-            .distinct()
-            .get_results_async::<Option<enums::PaymentMethodType>>(conn.raw_connection())
+        let filter_payment_method_type = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<enums::PaymentMethodType>>(
+                db_metrics::DatabaseOperation::Filter,
+                filter.clone().select(dsl::payment_method_type).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payment method type")?
@@ -409,11 +406,11 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::PaymentMethodType>>();
 
-        let filter_authentication_type = filter
-            .clone()
-            .select(dsl::authentication_type)
-            .distinct()
-            .get_results_async::<Option<enums::AuthenticationType>>(conn.raw_connection())
+        let filter_authentication_type = conn
+            .track_get_results::<<Self as HasTable>::Table, _, Option<enums::AuthenticationType>>(
+                db_metrics::DatabaseOperation::Filter,
+                filter.clone().select(dsl::authentication_type).distinct(),
+            )
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by authentication type")?
@@ -471,20 +468,17 @@ impl PaymentAttempt {
             filter = filter.filter(dsl::card_network.eq_any(card_networks));
         }
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-
         // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
-        let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            db_metrics::DatabaseOperation::Filter,
-            filter.get_result_async::<i64>(conn.raw_connection()),
-        )
-        .await
-        .change_context(DatabaseError::Others)
-        .attach_printable("Error filtering count of payments");
+        let result = conn
+            .track_get_result::<<Self as HasTable>::Table, _, i64>(
+                db_metrics::DatabaseOperation::Filter,
+                filter,
+            )
+            .await
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering count of payments");
 
         let duration = start_time.elapsed();
         router_env::logger::debug!("Completed count query in {:?}", duration);
@@ -536,20 +530,17 @@ impl PaymentAttempt {
             filter = filter.filter(dsl::card_discovery.eq_any(card_discovery))
         }
 
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-
         // TODO: Remove these logs after debugging the issue for delay in count query
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
-        let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
-            db_metrics::DatabaseOperation::Filter,
-            filter.get_result_async::<i64>(conn.raw_connection()),
-        )
-        .await
-        .change_context(DatabaseError::Others)
-        .attach_printable("Error filtering count of payments");
+        let result = conn
+            .track_get_result::<<Self as HasTable>::Table, _, i64>(
+                db_metrics::DatabaseOperation::Filter,
+                filter,
+            )
+            .await
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering count of payments");
 
         let duration = start_time.elapsed();
         router_env::logger::debug!("Completed count query in {:?}", duration);

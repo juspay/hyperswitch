@@ -37,14 +37,15 @@ pub async fn list_payment_methods(
         .find_payment_intent_by_id(
             &payment_id,
             platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            platform.get_processor().get_storage_scheme(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     validate_payment_status_for_payment_method_list(payment_intent.status)?;
 
-    let payment_connector_accounts = db
+    let payment_connector_accounts = state
+        .accounts_store
         .list_enabled_connector_accounts_by_profile_id(
             profile.get_id(),
             platform.get_processor().get_key_store(),

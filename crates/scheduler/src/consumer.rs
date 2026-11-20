@@ -23,8 +23,9 @@ use tokio::sync::mpsc;
 use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
-    configs::settings::SchedulerSettings, db::process_tracker::ProcessTrackerInterface, errors,
-    metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface, SchedulerSessionState,
+    configs::settings::SchedulerSettings, db::process_tracker::TrackedProcessTrackerInterface,
+    errors, metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface,
+    SchedulerSessionState,
 };
 
 // Valid consumer business statuses
@@ -172,6 +173,7 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
     consumer_name: &str,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
+    let start_time = std::time::Instant::now();
     let stream_name = match state.get_application_source() {
         enums::ApplicationSource::Main => settings.stream.clone(),
         enums::ApplicationSource::Cug => settings.cug_stream.clone(),
@@ -210,12 +212,27 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
     }
     future::join_all(handler).await;
 
+    let duration = start_time.elapsed().as_secs_f64();
+    metrics::CONSUMER_OPERATION_DURATION.record(
+        duration,
+        router_env::metric_attributes!(
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
+    );
+
     Ok(())
 }
 
 #[instrument(skip(db, redis_conn))]
 pub async fn fetch_consumer_tasks(
-    db: &dyn ProcessTrackerInterface,
+    db: &dyn TrackedProcessTrackerInterface,
     redis_conn: &RedisConnectionWithContext,
     stream_name: &str,
     group_name: &str,
@@ -287,12 +304,31 @@ where
         }
     }
 
+    let workflow_start = std::time::Instant::now();
     let res = workflow_selector
         .trigger_workflow(&state, process.clone())
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to trigger workflow");
         });
+    let workflow_duration = workflow_start.elapsed().as_secs_f64();
+
+    let runner = process.runner.unwrap_or_else(|| "unknown".to_string());
+    metrics::WORKFLOW_EXECUTION_DURATION.record(
+        workflow_duration,
+        router_env::metric_attributes!(
+            ("runner", runner),
+            (
+                "application_source",
+                state.get_application_source().to_string()
+            ),
+            (
+                "tenant_id",
+                state.get_tenant_id().get_string_repr().to_owned()
+            )
+        ),
+    );
+
     metrics::TASK_PROCESSED.add(1, &[]);
     res
 }
@@ -319,7 +355,7 @@ pub async fn consumer_error_handler(
 }
 
 pub async fn create_task(
-    db: &dyn ProcessTrackerInterface,
+    db: &dyn TrackedProcessTrackerInterface,
     process_tracker_entry: storage::ProcessTrackerNew,
 ) -> CustomResult<(), storage_impl::errors::StorageError> {
     db.insert_process(process_tracker_entry).await?;

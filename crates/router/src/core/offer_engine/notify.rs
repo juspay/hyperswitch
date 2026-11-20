@@ -1,6 +1,8 @@
 use common_utils::{ext_traits::ValueExt, id_type};
 use diesel_models::process_tracker::business_status;
-use hyperswitch_domain_models::platform::ProcessorMerchantId;
+use hyperswitch_domain_models::platform::{
+    ProcessorKeyStore, ProcessorMerchantAccount, ProcessorMerchantId,
+};
 use scheduler::{consumer::types::process_data, utils as pt_utils};
 
 use super::{
@@ -170,21 +172,26 @@ pub async fn execute_notification(
     let attributes = notify_attributes();
 
     let db = &*state.store;
-    let key_store = db
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
         .get_merchant_key_store_by_merchant_id(
             &tracking_data.processor_merchant_id,
-            &db.get_master_key().to_vec().into(),
+            &key_store_master_key,
         )
         .await?;
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&tracking_data.processor_merchant_id, &key_store)
         .await?;
+    let processor_account = ProcessorMerchantAccount::from_untagged(merchant_account.clone());
+    let processor_key_store = ProcessorKeyStore::from_untagged(key_store.clone());
     let payment_attempt = db
         .find_payment_attempt_by_attempt_id_processor_merchant_id(
             &tracking_data.payment_attempt_id,
-            &tracking_data.processor_merchant_id,
-            merchant_account.storage_scheme,
-            &key_store,
+            &processor_account.get_processor_merchant_id(),
+            processor_account.get_storage_scheme(),
+            &processor_key_store,
         )
         .await?;
 

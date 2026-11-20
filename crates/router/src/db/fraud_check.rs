@@ -1,6 +1,6 @@
 use diesel_models::fraud_check::{self as storage, FraudCheck, FraudCheckUpdate};
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::MockDb;
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
     services::Store,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait FraudCheckInterface {
     async fn insert_fraud_check_response(

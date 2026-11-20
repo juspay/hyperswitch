@@ -61,7 +61,45 @@ const billingAddress = {
   },
 };
 
+// These cards exercise Netcetera's sandbox authentication scenarios.
+const stepUpConfirm = (cardNumber) => ({
+  Request: {
+    payment_method: "card",
+    payment_method_data: {
+      card: {
+        card_number: cardNumber,
+        card_exp_month: "01",
+        card_exp_year: "50",
+        card_holder_name: "joseph Doe",
+        card_cvc: "123",
+      },
+    },
+    currency: "USD",
+    authentication_type: "three_ds",
+    request_external_three_ds_authentication: true,
+    setup_future_usage: "off_session",
+    billing: billingAddress,
+  },
+  Response: {
+    status: 200,
+    body: {
+      status: "requires_customer_action",
+      authentication_type: "three_ds",
+    },
+  },
+});
+
 export const connectorDetails = {
+  step_up_auth: {
+    ConfirmPayment: stepUpConfirm("4000000000002701"),
+    StepUpAuthWithMerchantCodes: stepUpConfirm("4000000000002701"),
+    ThreeDSAuthenticationWithMerchantCodes: {
+      Request: { device_channel: "BRW", threeds_method_comp_ind: "Y" },
+      Response: { status: 200, body: {} },
+    },
+    ConfirmPaymentVisaFrictionless: stepUpConfirm("5522604003479299"),
+    ConfirmPaymentMastercardChallenge: stepUpConfirm("5306889942833340"),
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
@@ -728,6 +766,7 @@ export const connectorDetails = {
               card_on_file_transaction_type: "merchant_initiated_transaction",
             },
             santander: null,
+            paypal: null,
             worldpayxml: null,
             checkout: null,
             stripe: null,

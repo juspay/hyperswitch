@@ -1,5 +1,5 @@
 use actix_web::{web, Responder};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use crate::{
     self as app,

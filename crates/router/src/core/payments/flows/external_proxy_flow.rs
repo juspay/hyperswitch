@@ -10,7 +10,6 @@ use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
-use hyperswitch_interfaces::api::gateway;
 use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -19,8 +18,9 @@ use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{
-            self, access_token, customers, gateway::context as gateway_context, helpers,
-            session_token, tokenization, transformers, PaymentData,
+            self, access_token, callback_urls::ConnectorCallbackUrls, customers, gateway,
+            gateway::context as gateway_context, helpers, session_token, tokenization,
+            transformers, PaymentData,
         },
         unified_connector_service::{self, ucs_logging_wrapper},
     },
@@ -50,6 +50,7 @@ impl
         header_payload: Option<domain_payments::HeaderPayload>,
         _payment_method: Option<common_enums::enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::ExternalVaultProxy,
@@ -66,6 +67,7 @@ impl
                 merchant_connector_account,
                 merchant_recipient_data,
                 header_payload,
+                connector_callback_urls,
             ),
         )
         .await
@@ -90,6 +92,7 @@ impl
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<domain_payments::HeaderPayload>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<
         types::RouterData<
             api::ExternalVaultProxy,
@@ -107,6 +110,7 @@ impl
                 merchant_connector_account,
                 merchant_recipient_data,
                 header_payload,
+                connector_callback_urls,
             ),
         )
         .await
@@ -159,7 +163,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         connector: &api::ConnectorData,
         _processor: &domain::Processor,
         creds_identifier: Option<&str>,
-        gateway_context: &payments::gateway::context::RouterGatewayContext,
+        gateway_context: &gateway_context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
         Box::pin(access_token::add_access_token(
             state,
@@ -211,14 +215,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             gateway_context,
         )
         .await
-    }
-
-    async fn postprocessing_steps<'a>(
-        self,
-        _state: &SessionState,
-        _connector: &api::ConnectorData,
-    ) -> RouterResult<Self> {
-        todo!()
     }
 
     async fn create_connector_customer<'a>(
@@ -625,6 +621,12 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         router_data.minor_amount_captured = recurring_payment_charge_response
                             .captured_amount
                             .map(common_utils::types::MinorUnit::new);
+                        router_data.minor_amount_capturable = recurring_payment_charge_response
+                            .capturable_money
+                            .as_ref()
+                            .map(|capturable_money| {
+                                common_utils::types::MinorUnit::new(capturable_money.minor_amount)
+                            });
                         router_data.raw_connector_response = recurring_payment_charge_response
                             .raw_connector_response
                             .clone()

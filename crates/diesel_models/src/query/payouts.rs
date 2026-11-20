@@ -1,7 +1,5 @@
-use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
-    JoinOnDsl, QueryDsl,
+    associations::HasTable, BoolExpressionMethods, ExpressionMethods, JoinOnDsl, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 
@@ -138,13 +136,10 @@ impl Payouts {
         if let Some(profile_id_list) = profile_id_list {
             filter = filter.filter(dsl::profile_id.eq_any(profile_id_list));
         }
-        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            conn.request_id(),
-            conn.event_emitter(),
+        conn.track_get_result::<<Self as HasTable>::Table, _, i64>(
             db_metrics::DatabaseOperation::Filter,
-            filter.get_result_async::<i64>(conn.raw_connection()),
+            filter,
         )
         .await
         .change_context(errors::DatabaseError::Others)

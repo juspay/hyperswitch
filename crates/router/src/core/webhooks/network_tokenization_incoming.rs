@@ -265,6 +265,7 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
         true => {
@@ -404,6 +405,7 @@ pub async fn handle_metadata_update(
             Ok(WebhookResponseTracker::PaymentMethod {
                 payment_method_id,
                 status,
+                payment_id: None,
             })
         }
     }
@@ -451,19 +453,16 @@ pub async fn fetch_merchant_account_for_network_token_webhooks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
 ) -> RouterResult<domain::Platform> {
-    let db = &*state.store;
-
-    let key_store = state
-        .store()
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store().get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store().get_master_key().to_vec().into();
+    let key_store = (state.session_state())
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

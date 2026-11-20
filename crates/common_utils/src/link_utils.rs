@@ -3,6 +3,7 @@
 use std::{collections::HashSet, primitive::i64};
 
 use common_enums::{enums, UIWidgetFormLayout};
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -11,21 +12,23 @@ use diesel::{
     sql_types::Jsonb,
     AsExpression, FromSqlRow,
 };
+#[cfg(feature = "diesel")]
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use regex::Regex;
 #[cfg(feature = "logs")]
 use router_env::logger;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use crate::{consts, errors::ParsingError, id_type, types::MinorUnit};
+#[cfg(feature = "diesel")]
+use crate::errors::ParsingError;
+use crate::{consts, crypto, id_type, types::MinorUnit};
 
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
-)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Link status enum
 pub enum GenericLinkStatus {
     /// Status variants for payment method collect link
@@ -40,13 +43,13 @@ impl Default for GenericLinkStatus {
     }
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(GenericLinkStatus);
 
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
-)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[serde(rename_all = "snake_case")]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Status variants for payment method collect links
 pub enum PaymentMethodCollectStatus {
     /// Link was initialized
@@ -57,6 +60,7 @@ pub enum PaymentMethodCollectStatus {
     Submitted,
 }
 
+#[cfg(feature = "diesel")]
 impl<DB: Backend> FromSql<Jsonb, DB> for PaymentMethodCollectStatus
 where
     serde_json::Value: FromSql<Jsonb, DB>,
@@ -74,6 +78,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl ToSql<Jsonb, diesel::pg::Pg> for PaymentMethodCollectStatus
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
@@ -91,11 +96,10 @@ where
     }
 }
 
-#[derive(
-    Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, FromSqlRow, AsExpression, ToSchema,
-)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
 #[serde(rename_all = "snake_case")]
-#[diesel(sql_type = Jsonb)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Status variants for payout links
 pub enum PayoutLinkStatus {
     /// Link was initialized
@@ -106,6 +110,7 @@ pub enum PayoutLinkStatus {
     Submitted,
 }
 
+#[cfg(feature = "diesel")]
 impl<DB: Backend> FromSql<Jsonb, DB> for PayoutLinkStatus
 where
     serde_json::Value: FromSql<Jsonb, DB>,
@@ -123,6 +128,7 @@ where
     }
 }
 
+#[cfg(feature = "diesel")]
 impl ToSql<Jsonb, diesel::pg::Pg> for PayoutLinkStatus
 where
     serde_json::Value: ToSql<Jsonb, diesel::pg::Pg>,
@@ -140,8 +146,9 @@ where
     }
 }
 
-#[derive(Serialize, serde::Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
-#[diesel(sql_type = Jsonb)]
+#[derive(Serialize, serde::Deserialize, Debug, Clone, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
 /// Payout link object
 pub struct PayoutLinkData {
     /// Identifier for the payout link
@@ -173,6 +180,7 @@ pub struct PayoutLinkData {
     pub test_mode: Option<bool>,
 }
 
+#[cfg(feature = "diesel")]
 crate::impl_to_sql_from_sql_json!(PayoutLinkData);
 
 /// Object for GenericLinkUiConfig
@@ -189,6 +197,16 @@ pub struct GenericLinkUiConfig {
     /// Primary color to be used in the form represented in hex format
     #[schema(value_type = Option<String>, max_length = 255, example = "#4285F4")]
     pub theme: Option<String>,
+}
+
+impl crate::validation::ValidateXSSOrSQLi for GenericLinkUiConfig {
+    fn validate_xss_or_sqli(&self) -> Result<(), String> {
+        self.merchant_name
+            .as_ref()
+            .map(|merchant_name| merchant_name.peek().clone())
+            .validate_xss_or_sqli()?;
+        self.theme.validate_xss_or_sqli()
+    }
 }
 
 /// Object for GenericLinkUiConfigFormData
@@ -243,6 +261,29 @@ pub fn validate_wildcard_domain(domain: &str) -> bool {
             err_msg
         })
         .unwrap_or(false)
+}
+
+/// Domain type for the Content-Security-Policy nonce that link pages generate per response
+#[derive(Debug)]
+pub struct CspNonce(Secret<String>);
+
+impl CspNonce {
+    /// Generate a new nonce from a cryptographically secure source
+    pub fn generate() -> Self {
+        Self(Secret::new(
+            crypto::generate_cryptographically_secure_random_string(32),
+        ))
+    }
+
+    /// Get the nonce value to place in the CSP header
+    pub fn peek(&self) -> &str {
+        self.0.peek()
+    }
+
+    /// Get the `nonce` attribute to place on the page's script and preload tags
+    pub fn get_html_attribute(&self) -> String {
+        format!(r#"nonce="{}""#, self.peek())
+    }
 }
 
 #[cfg(test)]

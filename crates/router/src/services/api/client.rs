@@ -3,13 +3,13 @@ use std::time::Duration;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 pub use external_services::http_client::{self, client};
-use http::{HeaderValue, Method};
+use http::Method;
 pub use hyperswitch_interfaces::{
     api_client::{ApiClient, ApiClientWrapper, RequestBuilder},
     types::Proxy,
 };
 use hyperswitch_masking::PeekInterface;
-use reqwest::multipart::Form;
+use reqwest::{header::HeaderValue, multipart::Form};
 use router_env::RequestId;
 
 use super::{request::Maskable, Request};
@@ -129,6 +129,8 @@ impl ApiClient for ProxyClient {
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         let client_builder = self
             .get_reqwest_client(certificate, certificate_key)
+            .change_context(ApiClientError::ClientConstructionFailed)?;
+        let method = reqwest::Method::from_bytes(method.as_str().as_bytes())
             .change_context(ApiClientError::ClientConstructionFailed)?;
         Ok(Box::new(RouterRequestBuilder {
             inner: Some(client_builder.request(method, url)),

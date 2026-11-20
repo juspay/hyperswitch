@@ -7,6 +7,7 @@ let globalState;
 const blocklistContext = () => ({
   processor_merchant_id: globalState.get("merchantId"),
   provider_merchant_id: globalState.get("merchantId"),
+  profile_id: globalState.get("profileId"),
 });
 
 describe("Business Profile Payment Method Blocking", () => {

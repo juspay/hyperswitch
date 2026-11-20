@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::{consts, errors};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -54,7 +54,7 @@ pub struct PowertranzPaymentsRequest {
 #[serde(rename_all = "PascalCase")]
 pub struct ExtendedData {
     three_d_secure: ThreeDSecure,
-    merchant_response_url: String,
+    merchant_response_url: Secret<String>,
     browser_info: BrowserInfo,
 }
 
@@ -347,7 +347,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PowertranzBaseResponse, T, PaymentsResp
             .unwrap_or(item.response.transaction_identifier.clone());
         let redirection_data = item.response.redirect_data.map(|redirect_data| {
             hyperswitch_domain_models::router_response_types::RedirectForm::Html {
-                html_data: redirect_data.expose(),
+                html_data: redirect_data,
             }
         });
         let response = error_response.map_or(

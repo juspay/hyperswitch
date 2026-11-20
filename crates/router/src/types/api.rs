@@ -1,13 +1,14 @@
 pub mod admin;
 pub mod api_keys;
 pub mod authentication;
+#[cfg(feature = "v2")]
+pub mod client_secret;
 pub mod configs;
 #[cfg(feature = "olap")]
 pub mod connector_onboarding;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
-pub mod ephemeral_key;
 pub mod files;
 #[cfg(feature = "frm")]
 pub mod fraud_check;

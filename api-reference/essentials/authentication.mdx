@@ -55,6 +55,14 @@ Check the Docker Compose example for extra clarity:
 [See example in the Hyperswitch repository](https://github.com/juspay/hyperswitch/blob/main/config/docker_compose.toml)
 
 
+Send admin credentials using the same header format in v1 and v2:
+
+```http
+Authorization: admin-api-key=<admin-key>
+```
+
+Admin credentials in the `api-key` header are no longer accepted. V1 merchant and platform API keys continue to use `api-key`. Update admin callers when deploying this change, including callers of cache invalidation and UCS kill-switch routes.
+
 ## 3. Publishable Key
 
 - **Client-side key** with limited permissions.
@@ -62,13 +70,7 @@ Check the Docker Compose example for extra clarity:
 - Prefix: `pk_{environment}_{uuid}`.
 - Generated during merchant account creation.
 
-## 4. Ephemeral Key
-
-- **Temporary key** for limited operations.
-- Used for single or short-lived access (e.g., accessing a specific customer object).
-- Validity is configurable (see `[eph_key] validity` in `development.toml`).
-
-## 5. JWT Key
+## 4. JWT Key
 
 - **JWT Bearer Token** used for API authentication and session management.  
 - Required for certain JWT-protected endpoints and user authentication flows.  
@@ -100,7 +102,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 | Secret (API Key) | snd_c69***, prod_*** | Backend server API requests  | Keep secret             |
 | Admin API Key    | (admin-specific)     | Admin operations             | Highly confidential     |
 | Publishable Key  | pk_snd_3b3***        | Client-side, public usage    | Safe to expose          |
-| Ephemeral Key    | (short-lived)        | Temporary, limited access    | Short validity, limited |
 | JWT Key          | (JWT Bearer)         | Session/user authentication  | Control center calls         |
 </Table>
 

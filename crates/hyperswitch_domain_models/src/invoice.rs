@@ -140,6 +140,7 @@ impl Invoice {
     }
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait InvoiceInterface {
     type Error;

@@ -12,6 +12,7 @@ pub use accounts::{
     MerchantAccountRequestType, MerchantAccountType, MerchantIntegrationType, MerchantProductType,
     OrganizationType, ResourceRequestorType, ResourceType,
 };
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -28,6 +29,7 @@ use utoipa::ToSchema;
 
 pub use super::connector_enums::InvoiceStatus;
 #[doc(hidden)]
+#[cfg(feature = "diesel")]
 pub mod diesel_exports {
     pub use super::{
         DbApiVersion as ApiVersion, DbAttemptStatus as AttemptStatus,
@@ -139,7 +141,10 @@ impl From<std::io::Error> for ApplicationError {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -309,7 +314,10 @@ impl AttemptStatus {
     strum::EnumIter,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ApplePayPaymentMethodType {
@@ -337,7 +345,10 @@ pub enum ApplePayPaymentMethodType {
     strum::VariantNames,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -363,7 +374,10 @@ pub enum CardDiscovery {
     strum::EnumIter,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RevenueRecoveryAlgorithmType {
@@ -371,6 +385,67 @@ pub enum RevenueRecoveryAlgorithmType {
     Monitoring,
     Smart,
     Cascading,
+}
+
+/// Decides who triggers the retries of a failed invoice under revenue recovery, and so which
+/// model the recovery API follows.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryTriggerModel {
+    /// Hyperswitch triggers the retries through the billing and payment merchant connector
+    /// accounts the transactions are recorded against.
+    #[default]
+    InternalTriggers,
+    /// The merchant triggers the retries and reports their results. Transactions are recorded
+    /// without any merchant connector account, and the retry limits come from the
+    /// `revenue_recovery_config` of the profile, which this model requires.
+    ExternalTriggers,
+}
+
+/// Who started a transaction of a revenue recovery invoice, worked out from whether the customer
+/// was present and how the payment method is set up for future use. It is never stored: an attempt
+/// keeps those two as reported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TransactionInitiator {
+    /// The customer was present, paying on session, or also saving the payment method for
+    /// off-session use.
+    CustomerInitiated(FutureUsage),
+    /// The merchant charged a payment method saved for off-session use, with the customer absent.
+    MerchantInitiated,
+}
+
+impl TransactionInitiator {
+    pub fn new(
+        customer_present: PresenceOfCustomerDuringPayment,
+        setup_future_usage: FutureUsage,
+    ) -> Self {
+        match (customer_present, setup_future_usage) {
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OffSession) => {
+                Self::MerchantInitiated
+            }
+            (PresenceOfCustomerDuringPayment::Present, setup_future_usage) => {
+                Self::CustomerInitiated(setup_future_usage)
+            }
+            (PresenceOfCustomerDuringPayment::Absent, FutureUsage::OnSession) => {
+                Self::CustomerInitiated(FutureUsage::OnSession)
+            }
+        }
+    }
 }
 
 /// The retry implementations available within the `Smart` arm of revenue recovery.
@@ -450,7 +525,7 @@ pub enum ApiKeyType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum RecommendedAction {
     DoNotRetry,
     #[serde(rename = "retry_after_10_days")]
@@ -487,7 +562,7 @@ pub enum RecommendedAction {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum GsmFeature {
     Retry,
 }
@@ -505,7 +580,7 @@ pub enum GsmFeature {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum StandardisedCode {
     AccountClosedOrInvalid,
     AuthenticationFailed,
@@ -577,7 +652,10 @@ pub enum StandardisedCode {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -608,7 +686,10 @@ impl AuthenticationType {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum FraudCheckStatus {
     Fraud,
@@ -650,7 +731,10 @@ pub enum PreFrmFailureMode {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -664,6 +748,12 @@ pub enum CaptureStatus {
     Pending,
     // Capture request failed
     Failed,
+}
+
+impl CaptureStatus {
+    pub fn is_success(&self) -> bool {
+        matches!(self, Self::Charged)
+    }
 }
 
 #[derive(
@@ -680,7 +770,7 @@ pub enum CaptureStatus {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -706,7 +796,7 @@ pub enum AuthorizationStatus {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentResourceUpdateStatus {
@@ -735,7 +825,10 @@ impl PaymentResourceUpdateStatus {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum BlocklistDataKind {
@@ -844,7 +937,10 @@ impl BlockReason {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -875,7 +971,10 @@ pub enum CaptureMethod {
     serde::Serialize,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorType {
@@ -925,7 +1024,7 @@ pub enum ConnectorType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SurchargeStrategy {
@@ -986,7 +1085,10 @@ pub enum IncomingWebhookEventType {
     ToSchema,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum Currency {
     AED,
@@ -1881,7 +1983,7 @@ impl Currency {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventRecipient {
@@ -1900,7 +2002,14 @@ pub enum EventRecipient {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventObjectType {
@@ -1910,6 +2019,8 @@ pub enum EventObjectType {
     MandateDetails,
     PayoutDetails,
     SubscriptionDetails,
+    #[cfg(feature = "v2")]
+    RecoveryRetryDetails,
 }
 
 #[derive(
@@ -1926,7 +2037,14 @@ pub enum EventObjectType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EventClass {
@@ -1937,6 +2055,9 @@ pub enum EventClass {
     #[cfg(feature = "payouts")]
     Payouts,
     Subscriptions,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers.
+    #[cfg(feature = "v2")]
+    RevenueRecovery,
 }
 
 impl EventClass {
@@ -1983,6 +2104,11 @@ impl EventClass {
                 EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
+            #[cfg(feature = "v2")]
+            Self::RevenueRecovery => HashSet::from([
+                EventType::RecoveryRetryScheduled,
+                EventType::RecoveryLimitsExhausted,
+            ]),
         }
     }
 }
@@ -2000,7 +2126,14 @@ impl EventClass {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    all(feature = "diesel", feature = "v2"),
+    router_derive::diesel_enum(storage_type = "text")
+)]
+#[cfg_attr(
+    all(feature = "diesel", not(feature = "v2")),
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 // Reminder: Whenever an EventType variant is added or removed, make sure to update the `event_types` method in `EventClass`
@@ -2048,6 +2181,14 @@ pub enum EventType {
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
+    /// The next retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled.
+    #[cfg(feature = "v2")]
+    RecoveryRetryScheduled,
+    /// No further retry of a revenue recovery invoice whose retries the merchant triggers is
+    /// scheduled, because a limit of the profile is reached.
+    #[cfg(feature = "v2")]
+    RecoveryLimitsExhausted,
 }
 
 /// Maps primary payment/refund events to their corresponding surcharge events
@@ -2078,7 +2219,10 @@ impl SurchargeEventMapper for EventType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookDeliveryAttempt {
@@ -2124,7 +2268,10 @@ pub enum OutgoingWebhookEndpointStatus {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantStorageScheme {
@@ -2151,7 +2298,10 @@ pub enum MerchantStorageScheme {
     strum::EnumIter,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -2268,19 +2418,23 @@ impl IntentStatus {
     strum::EnumIter,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RecoveryStatus {
     /// The payment has been successfully recovered through retry mechanisms.
     /// This indicates that a previously failed payment has been completed.
     Recovered,
+    /// The payment has been fully paid.
+    Succeeded,
+    /// The payment has been cancelled.
+    Cancelled,
     /// The payment is scheduled for retry and will be processed automatically.
     /// This status is shown when a retry is queued but not yet picked up for processing.
     Scheduled,
-    /// The payment has exceeded the maximum retry threshold but was never picked up for processing.
-    /// This typically occurs when the payment is a hard decline that the merchant has not enabled for retry.
-    NoPicked,
     /// The payment is currently being processed with the payment gateway.
     /// This status is shown during active retry attempts.
     Processing,
@@ -2291,7 +2445,8 @@ pub enum RecoveryStatus {
     /// This includes cases where all retries have been exhausted or the payment has hard decline errors.
     Terminated,
     /// The payment is being monitored for potential recovery.
-    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up.
+    /// This status is shown when the attempt count is below the threshold and the system is waiting to pick it up,
+    /// or the payment is waiting on customer or merchant action.
     #[default]
     Monitoring,
     /// The payment is queued in the calculate workflow but has not yet been scheduled for execution.
@@ -2300,14 +2455,12 @@ pub enum RecoveryStatus {
     /// The payment has been partially recovered through retry mechanisms.
     /// This indicates that a partially captured payment has been processed.
     PartiallyRecovered,
-    /// The payment is pending action from the customer, merchant, or requires additional information.
-    /// This status is shown for payments that require customer action, merchant action, payment method, confirmation, or capture.
-    Pending,
 }
 
 /// Specifies how the payment method can be used for future payments.
 /// - `off_session`: The payment method can be used for future payments when the customer is not present.
 /// - `on_session`: The payment method is intended for use only when the customer is present during checkout.
+///
 /// If omitted, defaults to `on_session`.
 #[derive(
     Clone,
@@ -2326,7 +2479,10 @@ pub enum RecoveryStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -2366,7 +2522,10 @@ impl FutureUsage {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodIssuerCode {
@@ -2397,7 +2556,7 @@ pub enum PaymentMethodIssuerCode {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -2481,7 +2640,7 @@ impl PaymentMethodStatus {
     Default,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -2562,7 +2721,7 @@ pub enum SamsungPayCardBrand {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -2881,7 +3040,7 @@ impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3006,7 +3165,7 @@ impl PaymentMethod {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum GatewaySystem {
@@ -3033,7 +3192,7 @@ pub enum GatewaySystem {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 /// Indicates the execution path through which the payment is processed.
@@ -3080,12 +3239,13 @@ impl ExecutionPath {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum UcsAvailability {
     Enabled,
     Disabled,
+    ShadowDisabled,
 }
 
 #[derive(
@@ -3159,7 +3319,7 @@ pub enum EventDestination {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ConnectorIntegrationType {
@@ -3184,7 +3344,10 @@ pub enum ConnectorIntegrationType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3212,7 +3375,10 @@ pub enum PaymentType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3240,7 +3406,7 @@ pub enum ScaExemptionType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3268,7 +3434,7 @@ pub enum PaymentChannel {
     ToSchema,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3293,7 +3459,10 @@ pub enum CtpServiceProvider {
     serde::Serialize,
     serde::Deserialize,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RefundStatus {
@@ -3314,6 +3483,10 @@ impl RefundStatus {
     pub fn is_success(self) -> bool {
         matches!(self, Self::Success)
     }
+
+    pub fn is_failure(self) -> bool {
+        matches!(self, Self::Failure | Self::TransactionFailure)
+    }
 }
 
 #[derive(
@@ -3331,7 +3504,10 @@ impl RefundStatus {
     serde::Deserialize,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RelayStatus {
@@ -3391,7 +3567,10 @@ impl RelayStatus {
     serde::Deserialize,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum RelayType {
@@ -3416,7 +3595,10 @@ pub enum RelayType {
     serde::Serialize,
     serde::Deserialize,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum FrmTransactionType {
     #[default]
@@ -3441,7 +3623,10 @@ pub enum FrmTransactionType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3469,7 +3654,7 @@ pub enum MandateStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CardNetwork {
     #[serde(alias = "VISA")]
@@ -3550,7 +3735,10 @@ pub enum CardNetwork {
     strum::EnumString,
     utoipa::ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RegulatedName {
     #[serde(rename = "GOVERNMENT NON-EXEMPT INTERCHANGE FEE (WITH FRAUD)")]
@@ -3576,7 +3764,7 @@ pub enum RegulatedName {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
@@ -3598,7 +3786,7 @@ pub enum PanOrToken {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum FundingSource {
@@ -3649,7 +3837,10 @@ pub enum CardSegmentType {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "UPPERCASE")]
 #[serde(rename_all = "snake_case")]
 pub enum CardType {
@@ -3784,7 +3975,7 @@ impl CardNetwork {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum CoBadgedCardNetwork {
     #[serde(alias = "RUPAY")]
     RuPay,
@@ -3833,7 +4024,10 @@ pub enum CoBadgedCardNetwork {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3863,7 +4057,10 @@ pub enum DisputeStage {
     strum::EnumIter,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -3880,13 +4077,14 @@ pub enum DisputeStatus {
     DisputeLost,
 }
 
-#[derive(Debug, Clone, AsExpression, PartialEq, ToSchema, Eq)]
+#[derive(Debug, Clone, PartialEq, ToSchema, Eq)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[schema(
     value_type = String,
     title = "4 digit Merchant category code (MCC)",
     example = "5411"
 )]
-#[diesel(sql_type = Text)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Text))]
 pub struct MerchantCategoryCode(String);
 
 impl MerchantCategoryCode {
@@ -3972,6 +4170,7 @@ impl MerchantCategoryCode {
     }
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> ToSql<Text, DB> for MerchantCategoryCode
 where
     DB: Backend,
@@ -3981,6 +4180,7 @@ where
         self.0.to_sql(out)
     }
 }
+#[cfg(feature = "diesel")]
 impl<DB: Backend> FromSql<Text, DB> for MerchantCategoryCode
 where
     String: FromSql<Text, DB>,
@@ -4079,7 +4279,7 @@ pub struct MerchantCategoryCodeWithName {
     Copy,
     SmithyModel,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "db_enum"))]
 #[rustfmt::skip]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum CountryAlpha2 {
@@ -4118,7 +4318,10 @@ pub enum CountryAlpha2 {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RequestIncrementalAuthorization {
@@ -4142,7 +4345,7 @@ pub enum RequestIncrementalAuthorization {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum SplitTxnsEnabled {
@@ -4165,7 +4368,7 @@ pub enum SplitTxnsEnabled {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AutoFallbackCaptureMethod {
@@ -4216,7 +4419,7 @@ impl From<bool> for AutoFallbackCaptureMethod {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ActiveAttemptIDType {
@@ -4526,7 +4729,7 @@ pub enum Country {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FileUploadProvider {
@@ -9118,7 +9321,7 @@ pub enum BrazilStatesAbbreviation {
     strum::EnumIter,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutExecutionKind {
@@ -9142,7 +9345,10 @@ pub enum PayoutExecutionKind {
     strum::EnumIter,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutStatus {
@@ -9212,7 +9418,10 @@ impl PayoutStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutType {
@@ -9238,7 +9447,7 @@ pub enum PayoutType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "PascalCase")]
 #[strum(serialize_all = "PascalCase")]
 pub enum PayoutEntityType {
@@ -9271,7 +9480,7 @@ pub enum PayoutEntityType {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutSendPriority {
@@ -9281,6 +9490,79 @@ pub enum PayoutSendPriority {
     Wire,
     CrossBorder,
     Internal,
+}
+
+/// The category of funds transfer to use when processing a payout.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutFundsTransferType {
+    AccountToAccount,
+    FundsTransfer,
+    CrossBorderMoneyTransfer,
+    PeerToPeer,
+    StagedDigitalWalletTransfer,
+    FundsDisbursement,
+    LoyaltyPayments,
+    PayrollAndPensionDisbursements,
+    OnlineGambling,
+    MastercardPersonToPerson,
+    MastercardTransferToOwnAccount,
+    MastercardBusinessDisbursement,
+    MastercardBusinessToBusiness,
+    MastercardGamingRepay,
+}
+
+/// The purpose for which a payout is being carried out.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PayoutPurpose {
+    Donations,
+    Education,
+    EmergencyNeed,
+    Expatriation,
+    FamilySupport,
+    FinancialServices,
+    Gifts,
+    Income,
+    Insurance,
+    Investment,
+    ItServices,
+    Leisure,
+    LoanPayment,
+    MedicalTreatment,
+    Pension,
+    Royalties,
+    Savings,
+    TravelAndTourism,
+    Other,
 }
 
 #[derive(
@@ -9297,7 +9579,10 @@ pub enum PayoutSendPriority {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentSource {
@@ -9350,7 +9635,7 @@ impl PaymentSource {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantDecision {
     Approved,
@@ -9371,7 +9656,7 @@ pub enum MerchantDecision {
     strum::EnumIter,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -9416,7 +9701,10 @@ pub enum FrmSuggestion {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ReconStatus {
@@ -9522,7 +9810,7 @@ pub enum VaultSdk {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Tokenization {
@@ -9547,7 +9835,7 @@ pub enum Tokenization {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -9591,7 +9879,7 @@ impl AuthenticationStatus {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -9615,7 +9903,7 @@ pub enum DecoupledAuthenticationType {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AuthenticationLifecycleStatus {
@@ -9638,7 +9926,10 @@ pub enum AuthenticationLifecycleStatus {
     ToSchema,
     Default,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectorStatus {
@@ -9660,7 +9951,10 @@ pub enum ConnectorStatus {
     ToSchema,
     Default,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TransactionType {
@@ -9688,7 +9982,10 @@ impl TransactionType {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoleScope {
@@ -9721,7 +10018,7 @@ impl From<RoleScope> for EntityType {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum TransactionStatus {
     /// Authentication/ Account Verification Successful
     #[serde(rename = "Y")]
@@ -9792,7 +10089,7 @@ impl From<TransactionStatus> for DecoupledAuthenticationType {
     strum::EnumString,
     strum::EnumIter,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PermissionGroup {
@@ -9824,6 +10121,11 @@ pub enum PermissionGroup {
     ReconTransactionsManage,
     ReconRulesView,
     ReconRulesManage,
+    ReconApiKeyView,
+    ReconApiKeyManage,
+    ReconAccountsView,
+    ReconAccountsManage,
+    ReconAuditView,
     OffersView,
     OffersManage,
     AlertsView,
@@ -9851,6 +10153,9 @@ pub enum ParentGroup {
     ReconExceptions,
     ReconTransactions,
     ReconRules,
+    ReconApiKey,
+    ReconAccounts,
+    ReconAudit,
     Offers,
     Alerts,
     Monitoring,
@@ -9886,6 +10191,9 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    ReconApiKey,
+    ReconAccount,
+    ReconAudit,
     SuperpositionConfig,
     Offers,
     Alert,
@@ -10799,7 +11107,10 @@ pub enum BankHolderType {
     strum::VariantNames,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum GenericLinkType {
@@ -10839,7 +11150,7 @@ pub enum TokenPurpose {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum UserAuthType {
@@ -10860,7 +11171,7 @@ pub enum UserAuthType {
     strum::Display,
     strum::EnumString,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum Owner {
@@ -10881,7 +11192,10 @@ pub enum Owner {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApiVersion {
@@ -10905,7 +11219,7 @@ pub enum ApiVersion {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum EntityType {
@@ -10936,7 +11250,10 @@ pub enum PayoutRetryType {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum OrderFulfillmentTimeOrigin {
@@ -10957,7 +11274,10 @@ pub enum OrderFulfillmentTimeOrigin {
     ToSchema,
     Hash,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum UIWidgetFormLayout {
@@ -10978,7 +11298,10 @@ pub enum UIWidgetFormLayout {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum DeleteStatus {
@@ -11001,7 +11324,10 @@ pub enum DeleteStatus {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 pub enum SuccessBasedRoutingConclusiveState {
     // pc: payment connector
     // sc: success based routing outcome/first connector
@@ -11056,7 +11382,7 @@ pub enum MitExemptionRequest {
 
 /// Set to `present` to indicate that the customer is in your checkout flow during this payment, and therefore is able to authenticate. This parameter should be `absent` when merchant's doing merchant initiated payments and customer is not present while doing the payment.
 #[derive(
-    Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
+    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum PresenceOfCustomerDuringPayment {
@@ -11303,7 +11629,7 @@ impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
     PartialOrd,
     Ord,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ErrorCategory {
@@ -11344,7 +11670,7 @@ impl ErrorCategory {
     PartialOrd,
     Ord,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[allow(non_camel_case_types)]
 pub enum UnifiedCode {
     /// Customer Error - Issue with payment method details
@@ -11556,7 +11882,7 @@ pub enum GooglePayAuthMethod {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -11633,7 +11959,10 @@ pub enum PaymentConnectorTransmission {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum TriggeredBy {
@@ -11658,7 +11987,7 @@ pub enum TriggeredBy {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -11668,8 +11997,10 @@ pub enum MitCategory {
     Installment,
     /// Merchant-initiated transaction using stored credentials, but not tied to a fixed schedule
     Unscheduled,
-    /// Merchant-initiated payments that happen at regular intervals (usually the same amount each time).
+    /// Merchant-initiated payments at regular intervals with a variable amount, such as utility bills (standing orders).
     Recurring,
+    /// Merchant-initiated payments of a fixed amount at a fixed interval, such as a subscription or membership.
+    Subscription,
     /// A retried MIT after a previous transaction failed or was declined.
     Resubmission,
 }
@@ -11686,7 +12017,10 @@ pub enum MitCategory {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ProcessTrackerStatus {
@@ -11729,6 +12063,7 @@ pub enum ProcessTrackerRunner {
     PaymentMethodModularForwardCompatWorkflow,
     PaymentMethodModularBackwardCompatWorkflow,
     PassiveRecoveryWorkflow,
+    RecoveryRequestWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
@@ -11738,6 +12073,7 @@ pub enum ProcessTrackerRunner {
     OfferEngineNotifyWorkflow,
     BlocklistExportWorkflow,
     BlocklistProfileCloneWorkflow,
+    AnalyticsReportWorkflow,
 }
 
 #[derive(
@@ -11753,7 +12089,7 @@ pub enum ProcessTrackerRunner {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ApplicationSource {
@@ -11780,7 +12116,10 @@ pub enum CryptoPadding {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum TokenizationFlag {
@@ -11818,7 +12157,10 @@ pub enum TokenDataType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutingApproach {
@@ -11862,7 +12204,7 @@ impl RoutingApproach {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 pub enum CallbackMapperIdType {
     NetworkTokenRequestorReferenceID,
 }
@@ -11881,7 +12223,7 @@ pub enum CallbackMapperIdType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum VaultType {
@@ -11905,7 +12247,7 @@ pub enum VaultType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum ExternalVaultEnabled {
@@ -12059,7 +12401,10 @@ pub enum ExemptionIndicator {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultTokenType {
@@ -12100,7 +12445,7 @@ pub enum VaultTokenType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum StorageType {
@@ -12122,7 +12467,7 @@ pub enum StorageType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum AcknowledgementStatus {
@@ -12153,7 +12498,7 @@ impl From<AcknowledgementStatus> for PaymentMethodStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RetryType {
@@ -12240,10 +12585,9 @@ pub enum ExpiryType {
     Scheduled,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Deserialize, Serialize, diesel::FromSqlRow, AsExpression, ToSchema,
-)]
-#[diesel(sql_type = diesel::sql_types::Json)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Json))]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum PixKey {
     #[schema(value_type = String)]
@@ -12304,7 +12648,10 @@ pub enum ConnectorWebhookEventType {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[strum(serialize_all = "snake_case")]
 pub enum WebhookRegistrationStatus {
     // Webhook registration is successful
@@ -12355,7 +12702,7 @@ pub enum WebhookSecretGenerationStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
@@ -12392,6 +12739,29 @@ pub enum VaultEnv {
     Live,
 }
 
+/// The transaction namespace of a blocklist entry, stored as text.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BlocklistTransactionType {
+    #[default]
+    Payment,
+    Payout,
+}
+
 #[derive(
     Clone,
     Copy,
@@ -12404,7 +12774,7 @@ pub enum VaultEnv {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum BatchBlocklistJobStatus {
@@ -12427,7 +12797,7 @@ pub enum BatchBlocklistJobStatus {
     strum::EnumString,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "text")]
+#[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum BatchBlocklistJobType {

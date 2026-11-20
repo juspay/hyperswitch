@@ -354,7 +354,7 @@ pub struct AdyenPaymentRequest<'a> {
     payment_method: PaymentMethod<'a>,
     mpi_data: Option<AdyenMpiData>,
     reference: String,
-    return_url: String,
+    return_url: Secret<String>,
     browser_info: Option<AdyenBrowserInfo>,
     shopper_interaction: AdyenShopperInteraction,
     recurring_processing_model: Option<AdyenRecurringModel>,
@@ -4641,9 +4641,12 @@ pub fn get_redirection_response(
             )
         });
         RedirectForm::Form {
-            endpoint: url.to_string(),
+            endpoint: url.to_string().into(),
             method: response.action.method.unwrap_or(Method::Get),
-            form_fields,
+            form_fields: (form_fields)
+                .into_iter()
+                .map(|(key, value)| (key, value.into()))
+                .collect(),
         }
     });
 
@@ -6398,6 +6401,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     }
                     payouts::Wallet::GooglePayDecrypt(_) => Err(errors::ConnectorError::NotSupported {
                         message: "Google Pay Decrypt Wallet is not supported".to_string(),
+                        connector: "Adyen".into(),
+                    })?,
+                    payouts::Wallet::Mifinity(_) => Err(errors::ConnectorError::NotSupported {
+                        message: "MiFinity Wallet is not supported".to_string(),
                         connector: "Adyen".into(),
                     })?,
                 };

@@ -1,6 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -229,6 +233,104 @@ describe("Card - NoThreeDS Manual payment flow test", () => {
         ]["VoidAfterConfirm"];
 
         cy.voidCallTest(fixtures.voidBody, voidData, globalState);
+      });
+    });
+  });
+
+  context("Card - sync a voided payment", () => {
+    before("skip for connectors without void sync coverage", function () {
+      if (
+        shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.VOID_PAYMENT_SYNC
+        )
+      ) {
+        this.skip();
+      }
+    });
+
+    it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Void Payment -> Retrieve Payment after Void", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Payment Methods Call", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Payment Methods Call");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Void Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Void Payment");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["VoidAfterConfirm"];
+
+        cy.voidCallTest(fixtures.voidBody, data, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment after Void", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment after Void");
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["VoidAfterConfirm"];
+
+        // `allKeysRequired: true` is needed here, not just `force_sync`: once
+        // the attempt is already terminal (Voided), Hyperswitch's own
+        // `should_call_connector` skips re-querying the connector, so a plain
+        // force-synced retrieve would be served entirely from the DB and
+        // never actually exercise Zift's `transactionType=void` sync
+        // response — the exact thing PR #14637 fixes.
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus: data.Response.body.status,
+          allKeysRequired: true,
+        });
       });
     });
   });

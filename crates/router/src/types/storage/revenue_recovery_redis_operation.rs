@@ -508,6 +508,15 @@ impl RedisTokenManager {
         token: &PaymentProcessorTokenStatus,
         network_type: Option<CardNetwork>,
     ) -> TokenRetryInfo {
+        // The retries are still recorded in every environment, but the limits are enforced only
+        // in production: test traffic in the other environments must not exhaust a card.
+        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
+            return TokenRetryInfo {
+                monthly_wait_hours: 0,
+                daily_wait_hours: 0,
+                total_30_day_retries: 0,
+            };
+        }
         let card_config = &state.conf.revenue_recovery.card_config;
         let card_network_config = card_config.get_network_config(network_type);
 
@@ -618,8 +627,21 @@ impl RedisTokenManager {
                         .or_insert(value);
                 }
                 existing_token.account_update_history = token_data.account_update_history.clone();
+                // Keep the stored network when the incoming data does not carry one, as the retry
+                // config and gsm lookups read it back from here.
+                let card_network = token_data
+                    .payment_processor_token_details
+                    .card_network
+                    .clone()
+                    .or_else(|| {
+                        existing_token
+                            .payment_processor_token_details
+                            .card_network
+                            .clone()
+                    });
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
+                existing_token.payment_processor_token_details.card_network = card_network;
 
                 existing_token
                     .modified_at
@@ -948,7 +970,24 @@ impl RedisTokenManager {
         }
     }
 
-    // Get token based on retry type
+    // Get the token calculate picked for a retry, unless it has been hard declined since
+    pub async fn get_retryable_token_using_token_id(
+        state: &SessionState,
+        connector_customer_id: &str,
+        payment_processor_token: &str,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
+        let token = Self::get_payment_processor_token_using_token_id(
+            state,
+            connector_customer_id,
+            payment_processor_token,
+        )
+        .await?;
+
+        Self::discard_hard_declined_token(state, connector_customer_id, token).await
+    }
+
+    // Get token based on retry type, for an EXECUTE task queued before calculate recorded the
+    // token it picked
     // The A/B and adaptive smart paths decide against the invoice's own token, so they resolve it
     // by id rather than the `scheduled_at` marker, which only the decider writes and is shared
     // across invoices.
@@ -984,6 +1023,15 @@ impl RedisTokenManager {
             }
         }
 
+        Self::discard_hard_declined_token(state, connector_customer_id, token).await
+    }
+
+    // A hard declined token cannot be retried, so its schedule time is cleared and it is dropped
+    async fn discard_hard_declined_token(
+        state: &SessionState,
+        connector_customer_id: &str,
+        token: Option<PaymentProcessorTokenStatus>,
+    ) -> CustomResult<Option<PaymentProcessorTokenStatus>, errors::StorageError> {
         let token = match token {
             Some(t) => {
                 if t.is_hard_decline.unwrap_or(false) {
@@ -1353,7 +1401,12 @@ impl AccountUpdaterAction {
                         card_issuer: None,
                         last_four_digits: None,
                         card_type: None,
-                        card_network: updated_mandate_details.card_network.clone(),
+                        card_network: updated_mandate_details.card_network.clone().or_else(|| {
+                            scheduled_token
+                                .payment_processor_token_details
+                                .card_network
+                                .clone()
+                        }),
                         card_isin: updated_mandate_details.card_isin.clone(),
                     },
                     inserted_by_attempt_id: attempt_id.to_owned(),
@@ -1393,8 +1446,10 @@ impl AccountUpdaterAction {
                     updated_mandate_details.card_exp_month.clone();
                 updated_token.payment_processor_token_details.expiry_year =
                     updated_mandate_details.card_exp_year.clone();
-                updated_token.payment_processor_token_details.card_network =
-                    updated_mandate_details.card_network.clone();
+                if updated_mandate_details.card_network.is_some() {
+                    updated_token.payment_processor_token_details.card_network =
+                        updated_mandate_details.card_network.clone();
+                }
                 updated_token.payment_processor_token_details.card_isin =
                     updated_mandate_details.card_isin.clone();
                 updated_token.modified_at = Some(date_time::now());

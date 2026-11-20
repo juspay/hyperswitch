@@ -56,17 +56,15 @@ async fn payments_create_core() {
             || {},
         )
         .unwrap();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
@@ -258,6 +256,8 @@ async fn payments_create_core() {
         connector_customer_id: None,
         sender_payment_instrument_id: None,
         payment_account_reference: None,
+        enable_avs_check: None,
+        enable_account_name_verification: None,
     };
 
     let expected_response =
@@ -385,17 +385,15 @@ async fn payments_create_core_adyen_no_redirect() {
     let payment_id =
         id_type::PaymentId::try_from(Cow::Borrowed("pay_mbabizu24mvu3mela5njyhpit10")).unwrap();
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .unwrap();
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
         .await
         .unwrap();
@@ -585,6 +583,8 @@ async fn payments_create_core_adyen_no_redirect() {
             connector_customer_id: None,
             sender_payment_instrument_id: None,
             payment_account_reference: None,
+            enable_avs_check: None,
+            enable_account_name_verification: None,
         },
         vec![],
     ));

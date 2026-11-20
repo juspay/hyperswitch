@@ -905,12 +905,13 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .and_then(|subscription| subscription.current_term_start);
         Ok(Self {
             amount,
+            amount_captured: None,
             currency,
             merchant_reference_id,
             connector_transaction_id,
             error_code,
             error_message,
-            processor_payment_method_token: connector_mandate_details.mandate_id,
+            processor_payment_method_token: Some(connector_mandate_details.mandate_id),
             connector_customer_id: connector_mandate_details.customer_id,
             connector_account_reference_id,
             transaction_created_at,
@@ -1089,12 +1090,17 @@ impl TryFrom<ChargebeeInvoiceBody> for revenue_recovery::RevenueRecoveryInvoiceD
             currency: item.content.invoice.currency_code,
             merchant_reference_id,
             billing_address: Some(api_models::payments::Address::from(item.content.invoice)),
+            customer_details: None,
             retry_count,
             next_billing_at: invoice_next_billing_time,
             billing_started_at,
             metadata: None,
             // TODO! This field should be handled for billing connnector integrations
             enable_partial_authorization: None,
+            customer_present: common_enums::PresenceOfCustomerDuringPayment::Absent,
+            setup_future_usage: common_enums::FutureUsage::OffSession,
+            // Chargebee invoices come from subscriptions, so recovery retries are sent as recurring merchant initiated transactions
+            mit_category: Some(common_enums::MitCategory::Recurring),
         })
     }
 }

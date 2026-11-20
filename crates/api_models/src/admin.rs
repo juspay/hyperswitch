@@ -824,6 +824,10 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+
+    /// The merchant's VAT registration identifier
+    #[schema(value_type = Option<String>, example = "GB987654321")]
+    pub merchant_vat_registration_id: Option<Secret<String>>,
 }
 
 /// The credentials required for calling the network tokenization provider APIs
@@ -1368,6 +1372,10 @@ pub struct MerchantConnectorAccountFeatureMetadata {
     pub revenue_recovery: Option<RevenueRecoveryMetadata>,
 }
 
+fn default_grace_period_days() -> u16 {
+    30
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 /// Revenue recovery metadata for merchant connector account
 pub struct RevenueRecoveryMetadata {
@@ -1382,10 +1390,58 @@ pub struct RevenueRecoveryMetadata {
     #[serde(default)]
     #[schema(value_type = u16, example = "5")]
     pub max_hybrid_cascading_retry_count: u16,
+    /// Grace period, in days from the invoice's billing start, within which retries are allowed
+    /// for invoices of this `billing connector`. Defaults to 30 days when not provided.
+    #[serde(default = "default_grace_period_days")]
+    #[schema(value_type = u16, default = 30, example = "30")]
+    pub grace_period_days: u16,
+    /// Allow partial authorization for payments recovered through this `billing connector`.
+    /// A value passed in the recovery payments API request takes priority over this. Defaults to
+    /// `false` when not provided.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
     pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Revenue recovery retry configuration for a profile
+pub struct RevenueRecoveryConfig {
+    /// The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
+    /// Grace period, in days from the invoice's billing start, within which retries are allowed.
+    /// Defaults to 30 days when not provided.
+    #[serde(default = "default_grace_period_days")]
+    #[schema(value_type = u16, default = 30, example = "30")]
+    pub grace_period_days: u16,
+    /// Allow partial authorization for recovered payments. A value passed in the recovery
+    /// payments API request takes priority over this. Defaults to `false` when not provided.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -2758,12 +2814,19 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3162,6 +3225,10 @@ pub struct ProfileResponse {
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = RevenueRecoveryTriggerModel, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
+
     /// Indicates the state of revenue recovery algorithm type
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
@@ -3173,6 +3240,9 @@ pub struct ProfileResponse {
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3543,12 +3613,19 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3626,7 +3703,9 @@ pub struct BusinessGenericLinkConfig {
 }
 
 impl BusinessGenericLinkConfig {
-    pub fn validate(&self) -> Result<(), &str> {
+    pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(&self.ui_config)?;
+
         // Validate host domain name
         let host_domain_valid = self
             .domain_name
@@ -3634,7 +3713,7 @@ impl BusinessGenericLinkConfig {
             .map(|host_domain| link_utils::validate_strict_domain(&host_domain))
             .unwrap_or(true);
         if !host_domain_valid {
-            return Err("Invalid host domain name received in payout_link_config");
+            return Err("Invalid host domain name received in payout_link_config".to_string());
         }
 
         let are_allowed_domains_valid = self
@@ -3643,7 +3722,7 @@ impl BusinessGenericLinkConfig {
             .iter()
             .all(|allowed_domain| link_utils::validate_wildcard_domain(allowed_domain));
         if !are_allowed_domains_valid {
-            return Err("Invalid allowed domain names received in payout_link_config");
+            return Err("Invalid allowed domain names received in payout_link_config".to_string());
         }
 
         Ok(())
