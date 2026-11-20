@@ -324,6 +324,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             santander: _,
             worldpayxml,
             stripe,
+            jpmorgan,
             paypal: _,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
@@ -349,6 +350,11 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .as_ref()
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
+                }),
+            jpmorgan: jpmorgan
+                .as_ref()
+                .map(|data| payments_grpc::JpmorganAdditionalInformation {
+                    request_sca_exemption: data.request_sca_exemption,
                 }),
         }
     }
@@ -1222,6 +1228,7 @@ impl
                 }),
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -1508,6 +1515,7 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -2927,6 +2935,7 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3162,6 +3171,7 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3246,6 +3256,7 @@ impl
         Ok(Self {
             risk_assessment_data: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             business_country: None,
             split_settlement: None,
@@ -3630,6 +3641,7 @@ impl
                     }),
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -3874,6 +3886,7 @@ impl
             partner_merchant_identifier_details: None,
             payment_channel: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             additional_connector_details: None,
             session_token: None,
@@ -4235,6 +4248,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: None,
             recipient_details: router_data
                 .request
                 .recipient_details
@@ -5473,7 +5487,7 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
             payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
-            payments_grpc::CardNetwork::Unspecified => {
+            payments_grpc::CardNetwork::Unspecified | payments_grpc::CardNetwork::Mydebit => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
         }
