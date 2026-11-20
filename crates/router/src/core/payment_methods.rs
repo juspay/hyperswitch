@@ -1454,23 +1454,16 @@ pub(crate) async fn get_payment_method_create_request(
             };
             let decrypted_data = payments_core::decrypt_apple_pay_resource(
                 resource_data,
-                resource_key.get_inner().peek(),
+                resource_key.get_inner(),
                 &wallet_data.into(),
             )
             .await?;
             let wallet_info = payment_methods::PaymentMethodDataWalletInfo {
-                last4: Some(
-                    decrypted_data
-                        .application_primary_account_number
-                        .get_last4(),
-                ),
-                card_network: Some(apple_pay.payment_method.network.clone()),
-                card_type: Some(apple_pay.payment_method.pm_type.clone()),
                 card_exp_month: Some(decrypted_data.application_expiration_month.clone()),
                 card_exp_year: Some(decrypted_data.application_expiration_year.clone()),
-                auth_code: apple_pay.payment_method.auth_code.clone(),
-                email: None,
-                provider_details: None,
+                ..payment_methods::PaymentMethodDataWalletInfo::from(
+                    apple_pay.payment_method.clone(),
+                )
             };
             Ok(payment_methods::PaymentMethodCreate {
                 payment_method_type,
@@ -8386,7 +8379,7 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let parent_payment_method_token = Secret::new(generate_id(consts::ID_LENGTH, "token"));
 
     let token_data = get_pm_list_token_data(
         request.payment_method_type,
@@ -8396,13 +8389,15 @@ pub async fn payment_methods_session_confirm(
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(
-                profile.get_order_fulfillment_time_or_default(),
-                token_data,
-                &state,
-            )
-            .await?;
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(
+            parent_payment_method_token.peek(),
+        )
+        .insert(
+            profile.get_order_fulfillment_time_or_default(),
+            token_data,
+            &state,
+        )
+        .await?;
     };
 
     if let payment_methods::PaymentMethodCreateData::Wallet(
@@ -8422,7 +8417,7 @@ pub async fn payment_methods_session_confirm(
     let associated_pm_data = payment_method_response.payment_method_data.clone();
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token.expose()),
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {

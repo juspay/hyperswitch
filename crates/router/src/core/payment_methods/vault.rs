@@ -2986,7 +2986,7 @@ pub async fn insert_cvc_using_payment_token(
 #[instrument(skip_all)]
 pub async fn store_apple_pay_cryptogram(
     state: &routes::SessionState,
-    session_token: &str,
+    session_token: &hyperswitch_masking::Secret<String>,
     cryptogram: &common_types::payments::ApplePayCryptogramData,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
@@ -2994,7 +2994,8 @@ pub async fn store_apple_pay_cryptogram(
     let connection = state
         .store
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get Redis connection to store Apple Pay cryptogram")?;
     let encrypted: Encryption = core_utils::create_encrypted_data(
         &state.into(),
         key_store,
@@ -3005,7 +3006,10 @@ pub async fn store_apple_pay_cryptogram(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to encrypt Apple Pay cryptogram")?
     .into();
-    let key = format!("pm_token_{session_token}_hyperswitch_apple_pay_cryptogram");
+    let key = format!(
+        "pm_token_{}_hyperswitch_apple_pay_cryptogram",
+        session_token.peek()
+    );
     connection
         .serialize_and_set_key_with_expiry(&key.into(), encrypted, fulfillment_time)
         .await
@@ -3023,26 +3027,31 @@ pub async fn consume_apple_pay_cryptogram(
     let connection = state
         .store
         .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get Redis connection to consume Apple Pay cryptogram")?;
     let key = format!("pm_token_{session_token}_hyperswitch_apple_pay_cryptogram");
-    let Some(payload) = connection
+    let payload = connection
         .consume_key(&key.into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to consume Apple Pay cryptogram")?
-    else {
-        return Ok(None);
-    };
-    let encrypted: Encryption = serde_json::from_str(&payload)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Invalid encrypted Apple Pay cryptogram")?;
-    pm_cards::decrypt_generic_data(state, Some(encrypted), key_store)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to decrypt Apple Pay cryptogram")?
-        .get_required_value("Apple Pay cryptogram")
-        .map(Some)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to consume Apple Pay cryptogram")?;
+
+    match payload {
+        Some(payload) => {
+            let encrypted: Encryption = serde_json::from_str(&payload)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid encrypted Apple Pay cryptogram")?;
+            pm_cards::decrypt_generic_data(state, Some(encrypted), key_store)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to decrypt Apple Pay cryptogram")?
+                .get_required_value("Apple Pay cryptogram")
+                .map(Some)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Decrypted Apple Pay cryptogram is missing")
+        }
+        None => Ok(None),
+    }
 }
 
 #[instrument(skip_all)]

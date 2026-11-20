@@ -8666,7 +8666,7 @@ async fn decrypt_apple_pay_wallet_data(
 #[cfg(feature = "v2")]
 pub(crate) async fn decrypt_apple_pay_resource(
     resource_data: &serde_json::Value,
-    resource_key: &serde_json::Value,
+    resource_key: &Secret<serde_json::Value>,
     apple_pay_wallet_data: &domain::ApplePayWalletData,
 ) -> RouterResult<common_types::payments::ApplePayPredecryptData> {
     let details = apple_pay_processing_details_from_resource(resource_data, resource_key).ok_or(
@@ -8679,13 +8679,14 @@ pub(crate) async fn decrypt_apple_pay_resource(
 
 fn apple_pay_processing_details_from_resource(
     resource_data: &serde_json::Value,
-    resource_key: &serde_json::Value,
+    resource_key: &Secret<serde_json::Value>,
 ) -> Option<payments_api::PaymentProcessingDetails> {
     let certificate = resource_data
         .get("data")?
         .get("payment_processing_certificate")?
         .as_str()?;
     let certificate_key = resource_key
+        .peek()
         .get("data")?
         .get("payment_processing_certificate_key")?
         .as_str()?;
@@ -10115,7 +10116,7 @@ async fn resolve_managed_apple_pay_certificate(
         })?;
 
     let certificate_key_json: Secret<serde_json::Value> = encrypted_data?.into_inner();
-    apple_pay_processing_details_from_resource(&data, certificate_key_json.peek())
+    apple_pay_processing_details_from_resource(&data, &certificate_key_json)
 }
 
 async fn check_apple_pay_metadata(
