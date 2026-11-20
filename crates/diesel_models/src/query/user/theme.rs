@@ -128,6 +128,17 @@ impl Theme {
         conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
+        Self::find_all_in_lineage_path(conn, lineage)
+            .await?
+            .into_iter()
+            .min_by_key(|theme| theme.entity_type)
+            .ok_or(report!(DatabaseError::NotFound))
+    }
+
+    pub async fn find_all_in_lineage_path(
+        conn: &DatabaseConnectionWithContext<'_>,
+        lineage: ThemeLineage,
+    ) -> StorageResult<Vec<Self>> {
         let query = crate::list::into_boxed_list(<Self as HasTable>::table());
 
         let query =
@@ -139,7 +150,7 @@ impl Theme {
                     query
                 });
 
-        let data: Vec<Self> = match conn
+        match conn
             .track_get_results::<Self, _, _>(DatabaseOperation::Filter, query)
             .await
         {
@@ -148,11 +159,7 @@ impl Theme {
                 DieselError::NotFound => Err(report!(err)).change_context(DatabaseError::NotFound),
                 _ => Err(report!(err)).change_context(DatabaseError::Others),
             },
-        }?;
-
-        data.into_iter()
-            .min_by_key(|theme| theme.entity_type)
-            .ok_or(report!(DatabaseError::NotFound))
+        }
     }
 
     pub async fn find_by_lineage(
