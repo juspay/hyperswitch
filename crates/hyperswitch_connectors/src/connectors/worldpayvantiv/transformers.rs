@@ -1271,19 +1271,34 @@ fn get_processing_info(
                 })
             }
             Some(mandates::MandateReferenceId::ConnectorMandateId(mandate_data)) => {
-                let network_transaction_id =
-                    mandate_data
-                        .get_mandate_metadata()
-                        .as_ref()
-                        .and_then(|metadata| {
-                            serde_json::from_value::<WorldpayvantivMandateMetadata>(
-                                metadata.peek().clone(),
-                            )
-                            .ok()
-                            .and_then(|meta| meta.network_transaction_id)
-                        });
-
-                let card_mandate_data = request.get_card_mandate_info()?;
+                let (card_mandate_data, network_transaction_id) =
+                    match mandate_data.get_additional_mandate_details() {
+                        Some(details) => (
+                            connector_utils::CardMandateInfo {
+                                card_exp_month: details.card_exp_month.ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "card_exp_month".into(),
+                                    },
+                                )?,
+                                card_exp_year: details.card_exp_year.ok_or(
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "card_exp_year".into(),
+                                    },
+                                )?,
+                            },
+                            details.network_transaction_id.map(Secret::new),
+                        ),
+                        None => (
+                            request.get_card_mandate_info()?,
+                            mandate_data.get_mandate_metadata().and_then(|metadata| {
+                                serde_json::from_value::<WorldpayvantivMandateMetadata>(
+                                    metadata.expose(),
+                                )
+                                .ok()
+                                .and_then(|meta| meta.network_transaction_id)
+                            }),
+                        ),
+                    };
                 let exp_date = card_mandate_data.get_expiry_date_as_mmyy()?;
 
                 Ok(VantivMandateDetail {

@@ -275,6 +275,40 @@ impl ForeignFrom<common_enums::PayoutFundsTransferType> for payments_grpc::Payou
     }
 }
 
+impl ForeignFrom<common_enums::PayoutPurpose> for payments_grpc::payout_enums::PayoutPurpose {
+    fn foreign_from(purpose: common_enums::PayoutPurpose) -> Self {
+        use common_enums::PayoutPurpose;
+        match purpose {
+            PayoutPurpose::Donations => Self::Donations,
+            PayoutPurpose::Education => Self::Education,
+            PayoutPurpose::EmergencyNeed => Self::EmergencyNeed,
+            PayoutPurpose::Expatriation => Self::Expatriation,
+            PayoutPurpose::FamilySupport => Self::FamilySupport,
+            PayoutPurpose::FinancialServices => Self::FinancialServices,
+            PayoutPurpose::Gifts => Self::Gifts,
+            PayoutPurpose::Income => Self::Income,
+            PayoutPurpose::Insurance => Self::Insurance,
+            PayoutPurpose::Investment => Self::Investment,
+            PayoutPurpose::ItServices => Self::ItServices,
+            PayoutPurpose::Leisure => Self::Leisure,
+            PayoutPurpose::LoanPayment => Self::LoanPayment,
+            PayoutPurpose::MedicalTreatment => Self::MedicalTreatment,
+            PayoutPurpose::Pension => Self::Pension,
+            PayoutPurpose::Royalties => Self::Royalties,
+            PayoutPurpose::Savings => Self::Savings,
+            PayoutPurpose::TravelAndTourism => Self::TravelAndTourism,
+            PayoutPurpose::Other => Self::Other,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+fn payout_purpose_to_ucs(purpose: Option<common_enums::PayoutPurpose>) -> Option<i32> {
+    purpose
+        .map(payments_grpc::payout_enums::PayoutPurpose::foreign_from)
+        .map(i32::from)
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -10197,6 +10231,7 @@ impl
                 .funds_transfer_type
                 .map(payments_grpc::PayoutFundsTransferType::foreign_from)
                 .map(i32::from),
+            purpose: payout_purpose_to_ucs(router_data.request.purpose),
             vendor_account_details: router_data
                 .request
                 .vendor_details
@@ -11027,13 +11062,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::ApplePayDecrypt::foreign_try_from(apple_pay)?,
                     )
                 }
-                api_models::payouts::Wallet::GooglePayDecrypt(_google_pay) => {
-                    Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Googlepay wallet not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?
+                api_models::payouts::Wallet::GooglePayDecrypt(google_pay) => {
+                    payments_grpc::payout_method::PayoutMethodData::GooglePayDecrypt(
+                        payments_grpc::GooglePayDecrypt::foreign_try_from(google_pay)?,
+                    )
                 }
                 api_models::payouts::Wallet::Paypal(paypal) => {
                     payments_grpc::payout_method::PayoutMethodData::Paypal(
@@ -11328,6 +11360,34 @@ impl transformers::ForeignTryFrom<&api_models::payouts::ApplePayDecrypt>
                         "Failed to parse card number".to_string(),
                     ),
                 )?,
+            ),
+            expiry_month: Some(item.expiry_month.clone()),
+            expiry_year: Some(item.expiry_year.clone()),
+            card_holder_name: item.card_holder_name.clone(),
+            card_network: item
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from)
+                .map(i32::from),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::GooglePayDecrypt>
+    for payments_grpc::GooglePayDecrypt
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::GooglePayDecrypt) -> Result<Self, Self::Error> {
+        Ok(Self {
+            application_primary_account_number: Some(
+                CardNumber::from_str(&item.application_primary_account_number.get_card_no())
+                    .change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
             ),
             expiry_month: Some(item.expiry_month.clone()),
             expiry_year: Some(item.expiry_year.clone()),
@@ -12176,6 +12236,244 @@ impl
                 .as_ref()
                 .map(ConnectorState::foreign_from),
             ..Default::default()
+        })
+    }
+}
+
+/// Parses an evidence date into unix seconds. Accepts unix seconds, an RFC 3339
+/// timestamp or an ISO 8601 calendar date (taken as midnight UTC); anything else is
+/// refused rather than dropped.
+fn parse_dispute_evidence_date(
+    value: Option<&String>,
+    field_name: &'static str,
+) -> Result<Option<i64>, error_stack::Report<UnifiedConnectorServiceError>> {
+    value
+        .map(|raw| {
+            let raw = raw.trim();
+            raw.parse::<i64>()
+                .ok()
+                .or_else(|| {
+                    time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339)
+                        .ok()
+                        .map(|date_time| date_time.unix_timestamp())
+                })
+                .or_else(|| {
+                    time::Date::parse(raw, &time::format_description::well_known::Iso8601::DATE)
+                        .ok()
+                        .map(|date| date.midnight().assume_utc().unix_timestamp())
+                })
+                .ok_or(
+                    UnifiedConnectorServiceError::InvalidDataFormat {
+                        field_name: field_name.into(),
+                    }
+                    .into(),
+                )
+        })
+        .transpose()
+}
+
+fn build_dispute_evidence_document(
+    evidence_type: payments_grpc::EvidenceType,
+    file_content: Option<&Vec<u8>>,
+    file_mime_type: Option<&String>,
+    provider_file_id: Option<&String>,
+    text_content: Option<&String>,
+) -> Option<payments_grpc::EvidenceDocument> {
+    (file_content.is_some()
+        || file_mime_type.is_some()
+        || provider_file_id.is_some()
+        || text_content.is_some())
+    .then(|| payments_grpc::EvidenceDocument {
+        evidence_type: evidence_type.into(),
+        file_content: file_content.cloned(),
+        file_mime_type: file_mime_type.cloned(),
+        provider_file_id: provider_file_id.cloned(),
+        text_content: text_content.cloned(),
+    })
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::AcceptDisputeRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceAcceptRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::AcceptDisputeRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
+            // UCS Accept does not use the transaction ID; proto3 default when absent.
+            connector_transaction_id: connector_transaction_id.unwrap_or_default(),
+            connector_dispute_id: router_data.request.connector_dispute_id.clone(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::DefendDisputeRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceDefendRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::DefendDisputeRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            merchant_dispute_id: Some(router_data.request.dispute_id.clone()),
+            // UCS Defend does not use the transaction ID; proto3 default when absent.
+            connector_transaction_id: connector_transaction_id.unwrap_or_default(),
+            connector_dispute_id: router_data.request.connector_dispute_id.clone(),
+            // DefendDisputeRequestData carries no reason code.
+            reason_code: None,
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<(&crate::types::SubmitEvidenceRouterData, Option<String>)>
+    for payments_grpc::DisputeServiceSubmitEvidenceRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (router_data, connector_transaction_id): (
+            &crate::types::SubmitEvidenceRouterData,
+            Option<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let request = &router_data.request;
+        let evidence_documents = [
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CancellationPolicy,
+                request.cancellation_policy.as_ref(),
+                request.cancellation_policy_file_type.as_ref(),
+                request.cancellation_policy_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CustomerCommunication,
+                request.customer_communication.as_ref(),
+                request.customer_communication_file_type.as_ref(),
+                request.customer_communication_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::CustomerSignature,
+                request.customer_signature.as_ref(),
+                request.customer_signature_file_type.as_ref(),
+                request.customer_signature_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::Receipt,
+                request.receipt.as_ref(),
+                request.receipt_file_type.as_ref(),
+                request.receipt_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::RefundPolicy,
+                request.refund_policy.as_ref(),
+                request.refund_policy_file_type.as_ref(),
+                request.refund_policy_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::ServiceDocumentation,
+                request.service_documentation.as_ref(),
+                request.service_documentation_file_type.as_ref(),
+                request.service_documentation_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::ShippingDocumentation,
+                request.shipping_documentation.as_ref(),
+                request.shipping_documentation_file_type.as_ref(),
+                request.shipping_documentation_provider_file_id.as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::InvoiceShowingDistinctTransactions,
+                request.invoice_showing_distinct_transactions.as_ref(),
+                request
+                    .invoice_showing_distinct_transactions_file_type
+                    .as_ref(),
+                request
+                    .invoice_showing_distinct_transactions_provider_file_id
+                    .as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::RecurringTransactionAgreement,
+                request.recurring_transaction_agreement.as_ref(),
+                request.recurring_transaction_agreement_file_type.as_ref(),
+                request
+                    .recurring_transaction_agreement_provider_file_id
+                    .as_ref(),
+                None,
+            ),
+            build_dispute_evidence_document(
+                payments_grpc::EvidenceType::UncategorizedFile,
+                request.uncategorized_file.as_ref(),
+                request.uncategorized_file_type.as_ref(),
+                request.uncategorized_file_provider_file_id.as_ref(),
+                request.uncategorized_text.as_ref(),
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        Ok(Self {
+            merchant_dispute_id: Some(request.dispute_id.clone()),
+            // proto field is optional and unused by UCS SubmitEvidenceData.
+            connector_transaction_id,
+            connector_dispute_id: request.connector_dispute_id.clone(),
+            service_date: parse_dispute_evidence_date(
+                request.service_date.as_ref(),
+                "service_date",
+            )?,
+            shipping_date: parse_dispute_evidence_date(
+                request.shipping_date.as_ref(),
+                "shipping_date",
+            )?,
+            evidence_documents,
+            access_activity_log: request.access_activity_log.clone(),
+            billing_address: request.billing_address.as_ref().map(|address| {
+                payments_grpc::Address {
+                    line1: Some(Secret::new(address.clone())),
+                    ..Default::default()
+                }
+            }),
+            cancellation_policy_disclosure: request.cancellation_policy_disclosure.clone(),
+            cancellation_rebuttal: request.cancellation_rebuttal.clone(),
+            customer_email_address: request
+                .customer_email_address
+                .as_ref()
+                .map(|email| Secret::new(email.peek().to_owned())),
+            customer_name: request
+                .customer_name
+                .as_ref()
+                .map(|name| Secret::new(name.clone())),
+            customer_purchase_ip: request
+                .customer_purchase_ip
+                .as_ref()
+                .map(|ip| Secret::new(ip.clone())),
+            product_description: request.product_description.clone(),
+            refund_policy_disclosure: request.refund_policy_disclosure.clone(),
+            refund_refusal_explanation: request.refund_refusal_explanation.clone(),
+            shipping_address: request.shipping_address.as_ref().map(|address| {
+                payments_grpc::Address {
+                    line1: Some(Secret::new(address.clone())),
+                    ..Default::default()
+                }
+            }),
+            shipping_carrier: request.shipping_carrier.clone(),
+            shipping_tracking_number: request.shipping_tracking_number.clone(),
         })
     }
 }
