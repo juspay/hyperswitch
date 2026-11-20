@@ -10,8 +10,6 @@ pub mod gateway;
 pub mod helpers;
 #[cfg(feature = "olap")]
 pub mod list;
-#[cfg(feature = "v1")]
-mod mandate_currency;
 pub mod multi_currency_processing;
 pub mod operations;
 pub mod session_token;
@@ -12966,7 +12964,7 @@ where
         chosen_connector_routing_data.clone(),
         payment_data,
         &payment_method_info,
-        &state.conf.cross_currency_mit,
+        &state.conf.cross_currency_mit_supported_connectors,
     )?;
 
     routing_data.routed_through = Some(
@@ -12995,7 +12993,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
-    cross_currency_mit: &crate::configs::settings::CrossCurrencyMitConfig,
+    cross_currency_mit_supported_connectors: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -13038,8 +13036,8 @@ where
                 mandate_reference_record,
             )?;
 
-            mandate_currency::validate_connector_mandate_currency(
-                cross_currency_mit,
+            helpers::validate_connector_mandate_currency(
+                cross_currency_mit_supported_connectors,
                 connector_routing_data.connector_data.connector_name,
                 payment_method_info.get_payment_method_type(),
                 mandate_reference_record.original_payment_authorized_currency,
@@ -13115,8 +13113,8 @@ where
                                 mandate_reference_record,
                             )?;
 
-                            mandate_currency::validate_connector_mandate_currency(
-                                &state.conf.cross_currency_mit,
+                            helpers::validate_connector_mandate_currency(
+                                &state.conf.cross_currency_mit_supported_connectors,
                                 connector_data.connector_name,
                                 payment_method_info.get_payment_method_type(),
                                 mandate_reference_record.original_payment_authorized_currency,

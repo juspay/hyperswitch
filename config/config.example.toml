@@ -1589,7 +1589,7 @@ connector_list = "peachpayments" # Supported connectors for card only mit
 # Empty by default. Opted-in connectors allow cross-currency card connector mandates
 # for all merchants using this deployment. Confirm processor/account support first.
 # This does not relax bank-debit or legacy amount-limited mandate validation.
-[cross_currency_mit]
+[cross_currency_mit_supported_connectors]
 connector_list = [] # Example: ["stripe"]
 
 [notify_iframe_exit_and_redirect]

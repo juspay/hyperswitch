@@ -1456,6 +1456,43 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     }
 }
 
+/// Validate the selected connector mandate on both initial attempts and retries.
+///
+/// Only card connector mandates can opt out of currency equality. Legacy mandates
+/// with amount limits are validated separately and must not use this exception.
+#[cfg(feature = "v1")]
+pub(super) fn validate_connector_mandate_currency(
+    config: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
+    connector: api_enums::Connector,
+    payment_method: Option<common_enums::PaymentMethod>,
+    original_currency: Option<api_enums::Currency>,
+    payment_currency: api_enums::Currency,
+) -> RouterResult<()> {
+    let Some(original_currency) = original_currency else {
+        return Ok(());
+    };
+
+    if original_currency == payment_currency {
+        return Ok(());
+    }
+
+    if payment_method == Some(common_enums::PaymentMethod::Card)
+        && config.connector_list.contains(&connector)
+    {
+        router_env::logger::info!(
+            %connector,
+            %original_currency,
+            %payment_currency,
+            "allowing cross-currency card connector mandate"
+        );
+        return Ok(());
+    }
+
+    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+        reason: "Cross currency mandates not supported".into(),
+    }))
+}
+
 pub fn verify_mandate_details(
     request_amount: MinorUnit,
     request_currency: api_enums::Currency,
