@@ -1629,20 +1629,22 @@ impl MerchantConnectorWebhookDetails {
     /// Validate newly supplied secrets without changing stored values or deserialization.
     pub fn validate(&self) -> Result<(), String> {
         if self.merchant_secret.peek().trim().is_empty() {
-            return Err(
+            Err(
                 "connector_webhook_details.merchant_secret must not be empty or whitespace-only"
                     .to_string(),
-            );
+            )
+        } else if self
+            .additional_secret
+            .as_ref()
+            .is_some_and(|secret| secret.peek().trim().is_empty())
+        {
+            Err(
+                "connector_webhook_details.additional_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
         }
-        if let Some(secret) = &self.additional_secret {
-            if secret.peek().trim().is_empty() {
-                return Err(
-                    "connector_webhook_details.additional_secret must not be empty or whitespace-only"
-                        .to_string(),
-                );
-            }
-        }
-        Ok(())
     }
 }
 
