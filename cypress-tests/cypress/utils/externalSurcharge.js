@@ -1,7 +1,7 @@
 import * as fixtures from "../fixtures/imports";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
-  shouldIncludeConnector,
+  shouldExcludeConnector,
   should_continue_further,
 } from "../e2e/configs/Payment/Utils";
 
@@ -12,19 +12,18 @@ export const cardData = (globalState, flowKey) =>
   getConnectorDetails(globalState.get("connectorId"))["card_pm"][flowKey];
 
 // The InterPayments surcharge connector is created once, with the other
-// connectors, by 03-ConnectorCreate. It is created only for the connectors the
-// external surcharge specs cover, and only when creds.json has an InterPayments
-// entry.
+// connectors, by 03-ConnectorCreate, unless the connector is on the exclude list
+// and only when creds.json has an InterPayments entry.
 export const createSurchargeConnectorIfConfigured = (globalState) => {
   if (
-    shouldIncludeConnector(
+    shouldExcludeConnector(
       globalState.get("connectorId"),
-      CONNECTOR_LISTS.INCLUDE.EXTERNAL_SURCHARGE
+      CONNECTOR_LISTS.EXCLUDE.EXTERNAL_SURCHARGE
     )
   ) {
     cy.task(
       "cli_log",
-      "External surcharge is not covered for this connector, not creating the surcharge connector"
+      "External surcharge is excluded for this connector, not creating the surcharge connector"
     );
     return;
   }
