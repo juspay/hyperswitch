@@ -5141,6 +5141,203 @@
         ]
       }
     },
+    "/hierarchical_resources": {
+      "post": {
+        "tags": [
+          "Hierarchical Resources"
+        ],
+        "summary": "Hierarchical Resource - Generate",
+        "description": "Generates an organization-scoped managed resource using the authenticated merchant and profile.\nFor Google Pay DIRECT, Hyperswitch generates a P-256 key pair and returns only the public setup\nconfiguration. The public key is base64-encoded uncompressed EC point data, not PEM or SPKI.\nThe base64 PKCS#8 private key is encrypted through the organization key store and is never returned.\n\nRegister the public key in the Google Pay & Wallet Console and use it with protocolVersion ECv2\nin the checkout's DIRECT tokenization specification. This API does not register the key with Google,\ncollect a payment token, decrypt a Google token, create an MCA, or authorize a payment. Google's\nDIRECT integration, PCI and production-approval requirements still apply. The requested environment\nmust match the Hyperswitch deployment: TEST for development/sandbox, PRODUCTION for production.",
+        "operationId": "Generate Hierarchical Resource",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile owned by the authenticated merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateHierarchicalResourceRequest"
+              },
+              "examples": {
+                "Apple Pay CSR": {
+                  "value": {
+                    "type": "apple_pay_certificate"
+                  }
+                },
+                "Google Pay DIRECT": {
+                  "value": {
+                    "google_pay": {
+                      "environment": "TEST",
+                      "google_merchant_id": "12345678901234567890",
+                      "mode": "DIRECT"
+                    },
+                    "type": "google_pay"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Resource ID and public setup data; no private key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateHierarchicalResourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Dashboard authentication required"
+          },
+          "422": {
+            "description": "Invalid Google configuration or deployment environment"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/hierarchical_resources/list": {
+      "post": {
+        "tags": [
+          "Hierarchical Resources"
+        ],
+        "summary": "Hierarchical Resource - List",
+        "description": "Lists linkable resources and their safe setup metadata. Google Pay results are restricted to the\noriginating merchant within the organization and never contain private-key material. Use scope_type\nand scope_id together to mark the effective resource as is_linked. For Google Pay, a profile's own\nconfiguration takes precedence; the merchant default is used only when profile configuration is absent.",
+        "operationId": "List Hierarchical Resources",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile owned by the authenticated merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListHierarchicalResourcesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Safe resource metadata and effective linkage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListHierarchicalResourcesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Dashboard authentication required"
+          },
+          "404": {
+            "description": "Target scope not found for the authenticated merchant"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
+    "/hierarchical_resources/{id}/link": {
+      "post": {
+        "tags": [
+          "Hierarchical Resources"
+        ],
+        "summary": "Hierarchical Resource - Link",
+        "description": "Links a Google Pay DIRECT resource to an owned profile or to the authenticated merchant account.\nThe resource must belong to the same organization and originating merchant. Google Pay resources\ncannot be linked to an MCA and do not accept certificate uploads. Linking records the public\nconfiguration and re-encrypts the private-key cache under the merchant key through existing account\nupdate and cache-invalidation paths. It does not return the private key or enable a Google Pay\nsession/token-decryption flow. Native v2 management routes are not added; compatible v2 models can\nread the configuration linked through this v1 API. Apply the v2-compatible migrations for both versions.",
+        "operationId": "Link Hierarchical Resource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Managed resource ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile owned by the authenticated merchant",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkHierarchicalResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Linked resource ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkHierarchicalResourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unsupported resource linkage"
+          },
+          "401": {
+            "description": "Dashboard authentication required"
+          },
+          "403": {
+            "description": "Resource belongs to another organization"
+          },
+          "404": {
+            "description": "Resource or target not found for the authenticated merchant"
+          }
+        },
+        "security": [
+          {
+            "jwt_key": []
+          }
+        ]
+      }
+    },
     "/disputes/{dispute_id}": {
       "get": {
         "tags": [
@@ -25561,6 +25758,41 @@
       "GcashRedirection": {
         "type": "object"
       },
+      "GenerateHierarchicalResourceRequest": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "google_pay": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayResourceRequest"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "GenerateHierarchicalResourceResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "data"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      },
       "GenericErrorResponseOpenApi": {
         "type": "object",
         "required": [
@@ -25940,6 +26172,39 @@
       },
       "GooglePayRedirectData": {
         "type": "object"
+      },
+      "GooglePayResourceEnvironment": {
+        "type": "string",
+        "enum": [
+          "TEST",
+          "PRODUCTION"
+        ]
+      },
+      "GooglePayResourceMode": {
+        "type": "string",
+        "enum": [
+          "DIRECT"
+        ]
+      },
+      "GooglePayResourceRequest": {
+        "type": "object",
+        "required": [
+          "mode",
+          "environment",
+          "google_merchant_id"
+        ],
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/GooglePayResourceMode"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/GooglePayResourceEnvironment"
+          },
+          "google_merchant_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "GooglePaySessionResponse": {
         "type": "object",
@@ -26750,6 +27015,33 @@
           }
         }
       },
+      "HierarchicalResourceSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "display_schema",
+          "display_data",
+          "created_at",
+          "is_linked"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "display_schema": {
+            "type": "object"
+          },
+          "display_data": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "is_linked": {
+            "type": "boolean"
+          }
+        }
+      },
       "HyperswitchConnectorCategory": {
         "type": "string",
         "description": "Connector Access Method",
@@ -27467,6 +27759,33 @@
           }
         }
       },
+      "LinkHierarchicalResourceRequest": {
+        "type": "object",
+        "required": [
+          "requestor_type",
+          "requestor_id"
+        ],
+        "properties": {
+          "requestor_type": {
+            "$ref": "#/components/schemas/ResourceRequestorType"
+          },
+          "requestor_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LinkHierarchicalResourceResponse": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        }
+      },
       "LinkedRoutingConfigRetrieveResponse": {
         "oneOf": [
           {
@@ -27526,6 +27845,44 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "ListHierarchicalResourcesRequest": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ResourceType"
+          },
+          "scope_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResourceRequestorType"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ListHierarchicalResourcesResponse": {
+        "type": "object",
+        "required": [
+          "resources"
+        ],
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HierarchicalResourceSummary"
+            }
           }
         }
       },
@@ -46218,6 +46575,21 @@
           }
         }
       },
+      "ResourceRequestorType": {
+        "type": "string",
+        "enum": [
+          "merchant_connector_account",
+          "profile",
+          "merchant_account"
+        ]
+      },
+      "ResourceType": {
+        "type": "string",
+        "enum": [
+          "apple_pay_certificate",
+          "google_pay"
+        ]
+      },
       "ResponsePaymentMethodTypes": {
         "type": "object",
         "required": [
@@ -52704,6 +53076,10 @@
     {
       "name": "Merchant Connector Account",
       "description": "Create and manage merchant connector accounts"
+    },
+    {
+      "name": "Hierarchical Resources",
+      "description": "Generate and link managed wallet resources"
     },
     {
       "name": "Payments",
