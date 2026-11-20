@@ -475,14 +475,34 @@ pub async fn list_all_themes_in_lineage(
     user: UserFromToken,
     entity_type: EntityType,
 ) -> UserResponse<Vec<theme_api::GetThemeResponse>> {
-    let lineage =
-        theme_utils::get_theme_lineage_from_user_token(&user, &state, &entity_type).await?;
-
-    let db_themes = state
-        .store
-        .list_themes_at_and_under_lineage(lineage)
+    let user_entity_type = user
+        .get_role_info_from_db(&state)
         .await
-        .change_context(UserErrors::InternalServerError)?;
+        .attach_printable("Invalid role_id in JWT")?
+        .get_entity_type();
+
+    let token_lineage =
+        theme_utils::get_theme_lineage_from_user_token(&user, &state, &EntityType::Profile).await?;
+    let user_lineage =
+        theme_utils::get_theme_lineage_from_user_token(&user, &state, &user_entity_type).await?;
+
+    let ancestor_themes = state
+        .store
+        .list_themes_in_lineage_path(token_lineage)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter(|theme| theme.entity_type > user_entity_type && theme.entity_type <= entity_type);
+
+    let subtree_themes = state
+        .store
+        .list_themes_at_and_under_lineage(user_lineage)
+        .await
+        .change_context(UserErrors::InternalServerError)?
+        .into_iter()
+        .filter(|theme| theme.entity_type <= entity_type);
+
+    let db_themes: Vec<_> = ancestor_themes.chain(subtree_themes).collect();
 
     let mut themes = Vec::new();
     for theme in db_themes {

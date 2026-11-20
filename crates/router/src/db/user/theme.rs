@@ -27,6 +27,11 @@ pub trait ThemeInterface {
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
+    async fn list_themes_in_lineage_path(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError>;
+
     async fn find_theme_by_lineage(
         &self,
         lineage: ThemeLineage,
@@ -78,6 +83,16 @@ impl ThemeInterface for Store {
     ) -> CustomResult<storage::Theme, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Theme::find_most_specific_theme_in_lineage(&conn, lineage)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    async fn list_themes_in_lineage_path(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Theme::find_all_in_lineage_path(&conn, lineage)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -315,6 +330,24 @@ impl ThemeInterface for MockDb {
                 errors::StorageError::ValueNotFound("No theme found in lineage".to_string()).into(),
             )
             .cloned()
+    }
+
+    async fn list_themes_in_lineage_path(
+        &self,
+        lineage: ThemeLineage,
+    ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
+        let themes = self.themes.lock().await;
+        let lineages = lineage.get_same_and_higher_lineages();
+
+        Ok(themes
+            .iter()
+            .filter(|theme| {
+                lineages
+                    .iter()
+                    .any(|lineage| check_theme_with_lineage(theme, lineage))
+            })
+            .cloned()
+            .collect())
     }
 
     async fn find_theme_by_lineage(
