@@ -236,6 +236,7 @@ pub struct CardSource {
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
+    pub stored: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -276,6 +277,7 @@ pub struct DecryptedWalletToken {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
+    stored: Option<bool>,
 }
 
 #[skip_serializing_none]
@@ -849,6 +851,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(false),
                 });
                 Ok((
                     payment_source,
@@ -915,6 +918,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     cvv: None,
                                     billing_address: billing_details,
                                     account_holder: None,
+                                    stored: Some(false),
                                 }),
                             }
                         }
@@ -1009,6 +1013,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(true),
                 });
 
                 let previous_id = Some(
@@ -1053,6 +1058,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     expiry_month: exp_month,
                     expiry_year: expiry_year_4_digit,
                     billing_address: billing_details,
+                    stored: Some(true),
                 });
 
                 Ok((
