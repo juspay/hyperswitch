@@ -1014,6 +1014,8 @@ describe("Card - Refund flow - 3DS", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  utils.useThreeDSConnectorProfile(() => globalState);
+
   context("Card - Full Refund flow test for 3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Handle Redirection -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;
