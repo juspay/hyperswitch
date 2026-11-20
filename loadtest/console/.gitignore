@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.console-state.json
+.data/
+.worker-data/
+.svelte-kit/
+build/
+.env
+# The repository's Nix result* rule also matches these application sources.
+!src/results-limits.mjs
+!src/result-test-cases.mjs
+!test/result-test-cases.test.mjs
+!src/routes/(console)/results/
+!src/routes/(console)/results/**
