@@ -67,7 +67,6 @@ describe("External surcharge - payments", () => {
     it("Create Payment Intent -> Eligibility -> Confirm -> Capture -> Retrieve Payment", () => {
       const state = runSurchargePayment(globalState, {
         captureMethod: "manual",
-        confirmResponse: { status: 200, body: { status: "requires_capture" } },
       });
 
       cy.step("Capture the full charged amount", () => {

@@ -70,7 +70,7 @@ export const shouldSkipExternalSurcharge = (globalState) => {
 // steps too.
 export const runSurchargePayment = (
   globalState,
-  { captureMethod = "automatic", confirmResponse } = {}
+  { captureMethod = "automatic" } = {}
 ) => {
   const state = { shouldContinue: true };
 
@@ -113,10 +113,12 @@ export const runSurchargePayment = (
       cy.task("cli_log", "Skipping step: Confirm Payment");
       return;
     }
-    const base = cardData(globalState, "ExternalSurchargeConfirm");
-    const data = confirmResponse
-      ? { ...base, Response: confirmResponse }
-      : base;
+    const data = cardData(
+      globalState,
+      captureMethod === "manual"
+        ? "ExternalSurchargeManualConfirm"
+        : "ExternalSurchargeConfirm"
+    );
     cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     if (!should_continue_further(data)) {
       state.shouldContinue = false;

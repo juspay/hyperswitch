@@ -1128,6 +1128,44 @@ export const refundStatusFilterMap = {
   review: "manual_review",
 };
 
+// The InterPayments sandbox returns 3% on the test card. The percentage comes
+// from the live connector, so it moves with the account's pricing.
+const externalSurchargePercentage = 3;
+
+const externalSurchargeResponse = {
+  status: 200,
+  body: {
+    surcharge_details: {
+      surcharge_percentage: externalSurchargePercentage,
+    },
+  },
+};
+
+const succeededResponse = {
+  status: 200,
+  body: {
+    status: "succeeded",
+  },
+};
+
+const requiresCaptureResponse = {
+  status: 200,
+  body: {
+    status: "requires_capture",
+  },
+};
+
+const externalSurchargeConfirm = {
+  ExpectSurcharge: true,
+  Request: {
+    payment_method: "card",
+    payment_method_data: { card: successfulNo3DSCardDetails },
+    setup_future_usage: "off_session",
+    customer_acceptance: customerAcceptance,
+  },
+  Response: succeededResponse,
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2373,6 +2411,11 @@ export const connectorDetails = {
     }),
   },
   card_pm: {
+    ExternalSurchargeConfirm: externalSurchargeConfirm,
+    ExternalSurchargeManualConfirm: {
+      ...externalSurchargeConfirm,
+      Response: requiresCaptureResponse,
+    },
     ExternalSurchargePaymentIntent: {
       Request: {
         currency: "USD",
@@ -2409,51 +2452,17 @@ export const connectorDetails = {
           },
         },
       },
-      Response: {
-        status: 200,
-        body: {
-          surcharge_details: {
-            surcharge_percentage: 3,
-          },
-        },
-      },
-    },
-    ExternalSurchargeConfirm: {
-      ExpectSurcharge: true,
-      Request: {
-        payment_method: "card",
-        payment_method_data: { card: successfulNo3DSCardDetails },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: externalSurchargeResponse,
     },
     // Capturing with no amount captures the whole charged total, surcharge included.
     ExternalSurchargeManualCapture: {
       Request: {
         amount_to_capture: undefined,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
+      Response: succeededResponse,
     },
     ExternalSurchargeRetrieve: {
-      Response: {
-        status: 200,
-        body: {
-          surcharge_details: {
-            surcharge_percentage: 3,
-          },
-        },
-      },
+      Response: externalSurchargeResponse,
     },
     PaymentIntent: getCustomExchange({
       Request: {
