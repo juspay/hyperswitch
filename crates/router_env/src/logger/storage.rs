@@ -27,9 +27,10 @@ impl<'a> Storage<'a> {
         Self::default()
     }
 
+    #[allow(clippy::print_stderr)]
     pub fn record_value(&mut self, key: &'a str, value: serde_json::Value) {
         if super::formatter::IMPLICIT_KEYS.contains(key) {
-            tracing::warn!(value =? value, "{} is a reserved entry. Skipping it.", key);
+            eprintln!("{key} is a reserved entry. Skipping it. value={value:?}");
         } else {
             self.values.insert(key, value);
         }
