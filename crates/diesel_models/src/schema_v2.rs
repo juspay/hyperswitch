@@ -336,6 +336,8 @@ diesel::table! {
         revenue_recovery_config -> Nullable<Jsonb>,
         #[max_length = 64]
         revenue_recovery_trigger_model -> Nullable<Varchar>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -997,6 +999,8 @@ diesel::table! {
         offer_engine_config -> Nullable<Bytea>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
     }
 }
 
