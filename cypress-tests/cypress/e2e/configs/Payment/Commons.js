@@ -1178,6 +1178,12 @@ const invalidRefundAmountResponse = {
   },
 };
 
+// A merchant-initiated payment has no eligibility step to compare with, so the
+// percentage is pinned.
+const expectedMitSurcharge = {
+  surcharge_percentage: externalSurchargePercentage,
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2536,6 +2542,22 @@ export const connectorDetails = {
         amount: -100,
       },
       Response: invalidRefundAmountResponse,
+    },
+    // A merchant-initiated payment on the saved card calculates the surcharge at
+    // confirm; there is no eligibility step.
+    ExternalSurchargeMITAutoCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: succeededResponse,
+      ExpectSurcharge: expectedMitSurcharge,
+    },
+    ExternalSurchargeMITManualCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: requiresCaptureResponse,
+      ExpectSurcharge: expectedMitSurcharge,
     },
     PaymentIntent: getCustomExchange({
       Request: {

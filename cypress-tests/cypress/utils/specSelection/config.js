@@ -182,6 +182,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "54-CardHolderNameBillingFallback.cy.js": ["card"],
   "53-ExternalSurchargePayments.cy.js": ["card"],
   "53-ExternalSurchargeRefunds.cy.js": ["card"],
+  "53-ExternalSurchargeMits.cy.js": ["card"],
 });
 
 /**

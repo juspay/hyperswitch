@@ -786,10 +786,11 @@ function logRequestId(xRequestId) {
   }
 }
 
-// Checks the external surcharge a payment response carries (confirm and
+// Checks the external surcharge a payment response carries (confirm, MIT and
 // retrieve): the fields, the match with what eligibility returned when there
 // was an eligibility step, and net_amount = amount + surcharge + tax on the
-// surcharge + shipping cost + order tax (PaymentsResponse docs).
+// surcharge + shipping cost + order tax (PaymentsResponse docs). When there was
+// no eligibility step (MIT), the surcharge is stored for the refund checks.
 function assertPaymentSurcharge(paymentBody, globalState, expectation) {
   const surchargeDetails = paymentBody.surcharge_details;
   expect(surchargeDetails, "surcharge_details").to.be.an("object");
@@ -822,6 +823,12 @@ function assertPaymentSurcharge(paymentBody, globalState, expectation) {
       surchargeDetails.surcharge_percentage,
       "surcharge_percentage matches the surcharge from before"
     ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
+  } else {
+    globalState.set("surchargeAmount", surchargeDetails.surcharge_amount);
+    globalState.set(
+      "surchargePercentage",
+      surchargeDetails.surcharge_percentage
+    );
   }
 
   expect(paymentBody.net_amount, "net_amount").to.equal(
@@ -2638,6 +2645,15 @@ Cypress.Commands.add(
     );
   }
 );
+
+// Forgets the surcharge of an earlier payment, so the next payment's own
+// surcharge is the one later steps are compared with.
+Cypress.Commands.add("resetSurchargeState", (globalState) => {
+  globalState.set("surchargeAmount", undefined);
+  globalState.set("surchargePercentage", undefined);
+  globalState.set("surchargeRefunded", 0);
+  globalState.set("orderAmountRefunded", 0);
+});
 
 Cypress.Commands.add(
   "connectorUpdateCall",
@@ -6460,6 +6476,7 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
       ResponseCustom: resDataCustom,
+      ExpectSurcharge: expectSurcharge,
     } = data || {};
 
     const validatedConfigs = validateConfig(configs);
@@ -6524,6 +6541,10 @@ Cypress.Commands.add(
 
         if (response.status === 200) {
           globalState.set("paymentID", response.body.payment_id);
+
+          if (expectSurcharge) {
+            assertPaymentSurcharge(response.body, globalState, expectSurcharge);
+          }
 
           if (response.body.status === "failed") {
             expect(
