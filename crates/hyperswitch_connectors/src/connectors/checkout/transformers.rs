@@ -996,6 +996,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     .router_data
                     .request
                     .get_connector_mandate_request_reference_id()
+                    .attach_printable("connector_mandate_request_reference_id not found")
                     .ok();
                 let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
