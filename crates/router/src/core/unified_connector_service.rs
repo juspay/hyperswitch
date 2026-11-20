@@ -1010,6 +1010,7 @@ const INLINE_UCS_ONLY_CONNECTORS: &[Connector] = &[
     Connector::Hyperpg,
     Connector::Revolv3,
     Connector::Fiservcommercehub,
+    Connector::Amex,
     Connector::AbsaSanlam,
     Connector::Interpayments,
     Connector::Payconex,

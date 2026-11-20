@@ -5,6 +5,7 @@ pub mod adyenplatform;
 pub mod affirm;
 pub mod airwallex;
 pub mod amazonpay;
+pub mod amex;
 pub mod archipel;
 pub mod authipay;
 pub mod authorizedotnet;
@@ -172,7 +173,7 @@ pub mod zsl;
 pub use self::dummyconnector::DummyConnector;
 pub use self::{
     absa_sanlam::AbsaSanlam, aci::Aci, adyen::Adyen, adyenplatform::Adyenplatform, affirm::Affirm,
-    airwallex::Airwallex, amazonpay::Amazonpay, archipel::Archipel, authipay::Authipay,
+    airwallex::Airwallex, amazonpay::Amazonpay, amex::Amex, archipel::Archipel, authipay::Authipay,
     authorizedotnet::Authorizedotnet, bambora::Bambora, bamboraapac::Bamboraapac,
     bankofamerica::Bankofamerica, barclaycard::Barclaycard, betterpayment::Betterpayment,
     billwerk::Billwerk, bitpay::Bitpay, blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap,

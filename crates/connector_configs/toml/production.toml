@@ -9265,3 +9265,8 @@ api_key="API Key"
 key1="API Secret"
 [payhound.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[amex]
+[amex.connector_auth.BodyKey]
+api_key = "Gateway Merchant ID"
+key1 = "Shared Secret"

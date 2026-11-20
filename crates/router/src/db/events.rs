@@ -2141,6 +2141,7 @@ mod tests {
             attempts: None,
             captures: None,
             mandate_data: None,
+            customer_acceptance: None,
             setup_future_usage: None,
             off_session: None,
             capture_on: None,

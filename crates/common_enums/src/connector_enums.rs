@@ -70,6 +70,7 @@ pub enum Connector {
     Affirm,
     Airwallex,
     Amazonpay,
+    Amex,
     Archipel,
     Authorizedotnet,
     Bambora,
@@ -379,6 +380,7 @@ impl Connector {
             | Self::Adyenplatform
             | Self::Airwallex
             | Self::Amazonpay
+            | Self::Amex
             | Self::Authorizedotnet
             | Self::Bambora
             | Self::Bamboraapac
