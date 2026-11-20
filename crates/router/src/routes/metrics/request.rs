@@ -12,5 +12,6 @@ pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
         | ApplicationResponse::JsonWithHeaders(_)
         | ApplicationResponse::IncomingWebhookEvent { .. } => 200,
         ApplicationResponse::JsonForRedirection(_) => 302,
+        ApplicationResponse::StatusCode(status_code) => i64::from(*status_code),
     }
 }

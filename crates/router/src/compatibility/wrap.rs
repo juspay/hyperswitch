@@ -114,6 +114,9 @@ where
             }
         }
         Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
+        Ok(api::ApplicationResponse::StatusCode(status_code)) => {
+            api::http_response_status_code(status_code)
+        }
         Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
         Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {
             api::http_response_file_data(file_data, content_type)

@@ -463,7 +463,6 @@ where
         tag = ?Tag::BeginRequest, payload = ?payload,
     headers = ?incoming_header_to_log);
 
-    let mut webhook_ack_status_code = None;
     let server_wrap_util_res = server_wrap_util(
         &flow,
         state.clone(),
@@ -479,12 +478,7 @@ where
         let response = match response {
             ApplicationResponse::IncomingWebhookEvent {
                 response: inner, ..
-            } => {
-                if let WebhookResponse::StatusCode(status_code) = inner.as_ref() {
-                    webhook_ack_status_code = http::StatusCode::from_u16(*status_code).ok();
-                }
-                ApplicationResponse::from(*inner)
-            }
+            } => ApplicationResponse::from(*inner),
             other => other,
         };
         logger::info!(api_response =? response);
@@ -502,10 +496,8 @@ where
                 }"#,
             ),
         },
-        Ok(ApplicationResponse::StatusOk) => webhook_ack_status_code
-            .map_or_else(http_response_ok, |status_code| {
-                HttpResponse::build(status_code).finish()
-            }),
+        Ok(ApplicationResponse::StatusOk) => http_response_ok(),
+        Ok(ApplicationResponse::StatusCode(status_code)) => http_response_status_code(status_code),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
         Ok(ApplicationResponse::FileData((file_data, content_type))) => {
             http_response_file_data(file_data, content_type)
@@ -738,6 +730,17 @@ pub fn http_response_html_data<T: body::MessageBody + 'static>(
 
 pub fn http_response_ok() -> HttpResponse {
     HttpResponse::Ok().finish()
+}
+
+/// An empty response with `status_code`, or `200` if it is not a valid HTTP status.
+pub fn http_response_status_code(status_code: u16) -> HttpResponse {
+    http::StatusCode::from_u16(status_code).map_or_else(
+        |error| {
+            logger::error!(?error, status_code, "Invalid HTTP status code in response");
+            http_response_ok()
+        },
+        |status_code| HttpResponse::build(status_code).finish(),
+    )
 }
 
 pub fn http_redirect_response<T: body::MessageBody + 'static>(
