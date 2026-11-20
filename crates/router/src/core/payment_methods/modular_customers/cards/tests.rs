@@ -6,6 +6,45 @@ use std::{
 
 use super::*;
 
+#[test]
+fn card_headers_follow_internal_key_rotation_and_preserve_merchant_profile() {
+    let merchant = id_type::MerchantId::wrap("merchant_one".to_string()).expect("merchant");
+    let profile =
+        id_type::ProfileId::try_from(std::borrow::Cow::Borrowed("pro_one")).expect("profile");
+    for (legacy_key, rotation_enabled, legacy_outbound, expected_key) in [
+        (None, false, false, "synthetic-primary"),
+        (Some("synthetic-legacy"), true, false, "synthetic-primary"),
+        (Some("synthetic-legacy"), true, true, "synthetic-legacy"),
+    ] {
+        let auth = hyperswitch_interfaces::configs::InternalMerchantIdProfileIdAuthSettings {
+            enabled: true,
+            internal_api_key: legacy_key
+                .map(|key| hyperswitch_masking::Secret::new(key.to_string())),
+            primary_internal_api_key: hyperswitch_masking::Secret::new(
+                "synthetic-primary".to_string(),
+            ),
+            key_rotation_enabled: rotation_enabled,
+            use_legacy_key_for_outbound: legacy_outbound,
+        };
+        let request_headers = headers(&auth, &merchant, &profile);
+        match request_headers
+            .iter()
+            .find(|(name, _)| name == crate::headers::X_INTERNAL_API_KEY)
+        {
+            Some((_, Maskable::Masked(key))) => assert_eq!(key.peek(), expected_key),
+            _ => panic!("internal credential must be present and masked"),
+        }
+        assert!(request_headers.contains(&(
+            crate::headers::X_MERCHANT_ID.to_string(),
+            Maskable::Normal("merchant_one".to_string()),
+        )));
+        assert!(request_headers.contains(&(
+            crate::headers::X_PROFILE_ID.to_string(),
+            Maskable::Normal("pro_one".to_string()),
+        )));
+    }
+}
+
 pub(crate) fn stored() -> StoredCard {
     StoredCard {
         payment_method_id: "0a_pm_01926c58bc6e77c09e809964e72af8c8".to_string(),
