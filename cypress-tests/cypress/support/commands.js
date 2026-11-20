@@ -786,6 +786,53 @@ function logRequestId(xRequestId) {
   }
 }
 
+// Checks the external surcharge a payment response carries (confirm and
+// retrieve): the fields, the match with what eligibility returned when there
+// was an eligibility step, and net_amount = amount + surcharge + tax on the
+// surcharge + shipping cost + order tax (PaymentsResponse docs).
+function assertPaymentSurcharge(paymentBody, globalState, expectation) {
+  const surchargeDetails = paymentBody.surcharge_details;
+  expect(surchargeDetails, "surcharge_details").to.be.an("object");
+  expect(
+    surchargeDetails.surcharge_amount,
+    "surcharge_details.surcharge_amount"
+  )
+    .to.be.a("number")
+    .and.to.be.at.least(0);
+  expect(
+    surchargeDetails.surcharge_percentage,
+    "surcharge_details.surcharge_percentage"
+  ).to.be.a("number");
+
+  // The config may pin the percentage (ExpectSurcharge: { surcharge_percentage }).
+  const expectedPercentage = expectation?.surcharge_percentage;
+  if (expectedPercentage !== undefined) {
+    expect(
+      surchargeDetails.surcharge_percentage,
+      "surcharge_details.surcharge_percentage"
+    ).to.equal(expectedPercentage);
+  }
+
+  if (globalState.get("surchargeAmount") !== undefined) {
+    expect(
+      surchargeDetails.surcharge_amount,
+      "surcharge_amount matches the surcharge from before"
+    ).to.equal(globalState.get("surchargeAmount"));
+    expect(
+      surchargeDetails.surcharge_percentage,
+      "surcharge_percentage matches the surcharge from before"
+    ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
+  }
+
+  expect(paymentBody.net_amount, "net_amount").to.equal(
+    paymentBody.amount +
+      surchargeDetails.surcharge_amount +
+      (surchargeDetails.tax_amount ?? 0) +
+      (paymentBody.shipping_cost ?? 0) +
+      (paymentBody.order_tax_amount ?? 0)
+  );
+}
+
 function validateErrorMessage(response, resData) {
   if (resData.body.status !== "failed") {
     expect(response.body.error_message, "error_message").to.be.null;
@@ -2514,6 +2561,84 @@ Cypress.Commands.add("deleteFrmConnector", (globalState) => {
   });
 });
 
+// Points the profile at the surcharge connector. calculate_external_surcharge
+// resolves the surcharge connector only from business_profile
+// .surcharge_connector_details; if it is unset, surcharge_details silently comes
+// back None even with an active surcharge_processor connector.
+Cypress.Commands.add("linkSurchargeConnectorToProfile", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+  const surchargeConnectorId = globalState.get("surchargeConnectorId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      surcharge_connector_details: {
+        surcharge_connector_id: surchargeConnectorId,
+      },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status, "status_code").to.equal(200);
+    expect(
+      response.body.surcharge_connector_details.surcharge_connector_id,
+      "surcharge_details.surcharge_connector_id"
+    ).to.equal(surchargeConnectorId);
+  });
+});
+
+// Clears the profile's surcharge connector. A profile that points at one makes
+// every off-session (MIT) payment on it calculate a surcharge, so the surcharge
+// specs unlink it when they finish.
+Cypress.Commands.add("unlinkSurchargeConnectorFromProfile", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: {
+      surcharge_connector_details: {
+        surcharge_connector_id: null,
+      },
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    expect(response.status, "status_code").to.equal(200);
+    expect(
+      response.body.surcharge_connector_details?.surcharge_connector_id ?? null,
+      "surcharge_connector_details.surcharge_connector_id"
+    ).to.be.null;
+  });
+});
+
+// Yields whether creds.json has an entry for the connector.
+Cypress.Commands.add(
+  "connectorCredentialsAvailable",
+  (connectorName, globalState) => {
+    cy.readFile(globalState.get("connectorAuthFilePath")).then(
+      (jsonContent) => {
+        const { authDetails } = getValueByKey(
+          JSON.stringify(jsonContent),
+          connectorName
+        );
+        return Boolean(authDetails);
+      }
+    );
+  }
+);
+
 Cypress.Commands.add(
   "connectorUpdateCall",
   (connectorType, updateConnectorBody, globalState) => {
@@ -3469,6 +3594,7 @@ Cypress.Commands.add(
       Configs: configs = {},
       Request: reqData,
       Response: resData,
+      ExpectSurcharge: expectSurcharge,
     } = data || {};
 
     const apiKey = globalState.get("publishableKey");
@@ -3565,6 +3691,9 @@ Cypress.Commands.add(
             expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
           }
         } else if (response.status === 200) {
+          if (expectSurcharge) {
+            assertPaymentSurcharge(response.body, globalState, expectSurcharge);
+          }
           if (response.body.next_action?.redirect_to_url) {
             globalState.set(
               "nextActionUrl",
@@ -5149,6 +5278,14 @@ Cypress.Commands.add(
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (resData.body && resData.body.surcharge_details) {
+            assertPaymentSurcharge(
+              response.body,
+              globalState,
+              resData.body.surcharge_details
+            );
+          }
 
           if (
             resData.body &&
@@ -9295,6 +9432,76 @@ Cypress.Commands.add(
                 "Expected no deny action for non-blocklisted card"
               );
             }
+          }
+
+          // For external surcharge processors (e.g. InterPayments), the eligibility
+          // response carries the computed surcharge. The amount and percentage are
+          // supplied by the connector at call time, so exact values are not
+          // asserted; the fields are checked for type and for consistency with
+          // each other, and stored so confirm/retrieve can be compared to them.
+          if (resData.body.surcharge_details) {
+            expect(response.body, "surcharge_details").to.have.property(
+              "surcharge_details"
+            );
+            const surchargeDetails = response.body.surcharge_details;
+            expect(surchargeDetails, "surcharge_details.surcharge_percentage")
+              .to.have.property("surcharge_percentage")
+              .to.be.a("number");
+
+            // build_surcharge_response always returns a fixed surcharge with no
+            // tax on it. The display amounts are in major units (USD: minor / 100).
+            expect(
+              surchargeDetails.surcharge,
+              "surcharge_details.surcharge.type"
+            ).to.have.property("type", "fixed");
+            expect(
+              surchargeDetails.surcharge.value,
+              "surcharge_details.surcharge.value"
+            ).to.be.a("number");
+            expect(
+              surchargeDetails.display_surcharge_amount,
+              "display_surcharge_amount"
+            ).to.be.closeTo(surchargeDetails.surcharge.value / 100, 0.001);
+            expect(
+              surchargeDetails.display_tax_on_surcharge_amount,
+              "display_tax_on_surcharge_amount"
+            ).to.equal(0);
+            expect(
+              surchargeDetails.display_total_surcharge_amount,
+              "display_total_surcharge_amount"
+            ).to.be.closeTo(
+              surchargeDetails.display_surcharge_amount +
+                surchargeDetails.display_tax_on_surcharge_amount,
+              0.001
+            );
+
+            const expectedPercentage =
+              resData.body.surcharge_details.surcharge_percentage;
+            if (expectedPercentage !== undefined) {
+              expect(
+                surchargeDetails.surcharge_percentage,
+                "surcharge_details.surcharge_percentage"
+              ).to.equal(expectedPercentage);
+            }
+            // The fee is the percentage of the payment amount, to the minor unit.
+            expect(
+              surchargeDetails.surcharge.value,
+              "surcharge value is the percentage of the amount"
+            ).to.be.closeTo(
+              (globalState.get("paymentAmount") *
+                surchargeDetails.surcharge_percentage) /
+                100,
+              1
+            );
+
+            globalState.set(
+              "surchargeAmount",
+              surchargeDetails.surcharge.value
+            );
+            globalState.set(
+              "surchargePercentage",
+              surchargeDetails.surcharge_percentage
+            );
           }
         } else {
           throw new Error(

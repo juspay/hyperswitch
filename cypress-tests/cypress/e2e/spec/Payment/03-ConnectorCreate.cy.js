@@ -2,6 +2,7 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import * as utils from "../../configs/Payment/Utils";
+import { createSurchargeConnectorIfConfigured } from "../../../utils/externalSurcharge";
 
 let globalState;
 describe("Connector Account Create flow test", () => {
@@ -22,6 +23,10 @@ describe("Connector Account Create flow test", () => {
       payment_methods_enabled,
       globalState
     );
+  });
+
+  it("Create the surcharge processor connector (InterPayments) if configured", () => {
+    createSurchargeConnectorIfConfigured(globalState);
   });
 
   it("Create multiple business profiles and merchant connector accounts", () => {
