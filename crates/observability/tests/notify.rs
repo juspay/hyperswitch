@@ -913,6 +913,7 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
                         "interval_seconds": 60,
                         "query": {
                             "datasource": "grafana_loki",
+                            "region": "ap-south-2",
                             "expr": expr,
                             "period": 60,
                             "context": {"Service": "hyperswitch-router"}
@@ -945,12 +946,12 @@ fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert()
         assert_eq!(body["rules"][0]["level"], "critical");
         assert_eq!(body["rules"][0]["delivered"], true);
         let message = body["rules"][0]["message"].as_str().unwrap();
-        assert!(message.starts_with("ALARM: Router errors\n"));
+        assert!(message.starts_with("Severity: `CRITICAL`\n"));
         assert!(message.contains("Description:\nRouter logged errors\n"));
-        assert!(message.contains("Context:\nService: hyperswitch-router\n"));
-        assert!(message.contains("Condition: value > 0\n"));
-        assert!(message.contains("Latest value: 7\n"));
-        assert!(message.ends_with("Definition: loki-rule\n"));
+        assert!(message.contains("Service: `hyperswitch-router`\n"));
+        assert!(message.contains("Condition: `value > 0`\n"));
+        assert!(message.contains("Latest value: `7`\n"));
+        assert!(message.ends_with("Definition: `loki-rule`"));
         assert!(!message.contains(expr));
         let mut requests = HashMap::new();
         while requests.is_empty() {
@@ -1004,7 +1005,7 @@ fn loki_each_series_is_its_own_instance_and_only_breaching_instances_alert() {
                 "name": "Router 5xx",
                 "config": {
                     "interval_seconds": 60,
-                    "query": {"datasource": "grafana_loki", "expr": expr, "period": 60},
+                    "query": {"datasource": "grafana_loki", "region": "ap-south-2", "expr": expr, "period": 60},
                     "thresholds": {"severities": {
                         "critical": {
                             "threshold": 20,
@@ -1052,8 +1053,8 @@ fn loki_each_series_is_its_own_instance_and_only_breaching_instances_alert() {
         assert!(rules.iter().skip(1).all(|rule| rule["message"]
             .as_str()
             .unwrap()
-            .starts_with(&format!(
-                "ALARM: Router 5xx (flow={})\n",
+            .contains(&format!(
+                "flow: `{}`\n",
                 rule["labels"]["flow"].as_str().unwrap()
             ))));
     });

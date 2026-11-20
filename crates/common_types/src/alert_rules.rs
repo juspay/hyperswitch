@@ -50,6 +50,7 @@ pub struct GrafanaCloudwatchQuery {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GrafanaLokiQuery {
+    pub region: String,
     pub expr: String,
     pub period: u32,
     #[serde(default = "DEFAULT_LOKI_END_OFFSET_SECONDS")]
@@ -287,6 +288,7 @@ mod tests {
     fn loki_query_defaults_and_rejects_unknown_fields() {
         let query: AlertQuery = serde_json::from_value(serde_json::json!({
             "datasource": "grafana_loki",
+            "region": "ap-south-2",
             "expr": "sum(count_over_time({app=\"router\"} |= \"error\" [1m]))",
             "period": 60
         }))
@@ -296,6 +298,7 @@ mod tests {
         assert!(matches!(&query, AlertQuery::GrafanaLoki(query) if query.context.is_empty()));
         assert!(serde_json::from_value::<AlertQuery>(serde_json::json!({
             "datasource": "grafana_loki",
+            "region": "ap-south-2",
             "expr": "sum(count_over_time({app=\"router\"}[1m]))",
             "period": 60,
             "version": "v1"
