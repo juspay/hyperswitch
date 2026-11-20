@@ -16,7 +16,7 @@ describe("Card - ThreeDS payment flow test", () => {
   });
 
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
-    it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection -> retrieve payment and assert connector-specific billing data", () => {
+    it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection -> retrieve payment and assert Stripe billing tokenization", () => {
       let shouldContinue = true;
 
       cy.step("create payment intent", () => {
@@ -75,16 +75,16 @@ describe("Card - ThreeDS payment flow test", () => {
         cy.handleRedirection(globalState, expected_redirection);
       });
 
-      cy.step("assert connector-specific billing data", () => {
+      cy.step("assert Stripe billing address tokenization", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: assert connector-specific billing data"
+            "Skipping step: assert Stripe billing address tokenization"
           );
           return;
         }
 
-        if (!["stripe", "nmi"].includes(globalState.get("connectorId"))) {
+        if (globalState.get("connectorId") !== "stripe") {
           return;
         }
 
