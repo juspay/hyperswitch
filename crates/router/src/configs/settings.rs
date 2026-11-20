@@ -1136,7 +1136,7 @@ pub struct Locker {
     pub decryption_scheme: DecryptionScheme,
     pub create_entity_on_merchant_create: bool,
     #[cfg(feature = "v2")]
-    pub plain_fingerprint_response: bool,
+    pub jws_fingerprint_response: bool,
     #[cfg(feature = "v2")]
     pub use_batched_fingerprint: bool,
 }

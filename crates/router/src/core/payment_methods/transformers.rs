@@ -312,8 +312,6 @@ pub async fn get_decrypted_vault_response_payload(
     jwe_body: encryption::JweBody,
     decryption_scheme: settings::DecryptionScheme,
 ) -> CustomResult<String, errors::VaultError> {
-    let public_key = jwekey.vault_encryption_key.peek().as_bytes();
-
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
     let jwt = get_dotted_jwe(jwe_body);
@@ -335,11 +333,20 @@ pub async fn get_decrypted_vault_response_payload(
     let jws = jwe_decrypted
         .parse_struct("JwsBody")
         .change_context(errors::VaultError::ResponseDeserializationFailed)?;
-    let jws_body = get_dotted_jws(jws);
+    get_verified_vault_response_payload(jwekey, jws)
+}
 
-    encryption::verify_sign(jws_body, public_key)
-        .change_context(errors::VaultError::SaveCardFailed)
-        .attach_printable("Jws Decryption failed for JwsBody for vault")
+/// Verify the vault signature before exposing either encrypted or signed-only response data.
+pub fn get_verified_vault_response_payload(
+    jwekey: &settings::Jwekey,
+    jws_body: encryption::JwsBody,
+) -> CustomResult<String, errors::VaultError> {
+    encryption::verify_sign(
+        get_dotted_jws(jws_body),
+        jwekey.vault_encryption_key.peek().as_bytes(),
+    )
+    .change_context(errors::VaultError::SaveCardFailed)
+    .attach_printable("JWS signature verification failed for vault response")
 }
 
 pub async fn create_jwe_body_for_vault(
