@@ -5183,12 +5183,36 @@ Cypress.Commands.add(
             expect(response.body, "surcharge_details").to.have.property(
               "surcharge_details"
             );
-            expect(
-              response.body.surcharge_details,
-              "surcharge_details.surcharge_percentage"
-            )
+            const surchargeDetails = response.body.surcharge_details;
+            expect(surchargeDetails, "surcharge_details.surcharge_percentage")
               .to.have.property("surcharge_percentage")
               .to.be.a("number");
+            expect(
+              surchargeDetails.surcharge_amount,
+              "surcharge_details.surcharge_amount"
+            ).to.be.a("number");
+
+            // The payment must carry the surcharge returned by eligibility.
+            if (globalState.get("surchargeAmount") !== undefined) {
+              expect(
+                surchargeDetails.surcharge_amount,
+                "surcharge_details.surcharge_amount matches eligibility"
+              ).to.equal(globalState.get("surchargeAmount"));
+              expect(
+                surchargeDetails.surcharge_percentage,
+                "surcharge_details.surcharge_percentage matches eligibility"
+              ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
+            }
+
+            // net_amount = amount + surcharge + tax on surcharge + shipping cost
+            // + order tax amount (PaymentsResponse docs).
+            expect(response.body.net_amount, "net_amount").to.equal(
+              response.body.amount +
+                surchargeDetails.surcharge_amount +
+                (surchargeDetails.tax_amount ?? 0) +
+                (response.body.shipping_cost ?? 0) +
+                (response.body.order_tax_amount ?? 0)
+            );
           }
 
           if (
@@ -9339,18 +9363,54 @@ Cypress.Commands.add(
           }
 
           // For external surcharge processors (e.g. InterPayments), the eligibility
-          // response carries the computed surcharge. surcharge_percentage is supplied
-          // by the connector at call time, so only presence/type is asserted here.
+          // response carries the computed surcharge. The amount and percentage are
+          // supplied by the connector at call time, so exact values are not
+          // asserted; the fields are checked for type and for consistency with
+          // each other, and stored so confirm/retrieve can be compared to them.
           if (resData.body.surcharge_details) {
             expect(response.body, "surcharge_details").to.have.property(
               "surcharge_details"
             );
-            expect(
-              response.body.surcharge_details,
-              "surcharge_details.surcharge_percentage"
-            )
+            const surchargeDetails = response.body.surcharge_details;
+            expect(surchargeDetails, "surcharge_details.surcharge_percentage")
               .to.have.property("surcharge_percentage")
               .to.be.a("number");
+
+            // build_surcharge_response always returns a fixed surcharge with no
+            // tax on it. The display amounts are in major units (USD: minor / 100).
+            expect(
+              surchargeDetails.surcharge,
+              "surcharge_details.surcharge.type"
+            ).to.have.property("type", "fixed");
+            expect(
+              surchargeDetails.surcharge.value,
+              "surcharge_details.surcharge.value"
+            ).to.be.a("number");
+            expect(
+              surchargeDetails.display_surcharge_amount,
+              "display_surcharge_amount"
+            ).to.be.closeTo(surchargeDetails.surcharge.value / 100, 0.001);
+            expect(
+              surchargeDetails.display_tax_on_surcharge_amount,
+              "display_tax_on_surcharge_amount"
+            ).to.equal(0);
+            expect(
+              surchargeDetails.display_total_surcharge_amount,
+              "display_total_surcharge_amount"
+            ).to.be.closeTo(
+              surchargeDetails.display_surcharge_amount +
+                surchargeDetails.display_tax_on_surcharge_amount,
+              0.001
+            );
+
+            globalState.set(
+              "surchargeAmount",
+              surchargeDetails.surcharge.value
+            );
+            globalState.set(
+              "surchargePercentage",
+              surchargeDetails.surcharge_percentage
+            );
           }
         } else {
           throw new Error(
