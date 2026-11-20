@@ -1456,6 +1456,36 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     }
 }
 
+/// Validate connector mandate currency on initial attempts and retries.
+#[cfg(feature = "v1")]
+pub(super) fn validate_connector_mandate_currency(
+    config: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
+    connector: api_enums::Connector,
+    original_currency: Option<api_enums::Currency>,
+    payment_currency: api_enums::Currency,
+) -> RouterResult<()> {
+    match original_currency {
+        Some(original_currency) => {
+            if original_currency == payment_currency {
+                Ok(())
+            } else if config.connector_list.contains(&connector) {
+                logger::info!(
+                    %connector,
+                    %original_currency,
+                    %payment_currency,
+                    "allowing cross-currency connector mandate"
+                );
+                Ok(())
+            } else {
+                Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                    reason: "Cross currency mandates not supported".into(),
+                }))
+            }
+        }
+        None => Ok(()),
+    }
+}
+
 pub fn verify_mandate_details(
     request_amount: MinorUnit,
     request_currency: api_enums::Currency,
