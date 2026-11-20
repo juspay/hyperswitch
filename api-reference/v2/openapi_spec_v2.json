@@ -20478,11 +20478,15 @@
         "properties": {
           "merchant_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Webhook verification secret. Must contain at least one non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           },
           "additional_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Optional additional secret. When supplied, must contain a non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           }
         },
         "additionalProperties": false

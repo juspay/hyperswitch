@@ -2776,6 +2776,11 @@ pub async fn create_connector(
     processor: domain::Processor,
     auth_profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    if let Some(details) = &req.connector_webhook_details {
+        details
+            .validate()
+            .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })?;
+    }
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     fp_utils::when(
@@ -3096,6 +3101,11 @@ pub async fn update_connector(
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    if let Some(details) = &req.connector_webhook_details {
+        details
+            .validate()
+            .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })?;
+    }
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store_master_key = db.get_master_key().to_vec().into();
