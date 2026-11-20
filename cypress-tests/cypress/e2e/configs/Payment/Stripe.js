@@ -1339,6 +1339,64 @@ export const connectorDetails = {
         },
       },
     },
+    SurchargeRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // Capturing with no amount captures the whole charged total, surcharge included.
+    SurchargeManualCapture: {
+      Request: {
+        amount_to_capture: undefined,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    SurchargeRefundBeforeCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    SurchargeRefundOverOrderAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Requested refund amount is greater than the original order amount.",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    SurchargeRefundExceedsCaptured: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
     SurchargePercentageRetrieve: {
       Response: {
         status: 200,
