@@ -1780,6 +1780,37 @@ placeholder = "Enter Allowed Auth Methods"
 required = true
 type = "MultiSelect"
 options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[checkout.metadata.connector_client_id]
+name = "connector_client_id"
+label = "Checkout Client ID (API Domain Prefix)"
+placeholder = "Enter Checkout Client ID (cli_...)"
+required = false
+type = "Text"
+
+
+[checkout_payout]
+[[checkout_payout.wallet]]
+payment_method_type = "apple_pay"
+[[checkout_payout.wallet]]
+payment_method_type = "google_pay"
+[checkout_payout.connector_auth.SignatureKey]
+api_key = "Checkout Public Key"
+key1 = "Processing Channel ID"
+api_secret = "Checkout API Secret Key"
+[checkout_payout.connector_webhook_details]
+merchant_secret = "Source verification key"
+[checkout_payout.metadata.connector_currency_account_id]
+name = "connector_currency_account_id"
+label = "Checkout Currency Account ID"
+placeholder = "Enter Checkout Currency Account ID (ca_...)"
+required = true
+type = "Text"
+[checkout_payout.metadata.connector_client_id]
+name = "connector_client_id"
+label = "Checkout Client ID"
+placeholder = "Enter Checkout Client ID (cli_...)"
+required = false
+type = "Text"
 
 
 [coinbase]
@@ -4063,6 +4094,7 @@ api_secret="Certificates"
 key2="Certificate Key"
 
 [santander_payout]
+webhook_url_type="mtls"
 [[santander_payout.bank_transfer]]
   payment_method_type = "pix"
 [[santander_payout.bank_transfer]]
@@ -6651,6 +6683,7 @@ type = "Text"
   type="Text"
 
 [worldpayxml]
+webhook_url_type="mtls"
 [[worldpayxml.credit]]
 payment_method_type = "Mastercard"
 [[worldpayxml.credit]]
@@ -6837,6 +6870,7 @@ required=false
 type="Text"
 
 [worldpayxml_payout]
+webhook_url_type="mtls"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.wallet]]
@@ -6959,6 +6993,7 @@ required = false
 type = "Text"
 
 [santander]
+webhook_url_type="mtls"
 [[santander.bank_transfer]]
 payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
@@ -9221,3 +9256,12 @@ key1 = "API Password"
 [betterpayment.connector_webhook_details]
 merchant_secret = "Webhook Secret"
 additional_secret = "Incoming Webhook Key"
+
+[payhound]
+[[payhound.crypto]]
+  payment_method_type = "crypto_currency"
+[payhound.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Secret"
+[payhound.connector_webhook_details]
+merchant_secret="Source verification key"

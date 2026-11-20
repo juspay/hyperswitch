@@ -627,12 +627,15 @@ diesel::table! {
     events (event_id) {
         #[max_length = 64]
         event_id -> Varchar,
-        event_type -> EventType,
-        event_class -> EventClass,
+        #[max_length = 64]
+        event_type -> Varchar,
+        #[max_length = 64]
+        event_class -> Varchar,
         is_webhook_notified -> Bool,
         #[max_length = 64]
         primary_object_id -> Varchar,
-        primary_object_type -> EventObjectType,
+        #[max_length = 64]
+        primary_object_type -> Varchar,
         created_at -> Timestamp,
         #[max_length = 64]
         merchant_id -> Nullable<Varchar>,
@@ -1529,6 +1532,11 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        funds_transfer_type -> Nullable<Varchar>,
+        sender_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        purpose -> Nullable<Varchar>,
     }
 }
 
@@ -1618,6 +1626,7 @@ diesel::table! {
         feature_metadata -> Nullable<Jsonb>,
         refund_surcharge_amount -> Nullable<Int8>,
         net_refund_amount -> Nullable<Int8>,
+        external_surcharge_refund_details -> Nullable<Jsonb>,
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]

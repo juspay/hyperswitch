@@ -1,7 +1,6 @@
 use ::payment_methods::controller::PaymentMethodsController;
-use api_models::{customers::CustomerDocumentDetails, enums, payment_methods::Card, payouts};
+use api_models::{enums, payment_methods::Card, payouts};
 use common_utils::{
-    crypto::Encryptable,
     encryption::Encryption,
     errors::CustomResult,
     ext_traits::{AsyncExt, StringExt, ValueExt},
@@ -11,11 +10,9 @@ use common_utils::{
         MinorUnit, UnifiedCode, UnifiedMessage,
     },
 };
-#[cfg(feature = "v1")]
-use common_utils::{generate_customer_id_of_default_length, types::keymanager::ToEncryptable};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
 use super::{
@@ -36,7 +33,7 @@ use crate::{
             transformers::{DataDuplicationCheck, StoreCardReq, StoreGenericReq, StoreLockerReq},
             vault,
         },
-        payments::{helpers as payment_helpers, routing, CustomerDetails},
+        payments::{helpers as payment_helpers, routing},
         routing::TransactionData,
         utils as core_utils,
     },
@@ -890,6 +887,7 @@ pub async fn save_payout_data_to_locker(
             payouts,
             updated_payout,
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -912,173 +910,41 @@ pub async fn save_payout_data_to_locker(
 }
 
 #[cfg(feature = "v2")]
-pub(super) async fn get_or_create_customer_details(
+pub(super) async fn get_existing_customer_details(
     _state: &SessionState,
-    _customer_details: &CustomerDetails,
-    _merchant_context: &domain::Platform,
-) -> RouterResult<Option<domain::Customer>> {
+    _customer_id: &id_type::CustomerId,
+    _platform: &domain::Platform,
+) -> RouterResult<domain::Customer> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
-pub(super) async fn get_or_create_customer_details(
+pub(super) async fn get_existing_customer_details(
     state: &SessionState,
-    customer_details: &CustomerDetails,
+    customer_id: &id_type::CustomerId,
     platform: &domain::Platform,
-) -> RouterResult<Option<domain::Customer>> {
-    let db: &dyn StorageInterface = &*state.store;
-    // Create customer_id if not passed in request
-    let customer_id = customer_details
-        .customer_id
-        .clone()
-        .unwrap_or_else(generate_customer_id_of_default_length);
-
-    let merchant_id = platform.get_processor().get_account().get_id();
-    let key = platform
-        .get_processor()
-        .get_key_store()
-        .key
-        .get_inner()
-        .peek();
-
+) -> RouterResult<domain::Customer> {
+    let processor = platform.get_processor();
     let use_merchant_reference_id =
         payments_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
             state,
             platform.get_provider(),
-            Some(&customer_id),
+            Some(customer_id),
         )
         .await;
-    match db
+
+    state
+        .store
         .find_customer_optional_by_customer_id_merchant_id(
-            &customer_id,
-            merchant_id,
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            customer_id,
+            processor.get_account().get_id(),
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
             use_merchant_reference_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?
-    {
-        // Customer found
-        Some(customer) => Ok(Some(customer)),
-
-        // Customer not found
-        // create only if atleast one of the fields were provided for customer creation or else throw error
-        None => {
-            if customer_details.name.is_some()
-                || customer_details.email.is_some()
-                || customer_details.phone.is_some()
-                || customer_details.phone_country_code.is_some()
-            {
-                let encrypted_data = crypto_operation(
-                    &state.into(),
-                    type_name!(domain::Customer),
-                    CryptoOperation::BatchEncrypt(
-                        domain::FromRequestEncryptableCustomer::to_encryptable(
-                            domain::FromRequestEncryptableCustomer {
-                                name: customer_details.name.clone(),
-                                email: customer_details
-                                    .email
-                                    .clone()
-                                    .map(|a| a.expose().switch_strategy()),
-                                phone: customer_details.phone.clone(),
-                                tax_registration_id: customer_details.tax_registration_id.clone(),
-                            },
-                        ),
-                    ),
-                    Identifier::Merchant(
-                        platform.get_processor().get_key_store().merchant_id.clone(),
-                    ),
-                    key,
-                )
-                .await
-                .and_then(|val| val.try_into_batchoperation())
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to encrypt customer")?;
-                let encryptable_customer =
-                    domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to form EncryptableCustomer")?;
-
-                let document_details = customer_details
-                    .document_details
-                    .clone()
-                    .async_lift(|inner| async move {
-                        let encrypted_inner = inner
-                            .as_ref()
-                            .map(CustomerDocumentDetails::to)
-                            .transpose()
-                            .change_context(common_utils::errors::CryptoError::EncodingFailed)
-                            .attach_printable(
-                                "Failed to convert CustomerDocumentDetails to SecretSerdeValue",
-                            )?;
-
-                        crypto_operation(
-                            &state.into(),
-                            common_utils::type_name!(domain::Customer),
-                            CryptoOperation::EncryptOptional(encrypted_inner),
-                            Identifier::Merchant(
-                                platform.get_processor().get_key_store().merchant_id.clone(),
-                            ),
-                            platform.get_processor().get_key_store().key.peek(),
-                        )
-                        .await
-                        .and_then(|val| val.try_into_optionaloperation())
-                    })
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to encrypt document_details")?;
-
-                let customer = domain::Customer::new(
-                    customer_id.clone(),
-                    merchant_id.to_owned().clone(),
-                    encryptable_customer.name,
-                    encryptable_customer.email.map(|email| {
-                        let encryptable: Encryptable<Secret<String, pii::EmailStrategy>> =
-                            Encryptable::new(
-                                email.clone().into_inner().switch_strategy(),
-                                email.into_encrypted(),
-                            );
-                        encryptable
-                    }),
-                    encryptable_customer.phone,
-                    customer_details.phone_country_code.to_owned(),
-                    None,
-                    None,
-                    None,
-                    None,
-                    encryptable_customer.tax_registration_id,
-                    document_details,
-                    platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by()),
-                    platform
-                        .get_initiator()
-                        .and_then(|initiator| initiator.to_created_by()), // Same as created_by on creation
-                    id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
-                );
-
-                Ok(Some(
-                    db.insert_customer(
-                        customer,
-                        platform.get_processor().get_key_store(),
-                        platform.get_processor().get_account().storage_scheme,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Failed to insert customer [id - {customer_id:?}] for merchant [id - {merchant_id:?}]",
-                        )
-                    })?,
-                ))
-            } else {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("customer for id - {customer_id:?} not found"),
-                }))
-            }
-        }
-    }
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?
+        .ok_or_else(|| report!(errors::ApiErrorResponse::CustomerNotFound))
 }
 
 #[cfg(all(feature = "payouts", feature = "v1"))]
@@ -1110,7 +976,7 @@ pub async fn decide_payout_connector(
 
     // Validate and get the business_profile from payout_attempt
     let business_profile = core_utils::validate_and_get_business_profile(
-        state.store.as_ref(),
+        state.accounts_store.as_ref(),
         processor,
         Some(&payout_attempt.profile_id),
     )
@@ -1418,10 +1284,16 @@ pub(super) async fn filter_by_constraints(
     db: &dyn StorageInterface,
     constraints: &api::PayoutListConstraints,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::Payouts>, errors::StorageError> {
     let result = db
-        .filter_payouts_by_constraints(merchant_id, &constraints.clone().into(), storage_scheme)
+        .filter_payouts_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            merchant_key_store,
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1456,6 +1328,7 @@ pub async fn update_payouts_and_payout_attempt(
         }));
     }
 
+    let payouts = payout_data.payouts.to_owned();
     let profile_id = payout_data.business_profile.get_id();
     let payout_cap_dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -1472,27 +1345,13 @@ pub async fn update_payouts_and_payout_attempt(
         state,
         &payout_cap_dimensions,
         profile_id,
-        req.amount,
+        Some(req.amount.unwrap_or(payouts.amount.into())),
+        Some(req.currency.unwrap_or(payouts.destination_currency)),
     )
     .await?;
 
-    // Fetch customer details from request and create new or else use existing customer that was attached
-    let customer = get_customer_details_from_request(req);
-    let customer_id = if customer.customer_id.is_some()
-        || customer.name.is_some()
-        || customer.email.is_some()
-        || customer.phone.is_some()
-        || customer.phone_country_code.is_some()
-    {
-        payout_data.customer_details =
-            get_or_create_customer_details(state, &customer, platform).await?;
-        payout_data
-            .customer_details
-            .as_ref()
-            .map(|customer| customer.get_id().clone())
-    } else {
-        payout_data.payouts.customer_id.clone()
-    };
+    // Update and confirm retain the stored customer.
+    let customer_id = payouts.customer_id.clone();
 
     let (billing_address, address_id) = resolve_billing_address_for_payout(
         state,
@@ -1509,8 +1368,27 @@ pub async fn update_payouts_and_payout_attempt(
     payout_data.billing_address = billing_address;
 
     // Update DB with new data
-    let payouts = payout_data.payouts.to_owned();
     let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
+    let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
+    let purpose = req.purpose.or(payouts.purpose);
+    let sender_details = req
+        .sender_details
+        .clone()
+        .or_else(|| payouts.get_optional_sender_details().cloned())
+        .async_map(|sender_details| async {
+            core_utils::create_encrypted_data(
+                &state.into(),
+                platform.get_processor().get_key_store(),
+                sender_details,
+                type_name!(storage::Payouts),
+            )
+            .await
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payout sender details")?
+        .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
         amount,
         destination_currency: req
@@ -1537,6 +1415,9 @@ pub async fn update_payouts_and_payout_attempt(
             .or(payouts.return_url.clone()),
         entity_type: req.entity_type.to_owned().unwrap_or(payouts.entity_type),
         metadata: req.metadata.clone().or(payouts.metadata.clone()),
+        funds_transfer_type,
+        purpose,
+        sender_details,
         status: Some(status),
         profile_id: Some(payout_attempt.profile_id.clone()),
         confirm: req.confirm.to_owned(),
@@ -1553,6 +1434,7 @@ pub async fn update_payouts_and_payout_attempt(
             &payouts,
             updated_payouts,
             &payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -1592,57 +1474,6 @@ pub async fn update_payouts_and_payout_attempt(
             .attach_printable("Error updating payout_attempt")?;
     }
     Ok(())
-}
-
-pub(super) fn get_customer_details_from_request(
-    request: &payouts::PayoutCreateRequest,
-) -> CustomerDetails {
-    let customer_id = request.get_customer_id().map(ToOwned::to_owned);
-
-    let customer_name = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.name.clone())
-        .or(request.name.clone());
-
-    let customer_email = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.email.clone())
-        .or(request.email.clone());
-
-    let customer_phone = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone.clone())
-        .or(request.phone.clone());
-
-    let customer_phone_code = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.phone_country_code.clone())
-        .or(request.phone_country_code.clone());
-
-    let tax_registration_id = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.tax_registration_id.clone());
-
-    let document_details = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.document_details.clone());
-
-    CustomerDetails {
-        customer_id,
-        name: customer_name,
-        email: customer_email,
-        phone: customer_phone,
-        phone_country_code: customer_phone_code,
-        tax_registration_id,
-        document_details,
-        date_of_birth: None,
-    }
 }
 
 pub async fn get_translated_unified_code_and_message(

@@ -169,6 +169,18 @@ pub struct CompleteSurchargeResponseData {
     pub connector_surcharge_id: String,
 }
 
+/// Validated Init result: the surcharge fee owed for this refund.
+#[derive(Debug, Clone, Serialize)]
+pub struct SurchargeRefundInitResponseData {
+    pub refund_surcharge_amount: MinorUnit,
+    pub original_transaction_fee: Option<MinorUnit>,
+    pub previously_refunded_transaction_fees: Option<MinorUnit>,
+}
+
+/// Acknowledgement that Complete succeeded; validated against the request, nothing to carry.
+#[derive(Debug, Clone, Serialize)]
+pub struct SurchargeRefundCompleteResponseData;
+
 /// Response data for refunding surcharge
 #[derive(Debug, Clone)]
 pub struct CompleteRefundSurchrgeResponseData {

@@ -7963,6 +7963,9 @@
           "400": {
             "description": "Missing mandatory fields or invalid request"
           },
+          "404": {
+            "description": "Customer does not exist in the merchant's records"
+          },
           "501": {
             "description": "External-vault proxy payout execution is not implemented yet"
           }
@@ -8062,7 +8065,10 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or invalid request"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
           }
         },
         "security": [
@@ -8334,7 +8340,10 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or invalid request"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
           }
         },
         "security": [
@@ -19789,6 +19798,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payload",
           "payme",
           "paynearme",
@@ -20405,6 +20415,56 @@
           "day",
           "month"
         ]
+      },
+      "CorporateSenderDetails": {
+        "type": "object",
+        "description": "A company providing the funds.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd",
+            "maxLength": 255
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "treasury@acme.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender.",
+            "nullable": true
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "Country": {
         "type": "string",
@@ -26820,6 +26880,68 @@
           }
         }
       },
+      "IndividualSenderDetails": {
+        "type": "object",
+        "description": "An individual providing the funds.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "John",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name. When neither the first nor the last name is provided, the name\nfrom the billing address of the payment method is used instead.",
+            "example": "Doe",
+            "nullable": true,
+            "maxLength": 255
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The sender's date of birth, in the format yyyy-mm-dd.",
+            "example": "1990-01-31",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's email address.",
+            "example": "john.doe@example.com",
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "The merchant's stable identifier for the sender",
+            "nullable": true
+          },
+          "source_of_funds": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceOfFunds"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -27497,6 +27619,30 @@
           "payment_id": {
             "type": "string",
             "description": "The original setup payment associated with this mandate, when known.",
+            "nullable": true
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The original authorized amount for the connector mandate, when known.",
+            "nullable": true
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile associated with this mandate event, when known.",
+            "nullable": true
+          },
+          "mandate_metadata": {
+            "type": "object",
+            "description": "Connector-specific mandate metadata associated with the original setup payment.",
             "nullable": true
           },
           "status": {
@@ -40285,7 +40431,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -40350,7 +40496,31 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "payout_token": {
@@ -40397,7 +40567,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -40405,7 +40575,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -40413,7 +40583,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -40421,7 +40591,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -40447,6 +40617,7 @@
         "enum": [
           "adyen",
           "adyenplatform",
+          "checkout",
           "cybersource",
           "deutschebank",
           "ebanx",
@@ -40609,7 +40780,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "description": "Attached customer ID, if any. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
@@ -40667,6 +40838,30 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "merchant_connector_id": {
@@ -40826,6 +41021,26 @@
             "minLength": 30
           }
         }
+      },
+      "PayoutFundsTransferType": {
+        "type": "string",
+        "description": "The category of funds transfer to use when processing a payout.",
+        "enum": [
+          "account_to_account",
+          "funds_transfer",
+          "cross_border_money_transfer",
+          "peer_to_peer",
+          "staged_digital_wallet_transfer",
+          "funds_disbursement",
+          "loyalty_payments",
+          "payroll_and_pension_disbursements",
+          "online_gambling",
+          "mastercard_person_to_person",
+          "mastercard_transfer_to_own_account",
+          "mastercard_business_disbursement",
+          "mastercard_business_to_business",
+          "mastercard_gaming_repay"
+        ]
       },
       "PayoutLinkInitiateRequest": {
         "type": "object",
@@ -41194,6 +41409,31 @@
         ],
         "description": "The payout method information for response"
       },
+      "PayoutPurpose": {
+        "type": "string",
+        "description": "The purpose for which a payout is being carried out.",
+        "enum": [
+          "donations",
+          "education",
+          "emergency_need",
+          "expatriation",
+          "family_support",
+          "financial_services",
+          "gifts",
+          "income",
+          "insurance",
+          "investment",
+          "it_services",
+          "leisure",
+          "loan_payment",
+          "medical_treatment",
+          "pension",
+          "royalties",
+          "savings",
+          "travel_and_tourism",
+          "other"
+        ]
+      },
       "PayoutRetrieveBody": {
         "type": "object",
         "properties": {
@@ -41380,7 +41620,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -41445,7 +41685,31 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "payout_token": {
@@ -41492,7 +41756,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -41500,7 +41764,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -41508,7 +41772,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -41516,7 +41780,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -41644,7 +41908,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -41709,7 +41973,31 @@
           },
           "metadata": {
             "type": "object",
-            "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "description": "Legacy vendor/individual details in metadata are a compatibility fallback for Stripe.\nExplicit sender_details takes precedence and is never merged with that identity.\nYou can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          },
+          "funds_transfer_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutFundsTransferType"
+              }
+            ],
+            "nullable": true
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutPurpose"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
             "nullable": true
           },
           "payout_token": {
@@ -41756,7 +42044,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -41764,7 +42052,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -41772,7 +42060,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -41780,7 +42068,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -42283,6 +42571,7 @@
       },
       "PhoneDetails": {
         "type": "object",
+        "description": "Phone contact details shared by payment and payout API models.",
         "properties": {
           "number": {
             "type": "string",
@@ -42980,6 +43269,42 @@
           },
           "merchant_connector_id": {
             "type": "string",
+            "nullable": true
+          },
+          "processor_payment_token_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProcessorPaymentTokenDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "ProcessorPaymentTokenDetails": {
+        "type": "object",
+        "description": "Card and network reference details associated with a processor payment token.",
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month.",
+            "example": "12",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year.",
+            "example": "2030",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID from the original customer initiated transaction.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier from the original transaction.",
             "nullable": true
           }
         }
@@ -46334,6 +46659,7 @@
           "opennode",
           "paybox",
           "paydotcom",
+          "payhound",
           "payme",
           "paynearme",
           "payload",
@@ -47345,6 +47671,56 @@
           }
         }
       },
+      "SenderDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "SepaAndBacsBillingDetails": {
         "type": "object",
         "properties": {
@@ -47830,6 +48206,18 @@
       },
       "SkrillData": {
         "type": "object"
+      },
+      "SourceOfFunds": {
+        "type": "string",
+        "description": "Origin of the funds, supplied by the merchant.",
+        "enum": [
+          "credit",
+          "debit",
+          "prepaid",
+          "deposit_account",
+          "mobile_money_account",
+          "cash"
+        ]
       },
       "SplitPaymentsRequest": {
         "oneOf": [

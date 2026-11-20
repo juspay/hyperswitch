@@ -44,7 +44,8 @@ use hyperswitch_domain_models::router_flow_types::{
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
         PostProcessing, PostSessionTokens, PreAuthorizeVoid, PushNotification, Reject,
-        SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
+        SdkSessionUpdate, Session, SetupMandate, SurchargeRefundComplete, SurchargeRefundInit,
+        UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -88,12 +89,12 @@ pub use hyperswitch_domain_models::{
         PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData,
-        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSurchargeRefundCompleteData,
+        PaymentsSurchargeRefundInitData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PaymentsUpdatePostConfirmData, PushNotificationRequestData,
+        RefundsData, ResponseId, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
+        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType,
+        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -107,7 +108,8 @@ pub use hyperswitch_domain_models::{
         CompleteSurchargeResponseData, DefendDisputeResponse, DisputeSyncResponse,
         FetchDisputesResponse, MandateReference, MandateRevokeResponseData, PaymentsResponseData,
         PreprocessingResponseId, RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse,
-        SurchargeCalculationResponseData, TaxCalculationResponseData, UploadFileResponse,
+        SurchargeCalculationResponseData, SurchargeRefundCompleteResponseData,
+        SurchargeRefundInitResponseData, TaxCalculationResponseData, UploadFileResponse,
         VaultResponseData, VerifyWebhookSourceResponseData, VerifyWebhookStatus,
     },
 };
@@ -182,6 +184,16 @@ pub type SurchargeCalculationRouterData = RouterData<
 >;
 pub type CompleteSurchargeRouterData =
     RouterData<CompleteSurcharge, PaymentsCompleteSurchargeData, CompleteSurchargeResponseData>;
+pub type SurchargeRefundInitRouterData = RouterData<
+    SurchargeRefundInit,
+    PaymentsSurchargeRefundInitData,
+    SurchargeRefundInitResponseData,
+>;
+pub type SurchargeRefundCompleteRouterData = RouterData<
+    SurchargeRefundComplete,
+    PaymentsSurchargeRefundCompleteData,
+    SurchargeRefundCompleteResponseData,
+>;
 pub type CompleteRefundSurchrgeRouterData = RouterData<
     CompleteRefundSurchrge,
     PaymentsCompleteRefundSurchrgeData,

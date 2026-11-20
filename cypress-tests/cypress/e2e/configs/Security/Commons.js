@@ -78,15 +78,37 @@ export function acquirerBody(profileId, overrides = {}) {
 // Keep each resource's entry separate; don't assume one endpoint's exact
 // error still applies to another after a fix like this lands.
 export const OMP_ERRORS = {
-  // Business Profile's cross-profile update check (JWTAuthMerchantAndProfileFromRoute
-  // comparing the JWT's own profile against the path profile_id) - this
-  // core module wasn't touched by PR #15080, so IR_16 is still expected
-  // here. Confirmed live.
-  JWT_PROFILE_MISMATCH: {
+  // The generic validate_profile_id_from_auth_layer check
+  // (core/utils.rs:2967-2990) - MCA retrieve/update (22-MCA.cy.js) go
+  // through this regardless of whether the mismatched profile came from a
+  // JWT or an API key's X-Profile-Id header; same status/code/message
+  // either way. Confirmed live (MCA). NOT used by Business Profile's
+  // update route, despite looking like it should by analogy -
+  // JWTAuthMerchantAndProfileFromRoute funnels its profile mismatch
+  // through the auth-layer IR_17 rejection instead (see
+  // JWT_MERCHANT_MISMATCH below) - confirmed live, correcting an earlier
+  // wrong assumption here. Don't assume this applies to a new
+  // resource without confirming first.
+  PROFILE_ID_AUTH_MISMATCH: {
     status: 400,
     code: "IR_16",
     message:
       "Profile id authentication failed. Please use the correct JWT token",
+  },
+  // The JWTAuthMerchantFromRoute-family auth-layer rejection
+  // (services/authentication.rs:4553-4554,
+  // hyperswitch_domain_models/src/errors/api_error_response.rs:632) - a
+  // JWT whose own merchant_id (or, for JWTAuthMerchantAndProfileFromRoute,
+  // profile_id) differs from the path value. Same status/code/message for
+  // either field; confirmed live on Business Profile's update route
+  // (profile_id mismatch, 08-BusinessProfile.cy.js). Source-confirmed only
+  // (not yet live) for API Keys (23-ApiKeys.cy.js) and Merchant Account
+  // (24-MerchantAccount.cy.js), both plain JWTAuthMerchantFromRoute
+  // (merchant_id mismatch) - verify on first run.
+  JWT_MERCHANT_MISMATCH: {
+    status: 401,
+    code: "IR_17",
+    message: "Access forbidden, invalid JWT token was used",
   },
   // Payments' cross-profile retrieve (GET /payments/{id}?force_sync=true
   // with a JWT): post-#15080, the profile-scoped DB query simply doesn't

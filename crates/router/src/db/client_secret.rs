@@ -19,6 +19,7 @@ use crate::core::errors::{self, CustomResult};
 use crate::types::storage::client_secret::{ClientSecretType, ClientSecretTypeNew};
 use crate::{db::MockDb, services::Store};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ClientSecretInterface {
     #[cfg(feature = "v2")]
@@ -121,7 +122,7 @@ impl ClientSecretInterface for Store {
         &self,
         id: &str,
     ) -> CustomResult<ClientSecretType, errors::StorageError> {
-        let client_secret = self.get_client_secret(id).await?;
+        let client_secret = ClientSecretInterface::get_client_secret(self, id).await?;
         let redis_id_key = client_secret.id.generate_redis_key();
         let secret_key = client_secret.generate_secret_key();
 

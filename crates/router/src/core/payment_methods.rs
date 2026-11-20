@@ -4564,7 +4564,8 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
-    let payment_connector_accounts = db
+    let payment_connector_accounts = state
+        .accounts_store
         .list_enabled_connector_accounts_by_profile_id(
             profile.get_id(),
             platform.get_processor().get_key_store(),

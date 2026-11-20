@@ -236,6 +236,7 @@ pub struct CardSource {
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
+    pub stored: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -276,6 +277,7 @@ pub struct DecryptedWalletToken {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
+    stored: Option<bool>,
 }
 
 #[skip_serializing_none]
@@ -346,6 +348,27 @@ impl From<Option<MitCategory>> for CheckoutPaymentType {
             Some(MitCategory::Installment) => Self::Installment,
             Some(MitCategory::Recurring | MitCategory::Subscription) => Self::Recurring,
             Some(MitCategory::Unscheduled | MitCategory::Resubmission) | None => Self::Unscheduled,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+pub struct CheckoutConnectorMetadataObject {
+    pub connector_client_id: Option<Secret<String>>,
+}
+
+impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for CheckoutConnectorMetadataObject {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        meta_data: &Option<common_utils::pii::SecretSerdeValue>,
+    ) -> Result<Self, Self::Error> {
+        match meta_data {
+            Some(metadata) => utils::to_connector_meta_from_secret::<Self>(Some(metadata.clone()))
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
         }
     }
 }
@@ -663,6 +686,8 @@ pub struct CheckoutThreeDS {
     cryptogram: Option<Secret<String>>,
     xid: Option<String>,
     version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    status: Option<enums::TransactionStatus>,
     challenge_indicator: CheckoutChallengeIndicator,
 }
 
@@ -828,6 +853,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(false),
                 });
                 Ok((
                     payment_source,
@@ -894,6 +920,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     cvv: None,
                                     billing_address: billing_details,
                                     account_holder: None,
+                                    stored: Some(false),
                                 }),
                             }
                         }
@@ -967,11 +994,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_id: item.router_data.request.connector_mandate_id(),
                     billing_address: billing_details,
                 });
-                let previous_id = Some(
-                    item.router_data
-                        .request
-                        .get_connector_mandate_request_reference_id()?,
-                );
+                let previous_id = item
+                    .router_data
+                    .request
+                    .get_connector_mandate_request_reference_id()
+                    .attach_printable("connector_mandate_request_reference_id not found")
+                    .ok();
                 let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
@@ -988,6 +1016,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(true),
                 });
 
                 let previous_id = Some(
@@ -1032,6 +1061,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     expiry_month: exp_month,
                     expiry_year: expiry_year_4_digit,
                     billing_address: billing_details,
+                    stored: Some(true),
                 });
 
                 Ok((
@@ -1137,6 +1167,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 cryptogram: Some(auth.cavv.clone()),
                 xid: auth.threeds_server_transaction_id.clone(),
                 version: auth.message_version.clone().map(|v| v.to_string()),
+                status: auth.transaction_status.clone(),
                 challenge_indicator: CheckoutChallengeIndicator::NoPreference,
             }
         } else {
@@ -1148,6 +1179,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     cryptogram: None,
                     xid: None,
                     version: None,
+                    status: None,
                     challenge_indicator,
                 },
                 enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
@@ -1157,6 +1189,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     cryptogram: None,
                     xid: None,
                     version: None,
+                    status: None,
                     challenge_indicator: CheckoutChallengeIndicator::NoPreference,
                 },
             }

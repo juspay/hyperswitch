@@ -1,7 +1,9 @@
 use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{self, PayoutVendorAccountDetails};
+use api_models::payouts;
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments,

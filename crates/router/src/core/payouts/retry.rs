@@ -318,6 +318,7 @@ pub async fn modify_trackers(
             &payout_data.payouts,
             updated_payouts,
             &payout_data.payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

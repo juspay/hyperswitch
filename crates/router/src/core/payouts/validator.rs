@@ -94,16 +94,38 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
+#[cfg(feature = "v1")]
+async fn get_and_validate_payout_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<Option<domain::Customer>> {
+    match req.get_customer_id() {
+        Some(customer_id) => helpers::get_existing_customer_details(state, customer_id, platform)
+            .await
+            .map(Some),
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id".into(),
+        })),
+    }
+}
+
 /// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
     db: &dyn StorageInterface,
     payout_id: &id_type::PayoutId,
     merchant_id: &id_type::MerchantId,
+    merchant_key_store: &domain::MerchantKeyStore,
     storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<storage::Payouts>> {
     let maybe_payouts = db
-        .find_optional_payout_by_merchant_id_payout_id(merchant_id, payout_id, storage_scheme)
+        .find_optional_payout_by_merchant_id_payout_id(
+            merchant_id,
+            payout_id,
+            merchant_key_store,
+            storage_scheme,
+        )
         .await;
     match maybe_payouts {
         Err(err) => {
@@ -135,7 +157,6 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -172,14 +193,13 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before any customer side effects so the cap applies to the
-    // exact merchant/profile context that will own the payout.
+    // Resolve the profile before checking its payout limit.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
@@ -193,8 +213,14 @@ pub async fn validate_create_request(
         )
         .with_profile_id(profile_id.clone());
 
-    validate_payout_amount_against_config(state, &profile_dimensions, &profile_id, req.amount)
-        .await?;
+    validate_payout_amount_against_config(
+        state,
+        &profile_dimensions,
+        &profile_id,
+        req.amount,
+        req.currency,
+    )
+    .await?;
 
     // Payout ID
     let db: &dyn StorageInterface = &*state.store;
@@ -207,6 +233,7 @@ pub async fn validate_create_request(
         db,
         &payout_id,
         merchant_id,
+        platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
     )
     .await
@@ -221,32 +248,19 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before creating customers or resolving payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
     PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
         .await?;
     let profile_id = business_profile.get_id().to_owned();
 
-    // Fetch customer details (merge of loose fields + customer object) and create DB entry
-    let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = if customer_in_request.customer_id.is_some()
-        || customer_in_request.name.is_some()
-        || customer_in_request.email.is_some()
-        || customer_in_request.phone.is_some()
-        || customer_in_request.phone_country_code.is_some()
-        || customer_in_request.document_details.is_some()
-    {
-        helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
-    } else {
-        None
-    };
+    let customer = get_and_validate_payout_customer(state, platform, req).await?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -361,11 +375,7 @@ pub(crate) fn validate_payout_amount(
 
         utils::when(amount < min_amount || amount > max_amount, || {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "payout amount must be between {} and {} in the currency's lowest denomination",
-                    min_amount.get_amount_as_i64(),
-                    max_amount.get_amount_as_i64(),
-                ),
+                message: "Payout amount is not within configured limits".to_string(),
             }))
         })
     })
@@ -376,26 +386,29 @@ pub(crate) async fn validate_payout_amount_against_config(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     profile_id: &id_type::ProfileId,
     amount: Option<Amount>,
+    currency: Option<common_enums::Currency>,
 ) -> RouterResult<()> {
-    let min_amount = dimensions
-        .get_payout_min_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(profile_id),
-        )
-        .await;
-    let max_amount = dimensions
-        .get_payout_max_amount(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(profile_id),
-        )
-        .await;
+    if let Some((amount, currency)) = amount.zip(currency) {
+        let currency_dimensions = dimensions.with_currency(currency);
+        let min_amount = currency_dimensions
+            .get_payout_min_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile_id),
+            )
+            .await;
+        let max_amount = currency_dimensions
+            .get_payout_max_amount(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(profile_id),
+            )
+            .await;
 
-    amount
-        .map(|amount| validate_payout_amount(amount, min_amount, max_amount))
-        .transpose()
-        .map(|_| ())
+        validate_payout_amount(amount, min_amount, max_amount)
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(feature = "v1")]
