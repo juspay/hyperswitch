@@ -32,8 +32,22 @@ const ach_payout_request = {
 // custom / express / standard (PayoutAccountType in
 // hyperswitch_connectors/src/connectors/stripe/transformers/connect.rs).
 const vendor_details = {
-  account_type: "standard",
+  account_type: "custom",
   business_type: "individual",
+  capabilities_transfers: true,
+  business_profile_mcc: 5734,
+  business_profile_url: "https://accessible.stripe.com",
+};
+
+// Stripe test values that let a Custom account verify instantly, so the
+// transfers capability becomes active and the payout runs end to end.
+const individual_details = {
+  external_account_account_holder_type: "individual",
+  tos_acceptance_date: 1609459200,
+  tos_acceptance_ip: "8.8.8.8",
+  date_of_birth: "1901-01-01",
+  individual_id_number: "000000000",
+  individual_ssn_last_4: "0000",
 };
 
 // Stripe payouts read payout metadata as PayoutVendorAccountDetails
@@ -68,15 +82,28 @@ export const connectorDetails = {
       VendorMetadataValid: {
         Request: {
           ...ach_payout_request,
+          // Stripe test address that passes address verification.
+          billing: {
+            address: { ...billing.address, line1: "address_full_match" },
+          },
           metadata: {
             vendor_details: vendor_details,
-            individual_details: {},
+            individual_details: individual_details,
           },
         },
         Response: {
           status: 200,
           body: {
             status: "requires_vendor_account_creation",
+            payout_type: "bank",
+          },
+        },
+      },
+      VendorMetadataValidRetrieve: {
+        Response: {
+          status: 200,
+          body: {
+            status: "pending",
             payout_type: "bank",
           },
         },

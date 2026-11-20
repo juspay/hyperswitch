@@ -79,8 +79,15 @@ describe("[Payout] [Bank Transfer - ACH] Vendor Metadata", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("retrieve-payout-call-test", () => {
-      cy.retrievePayoutCallTest(globalState);
+    it("retrieve-payout-after-account-attach-test", () => {
+      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
+        "bank_transfer_pm"
+      ]["ach_bank_transfer"]["VendorMetadataValidRetrieve"];
+
+      // Stripe account, transfer and payout calls run in the background
+      // attach-account task, scheduled 15s after create plus scheduler lag.
+      cy.wait(50000);
+      cy.retrievePayoutCallTest(globalState, data);
     });
   });
 

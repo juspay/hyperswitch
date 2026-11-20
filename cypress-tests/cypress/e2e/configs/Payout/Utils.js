@@ -109,8 +109,6 @@ export const CONNECTOR_LISTS = {
     // supports wallet payouts (see configs/Payout/Paypal.js), and truelayer
     // does not implement card payout eligibility over UCS, so they have no
     // card payout method either and are skipped for the same reason.
-    // stripe only supports ACH bank transfer payouts (stripe_payout in
-    // connector_configs), so it is skipped as well.
     CARD_TEST: ["gotyme_sanlam", "trustly", "paypal", "truelayer", "stripe"],
     VENMO_WALLET_FULFILL: ["paypal"],
   },
@@ -134,8 +132,6 @@ export const CONNECTOR_LISTS = {
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_OPEN_BANKING: ["trustly"],
-    // Stripe payout vendor metadata parse errors (PR #14846) - Stripe is the
-    // only payout connector that reads PayoutVendorAccountDetails
     PAYOUT_VENDOR_METADATA: ["stripe"],
   },
 };
