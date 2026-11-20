@@ -343,7 +343,7 @@ fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
     let mut attempts: Vec<&api_payments::PaymentAttemptResponse> = attempts.iter().collect();
     attempts.sort_by_key(|attempt| attempt.created_at);
     let mut invoice_card: Option<&String> = None;
-    let mut retries = 0;
+    let mut retries: usize = 0;
     for attempt in attempts {
         let card = attempt.payment_token.as_ref();
         let is_merchant_initiated = is_merchant_initiated_attempt(attempt);
@@ -354,7 +354,7 @@ fn count_retries(attempts: &[api_payments::PaymentAttemptResponse]) -> usize {
             invoice_card = card;
         }
     }
-    retries
+    retries.saturating_sub(1)
 }
 
 impl RevenueRecoveryInvoice {
