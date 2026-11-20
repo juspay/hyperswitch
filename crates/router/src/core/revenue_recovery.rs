@@ -1013,7 +1013,15 @@ pub async fn perform_calculate_workflow(
         1,
         router_env::metric_attributes!(
             ("outcome", payment_processor_token_response.as_str()),
-            ("algorithm", retry_algorithm_type.to_string())
+            ("algorithm", retry_algorithm_type.to_string()),
+            // Bounded by the standardised codes, so routing per error code can be read off this
+            // series
+            (
+                "error_code",
+                tracking_data
+                    .prev_attempt_error_code
+                    .map_or_else(|| "unknown".to_string(), |code| code.to_string())
+            )
         ),
     );
 

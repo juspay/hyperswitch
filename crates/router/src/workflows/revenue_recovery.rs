@@ -808,6 +808,9 @@ pub(crate) struct RetryTimingParams<'a> {
     pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
     pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    /// The attempt whose failure this decision answers. Attempt routing buckets its experiments
+    /// on it, so every decision for the same failure lands in the same arm.
+    pub failed_attempt_id: Option<&'a id_type::GlobalAttemptId>,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
     pub remaining_budget: u32,
@@ -829,6 +832,7 @@ pub(crate) async fn get_retry_timing(
         retry_algorithm_type,
         retry_count,
         prev_attempt_error_code,
+        failed_attempt_id,
         static_ladder_progress,
         remaining_grace_days,
         remaining_budget,
@@ -887,7 +891,22 @@ pub(crate) async fn get_retry_timing(
                 )
                 .await;
 
-            if ab_enabled || adaptive_retry_enabled {
+            // Resolved on the error code this decision answers, so routing can be switched on for
+            // some decline codes and not others.
+            let attempt_routing_dimensions =
+                crate::core::configs::dimension_state::DimensionsWithRecoveryErrorCode::new(
+                    ab_dimensions.clone(),
+                    prev_attempt_error_code,
+                );
+            let attempt_routing_enabled = attempt_routing_dimensions
+                .get_revenue_recovery_attempt_routing_enabled(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    failed_attempt_id,
+                )
+                .await;
+
+            if attempt_routing_enabled || ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
                 // token. The addition is the model's candidate, and the variant says both how it
                 // is produced and whether the static ladder bounds it; the cascading ladder covers
@@ -897,7 +916,39 @@ pub(crate) async fn get_retry_timing(
                 // works against arrive as arguments, and everything after it — the fallback, the
                 // decision, the token — is shared, so enrolling an invoice cannot change whether
                 // it gets retried at all.
-                let (model_time, assigned_algorithm) = if ab_enabled {
+                // Attempt routing runs ahead of the invoice's A/B arm. Its algorithm is resolved for
+                // this decision alone and is not recorded on the invoice, so the invoice-level arm
+                // (`assigned_algorithm`) stays `None` on that path and nothing is persisted.
+                let (model_time, assigned_algorithm, attempt_algorithm) = if attempt_routing_enabled
+                {
+                    let algorithm = attempt_routing_dimensions
+                        .get_revenue_recovery_attempt_algorithm(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            failed_attempt_id,
+                        )
+                        .await;
+
+                    let time = get_retry_time_for_error_code(
+                        state,
+                        algorithm,
+                        prev_attempt_error_code,
+                        remaining_grace_days,
+                        remaining_budget,
+                    )
+                    .await;
+
+                    logger::info!(
+                        payment_id = %payment_intent.id.get_string_repr(),
+                        failed_attempt_id = ?failed_attempt_id.map(|id| id.get_string_repr()),
+                        error_code = ?prev_attempt_error_code,
+                        ?algorithm,
+                        schedule_time = ?time,
+                        "Attempt routing ran the algorithm resolved for this attempt's error code"
+                    );
+
+                    (time, None, Some(algorithm))
+                } else if ab_enabled {
                     let (time, algorithm) = get_ab_routed_retry_time(
                         state,
                         payment_intent,
@@ -908,7 +959,7 @@ pub(crate) async fn get_retry_timing(
                         &ab_dimensions,
                     )
                     .await;
-                    (time, Some(algorithm))
+                    (time, Some(algorithm), None)
                 } else {
                     let time = match prev_attempt_error_code {
                         // Not enrolled in A/B routing, so this runs the baseline pairing.
@@ -938,10 +989,14 @@ pub(crate) async fn get_retry_timing(
                             None
                         }
                     };
-                    (time, None)
+                    (time, None, None)
                 };
 
-                let ladder_role = assigned_algorithm.map_or_else(
+                // The algorithm that ran, whichever level picked it. `None` is the unenrolled
+                // baseline.
+                let routed_algorithm = attempt_algorithm.or(assigned_algorithm);
+
+                let ladder_role = routed_algorithm.map_or_else(
                     || RetryModelVariant::default().ladder,
                     |arm| RetryModelVariant::from(arm).ladder,
                 );
@@ -1030,7 +1085,7 @@ pub(crate) async fn get_retry_timing(
                         1,
                         router_env::metric_attributes!((
                             "algorithm",
-                            assigned_algorithm
+                            routed_algorithm
                                 .map_or_else(|| "unenrolled".to_string(), |arm| arm.to_string())
                         )),
                     );
@@ -1052,6 +1107,8 @@ pub(crate) async fn get_retry_timing(
                     remaining_grace_days = remaining_grace_days,
                     remaining_budget = remaining_budget,
                     ab_enabled = ab_enabled,
+                    attempt_routing_enabled = attempt_routing_enabled,
+                    algorithm = ?routed_algorithm,
                     schedule_time = ?decision.schedule_time,
                     "Retry decision"
                 );
@@ -1117,6 +1174,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             retry_algorithm_type,
             retry_count,
             prev_attempt_error_code: tracking_data.prev_attempt_error_code,
+            failed_attempt_id: Some(&tracking_data.payment_attempt_id),
             static_ladder_progress,
             remaining_grace_days,
             remaining_budget,
@@ -2528,7 +2586,9 @@ pub fn compute_predicted_retry_time(
     // Final decision. The inclusion probability is logged because it is the propensity this draw was
     // made under: without it the schedule cannot be evaluated off-policy afterwards, and it cannot be
     // reconstructed at analysis time because the value surface drifts between draw and analysis.
-    logger::debug!(
+    // Logged at info, once per decision, because debug is off in production and the propensity is
+    // what comparing the algorithms routed per error code is weighted by.
+    logger::info!(
         chosen_day = %chosen_date,
         chosen_hour = hour,
         retry_at = %retry_at,
