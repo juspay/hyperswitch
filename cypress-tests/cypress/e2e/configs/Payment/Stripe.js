@@ -1340,6 +1340,32 @@ export const connectorDetails = {
         },
       },
     },
+    // A merchant-initiated payment on the saved card calculates the surcharge at
+    // confirm; there is no eligibility step.
+    ExternalSurchargeMITAutoCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ExpectSurcharge: true,
+    },
+    ExternalSurchargeMITManualCapture: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+      ExpectSurcharge: true,
+    },
     // No amount is sent, so the whole charged total is refunded in one call.
     ExternalSurchargeRefundWholeOrder: {
       Request: {
