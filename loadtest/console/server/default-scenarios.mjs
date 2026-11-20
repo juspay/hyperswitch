@@ -3,7 +3,7 @@ import {loadShape} from '../src/load-shape.mjs';
 
 const definitions=[
  {key:'card-vault-outage',name:'Card vault outage',service:'card-vault',action:'outage'},
- {key:'db-failover',name:'DB failover',service:'postgres',action:'failover',environment:'gcp'},
+ {key:'db-failover',name:'DB failover',service:'postgres',action:'failover'},
  {key:'steady-load',name:'Steady load'},
  {key:'ramped-load',name:'Ramped load',ramped:true},
  {key:'tenancy-steady-load',name:'Tenancy steady load',mode:'tenancy',merchantCount:100}
@@ -15,7 +15,7 @@ export const isDefaultScenario=id=>definitions.some(d=>id===`default:${d.key}`);
 export function defaultScenarios(environment,targets=[]){
  return definitions.map(definition=>{
   const target=targets.find(t=>t.serviceType===definition.service&&t.environment===environment&&t.adapter!=='simulated'&&t.actions?.includes(definition.action));
-  const unavailableReason=definition.environment&&environment!==definition.environment?'Requires GCP database failover.':!['local','gcp'].includes(environment)?'Provider execution is not available.':definition.service&&!target?`Configure a ${definition.service==='postgres'?'PostgreSQL':'card vault'} ${definition.action} fault target for this environment.`:null;
+  const unavailableReason=definition.key==='db-failover'&&!['gcp','aws'].includes(environment)?'Requires GCP or AWS database failover.':!['local','gcp','aws'].includes(environment)?'Provider execution is not available.':definition.service&&!target?`Configure a ${definition.service==='postgres'?'PostgreSQL':'card vault'} ${definition.action} fault target for this environment.`:null;
   const stages=definition.service?[
    {target_rps:5,duration_seconds:60},
    {target_rps:5,duration_seconds:30,fault:{targetId:target?.id||definition.service,action:definition.action}},

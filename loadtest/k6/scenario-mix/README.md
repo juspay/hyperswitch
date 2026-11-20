@@ -4,7 +4,7 @@ This directory contains the k6 engine used by the [load-test console](../../cons
 The console owns configuration, fixture compatibility, scheduling, fault recovery,
 recording and reconciliation. No legacy runner or deployment scripts are required.
 
-Build the native recorder with Go 1.24.4 and a C compiler:
+Build the native recorder with Go 1.27.4 and a C compiler:
 
 ```sh
 bash recorder/build.sh

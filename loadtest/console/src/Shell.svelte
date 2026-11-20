@@ -5,7 +5,7 @@ import {onMount} from 'svelte';
 import Icon from './Icon.svelte';
 import Brand from './Brand.svelte';
 import ServiceIndicators from './ServiceIndicators.svelte';
-import {page,navigating} from '$app/stores';
+import {page,navigating} from './app-state.mjs';
 import {api} from './api.js';
 export let data;
 import {beforeNavigate,afterNavigate,goto} from '$app/navigation';
@@ -80,6 +80,7 @@ onMount(()=>{const open=e=>openSettings(e),unload=e=>{if(settingsDialog.open&&di
         <p>Select where connections, load tests and faults run.</p>
         <label>Provider<select value={settings.environment} disabled={!!pending} onchange={e=>selectEnvironment(e.currentTarget.value)}><option value="unassigned" disabled>Choose an environment</option>{#each environments as environment}<option value={environment.id}>{environment.label}</option>{/each}</select></label>
         {#if settings.environment==='gcp'}<p class="environment-note" role="note"><Icon name="info" size={16}/><span>GCP fault tests require authenticated <code>gcloud</code> access on the console host and permissions for the configured resources. Kubernetes faults also require the correct context and workload permissions.</span></p>{/if}
+        {#if settings.environment==='aws'}<p class="environment-note" role="note"><Icon name="info" size={16}/><span>AWS faults require authenticated <code>aws</code> access on the console host. RDS failover requires Multi-AZ; ElastiCache needs automatic failover and a replica.</span></p>{/if}
       </div>
       <div hidden={section!=='connections'}>
         <h2>Services</h2>
@@ -112,6 +113,7 @@ onMount(()=>{const open=e=>openSettings(e),unload=e=>{if(settingsDialog.open&&di
           <label>TLS<select bind:value={settings.database.tlsMode}><option value="disable">Disabled</option><option value="require">Required · encrypted</option><option value="verify">Verified certificate</option></select></label>
         </div>
         {#if settings.database.tlsMode==='verify'}
+          <label>TLS server name (optional)<input bind:value={settings.database.serverName} placeholder="Database hostname when using an SSH tunnel" /></label>
           <details class="custom-ca">
             <summary>Custom CA certificate <span>{settings.database.caCertificateId ? certificates.find(c=>c.id===settings.database.caCertificateId)?.name || 'Imported certificate' : settings.database.caPath ? 'Server-mounted certificate' : 'System trust store'}</span></summary>
             <div class="ca-options">

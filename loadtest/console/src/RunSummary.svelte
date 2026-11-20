@@ -1,5 +1,6 @@
 <script>
 import {environmentLabel} from './environments.mjs';
+import {faultDisplayName} from './fault-types.mjs';
   import ScenarioChecks from './ScenarioChecks.svelte';
   import {resultTestCases} from './result-test-cases.mjs';
   export let run;
@@ -17,7 +18,7 @@ import {environmentLabel} from './environments.mjs';
   const labels={'HTTP errors (%)':'HTTP errors'};
   const units={'Successful TPS':' TPS','HTTP errors (%)':'%'};
   $: acceptance=run.acceptance;
-  $: faultLabels=[...new Set((run.timeline||[]).filter(stage=>stage.fault).map(stage=>`${stage.fault.target==='PostgreSQL'?'DB':stage.fault.target} ${stage.fault.action==='failover'?'failover':stage.fault.action==='restart'?'restart':'outage'}`))];
+  $: faultLabels=[...new Set((run.timeline||[]).filter(stage=>stage.fault).map(stage=>`${stage.fault.target==='PostgreSQL'?'DB':faultDisplayName(stage.fault.target)} ${stage.fault.action==='failover'?'failover':stage.fault.action==='restart'?'restart':'outage'}`))];
   $: visibleChecks=run.scenarioChecks?resultTestCases(run.scenarioChecks).flatMap(s=>s.cases):[];
   $: checked=visibleChecks.filter(c=>c.id.startsWith('TC-')||c.id==='completion');
   $: passed=checked.filter(c=>c.outcome==='pass').length;

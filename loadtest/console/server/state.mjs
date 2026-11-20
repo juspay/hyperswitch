@@ -98,7 +98,7 @@ export function localSettings() {
   const forcedTlsMode=process.env.LOADTEST_DB_TLS==='1'||['verify-ca','verify-full'].includes(pgSslMode)?'verify':pgSslMode==='require'?'require':'';
   const base={mode:'single',grafana:{baseUrl:process.env.GRAFANA_URL || 'http://localhost:3002',panels:defaultPanels,presetsVersion:1},
     smokeTest:{enabled:true,rps:1,durationSeconds:10},database:{host:process.env.PGHOST || '127.0.0.1',port:Number(process.env.PGPORT || 5432),
-      database:process.env.PGDATABASE || 'hyperswitch_db',user:process.env.PGUSER || '',password:process.env.PGPASSWORD || '',tlsMode:forcedTlsMode || 'disable',caPath:process.env.PGSSLROOTCERT || '',caCertificateId:''}};
+      database:process.env.PGDATABASE || 'hyperswitch_db',user:process.env.PGUSER || '',password:process.env.PGPASSWORD || '',tlsMode:forcedTlsMode || 'disable',caPath:process.env.PGSSLROOTCERT || '',caCertificateId:'',serverName:process.env.PGSSLSERVERNAME||''}};
   return {
     ...base,...saved,grafana:{...base.grafana,...saved.grafana,
       panels:saved.grafana?.presetsVersion===1?(saved.grafana.panels || []):[...defaultPanels,...(saved.grafana?.panels || [])]},
@@ -145,7 +145,7 @@ export function publicSettings(environment=null) {
     grafana: { baseUrl: l.grafana.baseUrl, panels: l.grafana.panels || [], hasToken: Boolean(process.env.GRAFANA_TOKEN), hasIdentity: Boolean(process.env.GRAFANA_TOKEN || process.env.GRAFANA_USER) },
     smokeTest:l.smokeTest,workerEnrollmentConfigured:Boolean(process.env.LOADTEST_WORKER_ENROLLMENT_TOKEN),
     database: { host: l.database.host, port: l.database.port, database: l.database.database, user: l.database.user,
-      tlsMode:l.database.tlsMode || (l.database.ssl?'verify':'disable'),caPath:l.database.caPath || '',caCertificateId:l.database.caCertificateId || '', password: '', hasPassword: Boolean(l.database.password) }
+      tlsMode:l.database.tlsMode || (l.database.ssl?'verify':'disable'),caPath:l.database.caPath || '',caCertificateId:l.database.caCertificateId || '',serverName:l.database.serverName||'', password: '', hasPassword: Boolean(l.database.password) }
   };
 }
 
@@ -206,6 +206,8 @@ export function validateSettings(input) {
   if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) throw new Error('Invalid database port');
   const tlsMode=String(input.database.tlsMode || (input.database.ssl?'verify':'disable'));
   if(!['disable','require','verify'].includes(tlsMode))throw new Error('Invalid database TLS mode');
+  const serverName=String(input.database.serverName||'').trim();
+  if(serverName&&!/^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(serverName))throw new Error('Use a DNS hostname for the database TLS server name');
   const caPath=String(input.database.caPath || '').trim();
   if(caPath&&!path.isAbsolute(caPath))throw new Error('Database CA certificate path must be absolute');
   const caCertificateId=String(input.database.caCertificateId || '').trim();
@@ -238,7 +240,7 @@ export function validateSettings(input) {
   if(typeof smoke.enabled!=='boolean'||!Number.isInteger(Number(smoke.rps))||smoke.rps<1||smoke.rps>100||!Number.isInteger(Number(smoke.durationSeconds))||smoke.durationSeconds<1||smoke.durationSeconds>300)throw new Error('Invalid smoke-test defaults');
   next.environment=validateEnvironment(input.environment||activeEnvironment());
   return {config:next,local:{ ...local,environment:next.environment,mode:input.mode,grafana:{baseUrl:input.grafana.baseUrl,panels,presetsVersion:1},smokeTest:{enabled:smoke.enabled,rps:Number(smoke.rps),durationSeconds:Number(smoke.durationSeconds)}, database:{
-    host:input.database.host,port:dbPort,database:input.database.database,user:input.database.user,tlsMode,caPath,caCertificateId,
+    host:input.database.host,port:dbPort,database:input.database.database,user:input.database.user,tlsMode,caPath,caCertificateId,serverName,
     password:input.database.password || local.database.password } }};
 }
 

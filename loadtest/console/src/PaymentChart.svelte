@@ -1,7 +1,7 @@
 <script>
 import Icon from './Icon.svelte';
 import {onMount} from 'svelte';
-import {page} from '$app/stores';
+import {page} from './app-state.mjs';
 import {api} from './api.js';
 import {setQuery} from './navigation.mjs';
 import ResponseBrowser from './ResponseBrowser.svelte';

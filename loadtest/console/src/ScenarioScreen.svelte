@@ -3,8 +3,8 @@ import Icon from './Icon.svelte';
 import {formatDuration} from './duration.mjs';
 import {onMount} from 'svelte';
 import {loadTimeline} from './load-shape.mjs';
-import {api} from './api.js';import {invalidateAll} from '$app/navigation';import {setQuery} from './navigation.mjs';
-import {page} from '$app/stores';import ProfileEditor from './ProfileEditor.svelte';import {flowLabel} from './flow-catalog.mjs';
+import {api} from './api.js';import {refreshAll} from '$app/navigation';import {setQuery} from './navigation.mjs';
+import {page} from './app-state.mjs';import ProfileEditor from './ProfileEditor.svelte';import {flowLabel} from './flow-catalog.mjs';
 export let data;
 let selectedId=data.profileId,search='',error='',deleteDialog,pendingDelete,deleting=false;
 $: search=$page.url.searchParams.get('q')||'';
@@ -14,13 +14,13 @@ $: view=$page.url.searchParams.get('view');
 $: source=profiles.find(p=>p.id===$page.url.searchParams.get('profile'));
 $: copying=source||profiles.find(p=>p.id===selectedId)||profiles[0]||data.profileTemplate;
 $: newScenarioHref=copying?.id?`/scenarios?view=new&profile=${encodeURIComponent(copying.id)}`:'/scenarios?view=new';
-onMount(()=>{const refresh=()=>invalidateAll();window.addEventListener('console-connections-saved',refresh);return()=>window.removeEventListener('console-connections-saved',refresh);});
+onMount(()=>{const refresh=()=>refreshAll();window.addEventListener('console-connections-saved',refresh);return()=>window.removeEventListener('console-connections-saved',refresh);});
 const hasRamp=profile=>loadTimeline(profile.load).some(stage=>stage.kind==='ramp');
 const faultCount=profile=>profile.load?.stages?.filter(stage=>stage.fault).length||0;
 const merchantLabel=profile=>profile.mode==='single'?'Single merchant':`Multiple · ${profile.merchantCount.toLocaleString()} merchants`;
 const readyFixture=profile=>data.fixtures.find(set=>set.status==='ready'&&set.compatible&&set.mode===profile.mode&&set.merchant_count===profile.merchantCount);
 function confirmDelete(profile){pendingDelete=profile;deleteDialog.showModal();}
-async function removeScenario(){if(!pendingDelete||deleting)return;deleting=true;error='';try{await api.deleteProfile(pendingDelete.id);deleteDialog.close();pendingDelete=null;await invalidateAll();}catch(e){error=e.message;}finally{deleting=false;}}
+async function removeScenario(){if(!pendingDelete||deleting)return;deleting=true;error='';try{await api.deleteProfile(pendingDelete.id);deleteDialog.close();pendingDelete=null;await refreshAll();}catch(e){error=e.message;}finally{deleting=false;}}
 </script>
 <svelte:head><title>Scenarios · Testbench</title></svelte:head>
 <main>

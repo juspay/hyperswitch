@@ -97,7 +97,7 @@ test('default load definitions and provider-specific faults remain distinct',asy
  assert.match(local[1].unavailableReason,/GCP/);assert.equal(local[1].load.stages[1].fault.action,'failover');
  const cloud=defaultScenarios('gcp',[{id:'ha-primary',serviceType:'postgres',environment:'gcp',adapter:'gcp-alloydb',actions:['failover']}]);
  assert.equal(cloud[1].unavailableReason,null);assert.equal(cloud[1].load.stages[1].fault.targetId,'ha-primary');
- assert.ok(cloud[0].unavailableReason);assert.ok(defaultScenarios('aws').every(p=>p.unavailableReason));
+ assert.ok(cloud[0].unavailableReason);assert.equal(defaultScenarios('aws')[2].unavailableReason,null);assert.equal(defaultScenarios('aws',[{id:'rds',serviceType:'postgres',environment:'aws',adapter:'command',actions:['failover']}])[1].unavailableReason,null);
  assert.ok(defaultScenarios('local',[{id:'fake',serviceType:'card-vault',environment:'local',adapter:'simulated',actions:['outage']}])[0].unavailableReason);
  local[2].scenarios[0].weight=0;assert.equal(defaultScenarios('local')[2].scenarios[0].weight,50);
 });

@@ -8,6 +8,7 @@ import {readFile,open,rename,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import {dataRoot,readJson,readJsonSync,redact,controlDb,localSettings,activeEnvironment} from './state.mjs';
 import {faultType,faultEnvironment} from '../src/fault-types.mjs';
+import {awsFaultAdapter,validateAwsTarget} from './aws-faults.mjs';
 import {kubernetesAdapter} from './kubernetes-faults.mjs';
 import {localAdapter,processComposeController} from './local-faults.mjs';
 import {atomicJson} from './state.mjs';
@@ -23,16 +24,17 @@ const word=(value)=>{if(typeof value!=='string'||!value.match(/^[A-Za-z0-9][A-Za
 export function validateTargets(targets,{allowLegacyDuplicates=false}={}){
  if(!Array.isArray(targets)||targets.length>20)throw new Error('Choose at most 20 fault targets');
  const ids=new Set(),types=new Set();return targets.map(t=>{
-  if(t.environment&&!['local','gcp','aws','azure','cloud','custom','unassigned'].includes(t.environment))throw new Error('Choose Local, Cloud or Custom');
+  if(t.environment&&!['local','gcp','aws','azure','cloud','custom','unassigned'].includes(t.environment))throw new Error('Choose Local, GCP, AWS or Azure');
   word(t.id);if(ids.has(t.id))throw new Error('Duplicate fault target');ids.add(t.id);
-  if(!['command','simulated','docker','kubernetes','gcp-redis','gcp-alloydb','local-vault','process-compose','placeholder'].includes(t.adapter))throw new Error('Unsupported fault adapter');
+  if(!['command','simulated','docker','kubernetes','gcp-redis','gcp-alloydb','aws-rds','aws-elasticache','local-vault','process-compose','placeholder'].includes(t.adapter))throw new Error('Unsupported fault adapter');
   if(t.adapter==='command')validateCommandTarget(t,{requireEnabled:false});
+  if(t.adapter?.startsWith('aws-'))validateAwsTarget(t);
   const fields=t.adapter==='docker'?['container']:t.adapter==='kubernetes'?['namespace','deployment',...(t.context?['context']:[])]:t.adapter.startsWith('gcp-')?['project','region','instance',...(t.adapter==='gcp-alloydb'?['cluster']:[])]:[];
   for(const field of fields)word(t[field]);
   if(t.outageMode!==undefined&&!['hard','graceful'].includes(t.outageMode))throw new Error('Invalid outage mode');
   if(t.adapter==='kubernetes'&&t.recoveryReplicas!==undefined&&(!Number.isInteger(t.recoveryReplicas)||t.recoveryReplicas<1||t.recoveryReplicas>100))throw new Error('Recovery replicas must be 1–100');
   if(['local-vault','process-compose'].includes(t.adapter)){if(!Number.isInteger(t.port)||t.port<1||t.port>65535)throw new Error('Invalid service port');if(t.adapter==='local-vault'){if(typeof t.repository!=='string'||!path.isAbsolute(t.repository))throw new Error('Use an absolute vault repository path');}else{word(t.process);if(typeof t.binary!=='string'||!(t.binary==='process-compose'||(path.isAbsolute(t.binary)&&path.basename(t.binary)==='process-compose')))throw new Error('Use process-compose or its absolute binary path');if(!Number.isInteger(t.controllerPort)||t.controllerPort<1||t.controllerPort>65535)throw new Error('Invalid controller port');}}
-  const serviceType=faultType(t);if((t.adapter==='gcp-alloydb'&&serviceType!=='postgres')||(t.adapter==='gcp-redis'&&serviceType!=='redis'))throw new Error('Cloud adapter does not match service type');if(serviceType){if(!['card-vault','postgres','redis'].includes(serviceType)||(t.adapter==='process-compose'&&serviceType==='card-vault')||(t.adapter==='local-vault'&&t.serviceType&&t.serviceType!=='card-vault'))throw new Error('Invalid fault service type');if(types.has(serviceType)&&!allowLegacyDuplicates)throw new Error(`Only one ${serviceType} fault target is allowed`);types.add(serviceType);}
+  const serviceType=faultType(t);if((['gcp-alloydb','aws-rds'].includes(t.adapter)&&serviceType!=='postgres')||(['gcp-redis','aws-elasticache'].includes(t.adapter)&&serviceType!=='redis'))throw new Error('Cloud adapter does not match service type');if(serviceType){if(!['card-vault','postgres','redis'].includes(serviceType)||(t.adapter==='process-compose'&&serviceType==='card-vault')||(t.adapter==='local-vault'&&t.serviceType&&t.serviceType!=='card-vault'))throw new Error('Invalid fault service type');if(types.has(serviceType)&&!allowLegacyDuplicates)throw new Error(`Only one ${serviceType} fault target is allowed`);types.add(serviceType);}
   return {...t,...(t.adapter==='kubernetes'?{outageMode:t.outageMode??(serviceType==='card-vault'?'hard':'graceful')}:{}),environment:targetEnvironment(t)||'unassigned',...(serviceType?{serviceType}:{}),label:String(t.label||t.id).slice(0,100),actions:t.adapter==='command'?[t.commandAction]:faultCapabilities[targetEnvironment(t)]?.[serviceType]?.actions||(t.adapter==='placeholder'?[]:['outage'])};
  });
 }
@@ -60,7 +62,7 @@ export async function checkLocalFaultTarget(input){
  try{await makeFaultAdapter(target,runCommandWithTimeout(12000)).probe();}
  catch(error){
   if(error.code==='COMMAND_TIMEOUT'){
-   const service=target.adapter==='kubernetes'?'Kubernetes':target.adapter.startsWith('gcp-')?'Google Cloud':'Target';
+   const service=target.adapter==='kubernetes'?'Kubernetes':target.adapter.startsWith('gcp-')?'GCP':target.adapter.startsWith('aws-')?'AWS':'Target';
    throw new Error(`${service} did not respond within 12 seconds. Check VPN and cloud access.`);
   }
   throw error;
@@ -75,10 +77,11 @@ export const runCommandWithTimeout=timeout=>async(binary,args)=>{
  catch(error){if(error.killed&&error.signal==='SIGTERM')throw Object.assign(new Error(`Command timed out after ${timeout} ms`),{code:'COMMAND_TIMEOUT'});throw error;}
 };
 const runCommand=runCommandWithTimeout(120000);
-export function makeFaultAdapter(target,command=runCommand,{databaseCheck=()=>queryWorker('database-test',{database:localSettings().database})}={}){
+export function makeFaultAdapter(target,command=runCommand,{databaseCheck=timeoutMillis=>queryWorker('database-test',{database:localSettings().database,timeoutMillis})}={}){
  const t=target;
  if(['local','gcp','aws','azure'].includes(t.environment))validateTargetProvider(t,faultType(t));
- if(t.adapter==='command')return commandFaultAdapter(t);
+ if(t.adapter.startsWith('aws-'))return awsFaultAdapter(t,command,{databaseCheck});
+ if(t.adapter==='command')return {...commandFaultAdapter(t),...(faultType(t)==='postgres'?{checkAvailability:()=>databaseCheck(2000)}:{})};
  if(['local-vault','process-compose'].includes(t.adapter))return localAdapter(t,command,t.adapter==='process-compose'&&command===runCommand?{controller:processComposeController(t)}:{});
  if(t.adapter==='simulated')return {probe:async()=>({ready:true}),apply:async()=>{},restore:async()=>{},verify:async()=>true};
  if(t.adapter==='docker'){
@@ -94,7 +97,7 @@ export function makeFaultAdapter(target,command=runCommand,{databaseCheck=()=>qu
   const operationPrefix=`projects/${t.project}/locations/${t.region}/operations/`;
   return {
    recoveryTimeoutMs:600000,
-   checkAvailability:()=>queryWorker('database-test',{database:localSettings().database,timeoutMillis:1000}),
+   checkAvailability:()=>databaseCheck(1000),
    probe:async()=>{const info=await inspect();if(!info.createTime||info.state!=='READY'||info.availabilityType!=='REGIONAL'||info.instanceType!=='PRIMARY')throw new Error('Failover target must be a ready HA primary');return {ready:true,created:info.createTime};},
    apply:async(action,before,persist=async()=>{})=>{
     // Persist intent first: a lost CLI response must never turn READY into proof of failover.
@@ -131,11 +134,13 @@ export function makeFaultAdapter(target,command=runCommand,{databaseCheck=()=>qu
 }
 async function verify(adapter,before){const end=Date.now()+(adapter.recoveryTimeoutMs||120000);do{if(await adapter.verify(before))return;await new Promise(r=>setTimeout(r,adapter.recoveryTimeoutMs?5000:1000));}while(Date.now()<end);throw new Error('Recovery could not be verified before the deadline; the cloud operation may still be running');}
 function observeDatabase(entry,emit,lifecycle={}){
- if(entry.target.adapter!=='gcp-alloydb')return;
+ if(faultType(entry.target)!=='postgres')return;
+ const adapter=makeFaultAdapter(entry.target);
+ if(!('checkAvailability' in adapter)||typeof adapter.checkAvailability!=='function')return;
  if(state.databaseObserver&&state.databaseObserver.id===entry.id)return;
  const last=controlDb().prepare("SELECT kind FROM job_events WHERE job_id=? AND kind IN ('database_available','database_unavailable') ORDER BY event_id DESC LIMIT 1").get(entry.jobId);
  const releaseLoad=databaseRecoveryGate(entry,async()=>{if(!lifecycle.onRecovered)return false;const released=await lifecycleStep(lifecycle.onRecovered,entry,emit,'Could not release the load clock after SQL recovery');if(released)emitSafely(emit,entry.jobId,'database_recovered','DB · available · load resumed; cloud operation verification continues');return released;});
- const observer=watchDatabaseAvailability({check:makeFaultAdapter(entry.target).checkAvailability,initial:last?.kind==='database_unavailable'?'unavailable':'available',onSample:async current=>{entry.databaseAvailability=current;if(state.active?.id===entry.id)state.active.databaseAvailability=current;await releaseLoad(current);},onChange:current=>emitSafely(emit,entry.jobId,`database_${current}`,`DB · ${current}`)});
+ const observer=watchDatabaseAvailability({check:adapter.checkAvailability,initial:last?.kind==='database_unavailable'?'unavailable':'available',onSample:async current=>{entry.databaseAvailability=current;if(state.active?.id===entry.id)state.active.databaseAvailability=current;await releaseLoad(current);},onChange:current=>emitSafely(emit,entry.jobId,`database_${current}`,`DB · ${current}`)});
  state.databaseObserver={id:entry.id,...observer};
 }
 async function lifecycleStep(callback,entry,emit,label){if(!callback)return true;let error;for(let attempt=0;attempt<3;attempt++){try{await callback();return true;}catch(e){error=e;if(attempt<2)await new Promise(resolve=>setTimeout(resolve,200));}}emitSafely(emit,entry.jobId,'fault_error',`${label}: ${redact(error.message)}`);return false;}
@@ -183,7 +188,7 @@ async function executeFault(job,input,emit,isRunning,targetSnapshot=null,lifecyc
     observeDatabase(entry,emit,lifecycle);
     emitSafely(emit,job.id,'fault_requested',`${environmentLabel(targetEnvironment(target))} · ${target.label} · ${input.action} requested`);
     await adapter.apply(input.action,entry.before,()=>durable(entry));
-    if((input.action==='outage'||target.adapter==='command')&&adapter.isDown){
+    if((input.action==='outage'||target.adapter==='command')&&'isDown' in adapter&&typeof adapter.isDown==='function'){
       const deadline=Date.now()+60000;while(!await adapter.isDown(entry.before)){if(abort.signal.aborted)throw new Error('Outage cancelled before taking effect');if(Date.now()>=deadline)throw new Error('Outage did not take effect');await new Promise(r=>setTimeout(r,500));}
     }
     entry.downtimeStartedAt=Date.now();await durable(entry);

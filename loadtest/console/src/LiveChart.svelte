@@ -1,4 +1,5 @@
 <script>
+import {faultDisplayName} from './fault-types.mjs';
   import {onMount} from 'svelte';
   import {plannedEvents,stageWallTimes,executionPhases,targetAt,wallToActive,availabilityGraphEvents,metricValue,metricSeries,chartHorizon} from './chart-timeline.mjs';
   export let showMetrics=true;
@@ -88,7 +89,7 @@
     {#each [0,.5,1] as fraction}<line x1="48" x2={plotWidth-16} y1={y(maximum*fraction)} y2={y(maximum*fraction)} stroke="#e9edf3"/><text x="37" y={y(maximum*fraction)+4} text-anchor="end">{(maximum*fraction).toFixed(metric==='tps'?1:0)}</text>{/each}
     {#if metric==='connectorTps'}{#each connectorLines as connector}<path d={line(connector.points,end,maximum,span)} fill="none" stroke={connector.color} stroke-width="1.2"><title>{connector.name}</title></path>{/each}{:else if valid.length}<path d={`${measuredPath} L${x(valid.at(-1).t)},220 L${x(measuredValues[0].t)},220 Z`} fill="#0561e20a"/><path d={measuredPath} fill="none" stroke="#0561e2" stroke-width="1.1"><title>{metric==='tps'?'Successfully completed flows per second':choices[metric]}</title></path>{/if}
     {#if offered.some(p=>p.value!=null)}<path d={offeredPath} fill="none" stroke="#98a2b3" stroke-width="0.8" stroke-dasharray="4 4"><title>Target flow rate</title></path>{/if}
-    {#each markers as event}<line x1={x(event.t)} x2={x(event.t)} y1="28" y2="220" stroke={markerColor(event)} stroke-dasharray={event.kind==='failover_requested'?'4 3':undefined} stroke-width="0.8"><title>{event.t.toFixed(1)}s · {event.message}</title></line><circle cx={x(event.t)} cy="25" r="2.3" fill={markerColor(event)}><title>{event.t.toFixed(1)}s · {event.message}</title></circle>{/each}
+    {#each markers as event}<line x1={x(event.t)} x2={x(event.t)} y1="28" y2="220" stroke={markerColor(event)} stroke-dasharray={event.kind==='failover_requested'?'4 3':undefined} stroke-width="0.8"><title>{event.t.toFixed(1)}s · {faultDisplayName(event.message)}</title></line><circle cx={x(event.t)} cy="25" r="2.3" fill={markerColor(event)}><title>{event.t.toFixed(1)}s · {faultDisplayName(event.message)}</title></circle>{/each}
     {#if hover}<line x1={x(hover.t)} x2={x(hover.t)} y1="35" y2="220" stroke="#8793a5" stroke-width=".7" stroke-dasharray="3 3"/>{#if hoveredValue!=null}<circle cx={x(hoveredSample.t)} cy={y(hoveredValue)} r="2.5" fill="#0561e2"/>{/if}{/if}
     {#if hover}<text class="hover-seconds" x={Math.max(78,Math.min(plotWidth-46,x(hover.t)))} y="243" text-anchor="middle">{hover.t.toFixed(1)}s</text>{:else}<text x="48" y="243">0s</text><text x={48+span/2} y="243" text-anchor="middle">{Math.round(end/2)}s</text><text x={plotWidth-16} y="243" text-anchor="end">{Math.round(end)}s</text>{/if}
     {#if !valid.length}<text x={48+span/2} y="130" text-anchor="middle">{rawSamples.length?'No metric samples yet':'Not run yet'}</text>{/if}
@@ -96,7 +97,7 @@
   {#if hover}<div class="chart-tooltip" style:left={`${hover.left}px`} style:top={`${hover.top}px`}>
     <strong>{hover.t.toFixed(1)}s <span>{hoveredSample?hoveredPhase?.label||'Load': 'Not run yet'}</span></strong>
     {#if hoveredSample&&metric==='connectorTps'}{#each connectorLines as connector}<div style:color={connector.color}>{connector.name} <b>{(hoveredSample.connectors?.[connector.name]?.tps??0).toFixed(2)} / s</b></div>{/each}{:else if hoveredSample}<div>{choices[metric]} <b>{formatValue(hoveredValue)}</b></div>{#if metric==='tps'&&flow==='all'&&hoveredTarget!=null}<div>Target <b>{hoveredTarget.toFixed(1)} TPS</b></div>{/if}{/if}
-    {#if hoveredEvent}<p>{hoveredEvent.message} · {hoveredEvent.t.toFixed(1)}s</p>{/if}
+    {#if hoveredEvent}<p>{faultDisplayName(hoveredEvent.message)} · {hoveredEvent.t.toFixed(1)}s</p>{/if}
   </div>{/if}
   </div>
 </section>

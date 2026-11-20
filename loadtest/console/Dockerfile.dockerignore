@@ -5,7 +5,6 @@
 !loadtest/console/package-lock.json
 !loadtest/console/start.mjs
 !loadtest/console/vite.config.js
-!loadtest/console/svelte.config.js
 !loadtest/console/jsconfig.json
 !loadtest/console/static/
 !loadtest/console/static/**

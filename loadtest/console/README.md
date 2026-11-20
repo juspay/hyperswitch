@@ -19,6 +19,13 @@ npm run dev
 
 Open http://127.0.0.1:4174. For a local production build:
 `npm run build && node --env-file=.env start.mjs`.
+Stop the production web process before rebuilding, then restart it after the build
+finishes. Rebuilding its `build/` directory while it serves requests removes hashed
+modules still referenced by that process and can cause HTTP 500 errors. The detached
+load worker can keep running during a web-only rebuild. For development, use
+`npm run dev` for hot reload.
+Use Node 24.22.3 or newer on the Node 24 LTS line. Recorder builds use Go 1.27.4 and require a C compiler. The container definitions pin these patched runtimes for the console and remote workers.
+
 The example uses local PostgreSQL on `127.0.0.1:5432`. Configure a database user
 with SELECT access to `payment_intent` and its password. Saved Settings override
 the initial environment values, so update the saved connection when switching
@@ -43,7 +50,9 @@ npm run dev:tls
 The launcher enforces certificate verification, validates the optional PEM path,
 and reloads the detached worker so it inherits the TLS configuration. It refuses
 to reload while a job, outage, or recovery is active. The same CA path can be
-entered under Settings → Database; **Test connection** uses the identical TLS
+entered under Settings → Database. For a loopback SSH tunnel, set **TLS server name**
+to the actual database hostname to retain certificate identity verification.
+**Test connection** uses the identical TLS
 configuration as reconciliation. `sslmode=disable` behavior remains available by
 using the regular `npm run dev`/`npm start` commands with TLS unchecked.
 
@@ -135,9 +144,14 @@ project or deployment. Fault target choices, interruption dialogs, activity, and
 new Results summaries identify the provider. Changing providers does not translate
 an outage into a failover: choose a supported action for the selected target.
 
-AWS and Azure retain placeholder connections and resource fields; connection
-checks, fixtures, load generation, and fault execution are unavailable. No fallback
-adapter is invoked. Legacy `cloud` targets migrate to GCP. Unclassified custom
+AWS supports connection checks, fixtures, load generation and scheduled custom
+fault commands. Authenticate AWS CLI on the supervisor and enable custom commands
+(see below). RDS failover requires Multi-AZ; use `aws rds reboot-db-instance
+--db-instance-identifier <id> --force-failover` and read-only checks that verify the
+operation emitted a completed Multi-AZ failover event after the request and
+returned to `available`. PostgreSQL command targets also track SQL availability
+independently of cloud operation status. Azure remains
+unavailable. No fallback adapter is invoked. Legacy `cloud` targets migrate to GCP. Unclassified custom
 Kubernetes/Docker targets require provider assignment; ambiguous legacy connection
 sets require an explicit environment selection. Only targets for the selected
 provider participate in health and execution, including server-defined targets.
@@ -304,17 +318,17 @@ Reconciliation also checks recorded transport failures (HTTP status 0). Known me
 
 ### Fault environments
 
-In the scenario editor, expand **Fault targets**. Each service has one target, with **Local**, **Cloud**, or **Custom** configuration:
+In the scenario editor, expand **Fault targets** and choose a built-in adapter or scheduled custom commands for the selected provider:
 
-- Local: card vault launcher or process-compose PostgreSQL/Redis.
-- Cloud: managed AlloyDB PostgreSQL failover, managed Redis HA failover, or Kubernetes card vault.
-- Custom: a Docker container or Kubernetes deployment; arbitrary shell commands are not accepted.
+- **Local:** card vault launcher or process-compose PostgreSQL/Redis.
+- **GCP:** AlloyDB PostgreSQL failover, Memorystore Redis HA failover, or a Kubernetes card vault.
+- **AWS:** RDS PostgreSQL Multi-AZ DB instance failover or ElastiCache HA replication group failover (cluster mode disabled). Set account ID, region, resource ID and optionally an AWS CLI profile. Aurora, RDS DB clusters, ElastiCache Serverless, sharded replication groups and EC2-hosted services require custom commands.
 
-Cloud PostgreSQL defaults to project `hyperswitch-dev`, region `asia-south1`, cluster `dev-hyperswitch-alloydb`, instance `dev-hyperswitch-alloydb-primary`. Edit these before saving if needed. **Check target** only describes the resource. **Test failover** requires typed confirmation and performs real standby promotion. AlloyDB failover is submitted asynchronously and its operation ID is saved in the fault ledger. In a scenario timeline, choose PostgreSQL → failover; the configured duration begins after GCP accepts the request and does not control the actual outage length. The next stage waits for that exact operation to finish successfully, the original HA primary to report READY, and the Settings database connection to read `payment_intent`. Recovery polls every five seconds for up to ten minutes; a failed operation, missing operation ID, or verification deadline keeps recovery blocked instead of declaring success. Restart recovery resumes polling a saved operation without submitting another failover.
+**Check target** is read-only. **Test failover** requires typed confirmation and changes the configured resource. In a scenario timeline, failover runs at the scheduled stage; stage duration does not determine the managed service's actual outage length. Account/resource identity and HA prerequisites are checked before AWS mutations. The built-in commands are `aws rds reboot-db-instance --force-failover` and `aws elasticache test-failover`. AWS limits ElastiCache test failovers to 15 shards per rolling 24 hours.
 
-The control-plane host/container must have `gcloud` installed and a server-side identity authorized to describe the instance and invoke failover. Build `Dockerfile.cloud` on top of the stock console image to add `gcloud` and `kubectl`; the ordinary image remains available when infrastructure faults are disabled. Credentials stay on the control plane and are never mounted into load workers. Reload the control-plane worker service after updating its environment, only when no job or recovery is active.
+Recovery polls for up to ten minutes. AlloyDB requires its recorded operation to complete and SQL connectivity. RDS requires a failover-completed event after this request, the original available DB instance, and SQL connectivity. ElastiCache requires a changed primary, a completed failover event and cache-node recovery. Readiness alone never establishes AWS failover completion. Restart recovery uses persisted request evidence without submitting another failover.
 
-Cloud card vault defaults to Kubernetes namespace `hyperswitch`, deployment `hyperswitch-card-vault-hyperswitch-card-vault`. Its interruption scales to zero, waits for the configured downtime, and scales back to 8 replicas by default. Recovery replicas can be changed on the target. Leave Context empty to use the worker's current kubeconfig context, or specify a context explicitly. Existing non-empty namespace/deployment values are preserved.
+Install and authenticate the provider's CLI on the supervisor: `gcloud` for GCP, `aws` for AWS and `kubectl` for Kubernetes. The note beside each target lists its required permissions; read-only access does not prove permission to trigger faults. `Dockerfile.cloud` adds GCP/Kubernetes tools to the console image; add AWS CLI separately for an AWS supervisor. Credentials stay on the supervisor and are never sent to load workers. Restart an idle supervisor worker after changing its environment.
 
 ### Console interactions
 
@@ -345,17 +359,17 @@ continues to use the existing settled, successful-request sample windows.
 
 ### Connector load testing
 
-Scenarios have an optional **Connectors** section. Dummy (`stripe_test`) remains the default. In real/sandbox mode, select supported card connectors and give each a whole-number share; the shares must total 100%. The mix applies independently to each payment-flow stream without increasing total offered TPS. Selection is deterministic and uses a smoothed 100-entry schedule; each complete cycle has the exact requested mix. Every distributed worker uses global iteration-based selection.
+Scenarios have an optional **Connectors** section. Dummy (`stripe_test`) remains the default. In real connector mode, select supported card connectors and give each a whole-number share; the shares must total 100%. The mix applies independently to each payment-flow stream without increasing total offered TPS. Selection is deterministic and uses a smoothed 100-entry schedule; each complete cycle has the exact requested mix. Every distributed worker uses global iteration-based selection.
 
-Create fixtures for that scenario, entering each connector's sandbox credentials and required account metadata. All selected accounts are provisioned for each merchant. Connector credentials are encrypted with AES-256-GCM under `.data/connector-secrets/`; job/fixture snapshots contain only opaque references. Keep that directory and its key private when moving the console. Connector credentials are never sent to load workers; workers receive merchant API credentials and connector account IDs as before. Partial provisioning can resume. Changing mix weights reuses fixtures; changing connector identities requires matching accounts.
+Create fixtures for that scenario, entering each connector's test credentials and required account metadata. All selected accounts are provisioned for each merchant. Connector credentials are encrypted with AES-256-GCM under `.data/connector-secrets/`; job/fixture snapshots contain only opaque references. Keep that directory and its key private when moving the console. Connector credentials are never sent to load workers; workers receive merchant API credentials and connector account IDs as before. Partial provisioning can resume. Changing mix weights reuses fixtures; changing connector identities requires matching accounts.
 
-Real-connector card confirmations include synthetic browser information required by providers such as Adyen. `payment.browser_info` overrides these defaults. Sandbox cards can differ between providers: Adyen uses the successful non-3DS card from the repository's connector tests, while other connectors use the configured card/pool. Set `payment.connector_cards[connector]` to override a provider's card explicitly, including for negative tests. These defaults do not change dummy-mode traffic.
+Real-connector card confirmations include synthetic browser information required by providers such as Adyen. `payment.browser_info` overrides these defaults. Test cards can differ between providers: Adyen uses the successful non-3DS card from the repository's connector tests, while other connectors use the configured card/pool. Set `payment.connector_cards[connector]` to override a provider's card explicitly, including for negative tests. These defaults do not change dummy-mode traffic.
 
 Performance's **Connector throughput** metric shows confirmation responses identifying each connector. Results distinguish assigned flows from reported connector confirmations, successes/failures, and unreported confirmations. These are payment-level observations, not counts of provider HTTP attempts or fallback/retry calls. HS-only p99 uses `x-hs-latency`; full confirm p99 uses the complete HTTP request duration. Asynchronous/3DS completion is not automatically followed to settlement; existing payment success semantics still apply.
 
-The generated catalog comes from `crates/euclid/src/enums.rs` (`RoutableConnectors`) and sandbox auth/card definitions in `crates/connector_configs/toml/sandbox.toml`. Run `npm run generate:connectors` after upstream changes and `npm run check:connectors` to check drift (Python 3.11+). Non-card connectors and unsupported credential shapes are excluded from selectable options. The deployed router must support the chosen integration; fixture creation and smoke testing verify that environment, rather than treating enum membership as proof. Build/update the native recorder with `npm run build:recorder`; older recorders fail fast for connector-attributed runs. No application image rebuild is needed.
+The generated catalog comes from `crates/euclid/src/enums.rs` (`RoutableConnectors`) and provider test auth/card definitions in `crates/connector_configs/toml/sandbox.toml`. Run `npm run generate:connectors` after upstream changes and `npm run check:connectors` to check drift (Python 3.11+). Non-card connectors and unsupported credential shapes are excluded from selectable options. The deployed router must support the chosen integration; fixture creation and smoke testing verify that environment, rather than treating enum membership as proof. Build/update the native recorder with `npm run build:recorder`; older recorders fail fast for connector-attributed runs. No application image rebuild is needed.
 
-Real-sandbox validation requires provider sandbox keys, required metadata, compatible test cards/currency in payment settings, and reachable router/PM services. The automated integration test uses a local mock router and two connector accounts per merchant; it does not contact Stripe or Adyen.
+Real-connector validation requires provider test keys, required metadata, compatible test cards/currency in payment settings, and reachable router/PM services. The automated integration test uses a local mock router and two connector accounts per merchant; it does not contact Stripe or Adyen.
 
 ### Import existing fixtures
 
@@ -389,3 +403,5 @@ Commands execute through `/bin/sh` as the supervisor OS user, not in the browser
 on load workers. Stop/cancellation still performs required recovery. Command output
 is discarded to avoid retaining secrets; failures identify the command stage and
 exit status. Do not embed credentials in commands. See [deployment guidance](DEPLOYMENT.md).
+
+Remote worker enrollment is disabled by default. Generate a token with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` and set `LOADTEST_WORKER_ENROLLMENT_TOKEN` on the supervisor and enrolling workers. Blank, weak and placeholder values are rejected. Keep this token private; enrolling workers can receive test credentials.

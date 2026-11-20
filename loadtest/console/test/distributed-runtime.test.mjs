@@ -1,3 +1,4 @@
+import {randomBytes} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,readFile,writeFile} from 'node:fs/promises';
@@ -6,6 +7,7 @@ import {createHash} from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
+const enrollmentToken=randomBytes(32).toString('base64url');
 const root=await mkdtemp(path.join(os.tmpdir(),'distributed-runtime-'));process.env.LOADTEST_DATA_DIR=root;process.env.LOADTEST_CONSOLE_ROOT=path.resolve('.');process.env.LOADTEST_ROOT=path.resolve('..');
 const seed=JSON.parse(await readFile('../loadtest.config.example.json','utf8'));seed.output=path.join(root,'artifacts');process.env.LOADTEST_CONFIG_FILE=path.join(root,'seed.json');await writeFile(process.env.LOADTEST_CONFIG_FILE,JSON.stringify(seed));
 const state=await import('../server/state.mjs');state.initializeConfig();
@@ -21,7 +23,7 @@ async function caseRun(name,count=1){
  state.controlDb().prepare('UPDATE load_workers SET last_seen=0').run();
  const fixturePath=path.join(root,name+'-fixtures'),runPath=path.join(root,name);await mkdir(fixturePath);await mkdir(runPath);
  const merchants=JSON.stringify([{merchant_id:'fake'}]);await writeFile(path.join(fixturePath,'merchants.json'),merchants);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',merchants_sha256:createHash('sha256').update(merchants).digest('hex')}));
- const identities=Array.from({length:count},(_,i)=>registry.enrollWorker({name:`${name}-${i}`,capacityTps:1,capacityVus:10},'fake','fake'));
+ const identities=Array.from({length:count},(_,i)=>registry.enrollWorker({name:`${name}-${i}`,capacityTps:1,capacityVus:10},enrollmentToken,enrollmentToken));
  let result=null;
  const runner=await launchDistributedRun({runId:name,runPath,fixturePath,config:{mode:'single',load:{total_rps:count,duration_seconds:60,max_vus_multiplier:5},scenarios:[]},onDone:(error,value)=>{result={error,value};}});
  return {identities,runner,get result(){return result;}};
@@ -47,7 +49,7 @@ test('one failed worker stops siblings and retains ownership until they drain',a
 test('control plane prepares synchronized workers, receives artifacts and merges a run',async()=>{
   const fixturePath=path.join(root,'fixtures'),runPath=path.join(root,'run');await mkdir(fixturePath);await mkdir(runPath);
   const merchants=[{merchant_id:'m1'},{merchant_id:'m2'}],merchantText=JSON.stringify(merchants);await writeFile(path.join(fixturePath,'merchants.json'),merchantText);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',router:'https://router.example',merchants_sha256:createHash('sha256').update(merchantText).digest('hex')}));
-  const identities=[0,1].map(index=>registry.enrollWorker({name:`worker-${index}`,capacityTps:5,capacityVus:50},'secret','secret'));
+  const identities=[0,1].map(index=>registry.enrollWorker({name:`worker-${index}`,capacityTps:5,capacityVus:50},enrollmentToken,enrollmentToken));
   const config={mode:'single',services:{router:'https://router.example'},load:{total_rps:10,duration_seconds:1,max_vus_multiplier:5},scenarios:[{name:'flow',scenario:'guest',merchant_path:'non_modular',weight:100}]};
   let finished;const runner=await launchDistributedRun({runId:'run-test',runPath,config,fixturePath,onDone:(error,result)=>finished={error,result}});
   assert.equal(runner.plan.length,2);
@@ -72,7 +74,7 @@ test('a failed worker command fails its shard and releases the coordinator',asyn
   const fixturePath=path.join(root,'failure-fixtures'),runPath=path.join(root,'failure-run');await mkdir(fixturePath);await mkdir(runPath);
   const merchants=[{merchant_id:'m1'}],merchantText=JSON.stringify(merchants);await writeFile(path.join(fixturePath,'merchants.json'),merchantText);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',merchants_sha256:createHash('sha256').update(merchantText).digest('hex')}));
   state.controlDb().prepare('UPDATE load_workers SET last_seen=0 WHERE id<>?').run('local');
-  const worker=registry.enrollWorker({name:'worker-command-failure',capacityTps:5,capacityVus:50},'secret','secret');
+  const worker=registry.enrollWorker({name:'worker-command-failure',capacityTps:5,capacityVus:50},enrollmentToken,enrollmentToken);
   let finished;const runner=await launchDistributedRun({runId:'run-command-failure',runPath,config:{mode:'single',load:{total_rps:1,duration_seconds:1,max_vus_multiplier:5},scenarios:[]},fixturePath,onDone:(error,result)=>finished={error,result}});
   assert.equal(runner.plan[0].workerId,worker.id);
   const command=registry.pendingWorkerCommands(worker.id,worker.token)[0];registry.acknowledgeWorkerCommand(worker.id,worker.token,command.id,{ok:false,result:{error:'fixture preparation failed'}});
@@ -84,7 +86,7 @@ test('a lost worker heartbeat fails the run instead of waiting forever',async()=
   const fixturePath=path.join(root,'offline-fixtures'),runPath=path.join(root,'offline-run');await mkdir(fixturePath);await mkdir(runPath);
   const merchants=[{merchant_id:'m1'}],merchantText=JSON.stringify(merchants);await writeFile(path.join(fixturePath,'merchants.json'),merchantText);await writeFile(path.join(fixturePath,'manifest.json'),JSON.stringify({schema_version:1,state:'ready',merchants_sha256:createHash('sha256').update(merchantText).digest('hex')}));
   state.controlDb().prepare('UPDATE load_workers SET last_seen=0 WHERE id<>?').run('local');
-  const worker=registry.enrollWorker({name:'worker-heartbeat-loss',capacityTps:5,capacityVus:50},'secret','secret');let finished;
+  const worker=registry.enrollWorker({name:'worker-heartbeat-loss',capacityTps:5,capacityVus:50},enrollmentToken,enrollmentToken);let finished;
   const runner=await launchDistributedRun({runId:'run-heartbeat-loss',runPath,config:{mode:'single',load:{total_rps:1,duration_seconds:1,max_vus_multiplier:5},scenarios:[]},fixturePath,onDone:error=>finished=error});
   state.controlDb().prepare('UPDATE load_workers SET last_seen=0 WHERE id=?').run(worker.id);
   await Promise.race([runner.done,delay(3000).then(()=>{throw new Error('Offline distributed run did not settle');})]);assert.match(finished.message,/heartbeat timed out/);

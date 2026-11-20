@@ -193,9 +193,9 @@ test('switching environments retains local values and custom target configuratio
  const {configureFaultTarget,faultEnvironment}=await import('../src/fault-types.mjs');
  const original={id:'db',serviceType:'postgres',adapter:'process-compose',port:5555,process:'mydb',controllerPort:8091,binary:'process-compose'};
  const cloud=configureFaultTarget(original,'cloud');
- const custom=configureFaultTarget({...cloud,container:'db-test'},'aws');
- assert.equal(custom.adapter,'placeholder');assert.equal(faultEnvironment(custom),'aws');
- assert.deepEqual(validateTargets([custom])[0].actions,[]);
+ const custom=configureFaultTarget({...cloud,accountId:'123456789012',region:'ap-south-1',instance:'payments'},'aws');
+ assert.equal(custom.adapter,'aws-rds');assert.equal(faultEnvironment(custom),'aws');
+ assert.deepEqual(validateTargets([custom])[0].actions,['failover']);
  const local=configureFaultTarget(custom,'local');
  assert.equal(local.port,5555);assert.equal(local.process,'mydb');assert.equal(local.controllerPort,8091);
 });

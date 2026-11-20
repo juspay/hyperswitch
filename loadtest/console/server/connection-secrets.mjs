@@ -5,7 +5,7 @@ export function requireBoundSecret(savedSecret,newSecret,sameDestination,label){
 }
 export function databaseTestConnection(saved,draft){
  const next={...saved,...draft};
- const identity=db=>JSON.stringify([String(db.host||'').toLowerCase(),Number(db.port||5432),db.database||'',db.user||'']);
+ const identity=db=>JSON.stringify([String(db.host||'').toLowerCase(),Number(db.port||5432),db.database||'',db.user||'',db.serverName||'']);
  const strength=db=>({disable:0,require:1,verify:2})[db.tlsMode||(db.ssl?'verify':'disable')];
  next.password=requireBoundSecret(saved.password,draft.password,identity(saved)===identity(next)&&strength(next)>=strength(saved),'database password');
  return next;

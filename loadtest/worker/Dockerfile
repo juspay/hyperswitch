@@ -1,11 +1,11 @@
-FROM golang:1.24.4-bookworm AS recorder
+FROM golang:1.27.4-bookworm AS recorder
 WORKDIR /recorder
 COPY loadtest/k6/scenario-mix/recorder/go.mod loadtest/k6/scenario-mix/recorder/go.sum ./
 RUN go mod download
 COPY loadtest/k6/scenario-mix/recorder/ ./
 RUN CGO_ENABLED=1 go build -mod=readonly -trimpath -o /k6-sqlite ./cmd/k6-sqlite
 
-FROM node:24.19.0-bookworm-slim
+FROM node:24.22.3-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/hyperswitch/loadtest
 COPY loadtest/worker ./worker

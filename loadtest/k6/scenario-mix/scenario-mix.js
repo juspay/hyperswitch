@@ -155,7 +155,7 @@ const paymentConfig = config.payment || {};
 const connectorSlots=connectorSchedule(config.connectors);
 if(recordingEnabled&&config.connectors&&recorder.connectorAttribution!==1)fail("Rebuild k6-sqlite to enable connector attribution before running this scenario");
 
-const requestTimeoutMs = numberOr(load.request_timeout_ms, 40000);
+const requestTimeoutMs = numberOr(load.request_timeout_ms, 30000);
 if (!(requestTimeoutMs >= 100)) fail("load.request_timeout_ms must be >= 100");
 const thinkTimeMs = numberOr(load.think_time_ms, 0);
 if (thinkTimeMs < 0) fail("load.think_time_ms must be >= 0");

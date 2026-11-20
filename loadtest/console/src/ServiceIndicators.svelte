@@ -33,12 +33,14 @@ async function refresh(){
   let targets=[],fault={};
   try{fault=await api.faults();targets=(fault.targets||[]).map(item=>item.target||item);}catch{}
   if(fault.environment&&fault.environment!==settings.environment){refreshing=false;return;}
+  const probeEnvironment=settings.environment;
+  const publishDatabase=state=>window.dispatchEvent(new CustomEvent('console-database-health',{detail:{state,checkedAt:Date.now(),environment:probeEnvironment}}));
   const configured=configuredServices(targets),previous=new Map(services.map(service=>[service.id,service]));
   services=configured.map(service=>pendingHealth(service,previous.get(service.id),faultHealthOverride(service,fault,targets)));
   await Promise.all(configured.map(async service=>{
-    const override=faultHealthOverride(service,fault,targets);if(override)return;
-    try{const result=await service.check();services=services.map(item=>item.id===service.id?{...item,state:'online',message:result.message||'Available'}:item);}
-    catch(error){services=services.map(item=>item.id===service.id?{...item,state:'offline',message:error.message}:item);}
+    const override=faultHealthOverride(service,fault,targets);if(override){if(service.id==='database'&&['online','offline'].includes(override.state))publishDatabase(override.state);return;}
+    try{const result=await service.check();services=services.map(item=>item.id===service.id?{...item,state:'online',message:result.message||'Available'}:item);if(service.id==='database')publishDatabase('online');}
+    catch(error){services=services.map(item=>item.id===service.id?{...item,state:'offline',message:error.message}:item);if(service.id==='database')publishDatabase('offline');}
   }));
   refreshing=false;
   if(refreshQueued){refreshQueued=false;refresh();}

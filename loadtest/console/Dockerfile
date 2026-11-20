@@ -1,21 +1,21 @@
-FROM golang:1.24.4-bookworm AS recorder
+FROM golang:1.27.4-bookworm AS recorder
 WORKDIR /recorder
 COPY loadtest/k6/scenario-mix/recorder/go.mod loadtest/k6/scenario-mix/recorder/go.sum ./
 RUN go mod download
 COPY loadtest/k6/scenario-mix/recorder/ ./
 RUN CGO_ENABLED=1 go build -mod=readonly -trimpath -o /k6-sqlite ./cmd/k6-sqlite
 
-FROM node:24.19.0-bookworm-slim AS web
+FROM node:24.22.3-bookworm-slim AS web
 WORKDIR /app/loadtest/console
 COPY loadtest/console/package.json loadtest/console/package-lock.json ./
 RUN npm ci
 COPY loadtest/console/src ./src
 COPY loadtest/console/static ./static
 COPY loadtest/console/server ./server
-COPY loadtest/console/vite.config.js loadtest/console/svelte.config.js loadtest/console/jsconfig.json ./
+COPY loadtest/console/vite.config.js loadtest/console/jsconfig.json ./
 RUN npm run build && npm prune --omit=dev
 
-FROM node:24.19.0-bookworm-slim
+FROM node:24.22.3-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini time && rm -rf /var/lib/apt/lists/*
 WORKDIR /app/loadtest/console
 COPY --from=web /app/loadtest/console/build ./build

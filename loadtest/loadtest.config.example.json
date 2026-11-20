@@ -45,7 +45,7 @@
   "load": {
     "total_rps": 10,
     "duration_seconds": 60,
-    "request_timeout_ms": 40000,
+    "request_timeout_ms": 30000,
     "think_time_ms": 0,
     "pre_allocated_vus_multiplier": 3,
     "max_vus_multiplier": 10

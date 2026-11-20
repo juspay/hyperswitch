@@ -1,7 +1,7 @@
 <script>
 import {environments,environmentLabel} from './environments.mjs';
-import {faultTargetLabel,faultTargetResource} from './fault-types.mjs';
-  import {faultNotice} from './fault-notice.mjs';
+import {faultTargetLabel,faultTargetResource,faultDisplayName} from './fault-types.mjs';
+  import FaultNotice from './FaultNotice.svelte';
   import {recordingFinished} from './run-lifecycle.mjs';
 import Icon from './Icon.svelte';
   import { onMount, tick } from 'svelte';
@@ -11,7 +11,7 @@ import Icon from './Icon.svelte';
   import LiveChart from './LiveChart.svelte';
   import {compactSamples,metricSeries,chartHorizon,pausedChartSamples} from './chart-timeline.mjs';
   import FollowingLog from './FollowingLog.svelte';
-  import {page} from '$app/stores';
+  import {page} from './app-state.mjs';
   import {setQuery} from './navigation.mjs';
   import {watchJobStream} from './job-stream.mjs';
   import ConnectionStatus from './ConnectionStatus.svelte';
@@ -56,6 +56,7 @@ import Icon from './Icon.svelte';
   let finishedRecordingJobId='';
   let faultDialog;
   let faults={targets:[],active:null,blocked:false};
+  let databaseHealth=null;
   let faultDraft={targetId:'demo',action:'outage',durationSeconds:10,confirm:''};
   let flowFilter=$page.url.searchParams.get('flow')||'all';
   let chartMetric=$page.url.searchParams.get('metric')||'tps';
@@ -76,13 +77,16 @@ import Icon from './Icon.svelte';
 
   onMount(() => {
     let disposed=false;
+    const databaseChanged=event=>{if(event.detail?.environment===settings.environment)databaseHealth=event.detail;};
+    window.addEventListener('console-database-health',databaseChanged);
+    window.dispatchEvent(new Event('console-fault-state'));
     tick().then(()=>{if(disposed)return;setQuery({run:selectedRun?.id||null,profile:selectedRun?.profile?.id||selectedProfileId,fixtures:selectedRun?.fixtureSetId||selectedFixtureId});urlReady=true;});
     if(['load','smoke'].includes(job?.command)) watchJob();
     if(reconciling)watchReconciliation(selectedRun.id);
     const connections=async()=>{try{[settings,workers]=await Promise.all([api.settings(),api.workers()]);faults=await api.faults();if(!faults.targets.some(t=>t.id===faultDraft.targetId)){faultDraft.targetId=faults.targets[0]?.id||'';faultDraft.action=faults.targets[0]?.actions[0]||'outage';}fixtureSets=await api.fixtures();error='';}catch(e){error=e.message;}};window.addEventListener('console-connections-saved',connections);connections();
     const polling=setInterval(async()=>{try{faults=await api.faults();workers=await api.workers();const r=await fetch('/api/jobs');if(r.ok){const active=await r.json();generatorBusy=active!=null && active.command!=='reconcile';if(['load','smoke'].includes(active?.command)&&active.id!==job?.id){job=active;watchJob();}}}catch{}},3000);
     api.faults().then(value=>{faults=value;faultDraft.targetId=value.targets[0]?.id || '';faultDraft.action=value.targets[0]?.actions[0] || 'outage';}).catch(e=>error=e.message);
-    return () => {disposed=true;urlReady=false;events?.close();reconciliationEvents?.close();clearInterval(polling);window.removeEventListener('console-connections-saved',connections);};
+    return () => {disposed=true;urlReady=false;events?.close();reconciliationEvents?.close();clearInterval(polling);window.removeEventListener('console-connections-saved',connections);window.removeEventListener('console-database-health',databaseChanged);};
   });
 
   async function refreshRuns() { runs = await api.runs(); }
@@ -105,7 +109,7 @@ import Icon from './Icon.svelte';
   $: if(!selectedRun&&!compatibleFixtureSets.some(f=>f.id===selectedFixtureId))selectedFixtureId=compatibleFixtureSets[0]?.id||'';
   function faultAction(stage){return faults.targets.find(target=>target.id===stage.fault?.targetId)?.actions?.[0] || stage.fault?.action;}
   function canonicalLoad(profile){const load=profile?.load || {};return {...load,stages:(load.stages || []).map(stage=>stage.fault?{...stage,fault:{...stage.fault,action:faultAction(stage)}}:stage)};}
-  function chooseProfile(){const first=readyFixturesFor(profiles.find(p=>p.id===selectedProfileId))[0];selectedFixtureId=first?.id||'';selectedRun=null;goto(`/performance?metrics=${metricsSource}&profile=${encodeURIComponent(selectedProfileId)}${selectedFixtureId?`&fixtures=${encodeURIComponent(selectedFixtureId)}`:''}`,{replaceState:true,noScroll:true});}
+  function chooseProfile(){const first=readyFixturesFor(profiles.find(p=>p.id===selectedProfileId))[0];selectedFixtureId=first?.id||'';selectedRun=null;goto(`/performance?metrics=${metricsSource}&profile=${encodeURIComponent(selectedProfileId)}${selectedFixtureId?`&fixtures=${encodeURIComponent(selectedFixtureId)}`:''}`,{replaceState:true,reset:false});}
   function newRun(){selectedRun=null;setQuery({run:null,profile:selectedProfileId});}
   function runAgain(){if(selectedRun?.profile?.id)selectedProfileId=selectedRun.profile.id;if(selectedRun?.fixtureSetId)selectedFixtureId=selectedRun.fixtureSetId;newRun();}
   $: startBlocker=generatorBusy||activeJob?'A job is already running.':!environments.find(e=>e.id===(settings.environment||'local'))?.supported?'Choose a supported environment in Settings.':!executionProfile?'Choose a saved scenario.':executionProfile.unavailableReason?executionProfile.unavailableReason:!selectedFixtureId?'Choose ready fixtures for this scenario.':execution==='distributed'&&planError?planError:'';
@@ -118,7 +122,7 @@ import Icon from './Icon.svelte';
       const selection={mode:executionProfile.mode,profileId:executionProfile.id,version:executionProfile.version,fixtureSetId:selectedFixtureId,execution};
       job=await api.start(command,command==='smoke'?{...selection,rps:Number(smokeRps),durationSeconds:Number(smokeDuration)}:selection);
       notice='';selectedRun=null;flowFilter='all';generatorBusy=true;watchJob();
-      if(command==='load')goto(`/performance?metrics=${metricsSource}&run=${encodeURIComponent(job.runId)}&profile=${encodeURIComponent(selectedProfileId)}`,{replaceState:true,noScroll:true});
+      if(command==='load')goto(`/performance?metrics=${metricsSource}&run=${encodeURIComponent(job.runId)}&profile=${encodeURIComponent(selectedProfileId)}`,{replaceState:true,reset:false});
     }
     catch(e){error=e.message;}finally{pending='';}
   }
@@ -266,11 +270,11 @@ import Icon from './Icon.svelte';
       </MetricsView>
       <LiveChart points={chartPoints} activity={activity} startedAt={selectedRun.startedAt} durationSeconds={selectedRun.durationSeconds} timeline={selectedRun.timeline || []} allPoints={chartPoints} flows={selectedRun.flows} runStatus={timelineStatus} bind:flow={flowFilter} bind:metric={chartMetric}>
         {#if activeJob&&live&&connection!=='connected'}<ConnectionStatus state={connection} updatedAt={lastUpdate}/>{/if}
-        {#if faults.active||faults.blocked}<div class="fault-notice" class:background={faults.active?.databaseAvailability==='available'&&faults.active?.status==='restoring'&&!faults.blocked} role="status">{faultNotice(faults,{live,stopping,activity})}{#if faults.blocked}<button class="secondary" disabled={faults.recovering} onclick={restoreFault}>Retry recovery</button>{/if}</div>{/if}
+        <FaultNotice {faults} {stopping} {activity} databaseHealth={databaseHealth?.environment===settings.environment?databaseHealth:null} onRetry={restoreFault}/>
       </LiveChart>
       {#if selectedRun.flows.length>1}<details class="detail-section"><summary>Flow breakdown · {selectedRun.flows.length} flows</summary><div class="table-wrap"><table><thead><tr><th>Flow</th><th>Offered TPS</th><th>Successful TPS</th><th>Client-side latency</th><th>Server-side latency</th><th>Errors</th></tr></thead><tbody>{#each selectedRun.flows.filter(f=>flowFilter==='all'||f.name===flowFilter) as flow}<tr><td>{flow.label}</td><td>{flow.offeredTps}</td><td>{flow.successfulTps}</td><td>{flow.confirmP99 == null ? '—' : `${Number(flow.confirmP99.toFixed(1))} ms`}</td><td>{flow.serverP99 == null ? '—' : `${Number(flow.serverP99.toFixed(1))} ms`}</td><td>{flow.errors}</td></tr>{/each}</tbody></table></div></details>{/if}
     {:else}<LiveChart runStatus={previewStatus} durationSeconds={smokeActive?Number(smokeDuration):shapePreview.duration} timeline={smokeActive?runTimeline:loadTimeline(canonicalLoad(executionProfile),(executionProfile?.load?.stages || []).map((s,index)=>({index,target:{label:faults.targets.find(t=>t.id===s.fault?.targetId)?.label}})))} bind:metric={chartMetric}/>{/if}
-    {#if activity.length}<details class="activity detail-section"><summary>Activity · {activity.length} events</summary>{#if activity.length}<ol>{#each activity as event (event.id)}<li><time>{new Date(event.at).toLocaleTimeString()}</time><span>{event.message}</span></li>{/each}</ol>{:else}<p>Run events will appear here.</p>{/if}</details>{/if}
+    {#if activity.length}<details class="activity detail-section"><summary>Activity · {activity.length} events</summary>{#if activity.length}<ol>{#each activity as event (event.id)}<li><time>{new Date(event.at).toLocaleTimeString()}</time><span>{faultDisplayName(event.message)}</span></li>{/each}</ol>{:else}<p>Run events will appear here.</p>{/if}</details>{/if}
     {#if viewJob || selectedRun?.diagnostics || (job && job.command!=='load')}<details class="diagnostics"><summary>Recording and diagnostics</summary>{#if selectedRun}<p>{selectedRun.persisted.toLocaleString()} responses persisted · {selectedRun.gaps} pending · recording {selectedRun.recordingState}</p>{/if}{#key viewJob?.id || selectedRun?.id || job?.id}<FollowingLog output={viewJob?.output ?? selectedRun?.diagnostics ?? job?.output ?? ''}/>{/key}</details>{/if}
   {/if}
 
@@ -301,7 +305,7 @@ import Icon from './Icon.svelte';
 </main>
 
 <style>
-.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.fault-notice{font-size:12px;color:var(--warning);padding:8px 0}.fault-notice.background{color:var(--muted)}.fault-notice button{margin-left:12px}
+.stats{grid-template-columns:repeat(4,minmax(0,1fr))}
 .blocker{font-size:12px;color:var(--warning);padding:0 2px}.blocker a{margin-left:8px}.worker-strip{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}.worker-strip span{display:flex;align-items:center;gap:6px;background:white;border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:11px}.worker-strip i{width:6px;height:6px;border-radius:50%;background:var(--accent)}.worker-strip i.complete{background:var(--success)}.worker-strip i.failed{background:var(--danger)}.results-header .run-select{max-width:560px;width:48%}.results-comparison{padding:24px}.results-comparison>.section-head{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}.discrepancies{margin-top:20px;padding-top:18px;border-top:1px solid var(--border)}.discrepancies[open]>summary{margin-bottom:14px}.execution-inputs{gap:16px}.execution-inputs>small{grid-column:1/-1;font-size:11px}.activity ol{margin-top:14px}.smoke-dialog .section-head{align-items:flex-start;margin-bottom:12px}.smoke-dialog .eyebrow{margin:0 0 4px}.smoke-intro{margin:0 0 18px}.smoke-context{display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--accent-soft);border-radius:9px;color:var(--accent)}.smoke-context>div{display:flex;flex-direction:column;gap:3px;min-width:0}.smoke-context strong{font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.smoke-context span{font-size:11px;color:var(--muted)}.smoke-fields{margin-top:20px}.number-field{position:relative}.number-field input{padding-right:48px}.number-field span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted);pointer-events:none}.smoke-dialog .actions{justify-content:space-between}
 @media(max-width:800px){.results-header .run-select{width:100%;max-width:none}.results-comparison>.section-head{align-items:flex-start;flex-wrap:wrap}.results-comparison{padding:16px}}
 @media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

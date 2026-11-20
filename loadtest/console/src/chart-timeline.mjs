@@ -1,3 +1,4 @@
+import {faultDisplayName} from './fault-types.mjs';
 export const activeTime=p=>Number.isFinite(p.activeSeconds)?p.activeSeconds:p.t;
 // Keep wall-clock recording intact, but stop extending the visible graph once
 // the current pause has drained and its first zero-throughput sample arrives.
@@ -42,8 +43,8 @@ export function wallToActive(seconds,points){
  return activeTime(previous)+(activeTime(next)-activeTime(previous))*fraction;
 }
 export function plannedEvents(timeline){return timeline.flatMap((s,index)=>[
- {t:s.start,edge:index>0&&timeline[index-1].fault?'end':'start',label:s.fault?`${s.fault.target} · fault planned`:s.kind==='ramp'?`Ramp ${s.from} → ${s.target} TPS`:`Hold ${s.target} TPS`,kind:s.kind},
- ...(s.fault?.action==='outage'?[{t:s.end,edge:'start',label:`${s.fault.target} · recovery planned`,kind:'recovery'}]:[])
+ {t:s.start,edge:index>0&&timeline[index-1].fault?'end':'start',label:s.fault?`${faultDisplayName(s.fault.target)} · fault planned`:s.kind==='ramp'?`Ramp ${s.from} → ${s.target} TPS`:`Hold ${s.target} TPS`,kind:s.kind},
+ ...(s.fault?.action==='outage'?[{t:s.end,edge:'start',label:`${faultDisplayName(s.fault.target)} · recovery planned`,kind:'recovery'}]:[])
 ]);}
 function eventTarget(event){
  const parts=(event.message||'').split(' · ');
@@ -90,7 +91,7 @@ export function executionPhases(timeline,points,activity=[],startedAt=0,elapsedS
  for(let i=1;i<boundaries.length;i++){
   const start=boundaries[i-1],finish=boundaries[i],mid=(start+finish)/2,fault=outages.find(f=>mid>=f.start&&mid<f.end),stage=stages.find(s=>mid>=s.wallStart&&mid<s.wallEnd)||stages.at(-1);
   if(!stage&&!fault)continue;
-  const kind=fault?'outage':stage?.kind==='ramp'?'ramp':'hold',label=fault?`${fault.target==='PostgreSQL'?'DB':fault.target} outage`:kind==='ramp'?'Ramp':'Hold';
+  const kind=fault?'outage':stage?.kind==='ramp'?'ramp':'hold',label=fault?`${fault.target==='PostgreSQL'?'DB':faultDisplayName(fault.target)} outage`:kind==='ramp'?'Ramp':'Hold';
   const previous=phases.at(-1);if(previous?.label===label&&previous.end===start)previous.end=finish;else phases.push({start,end:finish,kind,label});
  }
  return phases;

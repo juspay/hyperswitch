@@ -103,6 +103,33 @@ test('DB availability ends outage before provider operation finishes, repeated f
  assert.equal(faults.length,2);assert.equal(faults[0].to,5);assert.equal(faults[1].recoveredAt,15);assert.equal(faults[1].stageIndex,1);
 });
 
+test('renewed DB unavailability invalidates early recovery and uses the final availability boundary',()=>{
+ const event=(at,kind)=>({at,kind});
+ const events=[event(1000,'fault_requested'),event(2000,'database_unavailable'),event(3000,'database_available'),event(4000,'database_unavailable')];
+ const stages=[{index:0,fault:{}}];
+ const pending=faultOccurrences(events,stages,15000)[0];
+ assert.equal(pending.recoveredAt,null);
+ assert.equal(pending.to,15000);
+ const [recovered]=faultOccurrences([...events,event(9000,'database_available'),event(10000,'fault_restored')],stages,15000);
+ assert.equal(recovered.unavailableAt,2000);
+ assert.equal(recovered.recoveredAt,9000);
+ assert.equal(recovered.to,9000);
+});
+
+test('flapping recovery drives throughput, latency and reconnection from the final SQL recovery',()=>{
+ const cfg={...faultConfig,load:{start_rps:5,stages:[{target_rps:5,duration_seconds:10},{target_rps:5,duration_seconds:20,fault:{targetId:'postgres',action:'failover'}},{target_rps:5,duration_seconds:40}]},faultPlan:[{index:1,target:{id:'postgres',serviceType:'postgres'}}]};
+ const ev=[{at:11000,kind:'fault_requested'},{at:12000,kind:'database_unavailable'},{at:13000,kind:'database_available'},{at:14000,kind:'database_unavailable'},{at:31000,kind:'database_available'},{at:32000,kind:'fault_restored'}];
+ const request=(at,ms=80)=>({operation:'payment_confirm',api_status_code:200,status:'succeeded',observed_at:at,latency_ms:10,server_latency_ms:ms});
+ const requests=[request(13500,9000),...Array.from({length:50},(_,i)=>request(31050+i*200)),request(42000,120)];
+ const summary=evaluateScenarioChecks({config:cfg,recording:{...recording,ended_at:71000},events:ev,samples:Array.from({length:71},(_,i)=>({at:1000+i*1000,active:i})),requests,flows:requests.map(r=>({at:r.observed_at,startedAt:r.observed_at-10,success:1})),jobStatus:'complete'});
+ const recovery=summary.groups.find(g=>g.kind==='recovery');
+ assert.equal(row(summary.groups.find(g=>g.kind==='fault'),'recovery').actual,19);
+ assert.equal(row(recovery,'throughput').actual,100);
+ assert.equal(row(recovery,'completed').actual,50);
+ assert.equal(row(recovery,'p99').actual,120);
+ assert.equal(summary.states.find(s=>s.state==='recovery').p99,120);
+});
+
 test('a recovery boundary overlapping the next stage does not disable its healthy checks',()=>{
  const group=evaluate({config:faultConfig,events}).groups.find(g=>g.id==='stage-2');
  assert.equal(row(group,'errors').limit,.1);assert.equal(row(group,'throughput').limit,97);
@@ -148,7 +175,7 @@ test('reconciliation is required before claiming zero acknowledged payments lost
 });
 
 test('Results limits reject invalid numbers, bounds and fractional lost-payment limits',()=>{
- for(const limits of [{minimumThroughputPercent:101},{maximumHttpErrorPercent:-1},{maximumHoldP99Ms:Infinity},{recoveryWindowSeconds:0},{maximumLostPayments:.5},{maximumRecoverySeconds:''}])assert.throws(()=>validateResultsLimits(limits),/Invalid Results limit/);
+ for(const limits of [{minimumThroughputPercent:101},{minimumConfirmationSuccessPercent:101},{minimumConfirmationSuccessPercent:-1},{minimumConfirmationSuccessPercent:Infinity},{maximumHttpErrorPercent:-1},{maximumHoldP99Ms:Infinity},{recoveryWindowSeconds:0},{maximumLostPayments:.5},{maximumRecoverySeconds:''}])assert.throws(()=>validateResultsLimits(limits),/Invalid Results limit/);
  assert.deepEqual(validateResultsLimits(),defaultResultsLimits);assert.equal(validateResultsLimits({maximumHoldP99Ms:'200'}).maximumHoldP99Ms,200);
 });
 
@@ -161,7 +188,7 @@ test('SQLite-backed summaries persist, honor snapshots and refresh after reconci
   await writeFile(path.join(directory,'execution.jsonl'),samples.map(s=>JSON.stringify(s)).join('\n'));
   const input={config:faultConfig,recording,events,jobStatus:'complete'};
   const first=await scenarioChecks(directory,input),artifact=JSON.parse(await readFile(path.join(directory,'scenario-checks.json')));
-  assert.equal(row(first.groups[0],'completed').actual,100);assert.equal(artifact.summary.version,16);
+  assert.equal(row(first.groups[0],'completed').actual,100);assert.equal(artifact.summary.version,17);
   const second=await scenarioChecks(directory,{...input,reconciliation:{recordingState:'complete',total:300,expected:300,missing:0}});
   assert.equal(row(second.groups.at(-1),'lost').outcome,'pass');
   assert.notEqual(JSON.parse(await readFile(path.join(directory,'scenario-checks.json'))).fingerprint,artifact.fingerprint);
@@ -188,6 +215,19 @@ test('outage confirmation failures remain visible without failing outside-outage
  assert.equal(result.completion.check.outcome,'pass');assert.equal(result.completion.outageFailures,1);assert.ok(result.completion.outageAttempts>1);
  const bad=evaluateScenarioChecks({...input,requests:[...input.requests,{operation:'payment_confirm',api_status_code:500,status:'failed',observed_at:5000,latency_ms:10}]});
  assert.equal(bad.completion.check.outcome,'fail');
+});
+
+test('confirmation success uses the saved budget while older snapshots retain the strict default',()=>{
+ const failures=n=>rows.map((r,i)=>i<n?{...r,api_status_code:500,status:'failed'}:r);
+ const budget={...config,resultsLimits:{...defaultResultsLimits,minimumConfirmationSuccessPercent:99}};
+ const accepted=evaluate({config:budget,requests:failures(3)}).completion;
+ assert.equal(accepted.check.limit,99);assert.equal(accepted.check.actual,99);
+ assert.equal(accepted.check.outcome,'pass');assert.equal(accepted.successful,297);
+ assert.equal(evaluate({config:budget,requests:failures(4)}).completion.check.outcome,'fail');
+ const oldLimits={...defaultResultsLimits};delete oldLimits.minimumConfirmationSuccessPercent;
+ const historical=evaluate({config:{...config,resultsLimits:oldLimits},requests:failures(3)}).completion;
+ assert.equal(historical.check.limit,100);assert.equal(historical.check.outcome,'fail');
+ assert.equal(defaultResultsLimits.minimumConfirmationSuccessPercent,100);
 });
 
 test('non-confirmation request durations cannot affect any server latency percentile',()=>{

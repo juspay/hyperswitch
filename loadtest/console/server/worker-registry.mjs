@@ -9,13 +9,15 @@ const publicWorker=row=>({id:row.id,name:row.name,status:Date.now()-row.last_see
 
 export function listWorkers(){return controlDb().prepare('SELECT * FROM load_workers ORDER BY name,id').all().map(publicWorker);}
 export function enrollWorker(input,providedToken,expectedToken=process.env.LOADTEST_WORKER_ENROLLMENT_TOKEN){
-  if(!expectedToken||!safeEqual(providedToken,expectedToken))throw new HttpError(401,'Worker enrollment is not authorized');
+  // Require a generated 256-bit token; blank, short, repeated and example values fail closed.
+  const token=String(expectedToken||'');
+  if(!/^[A-Za-z0-9_-]{43,256}$/.test(token)||new Set(token).size<16||/replace|example|changeme/i.test(token)||!safeEqual(providedToken,token))throw new HttpError(401,'Worker enrollment is not authorized');
   const name=String(input.name||'').trim(),capacityTps=Number(input.capacityTps),capacityVus=Number(input.capacityVus);
   if(!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(name)||!Number.isInteger(capacityTps)||capacityTps<1||!Number.isInteger(capacityVus)||capacityVus<1)throw new Error('Worker needs a valid name and positive TPS/VU capacity');
-  const id=randomUUID(),token=randomBytes(32).toString('base64url'),now=Date.now();
+  const id=randomUUID(),workerToken=randomBytes(32).toString('base64url'),now=Date.now();
   controlDb().prepare("INSERT INTO load_workers(id,name,token_hash,status,labels,capacity_tps,capacity_vus,version,created_at,last_seen) VALUES(?,?,?,'idle',?,?,?,?,?,?)")
-    .run(id,name,hash(token),JSON.stringify(input.labels||{}),capacityTps,capacityVus,String(input.version||''),now,now);
-  return {id,token};
+    .run(id,name,hash(workerToken),JSON.stringify(input.labels||{}),capacityTps,capacityVus,String(input.version||''),now,now);
+  return {id,token:workerToken};
 }
 export function registerLocalWorker(input={}){
   const db=controlDb(),id='local',now=Date.now(),existing=db.prepare('SELECT * FROM load_workers WHERE id=?').get(id),token=input.token||randomBytes(32).toString('base64url');

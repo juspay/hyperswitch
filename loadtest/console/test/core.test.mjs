@@ -1,3 +1,4 @@
+import {randomBytes} from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp,readFile,writeFile,mkdir } from 'node:fs/promises';
@@ -5,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
+const enrollmentToken=randomBytes(32).toString('base64url');
 const temporary=await mkdtemp(path.join(os.tmpdir(),'loadtest-console-core-'));
 process.env.LOADTEST_DATA_DIR=temporary;
 process.env.LOADTEST_CONSOLE_ROOT=path.resolve('.');
@@ -66,7 +68,7 @@ test('masked credentials cannot follow edited connection destinations',async()=>
   assert.equal(databaseTestConnection(saved,{host:'db.internal'}).password,'saved');
 });
 test('workers enroll, heartbeat, receive ordered commands and acknowledge once',()=>{
-  const identity=registry.enrollWorker({name:'worker-a',capacityTps:250,capacityVus:2000,version:'1'},'enroll-secret','enroll-secret');
+  const identity=registry.enrollWorker({name:'worker-a',capacityTps:250,capacityVus:2000,version:'1'},enrollmentToken,enrollmentToken);
   assert.equal(registry.heartbeatWorker(identity.id,identity.token,{status:'ready'}).ok,true);
   const command=registry.queueWorkerCommand(identity.id,{runId:'run-a',kind:'prepare',payload:{segment:{start:0,end:.5}}});
   assert.equal(command.revision,1);
@@ -90,12 +92,12 @@ test('settings and redaction never expose secrets; profiles validate paths and w
   const saved=await state.saveSettings(settings);assert.equal(saved.totalRps,10);assert.equal(saved.superposition.pollSeconds,2.5);assert.equal(saved.superposition.accessHeader,'x-superposition-access');assert.equal(state.readJsonSync(state.configPath).fixtures.admin_api_key,'private-admin-test');
   assert.deepEqual(saved.grafana.panels.map(panel=>panel.title),['RPS','API latency','TP latencies']);
   assert.deepEqual(saved.smokeTest,{enabled:true,rps:1,durationSeconds:10});
-  assert.deepEqual(saved.database,{host:'database.internal',port:6432,database:'payments',user:'loadtest_reader',tlsMode:'verify',caPath:'/certs/database.pem',caCertificateId:'',password:'',hasPassword:true});
+  assert.deepEqual(saved.database,{host:'database.internal',port:6432,database:'payments',user:'loadtest_reader',tlsMode:'verify',caPath:'/certs/database.pem',caCertificateId:'',serverName:'',password:'',hasPassword:true});
   assert.equal(state.localSettings().database.password,'database-secret');
   assert.equal(state.publicSettings().database.host,'database.internal');
   assert.deepEqual(state.configuredVus(state.readJsonSync(state.configPath).load),{pre_allocated_vus_multiplier:4,max_vus_multiplier:12});
   assert.deepEqual(state.withConfiguredVus({total_rps:200,pre_allocated_vus_multiplier:1,max_vus_multiplier:2},state.readJsonSync(state.configPath).load),
-    {total_rps:200,pre_allocated_vus_multiplier:4,max_vus_multiplier:12,request_timeout_ms:40000});
+    {total_rps:200,pre_allocated_vus_multiplier:4,max_vus_multiplier:12,request_timeout_ms:30000});
   await assert.rejects(state.saveConnections({...saved,preAllocatedVusMultiplier:15,maxVusMultiplier:10}),/VU multipliers/);
 });
 test('Grafana panels cannot point to arbitrary origins or schemes',()=>{
@@ -168,9 +170,11 @@ test('Results limits save through Settings, validate values and preserve profile
  const {getProfile,saveProfile,profileDraft}=await import('../server/profiles.mjs');
  const settings=state.publicSettings();assert.equal(settings.resultsLimits.minimumThroughputPercent,97);
  const profile=saveProfile({...profileDraft(),name:'Results snapshot scenario'});
- const saved=await state.saveConnections({...settings,resultsLimits:{...settings.resultsLimits,maximumHoldP99Ms:250,recoveryWindowSeconds:15}});
+ const saved=await state.saveConnections({...settings,resultsLimits:{...settings.resultsLimits,maximumHoldP99Ms:250,recoveryWindowSeconds:15,minimumConfirmationSuccessPercent:99}});
  assert.equal(saved.resultsLimits.maximumHoldP99Ms,250);assert.equal(saved.resultsLimits.recoveryWindowSeconds,15);
  assert.equal(state.readJsonSync(state.configPath).resultsLimits.maximumHoldP99Ms,250);
+ assert.equal(saved.resultsLimits.minimumConfirmationSuccessPercent,99);
+ assert.equal(state.readJsonSync(state.configPath).resultsLimits.minimumConfirmationSuccessPercent,99);
  assert.equal(getProfile(profile.id).version,profile.version);
  await assert.rejects(state.saveConnections({...saved,resultsLimits:{...saved.resultsLimits,minimumThroughputPercent:101}}),/Invalid Results limit/);
  assert.equal(state.publicSettings().resultsLimits.minimumThroughputPercent,97);
@@ -217,6 +221,16 @@ test('new flows get unique metric names without changing existing flows',async()
 });
 
 test('new runs use the configured HTTP timeout even when a saved scenario has an older timeout',()=>{
- assert.equal(state.withConfiguredVus({request_timeout_ms:30000},{request_timeout_ms:40000}).request_timeout_ms,40000);
+ assert.equal(state.withConfiguredVus({request_timeout_ms:40000},{request_timeout_ms:30000}).request_timeout_ms,30000);
  assert.equal(state.withConfiguredVus({request_timeout_ms:40000},{}).request_timeout_ms,40000);
+});
+
+
+test('worker enrollment rejects unset, example and weak configured tokens before creating a worker',()=>{
+ const input={name:'unauthorized-worker',capacityTps:1,capacityVus:10};
+ const before=registry.listWorkers().length;
+ for(const token of ['', 'replace-with-a-long-random-token', 'secret', 'a'.repeat(64), 'replace-with-a-long-random-token-0123456789abcdef'])
+  assert.throws(()=>registry.enrollWorker(input,token,token),/not authorized/);
+ assert.throws(()=>registry.enrollWorker(input,'wrong',enrollmentToken),/not authorized/);
+ assert.equal(registry.listWorkers().length,before);
 });

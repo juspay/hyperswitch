@@ -9,7 +9,7 @@ import {latencyPercentile,settledLatencyWindows,containedLatencySample,mergeLate
 import {matchedLatencyDrift} from './latency-drift.mjs';
 import {testCasePlan} from '../src/result-test-cases.mjs';
 
-export const scenarioChecksVersion=16;
+export const scenarioChecksVersion=17;
 const terminal=new Set(['complete','failed','cancelled','interrupted']);
 const successful=row=>row.api_status_code>=200&&row.api_status_code<300&&['succeeded','requires_capture','processing'].includes(row.status);
 const inWindow=(at,windows)=>windows.some(w=>at>=w.from&&at<w.to);
@@ -47,7 +47,12 @@ export function faultOccurrences(events,stages,end){
     if(!current)continue;
     if(event.kind==='fault_started'){current.startedAt??=event.at;current.simulated||=event.message?.startsWith('SIMULATED')||false;}
     if(event.kind==='fault_restore')current.restoreAt=event.at;
-    if(event.kind==='database_unavailable'){current.unavailable=true;current.unavailableAt??=event.at;}
+    if(event.kind==='database_unavailable'){
+      current.unavailable=true;current.unavailableAt??=event.at;
+      // A brief successful probe is not final recovery if SQL fails again.
+      // Keep every dependent window anchored to the final observed recovery.
+      current.recoveredAt=null;current.to=end;
+    }
     if(event.kind==='database_available'&&current.unavailable){current.recoveredAt??=event.at;current.to=event.at;}
     if(event.kind==='fault_restored'){
       current.recoveredAt??=event.at;current.to=current.recoveredAt;current=null;
@@ -219,7 +224,7 @@ export function evaluateScenarioChecks({config,recording,events=[],samples=[],re
   const expected=confirmations.attempts;
   const completionState=!finished?'in_progress':!measurementsAvailable||['cancelled','interrupted'].includes(jobStatus)||recording.recording_state!=='complete'||!clock||Math.max(clock.active,control?.active_seconds||0)<shape.duration-.05?'partial':'complete';
   const completion={expected,planned,started:admitted,successful:confirmations.successful,dropped,scope:'payment_confirm_outside_outage',outageAttempts:confirmations.outageAttempts,outageFailures:confirmations.outageFailures,
-    check:check('completion','Payment confirmations succeeded outside outage',measurementsAvailable&&expected>0?100*confirmations.successful/expected:null,saved?100:null,'%',{minimum:true,state:completionState})};
+    check:check('completion','Payment confirmations succeeded outside outage',measurementsAvailable&&expected>0?100*confirmations.successful/expected:null,saved?limits.minimumConfirmationSuccessPercent:null,'%',{minimum:true,state:completionState})};
   const checks=[...groups.filter(g=>!steadyIds.has(g.id)).flatMap(g=>g.checks),...(steadyIds.size?steadyChecks:[]),completion.check],passed=checks.filter(c=>c.outcome==='pass').length,evaluated=checks.filter(c=>['pass','fail'].includes(c.outcome)).length,total=checks.filter(c=>c.limit!=null).length;
   const measuredVerdict=groupVerdict(checks);
   // Legacy snapshots only cover part of this checklist. Keep their measured

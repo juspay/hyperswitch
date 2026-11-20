@@ -9,7 +9,7 @@ function add(){if(!choice)return;const mix=[...value.mix,{connector:choice,weigh
 function remove(index){value={...value,mix:value.mix.filter((_,i)=>i!==index)};}
 </script>
 <div class="connector-mix">
-<label>Connector mode<select value={value.mode} onchange={e=>mode(e.currentTarget.value)}><option value="dummy">Dummy</option><option value="real">Real connectors · sandbox</option></select></label>
+<label>Connector mode<select value={value.mode} onchange={e=>mode(e.currentTarget.value)}><option value="dummy">Dummy</option><option value="real">Real connectors</option></select></label>
 {#each value.mix as row,i (row.connector)}<div class="connector-row"><span>{connectorCatalog.find(c=>c.id===row.connector)?.label||row.connector}</span><label>Traffic · %<input type="number" min="1" max="100" step="1" bind:value={row.weight}/></label><button type="button" class="quiet" aria-label={`Remove ${row.connector}`} onclick={()=>remove(i)}>Remove</button></div>{/each}
 {#if options.length}<div class="connector-add"><label>Add connector<select bind:value={choice}><option value="">Choose connector</option>{#each options as option}<option value={option.id}>{option.label}</option>{/each}</select></label><button type="button" class="secondary" disabled={!choice||value.mix.length>=20} onclick={add}>Add</button></div>{/if}
 {#if error}<p class="invalid" role="status">{error}</p>{/if}

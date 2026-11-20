@@ -80,11 +80,11 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     const settings=await (await request('/api/settings')).json();assert.equal(settings.adminApiKey,'');assert.doesNotMatch(JSON.stringify(settings),/mock-private-admin|mock-sp-token|secret-grafana-test/);
     assert.equal((await request('/api/settings','PUT',settings,true,{origin:'https://other.example'})).status,403);
     const gcpDraft=await (await request('/api/settings?environment=gcp')).json();assert.equal(gcpDraft.environment,'gcp');assert.equal(gcpDraft.hasAdminApiKey,false);
-    const placeholder=await (await request('/api/settings?environment=aws')).json();assert.equal(placeholder.environment,'aws');assert.equal(placeholder.database.hasPassword,false);
+    const placeholder=await (await request('/api/settings?environment=azure')).json();assert.equal(placeholder.environment,'azure');assert.equal(placeholder.database.hasPassword,false);
     assert.equal((await request('/api/settings','PUT',placeholder)).status,200);
-    assert.match(await (await request('/scenarios')).text(),/environment-label[^>]*>AWS</);
+    assert.match(await (await request('/scenarios')).text(),/environment-label[^>]*>Azure</);
     for(const endpoint of ['/api/fixtures','/api/smoke']){const blocked=await request(endpoint,'POST',{mode:'single'});assert.equal(blocked.status,400);assert.match((await blocked.json()).error,/execution is not supported/);}
-    const blockedCheck=await request('/api/settings/services/test','POST',{kind:'router',endpoint:target.url,environment:'aws'});assert.equal(blockedCheck.status,400);
+    const blockedCheck=await request('/api/settings/services/test','POST',{kind:'router',endpoint:target.url,environment:'azure'});assert.equal(blockedCheck.status,400);
     assert.equal((await request('/api/settings','PUT',await (await request('/api/settings?environment=local')).json())).status,200);
     assert.equal((await (await request('/api/settings')).json()).router,settings.router);
     const localTargets=[{id:'vault',label:'Vault test',adapter:'local-vault',port:3001,repository:temporary}];
@@ -137,7 +137,7 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     const completedFixtures=await completed(fixtures.id);assert.equal(completedFixtures.status,'complete');assert.equal(completedFixtures.progress.setup.stage,'ready');assert.equal(completedFixtures.progress.setup.superposition.status,'complete');
     const runsBeforeSmoke=(await (await request('/api/runs')).json()).length;
     const smokeResponse=await request('/api/smoke','POST',{mode:'single',profileId:profile.id,version:profile.version,fixtureSetId:completedFixtures.fixtureSetId,rps:1,durationSeconds:1});
-    assert.equal(smokeResponse.status,202);const smoke=await smokeResponse.json();assert.equal(smoke.command,'smoke');assert.equal(smoke.runId,undefined);
+    assert.equal(smokeResponse.status,202,await smokeResponse.clone().text());const smoke=await smokeResponse.json();assert.equal(smoke.command,'smoke');assert.equal(smoke.runId,undefined);
     assert.equal((await request('/api/runs','POST',{mode:'single'})).status,409);
     const completedSmoke=await completed(smoke.id);assert.equal(completedSmoke.status,'complete',completedSmoke.error);assert.match(completedSmoke.output,/recording disabled/);
     assert.equal(completedSmoke.profile.totalRps,1);assert.equal(completedSmoke.profile.durationSeconds,1);

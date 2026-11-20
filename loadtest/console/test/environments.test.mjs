@@ -9,7 +9,7 @@ const state=await import('../server/state.mjs');state.initializeConfig();
 const faults=await import('../server/faults.mjs');
 test('provider identity is explicit; unsupported and mismatched adapters never execute',()=>{
  assert.equal(targetEnvironment({adapter:'kubernetes'}),null);assert.equal(targetEnvironment({adapter:'kubernetes',environment:'cloud'}),'gcp');
- assert.throws(()=>requireSupportedEnvironment('aws'),/execution is not supported/);assert.throws(()=>requireSupportedEnvironment('azure'),/execution is not supported/);
+ assert.doesNotThrow(()=>requireSupportedEnvironment('aws'));assert.equal(validateTargetProvider({environment:'aws',adapter:'command'},'postgres'),'aws');assert.throws(()=>validateTargetProvider({environment:'aws',adapter:'gcp-alloydb'},'postgres'),/does not support/);assert.throws(()=>requireSupportedEnvironment('azure'),/execution is not supported/);
  assert.throws(()=>validateTargetProvider({environment:'local',adapter:'gcp-alloydb'},'postgres'),/does not support/);
  assert.throws(()=>faults.makeFaultAdapter({adapter:'placeholder'}),/Unsupported/);
 });

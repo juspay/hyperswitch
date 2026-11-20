@@ -10,18 +10,21 @@ export function databaseConnectionOptions(database,{readCa=readFileSync,readCert
   if(tlsMode==='disable')return {...connection,ssl:false};
   if(tlsMode==='require')return {...connection,ssl:{rejectUnauthorized:false}};
   if(tlsMode!=='verify')throw new Error('Database TLS mode must be disable, require, or verify');
+  const serverName=String(database.serverName||'').trim();
+  if(serverName&&!/^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?$/.test(serverName))throw new Error('Use a DNS hostname for the database TLS server name');
+  const identity=serverName?{servername:serverName}:{};
   if(database.caCertificateId){
     let ca;try{ca=readCertificate(database.caCertificateId);}catch(e){throw new Error(`Cannot read imported database CA certificate: ${e.message}`);}
     if(!String(ca).includes('-----BEGIN CERTIFICATE-----'))throw new Error('Imported database CA certificate is not PEM encoded');
-    return {...connection,ssl:{rejectUnauthorized:true,ca}};
+    return {...connection,ssl:{rejectUnauthorized:true,...identity,ca}};
   }
   const caPath=String(database.caPath || '').trim();
-  if(!caPath)return {...connection,ssl:{rejectUnauthorized:true}};
+  if(!caPath)return {...connection,ssl:{rejectUnauthorized:true,...identity}};
   if(!path.isAbsolute(caPath))throw new Error('Database CA certificate path must be absolute');
   let ca;
   try{ca=readCa(caPath,'utf8');}catch(e){throw new Error(`Cannot read database CA certificate: ${e.message}`);}
   if(!String(ca).includes('-----BEGIN CERTIFICATE-----'))throw new Error('Database CA certificate is not PEM encoded');
-  return {...connection,ssl:{rejectUnauthorized:true,ca}};
+  return {...connection,ssl:{rejectUnauthorized:true,...identity,ca}};
 }
 
 export function databaseConnectionError(error,database={}){
