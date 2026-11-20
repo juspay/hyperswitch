@@ -75,6 +75,71 @@ pub struct PaymentMethodsMigrateForm {
     pub merchant_connector_id: Option<text::Text<id_type::MerchantConnectorAccountId>>,
 
     pub merchant_connector_ids: Option<text::Text<String>>,
+
+    /// Omitted/false selects the existing migration handler and response contract.
+    pub use_modular_customer_creation: Option<text::Text<bool>>,
+
+    /// Temporary merchant credential for customer calls; the batch itself uses admin auth.
+    pub customer_api_key: Option<text::Text<hyperswitch_masking::StrongSecret<String>>>,
+}
+
+#[derive(Debug)]
+pub enum CustomerMigrationOptions {
+    Legacy,
+    Modular {
+        api_key: hyperswitch_masking::StrongSecret<String>,
+    },
+}
+
+impl PaymentMethodsMigrateForm {
+    pub fn validate_modular_csv_headers(&self) -> Result<(), errors::ApiErrorResponse> {
+        validate_modular_csv_headers(self.file.data.to_bytes())
+    }
+
+    pub fn take_customer_migration_options(
+        &mut self,
+    ) -> Result<CustomerMigrationOptions, errors::ApiErrorResponse> {
+        if !self
+            .use_modular_customer_creation
+            .as_ref()
+            .is_some_and(|value| **value)
+        {
+            return Ok(CustomerMigrationOptions::Legacy);
+        }
+        // Move the secret out of the form only after modular migration is selected.
+        let api_key = self
+            .customer_api_key
+            .take()
+            .map(|value| value.0)
+            .filter(|value| !value.peek().trim().is_empty())
+            .ok_or_else(|| errors::ApiErrorResponse::InvalidRequestData {
+                message: "customer_api_key is required for modular customer migration".to_string(),
+            })?;
+        Ok(CustomerMigrationOptions::Modular { api_key })
+    }
+}
+
+fn validate_modular_csv_headers(data: &[u8]) -> Result<(), errors::ApiErrorResponse> {
+    let invalid = || errors::ApiErrorResponse::InvalidRequestData {
+        message: "migration_csv_headers_invalid: unknown or duplicate columns".to_string(),
+    };
+    // Derive the allow-list from the existing record, without modifying legacy CSV parsing.
+    let record: pm_api::PaymentMethodRecord = serde_json::from_value(serde_json::json!({
+        "customer_id": "migration_header_check"
+    }))
+    .map_err(|_| invalid())?;
+    let fields = serde_json::to_value(record).map_err(|_| invalid())?;
+    let fields = fields.as_object().ok_or_else(invalid)?;
+    let mut reader = Reader::from_reader(data);
+    let headers = reader.headers().map_err(|_| invalid())?;
+    let mut seen = std::collections::HashSet::new();
+    if headers
+        .iter()
+        .any(|header| !fields.contains_key(header) || !seen.insert(header))
+    {
+        return Err(invalid());
+    }
+    Ok(())
 }
 
 pub struct MerchantConnectorValidator;
