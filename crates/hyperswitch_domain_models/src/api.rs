@@ -12,6 +12,8 @@ use super::payment_method_data::PaymentMethodData;
 pub enum ApplicationResponse<R> {
     Json(R),
     StatusOk,
+    /// An empty response with this HTTP status.
+    StatusCode(u16),
     TextPlain(String),
     JsonForRedirection(api_models::payments::RedirectionResponse),
     Form(Box<RedirectionFormData>),
@@ -33,18 +35,37 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, PartialEq)]
 pub enum WebhookResponse<R> {
     Json(R),
-    StatusOk,
     TextPlain(String),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
+    /// An empty acknowledgement with this HTTP status.
+    StatusCode(u16),
     Xml(String),
+}
+
+impl<R> Default for WebhookResponse<R> {
+    fn default() -> Self {
+        Self::StatusCode(200)
+    }
+}
+
+impl<R> WebhookResponse<R> {
+    /// An empty `200` acknowledgement goes back with the connector's ack status instead, so a
+    /// connector that only counts e.g. 201 as delivered does not retry, or disable, every
+    /// webhook it sent. Any other response is returned unchanged.
+    pub fn with_ack_status(self, ack_status_code: u16) -> Self {
+        match self {
+            Self::StatusCode(200) => Self::StatusCode(ack_status_code),
+            response => response,
+        }
+    }
 }
 
 impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
     fn from(resp: WebhookResponse<R>) -> Self {
         match resp {
             WebhookResponse::Json(r) => Self::Json(r),
-            WebhookResponse::StatusOk => Self::StatusOk,
+            WebhookResponse::StatusCode(status_code) => Self::StatusCode(status_code),
             WebhookResponse::TextPlain(s) => Self::TextPlain(s),
             WebhookResponse::FileData((v, m)) => Self::FileData((v, m)),
             WebhookResponse::JsonWithHeaders((r, h)) => Self::JsonWithHeaders((r, h)),
@@ -76,7 +97,8 @@ impl<R> ApplicationResponse<R> {
             | Self::FileData(_)
             | Self::Xml(_)
             | Self::GenericLinkForm(_)
-            | Self::StatusOk => Err(common_utils::errors::ValidationError::InvalidValue {
+            | Self::StatusOk
+            | Self::StatusCode(_) => Err(common_utils::errors::ValidationError::InvalidValue {
                 message: "expected either Json or JsonWithHeaders Response".to_string(),
             }
             .into()),

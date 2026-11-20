@@ -1028,6 +1028,12 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         false
     }
 
+    /// HTTP status of an empty webhook acknowledgement. A connector that treats any other
+    /// status as a failed delivery (and retries or disables the webhook) overrides this.
+    fn get_webhook_ack_status_code(&self) -> u16 {
+        200
+    }
+
     /// Function to get dynamic access token key suffix from Connector
     fn get_access_token_key(
         &self,

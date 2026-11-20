@@ -365,7 +365,7 @@ async fn incoming_webhooks_core(
         Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
     ) {
         return Ok((
-            WebhookResponse::StatusOk,
+            WebhookResponse::default().with_ack_status(connector.get_webhook_ack_status_code()),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::default()),
         ));
@@ -467,7 +467,11 @@ async fn incoming_webhooks_core(
         }
     };
 
-    Ok((ack_response, webhook_effect, serialized_body))
+    Ok((
+        ack_response.with_ack_status(connector.get_webhook_ack_status_code()),
+        webhook_effect,
+        serialized_body,
+    ))
 }
 
 async fn fetch_three_ds_execution_path(
@@ -849,7 +853,7 @@ fn handle_incoming_webhook_error(
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
         Ok((
-            response,
+            response.with_ack_status(connector.get_webhook_ack_status_code()),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::Null),
         ))
@@ -926,7 +930,7 @@ async fn network_token_incoming_webhooks_core(
         .await?;
 
     Ok((
-        WebhookResponse::StatusOk,
+        WebhookResponse::default(),
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),

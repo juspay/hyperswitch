@@ -464,7 +464,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                 reference,
                 event_type,
                 masked_log_payload: Secret::new(serde_json::Value::Null),
-                ack_response: WebhookResponse::StatusOk,
+                ack_response: WebhookResponse::default(),
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -545,7 +545,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                 let ack_response = handle_response
                     .event_ack_response
                     .map(ucs_ack_to_webhook_response)
-                    .unwrap_or(WebhookResponse::StatusOk);
+                    .unwrap_or_default();
 
                 WebhookOutcome::Processed {
                     reference,
@@ -1059,7 +1059,7 @@ fn ucs_ack_to_webhook_response(
     } = ack;
 
     if body.is_empty() {
-        return WebhookResponse::StatusOk;
+        return WebhookResponse::default();
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers

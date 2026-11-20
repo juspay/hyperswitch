@@ -497,6 +497,7 @@ where
             ),
         },
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
+        Ok(ApplicationResponse::StatusCode(status_code)) => http_response_status_code(status_code),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
         Ok(ApplicationResponse::Xml(xml)) => http_response_xml(xml),
         Ok(ApplicationResponse::FileData((file_data, content_type))) => {
@@ -734,6 +735,17 @@ pub fn http_response_html_data<T: body::MessageBody + 'static>(
 
 pub fn http_response_ok() -> HttpResponse {
     HttpResponse::Ok().finish()
+}
+
+/// An empty response with `status_code`, or `200` if it is not a valid HTTP status.
+pub fn http_response_status_code(status_code: u16) -> HttpResponse {
+    http::StatusCode::from_u16(status_code).map_or_else(
+        |error| {
+            logger::error!(?error, status_code, "Invalid HTTP status code in response");
+            http_response_ok()
+        },
+        |status_code| HttpResponse::build(status_code).finish(),
+    )
 }
 
 pub fn http_redirect_response<T: body::MessageBody + 'static>(

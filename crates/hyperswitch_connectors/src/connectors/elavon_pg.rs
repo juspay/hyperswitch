@@ -189,6 +189,13 @@ impl ConnectorCommon for ElavonPg {
 }
 
 impl ConnectorValidation for ElavonPg {
+    /// EPG counts only `201` as a delivered notification; anything else is retried and, after
+    /// four retries, the webhook is disabled until Elavon support re-enables it.
+    /// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+    fn get_webhook_ack_status_code(&self) -> u16 {
+        201
+    }
+
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,
@@ -732,7 +739,8 @@ static ELAVON_PG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for ElavonPg {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

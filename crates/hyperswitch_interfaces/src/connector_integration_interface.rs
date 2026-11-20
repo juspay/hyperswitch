@@ -569,6 +569,13 @@ impl ConnectorValidation for ConnectorEnum {
         }
     }
 
+    fn get_webhook_ack_status_code(&self) -> u16 {
+        match self {
+            Self::Old(connector) => connector.get_webhook_ack_status_code(),
+            Self::New(connector) => connector.get_webhook_ack_status_code(),
+        }
+    }
+
     fn get_access_token_key(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
