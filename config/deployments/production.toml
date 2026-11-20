@@ -41,6 +41,7 @@ adyenplatform.base_url = "https://balanceplatform-api-live.adyen.com/"
 affirm.base_url = "https://api.affirm.com/api"
 airwallex.base_url = "https://api.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/live/v2"
+amex.base_url = "https://unused.invalid/"
 applepay.base_url = "https://apple-pay-gateway.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/"
@@ -1112,7 +1113,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, gotyme_sanlam, paysafe, razorpay, globalpayments_realex, ecommpay, betterpayment, payhound"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "amex, imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, ilixium, moneris, elavon, worldpayraft, globalpay, rapyd, paynearme, jpmorgan_orbital, saferpay, d24, etisalat, globalpayments_heartland, paydotcom, merchante, nsure, elavon_pg, trustly, shift4, truelayer, gotyme_sanlam, paysafe, razorpay, globalpayments_realex, ecommpay, betterpayment, payhound"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

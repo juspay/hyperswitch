@@ -277,6 +277,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Amex => match self.auth_type {
+                hyperswitch_domain_models::router_data::ConnectorAuthType::BodyKey { .. } => Ok(()),
+                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            },
             api_enums::Connector::Fiuu => {
                 fiuu::transformers::FiuuAuthType::try_from(self.auth_type)?;
                 Ok(())
