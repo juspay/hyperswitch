@@ -6,6 +6,7 @@ import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as gotymeSanlamConnectorDetails } from "./GotymeSanlam.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
@@ -17,6 +18,7 @@ const connectorDetails = {
   gotyme_sanlam: gotymeSanlamConnectorDetails,
   nomupay: nomupayConnectorDetails,
   paypal: paypalConnectorDetails,
+  stripe: stripeConnectorDetails,
   truelayer: truelayerConnectorDetails,
   trustly: trustlyConnectorDetails,
   wise: wiseConnectorDetails,
@@ -107,7 +109,7 @@ export const CONNECTOR_LISTS = {
     // supports wallet payouts (see configs/Payout/Paypal.js), and truelayer
     // does not implement card payout eligibility over UCS, so they have no
     // card payout method either and are skipped for the same reason.
-    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal", "truelayer"],
+    CARD_TEST: ["gotyme_sanlam", "trustly", "paypal", "truelayer", "stripe"],
     VENMO_WALLET_FULFILL: ["paypal"],
   },
   INCLUDE: {
@@ -130,6 +132,7 @@ export const CONNECTOR_LISTS = {
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_BANK_TRANSFER_OPEN_BANKING: ["trustly"],
+    PAYOUT_VENDOR_METADATA: ["stripe"],
   },
 };
 
