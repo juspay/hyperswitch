@@ -41,9 +41,7 @@ impl ConnectorMandateReferenceId {
         self.connector_mandate_id.clone()
     }
 }
-#[cfg(feature = "v1")]
 common_utils::impl_to_sql_from_sql_json!(AccountInformation);
-#[cfg(feature = "v1")]
 #[derive(
     Clone, Default, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
 )]
@@ -189,6 +187,7 @@ pub struct PaymentAttempt {
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    pub account_information: Option<AccountInformation>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -231,7 +230,6 @@ pub struct PaymentAttempt {
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
-    pub account_information: Option<AccountInformation>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
     pub surcharge_amount: Option<MinorUnit>,
@@ -334,6 +332,7 @@ pub struct PaymentAttempt {
     pub payment_account_reference: Option<String>,
     pub active_frm_id: Option<String>,
     pub applied_overrides: Option<common_types::payments::AppliedOverrides>,
+    pub account_information: Option<AccountInformation>,
 }
 
 #[cfg(feature = "v1")]

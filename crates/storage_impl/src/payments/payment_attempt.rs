@@ -2574,6 +2574,7 @@ impl Conversion for PaymentAttempt {
             external_surcharge_details: None,
             applied_offer_details,
             applied_overrides: None,
+            account_information: None,
             fingerprint_type: None,
             sender_payment_instrument_id: None,
             payment_account_reference,

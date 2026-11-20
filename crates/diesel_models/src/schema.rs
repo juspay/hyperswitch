@@ -1128,7 +1128,6 @@ diesel::table! {
         save_to_locker -> Nullable<Bool>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
-        account_information -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -1256,6 +1255,7 @@ diesel::table! {
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
         applied_overrides -> Nullable<Jsonb>,
+        account_information -> Nullable<Jsonb>,
     }
 }
 
