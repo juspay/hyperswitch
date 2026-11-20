@@ -3002,22 +3002,30 @@ where
         {
             Ok(Self {
                 related_transaction_id: item.request.get_related_transaction_id().clone(),
-                device_details: DeviceDetails {
-                    ip_address: Secret::new(
-                        item.recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|r| r.mandate_metadata.as_ref())
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .clone()
-                            .expose()
-                            .as_str()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .to_owned(),
-                    ),
+                device_details: match item
+                    .request
+                    .get_browser_info()
+                    .and_then(|browser_info| browser_info.ip_address)
+                {
+                    Some(ip_address) => DeviceDetails {
+                        ip_address: Secret::new(ip_address.to_string()),
+                    },
+                    None => DeviceDetails {
+                        ip_address: Secret::new(
+                            item.recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|r| r.mandate_metadata.as_ref())
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "browser_info.ip_address".into(),
+                                })?
+                                .peek()
+                                .as_str()
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "browser_info.ip_address".into(),
+                                })?
+                                .to_owned(),
+                        ),
+                    },
                 },
                 payment_option: PaymentOption {
                     user_payment_option_id: item.request.get_connector_mandate_id().clone(),
