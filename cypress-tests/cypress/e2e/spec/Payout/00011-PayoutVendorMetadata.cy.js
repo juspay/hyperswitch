@@ -82,7 +82,7 @@ describe("[Payout] [Bank Transfer - ACH] Vendor Metadata", () => {
     it("retrieve-payout-after-account-attach-test", () => {
       const data = utils.getConnectorDetails(globalState.get("connectorId"))[
         "bank_transfer_pm"
-      ]["ach_bank_transfer"]["VendorMetadataValidRetrieve"];
+      ]["ach_bank_transfer"]["RetrieveAfterAccountAttach"];
 
       // Stripe account, transfer and payout calls run in the background
       // attach-account task, scheduled 15s after create plus scheduler lag.

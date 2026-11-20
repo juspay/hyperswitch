@@ -99,7 +99,7 @@ export const connectorDetails = {
           },
         },
       },
-      VendorMetadataValidRetrieve: {
+      RetrieveAfterAccountAttach: {
         Response: {
           status: 200,
           body: {
