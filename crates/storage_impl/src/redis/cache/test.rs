@@ -54,6 +54,67 @@ fn failing_populate(
 }
 
 #[tokio::test]
+async fn negative_cache_coalesces_misses_and_repopulates_after_invalidation() {
+    let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
+    let calls = Arc::new(AtomicUsize::new(0));
+
+    let readers = (0..20).map(|_| {
+        let cache = Arc::clone(&cache);
+        let calls = Arc::clone(&calls);
+        tokio::spawn(async move {
+            cache
+                .get_or_populate_in_memory(test_key("missing_account"), async move {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                    Ok::<Option<String>, String>(None)
+                })
+                .await
+        })
+    });
+    for reader in futures::future::join_all(readers).await {
+        assert_eq!(reader.expect("reader task").expect("cache lookup"), None);
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        cache
+            .get_val::<Option<String>>(test_key("missing_account"))
+            .await,
+        Some(None)
+    );
+
+    // An inserted account must become visible once its negative entry is invalidated.
+    cache.remove(test_key("missing_account")).await;
+    let account = cache
+        .get_or_populate_in_memory(test_key("missing_account"), async {
+            calls.fetch_add(1, Ordering::SeqCst);
+            Ok::<_, String>(Some("created_account".to_string()))
+        })
+        .await
+        .expect("repopulate after insert");
+    assert_eq!(account.as_deref(), Some("created_account"));
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn optional_lookup_errors_are_retried_instead_of_negatively_cached() {
+    let cache = Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT);
+    for _ in 0..2 {
+        let result = cache
+            .get_or_populate_in_memory(test_key("unavailable_account"), async {
+                Err::<Option<String>, _>("database unavailable".to_string())
+            })
+            .await;
+        assert_eq!(result, Err("database unavailable".to_string()));
+        assert_eq!(
+            cache
+                .get_val::<Option<String>>(test_key("unavailable_account"))
+                .await,
+            None
+        );
+    }
+}
+
+#[tokio::test]
 async fn concurrent_misses_for_one_key_populate_once() {
     let cache = Arc::new(Cache::new("test", 1800, 1800, None, TEST_POPULATE_TIMEOUT));
     let calls = Arc::new(AtomicUsize::new(0));
