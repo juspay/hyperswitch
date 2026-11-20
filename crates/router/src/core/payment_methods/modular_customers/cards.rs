@@ -259,7 +259,7 @@ fn headers(
             state
                 .conf
                 .internal_merchant_id_profile_id_auth
-                .internal_api_key
+                .outbound_api_key()
                 .clone(),
         ),
     ));
