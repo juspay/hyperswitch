@@ -10,6 +10,7 @@
 
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
+use common_types::alert_rules::MetricSource;
 
 #[cfg(feature = "v1")]
 use super::monitoring;
@@ -62,8 +63,29 @@ impl Alerts {
             ))
             .service(
                 web::scope("/grafana/cloudwatch")
-                    .service(web::resource("/notify").route(web::post().to(evaluator::notify)))
-                    .service(web::resource("/evaluate").route(web::get().to(evaluator::evaluate))),
+                    .service(
+                        web::resource("/notify").route(web::post().to(|state, request| {
+                            evaluator::notify(state, request, MetricSource::GrafanaCloudwatch)
+                        })),
+                    )
+                    .service(
+                        web::resource("/evaluate").route(web::get().to(|state, request| {
+                            evaluator::evaluate(state, request, MetricSource::GrafanaCloudwatch)
+                        })),
+                    ),
+            )
+            .service(
+                web::scope("/grafana/loki")
+                    .service(
+                        web::resource("/notify").route(web::post().to(|state, request| {
+                            evaluator::notify(state, request, MetricSource::GrafanaLoki)
+                        })),
+                    )
+                    .service(
+                        web::resource("/evaluate").route(web::get().to(|state, request| {
+                            evaluator::evaluate(state, request, MetricSource::GrafanaLoki)
+                        })),
+                    ),
             )
             .service(
                 web::resource("/blacklist")

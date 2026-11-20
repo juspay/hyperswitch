@@ -97,13 +97,11 @@ impl AlertSettings {
                     },
                 )?;
             }
-            self.datasources.get(&MetricSource::GrafanaCloudwatch)
+            self.datasources.get(&rule.config.query.metric_source())
                 .ok_or_else(|| ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `config.query.datasource` requires its configured provider/datasource UID", rule.id
                 )))?;
-            let common_types::alert_rules::AlertQuery::GrafanaCloudwatch(query) =
-                &rule.config.query;
-            when(query.end_offset_seconds > 3600, || {
+            when(rule.config.query.end_offset_seconds() > 3600, || {
                 Err(ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `config.query.end_offset_seconds` must not exceed 3600 seconds", rule.id
                 )))

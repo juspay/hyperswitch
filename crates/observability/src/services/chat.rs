@@ -1,4 +1,8 @@
-use common_types::alert_rules::{AlertQuery, SeverityThreshold};
+use std::collections::BTreeMap;
+
+use common_types::alert_rules::{
+    AlertQuery, GrafanaCloudwatchQuery, GrafanaLokiQuery, SeverityThreshold,
+};
 use external_services::metrics_provider::MetricPoint;
 use time::PrimitiveDateTime;
 
@@ -19,22 +23,28 @@ pub(crate) enum ChatBody<'a> {
     },
 }
 
+const TITLE_LABEL_CHARS: usize = 60;
+
 pub(crate) fn create_notification(
     rule: &RuleDefinition,
     evaluated_at: PrimitiveDateTime,
     body: ChatBody<'_>,
 ) -> Notification {
-    let AlertQuery::GrafanaCloudwatch(query) = &rule.config.query;
-    let dimensions = if query.dimensions.is_empty() {
-        "None".to_owned()
-    } else {
-        query
-            .dimensions
-            .iter()
-            .map(|(name, value)| format!("{name}: {value}"))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
+    match &rule.config.query {
+        AlertQuery::GrafanaCloudwatch(query) => {
+            cloudwatch_notification(rule, query, evaluated_at, body)
+        }
+        AlertQuery::GrafanaLoki(query) => loki_notification(rule, query, evaluated_at, body),
+    }
+}
+
+fn cloudwatch_notification(
+    rule: &RuleDefinition,
+    query: &GrafanaCloudwatchQuery,
+    evaluated_at: PrimitiveDateTime,
+    body: ChatBody<'_>,
+) -> Notification {
+    let dimensions = key_value_lines(&query.dimensions);
     match body {
         ChatBody::Alarm {
             evaluation,
@@ -61,13 +71,7 @@ pub(crate) fn create_notification(
                 heading: "ALARM".to_owned(),
                 destination: threshold.destination.clone(),
                 title: rule.name.clone(),
-                severity: match evaluation.level {
-                    AlertEvaluationLevel::Critical => AlertSeverity::Sev1,
-                    AlertEvaluationLevel::Warning => AlertSeverity::Sev2,
-                    AlertEvaluationLevel::Info
-                    | AlertEvaluationLevel::Normal
-                    | AlertEvaluationLevel::NoData => AlertSeverity::Sev3,
-                },
+                severity: alert_severity(evaluation.level),
                 region: query.region.clone(),
                 message: format!(
                     include_str!("chat/assets/alert.txt"),
@@ -124,6 +128,125 @@ pub(crate) fn create_notification(
                 error = error,
             ),
         },
+    }
+}
+
+fn loki_notification(
+    rule: &RuleDefinition,
+    query: &GrafanaLokiQuery,
+    evaluated_at: PrimitiveDateTime,
+    body: ChatBody<'_>,
+) -> Notification {
+    match body {
+        ChatBody::Alarm {
+            evaluation,
+            threshold,
+            point,
+        } => {
+            let (short, long): (Vec<_>, Vec<_>) =
+                evaluation.labels.iter().partition(|(_, value)| {
+                    !value.contains(['\n', '\r']) && value.chars().count() <= TITLE_LABEL_CHARS
+                });
+            let fields = query
+                .context
+                .iter()
+                .chain(short)
+                .map(|(name, value)| format!("\n{name}: `{value}`"))
+                .collect::<String>();
+            let details = long
+                .into_iter()
+                .map(|(name, value)| format!("\n\n*{name}:*\n```\n{}\n```", value.trim()))
+                .collect::<String>();
+            Notification {
+                heading: "ALARM".to_owned(),
+                destination: threshold.destination.clone(),
+                title: instance_name(&rule.name, &evaluation.labels),
+                severity: alert_severity(evaluation.level),
+                region: query.region.clone(),
+                message: format!(
+                    include_str!("chat/assets/loki_alert.txt"),
+                    heading = "ALARM",
+                    rule_id = rule.id,
+                    severity = evaluation.level,
+                    evaluated_at = evaluated_at,
+                    description = threshold.description,
+                    fields = fields,
+                    details = details,
+                    condition = format_args!(
+                        "value {} {}",
+                        threshold.comparison_operator, threshold.threshold
+                    ),
+                    period = query.period,
+                    value = point.value,
+                    range = format_args!(
+                        "{} UTC to {} UTC",
+                        evaluation.window.from, evaluation.window.to
+                    ),
+                ),
+            }
+        }
+        ChatBody::RuleError { error, destination } => Notification {
+            heading: "RULE ERROR".to_owned(),
+            destination: destination.to_owned(),
+            title: format!("RULE ERROR · {}", rule.name),
+            severity: AlertSeverity::Sev3,
+            region: query.region.clone(),
+            message: format!(
+                include_str!("chat/assets/loki_alert.txt"),
+                heading = "RULE ERROR",
+                rule_id = rule.id,
+                severity = "Not evaluated",
+                evaluated_at = evaluated_at,
+                description = "Rule evaluation failed",
+                fields = query
+                    .context
+                    .iter()
+                    .map(|(name, value)| format!("\n{name}: `{value}`"))
+                    .collect::<String>(),
+                details = format!("\n\n*Error:*\n```\n{}\n```", error.trim()),
+                condition = "Not evaluated",
+                period = query.period,
+                value = "Unavailable",
+                range = "Unavailable",
+            ),
+        },
+    }
+}
+
+fn alert_severity(level: AlertEvaluationLevel) -> AlertSeverity {
+    match level {
+        AlertEvaluationLevel::Critical => AlertSeverity::Sev1,
+        AlertEvaluationLevel::Warning => AlertSeverity::Sev2,
+        AlertEvaluationLevel::Info
+        | AlertEvaluationLevel::Normal
+        | AlertEvaluationLevel::NoData => AlertSeverity::Sev3,
+    }
+}
+
+fn instance_name(name: &str, labels: &BTreeMap<String, String>) -> String {
+    let title_labels = labels
+        .iter()
+        .filter(|(_, value)| {
+            !value.contains(['\n', '\r']) && value.chars().count() <= TITLE_LABEL_CHARS
+        })
+        .map(|(label, value)| format!("{label}={value}"))
+        .collect::<Vec<_>>();
+    if title_labels.is_empty() {
+        name.to_owned()
+    } else {
+        format!("{name} ({})", title_labels.join(", "))
+    }
+}
+
+fn key_value_lines(entries: &BTreeMap<String, String>) -> String {
+    if entries.is_empty() {
+        "None".to_owned()
+    } else {
+        entries
+            .iter()
+            .map(|(name, value)| format!("{name}: {value}"))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
@@ -200,6 +323,7 @@ mod tests {
                     from: datetime!(2026-03-18 10:01:00),
                     to: datetime!(2026-03-18 10:06:00),
                 },
+                labels: BTreeMap::new(),
             };
             let notification = create_notification(
                 &rule,
@@ -245,5 +369,136 @@ mod tests {
             assert!(message.contains("Evaluation: `1 of 1 datapoints`\n"));
             assert_eq!(notification.destination, "test-only");
         }
+    }
+
+    #[test]
+    fn loki_alarm_names_its_instance_and_lists_context_without_the_query() {
+        let rule: RuleDefinition = serde_json::from_value(json!({
+            "id": "router-errors",
+            "name": "Router errors",
+            "config": {
+                "interval_seconds": 60,
+                "query": {
+                    "datasource": "grafana_loki",
+                    "region": "ap-south-2",
+                    "expr": "sum by (app) (count_over_time({app=~\"router\"} |= `error` [1m]))",
+                    "period": 60,
+                    "context": {"Service": "hyperswitch-router"}
+                },
+                "thresholds": {"severities": {"warning": {
+                    "threshold": 20,
+                    "comparison_operator": "GreaterThanThreshold",
+                    "description": "Router logged errors",
+                    "destination": "oncall"
+                }}}
+            }
+        }))
+        .unwrap();
+        let threshold = rule
+            .config
+            .thresholds
+            .severities
+            .first_key_value()
+            .unwrap()
+            .1;
+        let point = MetricPoint {
+            timestamp: datetime!(2026-03-18 10:04:00),
+            value: 42.0,
+        };
+        let evaluation = Evaluation {
+            level: AlertEvaluationLevel::Warning,
+            latest_point: Some(point.clone()),
+            datapoints: vec![point.clone()],
+            breach: Some(threshold.clone()),
+            window: MetricRange {
+                from: datetime!(2026-03-18 10:00:00),
+                to: datetime!(2026-03-18 10:05:00),
+            },
+            labels: BTreeMap::from([
+                ("extra_status_code".to_owned(), "500".to_owned()),
+                ("flow".to_owned(), "PaymentsConfirm".to_owned()),
+            ]),
+        };
+        let alarm = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &evaluation,
+                threshold,
+                point: &point,
+            },
+        );
+        assert_eq!(alarm.heading, "ALARM");
+        assert_eq!(alarm.destination, "oncall");
+        assert_eq!(
+            alarm.title,
+            "Router errors (extra_status_code=500, flow=PaymentsConfirm)"
+        );
+        assert_eq!(alarm.region, "ap-south-2");
+        assert!(alarm.message.starts_with("Severity: `WARNING`\n"));
+        assert!(alarm.message.contains(
+            "Service: `hyperswitch-router`\nextra_status_code: `500`\nflow: `PaymentsConfirm`\n"
+        ));
+        assert!(alarm.message.contains("Condition: `value > 20`\n"));
+        assert!(alarm.message.contains("Latest value: `42`\n"));
+        assert!(!alarm.message.contains("count_over_time"));
+
+        let unlabelled = Evaluation {
+            labels: BTreeMap::new(),
+            ..evaluation.clone()
+        };
+        let alarm = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &unlabelled,
+                threshold,
+                point: &point,
+            },
+        );
+        assert_eq!(alarm.title, "Router errors");
+        assert!(!alarm.message.contains("flow:"));
+
+        let stack = format!(
+            "Failed to parse URL\n{}",
+            "╰╴at crates/router/src/services/api/client.rs:146:14\n".repeat(4)
+        );
+        let beacon = Evaluation {
+            labels: BTreeMap::from([
+                ("app".to_owned(), "router".to_owned()),
+                ("extra_error".to_owned(), stack.clone()),
+            ]),
+            ..evaluation.clone()
+        };
+        let alarm = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::Alarm {
+                evaluation: &beacon,
+                threshold,
+                point: &point,
+            },
+        );
+        assert!(alarm.message.contains("app: `router`\n"));
+        assert_eq!(alarm.title, "Router errors (app=router)");
+        assert!(alarm.message.ends_with(&format!(
+            "Definition: `router-errors`\n\n*extra_error:*\n```\n{}\n```",
+            stack.trim()
+        )));
+
+        let error = create_notification(
+            &rule,
+            datetime!(2026-03-18 10:07:12),
+            ChatBody::RuleError {
+                error: "data source request failed",
+                destination: "oncall",
+            },
+        );
+        assert_eq!(error.heading, "RULE ERROR");
+        assert_eq!(error.title, "RULE ERROR · Router errors");
+        assert!(error
+            .message
+            .ends_with("*Error:*\n```\ndata source request failed\n```"));
+        assert_eq!(error.message.matches("Error:").count(), 1);
     }
 }

@@ -1,16 +1,15 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use common_utils::date_time::convert_to_pdt;
-use error_stack::{Report, ResultExt};
 use hyperswitch_interfaces::types::Proxy;
-use hyperswitch_masking::PeekInterface;
-use serde::{Deserialize, Serialize};
-use time::{OffsetDateTime, PrimitiveDateTime};
+use serde::Serialize;
 
-use super::{GrafanaClient, GrafanaConfig};
-use crate::metrics_provider::{MetricsError, MetricsProvider, MetricsResult};
-
-const QUERY_REF_ID: &str = "A";
+use super::{
+    epoch_millis, GrafanaClient, GrafanaConfig, GrafanaDatasource, GrafanaMetricsResponse,
+    QUERY_REF_ID,
+};
+use crate::metrics_provider::{
+    MetricRange, MetricSeries, MetricsError, MetricsProvider, MetricsResult,
+};
 
 #[derive(Debug, Clone)]
 pub struct GrafanaCloudwatch {
@@ -63,8 +62,8 @@ impl MetricsProvider for GrafanaCloudwatch {
         range: MetricRange,
     ) -> MetricsResult<Self::MetricsRequest> {
         Ok(CloudwatchMetricsRequest {
-            from: (range.from.assume_utc().unix_timestamp_nanos() / 1_000_000).to_string(),
-            to: (range.to.assume_utc().unix_timestamp_nanos() / 1_000_000).to_string(),
+            from: epoch_millis(range.from),
+            to: epoch_millis(range.to),
             queries: [GrafanaCloudwatchQuery {
                 ref_id: QUERY_REF_ID,
                 datasource: GrafanaDatasource {
@@ -94,44 +93,7 @@ impl MetricsProvider for GrafanaCloudwatch {
         response: Self::MetricsResponse,
         status: reqwest::StatusCode,
     ) -> MetricsResult<Vec<MetricSeries>> {
-        let mut results = response.results;
-        if let Some(reason) = results
-            .as_ref()
-            .and_then(|results| results.values().find_map(|result| result.error.as_deref()))
-        {
-            let api_token = self.client.config.api_token.peek();
-            return Err(Report::new(MetricsError::QueryRefused {
-                reason: if api_token.is_empty() {
-                    reason.to_owned()
-                } else {
-                    reason.replace(api_token, "[REDACTED]")
-                },
-            }));
-        }
-        if matches!(
-            status,
-            reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::FORBIDDEN
-        ) {
-            return Err(Report::new(MetricsError::Unauthorized));
-        }
-        if !status.is_success() {
-            return Err(Report::new(MetricsError::HttpStatus {
-                status: status.as_u16(),
-            }));
-        }
-        let result = results
-            .as_mut()
-            .ok_or(MetricsError::MalformedResponse)
-            .attach_printable("response is missing results")?
-            .remove(QUERY_REF_ID)
-            .ok_or(MetricsError::MalformedResponse)
-            .attach_printable_lazy(|| format!("response is missing query result {QUERY_REF_ID}"))?;
-        result
-            .frames
-            .unwrap_or_default()
-            .into_iter()
-            .map(parse_frame)
-            .collect()
+        self.client.handle_response(response, status)
     }
 
     async fn fetch_metrics(
@@ -192,105 +154,6 @@ struct GrafanaCloudwatchQuery {
     statistic: CloudwatchStatistic,
     period: String,
     match_exact: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct GrafanaDatasource {
-    #[serde(rename = "type")]
-    kind: &'static str,
-    uid: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MetricRange {
-    pub from: PrimitiveDateTime,
-    pub to: PrimitiveDateTime,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct MetricSeries {
-    pub points: Vec<MetricPoint>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct MetricPoint {
-    pub timestamp: PrimitiveDateTime,
-    pub value: f64,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GrafanaMetricsResponse {
-    results: Option<HashMap<String, QueryResult>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct QueryResult {
-    frames: Option<Vec<Frame>>,
-    error: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Frame {
-    data: Option<FrameData>,
-}
-
-#[derive(Debug, Deserialize)]
-struct FrameData {
-    values: Option<FrameValues>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum FrameValues {
-    Series((Vec<i64>, Vec<Option<f64>>)),
-    Empty([(); 0]),
-}
-
-fn parse_frame(frame: Frame) -> MetricsResult<MetricSeries> {
-    let values = frame
-        .data
-        .ok_or(MetricsError::MalformedResponse)
-        .attach_printable("frame is missing data")?
-        .values
-        .ok_or(MetricsError::MalformedResponse)
-        .attach_printable("frame data is missing values")?;
-    let (timestamps, metric_values) = match values {
-        FrameValues::Empty([]) => return Ok(MetricSeries { points: Vec::new() }),
-        FrameValues::Series(series) => series,
-    };
-    if timestamps.len() != metric_values.len() {
-        return Err(
-            Report::new(MetricsError::MalformedResponse).attach_printable(format!(
-                "frame contains {} timestamps and {} metric values",
-                timestamps.len(),
-                metric_values.len()
-            )),
-        );
-    }
-    let points = timestamps
-        .into_iter()
-        .zip(metric_values)
-        .map(|(milliseconds, value)| {
-            let timestamp =
-                OffsetDateTime::from_unix_timestamp_nanos(i128::from(milliseconds) * 1_000_000)
-                    .change_context(MetricsError::MalformedResponse)
-                    .attach_printable("frame contains an out-of-range timestamp")?;
-            value
-                .map(|value| {
-                    if !value.is_finite() {
-                        return Err(Report::new(MetricsError::MalformedResponse)
-                            .attach_printable("frame contains a non-finite metric value"));
-                    }
-                    Ok(MetricPoint {
-                        timestamp: convert_to_pdt(timestamp),
-                        value,
-                    })
-                })
-                .transpose()
-        })
-        .filter_map(Result::transpose)
-        .collect::<MetricsResult<Vec<_>>>()?;
-    Ok(MetricSeries { points })
 }
 
 #[cfg(test)]
@@ -385,6 +248,7 @@ mod tests {
         assert_eq!(
             series,
             vec![MetricSeries {
+                labels: Default::default(),
                 points: vec![
                     MetricPoint {
                         timestamp: convert_to_pdt(
@@ -430,7 +294,13 @@ mod tests {
             if index < 2 {
                 assert!(series.is_empty());
             } else {
-                assert_eq!(series, vec![MetricSeries { points: Vec::new() }]);
+                assert_eq!(
+                    series,
+                    vec![MetricSeries {
+                        points: Vec::new(),
+                        labels: Default::default()
+                    }]
+                );
             }
         }
     }
