@@ -527,6 +527,10 @@ export function updateBusinessProfile(
 export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
+    // Connectors the external surcharge specs do not run for. Empty to start: add
+    // a connector here when it cannot take part (no manual capture, partial refunds
+    // or off-session payments on a saved card).
+    EXTERNAL_SURCHARGE: [],
     CONNECTOR_AGNOSTIC_NTID: [
       "bamboraapac",
       "bankofamerica",
@@ -839,7 +843,6 @@ export const CONNECTOR_LISTS = {
     ZERO_AUTH_MANDATE: ["peachpayments"],
     BLOCK_IMPLICIT_CUSTOMER_CREATION: ["adyen"],
     ERROR_ON_REQUIRES_ACTION: ["stripe"],
-    EXTERNAL_SURCHARGE: ["stripe"],
     AUTO_FALLBACK_CAPTURE_METHOD: [
       "trustpay",
       "cryptopay",
