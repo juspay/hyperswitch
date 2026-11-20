@@ -264,11 +264,17 @@ changes can therefore appear as mismatches. Full comparisons live in
 discrepancies. Failed creates with no returned payment ID remain in response
 history and cannot be reconciled by ID.
 
-Grafana panel URLs must use the configured server and `/grafana/d-solo/...`.
-The iframe uses the authenticated console origin and the selected run's time
-window. New installations include RPS, API latency and transaction-processing
-latency panels from the bundled k6 dashboard. See [EC2 deployment](DEPLOYMENT.md)
-for Grafana and ALB configuration.
+In the **Settings** tab next to Results, open **Grafana**, enter the server URL and a Viewer service-account token,
+then test the connection. Use **View** to preview configured panels or **Add panel**
+to paste a Grafana panel link and preview it inline. **Save settings** applies the
+connection and panel list to the selected environment. Tokens stay server-side;
+changing the server requires a new token.
+
+Performance's Grafana mode uses these panels with the selected run's time range.
+The initial panels show payment-confirm p99, Router RPS and 5xx error rate. Panel
+links keep dashboard variables; the console supplies run times and refresh behavior.
+Previews and **Open ↗** use an authenticated, isolated Grafana origin. See
+[EC2 deployment](DEPLOYMENT.md) for its configuration.
 
 Settings includes read-only health checks for Router and Payment Methods. The
 Superposition check performs an authenticated read of one configured default and
@@ -337,7 +343,7 @@ Install and authenticate the provider's CLI on the supervisor: `gcloud` for GCP,
 - **Fixtures:** compatibility explains the changed provisioning fields. Ready sets can be selected for Performance; failed or interrupted sets can be repaired. Busy states link to the active job.
 - **Performance:** one setup panel, a separate Smoke test dialog, explicit New run/Run again, worker allocation preview, disabled-action explanations, and live connection state. Selected scenario, fixture, run and graph filters survive section navigation.
 - **Faults:** target checks report inline. Test confirmation, countdown, restore and outcome stay in one dialog; closing it does not stop recovery. Faults execute on the master.
-- **Settings:** Connections, Database & TLS, Load generation, Workers and Grafana sections share save/discard protection. Imported certificates distinguish pending selection from the active saved CA. Worker onboarding includes live health; Grafana includes loading/retry and direct links.
+- **Settings:** A full page next to Results with shareable section URLs. Connections, Database & TLS, Load generation, Workers and Grafana share save/discard protection with inline confirmations for saving, discarding, or leaving unsaved edits. The action bar stays at the bottom of the Settings view. Imported certificates distinguish pending selection from the active saved CA. Worker onboarding includes live health; Grafana includes loading/retry and direct links.
 
 After a code upgrade, reload the detached control-plane worker while **no job or recovery is active** (`npm run worker -- stop`, then `npm run worker -- start`) as well as the web server. Restarting only Vite preserves the previous worker process by design.
 
@@ -365,7 +371,7 @@ Create fixtures for that scenario, entering each connector's test credentials an
 
 Real-connector card confirmations include synthetic browser information required by providers such as Adyen. `payment.browser_info` overrides these defaults. Test cards can differ between providers: Adyen uses the successful non-3DS card from the repository's connector tests, while other connectors use the configured card/pool. Set `payment.connector_cards[connector]` to override a provider's card explicitly, including for negative tests. These defaults do not change dummy-mode traffic.
 
-Performance's **Connector throughput** metric shows confirmation responses identifying each connector. Results distinguish assigned flows from reported connector confirmations, successes/failures, and unreported confirmations. These are payment-level observations, not counts of provider HTTP attempts or fallback/retry calls. HS-only p99 uses `x-hs-latency`; full confirm p99 uses the complete HTTP request duration. Asynchronous/3DS completion is not automatically followed to settlement; existing payment success semantics still apply.
+Performance's **Connector throughput** metric shows confirmation responses identifying each connector. Results distinguish assigned flows from reported connector confirmations, successes/failures, and unreported confirmations. These are payment-level observations, not counts of provider HTTP attempts or fallback/retry calls. Steady-load latency reports sample count, min, max, mean, median and p99 from successful confirmations wholly contained in settled hold periods before faults or after recovery. Faults, transitions and cross-state flows are excluded; genuine steady-load spikes remain. HS-only latency uses `x-hs-latency`; full-confirm latency uses the complete HTTP request duration. Missing timing evidence produces no latency statistics. Asynchronous/3DS completion is not automatically followed to settlement; existing payment success semantics still apply.
 
 The generated catalog comes from `crates/euclid/src/enums.rs` (`RoutableConnectors`) and provider test auth/card definitions in `crates/connector_configs/toml/sandbox.toml`. Run `npm run generate:connectors` after upstream changes and `npm run check:connectors` to check drift (Python 3.11+). Non-card connectors and unsupported credential shapes are excluded from selectable options. The deployed router must support the chosen integration; fixture creation and smoke testing verify that environment, rather than treating enum membership as proof. Build/update the native recorder with `npm run build:recorder`; older recorders fail fast for connector-attributed runs. No application image rebuild is needed.
 

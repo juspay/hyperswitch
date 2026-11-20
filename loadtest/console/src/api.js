@@ -10,6 +10,8 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  testGrafana:(connection,environment)=>request('/grafana/test',{method:'POST',body:JSON.stringify({connection,environment})}),
+  previewGrafana:(url,connection,environment,signal)=>request('/grafana/preview',{method:'POST',body:JSON.stringify({url,connection,environment}),signal}),
   importFixtures:input=>request('/fixtures/import',{method:'POST',body:JSON.stringify(input)}),
   profiles:()=>request('/profiles'),
   archiveProfile:(id,archived)=>request(`/profiles/${encodeURIComponent(id)}/archive`,{method:'PUT',body:JSON.stringify({archived})}),

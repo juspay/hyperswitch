@@ -74,3 +74,10 @@ test('a hidden latency failure has an explicit reason even when throughput passe
  const corrected=resultTestCases({groups:[group],steady:pooled}).flatMap(s=>s.cases)[0];
  assert.equal(corrected.outcome,'pass');assert.equal(corrected.failureReason,null);
 });
+
+test('confirmation summary explicitly scopes its observed counts outside the outage',()=>{
+ const completion={scope:'payment_confirm_outside_outage',expected:1445,successful:1445,outageAttempts:23,outageFailures:2,check:{id:'completion',actual:100,limit:99,unit:'%',comparison:'≥',outcome:'pass'}};
+ const row=resultTestCases({groups:[],testCasePlan:[],completion}).flatMap(section=>section.cases).find(row=>row.id==='completion');
+ assert.equal(row.expected,'99% outside outage');
+ assert.equal(row.observed,'1,445 / 1,445 confirmations outside outage · 100% · 2 failed during outage');
+});

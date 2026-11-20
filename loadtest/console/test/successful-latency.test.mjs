@@ -54,3 +54,11 @@ test('phase classification uses request overlap, prioritizes outages, and bounds
  assert.equal(latencyPhase({observed_at:14000,latency_ms:100},windows),'normal');
  assert.equal(latencyPercentile([],.5),null);assert.equal(latencyPercentile([0],.99),0);
 });
+
+test('latency statistics summarize raw samples, retain zero, and do not substitute missing measurements',async()=>{
+ const {latencyStatistics}=await import('../server/successful-latency.mjs');
+ const result=latencyStatistics([null,undefined,NaN,Infinity,-1,0,2,4,6]);
+ assert.deepEqual({...result,p99:null},{count:4,min:0,max:6,mean:3,median:3,p99:null});assert.ok(Math.abs(result.p99-5.94)<1e-10);
+ assert.deepEqual(latencyStatistics([9]),{count:1,min:9,max:9,mean:9,median:9,p99:9});
+ assert.deepEqual(latencyStatistics([]),{count:0,min:null,max:null,mean:null,median:null,p99:null});
+});

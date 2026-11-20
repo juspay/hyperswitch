@@ -36,3 +36,38 @@ test('active Grafana content is isolated with one-time tickets and revocable ses
   auth.logout(session);assert.equal((await grafanaEmbedRequest(new Request(panel,{headers:{cookie}}))).status,401);
  }finally{upstream.closeAllConnections();await new Promise(r=>upstream.close(r));}
 });
+
+test('draft previews keep their own credentials, cookie paths, rewritten APIs, and session revocation',async()=>{
+ const observed=[];
+ const servers=['draft-a','draft-b'].map(identity=>createServer((req,res)=>{
+  observed.push({identity,authorization:req.headers.authorization,path:req.url});
+  if(req.url==='/api/health'){res.setHeader('content-type','application/json');return res.end('{"database":"ok"}');}
+  if(req.url==='/api/frontend/settings'||req.url==='/grafana/api/frontend/settings'){res.setHeader('content-type','application/json');return res.end(JSON.stringify({appSubUrl:req.url.startsWith('/grafana/')?'/grafana':'',appUrl:'http://internal/'}));}
+  res.setHeader('content-type','text/html');res.end('<base href="/"><script src="/public/build/app.js"></script><script>boot={"appSubUrl":"","appUrl":"http://internal/"}</script>');
+ }));
+ await Promise.all(servers.map(s=>new Promise(r=>s.listen(0,'127.0.0.1',r))));
+ try{
+  const session=await auth.login('admin','fake-test-password','preview-test');
+  const tickets=servers.map((s,i)=>createGrafanaEmbed(session,'/grafana/d-solo/test/panel?panelId=1',{connection:{baseUrl:`http://127.0.0.1:${s.address().port}`,token:`draft-${i?'b':'a'}`}}).url);
+  const contexts=[];
+  for(const url of tickets){
+   const handshake=await grafanaEmbedRequest(new Request(url));assert.equal(handshake.status,303);
+   const cookie=handshake.headers.get('set-cookie').split(';')[0],panel=new URL(handshake.headers.get('location'),url),prefix=panel.pathname.split('/grafana/')[0]+'/grafana';
+   assert.match(handshake.headers.get('set-cookie'),new RegExp('Path='+prefix+'/'));
+   const response=await grafanaEmbedRequest(new Request(panel,{headers:{cookie}}));assert.equal(response.status,200);
+   const html=await response.text();assert.ok(html.includes(`"appSubUrl":"${prefix}"`));assert.ok(html.includes(`src="${prefix}/public/build/app.js"`));assert.equal(/draft-[ab]/.test(html),false);
+   const api=new URL(prefix+'/api/frontend/settings',url);const settings=await grafanaEmbedRequest(new Request(api,{headers:{cookie}}));assert.ok((await settings.text()).includes(prefix));
+   contexts.push({cookie,panel});
+  }
+  const subpathTicket=createGrafanaEmbed(session,'/grafana/d-solo/test/panel?panelId=1',{connection:{baseUrl:`http://127.0.0.1:${servers[0].address().port}/grafana`,token:'draft-a'}}).url;
+  const subpathHandshake=await grafanaEmbedRequest(new Request(subpathTicket)),subpathCookie=subpathHandshake.headers.get('set-cookie').split(';')[0];
+  const subpathPrefix=new URL(subpathHandshake.headers.get('location'),subpathTicket).pathname.split('/grafana/')[0]+'/grafana';
+  const subpathSettings=await grafanaEmbedRequest(new Request(new URL(subpathPrefix+'/api/frontend/settings',subpathTicket),{headers:{cookie:subpathCookie}}));
+  assert.match(await subpathSettings.text(),new RegExp('"appSubUrl":"'+subpathPrefix+'"'),'Grafana subpath JSON retains the preview context');
+  assert.notEqual(contexts[0].cookie.split('=')[0],contexts[1].cookie.split('=')[0]);
+  assert.equal((await grafanaEmbedRequest(new Request(contexts[1].panel,{headers:{cookie:contexts[0].cookie}}))).status,401);
+  assert.ok(observed.every(r=>r.authorization==='Bearer '+r.identity));
+  auth.logout(session);
+  for(const c of contexts)assert.equal((await grafanaEmbedRequest(new Request(c.panel,{headers:{cookie:c.cookie}}))).status,401);
+ }finally{for(const s of servers){s.closeAllConnections();await new Promise(r=>s.close(r));}}
+});

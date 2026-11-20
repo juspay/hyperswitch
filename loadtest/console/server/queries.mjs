@@ -90,13 +90,13 @@ export async function describeRun(id,{includeTelemetry=true}={}) {
   if(reconciliation) result.reconciliation=reconciliation;
   if(live?.control)result.elapsedSeconds=Math.round(live.control.active_seconds);
   if(!result.live&&!result.loadState)result.loadState='completed';
-  if(includeTelemetry)result.connectors=connectorResults(directory.path,config.connectors);
   if(includeTelemetry)result.telemetry=await readTelemetry(directory.path,recording,result.activity,config);
   const displayCounts=displayErrorCounts(directory.path,result.activity,config),hidden=displayCounts?.hidden||0;
   result.hiddenVaultErrors=hidden;
   result.displayErrorRate=displayCounts?Number((displayCounts.attempts?100*displayCounts.errors/displayCounts.attempts:0).toFixed(2)):result.errorRate;
   result.acceptance=evaluateAcceptance(result,config.acceptance);
   if(includeTelemetry)result.scenarioChecks=await scenarioChecks(directory.path,{config,recording,events:result.activity,reconciliation,jobStatus:result.jobStatus});
+  if(includeTelemetry)result.connectors=connectorResults(directory.path,config.connectors,{latencyWindows:result.scenarioChecks.connectorLatencyWindows});
   if(!result.live){
     const successfulLatency=successfulServerLatency(directory.path,recording,result.activity,config);
     result.serverLatencyPhases=successfulLatency?.phases??[];result.recoveryLatencySeconds=successfulLatency?.recoverySeconds??10;

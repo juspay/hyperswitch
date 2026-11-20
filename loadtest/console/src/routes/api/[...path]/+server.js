@@ -1,7 +1,8 @@
+import {grafanaConnection,testGrafanaConnection,resolveGrafanaPanel} from '../../../../server/grafana-settings.mjs';
 import {requireSupportedEnvironment} from '../../../environments.mjs';
 import {csvStream} from '../../../../server/csv-stream.mjs';
 import { json } from '@sveltejs/kit';
-import { publicSettings,saveSettings,saveConnections,localSettings,localPath,atomicJson,panelPath,redact,runDirectory,dataRoot,superpositionConnection,activeEnvironment,environmentDatabase } from '../../../../server/state.mjs';
+import { publicSettings,saveSettings,saveConnections,localSettings,localPath,atomicJson,panelPath,redact,runDirectory,dataRoot,superpositionConnection,activeEnvironment,environmentDatabase,environmentGrafana } from '../../../../server/state.mjs';
 import { queryWorker } from '../../../../server/workers.mjs';
 import {workerCommand,jobEvents} from '../../../../server/supervisor.mjs';
 import {listProfiles,getProfile,saveProfile,listFixtureSets,deleteFixtureSet,archiveProfile,deleteProfile} from '../../../../server/profiles.mjs';
@@ -20,6 +21,13 @@ async function dispatch(event) {
     const text=await (await boundedRequest(event.request)).text();return text?JSON.parse(text):{};
   };
   try {
+    if(segments.join('/')==='grafana/open'&&method==='GET')return new Response(null,{status:303,headers:{location:createGrafanaEmbed(event.cookies.get(sessionCookie),event.url.searchParams.get('panel')).url,'cache-control':'no-store'}});
+    if(segments[0]==='grafana'&&['test','preview'].includes(segments[1])&&segments.length===2&&method==='POST'){
+      const body=await input(),connection=grafanaConnection(body.connection,environmentGrafana(body.environment));
+      if(segments[1]==='test')return json(await testGrafanaConnection(connection));
+      const panel=await resolveGrafanaPanel(connection,body.url),preview=new URL(panel.url,'http://console');preview.searchParams.set('from','now-15m');preview.searchParams.set('to','now');preview.searchParams.set('theme','light');
+      return json({panel,previewUrl:createGrafanaEmbed(event.cookies.get(sessionCookie),preview.pathname+preview.search,{connection}).url});
+    }
     if(segments.join('/')==='grafana/embed'&&method==='GET')return json(createGrafanaEmbed(event.cookies.get(sessionCookie),event.url.searchParams.get('panel')));
     if(segments[0]==='worker'&&segments[1]==='v1'){
       const bearer=(event.request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
@@ -127,8 +135,7 @@ async function dispatch(event) {
       if(method==='GET')return json(local.grafana.panels || []);
       if(method==='PUT') {
         const panels=await input();if(!Array.isArray(panels)||panels.length>20)throw new Error('Choose at most 20 panels');
-        local.grafana.panels=panels.map(p=>({title:String(p.title).slice(0,100),url:panelPath(p.url,local.grafana.baseUrl)}));
-        await atomicJson(localPath,local);return json(local.grafana.panels);
+        const saved=await saveConnections({grafana:{...publicSettings().grafana,panels}});return json(saved.grafana.panels);
       }
     }
     return json({error:'Not found'},{status:404});

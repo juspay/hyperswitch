@@ -188,7 +188,7 @@ test('SQLite-backed summaries persist, honor snapshots and refresh after reconci
   await writeFile(path.join(directory,'execution.jsonl'),samples.map(s=>JSON.stringify(s)).join('\n'));
   const input={config:faultConfig,recording,events,jobStatus:'complete'};
   const first=await scenarioChecks(directory,input),artifact=JSON.parse(await readFile(path.join(directory,'scenario-checks.json')));
-  assert.equal(row(first.groups[0],'completed').actual,100);assert.equal(artifact.summary.version,17);
+  assert.equal(row(first.groups[0],'completed').actual,100);assert.equal(artifact.summary.version,18);
   const second=await scenarioChecks(directory,{...input,reconciliation:{recordingState:'complete',total:300,expected:300,missing:0}});
   assert.equal(row(second.groups.at(-1),'lost').outcome,'pass');
   assert.notEqual(JSON.parse(await readFile(path.join(directory,'scenario-checks.json'))).fingerprint,artifact.fingerprint);
@@ -265,4 +265,13 @@ test('DB recovery counts observed unavailability even when availability precedes
  const pending=evaluate({config:faultConfig,events:ev.slice(0,3),recording:{...recording,ended_at:100000},samples:[...samples,{at:100000,active:30}]});
  const overdue=row(pending.groups.find(g=>g.kind==='fault'),'recovery');
  assert.equal(overdue.actual,89);assert.equal(overdue.outcome,'fail');
+});
+
+test('connector latency windows include settled steady load before and after recovery, excluding ramps and transitions',()=>{
+ const cfg={...config,resultsLimits:{...defaultResultsLimits,recoveryWindowSeconds:2},load:{start_rps:5,stages:[{target_rps:5,duration_seconds:10},{target_rps:5,duration_seconds:10,fault:{targetId:'vault',action:'outage'}},{target_rps:5,duration_seconds:20},{target_rps:10,duration_seconds:10}]}};
+ const events=[{at:11000,kind:'scheduled_fault',message:'scheduled step 2'},{at:11000,kind:'fault_requested'},{at:12000,kind:'fault_started'},{at:21000,kind:'fault_restored'}];
+ const result=evaluateScenarioChecks({config:cfg,recording:{...recording,ended_at:51000},events,samples:Array.from({length:51},(_,i)=>({at:1000+i*1000,active:i})),requests:[],flows:[],jobStatus:'complete'});
+ assert.deepEqual(result.connectorLatencyWindows,[{from:3000,to:11000},{from:23000,to:41000}]);
+ const missing=evaluateScenarioChecks({config:cfg,recording:{...recording,ended_at:51000},events,samples:[],requests:[],flows:[],jobStatus:'complete'});
+ assert.equal(missing.connectorLatencyWindows,null);
 });

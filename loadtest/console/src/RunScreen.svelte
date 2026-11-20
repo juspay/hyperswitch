@@ -281,7 +281,7 @@ import Icon from './Icon.svelte';
   {#if tab === 'results'}
     <div class="section-head results-header"><div><h1>Results</h1>{#if selectedRun}<p>{(selectedRun.payments+(selectedRun.failedCreates||0)).toLocaleString()} outcomes · recording {selectedRun.recordingState}</p>{/if}</div><label class="run-select">Run<select value={selectedRun?.id || ''} disabled={reconciling} onchange={e=>{const run=runs.find(r=>r.id===e.currentTarget.value);if(run)selectRun(run);}}>{#if !runs.length}<option value="">No runs yet</option>{/if}{#each runs as run}<option value={run.id}>{run.profile?.name || 'Load test'} · {formatDate(run.startedAt)}</option>{/each}</select></label></div>
     {#if !runs.length}<section class="empty-state"><h2>No load-test runs yet</h2><p>Start a load test from Performance. Results and reconciliation will appear here when recording begins.</p><a class="button" href="/performance">Open Performance</a></section>{/if}
-    {#if selectedRun}<RunSummary run={selectedRun}/><ConnectorResults result={selectedRun.connectors}/><section class="reconcile results-comparison">
+    {#if selectedRun}<RunSummary run={selectedRun}/><ConnectorResults result={selectedRun.connectors} completion={selectedRun.scenarioChecks?.completion}/><section class="reconcile results-comparison">
       <div class="section-head"><h2>Reconciliation</h2><button disabled={reconciling || (!selectedRun.complete && !allowIncomplete)} onclick={reconcile}>{reconciling?'Comparing…':'Reconcile'}</button></div>
       {#if selectedRun}
       {#if !selectedRun.complete}<label><input type="checkbox" bind:checked={allowIncomplete}/> Allow incomplete recording</label>{/if}

@@ -12,6 +12,7 @@ export function rememberPage(url){
 }
 export function sectionHref(section,url,context={}){
   const path=`/${section}`,next=new URL(context[path]||path,url.origin);
+  if(section==='settings')return next.pathname+next.search;
   for(const key of ['profile','fixtures','run','metrics']){
     const value=url.searchParams.get(key)||context[key];
     if(value&&(['profile','fixtures'].includes(key)||['performance','results'].includes(section)))next.searchParams.set(key,value);

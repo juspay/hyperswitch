@@ -104,7 +104,7 @@ export function resultTestCases(summary){
   if(summary.completion){
     const {expected,successful,check}=summary.completion;
     rows.unshift({id:'completion',title:summary.completion.scope?'Payment confirmations':'Flow completion',section:'load',expected:check.limit==null?'Recorded target':`${number(check.limit)}% ${summary.completion.scope?'outside outage':'of target flows'}`,
-      observed:check.actual==null?'—':`${number(successful)} / ${number(expected)} ${summary.completion.scope?'confirmations':'flows'} · ${value(check)}${summary.completion.outageFailures?` · ${number(summary.completion.outageFailures)} failed during outage`:''}`,
+      observed:check.actual==null?'—':`${number(successful)} / ${number(expected)} ${summary.completion.scope?'confirmations outside outage':'flows'} · ${value(check)}${summary.completion.outageFailures?` · ${number(summary.completion.outageFailures)} failed during outage`:''}`,
       checks:[check],outcome:check.outcome});
   }
   return [{id:'load',title:'Load & performance'},{id:'faults',title:'Faults & recovery'}].map(section=>({...section,cases:rows.filter(row=>row.section===section.id)})).filter(section=>section.cases.length);

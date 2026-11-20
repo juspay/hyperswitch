@@ -1,14 +1,15 @@
 <script>
 import GrafanaPanel from './GrafanaPanel.svelte';
-import {unifiedPerformancePanels} from './grafana-panels.mjs';
+import {configuredGrafanaPanels} from './grafana-panels.mjs';
 export let run;
 export let grafana;
-$: panels=unifiedPerformancePanels(run);
+$: panels=configuredGrafanaPanels(run,grafana?.panels);
 </script>
+{#if !panels.length&&run?.startedAt}<p class="metrics-note">No panels configured. <button type="button" class="quiet" onclick={()=>window.dispatchEvent(new CustomEvent('console-settings',{detail:{section:'grafana'}}))}>Add Grafana panels</button></p>{/if}
 {#if panels.length}
 <section class="grafana-metrics" aria-label="Grafana metrics">
     {#if grafana?.hasIdentity}
-      <div class="grafana-grid">{#each panels as panel (panel.title)}<GrafanaPanel {panel} url={panel.url} baseUrl={grafana.baseUrl}/>{/each}</div>
+      <div class="grafana-grid">{#each panels as panel (panel.url)}<GrafanaPanel {panel} url={panel.url} revision={grafana.revision||''}/>{/each}</div>
     {:else}
       <p class="metrics-note">Configure Grafana access in the console to load embedded panels.</p>
     {/if}

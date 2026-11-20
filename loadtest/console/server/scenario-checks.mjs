@@ -9,7 +9,7 @@ import {latencyPercentile,settledLatencyWindows,containedLatencySample,mergeLate
 import {matchedLatencyDrift} from './latency-drift.mjs';
 import {testCasePlan} from '../src/result-test-cases.mjs';
 
-export const scenarioChecksVersion=17;
+export const scenarioChecksVersion=18;
 const terminal=new Set(['complete','failed','cancelled','interrupted']);
 const successful=row=>row.api_status_code>=200&&row.api_status_code<300&&['succeeded','requires_capture','processing'].includes(row.status);
 const inWindow=(at,windows)=>windows.some(w=>at>=w.from&&at<w.to);
@@ -106,6 +106,10 @@ export function evaluateScenarioChecks({config,recording,events=[],samples=[],re
    const from=Math.max(w.from,s.from),to=Math.min(w.to,s.to);return to>from?[{from,to}]:[];
   })));
   const steadyLatencyWindows=mergeLatencyWindows(groups.filter(g=>steadyIds.has(g.id)).flatMap(g=>g.latencyWindows.flatMap(w=>latencyWindows.normal.flatMap(n=>{const from=Math.max(w.from,n.from),to=Math.min(w.to,n.to);return to>from?[{from,to}]:[];}))));
+
+  // Connector reporting includes settled holds on both sides of a fault. Keep
+  // its descriptive statistics separate from the existing acceptance/drift scope.
+  const connectorLatencyWindows=clock?mergeLatencyWindows(groups.filter(g=>steadyIds.has(g.id)&&g.kind==='hold').flatMap(g=>g.latencyWindows)):null;
 
   const steadyDrift=[],steadyLatencies=[];
   const stateBuckets={normal:bucket(),outage:bucket(),recovery:bucket()};
@@ -230,7 +234,7 @@ export function evaluateScenarioChecks({config,recording,events=[],samples=[],re
   // Legacy snapshots only cover part of this checklist. Keep their measured
   // failures, but do not promote a historical run to a new overall pass.
   const verdict=!finished?'in_progress':['cancelled','interrupted'].includes(jobStatus)||recording.recording_state!=='complete'?'incomplete':!saved&&measuredVerdict==='pass'?'recorded':measuredVerdict;
-  return {version:scenarioChecksVersion,httpErrorScope:'payment_create_and_confirm',latencySettlingSeconds:limits.recoveryWindowSeconds,steady,completion,limits,limitsSaved:saved,groups,states,testCasePlan:testCasePlan(config,groups),passed,evaluated,total,verdict};
+  return {version:scenarioChecksVersion,httpErrorScope:'payment_create_and_confirm',latencySettlingSeconds:limits.recoveryWindowSeconds,steady,completion,connectorLatencyWindows,limits,limitsSaved:saved,groups,states,testCasePlan:testCasePlan(config,groups),passed,evaluated,total,verdict};
 }
 
 export async function scenarioChecks(directory,{config,recording,events=[],reconciliation=null,jobStatus=null}){

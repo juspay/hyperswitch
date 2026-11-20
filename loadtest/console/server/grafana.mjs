@@ -22,13 +22,14 @@ export async function upstreamPrefix(base, headers) {
   return promise;
 }
 
-export function rewriteGrafana(text, origin) {
+export function rewriteGrafana(text, origin, routePrefix='/grafana') {
   // Grafana's bootstrap supplies paths for API calls and webpack chunks.
   // Only path settings are changed; the token remains in server request headers.
-  return text
+  const rewritten=text
     .replace(/(<base\b[^>]*href=["'])\/(?:["'])/gi, '$1/grafana/"')
     .replace(/"appSubUrl"\s*:\s*""/g, '"appSubUrl":"/grafana"')
     .replace(/"appUrl"\s*:\s*"[^"\n]*"/g, `"appUrl":${JSON.stringify(origin + '/grafana/')}`)
     .replace(/((?:src|href|action)=["'])\/(?!\/|grafana(?:\/|["']))/gi, '$1/grafana/')
     .replace(/"liveEnabled"\s*:\s*true/g, '"liveEnabled":false');
+  return routePrefix==='/grafana'?rewritten:rewritten.replaceAll('/grafana/',routePrefix+'/').replace(/"appSubUrl"\s*:\s*"\/grafana"/g,'"appSubUrl":'+JSON.stringify(routePrefix));
 }

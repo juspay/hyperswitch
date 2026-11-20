@@ -25,3 +25,22 @@ test('metrics preference survives URL updates and section navigation',()=>{
     assert.equal(native.searchParams.get('metrics'),'native');
   }finally{delete globalThis.window;}
 });
+
+test('Settings has its own clean URL and preserves the selected run and metrics when returning',()=>{
+ globalThis.window={location:{href:'http://localhost/performance?profile=p&fixtures=f&run=recorded&metrics=grafana&metric=serverP99'}};
+ try{
+  setQuery({metrics:'grafana'});
+  assert.equal(sectionHref('settings',new URL(window.location.href),navigationContext.get()),'/settings');
+  window.location.href='http://localhost/settings?section=grafana';setQuery({section:'database'});
+  assert.equal(sectionHref('settings',new URL(window.location.href),navigationContext.get()),'/settings?section=database');
+  const back=new URL(sectionHref('performance',new URL(window.location.href),navigationContext.get()),'http://localhost');
+  assert.equal(back.searchParams.get('run'),'recorded');assert.equal(back.searchParams.get('profile'),'p');assert.equal(back.searchParams.get('fixtures'),'f');assert.equal(back.searchParams.get('metrics'),'grafana');assert.equal(back.searchParams.get('metric'),'serverP99');
+ }finally{delete globalThis.window;}
+});
+
+test('settings shortcuts accept only known sections and retain the connections default',async()=>{
+ const {settingsSections,settingsHref,settingsSection}=await import('../src/settings-sections.mjs');
+ for(const [id]of settingsSections){assert.equal(settingsSection(id),id);assert.equal(settingsHref(id),'/settings?section='+id);}
+ assert.equal(settingsHref(),'/settings?section=connections');
+ assert.equal(settingsSection('javascript:alert(1)'),'connections');
+});

@@ -1,3 +1,4 @@
+import {grafanaConnection,migrateGrafanaPanels,prepareGrafanaSettings} from './grafana-settings.mjs';
 import {isDeepStrictEqual} from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
@@ -88,20 +89,15 @@ export function initializeConfig() {
 }
 
 export function localSettings() {
-  const defaultPanels=[
-    {title:'RPS',url:'/grafana/d-solo/k6/k6-load-testing-results?panelId=17'},
-    {title:'API latency',url:'/grafana/d-solo/k6/k6-load-testing-results?panelId=13&var-Measurement=http_req_duration'},
-    {title:'TP latencies',url:'/grafana/d-solo/k6/k6-load-testing-results?panelId=5&var-Measurement=payment_confirm_latency_ms'}
-  ];
   const saved=readJsonSync(localPath, readJsonSync(path.join(consoleRoot, '.console-state.json'), {}));
   const pgSslMode=process.env.PGSSLMODE || '';
   const forcedTlsMode=process.env.LOADTEST_DB_TLS==='1'||['verify-ca','verify-full'].includes(pgSslMode)?'verify':pgSslMode==='require'?'require':'';
-  const base={mode:'single',grafana:{baseUrl:process.env.GRAFANA_URL || 'http://localhost:3002',panels:defaultPanels,presetsVersion:1},
+  const base={mode:'single',grafana:{baseUrl:process.env.GRAFANA_URL || 'http://localhost:3002',panels:migrateGrafanaPanels(),presetsVersion:2},
     smokeTest:{enabled:true,rps:1,durationSeconds:10},database:{host:process.env.PGHOST || '127.0.0.1',port:Number(process.env.PGPORT || 5432),
       database:process.env.PGDATABASE || 'hyperswitch_db',user:process.env.PGUSER || '',password:process.env.PGPASSWORD || '',tlsMode:forcedTlsMode || 'disable',caPath:process.env.PGSSLROOTCERT || '',caCertificateId:'',serverName:process.env.PGSSLSERVERNAME||''}};
   return {
     ...base,...saved,grafana:{...base.grafana,...saved.grafana,
-      panels:saved.grafana?.presetsVersion===1?(saved.grafana.panels || []):[...defaultPanels,...(saved.grafana?.panels || [])]},
+      panels:migrateGrafanaPanels(saved.grafana),presetsVersion:2},
     database:{...base.database,...saved.database,tlsMode:forcedTlsMode || saved.database?.tlsMode || (saved.database?.ssl?'verify':'disable'),...(forcedTlsMode&&process.env.PGSSLROOTCERT?{caPath:process.env.PGSSLROOTCERT}:{})},smokeTest:{...base.smokeTest,...saved.smokeTest}
   };
 }
@@ -122,14 +118,16 @@ function settingsSource(environment){
   validateEnvironment(environment);
   const saved=l.environmentProfiles?.[environment];
   const source=saved||{services:{router:environment==='local'?'http://127.0.0.1:8080':'https://router.invalid',modular_pm:environment==='local'?'http://127.0.0.1:8081/v2':'https://payment-methods.invalid/v2'},fixtures:{...c.fixtures,admin_api_key:'',connector:{connector_name:'stripe_test',connector_account_details:{auth_type:'HeaderKey',api_key:'local-test'},test_mode:true},superposition:{endpoint:environment==='local'?'http://127.0.0.1:8082':'https://superposition.invalid',token:'',organization_id:environment==='local'?'localorg':'',workspace_id:environment==='local'?'dev':'',defaults:c.fixtures.superposition?.defaults}},target_headers:{},database:{host:environment==='local'?'127.0.0.1':'',port:5432,database:'hyperswitch_db',user:'',password:'',tlsMode:environment==='local'?'disable':'verify',caPath:'',caCertificateId:''},grafana:{baseUrl:'http://localhost:3002',panels:[]}};
-  Object.assign(c,{services:source.services,fixtures:source.fixtures,target_headers:source.target_headers});Object.assign(l,{database:source.database,grafana:source.grafana});
+  Object.assign(c,{services:source.services,fixtures:source.fixtures,target_headers:source.target_headers});Object.assign(l,{database:source.database,grafana:{...source.grafana,panels:migrateGrafanaPanels(source.grafana),presetsVersion:2}});
  }
  return {config:c,local:l,environment:environment||active};
 }
+export function environmentGrafana(environment){return settingsSource(environment).local.grafana;}
 export function environmentDatabase(environment){return settingsSource(environment).local.database;}
 export function publicSettings(environment=null) {
   initializeConfig();
   const source=settingsSource(environment),c=source.config,l=source.local,sp=c.fixtures?.superposition||{};
+  let grafanaIdentity;try{grafanaIdentity=grafanaConnection({},l.grafana);}catch{ /* Credentials may be unconfigured in this environment. */ }
   return {
     customFaultCommands:process.env.LOADTEST_ALLOW_CUSTOM_COMMANDS==='true',
     environment:source.environment,mode: l.mode, router: c.services.router, modularPm: c.services.modular_pm,
@@ -142,7 +140,7 @@ export function publicSettings(environment=null) {
     scenarios: normalizePaymentFlows(c.scenarios),
     superposition: { endpoint: sp.endpoint, token: '', hasToken: Boolean(sp.token), accessHeader:sp.access_header || 'authorization', organizationId: sp.organization_id,
       workspaceId: sp.workspace_id, refreshSeconds: sp.refresh_interval_seconds ?? 30,pollSeconds:sp.poll_interval_seconds ?? 5, defaultsJson: JSON.stringify(sp.defaults || {}, null, 2) },
-    grafana: { baseUrl: l.grafana.baseUrl, panels: l.grafana.panels || [], hasToken: Boolean(process.env.GRAFANA_TOKEN), hasIdentity: Boolean(process.env.GRAFANA_TOKEN || process.env.GRAFANA_USER) },
+    grafana: { baseUrl:l.grafana.baseUrl,panels:l.grafana.panels,revision:l.grafana.revision||'',token:'',hasToken:Boolean(grafanaIdentity?.token),hasIdentity:Boolean(grafanaIdentity) },
     smokeTest:l.smokeTest,workerEnrollmentConfigured:Boolean(process.env.LOADTEST_WORKER_ENROLLMENT_TOKEN),
     database: { host: l.database.host, port: l.database.port, database: l.database.database, user: l.database.user,
       tlsMode:l.database.tlsMode || (l.database.ssl?'verify':'disable'),caPath:l.database.caPath || '',caCertificateId:l.database.caCertificateId || '',serverName:l.database.serverName||'', password: '', hasPassword: Boolean(l.database.password) }
@@ -212,7 +210,7 @@ export function validateSettings(input) {
   if(caPath&&!path.isAbsolute(caPath))throw new Error('Database CA certificate path must be absolute');
   const caCertificateId=String(input.database.caCertificateId || '').trim();
   if(caCertificateId&&!hasCertificate(dataRoot,caCertificateId))throw new Error('Imported database CA certificate does not exist');
-  const panels = (input.grafana.panels || []).map(p=>({ title: String(p.title).slice(0,100), url: panelPath(p.url,input.grafana.baseUrl) }));
+  const grafana=prepareGrafanaSettings(input.grafana,local.grafana);
   const next = structuredClone(current);
   next.services = { ...next.services,router: input.router,modular_pm:input.modularPm };
   next.load = { ...next.load,total_rps:Number(input.totalRps),duration_seconds:Number(input.durationSeconds),pre_allocated_vus_multiplier:pre,max_vus_multiplier:max };
@@ -239,7 +237,7 @@ export function validateSettings(input) {
   const smoke=input.smokeTest || local.smokeTest;
   if(typeof smoke.enabled!=='boolean'||!Number.isInteger(Number(smoke.rps))||smoke.rps<1||smoke.rps>100||!Number.isInteger(Number(smoke.durationSeconds))||smoke.durationSeconds<1||smoke.durationSeconds>300)throw new Error('Invalid smoke-test defaults');
   next.environment=validateEnvironment(input.environment||activeEnvironment());
-  return {config:next,local:{ ...local,environment:next.environment,mode:input.mode,grafana:{baseUrl:input.grafana.baseUrl,panels,presetsVersion:1},smokeTest:{enabled:smoke.enabled,rps:Number(smoke.rps),durationSeconds:Number(smoke.durationSeconds)}, database:{
+  return {config:next,local:{ ...local,environment:next.environment,mode:input.mode,grafana,smokeTest:{enabled:smoke.enabled,rps:Number(smoke.rps),durationSeconds:Number(smoke.durationSeconds)}, database:{
     host:input.database.host,port:dbPort,database:input.database.database,user:input.database.user,tlsMode,caPath,caCertificateId,serverName,
     password:input.database.password || local.database.password } }};
 }
@@ -305,7 +303,7 @@ export function runDirectory(id) {
 export function redact(value) {
   let text = String(value);
   const c = readJsonSync(configPath,{fixtures:{}}), l = localSettings();
-  const secrets = [...Object.values(l.environmentProfiles||{}).flatMap(profile=>[profile.fixtures?.admin_api_key,profile.fixtures?.superposition?.token,profile.database?.password,...Object.values(profile.fixtures?.connector?.connector_account_details||{})]),...Object.values(c.fixtures.connector?.connector_account_details||{}),c.fixtures.admin_api_key,c.fixtures.superposition?.token,l.database.password,process.env.GRAFANA_TOKEN,process.env.ROUTER_ADMIN_API_KEY,process.env.SUPERPOSITION_TOKEN];
+  const secrets = [...Object.values(l.environmentProfiles||{}).flatMap(profile=>[profile.fixtures?.admin_api_key,profile.fixtures?.superposition?.token,profile.database?.password,...Object.values(profile.fixtures?.connector?.connector_account_details||{})]),...Object.values(c.fixtures.connector?.connector_account_details||{}),c.fixtures.admin_api_key,c.fixtures.superposition?.token,l.database.password,l.grafana.token,...Object.values(l.environmentProfiles||{}).map(p=>p.grafana?.token),process.env.GRAFANA_TOKEN,process.env.ROUTER_ADMIN_API_KEY,process.env.SUPERPOSITION_TOKEN];
   for (let s of secrets) { if (typeof s === 'string' && s.startsWith('${')) s = process.env[s.slice(2,-1)]; if(s) text=text.replaceAll(s,'[redacted]'); }
   return text;
 }

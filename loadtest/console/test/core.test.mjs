@@ -90,7 +90,7 @@ test('settings and redaction never expose secrets; profiles validate paths and w
   settings.maxVusMultiplier=12;
   settings.database={...settings.database,host:'database.internal',port:6432,database:'payments',user:'loadtest_reader',password:'database-secret',tlsMode:'verify',caPath:'/certs/database.pem'};
   const saved=await state.saveSettings(settings);assert.equal(saved.totalRps,10);assert.equal(saved.superposition.pollSeconds,2.5);assert.equal(saved.superposition.accessHeader,'x-superposition-access');assert.equal(state.readJsonSync(state.configPath).fixtures.admin_api_key,'private-admin-test');
-  assert.deepEqual(saved.grafana.panels.map(panel=>panel.title),['RPS','API latency','TP latencies']);
+  assert.deepEqual(saved.grafana.panels.map(panel=>panel.title),['Payment Confirm p99 Latency','RPS (for router service)','Error Rate % (5xx)']);
   assert.deepEqual(saved.smokeTest,{enabled:true,rps:1,durationSeconds:10});
   assert.deepEqual(saved.database,{host:'database.internal',port:6432,database:'payments',user:'loadtest_reader',tlsMode:'verify',caPath:'/certs/database.pem',caCertificateId:'',serverName:'',password:'',hasPassword:true});
   assert.equal(state.localSettings().database.password,'database-secret');

@@ -2,10 +2,16 @@ import {DatabaseSync} from 'node:sqlite';
 import path from 'node:path';
 import {faultWindows} from './display-errors.mjs';
 export const successfulConfirmWhere="operation='payment_confirm' AND role='measured' AND api_status_code>=200 AND api_status_code<300 AND status IN ('succeeded','requires_capture','processing') AND server_latency_ms IS NOT NULL AND server_latency_ms>=0";
-export function latencyPercentile(values,percentile){
+function sortedPercentile(values,percentile){
  if(!values.length)return null;
- values.sort((a,b)=>a-b);const index=(values.length-1)*percentile,low=Math.floor(index),high=Math.ceil(index);
+ const index=(values.length-1)*percentile,low=Math.floor(index),high=Math.ceil(index);
  return values[low]+(values[high]-values[low])*(index-low);
+}
+export function latencyPercentile(values,percentile){return sortedPercentile(values.sort((a,b)=>a-b),percentile);}
+/** Summarize individual request latencies, preserving genuine tails and excluding only invalid measurements. */
+export function latencyStatistics(values){
+ const sorted=values.filter(v=>Number.isFinite(v)&&v>=0).sort((a,b)=>a-b),count=sorted.length;
+ return {count,min:sorted[0]??null,max:sorted.at(-1)??null,mean:count?sorted.reduce((sum,v)=>sum+v,0)/count:null,median:sortedPercentile(sorted,.5),p99:sortedPercentile(sorted,.99)};
 }
 export const latencyP99=values=>latencyPercentile(values,.99);
 export function mergeLatencyWindows(windows){

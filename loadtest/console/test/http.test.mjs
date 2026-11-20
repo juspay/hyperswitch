@@ -19,6 +19,8 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
   const grafana=createServer((req,res)=>{
     lastHeaders=req.headers;lastGrafanaPath=req.url;
     if(req.url==='/api/health'){res.setHeader('content-type','application/json');res.end('{"database":"ok","version":"12"}');return;}
+    if(req.url==='/api/user'){res.setHeader('content-type','application/json');if(req.headers.authorization!=='Bearer secret-grafana-test'){res.statusCode=401;res.end('{}');}else res.end('{"id":0,"orgId":1}');return;}
+    if(req.url==='/api/dashboards/uid/test'){res.setHeader('content-type','application/json');res.end('{"dashboard":{"title":"HTTP metrics","panels":[{"id":4,"type":"stat","title":"Latency"}]}}');return;}
     res.setHeader('content-type','text/html');res.end('<base href="/"><script>window.grafanaBootData={"appSubUrl":"","appUrl":"http://upstream/"}</script><script src="public/build/runtime.js"></script>');
   });
   grafana.listen(0,'127.0.0.1');await once(grafana,'listening');
@@ -44,11 +46,17 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     assert.equal((await request('/api/settings','GET',null,false)).status,401);
     assert.equal((await request('/api/faults/targets','GET',null,false)).status,401);
     assert.equal((await request('/grafana/d-solo/k6/test','GET',null,false)).status,401);
+    assert.equal((await request('/settings','GET',null,false)).status,303);
     assert.equal((await request('/')).status,303);
     const response=await fetch(origin+'/login',{method:'POST',redirect:'manual',headers:{origin,accept:'text/html'},body:new URLSearchParams({username:'admin',password:'console test password'})});
     assert.equal(response.status,303);cookie=response.headers.get('set-cookie').split(';')[0];assert.match(response.headers.get('set-cookie'),/HttpOnly/);
     assert.equal((await request('/')).status,303);
     const page=await request('/scenarios');assert.equal(page.status,200);const libraryHtml=await page.text();assert.match(libraryHtml,/Build traffic patterns and resilience tests/);assert.doesNotMatch(libraryHtml,/>Unavailable<|<p[^>]*>Requires GCP database failover/);assert.match(libraryHtml,/environment-label[^>]*>Local</);
+    for(const section of ['environment','connections','database','load','results','workers','grafana']){
+      const settingsPage=await request('/settings?section='+section);assert.equal(settingsPage.status,200);const html=await settingsPage.text();
+      assert.match(html,new RegExp('data-section="'+section+'"'));assert.match(html,/<title>Settings · Testbench<\/title>/);assert.doesNotMatch(html,/settings-dialog|unsaved-dialog|mock-private-admin|mock-sp-token|secret-grafana-test/);
+      assert.match(html,/>Discard changes<|>Discard changes /);assert.match(html,/aria-label="Console sections"/);
+    }
     const builtIns=(await (await request('/api/profiles')).json()).filter(p=>p.isDefault);
     assert.deepEqual(builtIns.map(p=>p.id).sort(),['default:card-vault-outage','default:db-failover','default:ramped-load','default:steady-load','default:tenancy-steady-load']);
     for(const builtIn of builtIns){
@@ -79,6 +87,14 @@ test('SSR, authentication, Grafana proxy, jobs, SSE, cancellation and restart',a
     assert.equal(allocationResponse.status,400);assert.match((await allocationResponse.json()).error,/worker|capacity/i);
     const settings=await (await request('/api/settings')).json();assert.equal(settings.adminApiKey,'');assert.doesNotMatch(JSON.stringify(settings),/mock-private-admin|mock-sp-token|secret-grafana-test/);
     assert.equal((await request('/api/settings','PUT',settings,true,{origin:'https://other.example'})).status,403);
+    assert.equal((await request('/api/grafana/test','POST',{connection:settings.grafana,environment:settings.environment},false)).status,401);
+    assert.equal((await request('/api/grafana/test','POST',{connection:settings.grafana,environment:settings.environment})).status,200);
+    const deniedGrafana=await request('/api/grafana/test','POST',{connection:{...settings.grafana,token:'wrong-viewer'},environment:settings.environment});assert.equal(deniedGrafana.status,400);assert.match((await deniedGrafana.json()).error,/denied/);
+    const previewResponse=await request('/api/grafana/preview','POST',{url:'https://never-contacted.invalid/d/test/panel?panelId=4',connection:settings.grafana,environment:settings.environment});assert.equal(previewResponse.status,200);
+    const preview=await previewResponse.json();assert.equal(preview.panel.title,'Latency');assert.match(new URL(preview.previewUrl).pathname,/^\/preview\/[a-f0-9]{32}\/grafana\/d-solo\//);assert.doesNotMatch(JSON.stringify(preview),/secret-grafana-test/);
+    assert.deepEqual((await (await request('/api/settings')).json()).grafana,settings.grafana,'testing and previewing drafts never saves the connection');
+    const openPanel=await request('/api/grafana/open?panel='+encodeURIComponent('/grafana/d-solo/test/panel?panelId=4'));assert.equal(openPanel.status,303);assert.notEqual(new URL(openPanel.headers.get('location')).origin,origin);assert.match(new URL(openPanel.headers.get('location')).pathname,/^\/grafana\/d-solo\//);
+    assert.equal((await request('/api/grafana/open?panel='+encodeURIComponent('https://evil.invalid/d/test/panel?panelId=4'))).status,400);
     const gcpDraft=await (await request('/api/settings?environment=gcp')).json();assert.equal(gcpDraft.environment,'gcp');assert.equal(gcpDraft.hasAdminApiKey,false);
     const placeholder=await (await request('/api/settings?environment=azure')).json();assert.equal(placeholder.environment,'azure');assert.equal(placeholder.database.hasPassword,false);
     assert.equal((await request('/api/settings','PUT',placeholder)).status,200);
