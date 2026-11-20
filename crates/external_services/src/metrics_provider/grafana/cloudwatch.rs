@@ -196,6 +196,7 @@ mod tests {
         GrafanaCloudwatch::new(
             GrafanaConfig {
                 base_url: Some(server.uri().parse().unwrap()),
+                ui_url: None,
                 api_token: Secret::new(TOKEN.to_owned()),
             },
             Proxy::default(),

@@ -24,6 +24,7 @@ const QUERY_REF_ID: &str = "A";
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct GrafanaConfig {
     pub base_url: Option<Url>,
+    pub ui_url: Option<Url>,
     pub api_token: Secret<String>,
 }
 
