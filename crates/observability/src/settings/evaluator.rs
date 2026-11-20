@@ -17,6 +17,13 @@ pub struct AlertSettings {
     pub datasources: HashMap<MetricSource, DatasourceSettings>,
     #[serde(deserialize_with = "common_utils::custom_serde::json_string::deserialize")]
     pub(crate) rules: Vec<RuleDefinition>,
+    /// More rules, in their own variable: one environment variable cannot exceed 128 KiB, and
+    /// `rules` alone is close to that in prod.
+    #[serde(
+        default,
+        deserialize_with = "common_utils::custom_serde::json_string::deserialize"
+    )]
+    pub(crate) loki_rules: Vec<RuleDefinition>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -26,8 +33,13 @@ pub struct DatasourceSettings {
 }
 
 impl AlertSettings {
+    /// Every configured rule, from both variables.
+    pub(crate) fn all_rules(&self) -> impl Iterator<Item = &RuleDefinition> {
+        self.rules.iter().chain(&self.loki_rules)
+    }
+
     pub(crate) fn validate(&self, chat: &ChatSettings) -> Result<(), ConfigurationError> {
-        if !self.rules.is_empty() {
+        if self.all_rules().next().is_some() {
             when(
                 !self
                     .grafana
@@ -55,16 +67,15 @@ impl AlertSettings {
             })?;
         }
         let ids = self
-            .rules
-            .iter()
+            .all_rules()
             .map(|rule| &rule.id)
             .collect::<HashSet<_>>();
-        when(ids.len() != self.rules.len(), || {
+        when(ids.len() != self.all_rules().count(), || {
             Err(ConfigurationError::ConfigParsingError(
                 "invalid alert configuration: field `rules.id` must be unique".to_owned(),
             ))
         })?;
-        for rule in &self.rules {
+        for rule in self.all_rules() {
             when(rule.id.trim().is_empty(), || {
                 Err(ConfigurationError::ConfigParsingError(format!(
                     "invalid alert configuration: rule `{}` field `id` must not be blank",
@@ -158,6 +169,73 @@ mod tests {
         assert!(matches!(
             settings.validate(&ChatSettings::default()),
             Err(ConfigurationError::ConfigParsingError(detail)) if detail.contains("grafana.base_url")
+        ));
+    }
+
+    #[test]
+    fn loki_rules_are_optional_and_combine_with_rules_under_unique_ids() {
+        let rule = |id: &str, query: serde_json::Value| {
+            serde_json::json!({
+                "id": id,
+                "name": id,
+                "config": {
+                    "interval_seconds": 60,
+                    "query": query,
+                    "thresholds": {"severities": {"critical": {
+                        "threshold": 0,
+                        "comparison_operator": "GreaterThanThreshold",
+                        "destination": "smoke",
+                        "description": "test"
+                    }}}
+                }
+            })
+        };
+        let cloudwatch = rule(
+            "cpu",
+            serde_json::json!({
+                "datasource": "grafana_cloudwatch", "region": "us-east-1",
+                "namespace": "AWS/EC2", "metric_name": "CPUUtilization",
+                "dimensions": {}, "statistic": "Average", "period": 60
+            }),
+        );
+        let loki = |id: &str| {
+            rule(
+                id,
+                serde_json::json!({
+                    "datasource": "grafana_loki", "region": "us-east-1",
+                    "expr": "sum(count_over_time({app=\"router\"}[1m]))", "period": 60
+                }),
+            )
+        };
+        let settings = |loki_rules: Option<serde_json::Value>| {
+            let mut value = serde_json::json!({
+                "grafana": {"base_url": "http://grafana.example.com", "api_token": "token"},
+                "rules": serde_json::json!([cloudwatch]).to_string()
+            });
+            if let (Some(loki_rules), Some(object)) = (loki_rules, value.as_object_mut()) {
+                object.insert(
+                    "loki_rules".to_owned(),
+                    serde_json::Value::String(loki_rules.to_string()),
+                );
+            }
+            serde_json::from_value::<AlertSettings>(value).unwrap()
+        };
+
+        assert_eq!(settings(None).all_rules().count(), 1);
+
+        let combined = settings(Some(serde_json::json!([loki("router-5xx")])));
+        assert_eq!(
+            combined
+                .all_rules()
+                .map(|rule| rule.id.as_str())
+                .collect::<Vec<_>>(),
+            ["cpu", "router-5xx"]
+        );
+
+        let duplicate = settings(Some(serde_json::json!([loki("cpu")])));
+        assert!(matches!(
+            duplicate.validate(&ChatSettings::default()),
+            Err(ConfigurationError::ConfigParsingError(detail)) if detail.contains("rules.id")
         ));
     }
 
