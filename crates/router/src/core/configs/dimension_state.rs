@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::{connector_enums::Connector, Currency, PaymentMethodType, PayoutRetryType};
+use common_enums::{
+    connector_enums::Connector, Currency, PaymentMethodType, PayoutRetryType, StandardisedCode,
+};
 use common_utils::id_type;
 use external_services::superposition;
 use heck::ToPascalCase;
@@ -926,5 +928,132 @@ impl DimensionsBase for DimensionsWithMerchantConnectorAccount {
 
     fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
         self.dimensions.get_payment_method_type()
+    }
+}
+
+/// Dimensions for revenue recovery configs that can be targeted down to a single decline code.
+///
+/// `error_code` is the standardised code the GSM table resolved for the failure the config is
+/// read for. It is not part of the generic [`Dimensions`] state, so this wraps the profile-scoped
+/// state the recovery configs already resolve on and adds it to the Superposition context only
+/// when it is known. A context that does not mention `error_code` therefore matches exactly as it
+/// did before the dimension existed.
+#[derive(Clone)]
+pub struct DimensionsWithRecoveryErrorCode {
+    dimensions: DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    error_code: Option<StandardisedCode>,
+}
+
+impl DimensionsWithRecoveryErrorCode {
+    pub fn new(
+        dimensions: DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+        error_code: Option<StandardisedCode>,
+    ) -> Self {
+        Self {
+            dimensions,
+            error_code,
+        }
+    }
+
+    pub fn get_error_code(&self) -> Option<StandardisedCode> {
+        self.error_code
+    }
+}
+
+impl DimensionsBase for DimensionsWithRecoveryErrorCode {
+    fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
+        let ctx = self.dimensions.to_superposition_context()?;
+
+        Some(match self.error_code {
+            Some(error_code) => ctx.with("error_code", error_code.to_string().as_str()),
+            None => ctx,
+        })
+    }
+
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_provider_merchant_id()
+    }
+
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.dimensions.get_processor_merchant_id()
+    }
+
+    fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
+        self.dimensions.get_organization_id()
+    }
+
+    fn get_profile_id(&self) -> Option<&id_type::ProfileId> {
+        self.dimensions.get_profile_id()
+    }
+
+    fn get_connector(&self) -> Option<Connector> {
+        self.dimensions.get_connector()
+    }
+
+    fn get_payout_retry_type(&self) -> Option<&PayoutRetryType> {
+        self.dimensions.get_payout_retry_type()
+    }
+
+    fn get_incoming_webhook_event(&self) -> Option<IncomingWebhookEvent> {
+        self.dimensions.get_incoming_webhook_event()
+    }
+
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.dimensions.get_payment_method_type()
+    }
+}
+
+#[cfg(test)]
+mod recovery_error_code_dimension_tests {
+    use super::*;
+
+    fn profile_dimensions() -> DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId {
+        let merchant_id = id_type::MerchantId::try_from(std::borrow::Cow::from("merchant_1"))
+            .expect("valid merchant id");
+        Dimensions::new()
+            .with_processor_merchant_id(merchant_id.clone().into())
+            .with_provider_merchant_id(ProviderMerchantId::new(merchant_id))
+            .with_organization_id(
+                id_type::OrganizationId::try_from(std::borrow::Cow::from("org_1"))
+                    .expect("valid organization id"),
+            )
+            .with_profile_id(
+                id_type::ProfileId::try_from(std::borrow::Cow::from("pro_1"))
+                    .expect("valid profile id"),
+            )
+    }
+
+    #[test]
+    fn error_code_is_added_to_the_context_when_known() {
+        let dimensions = DimensionsWithRecoveryErrorCode::new(
+            profile_dimensions(),
+            Some(StandardisedCode::InsufficientFunds),
+        );
+        let context = dimensions
+            .to_superposition_context()
+            .expect("profile dimensions always build a context");
+
+        assert_eq!(context.get("error_code"), Some("insufficient_funds"));
+        assert_eq!(context.get("profile_id"), Some("pro_1"));
+    }
+
+    #[test]
+    fn unknown_error_code_leaves_the_context_as_it_was() {
+        let wrapped = DimensionsWithRecoveryErrorCode::new(profile_dimensions(), None)
+            .to_superposition_context()
+            .expect("profile dimensions always build a context");
+        let unwrapped = profile_dimensions()
+            .to_superposition_context()
+            .expect("profile dimensions always build a context");
+
+        assert_eq!(wrapped.get("error_code"), None);
+        for key in [
+            "processor_merchant_id",
+            "provider_merchant_id",
+            "organization_id",
+            "profile_id",
+        ] {
+            assert_eq!(wrapped.get(key), unwrapped.get(key), "{key} differs");
+        }
     }
 }

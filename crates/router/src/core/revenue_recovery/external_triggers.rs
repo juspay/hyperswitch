@@ -66,6 +66,8 @@ struct NextRetryInputs<'a> {
     ladder_progress: &'a StaticLadderProgress,
     retry_count: u16,
     last_failure_code: Option<common_enums::StandardisedCode>,
+    /// The attempt the merchant reported, which attempt routing buckets its experiments on
+    reported_attempt_id: &'a id_type::GlobalAttemptId,
     card_availability: CardAvailability,
     retries_after_hard_decline: Option<u16>,
 }
@@ -202,6 +204,7 @@ async fn decide_recovery_request_retry(
             ladder_progress: &ladder_progress,
             retry_count,
             last_failure_code,
+            reported_attempt_id: &recovery_attempt.attempt_id,
             card_availability,
             retries_after_hard_decline,
         },
@@ -386,6 +389,7 @@ async fn get_retry_time(
             retry_algorithm_type,
             retry_count: u32::from(inputs.retry_count),
             prev_attempt_error_code: inputs.last_failure_code,
+            failed_attempt_id: Some(inputs.reported_attempt_id),
             static_ladder_progress: inputs.ladder_progress,
             remaining_grace_days: u32::try_from((grace_window_end - now).whole_days().max(0))
                 .unwrap_or(0),

@@ -936,6 +936,51 @@ impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
     }
 }
 
+// Attempt routing: each retry decision resolves its own retry implementation on the error code of
+// the failure it answers, rather than replaying the arm stored on the invoice. Both keys resolve
+// on that code, so routing can be switched on and an algorithm chosen per decline code, and both
+// are bucketed on the failed attempt, so an experiment splits traffic per attempt.
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_ATTEMPT_ROUTING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithRecoveryErrorCode,
+    targeting_key = id_type::GlobalAttemptId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryAttemptRoutingEnabled {
+    const KEY: &'static str = "revenue_recovery_attempt_routing_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|profile_id| format!("{}_{}", Self::KEY, profile_id.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_ATTEMPT_ALGORITHM,
+    output = common_enums::RevenueRecoveryABAlgorithm,
+    default = common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithRecoveryErrorCode,
+    targeting_key = id_type::GlobalAttemptId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryAttemptAlgorithm {
+    const KEY: &'static str = "revenue_recovery_attempt_algorithm";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|profile_id| format!("{}_{}", Self::KEY, profile_id.get_string_repr()))
+    }
+}
+
 config! {
     superposition_key = RECOVERY_GRACE_PERIOD_DAYS,
     output = i64,
