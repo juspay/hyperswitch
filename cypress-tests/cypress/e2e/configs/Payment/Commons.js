@@ -2413,7 +2413,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           surcharge_details: {
-            surcharge_percentage: 0,
+            surcharge_percentage: 3,
           },
         },
       },
@@ -2450,7 +2450,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           surcharge_details: {
-            surcharge_percentage: 0,
+            surcharge_percentage: 3,
           },
         },
       },
@@ -2558,7 +2558,7 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-      ExpectSurcharge: true,
+      ExpectSurcharge: { surcharge_percentage: 3 },
     },
     ExternalSurchargeMITManualCapture: {
       Request: {
@@ -2570,7 +2570,7 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
-      ExpectSurcharge: true,
+      ExpectSurcharge: { surcharge_percentage: 3 },
     },
     PaymentIntent: getCustomExchange({
       Request: {
