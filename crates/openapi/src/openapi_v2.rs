@@ -356,6 +356,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::WalletProviderDetails,
         api_models::payment_methods::PaypalWalletInfo,
         api_models::payment_methods::WalletPaymentMethodData,
+        api_models::payment_methods::ApplePayCreateData,
         api_models::payment_methods::WalletPaymentMethodResponseData,
         api_models::merchant_connector_webhook_management::Scope,
         api_models::merchant_connector_webhook_management::ScopeIdentifier,

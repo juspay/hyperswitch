@@ -6641,6 +6641,36 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCreateData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payment_data": {
+                "type": "string",
+                "description": "Base64-encoded Apple Pay paymentData JSON; decrypted card data is not accepted.",
+                "nullable": true
+              },
+              "payment_method": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplepayPaymentMethod"
+                  }
+                ],
+                "nullable": true
+              },
+              "transaction_identifier": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nFor decryption, supply payment_data, payment_method, and transaction_identifier together."
+      },
       "ApplePayCryptogramData": {
         "type": "object",
         "description": "This struct represents the cryptogram data for Apple Pay transactions",
@@ -25251,7 +25281,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/WalletPaymentMethodData"
+                "$ref": "#/components/schemas/WalletPaymentMethodResponseData"
               }
             }
           }
@@ -25425,6 +25455,11 @@
             "type": "string",
             "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
             "example": "wyH7yWdtaRhxDkVE1cvs",
+            "nullable": true
+          },
+          "payment_method_token": {
+            "type": "string",
+            "description": "Transaction-scoped token returned by encrypted Apple Pay create.\nUse it instead of the payment method ID for one-time cryptogram retrieval.",
             "nullable": true
           }
         }
@@ -38592,7 +38627,7 @@
             ],
             "properties": {
               "apple_pay": {
-                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+                "$ref": "#/components/schemas/ApplePayCreateData"
               }
             }
           },

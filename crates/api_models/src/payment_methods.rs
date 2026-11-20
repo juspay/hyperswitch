@@ -659,12 +659,27 @@ pub enum BankDebitDetailUpdate {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum WalletPaymentMethodData {
-    ApplePay(Box<PaymentMethodDataWalletInfo>),
+    ApplePay(Box<ApplePayCreateData>),
     ApplePayDecrypted(Box<ApplePayDecryptedInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
     GooglePayDecrypted(Box<GooglePayDecryptedInfo>),
     #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
+}
+
+/// Apple Pay create accepts existing wallet metadata or an encrypted token.
+/// For decryption, supply payment_data, payment_method, and transaction_identifier together.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct ApplePayCreateData {
+    #[serde(flatten)]
+    pub wallet_info: PaymentMethodDataWalletInfo,
+    /// Base64-encoded Apple Pay paymentData JSON; decrypted card data is not accepted.
+    #[schema(value_type = Option<String>)]
+    pub payment_data: Option<hyperswitch_masking::Secret<String>>,
+    #[schema(value_type = Option<ApplepayPaymentMethod>)]
+    pub payment_method: Option<payments::ApplepayPaymentMethod>,
+    pub transaction_identifier: Option<String>,
 }
 
 /// Wallet metadata returned by payment-method APIs, without decrypted credentials.
@@ -1670,6 +1685,10 @@ pub struct PaymentMethodResponse {
     /// enabled.
     #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
     pub fingerprint_id: Option<String>,
+
+    /// Transaction-scoped token returned by encrypted Apple Pay create.
+    /// Use it instead of the payment method ID for one-time cryptogram retrieval.
+    pub payment_method_token: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1810,7 +1829,7 @@ impl PaymentMethodsData {
 impl From<WalletPaymentMethodData> for PaymentMethodsData {
     fn from(wallet_data: WalletPaymentMethodData) -> Self {
         match wallet_data {
-            WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(data.wallet_info),
             WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
             WalletPaymentMethodData::ApplePayDecrypted(data) => {
                 Self::WalletDetails(data.wallet_info)
@@ -3949,7 +3968,7 @@ pub enum PaymentMethodListData {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Bank)]
     Bank(payouts::Bank),
-    Wallet(WalletPaymentMethodData),
+    Wallet(WalletPaymentMethodResponseData),
 }
 
 #[cfg(feature = "v1")]

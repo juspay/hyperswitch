@@ -3,9 +3,7 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{
     enums as api_enums,
-    payment_methods::{
-        PaymentMethodResponseItem, WalletPaymentMethodData, WalletPaymentMethodResponseData,
-    },
+    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodResponseData},
 };
 use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
@@ -796,6 +794,7 @@ pub fn generate_payment_method_response(
         billing,
         acknowledgement_status,
         fingerprint_id: None,
+        payment_method_token: None,
     };
 
     Ok(resp)
@@ -1034,17 +1033,17 @@ impl
                     match payment_method_subtype {
                         Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::ApplePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::GooglePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::PayPal(Box::new(
+                                WalletPaymentMethodResponseData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
@@ -1140,17 +1139,17 @@ impl
                     match payment_method_subtype {
                         Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::ApplePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::GooglePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::PayPal(Box::new(
+                                WalletPaymentMethodResponseData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
