@@ -1340,6 +1340,27 @@ export const connectorDetails = {
         },
       },
     },
+    // No amount is sent, so the whole charged total is refunded in one call.
+    ExternalSurchargeRefundWholeOrder: {
+      Request: {
+        amount: undefined,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      WholeOrder: true,
+    },
+    ExternalSurchargeRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     // Capturing with no amount captures the whole charged total, surcharge included.
     ExternalSurchargeManualCapture: {
       Request: {
@@ -1349,6 +1370,76 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    ExternalSurchargeRefundBeforeCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundOverOrderAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Requested refund amount is greater than the original order amount.",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundExceedsCaptured: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundZeroAmount: {
+      Request: {
+        amount: 0,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount contains invalid data. Expected format is positive integer",
+            code: "IR_05",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundNegativeAmount: {
+      Request: {
+        amount: -100,
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "amount contains invalid data. Expected format is positive integer",
+            code: "IR_05",
+          },
         },
       },
     },

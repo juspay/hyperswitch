@@ -127,6 +127,27 @@ export const runSurchargePayment = (
   return state;
 };
 
+// Refunds `share` (0 to 1) of the order amount through the surcharge refund
+// command and keeps the refund in global state under `refundStateKey`.
+export const refundShareOfOrderAmount = (
+  globalState,
+  share,
+  refundStateKey,
+  flowKey = "ExternalSurchargeRefund"
+) => {
+  cy.surchargeRefundCallTest(
+    fixtures.refundBody,
+    {
+      ...cardData(globalState, flowKey),
+      Request: {
+        amount: Math.floor(globalState.get("paymentAmount") * share),
+      },
+    },
+    globalState,
+    refundStateKey
+  );
+};
+
 // Captures the whole charged total (order amount + surcharge).
 export const captureFullAmount = (globalState) => {
   cy.captureCallTest(

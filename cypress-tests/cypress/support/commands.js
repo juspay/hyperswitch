@@ -5733,6 +5733,115 @@ Cypress.Commands.add(
   }
 );
 
+// Refund on a payment that carries an external surcharge. The surcharge refund
+// is calculated by the surcharge connector, so only checks that hold for any
+// amount are made: net_amount = amount + surcharge_refund_amount, the surcharge
+// refunded so far never exceeds the surcharge charged, and once the whole order
+// amount is refunded the whole surcharge has been refunded too.
+Cypress.Commands.add(
+  "surchargeRefundCallTest",
+  (requestBody, data, globalState, refundStateKey) => {
+    const {
+      Request: reqData,
+      Response: resData,
+      WholeOrder: wholeOrder,
+    } = data || {};
+    const paymentId = globalState.get("paymentID");
+    const body = { ...requestBody, ...reqData, payment_id: paymentId };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/refunds`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status !== 200) {
+          defaultErrorHandler(response, resData);
+          return;
+        }
+
+        const refund = response.body;
+        expect(refund.payment_id, "payment_id").to.equal(paymentId);
+        for (const key in resData.body) {
+          expect(refund[key], key).to.equal(resData.body[key]);
+        }
+
+        // No amount sent: the whole charged total (order amount + surcharge) is
+        // refunded in one call, so only that total is checked.
+        if (wholeOrder) {
+          expect(refund.net_amount ?? refund.amount, "refunded total").to.equal(
+            globalState.get("paymentAmount") +
+              globalState.get("surchargeAmount")
+          );
+          globalState.set(refundStateKey, refund);
+          return;
+        }
+
+        expect(refund.amount, "amount").to.equal(body.amount);
+        expect(refund.surcharge_refund_amount, "surcharge_refund_amount")
+          .to.be.a("number")
+          .and.to.be.at.least(0);
+        expect(refund.net_amount, "net_amount").to.equal(
+          refund.amount + refund.surcharge_refund_amount
+        );
+
+        const surchargeRefunded =
+          (globalState.get("surchargeRefunded") ?? 0) +
+          refund.surcharge_refund_amount;
+        const orderAmountRefunded =
+          (globalState.get("orderAmountRefunded") ?? 0) + refund.amount;
+        expect(surchargeRefunded, "surcharge refunded so far").to.be.at.most(
+          globalState.get("surchargeAmount")
+        );
+        if (orderAmountRefunded === globalState.get("paymentAmount")) {
+          expect(surchargeRefunded, "surcharge refunded in total").to.equal(
+            globalState.get("surchargeAmount")
+          );
+        }
+
+        globalState.set("surchargeRefunded", surchargeRefunded);
+        globalState.set("orderAmountRefunded", orderAmountRefunded);
+        globalState.set(refundStateKey, refund);
+      });
+    });
+  }
+);
+
+// Retrieving a refund returns the same amounts it was created with.
+Cypress.Commands.add(
+  "surchargeRefundRetrieveTest",
+  (refundStateKey, globalState) => {
+    const created = globalState.get(refundStateKey);
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/${created.refund_id}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(200);
+        for (const key of ["amount", "surcharge_refund_amount", "net_amount"]) {
+          expect(response.body[key], key).to.equal(created[key]);
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "syncRefundCallTest",
   (data, globalState, connectedMerchantId) => {
@@ -9462,6 +9571,10 @@ Cypress.Commands.add(
               0.001
             );
 
+            // Refund bookkeeping for the surcharge refund tests starts again for every
+            // eligibility check.
+            globalState.set("surchargeRefunded", 0);
+            globalState.set("orderAmountRefunded", 0);
             globalState.set(
               "surchargeAmount",
               surchargeDetails.surcharge.value
