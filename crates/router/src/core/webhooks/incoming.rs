@@ -365,7 +365,7 @@ async fn incoming_webhooks_core(
         Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
     ) {
         return Ok((
-            with_connector_ack_status(WebhookResponse::StatusOk, &connector),
+            WebhookResponse::default().with_ack_status(connector.get_webhook_ack_status_code()),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::default()),
         ));
@@ -468,24 +468,10 @@ async fn incoming_webhooks_core(
     };
 
     Ok((
-        with_connector_ack_status(ack_response, &connector),
+        ack_response.with_ack_status(connector.get_webhook_ack_status_code()),
         webhook_effect,
         serialized_body,
     ))
-}
-
-/// An empty acknowledgement goes back with the connector's ack status, so a connector that
-/// only counts e.g. 201 as delivered does not retry, or disable, every webhook it sent.
-fn with_connector_ack_status(
-    ack_response: WebhookResponse<serde_json::Value>,
-    connector: &ConnectorEnum,
-) -> WebhookResponse<serde_json::Value> {
-    match (ack_response, connector.get_webhook_ack_status_code()) {
-        (WebhookResponse::StatusOk, status_code) if status_code != 200 => {
-            WebhookResponse::StatusCode(status_code)
-        }
-        (ack_response, _) => ack_response,
-    }
 }
 
 async fn fetch_three_ds_execution_path(
@@ -867,7 +853,7 @@ fn handle_incoming_webhook_error(
             .switch()
             .attach_printable("Failed to get incoming webhook api response from connector")?;
         Ok((
-            with_connector_ack_status(response, connector),
+            response.with_ack_status(connector.get_webhook_ack_status_code()),
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::Null),
         ))
@@ -944,7 +930,7 @@ async fn network_token_incoming_webhooks_core(
         .await?;
 
     Ok((
-        WebhookResponse::StatusOk,
+        WebhookResponse::default(),
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),

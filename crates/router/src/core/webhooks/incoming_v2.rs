@@ -215,7 +215,7 @@ async fn incoming_webhooks_core(
     // if it is a setup webhook event, return ok status
     if event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
         return Ok((
-            WebhookResponse::StatusOk,
+            WebhookResponse::default(),
             WebhookResponseTracker::NoEffect,
             serde_json::Value::default(),
         ));

@@ -350,7 +350,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
     ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(WebhookResponse::StatusOk)
+        Ok(WebhookResponse::default())
     }
 
     /// fn get_dispute_details
