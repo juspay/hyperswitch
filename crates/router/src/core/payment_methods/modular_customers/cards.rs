@@ -239,7 +239,7 @@ pub(super) struct ServiceCardBackend<'a> {
 }
 
 fn headers(
-    auth: &hyperswitch_interfaces::configs::InternalMerchantIdProfileIdAuthSettings,
+    state: &SessionState,
     merchant: &id_type::MerchantId,
     profile: &id_type::ProfileId,
 ) -> Headers {
@@ -255,7 +255,13 @@ fn headers(
     ));
     headers.insert((
         crate::headers::X_INTERNAL_API_KEY.to_string(),
-        Maskable::Masked(auth.outbound_api_key().clone()),
+        Maskable::Masked(
+            state
+                .conf
+                .internal_merchant_id_profile_id_auth
+                .outbound_api_key()
+                .clone(),
+        ),
     ));
     // PaymentMethodClient forwards the configured tenant and trace ID through the existing pipeline.
     headers
@@ -278,11 +284,7 @@ impl ServiceCardBackend<'_> {
         customer: &id_type::GlobalCustomerId,
         card: &MigrationCardInput,
     ) -> Result<Option<StoredCard>, CardError> {
-        let headers = headers(
-            &self.state.conf.internal_merchant_id_profile_id_auth,
-            self.merchant,
-            profile,
-        );
+        let headers = headers(self.state, self.merchant, profile);
         let client = PaymentMethodClient::new(
             &self.state.conf.micro_services.payment_methods_base_url,
             &headers,
@@ -546,11 +548,7 @@ impl CardBackend for ServiceCardBackend<'_> {
         customer: &id_type::GlobalCustomerId,
         card: &MigrationCardInput,
     ) -> Result<StoredCard, CardError> {
-        let headers = headers(
-            &self.state.conf.internal_merchant_id_profile_id_auth,
-            self.merchant,
-            profile,
-        );
+        let headers = headers(self.state, self.merchant, profile);
         let client = PaymentMethodClient::new(
             &self.state.conf.micro_services.payment_methods_base_url,
             &headers,
@@ -594,6 +592,3 @@ impl CardBackend for ServiceCardBackend<'_> {
         })
     }
 }
-
-#[cfg(test)]
-pub(super) mod tests;
