@@ -24,7 +24,7 @@ pub(super) fn render(body: &Value, vault: &Value) -> Result<Vec<u8>, ProxyBodyEr
 }
 
 /// Resolve placeholders in string values; object keys are never interpolated.
-fn resolve(item: &Value, vault: &Value) -> Result<Value, ProxyBodyError> {
+pub(super) fn resolve(item: &Value, vault: &Value) -> Result<Value, ProxyBodyError> {
     match item {
         Value::String(text) => match parse_placeholder(text)? {
             Some((field, consumed)) if consumed == text.len() => value(vault, field),

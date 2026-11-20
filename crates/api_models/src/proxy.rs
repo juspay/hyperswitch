@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::request::Method;
+use hyperswitch_masking::Secret;
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -47,6 +48,95 @@ pub struct ProxyRequest {
     /// The type of token that is used to fetch sensitive data from the vault
     #[schema(value_type = TokenType, example = "payment_method_id")]
     pub token_type: TokenType,
+    /// Steps the vault proxy runs on the body after vault data is substituted and before it is
+    /// sent, such as encrypting a field and signing the result. Only JSON bodies are supported.
+    pub transformation: Option<ProxyTransformation>,
+}
+
+/// Steps run in order: encrypt steps, then exactly one serialize step, then sign steps.
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+pub struct ProxyTransformation {
+    /// The steps to run on the body
+    pub steps: Vec<TransformInstruction>,
+}
+
+/// One transformation step
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum TransformInstruction {
+    /// Encrypt a string field of the JSON body and replace it with the encoded ciphertext
+    Encrypt {
+        /// JSON Pointer to the field, such as `/source/encryptionData/encryptionBlock`
+        field: String,
+        /// The encryption algorithm
+        scheme: EncryptScheme,
+        /// The base64-encoded DER public key
+        key: String,
+        /// The encoding of the ciphertext written to the field
+        encoding: Encoding,
+    },
+    /// Serialize the JSON body to the bytes that are signed and sent
+    Serialize {
+        /// The serialization format
+        format: SerializeFormat,
+    },
+    /// Sign a message built from request headers and the body bytes, and write the encoded
+    /// signature to a header
+    Sign {
+        /// The parts of the signed message, concatenated in order
+        message: Vec<MessagePart>,
+        /// The signing algorithm
+        scheme: SignScheme,
+        /// The signing secret
+        #[schema(value_type = String)]
+        key: Secret<String>,
+        /// The encoding of the signature
+        encoding: Encoding,
+        /// The header the signature is written to; it must not already be in the request
+        header: String,
+    },
+}
+
+/// Encryption algorithms
+#[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EncryptScheme {
+    /// RSA-OAEP with SHA-256
+    RsaOaepSha256,
+}
+
+/// Signing algorithms
+#[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SignScheme {
+    /// HMAC with SHA-256
+    HmacSha256,
+}
+
+/// Serialization formats
+#[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SerializeFormat {
+    /// JSON
+    Json,
+}
+
+/// Encodings for ciphertexts and signatures
+#[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Encoding {
+    /// Standard base64 with padding
+    Base64,
+}
+
+/// A part of a signed message: `{"header": "Api-Key"}` or `"body"`
+#[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MessagePart {
+    /// The value of a request header
+    Header(String),
+    /// The serialized body bytes
+    Body,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
