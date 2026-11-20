@@ -172,7 +172,6 @@ describe("External surcharge - refunds", () => {
     it("Payment -> refund before capture -> capture -> partial refund", () => {
       const state = runSurchargePayment(globalState, {
         captureMethod: "manual",
-        confirmResponse: { status: 200, body: { status: "requires_capture" } },
       });
 
       cy.step("Refund before capture is rejected", () => {
