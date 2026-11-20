@@ -814,7 +814,7 @@ pub async fn prepare(
                 binding
             } else {
                 let mca = state
-                    .store
+                    .accounts_store
                     .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                         merchant,
                         &mca_id,
@@ -834,7 +834,7 @@ pub async fn prepare(
         }
         let profile_id = single_profile(&bindings, merchant).map_err(CustomerError::api_error)?;
         state
-            .store
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 platform.get_provider().get_key_store(),
                 merchant,
