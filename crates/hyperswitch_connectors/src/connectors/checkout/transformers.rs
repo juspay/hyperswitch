@@ -236,6 +236,7 @@ pub struct CardSource {
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
+    pub stored: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -276,6 +277,7 @@ pub struct DecryptedWalletToken {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
+    stored: Option<bool>,
 }
 
 #[skip_serializing_none]
@@ -851,6 +853,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(false),
                 });
                 Ok((
                     payment_source,
@@ -917,6 +920,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     cvv: None,
                                     billing_address: billing_details,
                                     account_holder: None,
+                                    stored: Some(false),
                                 }),
                             }
                         }
@@ -990,11 +994,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_id: item.router_data.request.connector_mandate_id(),
                     billing_address: billing_details,
                 });
-                let previous_id = Some(
-                    item.router_data
-                        .request
-                        .get_connector_mandate_request_reference_id()?,
-                );
+                let previous_id = item
+                    .router_data
+                    .request
+                    .get_connector_mandate_request_reference_id()
+                    .attach_printable("connector_mandate_request_reference_id not found")
+                    .ok();
                 let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
@@ -1011,6 +1016,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(true),
                 });
 
                 let previous_id = Some(
@@ -1055,6 +1061,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     expiry_month: exp_month,
                     expiry_year: expiry_year_4_digit,
                     billing_address: billing_details,
+                    stored: Some(true),
                 });
 
                 Ok((
