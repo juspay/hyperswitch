@@ -2986,7 +2986,7 @@ pub async fn insert_cvc_using_payment_token(
 #[instrument(skip_all)]
 pub async fn store_apple_pay_cryptogram(
     state: &routes::SessionState,
-    session_token: &hyperswitch_masking::Secret<String>,
+    session_token: hyperswitch_masking::Secret<&str>,
     cryptogram: &common_types::payments::ApplePayCryptogramData,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,

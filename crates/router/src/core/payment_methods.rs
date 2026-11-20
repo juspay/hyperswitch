@@ -6362,7 +6362,7 @@ pub async fn get_total_payment_method_count_core(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: SessionState,
-    pm: api::PaymentMethodId,
+    payment_method_id_or_token: api::PaymentMethodId,
     profile: domain::Profile,
     platform: domain::Platform,
     api_key_type: enums::ApiKeyType,
@@ -6375,13 +6375,14 @@ pub async fn retrieve_payment_method(
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
-        resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
+        resolve_storage_type_from_token(&state, &payment_method_id_or_token.payment_method_id)
+            .await?;
 
     // 2. Fetch payment method record based on resolved storage type
     let (storage_type, payment_method) = fetch_payment_method_by_storage(
         &state,
         platform.get_provider(),
-        &pm,
+        &payment_method_id_or_token,
         storage_type,
         pm_token_data_opt,
     )
@@ -6576,7 +6577,7 @@ pub async fn retrieve_payment_method(
             {
                 *payment_data = vault::consume_apple_pay_cryptogram(
                     &state,
-                    &pm.payment_method_id,
+                    &payment_method_id_or_token.payment_method_id,
                     platform.get_provider().get_key_store(),
                 )
                 .await?;
@@ -8379,7 +8380,7 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let parent_payment_method_token = Secret::new(generate_id(consts::ID_LENGTH, "token"));
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
     let token_data = get_pm_list_token_data(
         request.payment_method_type,
@@ -8389,15 +8390,13 @@ pub async fn payment_methods_session_confirm(
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(
-            parent_payment_method_token.peek(),
-        )
-        .insert(
-            profile.get_order_fulfillment_time_or_default(),
-            token_data,
-            &state,
-        )
-        .await?;
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+            .insert(
+                profile.get_order_fulfillment_time_or_default(),
+                token_data,
+                &state,
+            )
+            .await?;
     };
 
     if let payment_methods::PaymentMethodCreateData::Wallet(
@@ -8406,7 +8405,7 @@ pub async fn payment_methods_session_confirm(
     {
         vault::store_apple_pay_cryptogram(
             &state,
-            &parent_payment_method_token,
+            Secret::new(parent_payment_method_token.as_str()),
             &apple_pay.decrypted_data.payment_data,
             profile.get_order_fulfillment_time_or_default(),
             platform.get_provider().get_key_store(),
@@ -8417,7 +8416,7 @@ pub async fn payment_methods_session_confirm(
     let associated_pm_data = payment_method_response.payment_method_data.clone();
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token.expose()),
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
