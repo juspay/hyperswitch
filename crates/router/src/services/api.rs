@@ -499,6 +499,7 @@ where
         Ok(ApplicationResponse::StatusOk) => http_response_ok(),
         Ok(ApplicationResponse::StatusCode(status_code)) => http_response_status_code(status_code),
         Ok(ApplicationResponse::TextPlain(text)) => http_response_plaintext(text),
+        Ok(ApplicationResponse::Xml(xml)) => http_response_xml(xml),
         Ok(ApplicationResponse::FileData((file_data, content_type))) => {
             http_response_file_data(file_data, content_type)
         }
@@ -701,6 +702,10 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
+}
+
+pub fn http_response_xml<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+    HttpResponse::Ok().content_type(mime::TEXT_XML).body(res)
 }
 
 pub fn http_response_file_data<T: body::MessageBody + 'static>(
