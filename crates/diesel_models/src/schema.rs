@@ -401,6 +401,7 @@ diesel::table! {
         #[max_length = 512]
         connector_capture_data -> Nullable<Varchar>,
         processor_capture_data -> Nullable<Text>,
+        feature_metadata -> Nullable<Jsonb>,
     }
 }
 
@@ -516,6 +517,8 @@ diesel::table! {
         #[max_length = 64]
         id -> Nullable<Varchar>,
         preferred_connectors -> Nullable<Jsonb>,
+        #[max_length = 64]
+        merchant_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1125,6 +1128,7 @@ diesel::table! {
         save_to_locker -> Nullable<Bool>,
         #[max_length = 64]
         connector -> Nullable<Varchar>,
+        account_information -> Nullable<Jsonb>,
         error_message -> Nullable<Text>,
         offer_amount -> Nullable<Int8>,
         surcharge_amount -> Nullable<Int8>,
@@ -1252,8 +1256,6 @@ diesel::table! {
         #[max_length = 64]
         active_frm_id -> Nullable<Varchar>,
         applied_overrides -> Nullable<Jsonb>,
-        #[max_length = 255]
-        connector_label -> Nullable<Varchar>,
     }
 }
 
@@ -1374,6 +1376,10 @@ diesel::table! {
         is_account_funded_transaction -> Nullable<Bool>,
         recipient_details -> Nullable<Bytea>,
         enable_avs_check -> Nullable<Bool>,
+        value_added_tax_details -> Nullable<Jsonb>,
+        order_commodity_code -> Nullable<Varchar>,
+        settlement_conclusion_applied -> Nullable<Bool>,
+        enable_account_name_verification -> Nullable<Bool>,
     }
 }
 
@@ -1605,6 +1611,9 @@ diesel::table! {
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
         billing_descriptor -> Nullable<Jsonb>,
+        #[max_length = 64]
+        funds_transfer_type -> Nullable<Varchar>,
+        sender_details -> Nullable<Bytea>,
     }
 }
 
@@ -1704,6 +1713,10 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        feature_metadata -> Nullable<Jsonb>,
+        refund_surcharge_amount -> Nullable<Int8>,
+        net_refund_amount -> Nullable<Int8>,
+        external_surcharge_refund_details -> Nullable<Jsonb>,
     }
 }
 

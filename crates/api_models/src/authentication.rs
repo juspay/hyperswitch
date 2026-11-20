@@ -7,6 +7,7 @@ use common_utils::{
 };
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -42,7 +43,7 @@ pub struct AuthenticationCreateRequest {
 
     /// The URL to which the user should be redirected after authentication.
     #[schema(value_type = Option<String>, example = "https://example.com/redirect")]
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
 
     /// Force 3DS challenge.
     #[serde(default)]
@@ -95,7 +96,7 @@ pub struct AuthenticationResponse {
 
     /// The client secret for this authentication, to be used for client-side operations.
     #[schema(value_type = Option<String>, example = "auth_mbabizu24mvu3mela5njyhpit4_secret_el9ksDkiB8hi6j9N78yo")]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
 
     /// The amount for the transaction.
     #[schema(value_type = MinorUnit, example = 1000)]
@@ -113,7 +114,8 @@ pub struct AuthenticationResponse {
     pub force_3ds_challenge: Option<bool>,
 
     /// The URL to which the user should be redirected after authentication, if provided.
-    pub return_url: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<Secret<String>>,
 
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
@@ -221,7 +223,7 @@ pub struct AuthenticationEligibilityRequest {
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
 
     /// Optional identifier for the business profile associated with the payment.
     /// This determines which configurations, rules, and branding are applied to the transaction.
@@ -348,7 +350,7 @@ pub struct AuthenticationEligibilityCheckRequest {
     /// Optional secret value used to identify and authorize the client making the request.
     /// This can help ensure that the payment session is secure and valid.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     /// The data for this authentication eligibility check.
     pub eligibility_check_data: AuthenticationEligibilityCheckData,
 }
@@ -527,7 +529,7 @@ pub struct AuthenticationAuthenticateRequest {
     pub authentication_id: id_type::AuthenticationId,
     /// Client secret for the authentication
     #[schema(value_type = String)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
@@ -576,7 +578,7 @@ pub struct AuthenticationAuthenticateResponse {
     pub error_code: Option<String>,
     /// The authentication value for this authentication, only available in case of server to server request. Unavailable in case of client request due to security concern.
     #[schema(value_type = String)]
-    pub authentication_value: Option<hyperswitch_masking::Secret<String>>,
+    pub authentication_value: Option<Secret<String>>,
 
     /// The current status of the authentication (e.g., Started).
     #[schema(value_type = AuthenticationStatus)]
@@ -625,7 +627,7 @@ pub struct AuthenticationSyncResponse {
 
     /// The client secret for this authentication.
     #[schema(value_type = Option<String>)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
 
     /// The amount for the transaction.
     #[schema(value_type = MinorUnit, example = 1000)]
@@ -643,7 +645,8 @@ pub struct AuthenticationSyncResponse {
     pub force_3ds_challenge: Option<bool>,
 
     /// The URL to which the user should be redirected after authentication.
-    pub return_url: Option<String>,
+    #[schema(value_type = Option<String>)]
+    pub return_url: Option<Secret<String>>,
 
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -795,7 +798,7 @@ pub enum Cryptogram {
     Cavv {
         /// The authentication cryptogram provided by the issuer or ACS.
         #[schema(value_type = Option<String>)]
-        authentication_cryptogram: hyperswitch_masking::Secret<String>,
+        authentication_cryptogram: Secret<String>,
     },
 }
 
@@ -806,20 +809,20 @@ pub enum AuthenticationPaymentMethodDataResponse {
     CardData {
         /// card expiry year
         #[schema(value_type = Option<String>)]
-        card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        card_expiry_year: Option<Secret<String>>,
 
         /// card expiry month
         #[schema(value_type = Option<String>)]
-        card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        card_expiry_month: Option<Secret<String>>,
     },
     NetworkTokenData {
         /// network token expiry month
         #[schema(value_type = Option<String>)]
-        network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        network_token_expiry_month: Option<Secret<String>>,
 
         /// network token expiry year
         #[schema(value_type = Option<String>)]
-        network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        network_token_expiry_year: Option<Secret<String>>,
     },
 }
 
@@ -831,43 +834,43 @@ pub enum AuthenticationVaultTokenData {
         /// token representing card_number
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_number")]
-        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_number: Option<Secret<String>>,
 
         /// token representing card_expiry_year
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_year")]
-        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<Secret<String>>,
 
         /// token representing card_expiry_month
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_expiry_month")]
-        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<Secret<String>>,
 
         /// token representing card_cvc
         #[schema(value_type = Option<String>)]
         #[serde(rename = "card_cvc")]
-        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_cvc: Option<Secret<String>>,
     },
     NetworkTokenData {
         /// token representing payment_token
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token")]
-        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token: Option<Secret<String>>,
 
         /// token representing token_expiry_year
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_year")]
-        tokenized_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_expiry_year: Option<Secret<String>>,
 
         /// token representing token_expiry_month
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_expiry_month")]
-        tokenized_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_expiry_month: Option<Secret<String>>,
 
         /// token representing token_cryptogram
         #[schema(value_type = Option<String>)]
         #[serde(rename = "network_token_cryptogram")]
-        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_cryptogram: Option<Secret<String>>,
     },
 }
 
@@ -884,7 +887,7 @@ impl ApiEventMetric for AuthenticationSyncResponse {
 pub struct AuthenticationSyncRequest {
     /// The client secret for this authentication.
     #[schema(value_type = String)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
     /// Payment method data for Post Authentication sync
     pub payment_method_details: Option<PostAuthenticationRequestPaymentMethodData>,
     /// Authentication ID for the authentication
@@ -931,7 +934,7 @@ pub struct ClickToPayDetails {
     pub provider: Option<super::enums::CtpServiceProvider>,
     /// Encrypted payload
     #[schema(value_type = Option<String>)]
-    pub encrypted_payload: Option<hyperswitch_masking::Secret<String>>,
+    pub encrypted_payload: Option<Secret<String>>,
 }
 
 impl ApiEventMetric for AuthenticationSyncRequest {
@@ -964,7 +967,7 @@ pub struct AuthenticationSessionTokenRequest {
     pub authentication_id: id_type::AuthenticationId,
     /// Client Secret for the authentication
     #[schema(value_type = String)]
-    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
+    pub client_secret: Option<Secret<String>>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]

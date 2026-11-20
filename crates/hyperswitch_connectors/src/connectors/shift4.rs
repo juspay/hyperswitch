@@ -1008,12 +1008,14 @@ impl ConnectorSpecifications for Shift4 {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => auth_type.is_three_ds() && request_data.is_card(),
             // No alternate flow for complete authorize and SetupMandate
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

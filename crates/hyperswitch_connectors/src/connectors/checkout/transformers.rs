@@ -340,6 +340,16 @@ pub enum CheckoutPaymentType {
     Recurring,
 }
 
+impl From<Option<MitCategory>> for CheckoutPaymentType {
+    fn from(mit_category: Option<MitCategory>) -> Self {
+        match mit_category {
+            Some(MitCategory::Installment) => Self::Installment,
+            Some(MitCategory::Recurring | MitCategory::Subscription) => Self::Recurring,
+            Some(MitCategory::Unscheduled | MitCategory::Resubmission) | None => Self::Unscheduled,
+        }
+    }
+}
+
 pub struct CheckoutAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) processing_channel_id: Secret<String>,
@@ -348,8 +358,8 @@ pub struct CheckoutAuthType {
 
 #[derive(Debug, Serialize)]
 pub struct ReturnUrl {
-    pub success_url: Option<String>,
-    pub failure_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub failure_url: Option<Secret<String>>,
 }
 
 #[skip_serializing_none]
@@ -773,12 +783,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         ) {
             CheckoutPaymentType::Moto
         } else if item.router_data.request.is_mandate_payment() {
-            match item.router_data.request.mit_category {
-                Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                _ => CheckoutPaymentType::Unscheduled,
-            }
+            CheckoutPaymentType::from(item.router_data.request.mit_category)
         } else {
             CheckoutPaymentType::Regular
         };
@@ -967,12 +972,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .request
                         .get_connector_mandate_request_reference_id()?,
                 );
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
@@ -998,12 +998,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
@@ -1017,12 +1012,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
 
                 let token_type = match network_token_data.token_source {
                     Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
@@ -1114,12 +1104,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         .attach_printable("Checkout unable to find NTID for MIT")?,
                 );
 
-                let p_type = match item.router_data.request.mit_category {
-                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
-                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
-                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
-                    _ => CheckoutPaymentType::Unscheduled,
-                };
+                let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
 
                 let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
                     source_type: "network_token".to_string(),
@@ -1183,13 +1168,15 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=success")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "success"))
+                .transpose()?,
             failure_url: item
                 .router_data
                 .request
                 .router_return_url
                 .as_ref()
-                .map(|return_url| format!("{return_url}?status=failure")),
+                .map(|return_url| utils::append_url_query_param(return_url, "status", "failure"))
+                .transpose()?,
         };
 
         let connector_auth = &item.router_data.connector_auth_type;
@@ -2780,6 +2767,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::GooglePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::GooglePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),
@@ -2799,6 +2792,12 @@ fn convert_to_additional_payment_method_connector_response(
         Some(enums::PaymentMethodType::ApplePay) => {
             Some(AdditionalPaymentMethodConnectorResponse::ApplePay {
                 auth_code,
+                payment_checks: source.map(|code| {
+                    serde_json::json!({
+                        "avs_result": code.avs_check,
+                        "card_validation_result": code.cvv_check,
+                    })
+                }),
                 device_pan_bin: None,
                 card_bin: None,
                 card_subtype: source.and_then(|source| source.product_type.clone()),

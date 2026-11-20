@@ -7,7 +7,7 @@ use api_models::analytics::{
     AnalyticsMetadata, GetActivePaymentsMetricRequest, MetricsResponse,
 };
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::ActivePaymentsMetricsAccumulator;
 use crate::{

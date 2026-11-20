@@ -72,9 +72,9 @@ pub struct DataTransCreateAlias {
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RedirectUrls {
-    pub success_url: Option<String>,
-    pub cancel_url: Option<String>,
-    pub error_url: Option<String>,
+    pub success_url: Option<Secret<String>>,
+    pub cancel_url: Option<Secret<String>>,
+    pub error_url: Option<Secret<String>>,
 }
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -640,7 +640,8 @@ impl<F>
                         response.transaction_id.clone(),
                     ),
                     redirection_data: Box::new(Some(RedirectForm::Form {
-                        endpoint: format!("{}/{}", redirection_link, response.transaction_id),
+                        endpoint: (format!("{}/{}", redirection_link, response.transaction_id))
+                            .into(),
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     })),
@@ -720,7 +721,8 @@ impl<F>
                         response.transaction_id.clone(),
                     ),
                     redirection_data: Box::new(Some(RedirectForm::Form {
-                        endpoint: format!("{}/{}", redirection_link, response.transaction_id),
+                        endpoint: (format!("{}/{}", redirection_link, response.transaction_id))
+                            .into(),
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     })),

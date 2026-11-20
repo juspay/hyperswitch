@@ -3,10 +3,7 @@ use std::sync::Arc;
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, ResultExt};
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 use time::Duration;
 use tokio::sync::mpsc;
 

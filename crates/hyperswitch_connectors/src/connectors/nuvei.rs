@@ -1713,6 +1713,7 @@ impl ConnectorSpecifications for Nuvei {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                connector_meta_data: _,
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate {
@@ -1721,7 +1722,8 @@ impl ConnectorSpecifications for Nuvei {
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::Psync { .. } => false,
             api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
-            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 

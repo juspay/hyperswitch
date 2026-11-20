@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{MockDb, Store};
 use crate::{
@@ -8,6 +8,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait LockerMockUpInterface {
     async fn find_locker_by_card_id(

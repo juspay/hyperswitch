@@ -110,8 +110,8 @@ pub struct FiservInteractions {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservReturnUrls {
-    success_url: String,
-    cancel_url: String,
+    success_url: Secret<String>,
+    cancel_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]

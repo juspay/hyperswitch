@@ -12,7 +12,7 @@ use common_utils::id_type;
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::platform;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
@@ -457,6 +457,7 @@ impl MigrationBatch<EligibilityVerified> {
                                     &row.merchant_id,
                                     platform.get_provider().get_key_store(),
                                     platform.get_provider().get_account().storage_scheme,
+                                    false,
                                 )
                                 .await
                             {
@@ -942,12 +943,10 @@ async fn get_merchant_contexts_for_batch(
     state: &SessionState,
     merchant_ids: Vec<id_type::MerchantId>,
 ) -> MerchantContextBatch {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     match state
-        .store
-        .list_multiple_key_stores(
-            merchant_ids.clone(),
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .list_multiple_key_stores(merchant_ids.clone(), &key_store_master_key)
         .await
     {
         Err(error) => {
@@ -958,7 +957,7 @@ async fn get_merchant_contexts_for_batch(
             )
         }
         Ok(key_stores) => match state
-            .store
+            .accounts_store
             .list_multiple_merchant_accounts(merchant_ids.clone())
             .await
         {

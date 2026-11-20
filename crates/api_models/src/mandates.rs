@@ -38,6 +38,31 @@ pub struct MandateResponse {
     /// The identifier for mandate
     #[smithy(value_type = "String")]
     pub mandate_id: String,
+    /// The original setup payment associated with this mandate, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_id: Option<common_utils::id_type::PaymentId>,
+    /// The original authorized amount for the connector mandate, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<i64>)]
+    #[smithy(value_type = "Option<i64>")]
+    pub amount: Option<common_utils::types::MinorUnit>,
+    /// The currency of the original authorized amount for the connector mandate, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Currency>)]
+    #[smithy(value_type = "Option<Currency>")]
+    pub currency: Option<api_enums::Currency>,
+    /// The business profile associated with this mandate event, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    /// Connector-specific mandate metadata associated with the original setup payment.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    #[smithy(value_type = "Option<Object>")]
+    pub mandate_metadata: Option<common_utils::pii::SecretSerdeValue>,
     /// The status for mandates
     #[schema(value_type = MandateStatus)]
     #[smithy(value_type = "MandateStatus")]

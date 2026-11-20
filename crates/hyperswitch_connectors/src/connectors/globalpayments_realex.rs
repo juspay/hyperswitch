@@ -725,6 +725,7 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
                 request_data,
+                connector_meta_data: _,
             } => {
                 auth_type.is_three_ds()
                     && request_data.is_card()
@@ -735,6 +736,7 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -762,6 +764,7 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -789,6 +792,7 @@ impl ConnectorSpecifications for GlobalpaymentsRealex {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

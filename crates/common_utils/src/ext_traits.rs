@@ -226,6 +226,10 @@ pub trait ValueExt {
     fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
     where
         T: serde::de::DeserializeOwned;
+
+    /// Replace every leaf value with its datatype name, keeping the structure intact
+    /// e.g. `{"abc": "123"}` becomes `{"abc": "String"}`
+    fn to_type_schema(&self) -> serde_json::Value;
 }
 
 impl ValueExt for serde_json::Value {
@@ -243,6 +247,21 @@ impl ValueExt for serde_json::Value {
                 )
             })
     }
+
+    fn to_type_schema(&self) -> serde_json::Value {
+        match self {
+            Self::Null => Self::String("Null".to_string()),
+            Self::Bool(_) => Self::String("Boolean".to_string()),
+            Self::Number(_) => Self::String("Number".to_string()),
+            Self::String(_) => Self::String("String".to_string()),
+            Self::Array(values) => Self::Array(values.iter().map(Self::to_type_schema).collect()),
+            Self::Object(map) => Self::Object(
+                map.iter()
+                    .map(|(key, value)| (key.clone(), value.to_type_schema()))
+                    .collect(),
+            ),
+        }
+    }
 }
 
 impl<MaskingStrategy> ValueExt for Secret<serde_json::Value, MaskingStrategy>
@@ -255,6 +274,10 @@ where
     {
         self.expose().parse_value(type_name)
     }
+
+    fn to_type_schema(&self) -> serde_json::Value {
+        self.peek().to_type_schema()
+    }
 }
 
 impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
@@ -263,6 +286,10 @@ impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
         T: serde::de::DeserializeOwned,
     {
         self.into_inner().parse_value(type_name)
+    }
+
+    fn to_type_schema(&self) -> serde_json::Value {
+        self.get_inner().to_type_schema()
     }
 }
 

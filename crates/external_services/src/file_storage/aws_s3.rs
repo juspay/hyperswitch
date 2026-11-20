@@ -1,5 +1,7 @@
 //! Hyperswitch adapter over the shared [`cloud_services`] S3 client.
 
+#[cfg(feature = "gcs_object_storage")]
+use cloud_services::storage::gcs::GcsObjectStorageConfig;
 #[cfg(feature = "oci_object_storage")]
 use cloud_services::storage::oci::OciObjectStorageConfig;
 use cloud_services::storage::s3::S3Storage;
@@ -31,6 +33,14 @@ impl AwsFileStorageClient {
     pub(super) async fn new_oci(config: &OciObjectStorageConfig) -> Self {
         Self {
             inner: S3Storage::new_oci(config).await,
+        }
+    }
+
+    /// Creates a file storage client for Google Cloud Storage, through its XML API.
+    #[cfg(feature = "gcs_object_storage")]
+    pub(super) async fn new_gcs(config: &GcsObjectStorageConfig) -> Self {
+        Self {
+            inner: S3Storage::new_gcs(config).await,
         }
     }
 }
@@ -229,6 +239,46 @@ mod tests {
         assert_eq!(
             config.validate().map_err(|error| error.to_string()),
             Err("file_storage: oci object storage bucket name must not be empty".to_owned())
+        );
+    }
+
+    #[cfg(feature = "gcs_object_storage")]
+    #[test]
+    fn gcs_object_storage_backend_config_deserializes_and_validates() {
+        for gcs_object_storage in [
+            serde_json::json!({
+                "bucket_name": "bucket",
+                "hmac_access_id": "GOOG1EXAMPLEACCESSID",
+                "hmac_secret": "secret",
+            }),
+            serde_json::json!({
+                "bucket_name": "bucket",
+                "hmac_access_id": "GOOG1EXAMPLEACCESSID",
+                "hmac_secret": "secret",
+                "region": "asia-south1",
+            }),
+        ] {
+            let config = file_storage_config(serde_json::json!({
+                "file_storage_backend": "gcs_object_storage",
+                "gcs_object_storage": gcs_object_storage,
+            }));
+
+            assert!(matches!(config, FileStorageConfig::GcsObjectStorage { .. }));
+            assert!(config.validate().is_ok());
+        }
+    }
+
+    #[cfg(feature = "gcs_object_storage")]
+    #[test]
+    fn gcs_object_storage_backend_reports_invalid_config() {
+        let config = file_storage_config(serde_json::json!({
+            "file_storage_backend": "gcs_object_storage",
+            "gcs_object_storage": {},
+        }));
+
+        assert_eq!(
+            config.validate().map_err(|error| error.to_string()),
+            Err("file_storage: gcs object storage bucket name must not be empty".to_owned())
         );
     }
 }

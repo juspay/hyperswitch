@@ -75,6 +75,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -87,6 +88,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -99,6 +101,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -111,6 +114,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -123,6 +127,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -135,6 +140,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -147,6 +153,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -159,6 +166,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -171,6 +179,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -183,6 +192,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -195,6 +205,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -207,6 +218,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -219,6 +231,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -231,6 +244,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: method_type.payment_experience,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 })
                             }
                         }
@@ -243,6 +257,7 @@ impl ConnectorApiIntegrationPayload {
                                     accepted_currencies: method_type.accepted_currencies.clone(),
                                     accepted_countries: method_type.accepted_countries.clone(),
                                     payment_experience: None,
+                                    pay_via_single_use_token: method_type.pay_via_single_use_token,
                                 },
                             ));
                         }

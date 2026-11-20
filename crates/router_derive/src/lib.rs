@@ -5,6 +5,27 @@ use syn::parse_macro_input;
 use crate::macros::diesel::DieselEnumMeta;
 mod macros;
 
+/// Generate a caller-tracked interface and blanket implementation for an async trait.
+///
+/// The original trait remains available to its existing implementations. The generated
+/// `Tracked*` trait exposes methods that capture the call site before their futures run.
+#[proc_macro_attribute]
+pub fn track_async_interface(
+    args: proc_macro::TokenStream,
+    item: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    if !args.is_empty() {
+        return syn::Error::new(proc_macro2::Span::call_site(), "no arguments are supported")
+            .to_compile_error()
+            .into();
+    }
+
+    let item = parse_macro_input!(item as syn::ItemTrait);
+    macros::track_async_interface::track_async_interface(item)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
+
 /// Uses the [`Debug`][Debug] implementation of a type to derive its [`Display`][Display]
 /// implementation.
 ///

@@ -1,9 +1,11 @@
 use api_models::{admin, payment_methods::PaymentMethodCollectLinkRequest};
-use common_utils::link_utils;
+use common_utils::{link_utils, validation::ValidateXSSOrSQLi};
 use diesel_models::generic_link::PaymentMethodCollectLinkData;
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::Secret;
 
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers as payment_helpers;
 use crate::{
     consts,
     core::{
@@ -35,12 +37,21 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
     let customer_id = req.customer_id.clone();
     let merchant_id = platform.get_provider().get_account().get_id().clone();
     #[cfg(feature = "v1")]
+    let use_merchant_reference_id =
+        payment_helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
+            state,
+            platform.get_provider(),
+            Some(&customer_id),
+        )
+        .await;
+    #[cfg(feature = "v1")]
     match db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
             &merchant_id,
             platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
+            use_merchant_reference_id,
         )
         .await
     {
@@ -98,6 +109,9 @@ pub async fn validate_request_and_initiate_payment_method_collect_link(
         .as_ref()
         .or(merchant_ui_config.as_ref())
         .cloned();
+    ui_config
+        .validate_xss_or_sqli()
+        .map_err(|message| report!(errors::ApiErrorResponse::InvalidRequestData { message }))?;
 
     // Form data to be injected in the link
     let (logo, merchant_name, theme) = match ui_config {

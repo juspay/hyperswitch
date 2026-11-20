@@ -138,6 +138,23 @@ impl PaymentIntent {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    pub async fn find_by_payment_id_processor_merchant_id_profile_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        payment_id: &common_utils::id_type::PaymentId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned()))
+                .and(dsl::profile_id.eq(profile_id.to_owned())),
+        )
+        .await
+    }
+
     #[cfg(feature = "v2")]
     pub async fn find_optional_by_merchant_reference_id_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,

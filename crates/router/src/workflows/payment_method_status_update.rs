@@ -32,15 +32,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
         let curr_pm_status = tracking_data.curr_status;
         let merchant_id = tracking_data.merchant_id;
         let last_modified_by = tracking_data.last_modified_by;
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await?;
 
-        let merchant_account = db
+        let merchant_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 

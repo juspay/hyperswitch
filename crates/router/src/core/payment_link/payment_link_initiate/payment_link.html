@@ -202,10 +202,7 @@
               </div>
               <div class="hyper-checkout-image-header">
                 <div id="hyper-checkout-merchant-image"></div>
-                <div
-                  id="hyper-checkout-cart-image"
-                  onclick="viewCartInMobileView()"
-                >
+                <div id="hyper-checkout-cart-image">
                   <svg
                     width="30"
                     height="30"
@@ -258,7 +255,6 @@
               width="25"
               height="25"
               class="cart-close"
-              onclick="hideCartInMobileView()"
             >
               <use
                 xlink:href="#cart-close"
@@ -301,8 +297,9 @@
         </div>
       </div>
     </div>
-    <script>
+    <script {{csp_nonce_attribute}}>
       window.__REDIRECTION_LOG_ENDPOINT = '{{redirection_log_endpoint}}';
+      window.__REDIRECTION_LOG_MESSAGE_ORIGINS = ['{{sdk_origin}}'];
       {{logging_template}}
       {{locale_template}}
       {{rendered_js}}

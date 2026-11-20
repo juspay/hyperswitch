@@ -1458,6 +1458,7 @@ impl ConnectorSpecifications for Trustpay {
             api::CurrentFlowInfo::Authorize {
                 auth_type: _,
                 request_data,
+                connector_meta_data: _,
             } => matches!(
                 &request_data.payment_method_data,
                 payment_method_data::PaymentMethodData::Wallet(_)
@@ -1466,6 +1467,7 @@ impl ConnectorSpecifications for Trustpay {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

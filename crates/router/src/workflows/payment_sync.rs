@@ -53,24 +53,19 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             .tracking_data
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
-                &db.get_master_key().to_vec().into(),
-            )
+        let merchant_id = tracking_data
+            .merchant_id
+            .as_ref()
+            .get_required_value("merchant_id")?;
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
             .await?;
 
-        let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                tracking_data
-                    .merchant_id
-                    .as_ref()
-                    .get_required_value("merchant_id")?,
-                &key_store,
-            )
+        let merchant_account = state
+            .accounts_store
+            .find_merchant_account_by_merchant_id(merchant_id, &key_store)
             .await?;
 
         let platform = domain::Platform::new(
@@ -159,6 +154,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                     let payment_attempt_update =
                         hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
+                            account_information: payment_data.payment_attempt.account_information.clone(),
                             status: api_models::enums::AttemptStatus::Failure,
                             error_code: None,
                             error_message: None,
@@ -184,15 +180,14 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             encrypted_payment_method_data: None,
                             recommended_action: None,
                             card_network: payment_data.payment_attempt.extract_card_network(),
-                            connector_label: payment_data.payment_attempt.connector_label.clone(),
                         };
 
                     payment_data.payment_attempt = db
                         .update_payment_attempt_with_attempt_id(
                             payment_data.payment_attempt,
                             payment_attempt_update,
-                            merchant_account.storage_scheme,
-                            &key_store,
+                            platform.get_processor().get_storage_scheme(),
+                            platform.get_processor().get_key_store(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -201,8 +196,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .update_payment_intent(
                             payment_data.payment_intent,
                             payment_intent_update,
-                            &key_store,
-                            merchant_account.storage_scheme,
+                            platform.get_processor().get_key_store(),
+                            platform.get_processor().get_storage_scheme(),
                         )
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
@@ -215,7 +210,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Could not find profile_id in payment intent")?;
 
-                    let business_profile = db
+                    let business_profile = state
+                        .accounts_store
                         .find_business_profile_by_profile_id(&key_store, profile_id)
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

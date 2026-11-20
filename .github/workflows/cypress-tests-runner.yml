@@ -30,7 +30,7 @@ env:
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "cybersource braintree nmi calida adyen peachpayments"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode nexixpay"
   MOCK_PAYMENTS_CONNECTORS_BATCH_4: "finix"
-  MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
+  MOCK_PAYOUTS_CONNECTORS: "adyenplatform"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -51,12 +51,12 @@ jobs:
           # v3 refuses to run behind hypersage-runners' proxy without this.
           NODE_USE_ENV_PROXY: "1"
         with:
-          app-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+          client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -64,7 +64,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -165,7 +165,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -279,10 +279,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -322,7 +318,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -380,7 +376,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -406,6 +402,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -575,10 +576,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-extended-matrix.outputs['extended-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -605,7 +602,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -656,7 +653,7 @@ jobs:
       - name: Install Diesel CLI
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -678,6 +675,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -840,9 +841,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
-    env:
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -882,7 +880,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -939,7 +937,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -965,6 +963,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1278,10 +1281,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1315,7 +1314,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1366,7 +1365,7 @@ jobs:
       - name: Install Diesel CLI
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         uses: taiki-e/install-action@v2
@@ -1388,6 +1387,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -1468,9 +1471,6 @@ jobs:
     needs: build-hyperswitch
     if: false
     runs-on: hyperswitch-runners
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1510,7 +1510,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -1550,7 +1550,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1576,6 +1576,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1738,7 +1743,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1811,7 +1816,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         uses: taiki-e/install-action@v2
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1844,6 +1849,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate_v2 run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}

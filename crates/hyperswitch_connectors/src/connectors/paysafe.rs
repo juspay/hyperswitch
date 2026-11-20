@@ -1245,6 +1245,7 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => {
                 if self.is_3ds_setup_required(&request_data, auth_type) {
                     Some(api::AlternateFlow::PreAuthenticate)
@@ -1256,6 +1257,7 @@ impl ConnectorSpecifications for Paysafe {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
         }
     }
@@ -1265,11 +1267,13 @@ impl ConnectorSpecifications for Paysafe {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => self.is_3ds_setup_required(&request_data, auth_type),
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
@@ -1292,6 +1296,7 @@ impl ConnectorSpecifications for Paysafe {
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

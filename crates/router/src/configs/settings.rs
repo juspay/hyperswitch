@@ -8,7 +8,8 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::Url};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -104,7 +105,7 @@ pub struct Settings<S: SecretState> {
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
-    pub eph_key: EphemeralConfig,
+    pub eph_key: ClientSecretConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -1019,6 +1020,7 @@ pub struct UserSettings {
     pub base_url: String,
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
+    pub idle_session_timeout_in_secs: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1165,7 +1167,7 @@ pub struct Refund {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct EphemeralConfig {
+pub struct ClientSecretConfig {
     pub validity: i64,
 }
 
@@ -1331,6 +1333,7 @@ pub struct WebhooksSettings {
 #[serde(default)]
 pub struct IncomingWebhooksSettings {
     pub mtls_verified_header: Option<String>,
+    pub source_ip_header: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1563,11 +1566,23 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("report_download_config.process_tracker.email_bcc")
+            .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        #[cfg(feature = "olap")]
+        let environment_source = {
+            use strum::IntoEnumIterator;
+            analytics::reports::ReportKind::iter().fold(environment_source, |source, report| {
+                source.with_list_parse_key(&format!(
+                    "report_download_config.process_tracker.report_email_bcc.{report}"
+                ))
+            })
+        };
 
         let config = config
             .add_source(environment_source)
@@ -1625,6 +1640,7 @@ impl Settings<SecuredSecret> {
         self.connectors.validate("connectors")?;
         self.sage.get_inner().validate()?;
         self.cors.validate()?;
+        self.user.validate()?;
 
         self.scheduler
             .as_ref()
@@ -1831,10 +1847,29 @@ impl Default for CellInformation {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ThemeSettings {
     pub storage: FileStorageConfig,
     pub email_config: EmailThemeConfig,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            storage: FileStorageConfig::default(),
+            email_config: EmailThemeConfig {
+                entity_name: SafeString::default(),
+                #[allow(clippy::expect_used)]
+                entity_logo_url: Url::wrap(
+                    url::Url::parse("https://example.com/Logo.png")
+                        .expect("Failed to parse default email entity logo URL"),
+                ),
+                primary_color: SafeString::default(),
+                foreground_color: SafeString::default(),
+                background_color: SafeString::default(),
+            },
+        }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -2009,6 +2044,8 @@ impl<'de> Deserialize<'de> for TenantConfig {
         #[derive(Deserialize)]
         struct Inner {
             base_url: String,
+            #[serde(default)]
+            mtls_base_url: Option<String>,
             schema: String,
             accounts_schema: String,
             redis_key_prefix: String,
@@ -2027,6 +2064,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                         Tenant {
                             tenant_id: key,
                             base_url: value.base_url,
+                            mtls_base_url: value.mtls_base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,

@@ -18,6 +18,7 @@ use storage_impl::errors::StorageError;
 
 use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait BatchSampleDataInterface {
     #[cfg(feature = "v1")]

@@ -91,10 +91,6 @@ describe("Core flows", () => {
     it("Customer update call", () => {
       cy.customerUpdateCall(fixtures.customerUpdateBody, globalState);
     });
-
-    it("Ephemeral key generate call", () => {
-      cy.ephemeralGenerateCall(globalState);
-    });
   });
 
   context("Merchant Connector Account core flows", () => {

@@ -112,7 +112,7 @@ impl<F: Send + Clone + Sync>
 
         let cell_id = state.conf.cell_information.id.clone();
 
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let storage_scheme = platform.get_processor().get_storage_scheme();
 
         let batch_encrypted_data = domain_types::crypto_operation(
             key_manager_state,
@@ -226,10 +226,10 @@ impl<F: Send + Clone>
     for PaymentIntentCreate
 {
     #[instrument(skip_all)]
-    fn validate_request<'a, 'b>(
-        &'b self,
+    fn validate_request(
+        &self,
         _request: &PaymentsCreateIntentRequest,
-        platform: &'a domain::Platform,
+        platform: &domain::Platform,
     ) -> RouterResult<operations::ValidateResult> {
         Ok(operations::ValidateResult {
             merchant_id: platform.get_processor().get_account().get_id().to_owned(),

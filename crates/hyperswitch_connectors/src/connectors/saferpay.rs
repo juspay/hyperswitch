@@ -361,11 +361,13 @@ impl ConnectorSpecifications for Saferpay {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                connector_meta_data: _,
             } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. }
             | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }

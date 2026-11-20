@@ -680,7 +680,10 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
 
-    logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
+    logger::debug!(
+        decision_engine_euclid_selected_connector = ?crate::core::routing::format_connectors_for_logging(&euclid_response.evaluated_output),
+        "decision_engine_euclid"
+    );
     Ok(euclid_response)
 }
 
@@ -1794,7 +1797,7 @@ impl TryFrom<ConnectorInfo> for DeRoutableConnectorChoice {
             .map_err(|error| {
                 logger::error!(
                     error=?error,
-                    gateway_name = %c.gateway_name,
+                    connector = %crate::core::routing::format_connector_for_logging(&c.gateway_name, gateway_id.as_ref()),
                     "euclid: unable to convert connector name to RoutableConnectors"
                 );
                 errors::RoutingError::GenericConversionError {

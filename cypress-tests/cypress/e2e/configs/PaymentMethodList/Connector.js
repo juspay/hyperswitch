@@ -27,6 +27,24 @@ export const connectorDetails = {
       },
     },
     PmListResponse: {
+      PmListCustomerAcceptanceSupportCardCredit: {
+        customer_acceptance_support: [
+          {
+            paymentMethod: "card",
+            paymentMethodType: "credit",
+            expected: "supported",
+          },
+        ],
+      },
+      PmListCustomerAcceptanceSupportOpenBanking: {
+        customer_acceptance_support: [
+          {
+            paymentMethod: "bank_redirect",
+            paymentMethodType: "open_banking",
+            expected: "partially_supported",
+          },
+        ],
+      },
       PmListNull: {
         payment_methods: [],
       },

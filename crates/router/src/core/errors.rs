@@ -456,6 +456,8 @@ pub enum RevenueRecoveryError {
     PaymentMerchantConnectorAccountNotFound { id: String },
     #[error("Payment attempt cannot be recorded while the invoice is in {status} state")]
     PaymentAttemptRecordNotAllowed { status: String },
+    #[error("The transaction is already recorded against the invoice")]
+    PaymentAttemptAlreadyRecorded,
     #[error("Failed to fetch primitive date_time")]
     ScheduleTimeFetchFailed,
     #[error("Failed to create process tracker")]
@@ -468,8 +470,6 @@ pub enum RevenueRecoveryError {
     BillingConnectorInvoiceSyncFailed,
     #[error("Failed to fetch connector customer ID")]
     CustomerIdNotFound,
-    #[error("Failed to get the retry count for payment intent")]
-    RetryCountFetchFailed,
     #[error("Failed to get the billing threshold retry count")]
     BillingThresholdRetryCountFetchFailed,
     #[error("Failed to get the retry algorithm type")]
@@ -504,6 +504,10 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
                 }
             }
 
+            Self::PaymentAttemptAlreadyRecorded => ApiErrorResponse::GenericDuplicateError {
+                message: "The transaction is already recorded against this invoice".to_string(),
+            },
+
             Self::BillingThresholdRetryCountFetchFailed => {
                 ApiErrorResponse::InvalidConnectorConfiguration {
                     config: "revenue_recovery.billing_connector_retry_threshold".to_string(),
@@ -522,7 +526,6 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             | Self::ProcessTrackerResponseError
             | Self::BillingConnectorPaymentsSyncFailed
             | Self::BillingConnectorInvoiceSyncFailed
-            | Self::RetryCountFetchFailed
             | Self::RetryAlgorithmUpdationFailed
             | Self::RevenueRecoveryRedisInsertFailed => ApiErrorResponse::WebhookProcessingFailure,
         }
