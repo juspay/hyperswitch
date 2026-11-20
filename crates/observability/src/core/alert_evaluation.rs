@@ -14,7 +14,10 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 use crate::{
     core::notifier,
-    domain::notifier::Outcome,
+    domain::notifier::{
+        chat::{AlertState, ChatAlert},
+        Outcome,
+    },
     domain_models::evaluator::{
         AlertEvaluationLevel, Delivery, Evaluation, EvaluatorError, EvaluatorResult, Notification,
         RuleDefinition, RuleRun,
@@ -343,6 +346,12 @@ async fn deliver_notification(state: AppState, notification: &Notification) -> D
         ChatNotifyRequest {
             text: Secret::new(notification.message.clone()),
             reply_to: None,
+            alert: Some(ChatAlert {
+                state: AlertState::Firing,
+                severity: notification.severity,
+                title: Secret::new(notification.title.clone()),
+                region: Some(notification.region.clone()),
+            }),
         },
     )
     .await

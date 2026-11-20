@@ -6,7 +6,10 @@ use common_types::alert_rules::{
 use external_services::metrics_provider::MetricPoint;
 use time::PrimitiveDateTime;
 
-use crate::domain_models::evaluator::{Evaluation, Notification, RuleDefinition};
+use crate::{
+    domain::notifier::chat::AlertSeverity,
+    domain_models::evaluator::{AlertEvaluationLevel, Evaluation, Notification, RuleDefinition},
+};
 
 pub(crate) enum ChatBody<'a> {
     Alarm {
@@ -67,10 +70,18 @@ fn cloudwatch_notification(
             Notification {
                 heading: "ALARM".to_owned(),
                 destination: threshold.destination.clone(),
+                title: rule.name.clone(),
+                severity: match evaluation.level {
+                    AlertEvaluationLevel::Critical => AlertSeverity::Sev1,
+                    AlertEvaluationLevel::Warning => AlertSeverity::Sev2,
+                    AlertEvaluationLevel::Info
+                    | AlertEvaluationLevel::Normal
+                    | AlertEvaluationLevel::NoData => AlertSeverity::Sev3,
+                },
+                region: query.region.clone(),
                 message: format!(
                     include_str!("chat/assets/alert.txt"),
                     heading = "ALARM",
-                    rule_name = rule.name,
                     rule_id = rule.id,
                     severity = evaluation.level,
                     evaluated_at = evaluated_at,
@@ -99,10 +110,12 @@ fn cloudwatch_notification(
         ChatBody::RuleError { error, destination } => Notification {
             heading: "RULE ERROR".to_owned(),
             destination: destination.to_owned(),
+            title: format!("RULE ERROR · {}", rule.name),
+            severity: AlertSeverity::Sev3,
+            region: query.region.clone(),
             message: format!(
                 include_str!("chat/assets/alert.txt"),
                 heading = "RULE ERROR",
-                rule_name = rule.name,
                 rule_id = rule.id,
                 severity = "Not evaluated",
                 evaluated_at = evaluated_at,
@@ -296,17 +309,19 @@ mod tests {
                     point: &point,
                 },
             );
+            assert_eq!(notification.title, "Raw `{name}` <&>");
+            assert_eq!(notification.severity, AlertSeverity::Sev1);
+            assert_eq!(notification.region, "ap-south-2");
             let message = notification.message;
-            assert!(message.contains(&format!("Metric: {metric}\n")));
-            assert!(message.contains(&format!("Statistic: {statistic}\n")));
-            assert!(message.contains("Raw `{name}` <&>"));
+            assert!(message.contains(&format!("Metric: `{metric}`\n")));
+            assert!(message.contains(&format!("Statistic: `{statistic}`\n")));
             assert!(message.contains("Raw `{description}` <&>"));
             assert!(message.contains(&format!(
-                "Evaluated: {} UTC\n",
+                "Evaluated: `{} UTC`\n",
                 datetime!(2026-03-18 10:08:00)
             )));
             assert!(message.contains(&format!(
-                "Query range: {} UTC to {} UTC\n",
+                "Query range: `{} UTC to {} UTC`\n",
                 evaluation.window.from, evaluation.window.to
             )));
             let rows = evaluation
@@ -326,7 +341,7 @@ mod tests {
             )));
             assert_eq!(message.matches("SELECTED / BREACHING").count(), 1);
             assert_eq!(message.matches("CONTEXT / NOT EVALUATED").count(), 4);
-            assert!(message.contains("Evaluation: 1 of 1 datapoints\n"));
+            assert!(message.contains("Evaluation: `1 of 1 datapoints`\n"));
             assert_eq!(notification.destination, "test-only");
         }
     }
