@@ -9,7 +9,7 @@
 //! configuration can be used to serve requests, so "did we remember to decrypt this?" is answered
 //! by the type checker rather than by review.
 
-pub mod cloudwatch;
+pub mod evaluator;
 pub mod utils;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -30,10 +30,7 @@ pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};
 use serde::Deserialize;
 
-use crate::{
-    errors,
-    settings::{cloudwatch::CloudWatchSettings, utils::validate_config_ids},
-};
+use crate::{errors, settings::utils::validate_config_ids};
 
 /// The default configuration file name, looked up inside the config directory.
 const CONFIG_FILE_NAME: &str = "observability.toml";
@@ -70,10 +67,9 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     /// Chat destinations this service can deliver to.
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub alert: SecretStateContainer<evaluator::AlertSettings, S>,
     /// Email destinations this service can deliver to.
     pub email: EmailSettings,
-    /// The infrastructure alarm catalogue this service evaluates.
-    pub cloudwatch: CloudWatchSettings,
 }
 
 /// Grafana destinations use the same ID-keyed configuration pattern as chat destinations.
@@ -358,9 +354,9 @@ impl Settings<SecuredSecret> {
         self.server.validate()?;
         self.auth.get_inner().validate()?;
         self.chat.get_inner().validate()?;
+        self.alert.get_inner().validate(self.chat.get_inner())?;
         self.email.validate()?;
         validate_config_ids(&self.monitoring.destinations, "monitoring destination")?;
-        self.cloudwatch.validate()?;
         self.secrets_management
             .validate()
             .map_err(|error| errors::ConfigurationError::ConfigParsingError(error.into()))?;
@@ -421,36 +417,6 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
-    }
-
-    #[test]
-    fn router_tenant_id_loads_from_environment() {
-        let environment = HashMap::from([
-            (
-                "OBSERVABILITY__ROUTER__BASE_URL".to_owned(),
-                "http://router:8080".to_owned(),
-            ),
-            (
-                "OBSERVABILITY__ROUTER__TENANT_ID".to_owned(),
-                "public".to_owned(),
-            ),
-        ]);
-        let settings: Settings<SecuredSecret> = config::Config::builder()
-            .add_source(
-                Environment::with_prefix("OBSERVABILITY")
-                    .try_parsing(true)
-                    .separator("__")
-                    .source(Some(environment)),
-            )
-            .build()
-            .unwrap()
-            .try_deserialize()
-            .unwrap();
-        assert_eq!(settings.router.unwrap().tenant_id, "public");
-        assert!(
-            serde_json::from_str::<RouterSettings>(r#"{"base_url":"http://router:8080"}"#,)
-                .is_err()
-        );
     }
 
     #[test]

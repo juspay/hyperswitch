@@ -2,6 +2,8 @@
 
 #![warn(missing_docs, missing_debug_implementations)]
 
+#[allow(missing_docs)]
+pub mod alert_rules;
 pub mod consts;
 pub mod customers;
 pub mod domain;

@@ -41,39 +41,137 @@
 //! Sizes are logged where they are useful — the chat client already emits `chars` per request — so
 //! nothing diagnostic is lost by redacting here.
 //!
-//! ## Nothing here renders
+//! ## The caller writes the words; chat alerts are laid out here
 //!
-//! `text`, `subject` and `body` are delivered exactly as they arrive. The caller decides what its
-//! message looks like, in whatever markup its destination reads. `body` is HTML, because both email
-//! backends in `external_services` hardcode an HTML body and there is no plain-text path to reach.
+//! `text`, `subject` and `body` are the caller's, in whatever markup the destination reads, and
+//! are never reworded. `body` is HTML, because both email backends in `external_services` hardcode
+//! an HTML body and there is no plain-text path to reach.
+//!
+//! A chat message that names an `alert` is laid out by this service: its heading, marker and
+//! severity rail are built from the alert's fields, with `text` as the body beneath. That keeps
+//! what an alert looks like the same for every caller and every provider.
+
+use std::collections::BTreeMap;
 
 use actix_multipart::form::{bytes::Bytes, text::Text, MultipartForm};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
-    core::cloudwatch::announce,
-    domain::{
-        cloudwatch::{self, State},
-        notifier::{
-            chat::{ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
-            email::EmailOutcome,
-            Outcome, Refusal,
-        },
+    domain::notifier::{
+        chat::{ChatAlert, ChatFileOutcome, ChatFileReceipt, ChatOutcome, ChatReceipt},
+        email::EmailOutcome,
+        Outcome, Refusal,
     },
+    domain_models::evaluator::{AlertEvaluationLevel, Delivery, RuleDefinition, RuleRun},
 };
+
+#[derive(Debug, Serialize)]
+pub struct AlertEvaluationResponse {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub evaluated_at: PrimitiveDateTime,
+    pub rules: Vec<AlertRuleEvaluationResponse>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AlertRuleEvaluationResponse {
+    pub id: String,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub labels: BTreeMap<String, String>,
+    pub status: AlertRuleEvaluationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub level: Option<AlertEvaluationLevel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delivery_error: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AlertRuleEvaluationStatus {
+    Evaluated,
+    Failed,
+}
+
+impl From<(&RuleDefinition, RuleRun, Option<Delivery>)> for AlertRuleEvaluationResponse {
+    fn from((rule, run, delivery): (&RuleDefinition, RuleRun, Option<Delivery>)) -> Self {
+        let delivered = delivery.as_ref().map(|delivery| delivery.delivered);
+        let delivery_error = delivery.and_then(|delivery| delivery.error);
+        match run {
+            RuleRun::Evaluated {
+                level,
+                labels,
+                notification,
+            } => Self {
+                id: rule.id.clone(),
+                labels,
+                status: AlertRuleEvaluationStatus::Evaluated,
+                level: Some(level),
+                error: None,
+                message: notification.map(|notification| notification.message),
+                delivered,
+                delivery_error,
+            },
+            RuleRun::Failed {
+                error,
+                notification,
+            } => Self {
+                id: rule.id.clone(),
+                labels: BTreeMap::new(),
+                status: AlertRuleEvaluationStatus::Failed,
+                level: None,
+                error: Some(error),
+                message: Some(notification.message),
+                delivered,
+                delivery_error,
+            },
+        }
+    }
+}
 
 /// The body of `POST /alerts/chat/notify/{destination}`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ChatNotifyRequest {
-    /// The message, in the markup the destination reads. Delivered unchanged.
+    /// The message, in the markup the destination reads. With `alert` it is the body under the
+    /// alert's heading; without it, the whole message.
     pub text: Secret<String>,
 
     /// Post this as a reply in the thread of an earlier message, identified by the `message_id`
     /// that message's response returned.
     #[serde(default)]
     pub reply_to: Option<String>,
+
+    /// The alert this message is about. Given, the message is sent as an alert: a heading and a
+    /// severity rail built from these fields, over `text`.
+    #[serde(default)]
+    pub alert: Option<ChatAlert>,
+}
+
+/// The body of `POST /alerts/chat/update/{destination}`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChatUpdateRequest {
+    /// The message to replace, by the `message_id` its response returned.
+    pub message_id: String,
+
+    /// As [`ChatNotifyRequest::text`].
+    pub text: Secret<String>,
+
+    /// As [`ChatNotifyRequest::alert`].
+    #[serde(default)]
+    pub alert: Option<ChatAlert>,
+
+    /// The alert has cleared: keep the heading `alert` describes and turn the rail green. Needs
+    /// `alert`.
+    #[serde(default)]
+    pub resolved: bool,
 }
 
 /// Multipart fields accepted by `POST /alerts/chat/upload/{destination}`.
@@ -241,6 +339,7 @@ impl From<EmailOutcome> for EmailNotifyResponse {
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 mod tests {
     use super::*;
+    use crate::domain::notifier::chat::{AlertSeverity, AlertState};
 
     fn body_of<T: Serialize>(value: &T) -> serde_json::Value {
         serde_json::to_value(value).unwrap()
@@ -329,14 +428,60 @@ mod tests {
         assert!(error.to_string().contains("reply_to"));
     }
 
+    #[test]
+    fn a_chat_alert_carries_domain_data_and_region_is_optional() {
+        let request: ChatNotifyRequest = serde_json::from_value(serde_json::json!({
+            "text": "body",
+            "alert": { "state": "persistent", "severity": "sev2", "title": "SR drop" },
+        }))
+        .unwrap();
+
+        let alert = request.alert.unwrap();
+        assert_eq!(alert.state, AlertState::Persistent);
+        assert_eq!(alert.severity, AlertSeverity::Sev2);
+        assert!(alert.region.is_none());
+    }
+
+    #[test]
+    fn a_chat_alert_outside_the_vocabulary_is_rejected() {
+        for alert in [
+            serde_json::json!({ "state": "firing", "severity": "critical", "title": "t" }),
+            serde_json::json!({ "state": "flapping", "severity": "sev1", "title": "t" }),
+            serde_json::json!({ "state": "firing", "severity": "sev1" }),
+            // Presentation is not the caller's to send.
+            serde_json::json!({ "state": "firing", "severity": "sev1", "title": "t", "color": "red" }),
+        ] {
+            assert!(
+                serde_json::from_value::<ChatNotifyRequest>(
+                    serde_json::json!({ "text": "body", "alert": alert })
+                )
+                .is_err(),
+                "{alert}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_update_is_not_resolved_unless_it_says_so() {
+        let request: ChatUpdateRequest = serde_json::from_value(serde_json::json!({
+            "message_id": "1.1",
+            "text": "body",
+        }))
+        .unwrap();
+
+        assert!(!request.resolved);
+        assert!(request.alert.is_none());
+    }
+
     /// The property is now the type's, not a hand-written `Debug`'s: a field added later cannot
     /// leak by someone forgetting to update an impl.
     #[test]
     fn debug_never_prints_the_message() {
-        let chat = ChatNotifyRequest {
-            text: "acquirer_declined for merchant_1234".to_owned().into(),
-            reply_to: None,
-        };
+        let chat: ChatNotifyRequest = serde_json::from_value(serde_json::json!({
+            "text": "acquirer_declined for merchant_1234",
+            "alert": { "state": "firing", "severity": "sev1", "title": "Webhooks - merchant_1234" },
+        }))
+        .unwrap();
         assert!(!format!("{chat:?}").contains("merchant_1234"));
 
         let email = EmailNotifyRequest {
@@ -346,193 +491,5 @@ mod tests {
         let rendered = format!("{email:?}");
         assert!(!rendered.contains("merchant_1234"));
         assert!(!rendered.contains("4,201"));
-    }
-}
-
-/// The body of both CloudWatch routes.
-///
-/// Every definition appears, in id order, whether or not it could be read: one that failed
-/// carries no `rules` at all rather than states derived from an absence. `announcements` holds
-/// only the rules that *changed* state, with the message each produced — on the dry run those
-/// messages are rendered and not sent, which is what `"delivery": "skipped"` says.
-#[derive(Debug, Serialize)]
-pub struct EvaluateResponse {
-    pub definitions: Vec<DefinitionState>,
-    pub announcements: Vec<AnnouncementResponse>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct DefinitionState {
-    pub id: String,
-    pub name: String,
-    pub classification: String,
-    pub metric_name: String,
-    pub dimensions: std::collections::BTreeMap<String, String>,
-    pub period_seconds: u32,
-    #[serde(flatten)]
-    pub outcome: DefinitionOutcome,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "outcome", rename_all = "snake_case")]
-pub enum DefinitionOutcome {
-    Evaluated {
-        /// Oldest first, `null` where the period had no datapoint. Included because "why did this
-        /// say alarm" is the question the route exists to answer.
-        readings: Vec<Option<f64>>,
-        rules: Vec<RuleStateResponse>,
-    },
-    Unread {
-        reason: UnreadReason,
-    },
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UnreadReason {
-    QueryFailed,
-    SeriesIncomplete,
-    SeriesMissing,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RuleStateResponse {
-    pub severity: String,
-    pub state: AlarmState,
-    pub threshold: f64,
-    pub description: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum AlarmState {
-    Ok,
-    Alarm,
-    InsufficientData,
-}
-
-impl From<cloudwatch::Evaluation> for DefinitionState {
-    fn from(evaluation: cloudwatch::Evaluation) -> Self {
-        Self {
-            id: evaluation.id,
-            name: evaluation.name,
-            classification: evaluation.classification,
-            metric_name: evaluation.metric_name,
-            dimensions: evaluation.dimensions,
-            period_seconds: evaluation.period,
-            outcome: evaluation.outcome.into(),
-        }
-    }
-}
-
-impl From<cloudwatch::Outcome> for DefinitionOutcome {
-    fn from(outcome: cloudwatch::Outcome) -> Self {
-        match outcome {
-            cloudwatch::Outcome::Evaluated { readings, rules } => Self::Evaluated {
-                readings,
-                rules: rules.into_iter().map(RuleStateResponse::from).collect(),
-            },
-            cloudwatch::Outcome::Unread { reason } => Self::Unread {
-                reason: reason.into(),
-            },
-        }
-    }
-}
-
-impl From<cloudwatch::Unread> for UnreadReason {
-    fn from(reason: cloudwatch::Unread) -> Self {
-        match reason {
-            cloudwatch::Unread::QueryFailed => Self::QueryFailed,
-            cloudwatch::Unread::SeriesIncomplete => Self::SeriesIncomplete,
-            cloudwatch::Unread::SeriesMissing => Self::SeriesMissing,
-        }
-    }
-}
-
-impl From<cloudwatch::RuleState> for RuleStateResponse {
-    fn from(rule: cloudwatch::RuleState) -> Self {
-        Self {
-            severity: rule.severity,
-            state: rule.state.into(),
-            threshold: rule.threshold,
-            description: rule.description,
-        }
-    }
-}
-
-impl From<State> for AlarmState {
-    fn from(state: State) -> Self {
-        match state {
-            State::Ok => Self::Ok,
-            State::Alarm => Self::Alarm,
-            State::InsufficientData => Self::InsufficientData,
-        }
-    }
-}
-
-/// The body of `POST /alerts/cloudwatch/notify`.
-///
-/// The same definitions the dry run returns, plus what was said about them and whether it arrived.
-
-#[derive(Debug, Serialize)]
-pub struct AnnouncementResponse {
-    pub definition_id: String,
-    pub severity: String,
-    pub destination: String,
-    pub message: String,
-    #[serde(flatten)]
-    pub delivery: DeliveryResponse,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(tag = "delivery", rename_all = "snake_case")]
-pub enum DeliveryResponse {
-    Delivered { message_id: Option<String> },
-    Refused { code: String },
-    Failed,
-    UnknownDestination,
-    Skipped,
-}
-
-impl From<announce::Announced> for EvaluateResponse {
-    fn from(announced: announce::Announced) -> Self {
-        Self {
-            definitions: announced
-                .comparison
-                .current
-                .definitions
-                .into_iter()
-                .map(DefinitionState::from)
-                .collect(),
-            announcements: announced
-                .announcements
-                .into_iter()
-                .map(AnnouncementResponse::from)
-                .collect(),
-        }
-    }
-}
-
-impl From<announce::Announcement> for AnnouncementResponse {
-    fn from(announcement: announce::Announcement) -> Self {
-        Self {
-            definition_id: announcement.definition_id,
-            severity: announcement.severity,
-            destination: announcement.destination,
-            message: announcement.message,
-            delivery: announcement.delivery.into(),
-        }
-    }
-}
-
-impl From<announce::Delivery> for DeliveryResponse {
-    fn from(delivery: announce::Delivery) -> Self {
-        match delivery {
-            announce::Delivery::Delivered { message_id } => Self::Delivered { message_id },
-            announce::Delivery::Refused { code } => Self::Refused { code },
-            announce::Delivery::Failed => Self::Failed,
-            announce::Delivery::UnknownDestination => Self::UnknownDestination,
-            announce::Delivery::Skipped => Self::Skipped,
-        }
     }
 }

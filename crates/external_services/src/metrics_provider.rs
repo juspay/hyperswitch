@@ -1,0 +1,54 @@
+mod error;
+pub mod grafana;
+
+use std::collections::BTreeMap;
+
+use common_utils::errors::CustomResult;
+use serde::{de::DeserializeOwned, Serialize};
+use time::PrimitiveDateTime;
+
+pub use self::error::MetricsError;
+
+pub type MetricsResult<T> = CustomResult<T, MetricsError>;
+
+#[async_trait::async_trait]
+pub trait MetricsProvider: Send + Sync + std::fmt::Debug {
+    type MetricsQuery: Send + Sync;
+    type MetricsRequest: Serialize + Send + 'static;
+    type MetricsResponse: DeserializeOwned + Send;
+    type MetricsError: error_stack::Context;
+
+    fn build_request(
+        query: Self::MetricsQuery,
+        range: MetricRange,
+    ) -> CustomResult<Self::MetricsRequest, Self::MetricsError>;
+
+    fn handle_response(
+        &self,
+        response: Self::MetricsResponse,
+        status: reqwest::StatusCode,
+    ) -> CustomResult<Vec<MetricSeries>, Self::MetricsError>;
+
+    async fn fetch_metrics(
+        &self,
+        request: Self::MetricsRequest,
+    ) -> CustomResult<Vec<MetricSeries>, Self::MetricsError>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MetricRange {
+    pub from: PrimitiveDateTime,
+    pub to: PrimitiveDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricSeries {
+    pub points: Vec<MetricPoint>,
+    pub labels: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetricPoint {
+    pub timestamp: PrimitiveDateTime,
+    pub value: f64,
+}

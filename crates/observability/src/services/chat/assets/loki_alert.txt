@@ -1,0 +1,15 @@
+Severity: `{severity}`
+State: {heading}
+Evaluated: `{evaluated_at} UTC`
+
+Description:
+{description}
+{fields}
+
+Condition: `{condition}`
+Period: `{period}` seconds
+Missing data policy: no matching logs counts as 0
+Latest value: `{value}`
+Query range: `{range}`
+
+Definition: `{rule_id}`{details}

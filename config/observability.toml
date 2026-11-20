@@ -78,6 +78,26 @@ max_upload_bytes = 26214400 # 25 MiB
 [chat.destinations.smoke]
 type = "log"
 
+# Configure this section to enable evaluation. Credentials are local placeholders; override at deployment.
+# Rules remain a JSON string for OBSERVABILITY__ALERT__RULES / Helm delivery.
+# Every breach sends to its threshold's existing notifier destination ID (smoke is log-only).
+# CloudWatch: the newest complete sample in a five-minute window is evaluated. An empty window reports
+# NoData without a notification. A metric period longer than five minutes uses one complete period.
+# Loki: one instant query per period; no matching logs counts as 0; each label series alerts separately.
+# Query failures send RULE ERROR to the highest configured threshold. No lifecycle state is stored.
+[alert]
+rules = '''[{"id":"example-cpu","name":"Example CPU","config":{"interval_seconds":60,"query":{"datasource":"grafana_cloudwatch","region":"us-east-1","namespace":"AWS/EC2","metric_name":"CPUUtilization","dimensions":{"InstanceId":"i-example"},"statistic":"Average","period":60,"end_offset_seconds":180},"thresholds":{"severities":{"critical":{"threshold":90,"comparison_operator":"GreaterThanOrEqualToThreshold","destination":"smoke","description":"CPU utilization is above 90%."}}}}},{"id":"example-router-errors","name":"Router error logs","config":{"interval_seconds":60,"query":{"datasource":"grafana_loki","region":"us-east-1","expr":"sum(count_over_time({app=\"router\"} |= \"error\" [1m]))","period":60,"context":{"Service":"hyperswitch-router"}},"thresholds":{"severities":{"critical":{"threshold":0,"comparison_operator":"GreaterThanThreshold","destination":"smoke","description":"Router logged errors."}}}}}]'''
+
+[alert.grafana]
+base_url = "http://127.0.0.1:3999"
+api_token = "local_development_placeholder"
+
+[alert.datasources.grafana_cloudwatch]
+uid = "cloudwatch"
+
+[alert.datasources.grafana_loki]
+uid = "loki"
+
 # A real Xyne destination looks like this. `base_url` defaults to production and `timeout_seconds`
 # and `max_message_chars` to the client's own defaults, so a channel and a credential are all that
 # is required.
@@ -122,37 +142,3 @@ aws_region = ""
 # nowhere.
 [email.destinations.smoke]
 to = "alerts@example.com"
-
-# Where each severity's announcement goes, by chat destination id. Every severity used by a
-# definition must appear, and each id must name a configured chat destination — both are
-# checked at boot, because a breaching rule with nowhere to go is silence, not an error.
-#
-# [cloudwatch.destinations]
-# sev1 = "infra_alerts"
-# sev2 = "infra_alerts"
-# sev3 = "infra_alerts"
-
-[cloudwatch.client]
-# The region whose metrics the catalogue is read from. Required once any alarm is set.
-region = ""
-
-# The infrastructure alarm catalogue. Empty here: a deployment sets it through
-# OBSERVABILITY__CLOUDWATCH__ALARMS__<ID>__* variables, rendered from the chart values in
-# hyperswitch-infra. Dimensions take `Name=value` pairs rather than a table, because `config`
-# lowercases keys read from the environment and CloudWatch dimension names are case-sensitive.
-#
-# [cloudwatch.alarms.rds_primary_cpu]
-# name = "rds-primary-cpu"
-# classification = "rds-alerts"
-# metric_name = "CPUUtilization"
-# namespace = "AWS/RDS"
-# dimensions = "DBInstanceIdentifier=hyperswitchdb-primary"
-# period = 60
-# statistic = "Average"
-#
-# [cloudwatch.alarms.rds_primary_cpu.severities.sev1]
-# threshold = 90
-# comparison_operator = "GreaterThanOrEqualToThreshold"
-# evaluation_periods = 1
-# treat_missing_data = "breaching"
-# description = "SEV1: RDS primary database CPU utilization is above 90% ..."

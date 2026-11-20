@@ -78,7 +78,7 @@ reach the logs from the client, which emits `chars` per request.
 
 ## The API
 
-Three delivery routes across two channels. **The path says where, the body says what** — the URL names the
+Four delivery routes across two channels. **The path says where, the body says what** — the URL names the
 channel and the destination, the body carries only content. Channel ids, recipient addresses and
 credentials live in configuration, so a caller cannot address a channel that was not set up for it
 and no credential travels on the wire.
@@ -88,8 +88,13 @@ The whole surface, guarded and not:
 | Method | Path | Auth |
 |---|---|---|
 | `POST` | `/alerts/chat/notify/{destination}` | `X-Internal-Api-Key` |
+| `POST` | `/alerts/chat/update/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/chat/upload/{destination}` | `X-Internal-Api-Key` |
 | `POST` | `/alerts/email/notify/{destination}` | `X-Internal-Api-Key` |
+| `GET` | `/alerts/grafana/cloudwatch/evaluate` | `X-Internal-Api-Key`; never sends |
+| `POST` | `/alerts/grafana/cloudwatch/notify` | `X-Internal-Api-Key`; evaluates and delivers |
+| `GET` | `/alerts/grafana/loki/evaluate` | `X-Internal-Api-Key`; never sends |
+| `POST` | `/alerts/grafana/loki/notify` | `X-Internal-Api-Key`; evaluates and delivers |
 | `GET` | `/health` | none — liveness |
 | `POST` | `/monitoring/grafana/auth` | Router-validated Control Center token in JSON body |
 | `POST` | `/monitoring/grafana/session/{id}` | Router-validated Bearer token in Authorization header |
@@ -104,6 +109,47 @@ X-Internal-Api-Key: <key>
 { "text": "*3 merchants not converting*", "reply_to": "cmtk931s114h8c9mfodi4ou1s" }
 → 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
 ```
+
+A message about one alert names it with `alert`, and `text` becomes the body beneath its heading:
+
+```http
+POST /alerts/chat/notify/{destination}
+X-Internal-Api-Key: <key>
+
+{ "text": "SR fell to `42%` …",
+  "reply_to": "<optional message_id>",
+  "alert": { "state": "firing", "severity": "sev1", "title": "SR drop - connector (15m)", "region": "eu-west-1" } }
+→ 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
+```
+
+`state` is `firing`, `persistent` or `resolved`; `severity` is `sev1`, `sev2` or `sev3` and stays the
+alert's own through its life; `region` is optional. The message is laid out here, not by the caller:
+
+- heading `*🔴 [eu-west-1] SEV1 · SR drop - connector (15m)*` — `STILL FIRING` for `persistent`,
+  `🟢 … RESOLVED` for `resolved`;
+- `text` in one section block of an attachment coloured by severity (`resolved` is green), cut to
+  the block's 3000-character limit;
+- **no top-level `mrkdwn`.** Xyne's adapter reads that flag as "text only" and drops the attachment —
+  rail and body — while still answering `ok: true`.
+
+Without `alert` the message is `text` alone with markup on, exactly as before.
+
+```http
+POST /alerts/chat/update/{destination}
+X-Internal-Api-Key: <key>
+
+{ "message_id": "cmtk931zk14lec9mf1svtd88t", "text": "…",
+  "alert": { "state": "firing", "severity": "sev1", "title": "SR drop - connector (15m)" },
+  "resolved": true }
+→ 200 { "status": "delivered", "message_id": "cmtk931zk14lec9mf1svtd88t" }
+```
+
+`update` replaces an earlier message's content, laid out by the same rules. `resolved: true` keeps the
+heading `alert` describes and turns the rail green — how an alert's original message is marked once
+it clears — and needs `alert`.
+
+The request types reject unknown fields, so a caller must not send `alert` or call `update` until
+this service is deployed with them.
 
 ```http
 POST /alerts/chat/upload/{destination}
@@ -139,6 +185,13 @@ caller owns markup and escaping. That is deliberate: the reference alerting serv
 a summary in Slack `mrkdwn` for chat and a full per-alert list for email, and those are not the same
 message. `body` is **HTML**, because both email backends in `external_services` hardcode an HTML
 body and there is no plain-text path to reach.
+**The caller writes the words.** `text`, `subject` and `body` are never reworded, so the caller owns
+their markup and escaping. That is deliberate: the reference alerting service already writes a
+summary in Slack `mrkdwn` for chat and a full per-alert list for email, and those are not the same
+message. `body` is **HTML**, because both email backends in `external_services` hardcode an HTML
+body and there is no plain-text path to reach. What a chat *alert* looks like — heading, marker,
+rail — is laid out here from its `alert` fields; the provider client in `external_services` only
+delivers it.
 
 A single `POST /notify/{destination}` over a channel-tagged body was considered and rejected: the
 destination already resolves the channel through configuration, so a tag in the body is a second
@@ -339,13 +392,97 @@ proxies. Verify the public Router host is allowed by the proxy before deployment
 No upstream error body is retained or logged. The client does not independently decode or validate
 the JWT.
 
+## Config-sourced metric alerts
+
+`[alert]` is required, including Grafana connection settings, a datasource-kind-to-UID registry and
+`rules` as a JSON string. See `config/observability.toml`; environment overrides use the
+`OBSERVABILITY__ALERT__` prefix. Each datasource value contains only `uid`; its map key identifies
+the metric source. Each threshold's `destination` is an existing chat notifier ID, not a channel ID
+or a second severity mapping. Invalid rule structure or destinations fail startup; query
+errors are reported per rule when evaluated.
+
+- `POST /alerts/grafana/cloudwatch/notify` evaluates and delivers;
+  `GET /alerts/grafana/cloudwatch/evaluate` never sends.
+  `POST /alerts/grafana/loki/notify` and `GET /alerts/grafana/loki/evaluate` do the same for
+  `grafana_loki` rules. Each route evaluates only its own datasource's rules.
+  All require the existing `X-Internal-Api-Key` authentication.
+- CloudWatch alerts use simple text containing the rule, metric/value, threshold, severity, evaluation time and period. ALARM messages also include the UTC query range and actual returned timestamp/value datapoints in chronological order. Exactly one point is marked `SELECTED / BREACHING`; all other returned points are `CONTEXT / NOT EVALUATED` and do not affect the result. RULE ERROR messages mark the range and datapoints unavailable rather than inventing values or missing slots.
+  Loki messages use a similar layout with the rule context and the alert instance's labels in place
+  of the metric details; the LogQL query is not included.
+  Banner colors, attachment blocks and decorative templates are deferred.
+- Each CloudWatch rule compares its configured statistic's newest complete sample within a
+  five-minute window. A longer metric period uses one complete period. Critical takes priority over
+  warning, then info.
+  Every breached evaluation sends ALARM, including repeated evaluations of the same breach.
+- Successful empty/all-null windows report `level: "nodata"` without sending (Loki counts them as 0,
+  see below); actual query/auth/timeout/response failures report an error and send RULE ERROR to
+  that rule's highest-priority configured threshold destination. Delivery failures remain in the
+  report; later rules continue.
+- There is no stored lifecycle, previous-window recomputation, M-of-N, missing-slot filling or
+  automatic RESOLVED. The five-minute lookback is not a consecutive-missing timer or a promise
+  to deliver every transient breach between polls.
+- `end_offset_seconds` retains its timestamp-cutoff semantics: period 60/offset 180 at 10:08 selects
+  periods through the one starting 10:05, ending 10:06; it does not wait a further 180 seconds after
+  that period completes. Message times use the captured shared UTC clock and display as
+  the native datetime representation followed by `UTC` (including fractional seconds when present).
+- CloudWatch notifications retain the original multiline text layout: severity/state/time,
+  description, metric details, per-line dimensions, condition, latest value and definition ID.
+  State is the current `ALARM`, not a fabricated transition; evaluation is one actual datapoint.
+  Missing data is `NoData` with no notification, and the removed classification field is not
+  rendered.
+
+### Loki application alerts
+
+A `grafana_loki` rule holds the `region` named in its alert heading, a LogQL metric `expr`, its bucket `period` in seconds, optional
+`end_offset_seconds` (default 60) and optional `context` lines shown in the message (for example
+`Service`, `Flow`, `Route`, `Error code`). Each run sends one Grafana instant query at the end of
+the newest complete period, so write the range selector to match `period`, for example
+`sum(count_over_time({app="router"} |= "error" [1m]))` with `period: 60`. With the default offset a
+run at 10:34:20 queries the minute 10:33 to 10:34. Loki stamps the value at the end of the period;
+the provider restamps it at the period start, as for CloudWatch. Each returned series is a separate
+alert instance: it is checked against the thresholds on its own and a breaching instance sends its
+own ALARM titled with its labels, for example `Router 5xx (flow=PaymentsConfirm)`. Group only by
+bounded labels, for example `sum by (app, flow) (...)`; every breaching label set sends a message
+every minute, so a high-cardinality label such as `merchant_id` floods the channel (cap it with
+`topk` in the query). Loki returns no series for a minute without matching logs; that counts as one
+unlabelled instance with value 0. Logs that reach Loki after the query run are not counted; raise
+`end_offset_seconds` if the scheduler fires right on the minute. Query failures send RULE ERROR
+exactly as for CloudWatch. For one alert per distinct application error, group by the error itself
+and cap it, for example `topk(30, sum by (extra_error) (count_over_time({app="router"} | json |
+level="ERROR" | extra_error != "" [1m])))`. A label value longer than 60 characters or spanning
+lines stays out of the title and is shown in full under `Labels`.
+
+Rule JSON is unversioned and uses `datasource: "grafana_cloudwatch"` or `"grafana_loki"`. Remove the
+old version, classification, evaluation-period/datapoint/missing-slot fields and global
+`[evaluator.destinations]`. Migrate the previous `[evaluator]` configuration section and
+`OBSERVABILITY__EVALUATOR__` environment variables to `[alert]` and `OBSERVABILITY__ALERT__`; remove
+the redundant `provider`/`datasource` fields from registry values. No legacy configuration aliases
+are provided. The Grafana plugin wire type remains `cloudwatch`. Update the infrastructure CronJob
+URL from `/alerts/cloudwatch/notify` to `/alerts/grafana/cloudwatch/notify` in coordination with
+service rollout; there is no old-route alias. Separate JSONB table consumers need their own storage
+conversion before integration. This evaluator adds no database migration or persisted evaluation
+state.
+
+An external scheduler must call the notify endpoint every minute; the server has no built-in polling
+loop. GET is dry-run only. HTTP 200 does not prove delivery: inspect each rule's status, level,
+delivery result and error fields. A rule returns one entry per alert instance with the same `id` and
+the instance's `labels` (CloudWatch entries carry the metric's dimensions). Rules run concurrently,
+responses retain configured order, and one rule's query or delivery failure does not cancel
+independent rules.
+
 ## Layout
 
 ```
-routes/   the route tree and handlers; deserialize, call core, serialize
-core/     what one request does: resolve a destination, hand the message over
-domain/   what delivering an alert is: the notifier traits and the types they exchange
+routes/         authenticated request handlers
+core/           request orchestration, including alert_evaluation/grafana_{cloudwatch,loki} execution
+domain_models/  typed configuration conversions and evaluation results
+domain/         existing notifier traits and delivery outcomes
+services/chat/  evaluator notification text assets
 ```
 
-`domain` holds no HTTP. `core` holds no traits. A handler that grows logic belongs in `core`; a
-concept that a background job would also need belongs in `domain`.
+`domain` holds no HTTP. Metric transport lives in `external_services::metrics_provider`.
+The `MetricsProvider` trait uses provider-specific associated query, request, response and error
+types to build requests, fetch metrics and handle typed responses. CloudWatch and Loki request
+models live in `external_services/src/metrics_provider/grafana/{cloudwatch,loki}.rs`; `grafana.rs`
+holds the shared HTTP transport, response handling and frame parsing. The evaluator consumes
+normalized real metric points, not Grafana wire frames.

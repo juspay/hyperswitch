@@ -4,29 +4,51 @@
 //! this ticket decided lives *between* the handler and the caller: the guard, the path extractor,
 //! the body extractor's rejection shape, and which outcomes are a `200` versus an error.
 //!
-//! Both destinations are `log` destinations, so nothing here reaches a network.
+//! Delivery destinations are local log/recording notifiers. Metric tests use loopback HTTP mocks;
+//! no sandbox or external notification service is contacted.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
 
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, LazyLock, Mutex},
+};
 
 use actix_web::{
     http::StatusCode,
     test::{self, TestRequest},
     App,
 };
-use external_services::email::no_email::NoEmailClient;
+use common_types::alert_rules::{GrafanaCloudwatchQuery, MetricSource};
+use error_stack::report;
+use external_services::{
+    email::no_email::NoEmailClient,
+    metrics_provider::grafana::{cloudwatch::GrafanaCloudwatch, GrafanaConfig},
+};
+use hyperswitch_masking::{PeekInterface, Secret};
 use observability::{
     auth::X_INTERNAL_API_KEY,
     domain::notifier::{
-        chat::{ChatNotifier, LogChatNotifier},
+        chat::{
+            ChatFileOutcome, ChatFileUpload, ChatNotification, ChatNotifier, ChatOutcome,
+            ChatReceipt, ChatUpdate, LogChatNotifier,
+        },
         email::{EmailNotifier, EmailServiceNotifier},
         Registry,
     },
+    domain_models::evaluator::{EvaluatorError, RuleDefinition},
+    errors::ObservabilityError,
     routes::Alerts,
     state::AppState,
 };
 use serde_json::{json, Value};
+use time::macros::datetime;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpListener,
+    sync::{mpsc, Semaphore},
+    time::{timeout, Duration},
+};
 
 const API_KEY: &str = "test_internal_key";
 const CHAT: &str = "sr_alerts";
@@ -58,8 +80,267 @@ async fn state_with_max(max_upload_bytes: usize) -> AppState {
         conf: Arc::new(conf),
         chat: Arc::new(Registry::new(HashMap::from([(CHAT.to_owned(), chat)]))),
         email: Arc::new(Registry::new(HashMap::from([(EMAIL.to_owned(), email)]))),
-        metrics: None,
     }
+}
+
+#[derive(Clone, Copy)]
+enum MetricReply {
+    Value(f64),
+    Series(&'static [(&'static str, f64)]),
+    NoData,
+    Failure,
+}
+
+#[derive(Debug)]
+enum MetricEvent {
+    Started(String, Value),
+    Completed(String),
+}
+
+async fn metric_server(
+    expected_requests: usize,
+    replies: HashMap<String, MetricReply>,
+    gated: bool,
+) -> (
+    String,
+    mpsc::Receiver<MetricEvent>,
+    HashMap<String, Arc<Semaphore>>,
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let (events_tx, events_rx) = mpsc::channel(expected_requests * 2);
+    let gates = replies
+        .keys()
+        .map(|metric| (metric.clone(), Arc::new(Semaphore::new(0))))
+        .collect::<HashMap<_, _>>();
+    let server_gates = gates.clone();
+    tokio::spawn(async move {
+        for _ in 0..expected_requests {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let replies = replies.clone();
+            let gates = server_gates.clone();
+            let events = events_tx.clone();
+            tokio::spawn(async move {
+                let mut request = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                let body_start = loop {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    assert!(read > 0, "metric request closed before headers completed");
+                    request.extend_from_slice(&buffer[..read]);
+                    if let Some(position) = request.windows(4).position(|part| part == b"\r\n\r\n")
+                    {
+                        break position + 4;
+                    }
+                };
+                let headers = std::str::from_utf8(&request[..body_start]).unwrap();
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (name, value) = line.split_once(':')?;
+                        name.eq_ignore_ascii_case("content-length")
+                            .then(|| value.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap();
+                while request.len() - body_start < content_length {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    assert!(read > 0, "metric request closed before body completed");
+                    request.extend_from_slice(&buffer[..read]);
+                }
+                let body: Value =
+                    serde_json::from_slice(&request[body_start..body_start + content_length])
+                        .unwrap();
+                let metric = body["queries"][0]["metricName"]
+                    .as_str()
+                    .or(body["queries"][0]["expr"].as_str())
+                    .unwrap()
+                    .to_owned();
+                let _ = events
+                    .send(MetricEvent::Started(metric.clone(), body.clone()))
+                    .await;
+                if gated {
+                    gates[&metric].acquire().await.unwrap().forget();
+                }
+                let (status, response) = match replies[&metric] {
+                    MetricReply::Value(value) => {
+                        let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
+                        let timestamp = match body["queries"][0]["period"].as_str() {
+                            Some(period) => to - period.parse::<i64>().unwrap() * 1000,
+                            None => to,
+                        };
+                        (
+                            "200 OK",
+                            json!({"results":{"A":{"frames":[{"data":{"values":[[timestamp],[value]]}}]}}}),
+                        )
+                    }
+                    MetricReply::Series(series) => {
+                        let to = body["to"].as_str().unwrap().parse::<i64>().unwrap();
+                        let frames = series
+                            .iter()
+                            .map(|(flow, value)| {
+                                json!({
+                                    "schema":{"fields":[{"name":"Time"},{"name":"Value","labels":{"flow":flow}}]},
+                                    "data":{"values":[[to],[value]]}
+                                })
+                            })
+                            .collect::<Vec<_>>();
+                        ("200 OK", json!({"results":{"A":{"frames":frames}}}))
+                    }
+                    MetricReply::NoData => ("200 OK", json!({"results":{"A":{"frames":[]}}})),
+                    MetricReply::Failure => (
+                        "500 Internal Server Error",
+                        json!({"message":"synthetic failure"}),
+                    ),
+                };
+                let bytes = serde_json::to_vec(&response).unwrap();
+                stream
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+                            bytes.len()
+                        )
+                        .as_bytes(),
+                    )
+                    .await
+                    .unwrap();
+                stream.write_all(&bytes).await.unwrap();
+                stream.shutdown().await.unwrap();
+                let _ = events.send(MetricEvent::Completed(metric)).await;
+            });
+        }
+    });
+    (address, events_rx, gates)
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ChatReply {
+    Delivered,
+    Refused,
+    Failed,
+}
+
+#[derive(Debug)]
+struct RecordingChatNotifier {
+    reply: ChatReply,
+    calls: Arc<Mutex<Vec<String>>>,
+}
+
+#[async_trait::async_trait]
+impl ChatNotifier for RecordingChatNotifier {
+    async fn notify(
+        &self,
+        notification: ChatNotification,
+    ) -> observability::errors::ObservabilityApiResult<ChatOutcome> {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(notification.text.peek().clone());
+        match self.reply {
+            ChatReply::Delivered => Ok(observability::domain::notifier::Outcome::Delivered(
+                ChatReceipt {
+                    message_id: Some("synthetic-message".to_owned()),
+                },
+            )),
+            ChatReply::Refused => Ok(observability::domain::notifier::Outcome::Refused(
+                observability::domain::notifier::Refusal::new("synthetic_refusal"),
+            )),
+            ChatReply::Failed => Err(report!(ObservabilityError::ProviderUnavailable {
+                destination: "synthetic".to_owned(),
+            })),
+        }
+    }
+
+    async fn upload_file(
+        &self,
+        _upload: ChatFileUpload,
+    ) -> observability::errors::ObservabilityApiResult<ChatFileOutcome> {
+        unreachable!("evaluator tests never upload files")
+    }
+
+    async fn update(
+        &self,
+        _update: ChatUpdate,
+    ) -> observability::errors::ObservabilityApiResult<ChatOutcome> {
+        unreachable!("evaluator tests never update messages")
+    }
+}
+
+fn cloudwatch_query(rule: &Value) -> GrafanaCloudwatchQuery {
+    let mut query = rule.pointer("/config/query").unwrap().clone();
+    query.as_object_mut().unwrap().remove("datasource");
+    serde_json::from_value(query).unwrap()
+}
+
+fn alert_rule(id: &str, metric: &str, destination: &str, threshold: f64) -> Value {
+    json!({
+        "id": id,
+        "name": id,
+        "config": {
+            "interval_seconds": 60,
+            "query": {
+                "datasource": "grafana_cloudwatch",
+                "region": "us-east-1",
+                "namespace": "Synthetic/Test",
+                "metric_name": metric,
+                "statistic": "Sum",
+                "period": 60,
+                "end_offset_seconds": 180
+            },
+            "thresholds": {"severities": {"critical": {
+                "threshold": threshold,
+                "comparison_operator": "GreaterThanOrEqualToThreshold",
+                "description": "synthetic local test",
+                "destination": destination
+            }}}
+        }
+    })
+}
+
+async fn evaluator_state(
+    base_url: &str,
+    rules: Vec<Value>,
+    destinations: &[(&str, ChatReply)],
+) -> (AppState, HashMap<String, Arc<Mutex<Vec<String>>>>) {
+    let conf: observability::Settings = serde_json::from_value(json!({
+        "auth": { "internal_api_key": API_KEY },
+        "alert": {
+            "grafana": { "base_url": base_url, "api_token": "synthetic-local-token" },
+            "datasources": {
+                "grafana_cloudwatch": { "uid": "synthetic-cloudwatch" },
+                "grafana_loki": { "uid": "synthetic-loki" }
+            },
+            "rules": serde_json::to_string(&rules).unwrap()
+        }
+    }))
+    .unwrap();
+    let mut calls = HashMap::new();
+    let chat = destinations
+        .iter()
+        .map(|(destination, reply)| {
+            let destination_calls = Arc::new(Mutex::new(Vec::new()));
+            calls.insert((*destination).to_owned(), Arc::clone(&destination_calls));
+            let notifier: Arc<dyn ChatNotifier> = Arc::new(RecordingChatNotifier {
+                reply: *reply,
+                calls: destination_calls,
+            });
+            ((*destination).to_owned(), notifier)
+        })
+        .collect();
+    (
+        AppState {
+            router_transport: None,
+            conf: Arc::new(conf),
+            chat: Arc::new(Registry::new(chat)),
+            email: Arc::new(Registry::default()),
+        },
+        calls,
+    )
+}
+
+async fn event(receiver: &mut mpsc::Receiver<MetricEvent>) -> MetricEvent {
+    timeout(Duration::from_secs(2), receiver.recv())
+        .await
+        .expect("metric mock deadlock")
+        .expect("metric mock ended early")
 }
 
 async fn call(request: TestRequest) -> (StatusCode, Value) {
@@ -97,6 +378,733 @@ fn upload_body(file: &str) -> String {
 }
 
 #[actix_web::test]
+async fn cloudwatch_evaluator_uses_the_new_authenticated_path_only() {
+    let app = test::init_service(App::new().service(Alerts::server(state().await))).await;
+
+    let authorized = TestRequest::get()
+        .uri("/alerts/grafana/cloudwatch/evaluate")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, authorized).await.status(),
+        StatusCode::OK
+    );
+
+    let unauthorized = TestRequest::get()
+        .uri("/alerts/grafana/cloudwatch/evaluate")
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, unauthorized).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let legacy = TestRequest::get()
+        .uri("/alerts/grafana/evaluate")
+        .insert_header((X_INTERNAL_API_KEY, API_KEY))
+        .to_request();
+    assert_eq!(
+        test::call_service(&app, legacy).await.status(),
+        StatusCode::NOT_FOUND
+    );
+}
+
+// The dependency's cached HTTP client must not outlive the runtime that owns its dispatch tasks.
+static EVALUATOR_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .expect("evaluator test runtime must start")
+});
+
+#[test]
+fn evaluator_uses_complete_windows_and_rejects_invalid_time_ranges() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let cases = [
+            (
+                60,
+                180,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:01:00),
+                datetime!(2026-03-18 10:06:00),
+            ),
+            (
+                300,
+                180,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:00:00),
+                datetime!(2026-03-18 10:05:00),
+            ),
+            (
+                60,
+                0,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:03:00),
+                datetime!(2026-03-18 10:08:00),
+            ),
+            (
+                300,
+                0,
+                datetime!(2026-03-18 10:08:00),
+                datetime!(2026-03-18 10:00:00),
+                datetime!(2026-03-18 10:05:00),
+            ),
+            (
+                60,
+                0,
+                datetime!(1969-12-31 23:59:59),
+                datetime!(1969-12-31 23:54:00),
+                datetime!(1969-12-31 23:59:00),
+            ),
+        ];
+        let (base_url, mut events, _) = metric_server(
+            cases.len(),
+            HashMap::from([("window".to_owned(), MetricReply::Value(10.0))]),
+            false,
+        )
+        .await;
+        let provider = GrafanaCloudwatch::new(
+            GrafanaConfig {
+                base_url: Some(base_url.parse().unwrap()),
+                ui_url: None,
+                api_token: Secret::new("test-token".to_owned()),
+            },
+            Default::default(),
+        );
+        for (period, offset, now, from, to) in cases {
+            let mut config = alert_rule("window-rule", "window", "oncall", 1.0);
+            config["config"]["query"]["period"] = json!(period);
+            config["config"]["query"]["end_offset_seconds"] = json!(offset);
+            let query = cloudwatch_query(&config);
+            let query = &query;
+            let rule: RuleDefinition = serde_json::from_value(config).unwrap();
+            let result = observability::core::alert_evaluation::evaluate_metrics(
+                &provider,
+                observability::core::alert_evaluation::grafana_cloudwatch::metrics_query(
+                    query,
+                    "cloudwatch",
+                ),
+                query.period,
+                query.end_offset_seconds,
+                &rule.config.thresholds,
+                now,
+            )
+            .await
+            .unwrap();
+            assert_eq!(result.window.from, from);
+            assert_eq!(result.window.to, to);
+            assert_eq!(
+                result.latest_point.as_ref().map(|point| point.value),
+                Some(10.0)
+            );
+            assert_eq!(
+                result.latest_point.as_ref().map(|point| point.timestamp),
+                Some(to - time::Duration::seconds(i64::from(period)))
+            );
+            assert_eq!(result.datapoints.len(), 1);
+            let request = loop {
+                if let MetricEvent::Started(_, request) = event(&mut events).await {
+                    break request;
+                }
+            };
+            assert_eq!(
+                request["from"],
+                (from.assume_utc().unix_timestamp() * 1000).to_string()
+            );
+            assert_eq!(
+                request["to"],
+                (to.assume_utc().unix_timestamp() * 1000).to_string()
+            );
+        }
+        for (period, offset, now) in [
+            (0, 0, datetime!(2026-03-18 10:08:00)),
+            (60, 0, time::PrimitiveDateTime::MIN),
+            (60, u32::MAX, time::PrimitiveDateTime::MIN),
+        ] {
+            let mut config = alert_rule("invalid-window", "window", "oncall", 1.0);
+            config["config"]["query"]["period"] = json!(period);
+            config["config"]["query"]["end_offset_seconds"] = json!(offset);
+            let query = cloudwatch_query(&config);
+            let query = &query;
+            let rule: RuleDefinition = serde_json::from_value(config).unwrap();
+            let error = observability::core::alert_evaluation::evaluate_metrics(
+                &provider,
+                observability::core::alert_evaluation::grafana_cloudwatch::metrics_query(
+                    query,
+                    "cloudwatch",
+                ),
+                query.period,
+                query.end_offset_seconds,
+                &rule.config.thresholds,
+                now,
+            )
+            .await
+            .unwrap_err();
+            assert!(matches!(
+                error.current_context(),
+                EvaluatorError::InvalidTimeRange
+            ));
+        }
+    });
+}
+
+#[test]
+fn repeated_current_breach_sends_alarm_on_every_notify() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, _, _) = metric_server(
+            2,
+            HashMap::from([("repeated".to_owned(), MetricReply::Value(10.0))]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![alert_rule("repeated-rule", "repeated", "oncall", 1.0)],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+        for _ in 0..2 {
+            let response = observability::core::alert_evaluation::notify(
+                state.clone(),
+                MetricSource::GrafanaCloudwatch,
+            )
+            .await
+            .unwrap();
+            let body = serde_json::to_value(response).unwrap();
+            assert_eq!(body["rules"][0]["status"], "evaluated");
+            assert_eq!(body["rules"][0]["level"], "critical");
+            assert_eq!(body["rules"][0]["delivered"], true);
+            assert!(body["rules"][0]["message"]
+                .as_str()
+                .unwrap()
+                .starts_with("Severity: `CRITICAL`\n"));
+        }
+        assert_eq!(calls["oncall"].lock().unwrap().len(), 2);
+    });
+}
+
+#[test]
+fn evaluator_overlaps_requests_and_preserves_rule_order_after_reverse_completion() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, mut events, gates) = metric_server(
+            2,
+            HashMap::from([
+                ("first".to_owned(), MetricReply::Value(10.0)),
+                ("second".to_owned(), MetricReply::Value(20.0)),
+            ]),
+            true,
+        )
+        .await;
+        let (state, _) = evaluator_state(
+            &base_url,
+            vec![
+                alert_rule("rule-first", "first", "unused", 1.0),
+                alert_rule("rule-second", "second", "unused", 1.0),
+            ],
+            &[],
+        )
+        .await;
+        let evaluation = tokio::spawn(async move {
+            observability::core::alert_evaluation::evaluate(state, MetricSource::GrafanaCloudwatch)
+                .await
+                .unwrap()
+        });
+
+        let mut started = vec![event(&mut events).await, event(&mut events).await]
+            .into_iter()
+            .map(|event| match event {
+                MetricEvent::Started(metric, _) => metric,
+                MetricEvent::Completed(metric) => panic!("{metric} completed before release"),
+            })
+            .collect::<Vec<_>>();
+        started.sort();
+        assert_eq!(started, ["first", "second"]);
+
+        gates["second"].add_permits(1);
+        assert!(
+            matches!(event(&mut events).await, MetricEvent::Completed(metric) if metric == "second")
+        );
+        gates["first"].add_permits(1);
+        assert!(
+            matches!(event(&mut events).await, MetricEvent::Completed(metric) if metric == "first")
+        );
+
+        let response = timeout(Duration::from_secs(2), evaluation)
+            .await
+            .expect("concurrent evaluator deadlocked")
+            .unwrap();
+        assert_eq!(response.rules[0].id, "rule-first");
+        assert_eq!(response.rules[1].id, "rule-second");
+    });
+}
+
+#[test]
+fn provider_failure_does_not_cancel_later_breach_and_both_notifications_are_attempted() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, mut events, _) = metric_server(
+            2,
+            HashMap::from([
+                ("fails".to_owned(), MetricReply::Failure),
+                ("breaches".to_owned(), MetricReply::Value(10.0)),
+            ]),
+            false,
+        )
+        .await;
+        let mut failed_rule = alert_rule("failed-rule", "fails", "critical-errors", 1.0);
+        failed_rule["name"] = json!("Failed `{raw}` <&>");
+        let mut breached_rule = alert_rule("breach-rule", "breaches", "alarm", 1.0);
+        breached_rule["name"] = json!("Breach `{raw}` <&>");
+        failed_rule["config"]["thresholds"]["severities"]["info"] = json!({
+            "threshold": 0.5,
+            "comparison_operator": "GreaterThanOrEqualToThreshold",
+            "description": "lower-priority synthetic threshold",
+            "destination": "info-errors"
+        });
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![failed_rule, breached_rule],
+            &[
+                ("critical-errors", ChatReply::Delivered),
+                ("info-errors", ChatReply::Delivered),
+                ("alarm", ChatReply::Delivered),
+            ],
+        )
+        .await;
+
+        let body = serde_json::to_value(
+            observability::core::alert_evaluation::notify(state, MetricSource::GrafanaCloudwatch)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(body["rules"][0]["id"], "failed-rule");
+        assert_eq!(body["rules"][0]["status"], "failed");
+        assert!(body["rules"][0]["error"]
+            .as_str()
+            .unwrap()
+            .contains("data source request failed"));
+        let error_message = body["rules"][0]["message"].as_str().unwrap();
+        assert!(error_message.starts_with("Severity: `Not evaluated`\n"));
+        assert!(error_message.contains("State: RULE ERROR\n"));
+        assert!(error_message.contains("Severity: `Not evaluated`\n"));
+        assert!(error_message.contains("Condition: `Not evaluated`\n"));
+        assert!(error_message.contains("Evaluation: `Failed`\n"));
+        assert!(error_message.contains("Latest value: `Unavailable`\n"));
+        assert!(error_message.contains("Query range: `Unavailable`\n"));
+        assert!(error_message.contains(
+            "Datapoints — timestamp | value | evaluation:\n```\nUnavailable: rule evaluation failed\n```\n"
+        ));
+        assert!(!error_message.contains("SELECTED / BREACHING"));
+        assert!(error_message.contains("Metric: `fails`\n"));
+        assert!(error_message.contains("data source request failed"));
+        assert!(error_message.ends_with("Definition: `failed-rule`\n"));
+        assert_eq!(body["rules"][0]["delivered"], true);
+        assert_eq!(body["rules"][1]["id"], "breach-rule");
+        assert_eq!(body["rules"][1]["status"], "evaluated");
+        assert_eq!(body["rules"][1]["level"], "critical");
+        let alarm_message = body["rules"][1]["message"].as_str().unwrap();
+        assert!(alarm_message.starts_with("Severity: `CRITICAL`\n"));
+        assert!(alarm_message.contains("Severity: `CRITICAL`\n"));
+        assert!(alarm_message.contains("State: ALARM\n"));
+        assert!(alarm_message.contains("Metric: `breaches`\n"));
+        assert!(alarm_message.contains("Condition: `Sum >= 1`\n"));
+        assert!(alarm_message.contains("Evaluation: `1 of 1 datapoints`\n"));
+        assert!(alarm_message.contains("Latest value: `10`\n"));
+        let request = loop {
+            if let MetricEvent::Started(metric, request) = event(&mut events).await {
+                if metric == "breaches" {
+                    break request;
+                }
+            }
+        };
+        let from = common_utils::date_time::convert_to_pdt(
+            time::OffsetDateTime::from_unix_timestamp(
+                request["from"].as_str().unwrap().parse::<i64>().unwrap() / 1000,
+            )
+            .unwrap(),
+        );
+        let to = common_utils::date_time::convert_to_pdt(
+            time::OffsetDateTime::from_unix_timestamp(
+                request["to"].as_str().unwrap().parse::<i64>().unwrap() / 1000,
+            )
+            .unwrap(),
+        );
+        assert!(alarm_message.contains(&format!("Query range: `{} UTC to {} UTC`\n",
+            from,
+            to)));
+        assert!(alarm_message.contains(&format!(
+            "{} UTC | 10 | SELECTED / BREACHING\n",
+            to - time::Duration::seconds(60),
+        )));
+        assert_eq!(alarm_message.matches("SELECTED / BREACHING").count(), 1);
+        assert!(alarm_message.contains("Error:\nNone\n"));
+        assert!(alarm_message.ends_with("Definition: `breach-rule`\n"));
+        assert_eq!(calls["critical-errors"].lock().unwrap().len(), 1);
+        assert!(calls["info-errors"].lock().unwrap().is_empty());
+        assert_eq!(calls["alarm"].lock().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn dry_run_never_delivers_breaches_or_rule_errors() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, _, _) = metric_server(
+            2,
+            HashMap::from([
+                ("fails".to_owned(), MetricReply::Failure),
+                ("breaches".to_owned(), MetricReply::Value(10.0)),
+            ]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![
+                alert_rule("failed-rule", "fails", "errors", 1.0),
+                alert_rule("breach-rule", "breaches", "alarm", 1.0),
+            ],
+            &[
+                ("errors", ChatReply::Delivered),
+                ("alarm", ChatReply::Delivered),
+            ],
+        )
+        .await;
+
+        let response =
+            observability::core::alert_evaluation::evaluate(state, MetricSource::GrafanaCloudwatch)
+                .await
+                .unwrap();
+        assert_eq!(response.rules.len(), 2);
+        assert!(calls.values().all(|calls| calls.lock().unwrap().is_empty()));
+    });
+}
+
+#[test]
+fn no_data_and_normal_are_silent_and_keep_the_exact_wire_shape() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, _, _) = metric_server(
+            2,
+            HashMap::from([
+                ("empty".to_owned(), MetricReply::NoData),
+                ("normal".to_owned(), MetricReply::Value(1.0)),
+            ]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![
+                alert_rule("empty-rule", "empty", "oncall", 10.0),
+                alert_rule("normal-rule", "normal", "oncall", 10.0),
+            ],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+
+        let body = serde_json::to_value(
+            observability::core::alert_evaluation::notify(state, MetricSource::GrafanaCloudwatch)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(body["rules"][0]["level"], "nodata");
+        assert!(body["rules"][0].get("message").is_none());
+        assert!(body["rules"][0].get("delivered").is_none());
+        assert!(body["rules"][0].get("delivery_error").is_none());
+        assert_eq!(body["rules"][1]["level"], "normal");
+        assert!(body["rules"][1].get("message").is_none());
+        assert!(body["rules"][1].get("delivered").is_none());
+        assert!(body["rules"][1].get("delivery_error").is_none());
+        assert!(calls["oncall"].lock().unwrap().is_empty());
+    });
+}
+
+#[test]
+fn refused_failed_and_successful_deliveries_are_isolated_and_ordered() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, _, _) = metric_server(
+            3,
+            HashMap::from([
+                ("refused".to_owned(), MetricReply::Value(10.0)),
+                ("failed".to_owned(), MetricReply::Value(10.0)),
+                ("delivered".to_owned(), MetricReply::Value(10.0)),
+            ]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![
+                alert_rule("refused-rule", "refused", "refused-chat", 1.0),
+                alert_rule("failed-rule", "failed", "failed-chat", 1.0),
+                alert_rule("delivered-rule", "delivered", "delivered-chat", 1.0),
+            ],
+            &[
+                ("refused-chat", ChatReply::Refused),
+                ("failed-chat", ChatReply::Failed),
+                ("delivered-chat", ChatReply::Delivered),
+            ],
+        )
+        .await;
+
+        let body = serde_json::to_value(
+            observability::core::alert_evaluation::notify(state, MetricSource::GrafanaCloudwatch)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(body["rules"][0]["id"], "refused-rule");
+        assert_eq!(body["rules"][0]["status"], "evaluated");
+        assert_eq!(body["rules"][0]["delivered"], false);
+        assert!(body["rules"][0]["delivery_error"]
+            .as_str()
+            .unwrap()
+            .contains("refused"));
+        assert_eq!(body["rules"][1]["id"], "failed-rule");
+        assert_eq!(body["rules"][1]["status"], "evaluated");
+        assert_eq!(body["rules"][1]["delivered"], false);
+        assert!(body["rules"][1]["delivery_error"]
+            .as_str()
+            .unwrap()
+            .contains("could not be reached"));
+        assert_eq!(body["rules"][2]["id"], "delivered-rule");
+        assert_eq!(body["rules"][2]["status"], "evaluated");
+        assert_eq!(body["rules"][2]["delivered"], true);
+        assert!(body["rules"][2].get("delivery_error").is_none());
+        assert!(calls.values().all(|calls| calls.lock().unwrap().len() == 1));
+    });
+}
+
+#[test]
+fn loki_notify_route_evaluates_only_loki_rules_and_sends_the_application_alert() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let expr = r#"sum(count_over_time({app="router"} |= "error" [1m]))"#;
+        let (base_url, mut events, _) = metric_server(
+            1,
+            HashMap::from([(expr.to_owned(), MetricReply::Value(7.0))]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![
+                alert_rule("cloudwatch-rule", "cloudwatch", "oncall", 1.0),
+                json!({
+                    "id": "loki-rule",
+                    "name": "Router errors",
+                    "config": {
+                        "interval_seconds": 60,
+                        "query": {
+                            "datasource": "grafana_loki",
+                            "region": "ap-south-2",
+                            "expr": expr,
+                            "period": 60,
+                            "context": {"Service": "hyperswitch-router"}
+                        },
+                        "thresholds": {"severities": {"critical": {
+                            "threshold": 0,
+                            "comparison_operator": "GreaterThanThreshold",
+                            "description": "Router logged errors",
+                            "destination": "oncall"
+                        }}}
+                    }
+                }),
+            ],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+        let app = test::init_service(App::new().service(Alerts::server(state))).await;
+        let response = test::call_service(
+            &app,
+            TestRequest::post()
+                .uri("/alerts/grafana/loki/notify")
+                .insert_header((X_INTERNAL_API_KEY, API_KEY))
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(response).await;
+        assert_eq!(body["rules"].as_array().unwrap().len(), 1);
+        assert_eq!(body["rules"][0]["id"], "loki-rule");
+        assert_eq!(body["rules"][0]["level"], "critical");
+        assert_eq!(body["rules"][0]["delivered"], true);
+        let message = body["rules"][0]["message"].as_str().unwrap();
+        assert!(message.starts_with("Severity: `CRITICAL`\n"));
+        assert!(message.contains("Description:\nRouter logged errors\n"));
+        assert!(message.contains("Service: `hyperswitch-router`\n"));
+        assert!(message.contains("Condition: `value > 0`\n"));
+        assert!(message.contains("Latest value: `7`\n"));
+        assert!(message.ends_with("Definition: `loki-rule`"));
+        assert!(!message.contains(expr));
+        let mut requests = HashMap::new();
+        while requests.is_empty() {
+            if let MetricEvent::Started(query, request) = event(&mut events).await {
+                requests.insert(query, request);
+            }
+        }
+        assert_eq!(
+            requests[expr]["queries"][0]["datasource"]["uid"],
+            "synthetic-loki"
+        );
+        assert_eq!(requests[expr]["queries"][0]["queryType"], "instant");
+        assert_eq!(
+            requests[expr]["to"]
+                .as_str()
+                .unwrap()
+                .parse::<i64>()
+                .unwrap()
+                - requests[expr]["from"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<i64>()
+                    .unwrap(),
+            60_000
+        );
+        assert_eq!(calls["oncall"].lock().unwrap().len(), 1);
+    });
+}
+
+#[test]
+fn loki_each_series_is_its_own_instance_and_only_breaching_instances_alert() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let expr = r#"sum by (flow) (count_over_time({app="router"} |= "EndRequest" | json | extra_status_code =~ "5.." [1m]))"#;
+        let (base_url, _, _) = metric_server(
+            1,
+            HashMap::from([(
+                expr.to_owned(),
+                MetricReply::Series(&[
+                    ("PaymentsCreate", 3.0),
+                    ("PaymentsConfirm", 9.0),
+                    ("Refunds", 25.0),
+                ]),
+            )]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![json!({
+                "id": "router-5xx",
+                "name": "Router 5xx",
+                "config": {
+                    "interval_seconds": 60,
+                    "query": {"datasource": "grafana_loki", "region": "ap-south-2", "expr": expr, "period": 60},
+                    "thresholds": {"severities": {
+                        "critical": {
+                            "threshold": 20,
+                            "comparison_operator": "GreaterThanThreshold",
+                            "description": "Router 5xx",
+                            "destination": "oncall"
+                        },
+                        "warning": {
+                            "threshold": 5,
+                            "comparison_operator": "GreaterThanThreshold",
+                            "description": "Router 5xx",
+                            "destination": "oncall"
+                        }
+                    }}
+                }
+            })],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+        let body = serde_json::to_value(
+            observability::core::alert_evaluation::notify(state, MetricSource::GrafanaLoki)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        let rules = body["rules"].as_array().unwrap();
+        assert_eq!(
+            rules
+                .iter()
+                .map(|rule| (
+                    rule["id"].as_str().unwrap(),
+                    rule["labels"]["flow"].as_str().unwrap(),
+                    rule["level"].as_str().unwrap(),
+                    rule.get("delivered").and_then(Value::as_bool)
+                ))
+                .collect::<Vec<_>>(),
+            [
+                ("router-5xx", "PaymentsCreate", "normal", None),
+                ("router-5xx", "PaymentsConfirm", "warning", Some(true)),
+                ("router-5xx", "Refunds", "critical", Some(true)),
+            ]
+        );
+        let sent = calls["oncall"].lock().unwrap();
+        assert_eq!(sent.len(), 2);
+        assert!(rules.iter().skip(1).all(|rule| rule["message"]
+            .as_str()
+            .unwrap()
+            .contains(&format!(
+                "flow: `{}`\n",
+                rule["labels"]["flow"].as_str().unwrap()
+            ))));
+    });
+}
+
+#[test]
+fn cloudwatch_notify_route_enforces_auth_verbs_and_legacy_removal_with_a_real_rule() {
+    EVALUATOR_RUNTIME.block_on(async {
+        let (base_url, _, _) = metric_server(
+            1,
+            HashMap::from([("breach".to_owned(), MetricReply::Value(10.0))]),
+            false,
+        )
+        .await;
+        let (state, calls) = evaluator_state(
+            &base_url,
+            vec![alert_rule("breach-rule", "breach", "oncall", 1.0)],
+            &[("oncall", ChatReply::Delivered)],
+        )
+        .await;
+        let app = test::init_service(App::new().service(Alerts::server(state))).await;
+
+        let unauthorized = TestRequest::post()
+            .uri("/alerts/grafana/cloudwatch/notify")
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, unauthorized).await.status(),
+            StatusCode::UNAUTHORIZED
+        );
+        let wrong_verb = TestRequest::get()
+            .uri("/alerts/grafana/cloudwatch/notify")
+            .insert_header((X_INTERNAL_API_KEY, API_KEY))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, wrong_verb).await.status(),
+            StatusCode::METHOD_NOT_ALLOWED
+        );
+        let wrong_evaluate_verb = TestRequest::post()
+            .uri("/alerts/grafana/cloudwatch/evaluate")
+            .insert_header((X_INTERNAL_API_KEY, API_KEY))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, wrong_evaluate_verb).await.status(),
+            StatusCode::METHOD_NOT_ALLOWED
+        );
+        let old_path = TestRequest::post()
+            .uri("/alerts/grafana/notify")
+            .insert_header((X_INTERNAL_API_KEY, API_KEY))
+            .to_request();
+        assert_eq!(
+            test::call_service(&app, old_path).await.status(),
+            StatusCode::NOT_FOUND
+        );
+        let authorized = TestRequest::post()
+            .uri("/alerts/grafana/cloudwatch/notify")
+            .insert_header((X_INTERNAL_API_KEY, API_KEY))
+            .to_request();
+        let response = test::call_service(&app, authorized).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body: Value = test::read_body_json(response).await;
+        assert_eq!(body["rules"][0]["status"], "evaluated");
+        assert_eq!(body["rules"][0]["delivered"], true);
+        assert_eq!(calls["oncall"].lock().unwrap().len(), 1);
+    });
+}
+
+#[actix_web::test]
 async fn a_chat_notification_reports_delivery_and_a_message_id() {
     let (status, body) = call(post(
         &format!("/alerts/chat/notify/{CHAT}"),
@@ -127,6 +1135,97 @@ async fn a_chat_notification_can_reply_under_an_earlier_message() {
 
     assert_eq!(status, StatusCode::OK);
     assert_eq!(second["status"], "delivered");
+}
+
+#[actix_web::test]
+async fn an_alert_notification_is_delivered_like_any_other() {
+    let (status, body) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({
+            "text": "SR fell to `42%`",
+            "alert": {
+                "state": "firing",
+                "severity": "sev1",
+                "title": "SR drop - connector (15m)",
+                "region": "eu-west-1"
+            }
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "delivered");
+    assert!(body["message_id"].as_str().is_some_and(|id| !id.is_empty()));
+}
+
+/// The body sits in a block the provider refuses when empty, so it is refused here first.
+#[actix_web::test]
+async fn an_alert_with_no_body_is_a_bad_request() {
+    let (status, _) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({
+            "text": "  ",
+            "alert": { "state": "firing", "severity": "sev1", "title": "SR drop" }
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+/// The resolve round trip: announce, keep the id, mark the original resolved.
+#[actix_web::test]
+async fn an_update_replaces_an_earlier_message_and_keeps_its_id() {
+    let alert = json!({ "state": "firing", "severity": "sev2", "title": "SR drop" });
+    let (_, first) = call(post(
+        &format!("/alerts/chat/notify/{CHAT}"),
+        json!({ "text": "body", "alert": alert }),
+    ))
+    .await;
+
+    let (status, updated) = call(post(
+        &format!("/alerts/chat/update/{CHAT}"),
+        json!({
+            "message_id": first["message_id"],
+            "text": "body",
+            "alert": alert,
+            "resolved": true
+        }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["status"], "delivered");
+    assert_eq!(updated["message_id"], first["message_id"]);
+}
+
+#[actix_web::test]
+async fn an_update_that_cannot_be_built_is_a_bad_request() {
+    for body in [
+        json!({ "message_id": "", "text": "body" }),
+        // Only an alert has a rail to turn green.
+        json!({ "message_id": "1.1", "text": "body", "resolved": true }),
+        json!({
+            "message_id": "1.1",
+            "text": "",
+            "alert": { "state": "firing", "severity": "sev1", "title": "SR drop" }
+        }),
+    ] {
+        let (status, _) = call(post(&format!("/alerts/chat/update/{CHAT}"), body.clone())).await;
+
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    }
+}
+
+#[actix_web::test]
+async fn an_update_to_an_unknown_destination_is_a_404() {
+    let (status, _) = call(post(
+        "/alerts/chat/update/typo",
+        json!({ "message_id": "1.1", "text": "x" }),
+    ))
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[actix_web::test]
@@ -262,6 +1361,10 @@ async fn both_routes_are_behind_the_guard() {
         (
             format!("/alerts/chat/notify/{CHAT}"),
             json!({ "text": "x" }),
+        ),
+        (
+            format!("/alerts/chat/update/{CHAT}"),
+            json!({ "message_id": "1.1", "text": "x" }),
         ),
         (
             format!("/alerts/email/notify/{EMAIL}"),

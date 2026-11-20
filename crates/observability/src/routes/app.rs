@@ -10,13 +10,14 @@
 
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{web, Scope};
+use common_types::alert_rules::MetricSource;
 
 #[cfg(feature = "v1")]
 use super::monitoring;
 use crate::{
     errors::types::{ApiError, ApiErrorResponse},
     logger,
-    routes::{cloudwatch, health_check, notify},
+    routes::{evaluator, health_check, notify},
     state::AppState,
 };
 
@@ -46,6 +47,10 @@ impl Alerts {
                         web::resource("/notify/{destination}").route(web::post().to(notify::chat)),
                     )
                     .service(
+                        web::resource("/update/{destination}")
+                            .route(web::post().to(notify::chat_update)),
+                    )
+                    .service(
                         web::resource("/upload/{destination}")
                             .route(web::post().to(notify::chat_upload)),
                     ),
@@ -54,9 +59,30 @@ impl Alerts {
                 web::resource("/notify/{destination}").route(web::post().to(notify::email)),
             ))
             .service(
-                web::scope("/cloudwatch")
-                    .service(web::resource("/evaluate").route(web::get().to(cloudwatch::evaluate)))
-                    .service(web::resource("/notify").route(web::post().to(cloudwatch::notify))),
+                web::scope("/grafana/cloudwatch")
+                    .service(
+                        web::resource("/notify").route(web::post().to(|state, request| {
+                            evaluator::notify(state, request, MetricSource::GrafanaCloudwatch)
+                        })),
+                    )
+                    .service(
+                        web::resource("/evaluate").route(web::get().to(|state, request| {
+                            evaluator::evaluate(state, request, MetricSource::GrafanaCloudwatch)
+                        })),
+                    ),
+            )
+            .service(
+                web::scope("/grafana/loki")
+                    .service(
+                        web::resource("/notify").route(web::post().to(|state, request| {
+                            evaluator::notify(state, request, MetricSource::GrafanaLoki)
+                        })),
+                    )
+                    .service(
+                        web::resource("/evaluate").route(web::get().to(|state, request| {
+                            evaluator::evaluate(state, request, MetricSource::GrafanaLoki)
+                        })),
+                    ),
             )
     }
 }
