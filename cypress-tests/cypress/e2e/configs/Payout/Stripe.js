@@ -81,7 +81,7 @@ export const connectorDetails = {
           },
         },
       },
-      VendorMetadataMissingIndividualDetails: {
+      VendorMetadataMissingIndividual: {
         Request: {
           ...ach_payout_request,
           metadata: {
@@ -100,7 +100,7 @@ export const connectorDetails = {
           },
         },
       },
-      VendorMetadataMissingVendorDetails: {
+      VendorMetadataMissingVendor: {
         Request: {
           ...ach_payout_request,
           metadata: {
@@ -152,7 +152,9 @@ export const connectorDetails = {
         Response: missingVendorDetailsError,
       },
       VendorMetadataAbsent: {
-        Request: ach_payout_request,
+        // undefined overrides the base fixture's metadata and is dropped when
+        // the request body is serialized, so the key is absent on the wire.
+        Request: { ...ach_payout_request, metadata: undefined },
         Response: missingVendorDetailsError,
       },
       VendorMetadataNull: {

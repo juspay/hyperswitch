@@ -84,17 +84,14 @@ describe("[Payout] [Bank Transfer - ACH] Vendor Metadata", () => {
     });
   });
 
-  context("[Payout] Vendor Metadata - Parse Errors", () => {
+  context("[Payout] Vendor Metadata - Parse Errors And Absent Metadata", () => {
     [
-      {
-        key: "VendorMetadataMissingIndividualDetails",
-        name: "missing-individual-details",
-      },
-      {
-        key: "VendorMetadataMissingVendorDetails",
-        name: "missing-vendor-details",
-      },
+      { key: "VendorMetadataMissingIndividual", name: "missing-individual" },
+      { key: "VendorMetadataMissingVendor", name: "missing-vendor" },
       { key: "VendorMetadataInvalidFieldType", name: "invalid-field-type" },
+      { key: "VendorMetadataUnrelatedKeys", name: "unrelated-metadata" },
+      { key: "VendorMetadataAbsent", name: "without-metadata" },
+      { key: "VendorMetadataNull", name: "null-metadata" },
     ].forEach(({ key, name }) => {
       it(`create-payout-with-${name}-test`, () => {
         const data = utils.getConnectorDetails(globalState.get("connectorId"))[
@@ -103,34 +100,6 @@ describe("[Payout] [Bank Transfer - ACH] Vendor Metadata", () => {
 
         cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
       });
-    });
-  });
-
-  context("[Payout] Vendor Metadata - Treated As Absent", () => {
-    it("create-payout-with-unrelated-metadata-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["ach_bank_transfer"]["VendorMetadataUnrelatedKeys"];
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
-    });
-
-    it("create-payout-without-metadata-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["ach_bank_transfer"]["VendorMetadataAbsent"];
-
-      delete payoutBody.metadata;
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
-    });
-
-    it("create-payout-with-null-metadata-test", () => {
-      const data = utils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["ach_bank_transfer"]["VendorMetadataNull"];
-
-      cy.createConfirmPayoutTest(payoutBody, data, true, true, globalState);
     });
   });
 });
