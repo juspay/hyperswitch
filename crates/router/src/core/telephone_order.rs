@@ -92,16 +92,22 @@ pub struct Context {
     /// instead of charging again. Settled by [`TelephoneOrderAdapter::resolve_payment_id`].
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
+    /// `None` auto-captures. `Manual` leaves the capture to the merchant.
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<serde_json::Value>,
 }
 
 impl Context {
     /// The shared fields, for an adapter to fill the rest in with `..context.payments_request()`.
-    /// Confirmed, auto-captured, flagged a telephone order, never 3DS — a caller has no browser.
+    /// Confirmed, flagged a telephone order, never 3DS — a caller has no browser. Auto-captured
+    /// unless the IVR asked otherwise.
     pub fn payments_request(self) -> api_models::payments::PaymentsRequest {
         api_models::payments::PaymentsRequest {
             confirm: Some(true),
-            capture_method: Some(common_enums::CaptureMethod::Automatic),
+            capture_method: Some(
+                self.capture_method
+                    .unwrap_or(common_enums::CaptureMethod::Automatic),
+            ),
             authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
             payment_channel: Some(common_enums::PaymentChannel::TelephoneOrder),
             profile_id: self.profile_id,
@@ -351,6 +357,7 @@ fn build_context(
             })
             .ok()
             .flatten(),
+        capture_method: resolve_capture_method(parameters)?,
         metadata: build_metadata(parameters),
     })
 }
@@ -367,6 +374,22 @@ fn resolve_profile_id(
         .profile
         .as_ref()
         .map(|profile| profile.get_id().clone()))
+}
+
+fn resolve_capture_method(
+    parameters: Option<&Parameters>,
+) -> Result<Option<common_enums::CaptureMethod>, Failure> {
+    parameters
+        .and_then(|parameters| parameters.get("capture_method"))
+        .map(|value| match value.as_str() {
+            "automatic" => Ok(common_enums::CaptureMethod::Automatic),
+            "manual" => Ok(common_enums::CaptureMethod::Manual),
+            other => Err(Failure::new(
+                error_codes::INVALID_REQUEST,
+                format!("parameters.capture_method must be `automatic` or `manual`, not `{other}`"),
+            )),
+        })
+        .transpose()
 }
 
 /// Reads one Hyperswitch id out of the parameters. An unusable value is rejected, not ignored.
