@@ -71,13 +71,7 @@ fn cloudwatch_notification(
                 heading: "ALARM".to_owned(),
                 destination: threshold.destination.clone(),
                 title: rule.name.clone(),
-                severity: match evaluation.level {
-                    AlertEvaluationLevel::Critical => AlertSeverity::Sev1,
-                    AlertEvaluationLevel::Warning => AlertSeverity::Sev2,
-                    AlertEvaluationLevel::Info
-                    | AlertEvaluationLevel::Normal
-                    | AlertEvaluationLevel::NoData => AlertSeverity::Sev3,
-                },
+                severity: alert_severity(evaluation.level),
                 region: query.region.clone(),
                 message: format!(
                     include_str!("chat/assets/alert.txt"),
@@ -143,58 +137,89 @@ fn loki_notification(
     evaluated_at: PrimitiveDateTime,
     body: ChatBody<'_>,
 ) -> Notification {
-    let context = key_value_lines(&query.context);
     match body {
         ChatBody::Alarm {
             evaluation,
             threshold,
             point,
-        } => Notification {
-            heading: "ALARM".to_owned(),
-            destination: threshold.destination.clone(),
-            message: format!(
-                include_str!("chat/assets/loki_alert.txt"),
-                heading = "ALARM",
-                rule_name = instance_name(&rule.name, &evaluation.labels),
-                rule_id = rule.id,
-                severity = evaluation.level,
-                evaluated_at = evaluated_at,
-                description = threshold.description,
-                context = context,
-                condition = format_args!(
-                    "value {} {}",
-                    threshold.comparison_operator, threshold.threshold
+        } => {
+            let (short, long): (Vec<_>, Vec<_>) =
+                evaluation.labels.iter().partition(|(_, value)| {
+                    !value.contains(['\n', '\r']) && value.chars().count() <= TITLE_LABEL_CHARS
+                });
+            let fields = query
+                .context
+                .iter()
+                .chain(short)
+                .map(|(name, value)| format!("\n{name}: `{value}`"))
+                .collect::<String>();
+            let details = long
+                .into_iter()
+                .map(|(name, value)| format!("\n\n*{name}:*\n```\n{}\n```", value.trim()))
+                .collect::<String>();
+            Notification {
+                heading: "ALARM".to_owned(),
+                destination: threshold.destination.clone(),
+                title: instance_name(&rule.name, &evaluation.labels),
+                severity: alert_severity(evaluation.level),
+                region: query.region.clone(),
+                message: format!(
+                    include_str!("chat/assets/loki_alert.txt"),
+                    heading = "ALARM",
+                    rule_id = rule.id,
+                    severity = evaluation.level,
+                    evaluated_at = evaluated_at,
+                    description = threshold.description,
+                    fields = fields,
+                    details = details,
+                    condition = format_args!(
+                        "value {} {}",
+                        threshold.comparison_operator, threshold.threshold
+                    ),
+                    period = query.period,
+                    value = point.value,
+                    range = format_args!(
+                        "{} UTC to {} UTC",
+                        evaluation.window.from, evaluation.window.to
+                    ),
                 ),
-                period = query.period,
-                value = point.value,
-                range = format_args!(
-                    "{} UTC to {} UTC",
-                    evaluation.window.from, evaluation.window.to
-                ),
-                labels = key_value_lines(&evaluation.labels),
-                error = "None",
-            ),
-        },
+            }
+        }
         ChatBody::RuleError { error, destination } => Notification {
             heading: "RULE ERROR".to_owned(),
             destination: destination.to_owned(),
+            title: format!("RULE ERROR · {}", rule.name),
+            severity: AlertSeverity::Sev3,
+            region: query.region.clone(),
             message: format!(
                 include_str!("chat/assets/loki_alert.txt"),
                 heading = "RULE ERROR",
-                rule_name = rule.name,
                 rule_id = rule.id,
                 severity = "Not evaluated",
                 evaluated_at = evaluated_at,
                 description = "Rule evaluation failed",
-                context = context,
+                fields = query
+                    .context
+                    .iter()
+                    .map(|(name, value)| format!("\n{name}: `{value}`"))
+                    .collect::<String>(),
+                details = format!("\n\n*Error:*\n```\n{}\n```", error.trim()),
                 condition = "Not evaluated",
                 period = query.period,
                 value = "Unavailable",
                 range = "Unavailable",
-                labels = "Unavailable: rule evaluation failed",
-                error = error,
             ),
         },
+    }
+}
+
+fn alert_severity(level: AlertEvaluationLevel) -> AlertSeverity {
+    match level {
+        AlertEvaluationLevel::Critical => AlertSeverity::Sev1,
+        AlertEvaluationLevel::Warning => AlertSeverity::Sev2,
+        AlertEvaluationLevel::Info
+        | AlertEvaluationLevel::Normal
+        | AlertEvaluationLevel::NoData => AlertSeverity::Sev3,
     }
 }
 
@@ -355,6 +380,7 @@ mod tests {
                 "interval_seconds": 60,
                 "query": {
                     "datasource": "grafana_loki",
+                    "region": "ap-south-2",
                     "expr": "sum by (app) (count_over_time({app=~\"router\"} |= `error` [1m]))",
                     "period": 60,
                     "context": {"Service": "hyperswitch-router"}
@@ -404,17 +430,17 @@ mod tests {
         );
         assert_eq!(alarm.heading, "ALARM");
         assert_eq!(alarm.destination, "oncall");
-        assert!(alarm
-            .message
-            .starts_with("ALARM: Router errors (extra_status_code=500, flow=PaymentsConfirm)\n"));
-        assert!(alarm
-            .message
-            .contains("Context:\nService: hyperswitch-router\n"));
-        assert!(alarm.message.contains("Condition: value > 20\n"));
-        assert!(alarm.message.contains("Latest value: 42\n"));
-        assert!(alarm
-            .message
-            .contains("Labels:\nextra_status_code: 500\nflow: PaymentsConfirm\n"));
+        assert_eq!(
+            alarm.title,
+            "Router errors (extra_status_code=500, flow=PaymentsConfirm)"
+        );
+        assert_eq!(alarm.region, "ap-south-2");
+        assert!(alarm.message.starts_with("Severity: `WARNING`\n"));
+        assert!(alarm.message.contains(
+            "Service: `hyperswitch-router`\nextra_status_code: `500`\nflow: `PaymentsConfirm`\n"
+        ));
+        assert!(alarm.message.contains("Condition: `value > 20`\n"));
+        assert!(alarm.message.contains("Latest value: `42`\n"));
         assert!(!alarm.message.contains("count_over_time"));
 
         let unlabelled = Evaluation {
@@ -430,8 +456,8 @@ mod tests {
                 point: &point,
             },
         );
-        assert!(alarm.message.starts_with("ALARM: Router errors\n"));
-        assert!(alarm.message.contains("Labels:\nNone\n"));
+        assert_eq!(alarm.title, "Router errors");
+        assert!(!alarm.message.contains("flow:"));
 
         let stack = format!(
             "Failed to parse URL\n{}",
@@ -453,12 +479,12 @@ mod tests {
                 point: &point,
             },
         );
-        assert!(alarm
-            .message
-            .starts_with("ALARM: Router errors (app=router)\n"));
-        assert!(alarm
-            .message
-            .contains(&format!("Labels:\napp: router\nextra_error: {stack}\n")));
+        assert!(alarm.message.contains("app: `router`\n"));
+        assert_eq!(alarm.title, "Router errors (app=router)");
+        assert!(alarm.message.ends_with(&format!(
+            "Definition: `router-errors`\n\n*extra_error:*\n```\n{}\n```",
+            stack.trim()
+        )));
 
         let error = create_notification(
             &rule,
@@ -469,9 +495,10 @@ mod tests {
             },
         );
         assert_eq!(error.heading, "RULE ERROR");
-        assert!(error.message.starts_with("RULE ERROR: Router errors\n"));
+        assert_eq!(error.title, "RULE ERROR · Router errors");
         assert!(error
             .message
-            .contains("Error:\ndata source request failed\n"));
+            .ends_with("*Error:*\n```\ndata source request failed\n```"));
+        assert_eq!(error.message.matches("Error:").count(), 1);
     }
 }

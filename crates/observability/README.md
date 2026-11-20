@@ -433,7 +433,7 @@ errors are reported per rule when evaluated.
 
 ### Loki application alerts
 
-A `grafana_loki` rule holds a LogQL metric `expr`, its bucket `period` in seconds, optional
+A `grafana_loki` rule holds the `region` named in its alert heading, a LogQL metric `expr`, its bucket `period` in seconds, optional
 `end_offset_seconds` (default 60) and optional `context` lines shown in the message (for example
 `Service`, `Flow`, `Route`, `Error code`). Each run sends one Grafana instant query at the end of
 the newest complete period, so write the range selector to match `period`, for example
