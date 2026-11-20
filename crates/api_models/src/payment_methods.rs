@@ -841,7 +841,7 @@ pub enum RawWalletDetail {
         expiry_month: hyperswitch_masking::Secret<String>,
         #[schema(value_type = String)]
         expiry_year: hyperswitch_masking::Secret<String>,
-        /// Available once for the session token; null after consumption or expiry.
+        /// Available once for the retrieval reference; null after consumption or expiry.
         #[schema(value_type = Option<ApplePayCryptogramData>)]
         payment_data: Option<common_types::payments::ApplePayCryptogramData>,
     },
@@ -1685,10 +1685,6 @@ pub struct PaymentMethodResponse {
     /// enabled.
     #[schema(example = "wyH7yWdtaRhxDkVE1cvs")]
     pub fingerprint_id: Option<String>,
-
-    /// Transaction-scoped token returned by encrypted Apple Pay create.
-    /// Use it instead of the payment method ID for one-time cryptogram retrieval.
-    pub payment_method_token: Option<String>,
 }
 
 #[cfg(feature = "v2")]

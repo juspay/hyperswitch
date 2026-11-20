@@ -1965,8 +1965,7 @@ pub async fn create_payment_method_core(
     };
     req.payment_method_data = payment_method_data;
     let storage_type = req.storage_type;
-    let payment_method_type = req.payment_method_type;
-    let (mut response, payment_method) = match storage_type {
+    let (response, payment_method) = match storage_type {
         common_enums::StorageType::Volatile => {
             create_volatile_payment_method_core(
                 state,
@@ -1984,18 +1983,14 @@ pub async fn create_payment_method_core(
         }
     }?;
     if let Some(cryptogram) = apple_pay_cryptogram.as_ref() {
-        response.payment_method_token = Some(
-            create_payment_method_retrieval_token(
-                state,
-                platform,
-                profile,
-                &payment_method,
-                payment_method_type,
-                storage_type,
-                Some(cryptogram),
-            )
-            .await?,
-        );
+        vault::store_apple_pay_cryptogram(
+            state,
+            Secret::new(response.id.get_string_repr()),
+            cryptogram,
+            profile.get_order_fulfillment_time_or_default(),
+            platform.get_provider().get_key_store(),
+        )
+        .await?;
     }
     Ok((response, payment_method))
 }

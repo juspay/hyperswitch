@@ -794,7 +794,6 @@ pub fn generate_payment_method_response(
         billing,
         acknowledgement_status,
         fingerprint_id: None,
-        payment_method_token: None,
     };
 
     Ok(resp)

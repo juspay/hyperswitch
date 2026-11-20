@@ -25456,11 +25456,6 @@
             "description": "A merchant-scoped fingerprint of the card, identical for the same card saved against\ndifferent customers of the merchant. Present only when payment method fingerprinting is\nenabled.",
             "example": "wyH7yWdtaRhxDkVE1cvs",
             "nullable": true
-          },
-          "payment_method_token": {
-            "type": "string",
-            "description": "Transaction-scoped token returned by encrypted Apple Pay create.\nUse it instead of the payment method ID for one-time cryptogram retrieval.",
-            "nullable": true
           }
         }
       },
