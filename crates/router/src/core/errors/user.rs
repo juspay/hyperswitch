@@ -338,7 +338,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
                 AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
             }
             Self::MaxPasswordAttemptsReached => {
-                AER::TooManyRequests(ApiError::new(sub_code, 66, self.get_error_message(), None))
+                AER::TooManyRequests(ApiError::new(sub_code, 67, self.get_error_message(), None))
             }
         }
     }
