@@ -28,19 +28,22 @@ pub enum WorldpayPaymentResponseFields {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizedResponse {
-    pub payment_instrument: PaymentsResPaymentInstrument,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer: Option<Issuer>,
+    pub payment_instrument: Option<Secret<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scheme: Option<PaymentsResponseScheme>,
+    pub issuer: Option<Secret<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scheme: Option<Secret<serde_json::Value>>,
     #[serde(rename = "_links", skip_serializing_if = "Option::is_none")]
     pub links: Option<SelfLink>,
-    #[serde(rename = "_actions")]
-    pub actions: Option<ActionLinks>,
+    #[serde(rename = "_actions", skip_serializing_if = "Option::is_none")]
+    pub actions: Option<Secret<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub risk_factors: Option<Vec<RiskFactorsInner>>,
-    pub fraud: Option<Fraud>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_factors: Option<Secret<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud: Option<Secret<serde_json::Value>>,
     /// Mandate's token
     pub token: Option<MandateToken>,
     /// Network transaction ID
@@ -48,29 +51,24 @@ pub struct AuthorizedResponse {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MandateToken {
-    pub href: Secret<String>,
-    pub token_id: String,
-    pub token_expiry_date_time: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FraudHighRiskResponse {
-    pub score: f32,
-    pub reason: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub score: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefusedResponse {
     pub refusal_description: String,
-    // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
     pub refusal_code: String,
-    pub risk_factors: Option<Vec<RiskFactorsInner>>,
-    pub fraud: Option<Fraud>,
-    #[serde(rename = "threeDS")]
-    pub three_ds: Option<ThreeDsResponse>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_factors: Option<Secret<serde_json::Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud: Option<Secret<serde_json::Value>>,
+    #[serde(rename = "threeDS", skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<Secret<serde_json::Value>>,
     pub advice: Option<Advice>,
 }
 
@@ -81,23 +79,12 @@ pub struct Advice {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreeDsResponse {
-    pub outcome: String,
-    pub issuer_response: IssuerResponse,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ThreeDsChallengedResponse {
-    pub authentication: AuthenticationResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<Secret<serde_json::Value>>,
     pub challenge: ThreeDsChallenge,
     #[serde(rename = "_actions")]
     pub actions: CompleteThreeDsActionLink,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct AuthenticationResponse {
-    pub version: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -112,13 +99,6 @@ pub struct ThreeDsChallenge {
 pub struct CompleteThreeDsActionLink {
     #[serde(rename = "complete3dsChallenge")]
     pub complete_three_ds_challenge: ActionLink,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum IssuerResponse {
-    Challenged,
-    Frictionless,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -161,6 +141,8 @@ pub enum PaymentOutcome {
     ThreeDsChallenged,
     #[serde(alias = "3dsUnavailable")]
     ThreeDsUnavailable,
+    #[serde(other)]
+    Unknown,
 }
 
 impl std::fmt::Display for PaymentOutcome {
@@ -177,6 +159,7 @@ impl std::fmt::Display for PaymentOutcome {
             Self::SentForPartialRefund => write!(f, "sentForPartialRefund"),
             Self::ThreeDsChallenged => write!(f, "3dsChallenged"),
             Self::ThreeDsUnavailable => write!(f, "3dsUnavailable"),
+            Self::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -193,33 +176,9 @@ pub struct SelfLinkInner {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ActionLinks {
-    supply_3ds_device_data: Option<ActionLink>,
-    settle_payment: Option<ActionLink>,
-    partially_settle_payment: Option<ActionLink>,
-    refund_payment: Option<ActionLink>,
-    partially_refund_payment: Option<ActionLink>,
-    cancel_payment: Option<ActionLink>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ActionLink {
     pub href: String,
     pub method: String,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Fraud {
-    pub outcome: FraudOutcome,
-    pub score: f32,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum FraudOutcome {
-    LowRisk,
-    HighRisk,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -306,97 +265,12 @@ pub struct ResponseIdStr {
     pub id: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Issuer {
-    pub authorization_code: Secret<String>,
-}
-
-impl Issuer {
-    pub fn new(code: String) -> Self {
-        Self {
-            authorization_code: Secret::new(code),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PaymentsResPaymentInstrument {
-    #[serde(rename = "type")]
-    pub payment_instrument_type: String,
-    pub card_bin: Option<String>,
-    pub last_four: Option<String>,
-    pub expiry_date: Option<ExpiryDate>,
-    pub card_brand: Option<String>,
-    pub funding_type: Option<String>,
-    pub category: Option<String>,
-    pub issuer_name: Option<String>,
-    pub payment_account_reference: Option<String>,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RiskFactorsInner {
-    #[serde(rename = "type")]
-    pub risk_type: RiskType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub detail: Option<Detail>,
-    pub risk: Risk,
-}
-
-impl RiskFactorsInner {
-    pub fn new(risk_type: RiskType, risk: Risk) -> Self {
-        Self {
-            risk_type,
-            detail: None,
-            risk,
-        }
-    }
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum RiskType {
-    #[default]
-    Avs,
-    Cvc,
-    RiskProfile,
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "lowercase")]
-pub enum Detail {
-    #[default]
-    Address,
-    Postcode,
-}
-
-#[derive(
-    Clone, Copy, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum Risk {
-    #[default]
-    NotChecked,
-    NotMatched,
-    NotSupplied,
-    VerificationFailed,
-}
-
-#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
-pub struct PaymentsResponseScheme {
-    pub reference: String,
-}
-
-impl PaymentsResponseScheme {
-    pub fn new(reference: String) -> Self {
-        Self { reference }
-    }
+pub struct MandateToken {
+    pub href: Secret<String>,
+    pub token_id: String,
+    pub token_expiry_date_time: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
