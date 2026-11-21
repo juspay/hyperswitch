@@ -292,7 +292,26 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(&request.password)?;
+    let user_id = user_from_db.get_user_id();
+    let max_attempts = i64::from(state.conf.user.password_max_attempts);
+
+    let attempts =
+        utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
+    if attempts > max_attempts {
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    if !user_from_db.compare_password(&request.password)? {
+        utils::user::password::reset_password_attempts_expiry_in_redis(&state, user_id).await?;
+        if attempts == max_attempts {
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
+        }
+        return Err(UserErrors::InvalidCredentials.into());
+    }
+
+    let _ = utils::user::password::delete_password_attempts_from_redis(&state, user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -486,8 +505,9 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(&request.old_password)
-        .change_context(UserErrors::InvalidOldPassword)?;
+    if !user.compare_password(&request.old_password)? {
+        return Err(UserErrors::InvalidOldPassword.into());
+    }
 
     if request.old_password == request.new_password {
         return Err(UserErrors::ChangePasswordError.into());
@@ -601,7 +621,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(&request.password).is_ok() {
+    if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
 

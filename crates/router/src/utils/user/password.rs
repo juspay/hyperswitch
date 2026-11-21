@@ -10,7 +10,11 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::{seq::SliceRandom, Rng};
 
-use crate::core::errors::UserErrors;
+use crate::{
+    consts,
+    core::errors::{UserErrors, UserResult},
+    routes::SessionState,
+};
 
 pub fn generate_password_hash(
     password: Secret<String>,
@@ -130,6 +134,54 @@ fn get_temp_password_inner() -> String {
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
     )
+}
+
+fn get_password_attempts_key(user_id: &str) -> String {
+    format!(
+        "{}{}",
+        consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX,
+        user_id
+    )
+}
+
+pub async fn increment_password_attempts_in_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<i64> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .increment_key_with_expiry(
+            &get_password_attempts_key(user_id).into(),
+            state.conf.user.password_lock_duration_in_secs,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
+pub async fn reset_password_attempts_expiry_in_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .set_expiry(
+            &get_password_attempts_key(user_id).into(),
+            state.conf.user.password_lock_duration_in_secs,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+}
+
+pub async fn delete_password_attempts_from_redis(
+    state: &SessionState,
+    user_id: &str,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .delete_key(&get_password_attempts_key(user_id).into())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
 }
 
 #[cfg(all(test, feature = "deja"))]

@@ -1022,6 +1022,8 @@ pub struct UserSettings {
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
     pub email_token_expiry_in_secs: u64,
+    pub password_max_attempts: u16,
+    pub password_lock_duration_in_secs: i64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
