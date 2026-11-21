@@ -1021,6 +1021,7 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    pub internal_merchant_id: common_utils::id_type::MerchantId,
     pub email_token_expiry_in_secs: u64,
     pub password_max_attempts: u16,
     pub password_lock_duration_in_secs: i64,
