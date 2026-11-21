@@ -1,7 +1,18 @@
 pub mod transformers;
 
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::PoCreate,
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
+
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::PayoutCreateType;
+
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use common_enums::enums;
+#[cfg(feature = "payouts")]
+use common_utils::types::{FloatMajorUnit, FloatMajorUnitForConnector};
 use common_utils::{
     errors::CustomResult,
     ext_traits::BytesExt,
@@ -56,12 +67,15 @@ use crate::{
 #[derive(Clone)]
 pub struct Mifinity {
     amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    #[cfg(feature = "payouts")]
+    payout_amount_converter: &'static (dyn AmountConvertor<Output = FloatMajorUnit> + Sync),
 }
 
 impl Mifinity {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &StringMajorUnitForConnector,
+            payout_amount_converter: &FloatMajorUnitForConnector,
         }
     }
 }
@@ -78,6 +92,10 @@ impl api::Refund for Mifinity {}
 impl api::RefundExecute for Mifinity {}
 impl api::RefundSync for Mifinity {}
 impl api::PaymentToken for Mifinity {}
+#[cfg(feature = "payouts")]
+impl api::Payouts for Mifinity {}
+#[cfg(feature = "payouts")]
+impl api::PayoutCreate for Mifinity {}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
     for Mifinity
@@ -495,6 +513,101 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Mifinit
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Mifinity {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Mifinity {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}api/payments/acct2acct/",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        let mut headers = self.build_headers(req, connectors)?;
+
+        if let Some((header_name, _)) = headers
+            .iter_mut()
+            .find(|(name, _)| name.eq_ignore_ascii_case("api-version"))
+        {
+            *header_name = "x-api-version".to_string();
+        }
+
+        Ok(headers)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoCreate>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = convert_amount(
+            self.payout_amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+
+        let connector_router_data = mifinity::MifinityPayoutRouterData::from((amount, req));
+        let connector_req =
+            mifinity::MifinityPayoutCreateRequest::try_from(&connector_router_data)?;
+
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoCreate>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutCreateType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutCreateType::get_headers(self, req, connectors)?)
+            .set_body(PayoutCreateType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoCreate>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoCreate>, errors::ConnectorError> {
+        let response: mifinity::MifinityPayoutCreateResponse = res
+            .response
+            .parse_struct("MifinityPayoutCreateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|event| event.set_response_body(&response));
+        logger::info!(connector_response = ?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 #[async_trait::async_trait]
 impl IncomingWebhook for Mifinity {
