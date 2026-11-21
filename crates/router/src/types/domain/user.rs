@@ -1040,16 +1040,22 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = NewUserPassword {
-            password: UserPassword::new(value.password.clone())?,
-            is_temporary: false,
-        };
+        let password = value
+            .password
+            .clone()
+            .map(|password| {
+                UserPassword::new(password).map(|password| NewUserPassword {
+                    password,
+                    is_temporary: false,
+                })
+            })
+            .transpose()?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
             name,
             email,
-            password: Some(password),
+            password,
             new_merchant,
         })
     }
@@ -1101,16 +1107,12 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
     ) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = NewUserPassword {
-            password: UserPassword::new(value.password.clone())?,
-            is_temporary: false,
-        };
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
             name,
             email,
-            password: Some(password),
+            password: None,
             new_merchant,
         })
     }

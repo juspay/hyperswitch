@@ -683,6 +683,7 @@ totp_issuer_name = "Hyperswitch"     # Name of the issuer for TOTP
 base_url = ""                        # Base url used for user specific redirects and emails
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = false                # Whether to use only cookies for JWT extraction and authentication
+accept_password_on_signup_with_merchant_id = false # Whether signup_with_merchant_id accepts a password from the request (otherwise the user is created without one)
 # idle_session_timeout_in_secs = 900 # When set, signs Dashboard users out after this many seconds without a request
 
 [oidc.key.k1]

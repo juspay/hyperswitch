@@ -1021,6 +1021,8 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    #[serde(default)]
+    pub accept_password_on_signup_with_merchant_id: bool,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
