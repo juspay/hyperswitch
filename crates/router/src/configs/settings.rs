@@ -1021,6 +1021,16 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    #[serde(default = "UserSettings::default_internal_merchant_id")]
+    pub internal_merchant_id: common_utils::id_type::MerchantId,
+}
+
+impl UserSettings {
+    fn default_internal_merchant_id() -> common_utils::id_type::MerchantId {
+        common_utils::id_type::MerchantId::get_internal_user_merchant_id(
+            crate::consts::user_role::DEFAULT_INTERNAL_USER_MERCHANT_ID,
+        )
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
