@@ -1,0 +1,172 @@
+# Dependency license policy enforced on pull requests.
+#
+# Only the *dependency delta* of a pull request is evaluated: packages that are
+# newly added or version-bumped relative to the merge base. Dependencies that
+# already exist on the base branch are never re-evaluated, so tightening this
+# policy can never retroactively break an unrelated pull request.
+#
+# Consumed by `.github/scripts/license_check.py`, which is driven by the
+# `.github/workflows/license-compliance.yml` workflow. See
+# `docs/license_compliance.md` for the design and for porting this check to
+# another repository.
+
+version = 1
+
+[settings]
+# Tiers that fail the check and therefore block the merge.
+fail_on = ["deny"]
+
+# Tiers that are surfaced in the sticky pull request comment. Tier A packages
+# are never reported on their own: a clean pull request stays silent.
+comment_on = ["deny", "warn", "unknown"]
+
+# --- Dependency manifests to scan --------------------------------------------
+#
+# This is the only section that has to change when the check is ported to
+# another repository. Supported types are `cargo` and `npm`.
+
+[[ecosystems]]
+type = "cargo"
+lockfile = "Cargo.lock"
+# `Cargo.lock` does not record dependency kinds, so the workspace manifests are
+# read to tell runtime dependencies apart from dev and build ones.
+manifests = ["Cargo.toml", "crates/*/Cargo.toml"]
+
+# The npm trees in this repository are test harnesses in their entirety, so
+# `scope` pins everything they resolve to the dev/build bucket rather than
+# trusting the `dev` flag inside each lockfile.
+[[ecosystems]]
+type = "npm"
+lockfile = "package-lock.json"
+scope = "dev/build"
+
+[[ecosystems]]
+type = "npm"
+lockfile = "cypress-tests/package-lock.json"
+scope = "dev/build"
+
+[[ecosystems]]
+type = "npm"
+lockfile = "cypress-tests-v2/package-lock.json"
+scope = "dev/build"
+
+# Licenses are matched case-insensitively. Entries may contain `fnmatch`-style
+# wildcards (`*`, `?`). When an identifier matches more than one tier, the most
+# restrictive tier wins: deny > warn > allow.
+#
+# SPDX expressions are evaluated, not string-matched:
+#   * `A OR B`  resolves to the *least* restrictive of its operands, because
+#               downstream users may pick either license.
+#   * `A AND B` resolves to the *most* restrictive of its operands, because
+#               every operand's terms have to be honoured.
+#   * `A WITH B` is matched as a whole identifier first, and falls back to `A`
+#               when the combination is not listed. A copyleft license with an
+#               unlisted exception therefore stays denied until it is
+#               explicitly allowed here or via `[[exceptions]]`.
+
+# --- Tier A: permissive, allowed silently ------------------------------------
+[allow]
+licenses = [
+  "MIT",
+  "MIT-0",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-1-Clause",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "0BSD",
+  "Zlib",
+  "BSL-1.0",
+  "Unlicense",
+  "CC0-1.0",
+  "Unicode-3.0",
+  "Unicode-DFS-2016",
+  "CDLA-Permissive-2.0",
+  "OpenSSL",
+  "PostgreSQL",
+]
+
+# --- Tier B: weak copyleft, allowed but reported -----------------------------
+[warn]
+licenses = [
+  "MPL-2.0",
+  "CDDL-1.0",
+  "CDDL-1.1",
+  "EPL-1.0",
+  "EPL-2.0",
+  "CPL-1.0",
+  "Ms-PL",
+  "OSL-3.0",
+  "Artistic-2.0",
+  "CC-BY-3.0",
+  "CC-BY-4.0",
+]
+
+# --- Tier C: strong copyleft and source-available, blocks the merge ----------
+[deny]
+licenses = [
+  "GPL-1.0-only",
+  "GPL-1.0-or-later",
+  "GPL-2.0-only",
+  "GPL-2.0-or-later",
+  "GPL-3.0-only",
+  "GPL-3.0-or-later",
+  "AGPL-1.0-only",
+  "AGPL-1.0-or-later",
+  "AGPL-3.0-only",
+  "AGPL-3.0-or-later",
+  "LGPL-2.0-only",
+  "LGPL-2.0-or-later",
+  "LGPL-2.1-only",
+  "LGPL-2.1-or-later",
+  "LGPL-3.0-only",
+  "LGPL-3.0-or-later",
+  "SSPL-1.0",
+  "BUSL-1.1",
+  "Elastic-2.0",
+  "CC-BY-NC-*",
+  "CC-BY-SA-*",
+  "CC-BY-ND-*",
+  "JSON",
+  "WTFPL",
+  "Beerware",
+  "Commons-Clause",
+  "Sleepycat",
+  "EUPL-1.2",
+  "RPL-1.5",
+  "SISSL",
+
+  # Catch-all for the deprecated and non-standard spellings of the (A/L)GPL
+  # family that registries still carry, such as the bare `GPL-3.0`, the
+  # `GPL-2.0+` suffix form and `GPL-2.0-with-classpath-exception`. Listed
+  # separately from the canonical identifiers above so that the canonical list
+  # stays readable.
+  "GPL-1.0*",
+  "GPL-2.0*",
+  "GPL-3.0*",
+  "AGPL-*",
+  "LGPL-*",
+]
+
+# --- Per-package exceptions --------------------------------------------------
+#
+# An exception pins a single package to a tier, bypassing the tiers above. Use
+# it for packages whose registry metadata is wrong or absent but whose license
+# has been verified by hand.
+#
+#   ecosystem  one of `cargo`, `npm`; omit to match every ecosystem
+#   name       exact package name, or an fnmatch pattern
+#   versions   fnmatch pattern matched against the version; defaults to "*"
+#   tier       "allow", "warn" or "deny"
+#   license    the verified license, shown in the report instead of the
+#              registry-declared value; optional
+#   reason     why the exception exists; required, and shown in the report
+#
+# [[exceptions]]
+# ecosystem = "cargo"
+# name = "ring"
+# versions = "0.17.*"
+# tier = "allow"
+# license = "ISC AND MIT AND OpenSSL"
+# reason = "Registry metadata carries no SPDX expression; LICENSE file reviewed."
