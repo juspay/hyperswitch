@@ -1654,9 +1654,7 @@ pub async fn create_internal_user(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-                consts::user_role::INTERNAL_USER_MERCHANT_ID,
-            ),
+            &state.conf.user.internal_merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -1679,9 +1677,7 @@ pub async fn create_internal_user(
             .attach_printable("Operation allowed only for the default tenant");
     }
 
-    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-        consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    );
+    let internal_merchant_id = state.conf.user.internal_merchant_id.clone();
 
     let internal_merchant = state
         .store
@@ -1695,7 +1691,11 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        internal_merchant.organization_id.clone(),
+        internal_merchant_id.clone(),
+    ))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
