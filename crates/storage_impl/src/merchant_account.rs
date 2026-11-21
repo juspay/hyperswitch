@@ -1225,6 +1225,10 @@ impl Conversion for domain::MerchantAccount {
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
             fingerprint_secret: self.fingerprint_secret,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(Encryption::from),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -1290,6 +1294,21 @@ impl Conversion for domain::MerchantAccount {
                     product_type: item.product_type,
                     merchant_account_type: item.merchant_account_type.unwrap_or_default(),
                     fingerprint_secret: item.fingerprint_secret,
+                    apple_pay_certificates: item.apple_pay_certificates,
+                    apple_pay_certificates_encrypted: item
+                        .apple_pay_certificates_encrypted
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|value| value.try_into_optionaloperation())
+                        })
+                        .await?,
                 }
                 .into(),
             )
@@ -1320,6 +1339,10 @@ impl Conversion for domain::MerchantAccount {
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
             merchant_account_type: self.merchant_account_type,
             fingerprint_secret: self.fingerprint_secret,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(Encryption::from),
         })
     }
 }

@@ -421,6 +421,8 @@ pub struct ProfileNew {
     pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]

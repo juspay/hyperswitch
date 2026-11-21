@@ -8662,6 +8662,40 @@ async fn decrypt_apple_pay_wallet_data(
         )
 }
 
+/// Decrypt using a linked certificate cache, independently of connector accounts.
+#[cfg(feature = "v2")]
+pub(crate) async fn decrypt_apple_pay_resource(
+    resource_data: &serde_json::Value,
+    resource_key: &Secret<serde_json::Value>,
+    apple_pay_wallet_data: &domain::ApplePayWalletData,
+) -> RouterResult<common_types::payments::ApplePayPredecryptData> {
+    let details = apple_pay_processing_details_from_resource(resource_data, resource_key).ok_or(
+        errors::ApiErrorResponse::InvalidRequestData {
+            message: "The linked Apple Pay resource has no certificate or private key".to_string(),
+        },
+    )?;
+    decrypt_apple_pay_wallet_data(&details, apple_pay_wallet_data).await
+}
+
+fn apple_pay_processing_details_from_resource(
+    resource_data: &serde_json::Value,
+    resource_key: &Secret<serde_json::Value>,
+) -> Option<payments_api::PaymentProcessingDetails> {
+    let certificate = resource_data
+        .get("data")?
+        .get("payment_processing_certificate")?
+        .as_str()?;
+    let certificate_key = resource_key
+        .peek()
+        .get("data")?
+        .get("payment_processing_certificate_key")?
+        .as_str()?;
+    Some(payments_api::PaymentProcessingDetails {
+        payment_processing_certificate: Secret::new(certificate.to_owned()),
+        payment_processing_certificate_key: Secret::new(certificate_key.to_owned()),
+    })
+}
+
 /// Shared by the confirm flow (`WalletFlow::decrypt_wallet_token`) and the eligibility check.
 async fn decrypt_google_pay_wallet_data(
     payment_processing_details: &GooglePayPaymentProcessingDetails,
@@ -10081,23 +10115,8 @@ async fn resolve_managed_apple_pay_certificate(
                 })
         })?;
 
-    let certificate = data
-        .get("data")
-        .and_then(|data| data.get("payment_processing_certificate"))
-        .and_then(|value| value.as_str())?
-        .to_string();
     let certificate_key_json: Secret<serde_json::Value> = encrypted_data?.into_inner();
-    let certificate_key = certificate_key_json
-        .peek()
-        .get("data")
-        .and_then(|data| data.get("payment_processing_certificate_key"))
-        .and_then(|value| value.as_str())?
-        .to_string();
-
-    Some(payments_api::PaymentProcessingDetails {
-        payment_processing_certificate: Secret::new(certificate),
-        payment_processing_certificate_key: Secret::new(certificate_key),
-    })
+    apple_pay_processing_details_from_resource(&data, &certificate_key_json)
 }
 
 async fn check_apple_pay_metadata(
