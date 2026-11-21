@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix8
+
+### Bug Fixes
+
+- **router:** Limit payment response hash key exposure ([#15352](https://github.com/juspay/hyperswitch/pull/15352)) ([`8140752`](https://github.com/juspay/hyperswitch/commit/81407522b138e5b91553c6ad5454885411d26a2c))
+- **user:** Cherry-pick user auth changes to 2026.11.11.1 hotfix ([#15353](https://github.com/juspay/hyperswitch/pull/15353)) ([`f4193d0`](https://github.com/juspay/hyperswitch/commit/f4193d0c08c652439bcfeb94eee2fad0aa11016f))
+- **webhooks:** Validate merchant connector accounts in core ([#15351](https://github.com/juspay/hyperswitch/pull/15351)) ([`9611b18`](https://github.com/juspay/hyperswitch/commit/9611b18b19553fe1ae26605ca788a619bda136a8))
+
+**Full Changelog:** [`2026.11.11.1-hotfix7...2026.11.11.1-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix7...2026.11.11.1-hotfix8)
+
+- - -
+
 ## 2026.11.11.1-hotfix7
 
 ### Bug Fixes
