@@ -1729,8 +1729,8 @@ pub async fn create_internal_user(
     #[cfg(feature = "email")]
     {
         let email_contents = email_types::ResetPassword {
-            recipient_email: new_user.get_email(),
-            user_name: domain::UserName::new(new_user.get_name())?,
+            recipient_email: user_from_storage.get_email().try_into()?,
+            user_name: domain::UserName::new(user_from_storage.get_name())?,
             settings: state.conf.clone(),
             auth_id: None,
             theme_id: None,
