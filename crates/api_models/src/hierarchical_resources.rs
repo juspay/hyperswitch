@@ -1,4 +1,3 @@
-use common_enums::{ResourceRequestorType, ResourceType};
 use common_utils::id_type;
 use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
@@ -7,7 +6,7 @@ use time::PrimitiveDateTime;
 #[serde(deny_unknown_fields)]
 pub struct GenerateHierarchicalResourceRequest {
     #[serde(rename = "type")]
-    pub resource_type: ResourceType,
+    pub resource_type: common_enums::ResourceType,
     pub google_pay: Option<GooglePayResourceRequest>,
 }
 
@@ -36,7 +35,6 @@ pub struct GooglePayResourceRequest {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct GenerateHierarchicalResourceResponse {
-    #[schema(value_type = String)]
     pub id: id_type::ResourceId,
     #[schema(value_type = Object)]
     pub data: Secret<serde_json::Value>,
@@ -50,7 +48,6 @@ pub struct UploadCertificateRequest {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct UploadCertificateResponse {
-    #[schema(value_type = String)]
     pub id: id_type::ResourceId,
     #[schema(value_type = String)]
     pub created_at: PrimitiveDateTime,
@@ -58,7 +55,6 @@ pub struct UploadCertificateResponse {
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct HierarchicalResourceSummary {
-    #[schema(value_type = String)]
     pub id: id_type::ResourceId,
     #[schema(value_type = Object)]
     pub display_schema: Secret<serde_json::Value>,
@@ -73,9 +69,9 @@ pub struct HierarchicalResourceSummary {
 #[serde(deny_unknown_fields)]
 pub struct ListHierarchicalResourcesRequest {
     #[serde(rename = "type")]
-    pub resource_type: ResourceType,
+    pub resource_type: common_enums::ResourceType,
     pub scope_id: Option<String>,
-    pub scope_type: Option<ResourceRequestorType>,
+    pub scope_type: Option<common_enums::ResourceRequestorType>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
@@ -86,12 +82,11 @@ pub struct ListHierarchicalResourcesResponse {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct LinkHierarchicalResourceRequest {
-    pub requestor_type: ResourceRequestorType,
+    pub requestor_type: common_enums::ResourceRequestorType,
     pub requestor_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct LinkHierarchicalResourceResponse {
-    #[schema(value_type = String)]
     pub id: id_type::ResourceId,
 }

@@ -7,8 +7,6 @@ pub mod card_issuer;
 pub mod customers;
 pub mod disputes;
 pub mod gsm;
-#[cfg(feature = "v1")]
-pub mod hierarchical_resources;
 pub mod mandates;
 pub mod merchant_account;
 pub mod merchant_connector_account;
