@@ -1025,6 +1025,8 @@ pub struct UserSettings {
     pub accept_password_on_signup_with_merchant_id: bool,
     pub internal_merchant_id: common_utils::id_type::MerchantId,
     pub email_token_expiry_in_secs: u64,
+    pub password_max_attempts: u16,
+    pub password_lock_duration_in_secs: i64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
