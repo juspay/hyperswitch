@@ -52,6 +52,8 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
+pub(crate) const PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN: usize = 4;
+
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
