@@ -2049,6 +2049,8 @@ payment_method_type = "google_pay"
 api_key = "Checkout Public Key"
 key1 = "Processing Channel ID"
 api_secret = "Checkout API Secret Key"
+[checkout_payout.connector_webhook_details]
+merchant_secret = "Source verification key"
 [checkout_payout.metadata.connector_currency_account_id]
 name = "connector_currency_account_id"
 label = "Checkout Currency Account ID"
@@ -9096,6 +9098,12 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
+
+[hyperswitch_vault]
+[hyperswitch_vault.connector_auth.SignatureKey]
+  api_key="API Key"
+  key1="Publishable Key"
+  api_secret="Profile ID"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]

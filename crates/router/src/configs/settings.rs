@@ -1022,6 +1022,7 @@ pub struct UserSettings {
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
     pub internal_merchant_id: common_utils::id_type::MerchantId,
+    pub email_token_expiry_in_secs: u64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
