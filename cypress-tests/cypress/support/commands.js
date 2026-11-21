@@ -818,6 +818,28 @@ Cypress.Commands.add("healthCheck", (globalState) => {
   });
 });
 
+// The deep health check reports `vault: true` only when a real locker is
+// configured and answering; the field is absent when the router runs with
+// the mock locker, which cannot serve the fingerprint call.
+Cypress.Commands.add("vaultAvailabilityCheck", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  return cy
+    .request({
+      method: "GET",
+      url: `${baseUrl}/health/ready`,
+      headers: {
+        Accept: "application/json",
+      },
+      failOnStatusCode: false,
+    })
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      return cy.wrap(response.status === 200 && response.body?.vault === true);
+    });
+});
+
 /**
  * Creates a merchant account and optionally validates response fields.
  * @param {Object} merchantCreateBody - The merchant creation request body
@@ -5105,6 +5127,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
     allKeysRequired = false,
+    expectFingerprint = false,
   }) => {
     const { Configs: configs = {}, Response: resData = {} } = data || {};
 
@@ -5203,6 +5226,16 @@ Cypress.Commands.add(
                 response.body.network_transaction_link_id,
                 "network_transaction_link_id"
               ).to.be.a("string").and.to.not.be.empty;
+            }
+          }
+
+          if (expectFingerprint) {
+            expect(response.body.fingerprint_type, "fingerprint_type").to.equal(
+              "fpan"
+            );
+            if (resData.body?.status === "succeeded") {
+              expect(response.body.fingerprint, "fingerprint").to.be.a("string")
+                .and.to.not.be.empty;
             }
           }
 
