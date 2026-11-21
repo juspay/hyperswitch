@@ -585,6 +585,7 @@ totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
 force_cookies = false
+accept_password_on_signup_with_merchant_id = true
 internal_merchant_id = "juspay000"
 
 [oidc.key.k1]

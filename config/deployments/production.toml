@@ -266,6 +266,7 @@ totp_issuer_name = "Hyperswitch Production"
 base_url = "https://live.hyperswitch.io"
 force_two_factor_auth = true
 force_cookies = false
+accept_password_on_signup_with_merchant_id = false
 internal_merchant_id = "juspay000"
 
 [frm]
