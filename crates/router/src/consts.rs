@@ -80,9 +80,6 @@ pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
 pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
 
 #[cfg(feature = "email")]
-pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
-
-#[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
 
 pub const EMAIL_SUBJECT_API_KEY_EXPIRY: &str = "API Key Expiry Notice";
