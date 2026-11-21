@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{configs, consts, routes::SessionState};
+use crate::{configs, routes::SessionState};
 #[cfg(feature = "olap")]
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -338,7 +338,8 @@ impl EmailToken {
         flow: domain::Origin,
         settings: &configs::Settings,
     ) -> UserResult<String> {
-        let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
+        let expiration_duration =
+            std::time::Duration::from_secs(settings.user.email_token_expiry_in_secs);
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
         let token_payload = Self {
             email: email.get_secret().expose(),
