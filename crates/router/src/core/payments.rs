@@ -61,7 +61,7 @@ use events::EventInfo;
 use futures::future::join_all;
 use helpers::{decrypt_paze_token, ApplePayData};
 #[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::SurchargeMode;
+use hyperswitch_domain_models::payments::{payment_attempt::AccountInformation, SurchargeMode};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentAttemptListData, PaymentCancelData, PaymentCaptureData, PaymentConfirmData,
@@ -719,6 +719,7 @@ async fn restore_pre_call_state<F, D>(
         payment_method: attempt.payment_method,
         browser_info: attempt.browser_info.clone(),
         connector: attempt.connector.clone(),
+        account_information: Some(attempt.account_information.clone().unwrap_or_default()),
         payment_token: attempt.payment_token.clone(),
         payment_method_data: attempt.payment_method_data.clone(),
         payment_method_type: attempt.payment_method_type,
@@ -3743,6 +3744,17 @@ where
         .is_none()
     {
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
+    }
+
+    if payment_data
+        .get_payment_attempt()
+        .account_information
+        .as_ref()
+        .is_none_or(|information| information.connector_label.is_none())
+    {
+        payment_data.set_account_information_in_attempt(Some(AccountInformation {
+            connector_label: merchant_connector_account.get_connector_label(),
+        }));
     }
 
     let provider_business_profile =
@@ -6953,6 +6965,17 @@ where
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
+    if payment_data
+        .get_payment_attempt()
+        .account_information
+        .as_ref()
+        .is_none_or(|information| information.connector_label.is_none())
+    {
+        payment_data.set_account_information_in_attempt(Some(AccountInformation {
+            connector_label: merchant_connector_account.get_connector_label(),
+        }));
+    }
+
     operation
         .to_domain()?
         .populate_payment_data(
@@ -8000,6 +8023,17 @@ where
         .is_none()
     {
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
+    }
+
+    if payment_data
+        .get_payment_attempt()
+        .account_information
+        .as_ref()
+        .is_none_or(|information| information.connector_label.is_none())
+    {
+        payment_data.set_account_information_in_attempt(Some(AccountInformation {
+            connector_label: merchant_connector_account.get_connector_label(),
+        }));
     }
 
     let merchant_recipient_data = None;
@@ -16389,6 +16423,12 @@ pub trait OperationSessionSetters<F> {
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>);
 
     #[cfg(feature = "v1")]
+    fn set_account_information_in_attempt(
+        &mut self,
+        account_information: Option<AccountInformation>,
+    );
+
+    #[cfg(feature = "v1")]
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation);
 
     #[cfg(feature = "v2")]
@@ -16782,6 +16822,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_connector_in_payment_attempt(&mut self, connector: Option<String>) {
         self.payment_attempt.connector = connector;
+    }
+
+    fn set_account_information_in_attempt(
+        &mut self,
+        account_information: Option<AccountInformation>,
+    ) {
+        self.payment_attempt.account_information = account_information;
     }
 
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {

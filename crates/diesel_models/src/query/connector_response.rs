@@ -15,12 +15,16 @@ use crate::{
 
 impl ConnectorResponseNew {
     #[instrument(skip(conn))]
-    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<ConnectorResponse> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<ConnectorResponse> {
         let payment_attempt_update = PaymentAttemptUpdate::ConnectorResponse {
             authentication_data: self.authentication_data.clone(),
             encoded_data: self.encoded_data.clone(),
             connector_transaction_id: self.connector_transaction_id.clone(),
             connector: self.connector_name.clone(),
+            account_information: None,
             updated_by: self.updated_by.clone(),
             charge_id: self.charge_id.clone(),
         };
@@ -70,6 +74,7 @@ impl ConnectorResponse {
                 encoded_data,
                 connector_transaction_id,
                 connector: connector_name,
+                account_information: None,
                 charge_id,
                 updated_by,
             },
@@ -81,6 +86,7 @@ impl ConnectorResponse {
                 encoded_data: None,
                 connector_transaction_id: None,
                 connector: connector_name,
+                account_information: None,
                 charge_id: None,
                 updated_by,
             },

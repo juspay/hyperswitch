@@ -4533,14 +4533,10 @@ where
 
         let routed_through = payment_attempt.connector.clone();
 
-        let connector_label = routed_through.as_ref().and_then(|connector_name| {
-            core_utils::get_connector_label(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
-                payment_attempt.business_sub_label.as_ref(),
-                connector_name,
-            )
-        });
+        let connector_label = payment_attempt
+            .account_information
+            .as_ref()
+            .and_then(|account_information| account_information.connector_label.clone());
 
         let mandate_data = payment_data.get_setup_mandate().map(|d| api::MandateData {
             customer_acceptance: d.customer_acceptance.clone(),
@@ -5293,7 +5289,9 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             unified_message: None,
             error_details: None,
             payment_experience: None,
-            connector_label: None,
+            connector_label: pa
+                .account_information
+                .and_then(|account_information| account_information.connector_label),
             allowed_payment_method_types: None,
             manual_retry_allowed: None,
             frm_message: None,

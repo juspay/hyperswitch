@@ -25,6 +25,8 @@ use common_utils::{
     types::{keymanager::ToEncryptable, CreatedBy, MinorUnit},
 };
 #[cfg(feature = "v1")]
+pub use diesel_models::AccountInformation;
+#[cfg(feature = "v1")]
 use diesel_models::{
     ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails, NetworkDetails,
     PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
@@ -1419,6 +1421,7 @@ pub struct PaymentAttempt {
     pub currency: Option<storage_enums::Currency>,
     pub save_to_locker: Option<bool>,
     pub connector: Option<String>,
+    pub account_information: Option<AccountInformation>,
     pub error_message: Option<String>,
     pub offer_amount: Option<MinorUnit>,
     pub payment_method_id: Option<String>,
@@ -2129,6 +2132,7 @@ pub enum PaymentAttemptUpdate {
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         straight_through_algorithm: Option<Value>,
         amount_capturable: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
@@ -2152,6 +2156,7 @@ pub enum PaymentAttemptUpdate {
         payment_method: Option<storage_enums::PaymentMethod>,
         browser_info: Option<Value>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         payment_token: Option<String>,
         payment_method_data: Option<Value>,
         payment_method_type: Option<storage_enums::PaymentMethodType>,
@@ -2221,6 +2226,7 @@ pub enum PaymentAttemptUpdate {
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         connector_transaction_id: Option<String>,
         network_transaction_id: Option<String>,
         network_transaction_link_id: Option<String>,
@@ -2267,6 +2273,7 @@ pub enum PaymentAttemptUpdate {
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         connector_transaction_id: Option<String>,
         payment_method_id: Option<String>,
         error_code: Option<Option<String>>,
@@ -2281,6 +2288,7 @@ pub enum PaymentAttemptUpdate {
     },
     ErrorUpdate {
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
@@ -2329,6 +2337,7 @@ pub enum PaymentAttemptUpdate {
         encoded_data: Option<String>,
         connector_transaction_id: Option<String>,
         connector: Option<String>,
+        account_information: Option<AccountInformation>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
         updated_by: String,
     },
@@ -2426,6 +2435,7 @@ impl PaymentAttemptUpdate {
             Self::UpdateTrackers {
                 payment_token,
                 connector,
+                account_information,
                 straight_through_algorithm,
                 amount_capturable,
                 updated_by,
@@ -2437,6 +2447,7 @@ impl PaymentAttemptUpdate {
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
+                account_information,
                 straight_through_algorithm,
                 amount_capturable,
                 surcharge_amount,
@@ -2504,6 +2515,7 @@ impl PaymentAttemptUpdate {
                 payment_method,
                 browser_info,
                 connector,
+                account_information,
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2549,6 +2561,7 @@ impl PaymentAttemptUpdate {
                 payment_method,
                 browser_info,
                 connector,
+                account_information,
                 payment_token,
                 payment_method_data,
                 payment_method_type,
@@ -2608,6 +2621,7 @@ impl PaymentAttemptUpdate {
             Self::ResponseUpdate {
                 status,
                 connector,
+                account_information,
                 connector_transaction_id,
                 authentication_type,
                 payment_method_id,
@@ -2684,6 +2698,7 @@ impl PaymentAttemptUpdate {
                 DieselPaymentAttemptUpdate::ResponseUpdate {
                     status,
                     connector,
+                    account_information,
                     connector_transaction_id,
                     authentication_type,
                     payment_method_id,
@@ -2722,6 +2737,7 @@ impl PaymentAttemptUpdate {
             Self::UnresolvedResponseUpdate {
                 status,
                 connector,
+                account_information,
                 connector_transaction_id,
                 payment_method_id,
                 error_code,
@@ -2758,6 +2774,7 @@ impl PaymentAttemptUpdate {
                 DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                     status,
                     connector,
+                    account_information,
                     connector_transaction_id,
                     payment_method_id,
                     error_code,
@@ -2773,6 +2790,7 @@ impl PaymentAttemptUpdate {
             }
             Self::ErrorUpdate {
                 connector,
+                account_information,
                 status,
                 error_code,
                 error_message,
@@ -2830,6 +2848,7 @@ impl PaymentAttemptUpdate {
                 );
                 DieselPaymentAttemptUpdate::ErrorUpdate {
                     connector,
+                    account_information,
                     status,
                     error_code,
                     error_message,
@@ -2901,6 +2920,7 @@ impl PaymentAttemptUpdate {
                 encoded_data,
                 connector_transaction_id,
                 connector,
+                account_information,
                 charges,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConnectorResponse {
@@ -2909,6 +2929,7 @@ impl PaymentAttemptUpdate {
                 connector_transaction_id,
                 charges,
                 connector,
+                account_information,
                 updated_by,
             },
             Self::IncrementalAuthorizationAmountUpdate {
