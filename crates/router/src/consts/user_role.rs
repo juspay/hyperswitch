@@ -13,7 +13,6 @@ pub const ROLE_ID_PROFILE_DEVELOPER: &str = "profile_developer";
 pub const ROLE_ID_PROFILE_OPERATOR: &str = "profile_operator";
 pub const ROLE_ID_PROFILE_CUSTOMER_SUPPORT: &str = "profile_customer_support";
 
-pub const DEFAULT_INTERNAL_USER_MERCHANT_ID: &str = "juspay000";
 pub const MAX_ROLE_NAME_LENGTH: usize = 64;
 
 pub const ROLE_ID_RECON_MERCHANT_ADMIN: &str = "recon_merchant_admin";
