@@ -1194,15 +1194,10 @@ impl UserFromStorage {
         self.0.user_id.as_str()
     }
 
-    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
-        if let Some(password) = self.0.password.as_ref() {
-            match password::is_correct_password(candidate, password) {
-                Ok(true) => Ok(()),
-                Ok(false) => Err(UserErrors::InvalidCredentials.into()),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(UserErrors::InvalidCredentials.into())
+    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<bool> {
+        match self.0.password.as_ref() {
+            Some(password) => password::is_correct_password(candidate, password),
+            None => Ok(false),
         }
     }
 
