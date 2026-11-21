@@ -684,6 +684,7 @@ base_url = ""                        # Base url used for user specific redirects
 force_two_factor_auth = false        # Whether to force two factor authentication for all users
 force_cookies = false                # Whether to use only cookies for JWT extraction and authentication
 # idle_session_timeout_in_secs = 900 # When set, signs Dashboard users out after this many seconds without a request
+email_token_expiry_in_secs = 86400   # Number of seconds for which email links (verify, reset password, invite, etc.) stay valid
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
