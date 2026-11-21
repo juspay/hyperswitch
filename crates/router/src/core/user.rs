@@ -82,7 +82,10 @@ pub async fn signup_with_merchant_id(
         },
     )?;
 
-    let new_user = domain::NewUser::try_from(request.clone())?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        state.conf.user.accept_password_on_signup_with_merchant_id,
+    ))?;
     new_user
         .get_new_merchant()
         .get_new_organization()
@@ -294,7 +297,26 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(&request.password)?;
+    let user_id = user_from_db.get_user_id();
+    let max_attempts = i64::from(state.conf.user.password_max_attempts);
+
+    let attempts = utils::user::password::get_password_attempts_from_redis(&state, user_id).await?;
+    if attempts >= max_attempts {
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    if !user_from_db.compare_password(&request.password)? {
+        let attempts =
+            utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
+        if attempts >= max_attempts {
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
+        }
+        return Err(UserErrors::InvalidCredentials.into());
+    }
+
+    let _ = utils::user::password::delete_password_attempts_from_redis(&state, user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -490,8 +512,9 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(&request.old_password)
-        .change_context(UserErrors::InvalidOldPassword)?;
+    if !user.compare_password(&request.old_password)? {
+        return Err(UserErrors::InvalidOldPassword.into());
+    }
 
     if request.old_password == request.new_password {
         return Err(UserErrors::ChangePasswordError.into());
@@ -605,7 +628,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(&request.password).is_ok() {
+    if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
 
@@ -1654,9 +1677,7 @@ pub async fn create_internal_user(
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
-            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-                consts::user_role::INTERNAL_USER_MERCHANT_ID,
-            ),
+            &state.conf.user.internal_merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
         .await
@@ -1679,9 +1700,7 @@ pub async fn create_internal_user(
             .attach_printable("Operation allowed only for the default tenant");
     }
 
-    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-        consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    );
+    let internal_merchant_id = state.conf.user.internal_merchant_id.clone();
 
     let internal_merchant = state
         .store
@@ -1695,7 +1714,11 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        internal_merchant.organization_id.clone(),
+        internal_merchant_id.clone(),
+    ))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
@@ -1727,6 +1750,30 @@ pub async fn create_internal_user(
         .insert_in_v2(&state)
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    // Internal users are created without a password, so send them a link to set one
+    #[cfg(feature = "email")]
+    {
+        let email_contents = email_types::ResetPassword {
+            recipient_email: user_from_storage.get_email().try_into()?,
+            user_name: domain::UserName::new(user_from_storage.get_name())?,
+            settings: state.conf.clone(),
+            auth_id: None,
+            theme_id: None,
+            theme_config: state.conf.theme.email_config.clone(),
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                user_utils::get_base_url(&state),
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+    }
 
     Ok(ApplicationResponse::StatusOk)
 }
