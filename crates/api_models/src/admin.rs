@@ -1617,10 +1617,35 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Webhook verification secret. Must contain at least one non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Optional additional secret. When supplied, must contain a non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+impl MerchantConnectorWebhookDetails {
+    /// Validate newly supplied secrets without changing stored values or deserialization.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.merchant_secret.peek().trim().is_empty() {
+            Err(
+                "connector_webhook_details.merchant_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else if self
+            .additional_secret
+            .as_ref()
+            .is_some_and(|secret| secret.peek().trim().is_empty())
+        {
+            Err(
+                "connector_webhook_details.additional_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]

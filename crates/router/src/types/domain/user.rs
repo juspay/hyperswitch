@@ -693,16 +693,23 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUserMerchant {
+impl
+    TryFrom<(
+        user_api::CreateInternalUserRequest,
+        id_type::OrganizationId,
+        id_type::MerchantId,
+    )> for NewUserMerchant
+{
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        value: (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+        (request, org_id, merchant_id): (
+            user_api::CreateInternalUserRequest,
+            id_type::OrganizationId,
+            id_type::MerchantId,
+        ),
     ) -> UserResult<Self> {
-        let merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
-        );
-        let new_organization = NewUserOrganization::from(value);
+        let new_organization = NewUserOrganization::from((request, org_id));
 
         Ok(Self {
             company_name: None,
@@ -1102,15 +1109,25 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUser {
+impl
+    TryFrom<(
+        user_api::CreateInternalUserRequest,
+        id_type::OrganizationId,
+        id_type::MerchantId,
+    )> for NewUser
+{
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        (value, org_id): (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+        (value, org_id, merchant_id): (
+            user_api::CreateInternalUserRequest,
+            id_type::OrganizationId,
+            id_type::MerchantId,
+        ),
     ) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let new_merchant = NewUserMerchant::try_from((value, org_id))?;
+        let new_merchant = NewUserMerchant::try_from((value, org_id, merchant_id))?;
 
         Ok(Self {
             name,

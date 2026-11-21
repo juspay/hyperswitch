@@ -1023,6 +1023,8 @@ pub struct UserSettings {
     pub idle_session_timeout_in_secs: Option<u32>,
     #[serde(default)]
     pub accept_password_on_signup_with_merchant_id: bool,
+    pub internal_merchant_id: common_utils::id_type::MerchantId,
+    pub email_token_expiry_in_secs: u64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

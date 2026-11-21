@@ -1651,9 +1651,7 @@ pub async fn create_internal_user(
         || Err(UserErrors::InvalidRoleId),
     )?;
 
-    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-        consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    );
+    let internal_merchant_id = state.conf.user.internal_merchant_id.clone();
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
         .accounts_store
@@ -1690,7 +1688,11 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        internal_merchant.organization_id.clone(),
+        internal_merchant_id.clone(),
+    ))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);

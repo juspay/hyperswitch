@@ -578,11 +578,13 @@ sts_role_session_name = ""
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+email_token_expiry_in_secs = 86400
 totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
 force_cookies = false
 accept_password_on_signup_with_merchant_id = true
+internal_merchant_id = "juspay000"
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)

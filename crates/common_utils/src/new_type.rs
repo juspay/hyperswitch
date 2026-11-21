@@ -258,11 +258,15 @@ impl From<String> for MaskedUpiVpaId {
         let unmasked_char_count = 2;
         let masked_value = if let Some((user_identifier, bank_or_psp)) = src.split_once('@') {
             let masked_user_identifier = user_identifier
-                .to_string()
                 .chars()
                 .take(unmasked_char_count)
                 .collect::<String>()
-                + &"*".repeat(user_identifier.len() - unmasked_char_count);
+                + &"*".repeat(
+                    user_identifier
+                        .chars()
+                        .count()
+                        .saturating_sub(unmasked_char_count),
+                );
             format!("{masked_user_identifier}@{bank_or_psp}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
@@ -285,12 +289,18 @@ impl From<String> for MaskedEmail {
     fn from(src: String) -> Self {
         let unmasked_char_count = 2;
         let masked_value = if let Some((user_identifier, domain)) = src.split_once('@') {
+            // A local part shorter than the unmasked prefix (e.g. "x@example.com") has nothing
+            // left to mask, so the mask length saturates at zero instead of underflowing.
             let masked_user_identifier = user_identifier
-                .to_string()
                 .chars()
                 .take(unmasked_char_count)
                 .collect::<String>()
-                + &"*".repeat(user_identifier.len() - unmasked_char_count);
+                + &"*".repeat(
+                    user_identifier
+                        .chars()
+                        .count()
+                        .saturating_sub(unmasked_char_count),
+                );
             format!("{masked_user_identifier}@{domain}")
         } else {
             let masked_value = apply_mask(src.as_ref(), unmasked_char_count, 8);
