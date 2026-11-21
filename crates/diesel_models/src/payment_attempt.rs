@@ -688,6 +688,10 @@ pub enum PaymentAttemptUpdate {
         payment_method_id: Option<String>,
         updated_by: String,
     },
+    PaymentMethodDetailsUpdateIfUnset {
+        payment_method_id: Option<String>,
+        updated_by: String,
+    },
     ConnectorMandateDetailUpdate {
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
@@ -3251,6 +3255,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 active_frm_id: None,
             },
             PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                payment_method_id,
+                updated_by,
+            }
+            | PaymentAttemptUpdate::PaymentMethodDetailsUpdateIfUnset {
                 payment_method_id,
                 updated_by,
             } => Self {
