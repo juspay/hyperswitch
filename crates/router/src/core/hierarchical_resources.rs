@@ -304,10 +304,18 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
     }
 }
 
+#[derive(serde::Serialize)]
+struct GooglePayPublicKeyData<'a> {
+    public_key: &'a str,
+    protocol_version: &'a str,
+    recipient_id: &'a str,
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GooglePayDisplayData {
-    #[serde(flatten)]
-    configuration: api_resources::GooglePayResourceRequest,
+    mode: api_resources::GooglePayResourceMode,
+    environment: api_resources::GooglePayResourceEnvironment,
+    google_merchant_id: String,
     public_key: String,
     protocol_version: String,
     recipient_id: String,
@@ -316,8 +324,33 @@ struct GooglePayDisplayData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GooglePayResourceData {
     merchant_id: id_type::MerchantId,
-    #[serde(flatten)]
-    public_data: GooglePayDisplayData,
+    mode: api_resources::GooglePayResourceMode,
+    environment: api_resources::GooglePayResourceEnvironment,
+    google_merchant_id: String,
+    public_key: String,
+    protocol_version: String,
+    recipient_id: String,
+}
+
+impl GooglePayResourceData {
+    fn is_linkable(&self, resource: &domain::HierarchicalResource) -> bool {
+        resource.encrypted_data.is_some()
+            && self.protocol_version == "ECv2"
+            && !self.public_key.is_empty()
+    }
+}
+
+impl From<GooglePayResourceData> for GooglePayDisplayData {
+    fn from(data: GooglePayResourceData) -> Self {
+        Self {
+            mode: data.mode,
+            environment: data.environment,
+            google_merchant_id: data.google_merchant_id,
+            public_key: data.public_key,
+            protocol_version: data.protocol_version,
+            recipient_id: data.recipient_id,
+        }
+    }
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -434,12 +467,26 @@ impl HierarchicalResourceHandler for GooglePayResource {
         .and_then(|value| value.try_into_operation())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to encrypt generated Google Pay private key")?;
-        let public_data = GooglePayDisplayData {
-            configuration: configuration.clone(),
+        let resource_data = GooglePayResourceData {
+            merchant_id: merchant_account.get_id().clone(),
+            mode: configuration.mode,
+            environment: configuration.environment,
+            google_merchant_id: configuration.google_merchant_id.clone(),
             public_key,
             protocol_version: "ECv2".to_string(),
             recipient_id: format!("merchant:{}", configuration.google_merchant_id),
         };
+        let public_key_data = serde_json::to_value(GooglePayPublicKeyData {
+            public_key: &resource_data.public_key,
+            protocol_version: &resource_data.protocol_version,
+            recipient_id: &resource_data.recipient_id,
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Google Pay public key response data")?;
+        let response_data = serde_json::Map::from_iter([(
+            common_enums::ResourceType::GooglePay.to_string(),
+            public_key_data,
+        )]);
         let resource_id = id_type::ResourceId::default();
         let resource = domain::HierarchicalResource {
             id: resource_id.clone(),
@@ -447,24 +494,20 @@ impl HierarchicalResourceHandler for GooglePayResource {
             scope: RESOURCE_SCOPE_ORGANIZATION.to_string(),
             scope_id: organization_id.get_string_repr().to_string(),
             data: Secret::new(
-                serde_json::to_value(GooglePayResourceData {
-                    merchant_id: merchant_account.get_id().clone(),
-                    public_data: public_data.clone(),
-                })
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize Google Pay resource data")?,
+                serde_json::to_value(resource_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Google Pay resource data")?,
             ),
             encrypted_data: Some(encrypted_private_key),
             created_by: format!("merchant:{}", merchant_account.get_id().get_string_repr()),
             created_at: date_time::now(),
             modified_at: date_time::now(),
         };
-        let response_data = serde_json::json!({ "google_pay": public_data });
         Ok((
             resource,
             api_resources::GenerateHierarchicalResourceResponse {
                 id: resource_id,
-                data: Secret::new(response_data),
+                data: Secret::new(serde_json::Value::Object(response_data)),
             },
         ))
     }
@@ -484,7 +527,7 @@ impl HierarchicalResourceHandler for GooglePayResource {
         resource: &domain::HierarchicalResource,
     ) -> RouterResult<Secret<serde_json::Value>> {
         let data = parse_google_pay_resource_data(resource)?;
-        serde_json::to_value(data.public_data)
+        serde_json::to_value(GooglePayDisplayData::from(data))
             .map(Secret::new)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize Google Pay resource display data")
@@ -492,9 +535,7 @@ impl HierarchicalResourceHandler for GooglePayResource {
 
     fn is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool> {
         let data = parse_google_pay_resource_data(resource)?;
-        Ok(resource.encrypted_data.is_some()
-            && data.public_data.protocol_version == "ECv2"
-            && !data.public_data.public_key.is_empty())
+        Ok(data.is_linkable(resource))
     }
 
     async fn on_link(
@@ -520,8 +561,8 @@ impl HierarchicalResourceHandler for GooglePayResource {
                 message: "resource not found".to_string(),
             }))
         })?;
-        validate_google_pay_environment(data.public_data.configuration.environment)?;
-        common_utils::fp_utils::when(!Self::is_linkable(resource)?, || {
+        validate_google_pay_environment(data.environment)?;
+        common_utils::fp_utils::when(!data.is_linkable(resource), || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Google Pay resource is not ready for linking".to_string(),
             }))
@@ -553,7 +594,7 @@ impl HierarchicalResourceHandler for GooglePayResource {
         .attach_printable("Failed to encrypt Google Pay decryption cache")?;
         let public_cache = serde_json::to_value(GooglePayResourceCachePayload {
             resource_id: resource_id.clone(),
-            data: data.public_data,
+            data: data.into(),
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize Google Pay decryption configuration")?;
@@ -599,11 +640,11 @@ impl ApplePayCertificateResource {
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Failed to verify uploaded certificate".to_string(),
         })?;
-        if !keys_match {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        common_utils::fp_utils::when(!keys_match, || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Uploaded certificate does not match the generated key".to_string(),
-            }));
-        }
+            }))
+        })?;
 
         let apple_merchant_identifier = parse_apple_merchant_identifier(&certificate)
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -805,9 +846,9 @@ async fn fetch_requestor_account(
         }
         common_enums::ResourceRequestorType::MerchantAccount => {
             let merchant_id = parse_requestor_id::<id_type::MerchantId>(requestor_id)?;
-            if &merchant_id != processor.get_account().get_id() {
-                return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound));
-            }
+            common_utils::fp_utils::when(&merchant_id != processor.get_account().get_id(), || {
+                Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+            })?;
             Ok(RequestorAccount::MerchantAccount(Box::new(
                 processor.get_account().clone(),
             )))
@@ -1133,9 +1174,23 @@ pub async fn list_hierarchical_resources(
                 || resource.created_by.strip_prefix("merchant:")
                     == Some(processor.get_account().get_id().get_string_repr())
         })
-        .filter(|resource| hierarchical_resource_is_linkable(resource).unwrap_or(false))
-        .map(|resource| hierarchical_resource_summary(resource, effective_resource_id.as_ref()))
-        .collect::<RouterResult<Vec<_>>>()?;
+        .try_fold(Vec::new(), |mut summaries, resource| {
+            let is_linkable = match req.resource_type {
+                common_enums::ResourceType::ApplePayCertificate => {
+                    hierarchical_resource_is_linkable(resource).unwrap_or(false)
+                }
+                common_enums::ResourceType::GooglePay => {
+                    hierarchical_resource_is_linkable(resource)?
+                }
+            };
+            if is_linkable {
+                summaries.push(hierarchical_resource_summary(
+                    resource,
+                    effective_resource_id.as_ref(),
+                )?);
+            }
+            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(summaries)
+        })?;
 
     Ok(ApplicationResponse::Json(
         api_resources::ListHierarchicalResourcesResponse { resources },
@@ -1254,12 +1309,11 @@ fn authorize_scope_id_belongs_to_org(
     scope_id: &str,
     organization_id: &id_type::OrganizationId,
 ) -> RouterResult<()> {
-    if scope_id != organization_id.get_string_repr() {
-        return Err(report!(errors::ApiErrorResponse::AccessForbidden {
+    common_utils::fp_utils::when(scope_id != organization_id.get_string_repr(), || {
+        Err(report!(errors::ApiErrorResponse::AccessForbidden {
             resource: "resource".to_string(),
-        }));
-    }
-    Ok(())
+        }))
+    })
 }
 
 pub(crate) async fn ensure_organization_key_store(
