@@ -103,7 +103,7 @@ export const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
-// Card the Offer Engine saved-card flow (54-OfferEngine.cy.js) saves and
+// Card the Offer Engine saved-card flow (53-OfferEngine.cy.js) saves and
 // quotes. Kept apart from successfulNo3DSCardDetails, which the plain-card
 // offer flow already uses.
 export const offerEngineSavedCardDetails = {

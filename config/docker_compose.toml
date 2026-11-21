@@ -123,10 +123,12 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+email_token_expiry_in_secs = 86400
 totp_issuer_name = "Hyperswitch"
 base_url = "http://localhost:9000"
 force_two_factor_auth = false
 force_cookies = false
+internal_merchant_id = "juspay000"
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)

@@ -273,26 +273,28 @@ where
             }
         }
 
-        // Write down entries from the span, if it exists.
-        if let Some(span) = &span {
+        let span_storage = span.as_ref().and_then(|span| {
             let extensions = span.extensions();
-            if let Some(visitor) = extensions.get::<Storage<'_>>() {
-                for (key, value) in &visitor.values {
-                    if is_extra_implicit(key) && !explicit_entries_set.contains(key) {
-                        #[cfg(feature = "log_extra_implicit_fields")]
-                        map_serializer.serialize_entry(key, value)?;
-                    } else if is_extra(key) && !explicit_entries_set.contains(key) {
-                        #[cfg(feature = "log_custom_entries_to_extra")]
-                        extra.insert(key.to_string(), value.clone());
-                        #[cfg(not(feature = "log_custom_entries_to_extra"))]
-                        map_serializer.serialize_entry(key, value)?;
-                    } else {
-                        tracing::warn!(
-                            ?key,
-                            ?value,
-                            "Attempting to log a reserved entry. It won't be added to the logs"
-                        );
-                    }
+            extensions.get::<Storage<'_>>().cloned()
+        }); // Release the span extensions lock before comparing and serializing fields.
+
+        // Write down entries from the span, if it exists.
+        if let Some(span_storage) = span_storage {
+            for (key, value) in &span_storage.values {
+                if is_extra_implicit(key) && !explicit_entries_set.contains(key) {
+                    #[cfg(feature = "log_extra_implicit_fields")]
+                    map_serializer.serialize_entry(key, value)?;
+                } else if is_extra(key) && !explicit_entries_set.contains(key) {
+                    #[cfg(feature = "log_custom_entries_to_extra")]
+                    extra.insert(key.to_string(), value.clone());
+                    #[cfg(not(feature = "log_custom_entries_to_extra"))]
+                    map_serializer.serialize_entry(key, value)?;
+                } else {
+                    tracing::warn!(
+                        ?key,
+                        ?value,
+                        "Attempting to log a reserved entry. It won't be added to the logs"
+                    );
                 }
             }
         }
