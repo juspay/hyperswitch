@@ -296,24 +296,26 @@ pub async fn signin_token_only_flow(
 
     let user_id = user_from_db.get_user_id();
 
-    if utils::user::password::is_password_sign_in_locked(&state, user_id).await? {
-        return Err(UserErrors::MaxPasswordAttemptsReached.into());
-    }
+    fp_utils::when(
+        utils::user::password::is_password_sign_in_locked(&state, user_id).await?,
+        || Err(UserErrors::MaxPasswordAttemptsReached),
+    )?;
 
     // The attempt is recorded before the password is checked, so that concurrent attempts cannot
     // get more password checks than the limit
     let attempts = utils::user::password::record_password_attempt(&state, user_id).await?;
-    if attempts > consts::user::PASSWORD_MAX_ATTEMPTS {
-        utils::user::password::lock_password_sign_in(&state, user_id).await;
+    let max_attempts = state.conf.user.password_max_attempts;
+    if attempts > max_attempts {
+        utils::user::password::lock_password_sign_in(&state, user_id).await?;
         return Err(UserErrors::MaxPasswordAttemptsReached.into());
     }
 
-    if let Err(error) = user_from_db.compare_password(&request.password) {
-        if attempts == consts::user::PASSWORD_MAX_ATTEMPTS {
-            utils::user::password::lock_password_sign_in(&state, user_id).await;
+    if !user_from_db.compare_password(&request.password)? {
+        if attempts == max_attempts {
+            utils::user::password::lock_password_sign_in(&state, user_id).await?;
             return Err(UserErrors::MaxPasswordAttemptsReached.into());
         }
-        return Err(error);
+        return Err(UserErrors::InvalidCredentials.into());
     }
 
     let _ = utils::user::password::clear_password_attempts(&state, user_id)
@@ -514,8 +516,9 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(&request.old_password)
-        .change_context(UserErrors::InvalidOldPassword)?;
+    if !user.compare_password(&request.old_password)? {
+        return Err(UserErrors::InvalidOldPassword.into());
+    }
 
     if request.old_password == request.new_password {
         return Err(UserErrors::ChangePasswordError.into());
@@ -629,7 +632,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(&request.password).is_ok() {
+    if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
 

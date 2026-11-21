@@ -150,10 +150,6 @@ fn get_password_lock_key(user_id: &str) -> String {
     format!("{}{}", consts::user::REDIS_PASSWORD_LOCK_PREFIX, user_id)
 }
 
-fn to_redis_seconds(seconds: u64) -> UserResult<i64> {
-    i64::try_from(seconds).change_context(UserErrors::InternalServerError)
-}
-
 pub async fn is_password_sign_in_locked(state: &SessionState, user_id: &str) -> UserResult<bool> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
@@ -167,7 +163,10 @@ pub async fn is_password_sign_in_locked(state: &SessionState, user_id: &str) -> 
 pub async fn record_password_attempt(state: &SessionState, user_id: &str) -> UserResult<usize> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     let key: RedisKey = get_password_attempts_key(user_id).into();
-    let window_in_secs = to_redis_seconds(consts::user::PASSWORD_ATTEMPTS_WINDOW_IN_SECS)?;
+    let window_in_secs = state.conf.user.password_attempts_window_in_secs;
+    // One more than the limit is kept, so that an attempt made concurrently with the attempt that
+    // reached the limit sees that it is over the limit
+    let attempts_to_keep = state.conf.user.password_max_attempts + 1;
     let now = common_utils::date_time::now_unix_timestamp();
 
     redis_conn
@@ -180,7 +179,7 @@ pub async fn record_password_attempt(state: &SessionState, user_id: &str) -> Use
         .change_context(UserErrors::InternalServerError)?;
 
     // One more attempt than are kept is read, which shows whether the list needs trimming
-    let read_from = i64::try_from(consts::user::PASSWORD_ATTEMPTS_TO_KEEP + 1)
+    let read_from = i64::try_from(attempts_to_keep + 1)
         .map(|count| -count)
         .change_context(UserErrors::InternalServerError)?;
     let attempts = redis_conn
@@ -188,7 +187,7 @@ pub async fn record_password_attempt(state: &SessionState, user_id: &str) -> Use
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    if attempts.len() > consts::user::PASSWORD_ATTEMPTS_TO_KEEP {
+    if attempts.len() > attempts_to_keep {
         let _ = redis_conn
             .lpop_list_elements(&key, Some(1))
             .await
@@ -199,39 +198,31 @@ pub async fn record_password_attempt(state: &SessionState, user_id: &str) -> Use
     Ok(attempts
         .iter()
         .rev()
-        .take(consts::user::PASSWORD_ATTEMPTS_TO_KEEP)
+        .take(attempts_to_keep)
         .filter_map(|attempt| attempt.parse::<i64>().ok())
         .filter(|attempted_at| *attempted_at > window_start)
         .count())
 }
 
-async fn set_password_lock(state: &SessionState, user_id: &str) -> UserResult<SetnxReply> {
+/// Locks password sign in for the lock duration, unless it is locked already.
+pub async fn lock_password_sign_in(state: &SessionState, user_id: &str) -> UserResult<()> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
-    redis_conn
+    let lock = redis_conn
         .set_key_if_not_exists_with_expiry(
             &get_password_lock_key(user_id).into(),
             common_utils::date_time::now_unix_timestamp(),
-            Some(to_redis_seconds(
-                consts::user::PASSWORD_LOCK_DURATION_IN_SECS,
-            )?),
+            Some(state.conf.user.password_lock_duration_in_secs),
         )
         .await
-        .change_context(UserErrors::InternalServerError)
-}
+        .change_context(UserErrors::InternalServerError)?;
 
-/// Locks password sign in for the lock duration, unless it is locked already. A failure to lock is
-/// only logged, as the attempts stay recorded and the next attempt locks it again.
-pub async fn lock_password_sign_in(state: &SessionState, user_id: &str) {
-    match set_password_lock(state, user_id).await {
-        Ok(SetnxReply::KeySet) => {
-            logger::warn!(
-                user_id,
-                "Password sign in locked after too many failed attempts"
-            );
-        }
-        Ok(SetnxReply::KeyNotSet) => {}
-        Err(error) => logger::error!(?error, "Failed to lock password sign in"),
+    if lock == SetnxReply::KeySet {
+        logger::warn!(
+            user_id,
+            "Password sign in locked after too many failed attempts"
+        );
     }
+    Ok(())
 }
 
 pub async fn clear_password_attempts(state: &SessionState, user_id: &str) -> UserResult<()> {

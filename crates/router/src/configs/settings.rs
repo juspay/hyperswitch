@@ -1020,6 +1020,9 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    pub password_max_attempts: usize,
+    pub password_attempts_window_in_secs: i64,
+    pub password_lock_duration_in_secs: i64,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

@@ -248,6 +248,9 @@ totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+password_max_attempts = 10
+password_attempts_window_in_secs = 1800
+password_lock_duration_in_secs = 1800
 
 [frm]
 enabled = true

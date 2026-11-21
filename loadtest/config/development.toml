@@ -65,6 +65,9 @@ two_factor_auth_expiry_in_secs = 300
 totp_issuer_name = "Hyperswitch"
 force_two_factor_auth = false
 force_cookies = false
+password_max_attempts = 10
+password_attempts_window_in_secs = 1800
+password_lock_duration_in_secs = 1800
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)

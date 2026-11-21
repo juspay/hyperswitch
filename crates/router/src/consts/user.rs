@@ -19,15 +19,6 @@ pub const TOTP_TOLERANCE: u8 = 1;
 pub const TOTP_MAX_ATTEMPTS: u8 = 4;
 /// Number of maximum attempts user has for recovery code
 pub const RECOVERY_CODE_MAX_ATTEMPTS: u8 = 4;
-/// Number of failed password sign in attempts within the window after which password sign in is locked
-pub const PASSWORD_MAX_ATTEMPTS: usize = 10;
-/// Number of the latest password sign in attempts kept. One more than the limit, so that an attempt
-/// made concurrently with the attempt that reached the limit sees that it is over the limit
-pub const PASSWORD_ATTEMPTS_TO_KEEP: usize = PASSWORD_MAX_ATTEMPTS + 1;
-/// Time for which a password sign in attempt counts towards the limit
-pub const PASSWORD_ATTEMPTS_WINDOW_IN_SECS: u64 = 30 * 60; // 30 mins
-/// Time for which password sign in stays locked once the limit is reached
-pub const PASSWORD_LOCK_DURATION_IN_SECS: u64 = 30 * 60; // 30 mins
 /// The default number of organizations to fetch for a tenant-level user
 pub const ORG_LIST_LIMIT_FOR_TENANT: u32 = 20;
 

@@ -257,6 +257,9 @@ totp_issuer_name = "Hyperswitch Sandbox"
 base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+password_max_attempts = 10
+password_attempts_window_in_secs = 1800
+password_lock_duration_in_secs = 1800
 
 [debit_routing_config]
 supported_currencies = "USD"
