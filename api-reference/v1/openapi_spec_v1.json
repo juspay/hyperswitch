@@ -28265,7 +28265,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -28682,10 +28683,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "example": "xkkdf909012sdjki2dkh5sdf",
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -28893,7 +28894,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -43737,7 +43739,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -44116,8 +44119,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
+            "nullable": true,
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
