@@ -251,6 +251,7 @@ totp_issuer_name = "Hyperswitch Integ"
 base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+accept_password_on_signup_with_merchant_id = false
 internal_merchant_id = "juspay000"
 
 [frm]
