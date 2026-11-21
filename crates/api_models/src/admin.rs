@@ -4174,11 +4174,16 @@ mod tests {
         assert!(serde_json::from_value::<T>(request.clone()).is_ok());
 
         let mut with_key = request;
-        with_key["payment_response_hash_key"] = serde_json::Value::Null;
+        with_key
+            .as_object_mut()
+            .expect("request must be a JSON object")
+            .insert("payment_response_hash_key".into(), serde_json::Value::Null);
         assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
 
         for key in [String::new(), "a".repeat(4), "a".repeat(31), "é".repeat(16)] {
-            with_key["payment_response_hash_key"] = serde_json::json!(key);
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
             let error = serde_json::from_value::<T>(with_key.clone())
                 .err()
                 .expect("short signing keys must be rejected");
@@ -4188,7 +4193,9 @@ mod tests {
         }
 
         for key in ["a".repeat(32), "a".repeat(64), "é".repeat(32)] {
-            with_key["payment_response_hash_key"] = serde_json::json!(key);
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
             assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
         }
     }
