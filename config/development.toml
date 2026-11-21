@@ -578,6 +578,7 @@ sts_role_session_name = ""
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+email_token_expiry_in_secs = 86400
 totp_issuer_name = "Hyperswitch Dev"
 base_url = "http://localhost:8080"
 force_two_factor_auth = false
