@@ -66,6 +66,7 @@ use crate::{
     router_request_types,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     type Error;
@@ -1373,7 +1374,7 @@ impl PaymentAttempt {
             feature_metadata: Some(feature_metadata),
             id,
             connector_token_details: Some(diesel_models::ConnectorTokenDetails {
-                connector_mandate_id: Some(request.processor_payment_method_token.clone()),
+                connector_mandate_id: request.processor_payment_method_token.clone(),
                 connector_token_request_reference_id: None,
             }),
             card_discovery: None,

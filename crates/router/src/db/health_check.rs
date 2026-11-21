@@ -9,6 +9,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait HealthCheckDbInterface {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError>;

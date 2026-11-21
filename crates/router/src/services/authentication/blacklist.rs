@@ -7,7 +7,7 @@ use super::AuthToken;
 #[cfg(feature = "olap")]
 use super::{SinglePurposeOrLoginToken, SinglePurposeToken};
 #[cfg(feature = "email")]
-use crate::consts::{EMAIL_TOKEN_BLACKLIST_PREFIX, EMAIL_TOKEN_TIME_IN_SECS};
+use crate::consts::EMAIL_TOKEN_BLACKLIST_PREFIX;
 use crate::{
     consts::{JWT_TOKEN_TIME_IN_SECS, ROLE_BLACKLIST_PREFIX, USER_BLACKLIST_PREFIX},
     core::errors::{ApiErrorResponse, RouterResult},
@@ -102,8 +102,8 @@ pub async fn insert_email_token_in_blacklist(state: &SessionState, token: &str) 
     let redis_conn = get_redis_connection_for_global_tenant(state)
         .change_context(UserErrors::InternalServerError)?;
     let blacklist_key = format!("{EMAIL_TOKEN_BLACKLIST_PREFIX}{token}");
-    let expiry =
-        expiry_to_i64(EMAIL_TOKEN_TIME_IN_SECS).change_context(UserErrors::InternalServerError)?;
+    let expiry = expiry_to_i64(state.conf.user.email_token_expiry_in_secs)
+        .change_context(UserErrors::InternalServerError)?;
     redis_conn
         .set_key_with_expiry(&blacklist_key.as_str().into(), true, expiry)
         .await

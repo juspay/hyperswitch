@@ -48,7 +48,7 @@ pub async fn insert_merchant_scoped_metadata_to_db(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
-        .store
+        .accounts_store
         .insert_metadata(DashboardMetadataNew {
             user_id: None,
             merchant_id,
@@ -82,7 +82,7 @@ pub async fn insert_user_scoped_metadata_to_db(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Error Converting Struct To Serde Value")?;
     state
-        .store
+        .accounts_store
         .insert_metadata(DashboardMetadataNew {
             user_id: Some(user_id.clone()),
             merchant_id,
@@ -111,7 +111,7 @@ pub async fn get_merchant_scoped_metadata_from_db(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     state
-        .store
+        .accounts_store
         .find_merchant_scoped_dashboard_metadata(&merchant_id, &org_id, metadata_keys)
         .await
         .change_context(UserErrors::InternalServerError)
@@ -125,7 +125,7 @@ pub async fn get_user_scoped_metadata_from_db(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     match state
-        .store
+        .accounts_store
         .find_user_scoped_dashboard_metadata(&user_id, &merchant_id, &org_id, metadata_keys)
         .await
     {
@@ -152,7 +152,7 @@ pub async fn get_profile_user_scoped_metadata_from_db(
     let mut results = Vec::with_capacity(metadata_keys.len());
     for key in metadata_keys {
         if let Some(metadata) = state
-            .store
+            .accounts_store
             .find_profile_scoped_dashboard_metadata(
                 &user_id,
                 &merchant_id,
@@ -183,7 +183,7 @@ pub async fn update_merchant_scoped_metadata(
         .attach_printable("Error Converting Struct To Serde Value")?;
 
     state
-        .store
+        .accounts_store
         .update_metadata(
             None,
             merchant_id,
@@ -212,7 +212,7 @@ pub async fn update_user_scoped_metadata(
         .attach_printable("Error Converting Struct To Serde Value")?;
 
     state
-        .store
+        .accounts_store
         .update_metadata(
             Some(user_id.clone()),
             merchant_id,
@@ -399,7 +399,7 @@ where
 {
     let existing = {
         state
-            .store
+            .accounts_store
             .find_profile_scoped_dashboard_metadata(
                 &user.user_id,
                 &user.merchant_id,
@@ -426,7 +426,7 @@ where
 
     match existing {
         Some(metadata) => state
-            .store
+            .accounts_store
             .update_metadata(
                 metadata.user_id,
                 metadata.merchant_id,
@@ -445,7 +445,7 @@ where
         None => {
             let now = common_utils::date_time::now();
             state
-                .store
+                .accounts_store
                 .insert_metadata(DashboardMetadataNew {
                     user_id: Some(user.user_id.clone()),
                     merchant_id: user.merchant_id,

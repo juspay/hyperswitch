@@ -166,6 +166,8 @@ pub struct PaymentIntent {
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -443,6 +445,12 @@ impl PaymentIntent {
                 )
             })
             .transpose()
+    }
+
+    pub fn get_sender_details(&self) -> Option<api_models::sender::SenderDetails> {
+        self.sender_details
+            .as_ref()
+            .map(|details| details.get_inner().clone())
     }
 
     #[cfg(feature = "v1")]
@@ -1078,6 +1086,9 @@ pub struct PaymentIntent {
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
+    /// The details of the party providing the funds in an account funded transaction.
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1290,6 +1301,14 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            sender_details: decrypted_payment_intent
+                .sender_details
+                .map(|data| {
+                    data.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?,
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             mit_category: request.mit_category,
@@ -1381,7 +1400,7 @@ impl PaymentIntent {
             connector_transaction_id: None, // No connector id
             error_code: None,
             error_message: None,
-            processor_payment_method_token: payment_processor_token.to_string(),
+            processor_payment_method_token: Some(payment_processor_token.to_string()),
             connector_customer_id: revenue_recovery_metadata
                 .billing_connector_payment_details
                 .connector_customer_id,
@@ -1655,7 +1674,7 @@ where
 #[derive(Clone)]
 pub struct RevenueRecoveryData {
     pub connector_details: common_types::payments::RecoveryConnectorDetails,
-    pub processor_payment_method_token: String,
+    pub processor_payment_method_token: Option<String>,
     pub connector_customer_id: String,
     pub retry_count: Option<u16>,
     pub invoice_next_billing_time: Option<PrimitiveDateTime>,
@@ -1752,13 +1771,45 @@ where
             ),
         );
 
+        let is_merchant_initiated = self
+            .payment_attempt
+            .feature_metadata
+            .as_ref()
+            .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
+            .is_none_or(|recovery_data| {
+                revenue_recovery::is_merchant_initiated(
+                    recovery_data.customer_present,
+                    recovery_data.setup_future_usage,
+                )
+            });
+        // A merchant-initiated transaction the merchant reported makes its card the invoice's. A
+        // customer-initiated one keeps the invoice's card and its last error code, and counts as a
+        // retry only on that card.
+        let kept_invoice_card = revenue_recovery.as_ref().filter(|_| {
+            !is_merchant_initiated
+                && matches!(
+                    connector_details,
+                    common_types::payments::RecoveryConnectorDetails::ReportedByMerchant { .. }
+                )
+        });
+        let counts_as_retry = kept_invoice_card.is_none_or(|data| {
+            self.revenue_recovery_data
+                .processor_payment_method_token
+                .as_ref()
+                == Some(
+                    &data
+                        .billing_connector_payment_details
+                        .payment_processor_token,
+                )
+        });
+
         let payment_revenue_recovery_metadata =
             Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
-                // Update retry count by one.
-                total_retry_count: revenue_recovery.as_ref().map_or(
-                    self.revenue_recovery_data.retry_count.unwrap_or(1),
-                    |data| (data.total_retry_count + 1),
-                ),
+                total_retry_count: match revenue_recovery.as_ref() {
+                    None => self.revenue_recovery_data.retry_count.unwrap_or(1),
+                    Some(data) if counts_as_retry => data.total_retry_count + 1,
+                    Some(data) => data.total_retry_count,
+                },
                 // Since this is an external system call, marking this payment_connector_transmission to ConnectorCallSucceeded.
                 payment_connector_transmission:
                     common_enums::PaymentConnectorTransmission::ConnectorCallUnsuccessful,
@@ -1766,17 +1817,27 @@ where
                 active_attempt_payment_connector_id: connector_details
                     .get_payment_connector_id()
                     .cloned(),
-                billing_connector_payment_details:
-                    diesel_models::types::BillingConnectorPaymentDetails {
+                billing_connector_payment_details: kept_invoice_card.map_or_else(
+                    || diesel_models::types::BillingConnectorPaymentDetails {
                         payment_processor_token: self
                             .revenue_recovery_data
                             .processor_payment_method_token
-                            .clone(),
+                            .clone()
+                            .or_else(|| {
+                                revenue_recovery.as_ref().map(|data| {
+                                    data.billing_connector_payment_details
+                                        .payment_processor_token
+                                        .clone()
+                                })
+                            })
+                            .unwrap_or_default(),
                         connector_customer_id: self
                             .revenue_recovery_data
                             .connector_customer_id
                             .clone(),
                     },
+                    |data| data.billing_connector_payment_details.clone(),
+                ),
                 payment_method_type: self.payment_attempt.payment_method_type,
                 payment_method_subtype: self
                     .payment_attempt
@@ -1798,7 +1859,10 @@ where
                     .as_ref()
                     .and_then(|data| data.invoice_billing_started_at_time)
                     .or(self.revenue_recovery_data.invoice_billing_started_at_time),
-                billing_connector_payment_method_details,
+                billing_connector_payment_method_details: kept_invoice_card
+                    .map_or(billing_connector_payment_method_details, |data| {
+                        data.billing_connector_payment_method_details.clone()
+                    }),
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
@@ -1808,7 +1872,13 @@ where
                 external_trigger_state: revenue_recovery
                     .as_ref()
                     .and_then(|data| data.external_trigger_state.clone()),
-                last_failure_code: self.revenue_recovery_data.standardised_error_code,
+                last_failure_code: if counts_as_retry {
+                    self.revenue_recovery_data.standardised_error_code
+                } else {
+                    revenue_recovery
+                        .as_ref()
+                        .and_then(|data| data.last_failure_code)
+                },
             });
         Ok(Some(FeatureMetadata {
             multi_currency_processing: payment_intent_feature_metadata

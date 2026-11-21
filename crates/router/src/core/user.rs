@@ -82,7 +82,10 @@ pub async fn signup_with_merchant_id(
         },
     )?;
 
-    let new_user = domain::NewUser::try_from(request.clone())?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        state.conf.user.accept_password_on_signup_with_merchant_id,
+    ))?;
     new_user
         .get_new_merchant()
         .get_new_organization()
@@ -150,17 +153,15 @@ pub async fn get_active_user_details(
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Failed to retrieve role information")?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let merchant_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await;
 
     let version = if let Ok(merchant_key_store) = merchant_key_store {
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
             .await;
 
@@ -294,7 +295,26 @@ pub async fn signin_token_only_flow(
         .to_not_found_response(UserErrors::InvalidCredentials)?
         .into();
 
-    user_from_db.compare_password(&request.password)?;
+    let user_id = user_from_db.get_user_id();
+    let max_attempts = i64::from(state.conf.user.password_max_attempts);
+
+    let attempts = utils::user::password::get_password_attempts_from_redis(&state, user_id).await?;
+    if attempts >= max_attempts {
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    if !user_from_db.compare_password(&request.password)? {
+        let attempts =
+            utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
+        if attempts >= max_attempts {
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
+        }
+        return Err(UserErrors::InvalidCredentials.into());
+    }
+
+    let _ = utils::user::password::delete_password_attempts_from_redis(&state, user_id)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -449,17 +469,15 @@ pub async fn get_user_merchant_details(
     state: SessionState,
     user_from_token: auth::UserFromToken,
 ) -> UserResponse<UserMerchantDetailsResponse> {
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .change_context(UserErrors::InternalServerError)?;
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
         .await
         .change_context(UserErrors::InternalServerError)?;
@@ -490,8 +508,9 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(&request.old_password)
-        .change_context(UserErrors::InvalidOldPassword)?;
+    if !user.compare_password(&request.old_password)? {
+        return Err(UserErrors::InvalidOldPassword.into());
+    }
 
     if request.old_password == request.new_password {
         return Err(UserErrors::ChangePasswordError.into());
@@ -520,7 +539,7 @@ pub async fn change_password(
     #[cfg(not(feature = "email"))]
     {
         state
-            .store
+            .accounts_store
             .delete_user_scoped_dashboard_metadata_by_merchant_id_data_key(
                 &user_from_token.user_id,
                 &user_from_token.merchant_id,
@@ -605,7 +624,7 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(&request.password).is_ok() {
+    if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
 
@@ -781,18 +800,19 @@ async fn handle_invitation(
         match req_role_info.get_entity_type() {
             EntityType::Tenant | EntityType::Organization => {}
             EntityType::Merchant | EntityType::Profile => {
+                let key_store_master_key = state.store.get_master_key().to_vec().into();
                 let merchant_key_store = state
-                    .store
+                    .accounts_store
                     .get_merchant_key_store_by_merchant_id(
                         &user_from_token.merchant_id,
-                        &state.store.get_master_key().to_vec().into(),
+                        &key_store_master_key,
                     )
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
                 let merchant_account = state
-                    .store
+                    .accounts_store
                     .find_merchant_account_by_merchant_id(
                         &user_from_token.merchant_id,
                         &merchant_key_store,
@@ -1651,14 +1671,11 @@ pub async fn create_internal_user(
         || Err(UserErrors::InvalidRoleId),
     )?;
 
+    let internal_merchant_id = state.conf.user.internal_merchant_id.clone();
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-                consts::user_role::INTERNAL_USER_MERCHANT_ID,
-            ),
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&internal_merchant_id, &key_store_master_key)
         .await
         .map_err(|e| {
             if e.current_context().is_db_not_found() {
@@ -1679,12 +1696,8 @@ pub async fn create_internal_user(
             .attach_printable("Operation allowed only for the default tenant");
     }
 
-    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-        consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    );
-
     let internal_merchant = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&internal_merchant_id, &key_store)
         .await
         .map_err(|e| {
@@ -1695,7 +1708,11 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        internal_merchant.organization_id.clone(),
+        internal_merchant_id.clone(),
+    ))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
@@ -1728,6 +1745,30 @@ pub async fn create_internal_user(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
+    // Internal users are created without a password, so send them a link to set one
+    #[cfg(feature = "email")]
+    {
+        let email_contents = email_types::ResetPassword {
+            recipient_email: user_from_storage.get_email().try_into()?,
+            user_name: domain::UserName::new(user_from_storage.get_name())?,
+            settings: state.conf.clone(),
+            auth_id: None,
+            theme_id: None,
+            theme_config: state.conf.theme.email_config.clone(),
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                user_utils::get_base_url(&state),
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+    }
+
     Ok(ApplicationResponse::StatusOk)
 }
 
@@ -1736,7 +1777,7 @@ pub async fn create_tenant_user(
     request: user_api::CreateTenantUserRequest,
 ) -> UserResponse<()> {
     let (merchant_id, org_id) = state
-        .store
+        .accounts_store
         .list_merchant_and_org_ids(1, None)
         .await
         .change_context(UserErrors::InternalServerError)
@@ -1806,14 +1847,13 @@ pub async fn create_platform_account(
 
     let organization_id = organization.get_organization_id();
     state
-        .track_accounts_query(|db| {
-            db.update_organization_by_org_id(
-                &organization_id,
-                diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
-                    platform_merchant_id: merchant_account.get_id().clone(),
-                },
-            )
-        })
+        .accounts_store
+        .update_organization_by_org_id(
+            &organization_id,
+            diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                platform_merchant_id: merchant_account.get_id().clone(),
+            },
+        )
         .await
         .change_context(UserErrors::InternalServerError)?;
 
@@ -1859,7 +1899,8 @@ pub async fn create_org_merchant_for_user(
 ) -> UserResponse<()> {
     let db_organization = ForeignFrom::foreign_from(req.clone());
     let org: diesel_models::organization::Organization = state
-        .track_accounts_query(|db| db.insert_organization(db_organization))
+        .accounts_store
+        .insert_organization(db_organization)
         .await
         .change_context(UserErrors::InternalServerError)?;
     let default_product_type = consts::user::DEFAULT_PRODUCT_TYPE;
@@ -1962,7 +2003,8 @@ pub async fn list_user_roles_details(
         .collect::<HashSet<_>>();
 
     let org_name = state
-        .track_accounts_query(|db| db.find_organization_by_org_id(&user_from_token.org_id))
+        .accounts_store
+        .find_organization_by_org_id(&user_from_token.org_id)
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Org id not found")?
@@ -2019,7 +2061,7 @@ pub async fn list_user_roles_details(
     )?;
 
     let merchant_map = state
-        .store
+        .accounts_store
         .list_multiple_merchant_accounts(merchant_ids)
         .await
         .change_context(UserErrors::InternalServerError)
@@ -2035,18 +2077,19 @@ pub async fn list_user_roles_details(
 
     let profile_map = futures::future::try_join_all(merchant_profile_ids.iter().map(
         |merchant_profile_id| async {
+            let key_store_master_key = state.store.get_master_key().to_vec().into();
             let merchant_key_store = state
-                .store
+                .accounts_store
                 .get_merchant_key_store_by_merchant_id(
                     &merchant_profile_id.0,
-                    &state.store.get_master_key().to_vec().into(),
+                    &key_store_master_key,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
             state
-                .store
+                .accounts_store
                 .find_business_profile_by_profile_id(&merchant_key_store, &merchant_profile_id.1)
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -3217,7 +3260,7 @@ pub async fn list_orgs_for_user(
     }
     let orgs = match role_info.get_entity_type() {
         EntityType::Tenant => state
-            .store
+            .accounts_store
             .list_merchant_and_org_ids(consts::user::ORG_LIST_LIMIT_FOR_TENANT, None)
             .await
             .change_context(UserErrors::InternalServerError)?
@@ -3249,7 +3292,7 @@ pub async fn list_orgs_for_user(
 
     let resp = futures::future::try_join_all(
         orgs.iter()
-            .map(|org_id| state.track_accounts_query(|db| db.find_organization_by_org_id(org_id))),
+            .map(|org_id| state.accounts_store.find_organization_by_org_id(org_id)),
     )
     .await
     .change_context(UserErrors::InternalServerError)?
@@ -3293,7 +3336,7 @@ pub async fn list_merchants_for_user_in_org(
 
     let merchant_accounts = match role_info.get_entity_type() {
         EntityType::Tenant | EntityType::Organization => state
-            .store
+            .accounts_store
             .list_merchant_accounts_by_organization_id(&user_from_token.org_id)
             .await
             .change_context(UserErrors::InternalServerError)?,
@@ -3323,7 +3366,7 @@ pub async fn list_merchants_for_user_in_org(
                 .collect();
 
             state
-                .store
+                .accounts_store
                 .list_multiple_merchant_accounts(merchant_ids)
                 .await
                 .change_context(UserErrors::InternalServerError)?
@@ -3363,17 +3406,15 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
     .await
     .change_context(UserErrors::InternalServerError)?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .change_context(UserErrors::InternalServerError)?;
     let profiles = match role_info.get_entity_type() {
         EntityType::Tenant | EntityType::Organization | EntityType::Merchant => state
-            .store
+            .accounts_store
             .list_profile_by_merchant_id(&key_store, &user_from_token.merchant_id)
             .await
             .change_context(UserErrors::InternalServerError)?,
@@ -3402,7 +3443,7 @@ pub async fn list_profiles_for_user_in_org_and_merchant_account(
 
             futures::future::try_join_all(profile_ids.iter().map(|profile_id| {
                 state
-                    .store
+                    .accounts_store
                     .find_business_profile_by_profile_id(&key_store, profile_id)
             }))
             .await
@@ -3462,7 +3503,7 @@ pub async fn switch_org_for_user(
     let (merchant_id, profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Tenant => {
             let merchant_id = state
-                .store
+                .accounts_store
                 .list_merchant_accounts_by_organization_id(&request.org_id)
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -3473,17 +3514,15 @@ pub async fn switch_org_for_user(
                 .get_id()
                 .to_owned();
 
+            let key_store_master_key = state.store.get_master_key().to_vec().into();
             let key_store = state
-                .store
-                .get_merchant_key_store_by_merchant_id(
-                    &merchant_id,
-                    &state.store.get_master_key().to_vec().into(),
-                )
+                .accounts_store
+                .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
                 .await
                 .change_context(UserErrors::InternalServerError)?;
 
             let profile_id = state
-                .store
+                .accounts_store
                 .list_profile_by_merchant_id(&key_store, &merchant_id)
                 .await
                 .change_context(UserErrors::InternalServerError)?
@@ -3602,23 +3641,21 @@ pub async fn switch_merchant_for_user_in_org(
 
     // Check if the role is internal and handle separately
     let (org_id, merchant_id, profile_id, role_id) = if role_info.is_internal() {
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &request.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&request.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&request.merchant_id, &merchant_key_store)
             .await
             .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
         let profile_id = state
-            .store
+            .accounts_store
             .list_profile_by_merchant_id(&merchant_key_store, &request.merchant_id)
             .await
             .change_context(UserErrors::InternalServerError)
@@ -3639,17 +3676,18 @@ pub async fn switch_merchant_for_user_in_org(
         // Match based on the other entity types
         match role_info.get_entity_type() {
             EntityType::Tenant | EntityType::Organization => {
+                let key_store_master_key = state.store.get_master_key().to_vec().into();
                 let merchant_key_store = state
-                    .store
+                    .accounts_store
                     .get_merchant_key_store_by_merchant_id(
                         &request.merchant_id,
-                        &state.store.get_master_key().to_vec().into(),
+                        &key_store_master_key,
                     )
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
                 let merchant_id = state
-                    .store
+                    .accounts_store
                     .find_merchant_account_by_merchant_id(&request.merchant_id, &merchant_key_store)
                     .await
                     .change_context(UserErrors::MerchantIdNotFound)?
@@ -3663,7 +3701,7 @@ pub async fn switch_merchant_for_user_in_org(
                     })?;
 
                 let profile_id = state
-                    .store
+                    .accounts_store
                     .list_profile_by_merchant_id(&merchant_key_store, &merchant_id)
                     .await
                     .change_context(UserErrors::InternalServerError)
@@ -3797,18 +3835,19 @@ pub async fn switch_profile_for_user_in_org_and_merchant(
 
     let (profile_id, role_id) = match role_info.get_entity_type() {
         EntityType::Tenant | EntityType::Organization | EntityType::Merchant => {
+            let key_store_master_key = state.store.get_master_key().to_vec().into();
             let merchant_key_store = state
-                .store
+                .accounts_store
                 .get_merchant_key_store_by_merchant_id(
                     &user_from_token.merchant_id,
-                    &state.store.get_master_key().to_vec().into(),
+                    &key_store_master_key,
                 )
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
             let profile_id = state
-                .store
+                .accounts_store
                 .find_business_profile_by_merchant_id_profile_id(
                     &merchant_key_store,
                     &user_from_token.merchant_id,
@@ -3925,19 +3964,17 @@ pub async fn clone_connector(
         },
     )?;
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&user_from_token.merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
             "Merchant account not found".to_string(),
         ))?;
 
     let source_mca = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &user_from_token.merchant_id,
             &request.source_mca_id,
@@ -3955,7 +3992,7 @@ pub async fn clone_connector(
     })?;
 
     state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             &key_store,
             &user_from_token.merchant_id,
@@ -3990,7 +4027,7 @@ pub async fn clone_connector(
     .await?;
 
     let merchant_account = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &key_store)
         .await
         .to_not_found_response(UserErrors::InvalidCloneConnectorOperation(
@@ -4033,7 +4070,7 @@ pub async fn issue_embedded_token(
         .get_id()
         .clone();
     state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             processor.get_key_store(),
             processor.get_account().get_id(),

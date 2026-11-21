@@ -88,7 +88,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = state
-            .store
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,

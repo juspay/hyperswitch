@@ -59,13 +59,6 @@ impl MerchantId {
         Self(length_id)
     }
 
-    /// Get a merchant id for internal use only
-    pub fn get_internal_user_merchant_id(merchant_id: &str) -> Self {
-        let alphanumeric_id = AlphaNumericId::new_unchecked(merchant_id.to_string());
-        let length_id = LengthId::new_unchecked(alphanumeric_id);
-        Self(length_id)
-    }
-
     /// Create a new merchant_id from unix timestamp, of the format `merchant_{timestamp}`
     pub fn new_from_unix_timestamp() -> Self {
         let merchant_id = format!("merchant_{}", date_time::now_unix_timestamp());
