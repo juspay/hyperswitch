@@ -295,15 +295,15 @@ pub async fn signin_token_only_flow(
     let user_id = user_from_db.get_user_id();
     let max_attempts = i64::from(state.conf.user.password_max_attempts);
 
-    let attempts =
-        utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
-    if attempts > max_attempts {
+    let attempts = utils::user::password::get_password_attempts_from_redis(&state, user_id).await?;
+    if attempts >= max_attempts {
         return Err(UserErrors::MaxPasswordAttemptsReached.into());
     }
 
     if !user_from_db.compare_password(&request.password)? {
-        utils::user::password::reset_password_attempts_expiry_in_redis(&state, user_id).await?;
-        if attempts == max_attempts {
+        let attempts =
+            utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
+        if attempts >= max_attempts {
             return Err(UserErrors::MaxPasswordAttemptsReached.into());
         }
         return Err(UserErrors::InvalidCredentials.into());

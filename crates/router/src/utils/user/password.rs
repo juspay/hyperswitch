@@ -144,32 +144,36 @@ fn get_password_attempts_key(user_id: &str) -> String {
     )
 }
 
-pub async fn increment_password_attempts_in_redis(
+pub async fn get_password_attempts_from_redis(
     state: &SessionState,
     user_id: &str,
 ) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .increment_key_with_expiry(
-            &get_password_attempts_key(user_id).into(),
-            state.conf.user.password_lock_duration_in_secs,
-        )
+        .get_key::<Option<i64>>(&get_password_attempts_key(user_id).into())
         .await
         .change_context(UserErrors::InternalServerError)
+        .map(|v| v.unwrap_or(0))
 }
 
-pub async fn reset_password_attempts_expiry_in_redis(
+pub async fn increment_password_attempts_in_redis(
     state: &SessionState,
     user_id: &str,
-) -> UserResult<()> {
+) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
-    redis_conn
-        .set_expiry(
-            &get_password_attempts_key(user_id).into(),
-            state.conf.user.password_lock_duration_in_secs,
-        )
+    let key = get_password_attempts_key(user_id).into();
+    let lock_duration_in_secs = state.conf.user.password_lock_duration_in_secs;
+
+    let attempts = redis_conn
+        .increment_key_with_expiry(&key, lock_duration_in_secs)
         .await
-        .change_context(UserErrors::InternalServerError)
+        .change_context(UserErrors::InternalServerError)?;
+    redis_conn
+        .set_expiry(&key, lock_duration_in_secs)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(attempts)
 }
 
 pub async fn delete_password_attempts_from_redis(
