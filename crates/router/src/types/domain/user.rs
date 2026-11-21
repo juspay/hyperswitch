@@ -1034,15 +1034,18 @@ impl TryFrom<NewUser> for storage_user::UserNew {
     }
 }
 
-impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
+impl TryFrom<(user_api::SignUpWithMerchantIdRequest, bool)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+    fn try_from(
+        (value, accept_password): (user_api::SignUpWithMerchantIdRequest, bool),
+    ) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
         let password = value
             .password
             .clone()
+            .filter(|_| accept_password)
             .map(|password| {
                 UserPassword::new(password).map(|password| NewUserPassword {
                     password,

@@ -65,19 +65,13 @@ pub mod launch_sage;
 pub mod sample_data;
 pub mod theme;
 
+#[cfg(feature = "email")]
 pub async fn signup_with_merchant_id(
     state: SessionState,
     request: user_api::SignUpWithMerchantIdRequest,
     auth_id: Option<String>,
     theme_id: Option<String>,
 ) -> UserResponse<user_api::SignUpWithMerchantIdResponse> {
-    let password = state
-        .conf
-        .user
-        .accept_password_on_signup_with_merchant_id
-        .then(|| request.password.clone())
-        .flatten();
-
     // Validate platform feature is enabled if Platform org requested
     fp_utils::when(
         request.organization_type == Some(common_enums::OrganizationType::Platform)
@@ -88,10 +82,10 @@ pub async fn signup_with_merchant_id(
         },
     )?;
 
-    let new_user = domain::NewUser::try_from(user_api::SignUpWithMerchantIdRequest {
-        password,
-        ..request.clone()
-    })?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        state.conf.user.accept_password_on_signup_with_merchant_id,
+    ))?;
     new_user
         .get_new_merchant()
         .get_new_organization()
