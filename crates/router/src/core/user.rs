@@ -82,7 +82,10 @@ pub async fn signup_with_merchant_id(
         },
     )?;
 
-    let new_user = domain::NewUser::try_from(request.clone())?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        state.conf.user.accept_password_on_signup_with_merchant_id,
+    ))?;
     new_user
         .get_new_merchant()
         .get_new_organization()
@@ -1741,6 +1744,30 @@ pub async fn create_internal_user(
         .insert_in_v2(&state)
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    // Internal users are created without a password, so send them a link to set one
+    #[cfg(feature = "email")]
+    {
+        let email_contents = email_types::ResetPassword {
+            recipient_email: user_from_storage.get_email().try_into()?,
+            user_name: domain::UserName::new(user_from_storage.get_name())?,
+            settings: state.conf.clone(),
+            auth_id: None,
+            theme_id: None,
+            theme_config: state.conf.theme.email_config.clone(),
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                user_utils::get_base_url(&state),
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+    }
 
     Ok(ApplicationResponse::StatusOk)
 }
