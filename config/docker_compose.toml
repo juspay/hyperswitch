@@ -128,6 +128,7 @@ totp_issuer_name = "Hyperswitch"
 base_url = "http://localhost:9000"
 force_two_factor_auth = false
 force_cookies = false
+internal_merchant_id = "juspay000"
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)

@@ -260,6 +260,7 @@ totp_issuer_name = "Hyperswitch Sandbox"
 base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+internal_merchant_id = "juspay000"
 
 [debit_routing_config]
 supported_currencies = "USD"
